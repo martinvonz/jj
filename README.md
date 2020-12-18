@@ -130,9 +130,9 @@ commit to be the difference compared to the merged parents (the so-called "evil"
 part of the merge), so that's what Jujube does. Rebasing merge commits therefore
 works as you would expect (Git and Mercurial both handle rebasing of merge
 commits poorly). It's even possible to change the number of parents while
-rebasing, so if A is non-merge commit, you can make it a merge commit a merge
-commit with `jj rebase -r A -d B -d C`. `jj diff -r <commit>` will show you the
-diff compared to the merged parents.
+rebasing, so if A is non-merge commit, you can make it a merge commit with `jj
+rebase -r A -d B -d C`. `jj diff -r <commit>` will show you the diff compared to
+the merged parents.
 
 I intend for commands that present the contents of a tree (such as listing
 files) to use the "add" state(s) of the conflict, but that's not yet done.
