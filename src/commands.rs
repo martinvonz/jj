@@ -81,7 +81,7 @@ fn resolve_commit_id_prefix(
     repo: &ReadonlyRepo,
     prefix: &HexPrefix,
 ) -> Result<CommitId, CommandError> {
-    let index = repo.index().index_file();
+    let index = repo.index();
     match index.as_composite().resolve_prefix(prefix) {
         PrefixResolution::NoMatch => Err(CommandError::UserError(String::from("No such commit"))),
         PrefixResolution::AmbiguousMatch => {
@@ -1564,7 +1564,7 @@ fn cmd_debug(
         writeln!(ui, "{:?}", parse);
     } else if let Some(_reindex_matches) = sub_matches.subcommand_matches("index") {
         let repo = get_repo(ui, &matches)?;
-        let index = repo.index().index_file();
+        let index = repo.index();
         let stats = index.as_composite().stats();
         writeln!(ui, "Number of commits: {}", stats.num_commits);
         writeln!(ui, "Number of merges: {}", stats.num_merges);
@@ -1583,7 +1583,7 @@ fn cmd_debug(
         writeln!(
             ui,
             "Finished indexing {:?} commits.",
-            index.index_file().as_composite().num_commits()
+            index.as_composite().num_commits()
         );
     } else {
         panic!("unhandled command: {:#?}", matches);
@@ -1619,7 +1619,7 @@ fn cmd_bench(
             mut_repo,
             command_matches.value_of("descendant").unwrap(),
         )?;
-        let index = repo.index().index_file();
+        let index = repo.index();
         let index = index.as_composite();
         let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
         writeln!(ui, "Result: {:?}", routine());
@@ -1633,7 +1633,7 @@ fn cmd_bench(
             resolve_single_rev(ui, mut_repo, command_matches.value_of("unwanted").unwrap())?;
         let wanted_commit =
             resolve_single_rev(ui, mut_repo, command_matches.value_of("wanted").unwrap())?;
-        let index = repo.index().index_file();
+        let index = repo.index();
         let index = index.as_composite();
         let routine = || {
             index
@@ -1650,7 +1650,7 @@ fn cmd_bench(
     } else if let Some(command_matches) = sub_matches.subcommand_matches("resolveprefix") {
         let repo = get_repo(ui, &matches)?;
         let prefix = HexPrefix::new(command_matches.value_of("prefix").unwrap().to_string());
-        let index = repo.index().index_file();
+        let index = repo.index();
         let index = index.as_composite();
         let routine = || index.resolve_prefix(&prefix);
         writeln!(ui, "Result: {:?}", routine());

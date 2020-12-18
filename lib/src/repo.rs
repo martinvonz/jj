@@ -24,7 +24,7 @@ use thiserror::Error;
 use crate::commit_builder::{new_change_id, signature};
 use crate::evolution::{Evolution, ReadonlyEvolution};
 use crate::git_store::GitStore;
-use crate::index::Index;
+use crate::index::{Index, IndexFile};
 use crate::local_store::LocalStore;
 use crate::operation::Operation;
 use crate::settings::{RepoSettings, UserSettings};
@@ -65,7 +65,7 @@ pub struct ReadonlyRepo {
     wc_path: PathBuf,
     store: Arc<StoreWrapper>,
     settings: RepoSettings,
-    index: Mutex<Option<Arc<Index>>>,
+    index: Mutex<Option<Arc<IndexFile>>>,
     working_copy: Arc<Mutex<WorkingCopy>>,
     view: ReadonlyView,
     evolution: Option<ReadonlyEvolution<'static>>,
@@ -217,20 +217,16 @@ impl ReadonlyRepo {
         &self.wc_path
     }
 
-    pub fn index(&self) -> Arc<Index> {
+    pub fn index(&self) -> Arc<IndexFile> {
         let mut locked_index = self.index.lock().unwrap();
         if locked_index.is_none() {
             let op_id = self.view.base_op_head_id().clone();
-            locked_index.replace(Arc::new(Index::load(
-                self,
-                self.repo_path.join("index"),
-                op_id,
-            )));
+            locked_index.replace(Index::load(self, self.repo_path.join("index"), op_id));
         }
         locked_index.as_ref().unwrap().clone()
     }
 
-    pub fn reindex(&mut self) -> Arc<Index> {
+    pub fn reindex(&mut self) -> Arc<IndexFile> {
         Index::reinit(self.repo_path.join("index"));
         {
             let mut locked_index = self.index.lock().unwrap();

@@ -1103,9 +1103,7 @@ impl IndexFile {
     }
 }
 
-pub struct Index {
-    index_file: Arc<IndexFile>,
-}
+pub struct Index;
 
 impl Index {
     pub fn init(dir: PathBuf) {
@@ -1117,7 +1115,7 @@ impl Index {
         Index::init(dir);
     }
 
-    pub fn load(repo: &ReadonlyRepo, dir: PathBuf, op_id: OperationId) -> Index {
+    pub fn load(repo: &ReadonlyRepo, dir: PathBuf, op_id: OperationId) -> Arc<IndexFile> {
         let op_id_hex = op_id.hex();
         let op_id_file = dir.join("operations").join(&op_id_hex);
         let index_file = if op_id_file.exists() {
@@ -1128,15 +1126,7 @@ impl Index {
             IndexFile::index(repo.store(), &dir, &op).unwrap()
         };
 
-        Index {
-            index_file: Arc::new(index_file),
-        }
-    }
-
-    // TODO: Maybe just call this data() or something? We should also hide the
-    // IndexFile type from the API.
-    pub fn index_file(&self) -> Arc<IndexFile> {
-        self.index_file.clone()
+        Arc::new(index_file)
     }
 }
 

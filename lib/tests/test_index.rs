@@ -38,7 +38,7 @@ fn test_index_commits_empty_repo(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    let index = repo.index().index_file();
+    let index = repo.index();
     let index = index.as_composite();
     // There should be the root commit and the working copy commit
     assert_eq!(index.num_commits(), 2);
@@ -87,7 +87,7 @@ fn test_index_commits_standard_cases(use_git: bool) {
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
-    let index = repo.index().index_file();
+    let index = repo.index();
     let index = index.as_composite();
     // There should be the root commit and the working copy commit, plus
     // 8 more
@@ -160,7 +160,7 @@ fn test_index_commits_criss_cross(use_git: bool) {
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
-    let index = repo.index().index_file();
+    let index = repo.index();
     let index = index.as_composite();
     // There should the root commit and the working copy commit, plus 2 for each
     // generation
@@ -276,7 +276,7 @@ fn test_index_commits_previous_operations(use_git: bool) {
     std::fs::create_dir(&index_operations_dir).unwrap();
 
     let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone());
-    let index = repo.index().index_file();
+    let index = repo.index();
     let index = index.as_composite();
     // There should be the root commit and the working copy commit, plus
     // 3 more
@@ -312,7 +312,7 @@ fn test_index_commits_incremental(use_git: bool) {
         child_commit(&settings, &repo, &root_commit).write_to_new_transaction(&repo, "test");
     Arc::get_mut(&mut repo).unwrap().reload();
 
-    let index = repo.index().index_file();
+    let index = repo.index();
     let index = index.as_composite();
     // There should be the root commit and the working copy commit, plus
     // 1 more
@@ -324,7 +324,7 @@ fn test_index_commits_incremental(use_git: bool) {
     tx.commit();
 
     let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone());
-    let index = repo.index().index_file();
+    let index = repo.index();
     let index = index.as_composite();
     // There should be the root commit and the working copy commit, plus
     // 3 more
@@ -362,7 +362,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
         child_commit(&settings, &repo, &root_commit).write_to_new_transaction(&repo, "test");
     Arc::get_mut(&mut repo).unwrap().reload();
 
-    let index = repo.index().index_file();
+    let index = repo.index();
     let index = index.as_composite();
     // There should be the root commit and the working copy commit, plus
     // 1 more
@@ -371,7 +371,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     repo.start_transaction("test").commit();
 
     let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone());
-    let index = repo.index().index_file();
+    let index = repo.index();
     let index = index.as_composite();
     // There should be the root commit and the working copy commit, plus
     // 1 more
