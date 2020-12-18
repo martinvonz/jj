@@ -20,7 +20,7 @@ use std::fs::File;
 use std::io;
 use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use blake2::{Blake2b, Digest};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -1103,14 +1103,11 @@ impl IndexFile {
     }
 }
 
-pub struct Index<'r> {
-    repo: &'r ReadonlyRepo,
-    dir: PathBuf,
-    op_id: Mutex<OperationId>,
-    index_file: Mutex<Option<Arc<IndexFile>>>,
+pub struct Index {
+    index_file: Arc<IndexFile>,
 }
 
-impl Index<'_> {
+impl Index {
     pub fn init(dir: PathBuf) {
         std::fs::create_dir(dir.join("operations")).unwrap();
     }
@@ -1121,39 +1118,25 @@ impl Index<'_> {
     }
 
     pub fn load(repo: &ReadonlyRepo, dir: PathBuf, op_id: OperationId) -> Index {
+        let op_id_hex = op_id.hex();
+        let op_id_file = dir.join("operations").join(&op_id_hex);
+        let index_file = if op_id_file.exists() {
+            let op_id = OperationId(hex::decode(op_id_hex).unwrap());
+            IndexFile::load_at_operation(&dir, repo.store().hash_length(), &op_id).unwrap()
+        } else {
+            let op = repo.view().get_operation(&op_id).unwrap();
+            IndexFile::index(repo.store(), &dir, &op).unwrap()
+        };
+
         Index {
-            repo,
-            dir,
-            op_id: Mutex::new(op_id),
-            index_file: Mutex::new(None),
+            index_file: Arc::new(index_file),
         }
     }
 
     // TODO: Maybe just call this data() or something? We should also hide the
     // IndexFile type from the API.
     pub fn index_file(&self) -> Arc<IndexFile> {
-        let mut locked_index_file = self.index_file.lock().unwrap();
-        if locked_index_file.is_none() {
-            locked_index_file.replace(Arc::new(self.do_load()));
-        }
-        locked_index_file.as_ref().unwrap().clone()
-    }
-
-    fn do_load(&self) -> IndexFile {
-        let op_id_hex = self.op_id.lock().unwrap().hex();
-        let op_id_file = self.dir.join("operations").join(&op_id_hex);
-        if op_id_file.exists() {
-            let op_id = OperationId(hex::decode(op_id_hex).unwrap());
-            IndexFile::load_at_operation(&self.dir, self.repo.store().hash_length(), &op_id)
-                .unwrap()
-        } else {
-            let op = self
-                .repo
-                .view()
-                .get_operation(&self.op_id.lock().unwrap())
-                .unwrap();
-            IndexFile::index(self.repo.store(), &self.dir, &op).unwrap()
-        }
+        self.index_file.clone()
     }
 }
 

@@ -65,7 +65,7 @@ pub struct ReadonlyRepo {
     wc_path: PathBuf,
     store: Arc<StoreWrapper>,
     settings: RepoSettings,
-    index: Mutex<Option<Arc<Index<'static>>>>,
+    index: Mutex<Option<Arc<Index>>>,
     working_copy: Arc<Mutex<WorkingCopy>>,
     view: ReadonlyView,
     evolution: Option<ReadonlyEvolution<'static>>,
@@ -217,23 +217,17 @@ impl ReadonlyRepo {
         &self.wc_path
     }
 
-    pub fn index<'r>(&'r self) -> Arc<Index<'r>> {
+    pub fn index(&self) -> Arc<Index> {
         let mut locked_index = self.index.lock().unwrap();
         if locked_index.is_none() {
-            let repo_ref: &ReadonlyRepo = self;
             let op_id = self.view.base_op_head_id().clone();
-            let static_lifetime_repo: &'static ReadonlyRepo =
-                unsafe { std::mem::transmute(repo_ref) };
             locked_index.replace(Arc::new(Index::load(
-                static_lifetime_repo,
+                self,
                 self.repo_path.join("index"),
                 op_id,
             )));
         }
-        let index: Arc<Index<'static>> = locked_index.as_ref().unwrap().clone();
-        // cast to lifetime of self
-        let index: Arc<Index<'r>> = unsafe { std::mem::transmute(index) };
-        index
+        locked_index.as_ref().unwrap().clone()
     }
 
     pub fn reindex(&mut self) -> Arc<Index> {
