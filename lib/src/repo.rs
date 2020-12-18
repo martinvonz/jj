@@ -24,7 +24,7 @@ use thiserror::Error;
 use crate::commit_builder::{new_change_id, signature};
 use crate::evolution::{Evolution, ReadonlyEvolution};
 use crate::git_store::GitStore;
-use crate::index::{Index, IndexFile};
+use crate::index::IndexFile;
 use crate::local_store::LocalStore;
 use crate::operation::Operation;
 use crate::settings::{RepoSettings, UserSettings};
@@ -155,7 +155,7 @@ impl ReadonlyRepo {
         let static_lifetime_repo: &'static ReadonlyRepo = unsafe { std::mem::transmute(repo_ref) };
 
         fs::create_dir(repo_path.join("index")).unwrap();
-        Index::init(repo_path.join("index"));
+        IndexFile::init(repo_path.join("index"));
 
         let evolution = ReadonlyEvolution::new(static_lifetime_repo);
 
@@ -221,13 +221,13 @@ impl ReadonlyRepo {
         let mut locked_index = self.index.lock().unwrap();
         if locked_index.is_none() {
             let op_id = self.view.base_op_head_id().clone();
-            locked_index.replace(Index::load(self, self.repo_path.join("index"), op_id));
+            locked_index.replace(IndexFile::load(self, self.repo_path.join("index"), op_id));
         }
         locked_index.as_ref().unwrap().clone()
     }
 
     pub fn reindex(&mut self) -> Arc<IndexFile> {
-        Index::reinit(self.repo_path.join("index"));
+        IndexFile::reinit(self.repo_path.join("index"));
         {
             let mut locked_index = self.index.lock().unwrap();
             locked_index.take();

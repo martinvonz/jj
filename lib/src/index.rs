@@ -908,6 +908,29 @@ impl IndexEntry<'_> {
 }
 
 impl IndexFile {
+    pub fn init(dir: PathBuf) {
+        std::fs::create_dir(dir.join("operations")).unwrap();
+    }
+
+    pub fn reinit(dir: PathBuf) {
+        std::fs::remove_dir_all(dir.join("operations")).unwrap();
+        IndexFile::init(dir);
+    }
+
+    pub fn load(repo: &ReadonlyRepo, dir: PathBuf, op_id: OperationId) -> Arc<IndexFile> {
+        let op_id_hex = op_id.hex();
+        let op_id_file = dir.join("operations").join(&op_id_hex);
+        let index_file = if op_id_file.exists() {
+            let op_id = OperationId(hex::decode(op_id_hex).unwrap());
+            IndexFile::load_at_operation(&dir, repo.store().hash_length(), &op_id).unwrap()
+        } else {
+            let op = repo.view().get_operation(&op_id).unwrap();
+            IndexFile::index(repo.store(), &dir, &op).unwrap()
+        };
+
+        Arc::new(index_file)
+    }
+
     fn load_from(
         file: &mut dyn Read,
         dir: &Path,
@@ -1100,33 +1123,6 @@ impl IndexFile {
                 high = mid;
             }
         }
-    }
-}
-
-pub struct Index;
-
-impl Index {
-    pub fn init(dir: PathBuf) {
-        std::fs::create_dir(dir.join("operations")).unwrap();
-    }
-
-    pub fn reinit(dir: PathBuf) {
-        std::fs::remove_dir_all(dir.join("operations")).unwrap();
-        Index::init(dir);
-    }
-
-    pub fn load(repo: &ReadonlyRepo, dir: PathBuf, op_id: OperationId) -> Arc<IndexFile> {
-        let op_id_hex = op_id.hex();
-        let op_id_file = dir.join("operations").join(&op_id_hex);
-        let index_file = if op_id_file.exists() {
-            let op_id = OperationId(hex::decode(op_id_hex).unwrap());
-            IndexFile::load_at_operation(&dir, repo.store().hash_length(), &op_id).unwrap()
-        } else {
-            let op = repo.view().get_operation(&op_id).unwrap();
-            IndexFile::index(repo.store(), &dir, &op).unwrap()
-        };
-
-        Arc::new(index_file)
     }
 }
 
