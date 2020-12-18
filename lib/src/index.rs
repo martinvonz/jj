@@ -106,8 +106,8 @@ impl CommitLookupEntry<'_> {
 // TODO: replace the table by a trie so we don't have to repeat the full commit
 //       ids
 // TODO: add a fanout table like git's commit graph has?
-pub struct IndexFile {
-    parent_file: Option<Arc<IndexFile>>,
+pub struct ReadonlyIndex {
+    parent_file: Option<Arc<ReadonlyIndex>>,
     num_parent_commits: u32,
     name: String,
     hash_length: usize,
@@ -120,9 +120,9 @@ pub struct IndexFile {
     overflow_parent: Vec<u8>,
 }
 
-impl Debug for IndexFile {
+impl Debug for ReadonlyIndex {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        f.debug_struct("IndexFile")
+        f.debug_struct("ReadonlyIndex")
             .field("name", &self.name)
             .field("parent_file", &self.parent_file)
             .finish()
@@ -132,7 +132,7 @@ impl Debug for IndexFile {
 fn topo_order_parents_first(
     store: &StoreWrapper,
     heads: Vec<CommitId>,
-    parent_file: Option<Arc<IndexFile>>,
+    parent_file: Option<Arc<ReadonlyIndex>>,
 ) -> Vec<Commit> {
     // First create a list of all commits in topological order with children first
     // (reverse of what we want)
@@ -260,7 +260,7 @@ struct UnsavedGraphEntry {
 }
 
 pub struct UnsavedIndexData {
-    parent_file: Option<Arc<IndexFile>>,
+    parent_file: Option<Arc<ReadonlyIndex>>,
     num_parent_commits: u32,
     hash_length: usize,
     graph: Vec<UnsavedGraphEntry>,
@@ -278,7 +278,7 @@ impl UnsavedIndexData {
         }
     }
 
-    fn incremental(parent_file: Arc<IndexFile>) -> Self {
+    fn incremental(parent_file: Arc<ReadonlyIndex>) -> Self {
         let num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;
         let hash_length = parent_file.hash_length;
         Self {
@@ -385,7 +385,7 @@ trait IndexSegment {
 
     fn num_commits(&self) -> u32;
 
-    fn parent_file(&self) -> &Option<Arc<IndexFile>>;
+    fn parent_file(&self) -> &Option<Arc<ReadonlyIndex>>;
 
     fn name(&self) -> Option<String>;
 
@@ -459,9 +459,9 @@ impl<'a> CompositeIndex<'a> {
         if pos >= num_parent_commits {
             self.0.entry_by_pos(pos, pos - num_parent_commits)
         } else {
-            let parent_file: &IndexFile = self.0.parent_file().as_ref().unwrap().as_ref();
-            // The parent IndexFile outlives the child
-            let parent_file: &'a IndexFile = unsafe { std::mem::transmute(parent_file) };
+            let parent_file: &ReadonlyIndex = self.0.parent_file().as_ref().unwrap().as_ref();
+            // The parent ReadonlyIndex outlives the child
+            let parent_file: &'a ReadonlyIndex = unsafe { std::mem::transmute(parent_file) };
 
             parent_file.as_composite().entry_by_pos(pos)
         }
@@ -689,7 +689,7 @@ impl<'a> Iterator for RevWalk<'a> {
     }
 }
 
-impl IndexSegment for IndexFile {
+impl IndexSegment for ReadonlyIndex {
     fn num_parent_commits(&self) -> u32 {
         self.num_parent_commits
     }
@@ -698,7 +698,7 @@ impl IndexSegment for IndexFile {
         self.num_local_commits
     }
 
-    fn parent_file(&self) -> &Option<Arc<IndexFile>> {
+    fn parent_file(&self) -> &Option<Arc<ReadonlyIndex>> {
         &self.parent_file
     }
 
@@ -807,7 +807,7 @@ impl IndexSegment for UnsavedIndexData {
         self.graph.len() as u32
     }
 
-    fn parent_file(&self) -> &Option<Arc<IndexFile>> {
+    fn parent_file(&self) -> &Option<Arc<ReadonlyIndex>> {
         &self.parent_file
     }
 
@@ -907,25 +907,25 @@ impl IndexEntry<'_> {
     }
 }
 
-impl IndexFile {
+impl ReadonlyIndex {
     pub fn init(dir: PathBuf) {
         std::fs::create_dir(dir.join("operations")).unwrap();
     }
 
     pub fn reinit(dir: PathBuf) {
         std::fs::remove_dir_all(dir.join("operations")).unwrap();
-        IndexFile::init(dir);
+        ReadonlyIndex::init(dir);
     }
 
-    pub fn load(repo: &ReadonlyRepo, dir: PathBuf, op_id: OperationId) -> Arc<IndexFile> {
+    pub fn load(repo: &ReadonlyRepo, dir: PathBuf, op_id: OperationId) -> Arc<ReadonlyIndex> {
         let op_id_hex = op_id.hex();
         let op_id_file = dir.join("operations").join(&op_id_hex);
         let index_file = if op_id_file.exists() {
             let op_id = OperationId(hex::decode(op_id_hex).unwrap());
-            IndexFile::load_at_operation(&dir, repo.store().hash_length(), &op_id).unwrap()
+            ReadonlyIndex::load_at_operation(&dir, repo.store().hash_length(), &op_id).unwrap()
         } else {
             let op = repo.view().get_operation(&op_id).unwrap();
-            IndexFile::index(repo.store(), &dir, &op).unwrap()
+            ReadonlyIndex::index(repo.store(), &dir, &op).unwrap()
         };
 
         Arc::new(index_file)
@@ -936,7 +936,7 @@ impl IndexFile {
         dir: &Path,
         name: String,
         hash_length: usize,
-    ) -> io::Result<IndexFile> {
+    ) -> io::Result<ReadonlyIndex> {
         let parent_filename_len = file.read_u32::<LittleEndian>()?;
         let num_parent_commits;
         let maybe_parent_file;
@@ -947,7 +947,7 @@ impl IndexFile {
             let parent_file_path = dir.join(&parent_filename);
             let mut index_file = File::open(&parent_file_path).unwrap();
             let parent_file =
-                IndexFile::load_from(&mut index_file, dir, parent_filename, hash_length)?;
+                ReadonlyIndex::load_from(&mut index_file, dir, parent_filename, hash_length)?;
             num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;
             maybe_parent_file = Some(Arc::new(parent_file));
         } else {
@@ -968,7 +968,7 @@ impl IndexFile {
         let overflow_parent = data.split_off(graph_size + lookup_size);
         let lookup = data.split_off(graph_size);
         let graph = data;
-        Ok(IndexFile {
+        Ok(ReadonlyIndex {
             parent_file: maybe_parent_file,
             num_parent_commits,
             name,
@@ -986,7 +986,7 @@ impl IndexFile {
         dir: &Path,
         hash_length: usize,
         op_id: &OperationId,
-    ) -> io::Result<IndexFile> {
+    ) -> io::Result<ReadonlyIndex> {
         let op_id_file = dir.join("operations").join(op_id.hex());
         let mut buf = vec![];
         File::open(op_id_file)
@@ -996,10 +996,10 @@ impl IndexFile {
         let index_file_id_hex = String::from_utf8(buf).unwrap();
         let index_file_path = dir.join(&index_file_id_hex);
         let mut index_file = File::open(&index_file_path).unwrap();
-        IndexFile::load_from(&mut index_file, dir, index_file_id_hex, hash_length)
+        ReadonlyIndex::load_from(&mut index_file, dir, index_file_id_hex, hash_length)
     }
 
-    fn from_unsaved_data(dir: &Path, data: UnsavedIndexData) -> io::Result<IndexFile> {
+    fn from_unsaved_data(dir: &Path, data: UnsavedIndexData) -> io::Result<ReadonlyIndex> {
         let hash_length = data.hash_length;
         let buf = data.serialize();
 
@@ -1014,10 +1014,10 @@ impl IndexFile {
         temp_file.persist(&index_file_path)?;
 
         let mut cursor = Cursor::new(&buf);
-        IndexFile::load_from(&mut cursor, dir, index_file_id_hex, hash_length)
+        ReadonlyIndex::load_from(&mut cursor, dir, index_file_id_hex, hash_length)
     }
 
-    fn index(store: &StoreWrapper, dir: &Path, operation: &Operation) -> io::Result<IndexFile> {
+    fn index(store: &StoreWrapper, dir: &Path, operation: &Operation) -> io::Result<ReadonlyIndex> {
         let view = operation.view();
         let operations_dir = dir.join("operations");
         let hash_length = store.hash_length();
@@ -1047,7 +1047,7 @@ impl IndexFile {
             }
             Some(parent_op_id) => {
                 let parent_file = Arc::new(
-                    IndexFile::load_at_operation(dir, hash_length, &parent_op_id).unwrap(),
+                    ReadonlyIndex::load_at_operation(dir, hash_length, &parent_op_id).unwrap(),
                 );
                 maybe_parent_file = Some(parent_file.clone());
                 data = UnsavedIndexData::incremental(parent_file)
@@ -1062,7 +1062,7 @@ impl IndexFile {
             data.add_commit(&commit);
         }
 
-        let index_file = IndexFile::from_unsaved_data(dir, data)?;
+        let index_file = ReadonlyIndex::from_unsaved_data(dir, data)?;
 
         let mut temp_file = NamedTempFile::new_in(&dir)?;
         let file = temp_file.as_file_mut();
@@ -1156,7 +1156,7 @@ mod tests {
         let temp_dir;
         let source: Box<dyn IndexSegment> = if use_file {
             temp_dir = tempfile::tempdir().unwrap();
-            Box::new(IndexFile::from_unsaved_data(temp_dir.path(), unsaved).unwrap())
+            Box::new(ReadonlyIndex::from_unsaved_data(temp_dir.path(), unsaved).unwrap())
         } else {
             Box::new(unsaved)
         };
@@ -1184,7 +1184,7 @@ mod tests {
         let temp_dir;
         let source: Box<dyn IndexSegment> = if use_file {
             temp_dir = tempfile::tempdir().unwrap();
-            Box::new(IndexFile::from_unsaved_data(temp_dir.path(), unsaved).unwrap())
+            Box::new(ReadonlyIndex::from_unsaved_data(temp_dir.path(), unsaved).unwrap())
         } else {
             Box::new(unsaved)
         };
@@ -1251,7 +1251,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         if incremental {
             let initial_file =
-                Arc::new(IndexFile::from_unsaved_data(temp_dir.path(), unsaved).unwrap());
+                Arc::new(ReadonlyIndex::from_unsaved_data(temp_dir.path(), unsaved).unwrap());
             unsaved = UnsavedIndexData::incremental(initial_file);
         }
 
@@ -1259,7 +1259,7 @@ mod tests {
         unsaved.add_commit_data(id_4.clone(), vec![id_1.clone()]);
         unsaved.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
         let source: Box<dyn IndexSegment> = if use_file {
-            Box::new(IndexFile::from_unsaved_data(temp_dir.path(), unsaved).unwrap())
+            Box::new(ReadonlyIndex::from_unsaved_data(temp_dir.path(), unsaved).unwrap())
         } else {
             Box::new(unsaved)
         };
