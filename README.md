@@ -169,14 +169,14 @@ problem, we get some very useful UX features. Many UX features come from mapping
 commands that work on the commit graph onto the operation graph. For example, if
 you map `git revert`/`hg backout` onto the operation graph, you get an operation
 that undoes a previous operation (called `jj op undo`). Note that any operation
-can be undo, not just the latest one. If you map `git restore`/`hg revert` onto
-the operation graph, you get an operation that rewinds the repo state to an
+can be undone, not just the latest one. If you map `git restore`/`hg revert`
+onto the operation graph, you get an operation that rewinds the repo state to an
 earlier point (called `jj op restore`).
 
 You can also see what the repo looked like at an earlier point with `jj
 --at-op=<operation id> log`. As mentioned earlier, the checkout is also part of
 the view, so that command will show you where the working copy was at that
-operation. If you do `jj restore -o <operation id>`, it will also update the
+operation. If you do `jj op restore -o <operation id>`, it will also update the
 working copy accordingly. This is actually how the working copy is always
 updated: we first commit a transaction with a pointer to the new checkout and
 then the working copy is updated to reflect that.
