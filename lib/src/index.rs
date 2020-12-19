@@ -440,7 +440,7 @@ impl<'a> CompositeIndex<'a> {
             let file = parent_file.as_ref().unwrap();
             levels.push(IndexLevelStats {
                 num_commits: file.num_commits(),
-                name: self.0.name(),
+                name: file.name(),
             });
             parent_file = file.parent_file().clone();
         }

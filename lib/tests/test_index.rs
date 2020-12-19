@@ -336,6 +336,7 @@ fn test_index_commits_incremental(use_git: bool) {
     assert_eq!(stats.levels.len(), 2);
     assert_eq!(stats.levels[0].num_commits, 2);
     assert_eq!(stats.levels[1].num_commits, 3);
+    assert_ne!(stats.levels[1].name, stats.levels[0].name);
 
     assert_eq!(generation_number(&index, root_commit.id()), 0);
     assert_eq!(generation_number(&index, commit_a.id()), 1);
