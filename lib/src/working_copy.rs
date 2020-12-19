@@ -41,6 +41,7 @@ use crate::settings::UserSettings;
 use crate::store::{CommitId, FileId, MillisSinceEpoch, StoreError, SymlinkId, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
 use crate::trees::TreeValueDiff;
+use git2::{Repository, RepositoryInitOptions};
 use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -169,9 +170,11 @@ impl TreeState {
         state_path: PathBuf,
     ) -> TreeState {
         let tree_id = store.empty_tree_id().clone();
+        // Canonicalize the working copy path because "repo/." makes libgit2 think that
+        // everything should be ignored
         TreeState {
             store,
-            working_copy_path,
+            working_copy_path: working_copy_path.canonicalize().unwrap(),
             state_path,
             tree_id,
             file_states: BTreeMap::new(),
@@ -272,6 +275,14 @@ impl TreeState {
     // a new tree from it and return it, and also update the dirstate on disk.
     // TODO: respect ignores
     pub fn write_tree(&mut self) -> &TreeId {
+        // We create a temporary git repo with the working copy shared with ours only
+        // so we can use libgit2's .gitignore check.
+        // TODO: Do this more cleanly, perhaps by reading .gitignore files ourselves.
+        let git_repo_dir = tempfile::tempdir().unwrap();
+        let mut git_repo_options = RepositoryInitOptions::new();
+        git_repo_options.workdir_path(&self.working_copy_path);
+        let git_repo = Repository::init_opts(git_repo_dir.path(), &git_repo_options).unwrap();
+
         let mut work = vec![(DirRepoPath::root(), self.working_copy_path.clone())];
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
         let mut deleted_files: HashSet<&FileRepoPath> = self.file_states.keys().collect();
@@ -292,16 +303,22 @@ impl TreeState {
                     work.push((subdir, disk_subdir));
                 } else {
                     let file = dir.join(&FileRepoPathComponent::from(name));
+                    let disk_file = disk_dir.join(file_name);
                     deleted_files.remove(&file);
                     let new_file_state = self.file_state(&entry.path()).unwrap();
                     let clean = match self.file_states.get(&file) {
-                        None => false, // untracked
+                        None => {
+                            // untracked
+                            if git_repo.status_should_ignore(&disk_file).unwrap() {
+                                continue;
+                            }
+                            false
+                        }
                         Some(current_entry) => {
                             current_entry == &new_file_state && current_entry.mtime < self.read_time
                         }
                     };
                     if !clean {
-                        let disk_file = disk_dir.join(file_name);
                         let file_value = match new_file_state.file_type {
                             FileType::Normal | FileType::Executable => {
                                 let id = self.write_file_to_store(&file, &disk_file);

@@ -265,3 +265,77 @@ fn test_commit_racy_timestamps(use_git: bool) {
         previous_tree_id = new_tree_id;
     }
 }
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_gitignores(use_git: bool) {
+    // Tests that .gitignore files are respected.
+
+    let settings = testutils::user_settings();
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+
+    let gitignore_path = FileRepoPath::from(".gitignore");
+    let added_path = FileRepoPath::from("added");
+    let modified_path = FileRepoPath::from("modified");
+    let removed_path = FileRepoPath::from("removed");
+    let ignored_path = FileRepoPath::from("ignored");
+    let subdir_modified_path = FileRepoPath::from("dir/modified");
+    let subdir_ignored_path = FileRepoPath::from("dir/ignored");
+
+    testutils::write_working_copy_file(&repo, &gitignore_path, "ignored");
+    testutils::write_working_copy_file(&repo, &modified_path, "1");
+    testutils::write_working_copy_file(&repo, &removed_path, "1");
+    std::fs::create_dir(repo.working_copy_path().join("dir")).unwrap();
+    testutils::write_working_copy_file(&repo, &subdir_modified_path, "1");
+
+    let wc = repo.working_copy().clone();
+    let commit1 = wc
+        .lock()
+        .unwrap()
+        .commit(&settings, Arc::get_mut(&mut repo).unwrap());
+    let files1: Vec<_> = commit1
+        .tree()
+        .entries()
+        .map(|(name, _value)| name)
+        .collect();
+    assert_eq!(
+        files1,
+        vec![
+            gitignore_path.to_repo_path(),
+            subdir_modified_path.to_repo_path(),
+            modified_path.to_repo_path(),
+            removed_path.to_repo_path()
+        ]
+    );
+
+    testutils::write_working_copy_file(&repo, &added_path, "2");
+    testutils::write_working_copy_file(&repo, &modified_path, "2");
+    std::fs::remove_file(
+        repo.working_copy_path()
+            .join(removed_path.to_internal_string()),
+    )
+    .unwrap();
+    testutils::write_working_copy_file(&repo, &ignored_path, "2");
+    testutils::write_working_copy_file(&repo, &subdir_modified_path, "2");
+    testutils::write_working_copy_file(&repo, &subdir_ignored_path, "2");
+
+    let wc = repo.working_copy().clone();
+    let commit2 = wc
+        .lock()
+        .unwrap()
+        .commit(&settings, Arc::get_mut(&mut repo).unwrap());
+    let files2: Vec<_> = commit2
+        .tree()
+        .entries()
+        .map(|(name, _value)| name)
+        .collect();
+    assert_eq!(
+        files2,
+        vec![
+            gitignore_path.to_repo_path(),
+            added_path.to_repo_path(),
+            subdir_modified_path.to_repo_path(),
+            modified_path.to_repo_path()
+        ]
+    );
+}
