@@ -173,9 +173,9 @@ fn test_checkout_file_transitions(use_git: bool) {
 
     let owned_wc = repo.working_copy().clone();
     let wc = owned_wc.lock().unwrap();
-    wc.check_out(&repo, left_commit).unwrap();
+    wc.check_out(left_commit).unwrap();
     wc.commit(&settings, Arc::get_mut(&mut repo).unwrap());
-    wc.check_out(&repo, right_commit.clone()).unwrap();
+    wc.check_out(right_commit.clone()).unwrap();
 
     // Check that the working copy is clean.
     let after_commit = wc.commit(&settings, Arc::get_mut(&mut repo).unwrap());

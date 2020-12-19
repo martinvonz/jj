@@ -118,7 +118,11 @@ impl ReadonlyRepo {
         let store = StoreWrapper::new(store);
 
         fs::create_dir(repo_path.join("working_copy")).unwrap();
-        let working_copy = WorkingCopy::init(store.clone(), repo_path.join("working_copy"));
+        let working_copy = WorkingCopy::init(
+            store.clone(),
+            wc_path.clone(),
+            repo_path.join("working_copy"),
+        );
 
         fs::create_dir(repo_path.join("view")).unwrap();
         let signature = signature(user_settings);
@@ -161,7 +165,7 @@ impl ReadonlyRepo {
 
         ReadonlyRepo::init_cycles(&mut repo, evolution);
         repo.working_copy_locked()
-            .check_out(&repo, checkout_commit)
+            .check_out(checkout_commit)
             .expect("failed to check out root commit");
         repo
     }
@@ -184,7 +188,11 @@ impl ReadonlyRepo {
         }
         let store = StoreWrapper::new(store);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
-        let working_copy = WorkingCopy::load(store.clone(), repo_path.join("working_copy"));
+        let working_copy = WorkingCopy::load(
+            store.clone(),
+            wc_path.clone(),
+            repo_path.join("working_copy"),
+        );
         let view = ReadonlyView::load(store.clone(), repo_path.join("view"));
         let repo = ReadonlyRepo {
             repo_path,

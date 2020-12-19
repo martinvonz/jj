@@ -44,18 +44,18 @@ fn test_concurrent_checkout(use_git: bool) {
 
     // Check out commit1
     let wc1 = repo1.working_copy_locked();
-    wc1.check_out(&repo1, commit1).unwrap();
+    wc1.check_out(commit1).unwrap();
 
     // Check out commit2 from another process (simulated by another repo instance)
     let repo2 = ReadonlyRepo::load(&settings, repo1.working_copy_path().clone());
     repo2
         .working_copy_locked()
-        .check_out(&repo2, commit2.clone())
+        .check_out(commit2.clone())
         .unwrap();
 
     // Checking out another commit (via the first repo instance) should now fail.
     assert_eq!(
-        wc1.check_out(&repo1, commit3),
+        wc1.check_out(commit3),
         Err(CheckoutError::ConcurrentCheckout)
     );
 
@@ -121,7 +121,7 @@ fn test_checkout_parallel(use_git: bool) {
     let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())
         .set_open(true)
         .write_to_transaction(&mut tx);
-    repo.working_copy_locked().check_out(&repo, commit).unwrap();
+    repo.working_copy_locked().check_out(commit).unwrap();
     tx.commit();
 
     let mut threads = vec![];
@@ -136,7 +136,7 @@ fn test_checkout_parallel(use_git: bool) {
             let owned_wc = repo.working_copy().clone();
             let wc = owned_wc.lock().unwrap();
             let commit = repo.store().get_commit(&commit_id).unwrap();
-            let stats = wc.check_out(&repo, commit).unwrap();
+            let stats = wc.check_out(commit).unwrap();
             assert_eq!(stats.updated_files, 0);
             assert_eq!(stats.added_files, 1);
             assert_eq!(stats.removed_files, 1);

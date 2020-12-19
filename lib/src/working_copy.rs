@@ -72,7 +72,8 @@ impl FileState {
 
 struct TreeState {
     store: Arc<StoreWrapper>,
-    path: PathBuf,
+    working_copy_path: PathBuf,
+    state_path: PathBuf,
     tree_id: TreeId,
     file_states: BTreeMap<FileRepoPath, FileState>,
     read_time: MillisSinceEpoch,
@@ -152,40 +153,53 @@ impl TreeState {
         &self.file_states
     }
 
-    pub fn init(store: Arc<StoreWrapper>, path: PathBuf) -> TreeState {
-        let mut wc = TreeState::empty(store, path);
+    pub fn init(
+        store: Arc<StoreWrapper>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+    ) -> TreeState {
+        let mut wc = TreeState::empty(store, working_copy_path, state_path);
         wc.save();
         wc
     }
 
-    fn empty(store: Arc<StoreWrapper>, path: PathBuf) -> TreeState {
+    fn empty(
+        store: Arc<StoreWrapper>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+    ) -> TreeState {
         let tree_id = store.empty_tree_id().clone();
         TreeState {
             store,
-            path,
+            working_copy_path,
+            state_path,
             tree_id,
             file_states: BTreeMap::new(),
             read_time: MillisSinceEpoch(0),
         }
     }
 
-    pub fn load(store: Arc<StoreWrapper>, path: PathBuf) -> TreeState {
-        let maybe_file = File::open(path.join("tree_state"));
+    pub fn load(
+        store: Arc<StoreWrapper>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+    ) -> TreeState {
+        let maybe_file = File::open(state_path.join("tree_state"));
         let file = match maybe_file {
             Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => {
-                return TreeState::init(store, path);
+                return TreeState::init(store, working_copy_path, state_path);
             }
             result => result.unwrap(),
         };
 
-        let mut wc = TreeState::empty(store, path);
+        let mut wc = TreeState::empty(store, working_copy_path, state_path);
         wc.read(file);
         wc
     }
 
     fn update_read_time(&mut self) {
         let own_file_state = self
-            .file_state(&self.path.join("tree_state"))
+            .file_state(&self.state_path.join("tree_state"))
             .unwrap_or_else(FileState::null);
         self.read_time = own_file_state.mtime;
     }
@@ -207,12 +221,14 @@ impl TreeState {
                 .insert(file.to_internal_string(), file_state_to_proto(file_state));
         }
 
-        let mut temp_file = NamedTempFile::new_in(&self.path).unwrap();
+        let mut temp_file = NamedTempFile::new_in(&self.state_path).unwrap();
         // update read time while we still have the file open for writes, so we know
         // there is no unknown data in it
         self.update_read_time();
         proto.write_to_writer(temp_file.as_file_mut()).unwrap();
-        temp_file.persist(self.path.join("tree_state")).unwrap();
+        temp_file
+            .persist(self.state_path.join("tree_state"))
+            .unwrap();
     }
 
     fn file_state(&self, path: &PathBuf) -> Option<FileState> {
@@ -255,8 +271,8 @@ impl TreeState {
     // Look for changes to the working copy. If there are any changes, create
     // a new tree from it and return it, and also update the dirstate on disk.
     // TODO: respect ignores
-    pub fn write_tree(&mut self, working_copy_path: PathBuf) -> &TreeId {
-        let mut work = vec![(DirRepoPath::root(), working_copy_path)];
+    pub fn write_tree(&mut self) -> &TreeId {
+        let mut work = vec![(DirRepoPath::root(), self.working_copy_path.clone())];
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
         let mut deleted_files: HashSet<&FileRepoPath> = self.file_states.keys().collect();
         let mut modified_files = BTreeMap::new();
@@ -484,7 +500,8 @@ impl TreeState {
 
 pub struct WorkingCopy {
     store: Arc<StoreWrapper>,
-    path: PathBuf,
+    working_copy_path: PathBuf,
+    state_path: PathBuf,
     commit_id: RefCell<Option<CommitId>>,
     tree_state: RefCell<Option<TreeState>>,
     // cached commit
@@ -492,29 +509,39 @@ pub struct WorkingCopy {
 }
 
 impl WorkingCopy {
-    pub fn init(store: Arc<StoreWrapper>, path: PathBuf) -> WorkingCopy {
+    pub fn init(
+        store: Arc<StoreWrapper>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+    ) -> WorkingCopy {
         // Leave the commit_id empty so a subsequent call to check out the root revision
         // will have an effect.
         let proto = protos::working_copy::Checkout::new();
         let mut file = OpenOptions::new()
             .create_new(true)
             .write(true)
-            .open(path.join("checkout"))
+            .open(state_path.join("checkout"))
             .unwrap();
         proto.write_to_writer(&mut file).unwrap();
         WorkingCopy {
             store,
-            path,
+            working_copy_path,
+            state_path,
             commit_id: RefCell::new(None),
             tree_state: RefCell::new(None),
             commit: RefCell::new(None),
         }
     }
 
-    pub fn load(store: Arc<StoreWrapper>, path: PathBuf) -> WorkingCopy {
+    pub fn load(
+        store: Arc<StoreWrapper>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+    ) -> WorkingCopy {
         WorkingCopy {
             store,
-            path,
+            working_copy_path,
+            state_path,
             commit_id: RefCell::new(None),
             tree_state: RefCell::new(None),
             commit: RefCell::new(None),
@@ -522,13 +549,13 @@ impl WorkingCopy {
     }
 
     fn write_proto(&self, proto: protos::working_copy::Checkout) {
-        let mut temp_file = NamedTempFile::new_in(&self.path).unwrap();
+        let mut temp_file = NamedTempFile::new_in(&self.state_path).unwrap();
         proto.write_to_writer(temp_file.as_file_mut()).unwrap();
-        temp_file.persist(self.path.join("checkout")).unwrap();
+        temp_file.persist(self.state_path.join("checkout")).unwrap();
     }
 
     fn read_proto(&self) -> protos::working_copy::Checkout {
-        let mut file = File::open(self.path.join("checkout")).unwrap();
+        let mut file = File::open(self.state_path.join("checkout")).unwrap();
         protobuf::parse_from_reader(&mut file).unwrap()
     }
 
@@ -565,8 +592,11 @@ impl WorkingCopy {
 
     fn tree_state(&self) -> RefMut<Option<TreeState>> {
         if self.tree_state.borrow().is_none() {
-            self.tree_state
-                .replace(Some(TreeState::load(self.store.clone(), self.path.clone())));
+            self.tree_state.replace(Some(TreeState::load(
+                self.store.clone(),
+                self.working_copy_path.clone(),
+                self.state_path.clone(),
+            )));
         }
         self.tree_state.borrow_mut()
     }
@@ -589,13 +619,9 @@ impl WorkingCopy {
         self.write_proto(proto);
     }
 
-    pub fn check_out(
-        &self,
-        repo: &ReadonlyRepo,
-        commit: Commit,
-    ) -> Result<CheckoutStats, CheckoutError> {
+    pub fn check_out(&self, commit: Commit) -> Result<CheckoutStats, CheckoutError> {
         assert!(commit.is_open());
-        let lock_path = self.path.join("working_copy.lock");
+        let lock_path = self.state_path.join("working_copy.lock");
         let _lock = FileLock::lock(lock_path);
 
         // TODO: Write a "pending_checkout" file with the old and new TreeIds so we can
@@ -620,7 +646,7 @@ impl WorkingCopy {
             .tree_state()
             .as_mut()
             .unwrap()
-            .check_out(commit.tree().id().clone(), repo.working_copy_path())?;
+            .check_out(commit.tree().id().clone(), &self.working_copy_path)?;
 
         self.commit_id.replace(Some(commit.id().clone()));
         self.commit.replace(Some(commit));
@@ -631,7 +657,7 @@ impl WorkingCopy {
     }
 
     pub fn commit(&self, settings: &UserSettings, repo: &mut ReadonlyRepo) -> Commit {
-        let lock_path = self.path.join("working_copy.lock");
+        let lock_path = self.state_path.join("working_copy.lock");
         let _lock = FileLock::lock(lock_path);
 
         // Check if the current checkout has changed on disk after we read it. It's fine
@@ -643,12 +669,7 @@ impl WorkingCopy {
             .replace(Some(CommitId(current_proto.commit_id)));
         let current_commit = self.current_commit();
 
-        let new_tree_id = self
-            .tree_state()
-            .as_mut()
-            .unwrap()
-            .write_tree(repo.working_copy_path().clone())
-            .clone();
+        let new_tree_id = self.tree_state().as_mut().unwrap().write_tree().clone();
         if &new_tree_id != current_commit.tree().id() {
             let mut tx = repo.start_transaction("commit working copy");
             let commit = CommitBuilder::for_rewrite_from(settings, repo.store(), &current_commit)
