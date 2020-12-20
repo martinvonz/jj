@@ -259,11 +259,11 @@ impl<'a> TreeEntry<'a> {
     }
 }
 
-pub struct TreeEntriesIter<'a> {
+pub struct TreeEntriesNonRecursiveIter<'a> {
     iter: std::collections::btree_map::Iter<'a, String, TreeValue>,
 }
 
-impl<'a> Iterator for TreeEntriesIter<'a> {
+impl<'a> Iterator for TreeEntriesNonRecursiveIter<'a> {
     type Item = TreeEntry<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -291,8 +291,8 @@ impl Tree {
         self.entries.is_empty()
     }
 
-    pub fn entries(&self) -> TreeEntriesIter {
-        TreeEntriesIter {
+    pub fn entries(&self) -> TreeEntriesNonRecursiveIter {
+        TreeEntriesNonRecursiveIter {
             iter: self.entries.iter(),
         }
     }

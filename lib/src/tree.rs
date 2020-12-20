@@ -21,7 +21,7 @@ use crate::repo_path::{
     DirRepoPath, DirRepoPathComponent, FileRepoPath, RepoPath, RepoPathComponent, RepoPathJoin,
 };
 use crate::store;
-use crate::store::{ConflictId, TreeEntriesIter, TreeEntry, TreeId, TreeValue};
+use crate::store::{ConflictId, TreeEntriesNonRecursiveIter, TreeEntry, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
 use crate::trees::{recursive_tree_diff, TreeValueDiff};
 use std::pin::Pin;
@@ -90,12 +90,12 @@ impl Tree {
         &self.data
     }
 
-    pub fn entries(&self) -> TreeEntriesIter {
+    pub fn entries_non_recursive(&self) -> TreeEntriesNonRecursiveIter {
         self.data.entries()
     }
 
-    pub fn entries_recursive(&self) -> TreeWalk {
-        TreeWalk::new(self.clone())
+    pub fn entries(&self) -> TreeEntriesIter {
+        TreeEntriesIter::new(self.clone())
     }
 
     pub fn entry<N>(&self, basename: &N) -> Option<TreeEntry>
@@ -194,7 +194,7 @@ impl Tree {
 
     pub fn conflicts(&self) -> Vec<(RepoPath, ConflictId)> {
         let mut conflicts = vec![];
-        for (name, value) in self.entries_recursive() {
+        for (name, value) in self.entries() {
             if let TreeValue::Conflict(id) = value {
                 conflicts.push((name.clone(), id.clone()));
             }
@@ -203,22 +203,22 @@ impl Tree {
     }
 }
 
-pub struct TreeWalk {
-    stack: Vec<(Pin<Box<Tree>>, TreeEntriesIter<'static>)>,
+pub struct TreeEntriesIter {
+    stack: Vec<(Pin<Box<Tree>>, TreeEntriesNonRecursiveIter<'static>)>,
 }
 
-impl TreeWalk {
+impl TreeEntriesIter {
     fn new(tree: Tree) -> Self {
         let tree = Box::pin(tree);
-        let iter = tree.entries();
-        let iter: TreeEntriesIter<'static> = unsafe { std::mem::transmute(iter) };
+        let iter = tree.entries_non_recursive();
+        let iter: TreeEntriesNonRecursiveIter<'static> = unsafe { std::mem::transmute(iter) };
         Self {
             stack: vec![(tree, iter)],
         }
     }
 }
 
-impl Iterator for TreeWalk {
+impl Iterator for TreeEntriesIter {
     type Item = (RepoPath, TreeValue);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -235,8 +235,8 @@ impl Iterator for TreeWalk {
                             let subtree =
                                 tree.known_sub_tree(&DirRepoPathComponent::from(entry.name()), id);
                             let subtree = Box::pin(subtree);
-                            let iter = subtree.entries();
-                            let subtree_iter: TreeEntriesIter<'static> =
+                            let iter = subtree.entries_non_recursive();
+                            let subtree_iter: TreeEntriesNonRecursiveIter<'static> =
                                 unsafe { std::mem::transmute(iter) };
                             self.stack.push((subtree, subtree_iter));
                         }

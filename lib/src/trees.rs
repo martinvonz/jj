@@ -37,8 +37,8 @@ fn diff_entries<'a, E>(
     tree2: &'a Tree,
     callback: &mut impl FnMut(&'a str, TreeValueDiff<'a>) -> Result<(), E>,
 ) -> Result<(), E> {
-    let mut it1 = tree1.entries();
-    let mut it2 = tree2.entries();
+    let mut it1 = tree1.entries_non_recursive();
+    let mut it2 = tree2.entries_non_recursive();
     let mut entry1 = it1.next();
     let mut entry2 = it2.next();
     loop {

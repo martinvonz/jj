@@ -565,7 +565,7 @@ fn cmd_files(
     let mut repo = get_repo(ui, &matches)?;
     let mut_repo = Arc::get_mut(&mut repo).unwrap();
     let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
-    for (name, _value) in commit.tree().entries_recursive() {
+    for (name, _value) in commit.tree().entries() {
         writeln!(ui, "{}", name.to_internal_string());
     }
     Ok(())

@@ -68,7 +68,7 @@ fn test_same_type(use_git: bool) {
     let side1_tree = write_tree(1);
     let side2_tree = write_tree(2);
 
-    // Created the merged tree
+    // Create the merged tree
     let merged_tree_id = trees::merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
     let merged_tree = store
         .get_tree(&DirRepoPath::root(), &merged_tree_id)
@@ -76,7 +76,7 @@ fn test_same_type(use_git: bool) {
 
     // Check that we have exactly the paths we expect in the merged tree
     let names: Vec<&str> = merged_tree
-        .entries()
+        .entries_non_recursive()
         .map(|entry| entry.name().as_ref())
         .collect();
     assert_eq!(
