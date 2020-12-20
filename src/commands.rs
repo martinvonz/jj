@@ -47,7 +47,7 @@ use jj_lib::settings::UserSettings;
 use jj_lib::store::{CommitId, Timestamp};
 use jj_lib::store::{StoreError, TreeValue};
 use jj_lib::tree::Tree;
-use jj_lib::trees::{walk_entries, TreeValueDiff};
+use jj_lib::trees::TreeValueDiff;
 use jj_lib::working_copy::{CheckoutStats, WorkingCopy};
 
 use self::chrono::{FixedOffset, TimeZone, Utc};
@@ -565,10 +565,10 @@ fn cmd_files(
     let mut repo = get_repo(ui, &matches)?;
     let mut_repo = Arc::get_mut(&mut repo).unwrap();
     let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
-    walk_entries(&commit.tree(), &mut |name, _value| {
+    for (name, _value) in commit.tree().entries_recursive() {
         writeln!(ui, "{}", name.to_internal_string());
-        Ok(())
-    })
+    }
+    Ok(())
 }
 
 fn print_diff(left: &[u8], right: &[u8], styler: &mut dyn Styler) {

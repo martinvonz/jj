@@ -17,11 +17,14 @@ use std::fmt::{Debug, Error, Formatter};
 use std::sync::Arc;
 
 use crate::matchers::AlwaysMatcher;
-use crate::repo_path::{DirRepoPath, DirRepoPathComponent, FileRepoPath, RepoPath, RepoPathJoin};
+use crate::repo_path::{
+    DirRepoPath, DirRepoPathComponent, FileRepoPath, RepoPath, RepoPathComponent, RepoPathJoin,
+};
 use crate::store;
 use crate::store::{ConflictId, TreeEntriesIter, TreeEntry, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
-use crate::trees::{recursive_tree_diff, walk_entries, TreeValueDiff};
+use crate::trees::{recursive_tree_diff, TreeValueDiff};
+use std::pin::Pin;
 
 #[derive(Clone)]
 pub struct Tree {
@@ -89,6 +92,10 @@ impl Tree {
 
     pub fn entries(&self) -> TreeEntriesIter {
         self.data.entries()
+    }
+
+    pub fn entries_recursive(&self) -> TreeWalk {
+        TreeWalk::new(self.clone())
     }
 
     pub fn entry<N>(&self, basename: &N) -> Option<TreeEntry>
@@ -187,13 +194,63 @@ impl Tree {
 
     pub fn conflicts(&self) -> Vec<(RepoPath, ConflictId)> {
         let mut conflicts = vec![];
-        walk_entries(&self, &mut |name, value| -> Result<(), ()> {
+        for (name, value) in self.entries_recursive() {
             if let TreeValue::Conflict(id) = value {
                 conflicts.push((name.clone(), id.clone()));
             }
-            Ok(())
-        })
-        .unwrap();
+        }
         conflicts
+    }
+}
+
+pub struct TreeWalk {
+    stack: Vec<(Pin<Box<Tree>>, TreeEntriesIter<'static>)>,
+}
+
+impl TreeWalk {
+    fn new(tree: Tree) -> Self {
+        let tree = Box::pin(tree);
+        let iter = tree.entries();
+        let iter: TreeEntriesIter<'static> = unsafe { std::mem::transmute(iter) };
+        Self {
+            stack: vec![(tree, iter)],
+        }
+    }
+}
+
+impl Iterator for TreeWalk {
+    type Item = (RepoPath, TreeValue);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while !self.stack.is_empty() {
+            let (tree, iter) = self.stack.last_mut().unwrap();
+            match iter.next() {
+                None => {
+                    // No more entries in this directory
+                    self.stack.pop().unwrap();
+                }
+                Some(entry) => {
+                    match entry.value() {
+                        TreeValue::Tree(id) => {
+                            let subtree =
+                                tree.known_sub_tree(&DirRepoPathComponent::from(entry.name()), id);
+                            let subtree = Box::pin(subtree);
+                            let iter = subtree.entries();
+                            let subtree_iter: TreeEntriesIter<'static> =
+                                unsafe { std::mem::transmute(iter) };
+                            self.stack.push((subtree, subtree_iter));
+                        }
+                        other => {
+                            let path = RepoPath::new(
+                                tree.dir().clone(),
+                                RepoPathComponent::from(entry.name()),
+                            );
+                            return Some((path, other.clone()));
+                        }
+                    };
+                }
+            }
+        }
+        None
     }
 }

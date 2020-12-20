@@ -16,32 +16,12 @@ use crate::files;
 use crate::files::MergeResult;
 use crate::matchers::Matcher;
 use crate::repo_path::{
-    DirRepoPath, DirRepoPathComponent, FileRepoPath, FileRepoPathComponent, RepoPath,
-    RepoPathComponent, RepoPathJoin,
+    DirRepoPath, DirRepoPathComponent, FileRepoPath, FileRepoPathComponent, RepoPathJoin,
 };
 use crate::store::{Conflict, ConflictPart, StoreError, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
 use crate::tree::Tree;
 use std::cmp::Ordering;
-
-pub fn walk_entries<E>(
-    tree: &Tree,
-    callback: &mut impl FnMut(&RepoPath, &TreeValue) -> Result<(), E>,
-) -> Result<(), E> {
-    for entry in tree.entries() {
-        let path = RepoPath::new(tree.dir().clone(), RepoPathComponent::from(entry.name()));
-        match entry.value() {
-            TreeValue::Tree(id) => {
-                let subtree = tree.known_sub_tree(&DirRepoPathComponent::from(entry.name()), id);
-                walk_entries(&subtree, callback)?;
-            }
-            other => {
-                callback(&path, other)?;
-            }
-        };
-    }
-    Ok(())
-}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Diff<T> {
