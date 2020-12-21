@@ -52,6 +52,10 @@ impl Debug for ChangeId {
 }
 
 impl ChangeId {
+    pub fn from_hex(hex: &str) -> Self {
+        ChangeId(hex::decode(hex).unwrap())
+    }
+
     pub fn hex(&self) -> String {
         hex::encode(&self.0)
     }

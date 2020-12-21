@@ -166,8 +166,13 @@ impl<'r> Transaction<'r> {
 
     pub fn add_head(&mut self, head: &Commit) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
+        // TODO: Also add other ancestors that were not already known. For example, when
+        // the user creates a new repo backed by a git repo and they then check
+        // out some commit, we'll need add all ancestors of that commit. This
+        // code probably needs to be restructured a bit. Perhaps it should be
+        // higher-level code that makes sure unknown ancestors are also added.
         mut_repo.view.as_mut().unwrap().add_head(head);
-        mut_repo.evolution.as_mut().unwrap().invalidate();
+        mut_repo.evolution.as_mut().unwrap().add_commit(head);
     }
 
     pub fn remove_head(&mut self, head: &Commit) {

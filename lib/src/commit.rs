@@ -90,6 +90,10 @@ impl Commit {
         parents
     }
 
+    pub fn predecessor_ids(&self) -> Vec<CommitId> {
+        self.data.predecessors.clone()
+    }
+
     pub fn predecessors(&self) -> Vec<Commit> {
         let mut predecessors = Vec::new();
         for predecessor in &self.data.predecessors {
