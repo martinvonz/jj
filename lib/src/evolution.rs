@@ -115,6 +115,25 @@ impl State {
         }
     }
 
+    fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId> {
+        self.successors
+            .get(commit_id)
+            .cloned()
+            .unwrap_or_else(HashSet::new)
+    }
+
+    fn is_obsolete(&self, commit_id: &CommitId) -> bool {
+        self.obsolete_commits.contains(commit_id)
+    }
+
+    fn is_orphan(&self, commit_id: &CommitId) -> bool {
+        self.orphan_commits.contains(commit_id)
+    }
+
+    fn is_divergent(&self, change_id: &ChangeId) -> bool {
+        self.divergent_changes.contains_key(change_id)
+    }
+
     pub fn new_parent(&self, store: &StoreWrapper, old_parent_id: &CommitId) -> HashSet<CommitId> {
         let mut new_parents = HashSet::new();
         if let Some(successor_ids) = self.successors.get(old_parent_id) {
@@ -242,23 +261,19 @@ pub trait EvolveListener {
 
 impl Evolution for ReadonlyEvolution<'_> {
     fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId> {
-        self.get_state()
-            .successors
-            .get(commit_id)
-            .cloned()
-            .unwrap_or_else(HashSet::new)
+        self.get_state().successors(commit_id)
     }
 
     fn is_obsolete(&self, commit_id: &CommitId) -> bool {
-        self.get_state().obsolete_commits.contains(commit_id)
+        self.get_state().is_obsolete(commit_id)
     }
 
     fn is_orphan(&self, commit_id: &CommitId) -> bool {
-        self.get_state().orphan_commits.contains(commit_id)
+        self.get_state().is_orphan(commit_id)
     }
 
     fn is_divergent(&self, change_id: &ChangeId) -> bool {
-        self.get_state().divergent_changes.contains_key(change_id)
+        self.get_state().is_divergent(change_id)
     }
 
     fn new_parent(&self, old_parent_id: &CommitId) -> HashSet<CommitId> {
@@ -301,23 +316,19 @@ pub struct MutableEvolution<'r, 'm: 'r> {
 
 impl Evolution for MutableEvolution<'_, '_> {
     fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId> {
-        self.get_state()
-            .successors
-            .get(commit_id)
-            .cloned()
-            .unwrap_or_else(HashSet::new)
+        self.get_state().successors(commit_id)
     }
 
     fn is_obsolete(&self, commit_id: &CommitId) -> bool {
-        self.get_state().obsolete_commits.contains(commit_id)
+        self.get_state().is_obsolete(commit_id)
     }
 
     fn is_orphan(&self, commit_id: &CommitId) -> bool {
-        self.get_state().orphan_commits.contains(commit_id)
+        self.get_state().is_orphan(commit_id)
     }
 
     fn is_divergent(&self, change_id: &ChangeId) -> bool {
-        self.get_state().divergent_changes.contains_key(change_id)
+        self.get_state().is_divergent(change_id)
     }
 
     fn new_parent(&self, old_parent_id: &CommitId) -> HashSet<CommitId> {
