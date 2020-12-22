@@ -282,7 +282,7 @@ fn test_gitignores(use_git: bool) {
     let subdir_modified_path = FileRepoPath::from("dir/modified");
     let subdir_ignored_path = FileRepoPath::from("dir/ignored");
 
-    testutils::write_working_copy_file(&repo, &gitignore_path, "ignored");
+    testutils::write_working_copy_file(&repo, &gitignore_path, "ignored\n");
     testutils::write_working_copy_file(&repo, &modified_path, "1");
     testutils::write_working_copy_file(&repo, &removed_path, "1");
     std::fs::create_dir(repo.working_copy_path().join("dir")).unwrap();
@@ -308,6 +308,7 @@ fn test_gitignores(use_git: bool) {
         ]
     );
 
+    testutils::write_working_copy_file(&repo, &gitignore_path, "ignored\nmodified\nremoved\n");
     testutils::write_working_copy_file(&repo, &added_path, "2");
     testutils::write_working_copy_file(&repo, &modified_path, "2");
     std::fs::remove_file(
