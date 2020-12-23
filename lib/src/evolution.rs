@@ -28,7 +28,7 @@ use crate::transaction::{MutableRepo, Transaction};
 use crate::trees::merge_trees;
 use crate::view::View;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct State {
     /// Contains all successors whether they have the same change id or not.
     successors: HashMap<CommitId, HashSet<CommitId>>,
@@ -41,10 +41,7 @@ struct State {
 
 impl State {
     fn calculate(store: &StoreWrapper, view: &dyn View) -> State {
-        let mut successors = HashMap::new();
-        let mut obsolete_commits = HashSet::new();
-        let mut orphan_commits = HashSet::new();
-        let mut divergent_changes = HashMap::new();
+        let mut state = State::default();
         let mut heads = vec![];
         for commit_id in view.heads() {
             heads.push(store.get_commit(commit_id).unwrap());
@@ -64,18 +61,19 @@ impl State {
         // children of a commit
         for commit in &commits {
             if commit.is_pruned() {
-                obsolete_commits.insert(commit.id().clone());
+                state.obsolete_commits.insert(commit.id().clone());
             }
             for predecessor in commit.predecessors() {
                 if !commits.contains(&predecessor) {
                     continue;
                 }
-                successors
+                state
+                    .successors
                     .entry(predecessor.id().clone())
                     .or_insert_with(HashSet::new)
                     .insert(commit.id().clone());
                 if predecessor.change_id() == commit.change_id() {
-                    obsolete_commits.insert(predecessor.id().clone());
+                    state.obsolete_commits.insert(predecessor.id().clone());
                 }
             }
             for parent in commit.parents() {
@@ -86,33 +84,31 @@ impl State {
         }
         // Find divergent commits
         for (change_id, commit_ids) in change_to_commits {
-            let divergent: HashSet<CommitId> =
-                commit_ids.difference(&obsolete_commits).cloned().collect();
+            let divergent: HashSet<CommitId> = commit_ids
+                .difference(&state.obsolete_commits)
+                .cloned()
+                .collect();
             if divergent.len() > 1 {
-                divergent_changes.insert(change_id, divergent);
+                state.divergent_changes.insert(change_id, divergent);
             }
         }
         // Find orphans by walking to the children of obsolete commits
-        let mut work: Vec<CommitId> = obsolete_commits.iter().map(ToOwned::to_owned).collect();
+        let mut work: Vec<CommitId> = state.obsolete_commits.iter().cloned().collect();
         while !work.is_empty() {
             let commit_id = work.pop().unwrap();
             for child in children.get(&commit_id).unwrap() {
-                if orphan_commits.insert(child.clone()) {
+                if state.orphan_commits.insert(child.clone()) {
                     work.push(child.clone());
                 }
             }
         }
-        orphan_commits = orphan_commits
-            .difference(&obsolete_commits)
+        state.orphan_commits = state
+            .orphan_commits
+            .difference(&state.obsolete_commits)
             .map(ToOwned::to_owned)
             .collect();
 
-        State {
-            successors,
-            obsolete_commits,
-            orphan_commits,
-            divergent_changes,
-        }
+        state
     }
 
     fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId> {
