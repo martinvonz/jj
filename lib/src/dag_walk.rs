@@ -298,7 +298,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
 
     #[test]
     fn topo_order_reverse_linear() {
@@ -307,10 +306,11 @@ mod tests {
         //  o B
         //  o A
 
-        let mut neighbors = HashMap::new();
-        neighbors.insert('A', vec![]);
-        neighbors.insert('B', vec!['A']);
-        neighbors.insert('C', vec!['B']);
+        let neighbors = hashmap! {
+            'A' => vec![],
+            'B' => vec!['A'],
+            'C' => vec!['B'],
+        };
 
         let common = topo_order_reverse(
             vec!['C'],
@@ -333,13 +333,14 @@ mod tests {
         //  |/
         //  o A
 
-        let mut neighbors = HashMap::new();
-        neighbors.insert('A', vec![]);
-        neighbors.insert('B', vec!['A']);
-        neighbors.insert('C', vec!['B']);
-        neighbors.insert('D', vec!['C']);
-        neighbors.insert('E', vec!['A']);
-        neighbors.insert('F', vec!['E', 'D']);
+        let neighbors = hashmap! {
+            'A' => vec![],
+            'B' => vec!['A'],
+            'C' => vec!['B'],
+            'D' => vec!['C'],
+            'E' => vec!['A'],
+            'F' => vec!['E', 'D'],
+        };
 
         let common = topo_order_reverse(
             vec!['F'],
@@ -364,13 +365,14 @@ mod tests {
         //  |/
         //  o A
 
-        let mut neighbors = HashMap::new();
-        neighbors.insert('A', vec![]);
-        neighbors.insert('B', vec!['A']);
-        neighbors.insert('C', vec!['B']);
-        neighbors.insert('D', vec!['A']);
-        neighbors.insert('E', vec!['A']);
-        neighbors.insert('F', vec!['E', 'D']);
+        let neighbors = hashmap! {
+            'A' => vec![],
+            'B' => vec!['A'],
+            'C' => vec!['B'],
+            'D' => vec!['A'],
+            'E' => vec!['A'],
+            'F' => vec!['E', 'D'],
+        };
 
         let common = topo_order_reverse(
             vec!['F', 'C'],
@@ -396,15 +398,16 @@ mod tests {
         //     \|/
         //      A
 
-        let mut neighbors = HashMap::new();
-        neighbors.insert('A', vec![]);
-        neighbors.insert('B', vec!['A']);
-        neighbors.insert('C', vec!['B']);
-        neighbors.insert('D', vec!['C']);
-        neighbors.insert('E', vec!['A', 'D']);
-        neighbors.insert('F', vec!['B']);
-        neighbors.insert('G', vec!['F']);
-        neighbors.insert('H', vec!['A', 'G']);
+        let neighbors = hashmap! {
+            'A' => vec![],
+            'B' => vec!['A'],
+            'C' => vec!['B'],
+            'D' => vec!['C'],
+            'E' => vec!['A','D'],
+            'F' => vec!['B'],
+            'G' => vec!['F'],
+            'H' => vec!['A', 'G'],
+        };
 
         let common = closest_common_node(
             vec!['E'],
@@ -429,13 +432,14 @@ mod tests {
         //  |
         //  A
 
-        let mut neighbors = HashMap::new();
-        neighbors.insert('A', vec![]);
-        neighbors.insert('b', vec!['A']);
-        neighbors.insert('C', vec!['b']);
-        neighbors.insert('D', vec!['C']);
-        neighbors.insert('e', vec!['b']);
-        neighbors.insert('F', vec!['C', 'e']);
+        let neighbors = hashmap! {
+            'A' => vec![],
+            'b' => vec!['A'],
+            'C' => vec!['b'],
+            'D' => vec!['C'],
+            'e' => vec!['b'],
+            'F' => vec!['C', 'e'],
+        };
         let expected: HashSet<char> = vec!['D', 'F'].into_iter().collect();
 
         let actual = unreachable(

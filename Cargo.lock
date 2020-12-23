@@ -514,6 +514,7 @@ dependencies = [
  "dirs",
  "git2",
  "hex",
+ "maplit",
  "protobuf",
  "protobuf-codegen-pure",
  "protos",

@@ -20,6 +20,7 @@ diff = "0.1"
 dirs = "2.0"
 git2 = "0.13"
 hex = "0.4"
+maplit = "1.0.2"
 protobuf = { version = "2.12", features = ["with-bytes"] }
 protobuf-codegen-pure = "2.12"
 rand = "0.7.3"

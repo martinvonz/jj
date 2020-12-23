@@ -14,6 +14,10 @@
 
 #![feature(get_mut_unchecked)]
 
+#[cfg(test)]
+#[macro_use]
+extern crate maplit;
+
 pub mod commit;
 pub mod commit_builder;
 pub mod conflicts;
