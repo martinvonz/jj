@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
@@ -302,51 +302,55 @@ impl<'r> ReadonlyEvolution<'r> {
     }
 
     pub fn start_modification<'m>(&self, repo: &'m MutableRepo<'r>) -> MutableEvolution<'r, 'm> {
+        let locked_state = self.state.lock().unwrap();
+        let state = locked_state.as_ref().map(|state| state.as_ref().clone());
         MutableEvolution {
             repo,
-            state: Mutex::new(self.state.lock().unwrap().clone()),
+            state: Mutex::new(state),
         }
     }
 }
 
 pub struct MutableEvolution<'r, 'm: 'r> {
     repo: &'m MutableRepo<'r>,
-    state: Mutex<Option<Arc<State>>>,
+    state: Mutex<Option<State>>,
 }
 
 impl Evolution for MutableEvolution<'_, '_> {
     fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId> {
-        self.get_state().successors(commit_id)
+        self.locked_state().as_ref().unwrap().successors(commit_id)
     }
 
     fn is_obsolete(&self, commit_id: &CommitId) -> bool {
-        self.get_state().is_obsolete(commit_id)
+        self.locked_state().as_ref().unwrap().is_obsolete(commit_id)
     }
 
     fn is_orphan(&self, commit_id: &CommitId) -> bool {
-        self.get_state().is_orphan(commit_id)
+        self.locked_state().as_ref().unwrap().is_orphan(commit_id)
     }
 
     fn is_divergent(&self, change_id: &ChangeId) -> bool {
-        self.get_state().is_divergent(change_id)
+        self.locked_state()
+            .as_ref()
+            .unwrap()
+            .is_divergent(change_id)
     }
 
     fn new_parent(&self, old_parent_id: &CommitId) -> HashSet<CommitId> {
-        self.get_state()
+        self.locked_state()
+            .as_ref()
+            .unwrap()
             .new_parent(self.repo.store(), old_parent_id)
     }
 }
 
 impl MutableEvolution<'_, '_> {
-    fn get_state(&self) -> Arc<State> {
+    fn locked_state(&self) -> MutexGuard<Option<State>> {
         let mut locked_state = self.state.lock().unwrap();
         if locked_state.is_none() {
-            locked_state.replace(Arc::new(State::calculate(
-                self.repo.store(),
-                self.repo.view(),
-            )));
+            locked_state.replace(State::calculate(self.repo.store(), self.repo.view()));
         }
-        locked_state.as_ref().unwrap().clone()
+        locked_state
     }
 
     pub fn invalidate(&mut self) {
@@ -362,7 +366,13 @@ pub fn evolve(
 ) {
     let store = tx.store().clone();
     // TODO: update the state in the transaction
-    let state = tx.as_repo_mut().evolution_mut().get_state();
+    let state = tx
+        .as_repo_mut()
+        .evolution_mut()
+        .locked_state()
+        .as_ref()
+        .unwrap()
+        .clone();
 
     // Resolving divergence can creates new orphans but not vice versa, so resolve
     // divergence first.
