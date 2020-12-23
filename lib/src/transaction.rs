@@ -219,8 +219,10 @@ impl<'r> Repo for MutableRepo<'r> {
     }
 }
 
-impl MutableRepo<'_> {
-    pub fn evolution_mut(&mut self) -> &MutableEvolution {
-        self.evolution.as_mut().unwrap()
+impl<'r> MutableRepo<'r> {
+    pub fn evolution_mut<'m>(&'m mut self) -> &'m mut MutableEvolution<'r, 'm> {
+        let evolution: &mut MutableEvolution<'static, 'static> = self.evolution.as_mut().unwrap();
+        let evolution: &mut MutableEvolution<'r, 'm> = unsafe { std::mem::transmute(evolution) };
+        evolution
     }
 }

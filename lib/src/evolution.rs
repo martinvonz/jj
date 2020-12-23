@@ -309,7 +309,7 @@ impl<'r> ReadonlyEvolution<'r> {
     }
 }
 
-pub struct MutableEvolution<'r, 'm: 'r> {
+pub struct MutableEvolution<'r: 'm, 'm> {
     repo: &'m MutableRepo<'r>,
     state: State,
 }
