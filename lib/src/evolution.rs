@@ -348,12 +348,18 @@ pub fn evolve(
     listener: &mut dyn EvolveListener,
 ) {
     let store = tx.store().clone();
-    // TODO: update the state in the transaction
-    let state = tx.as_repo_mut().evolution_mut().state.clone();
 
     // Resolving divergence can creates new orphans but not vice versa, so resolve
     // divergence first.
-    for commit_ids in state.divergent_changes.values() {
+    let divergent_changes: Vec<_> = tx
+        .as_repo_mut()
+        .evolution_mut()
+        .state
+        .divergent_changes
+        .values()
+        .cloned()
+        .collect();
+    for commit_ids in divergent_changes {
         let commits: HashSet<Commit> = commit_ids
             .iter()
             .map(|id| store.get_commit(&id).unwrap())
@@ -361,7 +367,12 @@ pub fn evolve(
         evolve_divergent_change(user_settings, &store, tx, listener, &commits);
     }
 
-    let orphans: HashSet<Commit> = state
+    // Dom't reuse the state from above, since the divergence-resolution may have
+    // created new orphans, or resolved existing orphans.
+    let orphans: HashSet<Commit> = tx
+        .as_repo_mut()
+        .evolution_mut()
+        .state
         .orphan_commits
         .iter()
         .map(|id| store.get_commit(&id).unwrap())
@@ -376,7 +387,7 @@ pub fn evolve(
             commit
                 .parents()
                 .iter()
-                .filter(|commit| state.orphan_commits.contains(commit.id()))
+                .filter(|commit| orphans.contains(commit))
                 .cloned()
                 .collect::<Vec<_>>()
         }),
@@ -389,8 +400,9 @@ pub fn evolve(
         let old_parents = orphan.parents();
         let mut new_parents = vec![];
         let mut ambiguous_new_parents = false;
+        let evolution = tx.as_repo_mut().evolution();
         for old_parent in &old_parents {
-            let new_parent_candidates = state.new_parent(&store, old_parent.id());
+            let new_parent_candidates = evolution.new_parent(old_parent.id());
             if new_parent_candidates.len() > 1 {
                 ambiguous_new_parents = true;
                 break;

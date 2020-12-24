@@ -503,11 +503,10 @@ fn test_evolve_orphan(use_git: bool) {
     assert_eq!(&listener.evolved_orphans[0].0, &child);
     assert_eq!(&listener.evolved_orphans[0].1.parents(), &vec![rewritten]);
     assert_eq!(&listener.evolved_orphans[1].0, &grandchild);
-    // TODO: the grandchild currently doesn't get rebased onto the rewritten child
-    // assert_eq!(
-    //     &listener.evolved_orphans[1].1.parents(),
-    //     &vec![listener.evolved_orphans[0].1.clone()]
-    // );
+    assert_eq!(
+        &listener.evolved_orphans[1].1.parents(),
+        &vec![listener.evolved_orphans[0].1.clone()]
+    );
     tx.discard();
 }
 
