@@ -10,7 +10,7 @@ edition = "2018"
 protobuf-codegen-pure = "2.12"
 
 [dependencies]
-blake2 = "0.8"
+blake2 = "0.9.1"
 bytes = "0.5"
 byteorder = "1.3.4"
 chrono = "0.4"

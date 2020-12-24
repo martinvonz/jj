@@ -11,7 +11,7 @@ edition = "2018"
 path = "lib"
 
 [dependencies]
-blake2 = "0.8"
+blake2 = "0.9.1"
 bytes = "0.5"
 chrono = "0.4"
 clap = "2.33"

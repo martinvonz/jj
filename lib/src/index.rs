@@ -1004,8 +1004,8 @@ impl IndexFile {
         let buf = data.serialize();
 
         let mut hasher = Blake2b::new();
-        hasher.input(&buf);
-        let index_file_id_hex = hex::encode(&hasher.result());
+        hasher.update(&buf);
+        let index_file_id_hex = hex::encode(&hasher.finalize());
         let index_file_path = dir.join(&index_file_id_hex);
 
         let mut temp_file = NamedTempFile::new_in(&dir)?;

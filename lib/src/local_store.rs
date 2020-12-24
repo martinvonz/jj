@@ -132,10 +132,10 @@ impl Store for LocalStore {
                 break;
             }
             encoder.write_all(&buff)?;
-            hasher.input(&buff);
+            hasher.update(&buff);
         }
         encoder.finish()?;
-        let id = FileId(hasher.result().to_vec());
+        let id = FileId(hasher.finalize().to_vec());
 
         temp_file.persist(self.file_path(&id))?;
         Ok(id)
@@ -153,8 +153,8 @@ impl Store for LocalStore {
         let mut temp_file = NamedTempFile::new_in(&self.path)?;
         temp_file.write_all(target.as_bytes()).unwrap();
         let mut hasher = Blake2b::new();
-        hasher.input(&target.as_bytes());
-        let id = SymlinkId(hasher.result().to_vec());
+        hasher.update(&target.as_bytes());
+        let id = SymlinkId(hasher.finalize().to_vec());
 
         temp_file.persist(self.symlink_path(&id))?;
         Ok(id)
