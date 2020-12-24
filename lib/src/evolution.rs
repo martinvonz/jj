@@ -35,6 +35,7 @@ struct State {
     /// Contains the subset of the keys in `successors` for which there is a
     /// successor with the same change id.
     obsolete_commits: HashSet<CommitId>,
+    pruned_commits: HashSet<CommitId>,
     orphan_commits: HashSet<CommitId>,
     divergent_changes: HashMap<ChangeId, HashSet<CommitId>>,
 }
@@ -61,7 +62,7 @@ impl State {
         // children of a commit
         for commit in &commits {
             if commit.is_pruned() {
-                state.obsolete_commits.insert(commit.id().clone());
+                state.pruned_commits.insert(commit.id().clone());
             }
             for predecessor in commit.predecessors() {
                 if !commits.contains(&predecessor) {
@@ -94,6 +95,7 @@ impl State {
         }
         // Find orphans by walking to the children of obsolete commits
         let mut work: Vec<CommitId> = state.obsolete_commits.iter().cloned().collect();
+        work.extend(state.pruned_commits.iter().cloned());
         while !work.is_empty() {
             let commit_id = work.pop().unwrap();
             for child in children.get(&commit_id).unwrap() {
@@ -104,8 +106,12 @@ impl State {
         }
         state.orphan_commits = state
             .orphan_commits
-            .difference(&state.obsolete_commits)
-            .map(ToOwned::to_owned)
+            .iter()
+            .filter(|commit_id| {
+                !(state.obsolete_commits.contains(commit_id)
+                    || state.pruned_commits.contains(commit_id))
+            })
+            .cloned()
             .collect();
 
         state

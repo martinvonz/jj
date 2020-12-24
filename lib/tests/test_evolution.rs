@@ -83,9 +83,58 @@ fn test_divergent(use_git: bool) {
 
     // A single commit should not be divergent
     let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    assert!(!tx.as_repo().evolution().is_obsolete(original.id()));
+    assert!(!tx.as_repo().evolution().is_divergent(original.change_id()));
+
+    // Commits with the same change id are divergent, including the original commit
+    // (it's the change that's divergent)
+    child_commit(&settings, &repo, &root_commit)
+        .set_predecessors(vec![original.id().clone()])
+        .set_change_id(original.change_id().clone())
+        .write_to_transaction(&mut tx);
+    child_commit(&settings, &repo, &root_commit)
+        .set_predecessors(vec![original.id().clone()])
+        .set_change_id(original.change_id().clone())
+        .write_to_transaction(&mut tx);
+    assert!(tx.as_repo().evolution().is_divergent(original.change_id()));
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_divergent_pruned(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let root_commit = repo.store().root_commit();
+    let mut tx = repo.start_transaction("test");
+
+    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+
+    // Pruned commits are also divergent (because it's unclear where descendants
+    // should be evolved to).
+    child_commit(&settings, &repo, &root_commit)
+        .set_predecessors(vec![original.id().clone()])
+        .set_change_id(original.change_id().clone())
+        .set_pruned(true)
+        .write_to_transaction(&mut tx);
+    child_commit(&settings, &repo, &root_commit)
+        .set_predecessors(vec![original.id().clone()])
+        .set_change_id(original.change_id().clone())
+        .set_pruned(true)
+        .write_to_transaction(&mut tx);
+    assert!(tx.as_repo().evolution().is_divergent(original.change_id()));
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_divergent_duplicate(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let root_commit = repo.store().root_commit();
+    let mut tx = repo.start_transaction("test");
 
     // Successors with different change id are not divergent
+    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
     let cherry_picked1 = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
         .write_to_transaction(&mut tx);
@@ -101,26 +150,6 @@ fn test_divergent(use_git: bool) {
         .as_repo()
         .evolution()
         .is_divergent(cherry_picked2.change_id()));
-
-    // Commits with the same change id are divergent, including the original commit
-    // (it's the change that's is divergent)
-    let rewritten1 = child_commit(&settings, &repo, &root_commit)
-        .set_predecessors(vec![original.id().clone()])
-        .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
-    let rewritten2 = child_commit(&settings, &repo, &root_commit)
-        .set_predecessors(vec![original.id().clone()])
-        .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
-    assert!(tx.as_repo().evolution().is_divergent(original.change_id()));
-    assert!(tx
-        .as_repo()
-        .evolution()
-        .is_divergent(rewritten1.change_id()));
-    assert!(tx
-        .as_repo()
-        .evolution()
-        .is_divergent(rewritten2.change_id()));
     tx.discard();
 }
 
