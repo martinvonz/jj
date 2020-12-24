@@ -37,7 +37,9 @@ struct State {
     obsolete_commits: HashSet<CommitId>,
     pruned_commits: HashSet<CommitId>,
     orphan_commits: HashSet<CommitId>,
-    divergent_changes: HashMap<ChangeId, HashSet<CommitId>>,
+    /// If there's more than one element in the value, then the change is
+    /// divergent.
+    non_obsoletes_by_changeid: HashMap<ChangeId, HashSet<CommitId>>,
 }
 
 impl State {
@@ -83,15 +85,15 @@ impl State {
                 }
             }
         }
-        // Find divergent commits
+        // Find non-obsolete commits by change id (potentially divergent commits)
         for (change_id, commit_ids) in change_to_commits {
-            let divergent: HashSet<CommitId> = commit_ids
+            let non_obsoletes: HashSet<CommitId> = commit_ids
                 .difference(&state.obsolete_commits)
                 .cloned()
                 .collect();
-            if divergent.len() > 1 {
-                state.divergent_changes.insert(change_id, divergent);
-            }
+            state
+                .non_obsoletes_by_changeid
+                .insert(change_id, non_obsoletes);
         }
         // Find orphans by walking to the children of obsolete commits
         let mut work: Vec<CommitId> = state.obsolete_commits.iter().cloned().collect();
@@ -133,7 +135,9 @@ impl State {
     }
 
     fn is_divergent(&self, change_id: &ChangeId) -> bool {
-        self.divergent_changes.contains_key(change_id)
+        self.non_obsoletes_by_changeid
+            .get(change_id)
+            .map_or(false, |non_obsoletes| non_obsoletes.len() > 1)
     }
 
     pub fn new_parent(&self, store: &StoreWrapper, old_parent_id: &CommitId) -> HashSet<CommitId> {
@@ -357,8 +361,9 @@ pub fn evolve(
         .as_repo_mut()
         .evolution_mut()
         .state
-        .divergent_changes
+        .non_obsoletes_by_changeid
         .values()
+        .filter(|non_obsoletes| non_obsoletes.len() > 1)
         .cloned()
         .collect();
     for commit_ids in divergent_changes {
