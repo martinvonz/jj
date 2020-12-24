@@ -31,6 +31,7 @@ pub mod lock;
 pub mod matchers;
 pub mod op_store;
 pub mod operation;
+pub mod protos;
 pub mod repo;
 pub mod repo_path;
 pub mod rewrite;

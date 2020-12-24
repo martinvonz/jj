@@ -80,11 +80,11 @@ struct TreeState {
     read_time: MillisSinceEpoch,
 }
 
-fn file_state_from_proto(proto: &protos::working_copy::FileState) -> FileState {
+fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> FileState {
     let file_type = match proto.file_type {
-        protos::working_copy::FileType::Normal => FileType::Normal,
-        protos::working_copy::FileType::Symlink => FileType::Symlink,
-        protos::working_copy::FileType::Executable => FileType::Executable,
+        crate::protos::working_copy::FileType::Normal => FileType::Normal,
+        crate::protos::working_copy::FileType::Symlink => FileType::Symlink,
+        crate::protos::working_copy::FileType::Executable => FileType::Executable,
     };
     FileState {
         file_type,
@@ -93,12 +93,12 @@ fn file_state_from_proto(proto: &protos::working_copy::FileState) -> FileState {
     }
 }
 
-fn file_state_to_proto(file_state: &FileState) -> protos::working_copy::FileState {
-    let mut proto = protos::working_copy::FileState::new();
+fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::FileState {
+    let mut proto = crate::protos::working_copy::FileState::new();
     let file_type = match &file_state.file_type {
-        FileType::Normal => protos::working_copy::FileType::Normal,
-        FileType::Symlink => protos::working_copy::FileType::Symlink,
-        FileType::Executable => protos::working_copy::FileType::Executable,
+        FileType::Normal => crate::protos::working_copy::FileType::Normal,
+        FileType::Symlink => crate::protos::working_copy::FileType::Symlink,
+        FileType::Executable => crate::protos::working_copy::FileType::Executable,
     };
     proto.file_type = file_type;
     proto.mtime_millis_since_epoch = file_state.mtime.0;
@@ -107,7 +107,7 @@ fn file_state_to_proto(file_state: &FileState) -> protos::working_copy::FileStat
 }
 
 fn file_states_from_proto(
-    proto: &protos::working_copy::TreeState,
+    proto: &crate::protos::working_copy::TreeState,
 ) -> BTreeMap<FileRepoPath, FileState> {
     let mut file_states = BTreeMap::new();
     for (path_str, proto_file_state) in &proto.file_states {
@@ -209,14 +209,14 @@ impl TreeState {
 
     fn read(&mut self, mut file: File) {
         self.update_read_time();
-        let proto: protos::working_copy::TreeState =
+        let proto: crate::protos::working_copy::TreeState =
             protobuf::parse_from_reader(&mut file).unwrap();
         self.tree_id = TreeId(proto.tree_id.clone());
         self.file_states = file_states_from_proto(&proto);
     }
 
     fn save(&mut self) {
-        let mut proto = protos::working_copy::TreeState::new();
+        let mut proto = crate::protos::working_copy::TreeState::new();
         proto.tree_id = self.tree_id.0.clone();
         for (file, file_state) in &self.file_states {
             proto
@@ -533,7 +533,7 @@ impl WorkingCopy {
     ) -> WorkingCopy {
         // Leave the commit_id empty so a subsequent call to check out the root revision
         // will have an effect.
-        let proto = protos::working_copy::Checkout::new();
+        let proto = crate::protos::working_copy::Checkout::new();
         let mut file = OpenOptions::new()
             .create_new(true)
             .write(true)
@@ -565,13 +565,13 @@ impl WorkingCopy {
         }
     }
 
-    fn write_proto(&self, proto: protos::working_copy::Checkout) {
+    fn write_proto(&self, proto: crate::protos::working_copy::Checkout) {
         let mut temp_file = NamedTempFile::new_in(&self.state_path).unwrap();
         proto.write_to_writer(temp_file.as_file_mut()).unwrap();
         temp_file.persist(self.state_path.join("checkout")).unwrap();
     }
 
-    fn read_proto(&self) -> protos::working_copy::Checkout {
+    fn read_proto(&self) -> crate::protos::working_copy::Checkout {
         let mut file = File::open(self.state_path.join("checkout")).unwrap();
         protobuf::parse_from_reader(&mut file).unwrap()
     }
@@ -631,7 +631,7 @@ impl WorkingCopy {
     }
 
     fn save(&self) {
-        let mut proto = protos::working_copy::Checkout::new();
+        let mut proto = crate::protos::working_copy::Checkout::new();
         proto.commit_id = self.current_commit_id().0;
         self.write_proto(proto);
     }

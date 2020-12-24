@@ -84,7 +84,7 @@ impl OpStore for SimpleOpStore {
         let path = self.view_path(&id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
-        let proto: protos::op_store::View = protobuf::parse_from_reader(&mut file)?;
+        let proto: crate::protos::op_store::View = protobuf::parse_from_reader(&mut file)?;
         Ok(view_from_proto(&proto))
     }
 
@@ -107,7 +107,7 @@ impl OpStore for SimpleOpStore {
         let path = self.operation_path(&id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
-        let proto: protos::op_store::Operation = protobuf::parse_from_reader(&mut file)?;
+        let proto: crate::protos::op_store::Operation = protobuf::parse_from_reader(&mut file)?;
         Ok(operation_from_proto(&proto))
     }
 
@@ -127,14 +127,14 @@ impl OpStore for SimpleOpStore {
     }
 }
 
-fn timestamp_to_proto(timestamp: &Timestamp) -> protos::op_store::Timestamp {
-    let mut proto = protos::op_store::Timestamp::new();
+fn timestamp_to_proto(timestamp: &Timestamp) -> crate::protos::op_store::Timestamp {
+    let mut proto = crate::protos::op_store::Timestamp::new();
     proto.set_millis_since_epoch(timestamp.timestamp.0);
     proto.set_tz_offset(timestamp.tz_offset);
     proto
 }
 
-fn timestamp_from_proto(proto: &protos::op_store::Timestamp) -> Timestamp {
+fn timestamp_from_proto(proto: &crate::protos::op_store::Timestamp) -> Timestamp {
     Timestamp {
         timestamp: MillisSinceEpoch(proto.millis_since_epoch),
         tz_offset: proto.tz_offset,
@@ -143,8 +143,8 @@ fn timestamp_from_proto(proto: &protos::op_store::Timestamp) -> Timestamp {
 
 fn operation_metadata_to_proto(
     metadata: &OperationMetadata,
-) -> protos::op_store::OperationMetadata {
-    let mut proto = protos::op_store::OperationMetadata::new();
+) -> crate::protos::op_store::OperationMetadata {
+    let mut proto = crate::protos::op_store::OperationMetadata::new();
     proto.set_start_time(timestamp_to_proto(&metadata.start_time));
     proto.set_end_time(timestamp_to_proto(&metadata.end_time));
     proto.set_description(metadata.description.clone());
@@ -153,7 +153,9 @@ fn operation_metadata_to_proto(
     proto
 }
 
-fn operation_metadata_from_proto(proto: &protos::op_store::OperationMetadata) -> OperationMetadata {
+fn operation_metadata_from_proto(
+    proto: &crate::protos::op_store::OperationMetadata,
+) -> OperationMetadata {
     let start_time = timestamp_from_proto(proto.get_start_time());
     let end_time = timestamp_from_proto(proto.get_end_time());
     let description = proto.get_description().to_owned();
@@ -168,8 +170,8 @@ fn operation_metadata_from_proto(proto: &protos::op_store::OperationMetadata) ->
     }
 }
 
-fn operation_to_proto(operation: &Operation) -> protos::op_store::Operation {
-    let mut proto = protos::op_store::Operation::new();
+fn operation_to_proto(operation: &Operation) -> crate::protos::op_store::Operation {
+    let mut proto = crate::protos::op_store::Operation::new();
     proto.set_view_id(operation.view_id.0.clone());
     for parent in &operation.parents {
         proto.parents.push(parent.0.clone());
@@ -178,7 +180,7 @@ fn operation_to_proto(operation: &Operation) -> protos::op_store::Operation {
     proto
 }
 
-fn operation_from_proto(proto: &protos::op_store::Operation) -> Operation {
+fn operation_from_proto(proto: &crate::protos::op_store::Operation) -> Operation {
     let operation_id_from_proto = |parent: &Vec<u8>| OperationId(parent.clone());
     let parents = proto.parents.iter().map(operation_id_from_proto).collect();
     let view_id = ViewId(proto.view_id.to_vec());
@@ -190,8 +192,8 @@ fn operation_from_proto(proto: &protos::op_store::Operation) -> Operation {
     }
 }
 
-fn view_to_proto(view: &View) -> protos::op_store::View {
-    let mut proto = protos::op_store::View::new();
+fn view_to_proto(view: &View) -> crate::protos::op_store::View {
+    let mut proto = crate::protos::op_store::View::new();
     proto.checkout = view.checkout.0.clone();
     for head_id in &view.head_ids {
         proto.head_ids.push(head_id.0.clone());
@@ -199,7 +201,7 @@ fn view_to_proto(view: &View) -> protos::op_store::View {
     proto
 }
 
-fn view_from_proto(proto: &protos::op_store::View) -> View {
+fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
     let mut view = View::new(CommitId(proto.checkout.clone()));
     for head_id_bytes in proto.head_ids.iter() {
         view.head_ids.insert(CommitId(head_id_bytes.to_vec()));

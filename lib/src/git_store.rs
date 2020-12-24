@@ -84,7 +84,7 @@ fn signature_to_git(signature: &Signature) -> git2::Signature {
 }
 
 fn serialize_note(commit: &Commit) -> String {
-    let mut proto = protos::store::Commit::new();
+    let mut proto = crate::protos::store::Commit::new();
     proto.is_open = commit.is_open;
     proto.is_pruned = commit.is_pruned;
     proto.change_id = commit.change_id.0.to_vec();
@@ -98,7 +98,7 @@ fn serialize_note(commit: &Commit) -> String {
 fn deserialize_note(commit: &mut Commit, note: &str) {
     let bytes = hex::decode(note).unwrap();
     let mut cursor = Cursor::new(bytes);
-    let proto: protos::store::Commit = protobuf::parse_from_reader(&mut cursor).unwrap();
+    let proto: crate::protos::store::Commit = protobuf::parse_from_reader(&mut cursor).unwrap();
     commit.is_open = proto.is_open;
     commit.is_pruned = proto.is_pruned;
     commit.change_id = ChangeId(proto.change_id);

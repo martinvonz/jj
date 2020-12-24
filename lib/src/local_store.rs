@@ -168,7 +168,7 @@ impl Store for LocalStore {
         let path = self.tree_path(&id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
-        let proto: protos::store::Tree = protobuf::parse_from_reader(&mut file)?;
+        let proto: crate::protos::store::Tree = protobuf::parse_from_reader(&mut file)?;
         Ok(tree_from_proto(&proto))
     }
 
@@ -191,7 +191,7 @@ impl Store for LocalStore {
         let path = self.commit_path(&id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
-        let proto: protos::store::Commit = protobuf::parse_from_reader(&mut file)?;
+        let proto: crate::protos::store::Commit = protobuf::parse_from_reader(&mut file)?;
         Ok(commit_from_proto(&proto))
     }
 
@@ -214,7 +214,7 @@ impl Store for LocalStore {
         let path = self.conflict_path(&id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
-        let proto: protos::store::Conflict = protobuf::parse_from_reader(&mut file)?;
+        let proto: crate::protos::store::Conflict = protobuf::parse_from_reader(&mut file)?;
         Ok(conflict_from_proto(&proto))
     }
 
@@ -234,8 +234,8 @@ impl Store for LocalStore {
     }
 }
 
-pub fn commit_to_proto(commit: &Commit) -> protos::store::Commit {
-    let mut proto = protos::store::Commit::new();
+pub fn commit_to_proto(commit: &Commit) -> crate::protos::store::Commit {
+    let mut proto = crate::protos::store::Commit::new();
     for parent in &commit.parents {
         proto.parents.push(parent.0.clone());
     }
@@ -252,7 +252,7 @@ pub fn commit_to_proto(commit: &Commit) -> protos::store::Commit {
     proto
 }
 
-fn commit_from_proto(proto: &protos::store::Commit) -> Commit {
+fn commit_from_proto(proto: &crate::protos::store::Commit) -> Commit {
     let commit_id_from_proto = |parent: &Vec<u8>| CommitId(parent.clone());
     let parents = proto.parents.iter().map(commit_id_from_proto).collect();
     let predecessors = proto
@@ -275,10 +275,10 @@ fn commit_from_proto(proto: &protos::store::Commit) -> Commit {
     }
 }
 
-fn tree_to_proto(tree: &Tree) -> protos::store::Tree {
-    let mut proto = protos::store::Tree::new();
+fn tree_to_proto(tree: &Tree) -> crate::protos::store::Tree {
+    let mut proto = crate::protos::store::Tree::new();
     for entry in tree.entries() {
-        let mut proto_entry = protos::store::Tree_Entry::new();
+        let mut proto_entry = crate::protos::store::Tree_Entry::new();
         proto_entry.set_name(entry.name().to_owned());
         proto_entry.set_value(tree_value_to_proto(entry.value()));
         proto.entries.push(proto_entry);
@@ -286,7 +286,7 @@ fn tree_to_proto(tree: &Tree) -> protos::store::Tree {
     proto
 }
 
-fn tree_from_proto(proto: &protos::store::Tree) -> Tree {
+fn tree_from_proto(proto: &crate::protos::store::Tree) -> Tree {
     let mut tree = Tree::default();
     for proto_entry in proto.entries.iter() {
         let value = tree_value_from_proto(proto_entry.value.as_ref().unwrap());
@@ -295,11 +295,11 @@ fn tree_from_proto(proto: &protos::store::Tree) -> Tree {
     tree
 }
 
-fn tree_value_to_proto(value: &TreeValue) -> protos::store::TreeValue {
-    let mut proto = protos::store::TreeValue::new();
+fn tree_value_to_proto(value: &TreeValue) -> crate::protos::store::TreeValue {
+    let mut proto = crate::protos::store::TreeValue::new();
     match value {
         TreeValue::Normal { id, executable } => {
-            let mut file = protos::store::TreeValue_NormalFile::new();
+            let mut file = crate::protos::store::TreeValue_NormalFile::new();
             file.set_id(id.0.clone());
             file.set_executable(*executable);
             proto.set_normal_file(file);
@@ -320,36 +320,38 @@ fn tree_value_to_proto(value: &TreeValue) -> protos::store::TreeValue {
     proto
 }
 
-fn tree_value_from_proto(proto: &protos::store::TreeValue) -> TreeValue {
+fn tree_value_from_proto(proto: &crate::protos::store::TreeValue) -> TreeValue {
     match proto.value.as_ref().unwrap() {
-        protos::store::TreeValue_oneof_value::tree_id(id) => TreeValue::Tree(TreeId(id.clone())),
-        protos::store::TreeValue_oneof_value::normal_file(
-            protos::store::TreeValue_NormalFile { id, executable, .. },
+        crate::protos::store::TreeValue_oneof_value::tree_id(id) => {
+            TreeValue::Tree(TreeId(id.clone()))
+        }
+        crate::protos::store::TreeValue_oneof_value::normal_file(
+            crate::protos::store::TreeValue_NormalFile { id, executable, .. },
         ) => TreeValue::Normal {
             id: FileId(id.clone()),
             executable: *executable,
         },
-        protos::store::TreeValue_oneof_value::symlink_id(id) => {
+        crate::protos::store::TreeValue_oneof_value::symlink_id(id) => {
             TreeValue::Symlink(SymlinkId(id.clone()))
         }
-        protos::store::TreeValue_oneof_value::conflict_id(id) => {
+        crate::protos::store::TreeValue_oneof_value::conflict_id(id) => {
             TreeValue::Conflict(ConflictId(id.clone()))
         }
     }
 }
 
-fn signature_to_proto(signature: &Signature) -> protos::store::Commit_Signature {
-    let mut proto = protos::store::Commit_Signature::new();
+fn signature_to_proto(signature: &Signature) -> crate::protos::store::Commit_Signature {
+    let mut proto = crate::protos::store::Commit_Signature::new();
     proto.set_name(signature.name.clone());
     proto.set_email(signature.email.clone());
-    let mut timestamp_proto = protos::store::Commit_Timestamp::new();
+    let mut timestamp_proto = crate::protos::store::Commit_Timestamp::new();
     timestamp_proto.set_millis_since_epoch(signature.timestamp.timestamp.0);
     timestamp_proto.set_tz_offset(signature.timestamp.tz_offset);
     proto.set_timestamp(timestamp_proto);
     proto
 }
 
-fn signature_from_proto(proto: &protos::store::Commit_Signature) -> Signature {
+fn signature_from_proto(proto: &crate::protos::store::Commit_Signature) -> Signature {
     let timestamp = proto.get_timestamp();
     Signature {
         name: proto.name.clone(),
@@ -361,8 +363,8 @@ fn signature_from_proto(proto: &protos::store::Commit_Signature) -> Signature {
     }
 }
 
-fn conflict_to_proto(conflict: &Conflict) -> protos::store::Conflict {
-    let mut proto = protos::store::Conflict::new();
+fn conflict_to_proto(conflict: &Conflict) -> crate::protos::store::Conflict {
+    let mut proto = crate::protos::store::Conflict::new();
     for part in &conflict.adds {
         proto.adds.push(conflict_part_to_proto(part));
     }
@@ -372,7 +374,7 @@ fn conflict_to_proto(conflict: &Conflict) -> protos::store::Conflict {
     proto
 }
 
-fn conflict_from_proto(proto: &protos::store::Conflict) -> Conflict {
+fn conflict_from_proto(proto: &crate::protos::store::Conflict) -> Conflict {
     let mut conflict = Conflict::default();
     for part in &proto.removes {
         conflict.removes.push(conflict_part_from_proto(part))
@@ -383,14 +385,14 @@ fn conflict_from_proto(proto: &protos::store::Conflict) -> Conflict {
     conflict
 }
 
-fn conflict_part_from_proto(proto: &protos::store::Conflict_Part) -> ConflictPart {
+fn conflict_part_from_proto(proto: &crate::protos::store::Conflict_Part) -> ConflictPart {
     ConflictPart {
         value: tree_value_from_proto(proto.content.as_ref().unwrap()),
     }
 }
 
-fn conflict_part_to_proto(part: &ConflictPart) -> protos::store::Conflict_Part {
-    let mut proto = protos::store::Conflict_Part::new();
+fn conflict_part_to_proto(part: &ConflictPart) -> crate::protos::store::Conflict_Part {
+    let mut proto = crate::protos::store::Conflict_Part::new();
     proto.set_content(tree_value_to_proto(&part.value));
     proto
 }

@@ -12,17 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate protobuf_codegen_pure;
-
-use protobuf_codegen_pure::Codegen;
-
-fn main() {
-    Codegen::new()
-        .out_dir("src/")
-        .include("src/")
-        .input("src/op_store.proto")
-        .input("src/store.proto")
-        .input("src/working_copy.proto")
-        .run()
-        .expect("protoc");
-}
+include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));

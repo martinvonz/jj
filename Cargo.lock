@@ -517,7 +517,6 @@ dependencies = [
  "maplit",
  "protobuf",
  "protobuf-codegen-pure",
- "protos",
  "rand",
  "serde_json",
  "tempfile",
@@ -857,15 +856,6 @@ checksum = "6af8d72d9e14fd41a954f4d5b310396151437c83d2bfcbf19d3073af90e46288"
 dependencies = [
  "protobuf",
  "protobuf-codegen",
-]
-
-[[package]]
-name = "protos"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "protobuf",
- "protobuf-codegen-pure",
 ]
 
 [[package]]
