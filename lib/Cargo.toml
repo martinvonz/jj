@@ -10,6 +10,7 @@ edition = "2018"
 protobuf-codegen-pure = "2.18.1"
 
 [dependencies]
+backoff = "0.2.1"
 blake2 = "0.9.1"
 bytes = "1.0.0"
 byteorder = "1.3.4"

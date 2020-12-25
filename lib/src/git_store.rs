@@ -27,6 +27,7 @@ use crate::store::{
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictPart, FileId, MillisSinceEpoch,
     Signature, Store, StoreError, StoreResult, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
+use backoff::{ExponentialBackoff, Operation};
 
 const NOTES_REF: &str = "refs/notes/jj/commits";
 const NOTES_REF_LOCK: &str = "refs/notes/jj/commits.lock";
@@ -316,7 +317,10 @@ impl Store for GitStore {
         // TODO: Include the extra commit data in commit headers instead of a ref.
         // Unfortunately, it doesn't seem like libgit2-rs supports that. Perhaps
         // we'll have to serialize/deserialize the commit data ourselves.
-        loop {
+        // It seems that libgit2 doesn't retry when .git/refs/notes/jj/commits.lock
+        // already exists, so we do the retrying ourselves.
+        // TODO: Report this to libgit2.
+        let mut try_write_note = || {
             let note_status = locked_repo.note(
                 &committer,
                 &committer,
@@ -327,20 +331,21 @@ impl Store for GitStore {
             );
             match note_status {
                 Err(err) if err.message().contains(NOTES_REF_LOCK) => {
-                    // It seems that libgit2 doesn't retry when .git/refs/notes/jj/commits.lock
-                    // already exists.
-                    // TODO: Report this to libgit2.
-                    let retry_delay = Duration::from_millis(10);
-                    std::thread::sleep(retry_delay);
+                    Err(backoff::Error::Transient(err))
                 }
-                Err(err) => {
-                    return Err(StoreError::from(err));
-                }
-                Ok(_) => {
-                    break;
-                }
+                Err(err) => Err(backoff::Error::Permanent(err)),
+                Ok(_) => Ok(()),
             }
-        }
+        };
+        let mut backoff = ExponentialBackoff::default();
+        backoff.initial_interval = Duration::from_millis(1);
+        backoff.max_elapsed_time = Some(Duration::from_secs(10));
+        try_write_note
+            .retry(&mut backoff)
+            .map_err(|err| match err {
+                backoff::Error::Permanent(err) => err,
+                backoff::Error::Transient(err) => err,
+            })?;
 
         Ok(id)
     }
