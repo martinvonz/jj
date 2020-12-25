@@ -30,7 +30,8 @@ use crate::store::{
 use backoff::{ExponentialBackoff, Operation};
 use std::ops::Deref;
 
-const NOTES_REF: &str = "refs/notes/jj/commits";
+const COMMITS_NOTES_REF: &str = "refs/notes/jj/commits";
+const CONFLICTS_NOTES_REF: &str = "refs/notes/jj/conflicts";
 const CONFLICT_SUFFIX: &str = ".jjconflict";
 
 impl From<git2::Error> for StoreError {
@@ -318,7 +319,9 @@ impl Store for GitStore {
             is_pruned: false,
         };
 
-        let maybe_note = locked_repo.find_note(Some(NOTES_REF), git_commit_id).ok();
+        let maybe_note = locked_repo
+            .find_note(Some(COMMITS_NOTES_REF), git_commit_id)
+            .ok();
         if let Some(note) = maybe_note {
             deserialize_note(&mut commit, note.message().unwrap());
         }
@@ -350,7 +353,13 @@ impl Store for GitStore {
         // TODO: Include the extra commit data in commit headers instead of a ref.
         // Unfortunately, it doesn't seem like libgit2-rs supports that. Perhaps
         // we'll have to serialize/deserialize the commit data ourselves.
-        write_note(locked_repo.deref(), &committer, NOTES_REF, git_id, &note)?;
+        write_note(
+            locked_repo.deref(),
+            &committer,
+            COMMITS_NOTES_REF,
+            git_id,
+            &note,
+        )?;
         Ok(id)
     }
 
@@ -373,8 +382,23 @@ impl Store for GitStore {
         let json_string = json.to_string();
         let bytes = json_string.as_bytes();
         let locked_repo = self.repo.lock().unwrap();
-        // TODO: add a ref pointing to it so it won't get GC'd
         let oid = locked_repo.blob(bytes).unwrap();
+        let signature = git2::Signature::now("Jujube", "jj@example.com").unwrap();
+        let note_result = write_note(
+            locked_repo.deref(),
+            &signature,
+            CONFLICTS_NOTES_REF,
+            oid,
+            "Conflict object used by Jujube",
+        );
+        match note_result {
+            // It's fine if the conflict already existed (no need to update the note), but
+            // any other error is unexpected.
+            Err(err) if err.code() != git2::ErrorCode::Exists => {
+                return Err(StoreError::from(err));
+            }
+            _ => {}
+        }
         Ok(ConflictId(oid.as_bytes().to_vec()))
     }
 }
