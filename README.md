@@ -157,7 +157,7 @@ created. This step cannot fail (except if the file system runs out of space or
 such). Pointers to the heads of the operation DAG are kept as files in a
 directory (the filename is the operation id). When a new operation object has
 been created, its operation id is added to the directory. The transaction's base
-opertion id is then removed from that directory. If concurrent operations
+operation id is then removed from that directory. If concurrent operations
 happened, there would be multiple new operation ids in the directory and only
 one base operation id would have been removed. If a reader sees the repo in this
 state, it will attempt to merge the views and create a new operation with
