@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use backoff::{ExponentialBackoff, Operation};
 use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -26,19 +27,26 @@ impl FileLock {
         let mut options = OpenOptions::new();
         options.create_new(true);
         options.write(true);
-        let retry_delay = Duration::from_millis(10);
-        loop {
-            match options.open(&path) {
-                Ok(file) => return FileLock { path, _file: file },
-                Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
-                    std::thread::sleep(retry_delay);
-                }
-                Err(err) => panic!(
-                    "failed to create lock file {}: {}",
-                    path.to_string_lossy(),
-                    err
-                ),
+        let mut try_write_lock_file = || match options.open(&path) {
+            Ok(file) => Ok(FileLock {
+                path: path.clone(),
+                _file: file,
+            }),
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
+                Err(backoff::Error::Transient(err))
             }
+            Err(err) => Err(backoff::Error::Permanent(err)),
+        };
+        let mut backoff = ExponentialBackoff::default();
+        backoff.initial_interval = Duration::from_millis(1);
+        backoff.max_elapsed_time = Some(Duration::from_secs(10));
+        match try_write_lock_file.retry(&mut backoff) {
+            Err(err) => panic!(
+                "failed to create lock file {}: {}",
+                path.to_string_lossy(),
+                err
+            ),
+            Ok(file_lock) => file_lock,
         }
     }
 }
