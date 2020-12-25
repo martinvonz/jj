@@ -371,10 +371,11 @@ impl Store for GitStore {
             "adds": conflict_part_list_to_json(&conflict.adds),
         });
         let json_string = json.to_string();
-        let mut bytes = json_string.as_bytes();
+        let bytes = json_string.as_bytes();
+        let locked_repo = self.repo.lock().unwrap();
         // TODO: add a ref pointing to it so it won't get GC'd
-        let file_id = self.write_file(&FileRepoPath::from("unused"), &mut bytes)?;
-        Ok(ConflictId(file_id.0))
+        let oid = locked_repo.blob(bytes).unwrap();
+        Ok(ConflictId(oid.as_bytes().to_vec()))
     }
 }
 
