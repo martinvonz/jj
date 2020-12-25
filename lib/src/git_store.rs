@@ -28,9 +28,9 @@ use crate::store::{
     Signature, Store, StoreError, StoreResult, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
 use backoff::{ExponentialBackoff, Operation};
+use std::ops::Deref;
 
 const NOTES_REF: &str = "refs/notes/jj/commits";
-const NOTES_REF_LOCK: &str = "refs/notes/jj/commits.lock";
 const CONFLICT_SUFFIX: &str = ".jjconflict";
 
 impl From<git2::Error> for StoreError {
@@ -106,6 +106,39 @@ fn deserialize_note(commit: &mut Commit, note: &str) {
     for predecessor in &proto.predecessors {
         commit.predecessors.push(CommitId(predecessor.clone()));
     }
+}
+
+fn write_note(
+    git_repo: &git2::Repository,
+    committer: &git2::Signature,
+    notes_ref: &str,
+    oid: git2::Oid,
+    note: &str,
+) -> Result<(), git2::Error> {
+    // It seems that libgit2 doesn't retry when .git/refs/notes/jj/commits.lock
+    // already exists, so we do the retrying ourselves.
+    // TODO: Report this to libgit2.
+    let notes_ref_lock = format!("{}.lock", notes_ref);
+    let mut try_write_note = || {
+        let note_status = git_repo.note(&committer, &committer, Some(notes_ref), oid, note, false);
+        match note_status {
+            Err(err) if err.message().contains(&notes_ref_lock) => {
+                Err(backoff::Error::Transient(err))
+            }
+            Err(err) => Err(backoff::Error::Permanent(err)),
+            Ok(_) => Ok(()),
+        }
+    };
+    let mut backoff = ExponentialBackoff::default();
+    backoff.initial_interval = Duration::from_millis(1);
+    backoff.max_elapsed_time = Some(Duration::from_secs(10));
+    try_write_note
+        .retry(&mut backoff)
+        .map_err(|err| match err {
+            backoff::Error::Permanent(err) => err,
+            backoff::Error::Transient(err) => err,
+        })?;
+    Ok(())
 }
 
 impl Debug for GitStore {
@@ -317,36 +350,7 @@ impl Store for GitStore {
         // TODO: Include the extra commit data in commit headers instead of a ref.
         // Unfortunately, it doesn't seem like libgit2-rs supports that. Perhaps
         // we'll have to serialize/deserialize the commit data ourselves.
-        // It seems that libgit2 doesn't retry when .git/refs/notes/jj/commits.lock
-        // already exists, so we do the retrying ourselves.
-        // TODO: Report this to libgit2.
-        let mut try_write_note = || {
-            let note_status = locked_repo.note(
-                &committer,
-                &committer,
-                Some(NOTES_REF),
-                git_id,
-                &note,
-                false,
-            );
-            match note_status {
-                Err(err) if err.message().contains(NOTES_REF_LOCK) => {
-                    Err(backoff::Error::Transient(err))
-                }
-                Err(err) => Err(backoff::Error::Permanent(err)),
-                Ok(_) => Ok(()),
-            }
-        };
-        let mut backoff = ExponentialBackoff::default();
-        backoff.initial_interval = Duration::from_millis(1);
-        backoff.max_elapsed_time = Some(Duration::from_secs(10));
-        try_write_note
-            .retry(&mut backoff)
-            .map_err(|err| match err {
-                backoff::Error::Permanent(err) => err,
-                backoff::Error::Transient(err) => err,
-            })?;
-
+        write_note(locked_repo.deref(), &committer, NOTES_REF, git_id, &note)?;
         Ok(id)
     }
 
