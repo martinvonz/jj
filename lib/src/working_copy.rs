@@ -23,7 +23,7 @@ use std::os::unix::fs::symlink;
 use std::os::unix::fs::PermissionsExt;
 #[cfg(windows)]
 use std::os::windows::fs::symlink_file;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 
 use protobuf::Message;
@@ -397,11 +397,7 @@ impl TreeState {
         fs::set_permissions(disk_path, fs::Permissions::from_mode(mode)).unwrap();
     }
 
-    pub fn check_out(
-        &mut self,
-        tree_id: TreeId,
-        working_copy_path: &Path,
-    ) -> Result<CheckoutStats, CheckoutError> {
+    pub fn check_out(&mut self, tree_id: TreeId) -> Result<CheckoutStats, CheckoutError> {
         let old_tree = self
             .store
             .get_tree(&DirRepoPath::root(), &self.tree_id)
@@ -424,7 +420,9 @@ impl TreeState {
         };
 
         old_tree.diff(&new_tree, &mut |path, diff| {
-            let disk_path = working_copy_path.join(PathBuf::from(path.to_internal_string()));
+            let disk_path = self
+                .working_copy_path
+                .join(PathBuf::from(path.to_internal_string()));
 
             // TODO: Check that the file has not changed before overwriting/removing it.
             match diff {
@@ -663,7 +661,7 @@ impl WorkingCopy {
             .tree_state()
             .as_mut()
             .unwrap()
-            .check_out(commit.tree().id().clone(), &self.working_copy_path)?;
+            .check_out(commit.tree().id().clone())?;
 
         self.commit_id.replace(Some(commit.id().clone()));
         self.commit.replace(Some(commit));
