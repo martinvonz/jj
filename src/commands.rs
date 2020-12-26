@@ -412,6 +412,11 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 ),
         )
         .subcommand(
+            SubCommand::with_name("edit")
+                .about("edit the content changes in a revision")
+                .arg(rev_arg()),
+        )
+        .subcommand(
             SubCommand::with_name("merge")
                 .about("merge work from multiple branches")
                 .arg(
@@ -1382,6 +1387,38 @@ fn cmd_restore(
     Ok(())
 }
 
+fn cmd_edit(
+    ui: &mut Ui,
+    matches: &ArgMatches,
+    sub_matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    let mut repo = get_repo(ui, &matches)?;
+    let owned_wc = repo.working_copy().clone();
+    let mut_repo = Arc::get_mut(&mut repo).unwrap();
+    let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let base_tree = merge_commit_trees(repo.store(), &commit.parents());
+    let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
+    if &tree_id == commit.tree().id() {
+        ui.write("Nothing changed.\n");
+    } else {
+        let mut tx = repo.start_transaction(&format!("edit commit {}", commit.id().hex()));
+        let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
+            .set_tree(tree_id)
+            .write_to_transaction(&mut tx);
+        ui.write("Created ");
+        ui.write_commit_summary(tx.as_repo(), &new_commit);
+        ui.write("\n");
+        update_checkout_after_rewrite(ui, &mut tx);
+        tx.commit();
+        update_working_copy(
+            ui,
+            Arc::get_mut(&mut repo).unwrap(),
+            &owned_wc.lock().unwrap(),
+        )?;
+    }
+    Ok(())
+}
+
 fn cmd_merge(
     ui: &mut Ui,
     matches: &ArgMatches,
@@ -1894,6 +1931,8 @@ where
         cmd_discard(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("restore") {
         cmd_restore(&mut ui, &matches, &sub_matches)
+    } else if let Some(sub_matches) = matches.subcommand_matches("edit") {
+        cmd_edit(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("merge") {
         cmd_merge(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("rebase") {
