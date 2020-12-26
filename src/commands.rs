@@ -417,6 +417,11 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .arg(rev_arg()),
         )
         .subcommand(
+            SubCommand::with_name("split")
+                .about("split a revision in two")
+                .arg(rev_arg()),
+        )
+        .subcommand(
             SubCommand::with_name("merge")
                 .about("merge work from multiple branches")
                 .arg(
@@ -1417,6 +1422,51 @@ fn cmd_edit(
     Ok(())
 }
 
+fn cmd_split(
+    ui: &mut Ui,
+    matches: &ArgMatches,
+    sub_matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    let mut repo = get_repo(ui, &matches)?;
+    let owned_wc = repo.working_copy().clone();
+    let mut_repo = Arc::get_mut(&mut repo).unwrap();
+    let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let base_tree = merge_commit_trees(repo.store(), &commit.parents());
+    let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
+    if &tree_id == commit.tree().id() {
+        ui.write("Nothing changed.\n");
+    } else {
+        let mut tx = repo.start_transaction(&format!("split commit {}", commit.id().hex()));
+        // TODO: Add a header or footer to the decription where we describe to the user
+        // that this is the first commit
+        let first_description = edit_description(&repo, commit.description());
+        let first_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
+            .set_tree(tree_id)
+            .set_description(first_description)
+            .write_to_transaction(&mut tx);
+        let second_description = edit_description(&repo, commit.description());
+        let second_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
+            .set_parents(vec![first_commit.id().clone()])
+            .set_tree(commit.tree().id().clone())
+            .generate_new_change_id()
+            .set_description(second_description)
+            .write_to_transaction(&mut tx);
+        ui.write("First part: ");
+        ui.write_commit_summary(tx.as_repo(), &first_commit);
+        ui.write("Second part: ");
+        ui.write_commit_summary(tx.as_repo(), &second_commit);
+        ui.write("\n");
+        update_checkout_after_rewrite(ui, &mut tx);
+        tx.commit();
+        update_working_copy(
+            ui,
+            Arc::get_mut(&mut repo).unwrap(),
+            &owned_wc.lock().unwrap(),
+        )?;
+    }
+    Ok(())
+}
+
 fn cmd_merge(
     ui: &mut Ui,
     matches: &ArgMatches,
@@ -1931,6 +1981,8 @@ where
         cmd_restore(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("edit") {
         cmd_edit(&mut ui, &matches, &sub_matches)
+    } else if let Some(sub_matches) = matches.subcommand_matches("split") {
+        cmd_split(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("merge") {
         cmd_merge(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("rebase") {
