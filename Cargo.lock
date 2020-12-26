@@ -556,6 +556,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "test-case",
+ "thiserror",
  "uuid",
  "zstd",
 ]

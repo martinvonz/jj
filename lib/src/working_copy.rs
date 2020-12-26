@@ -71,7 +71,7 @@ impl FileState {
     }
 }
 
-struct TreeState {
+pub struct TreeState {
     store: Arc<StoreWrapper>,
     working_copy_path: PathBuf,
     state_path: PathBuf,

@@ -30,6 +30,16 @@ pub enum Diff<T> {
     Removed(T),
 }
 
+impl<T> Diff<T> {
+    pub fn as_options(&self) -> (Option<&T>, Option<&T>) {
+        match self {
+            Diff::Modified(left, right) => (Some(left), Some(right)),
+            Diff::Added(right) => (None, Some(right)),
+            Diff::Removed(left) => (Some(left), None),
+        }
+    }
+}
+
 pub type TreeValueDiff<'a> = Diff<&'a TreeValue>;
 
 fn diff_entries<'a, E>(

@@ -28,6 +28,7 @@ protobuf = { version = "2.18.1", features = ["with-bytes"] }
 protobuf-codegen-pure = "2.18.1"
 serde_json = "1.0.60"
 tempfile = "3.1.0"
+thiserror = "1.0.22"
 uuid = { version = "0.8.1", features = ["v4"] }
 zstd = "0.6.0"
 

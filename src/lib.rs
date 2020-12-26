@@ -18,6 +18,7 @@
 extern crate pest_derive;
 
 pub mod commands;
+pub mod diff_edit;
 pub mod graphlog;
 pub mod styler;
 pub mod template_parser;

@@ -51,6 +51,8 @@ use jj_lib::trees::TreeValueDiff;
 use jj_lib::working_copy::{CheckoutStats, WorkingCopy};
 
 use self::chrono::{FixedOffset, TimeZone, Utc};
+use crate::commands::CommandError::UserError;
+use crate::diff_edit::DiffEditError;
 use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::styler::{ColorStyler, Styler};
 use crate::template_parser::TemplateParser;
@@ -64,6 +66,12 @@ use jj_lib::view::merge_views;
 enum CommandError {
     UserError(String),
     InternalError(String),
+}
+
+impl From<DiffEditError> for CommandError {
+    fn from(err: DiffEditError) -> Self {
+        CommandError::UserError(format!("Failed to edit diff: {}", err))
+    }
 }
 
 fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandError> {
@@ -393,9 +401,13 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                         .default_value("@"),
                 )
                 .arg(
+                    Arg::with_name("interactive")
+                        .long("interactive")
+                        .short("i"),
+                )
+                .arg(
                     Arg::with_name("paths")
                         .index(1)
-                        .required(true)
                         .multiple(true),
                 ),
         )
@@ -1319,22 +1331,32 @@ fn cmd_restore(
     let source_commit = resolve_single_rev(ui, mut_repo, sub_matches.value_of("source").unwrap())?;
     let destination_commit =
         resolve_single_rev(ui, mut_repo, sub_matches.value_of("destination").unwrap())?;
-    let paths = sub_matches.values_of("paths").unwrap();
-    let mut tree_builder = repo
-        .store()
-        .tree_builder(destination_commit.tree().id().clone());
-    for path in paths {
-        let repo_path = RepoPath::from(path);
-        match source_commit.tree().path_value(&repo_path) {
-            Some(value) => {
-                tree_builder.set(repo_path, value);
-            }
-            None => {
-                tree_builder.remove(repo_path);
+    let tree_id;
+    if sub_matches.is_present("interactive") {
+        if sub_matches.is_present("paths") {
+            return Err(UserError(
+                "restore with --interactive and path is not yet supported".to_string(),
+            ));
+        }
+        tree_id = crate::diff_edit::edit_diff(&source_commit.tree(), &destination_commit.tree())?;
+    } else {
+        let paths = sub_matches.values_of("paths").unwrap();
+        let mut tree_builder = repo
+            .store()
+            .tree_builder(destination_commit.tree().id().clone());
+        for path in paths {
+            let repo_path = RepoPath::from(path);
+            match source_commit.tree().path_value(&repo_path) {
+                Some(value) => {
+                    tree_builder.set(repo_path, value);
+                }
+                None => {
+                    tree_builder.remove(repo_path);
+                }
             }
         }
+        tree_id = tree_builder.write_tree();
     }
-    let tree_id = tree_builder.write_tree();
     if &tree_id == destination_commit.tree().id() {
         ui.write("Nothing changed.\n");
     } else {
