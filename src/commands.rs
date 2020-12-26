@@ -1074,7 +1074,7 @@ fn cmd_obslog(
     Ok(())
 }
 
-fn edit_description(repo: &ReadonlyRepo, commit: &Commit) -> String {
+fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
     // TODO: Where should this file live? The current location prevents two
     // concurrent `jj describe` calls.
     let description_file_path = repo.repo_path().join("description");
@@ -1085,9 +1085,7 @@ fn edit_description(repo: &ReadonlyRepo, commit: &Commit) -> String {
             .truncate(true)
             .open(&description_file_path)
             .unwrap_or_else(|_| panic!("failed to open {:?} for write", &description_file_path));
-        description_file
-            .write_all(commit.description().as_bytes())
-            .unwrap();
+        description_file.write_all(description.as_bytes()).unwrap();
     }
 
     let exit_status = Command::new("pico")
@@ -1124,7 +1122,7 @@ fn cmd_describe(
     } else if sub_matches.is_present("text") {
         description = sub_matches.value_of("text").unwrap().to_owned()
     } else {
-        description = edit_description(&repo, &commit);
+        description = edit_description(&repo, commit.description());
     }
     let mut tx = repo.start_transaction(&format!("describe commit {}", commit.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
@@ -1175,7 +1173,7 @@ fn cmd_close(
     let mut commit_builder =
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit).set_open(false);
     if commit.description().is_empty() {
-        let description = edit_description(&repo, &commit);
+        let description = edit_description(&repo, commit.description());
         commit_builder = commit_builder.set_description(description);
     }
     let mut tx = repo.start_transaction(&format!("close commit {}", commit.id().hex()));
