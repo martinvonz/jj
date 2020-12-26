@@ -19,7 +19,7 @@ use jj_lib::tree::Tree;
 use jj_lib::tree_builder::TreeBuilder;
 use jj_lib::trees::merge_trees;
 use jj_lib::working_copy::{CheckoutError, TreeState};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 use tempfile::tempdir;
@@ -80,6 +80,17 @@ fn check_out(
     Ok(tree_state)
 }
 
+fn set_readonly_recursively(path: &Path) {
+    if path.is_dir() {
+        for entry in path.read_dir().unwrap() {
+            set_readonly_recursively(&entry.unwrap().path());
+        }
+    }
+    let mut perms = std::fs::metadata(path).unwrap().permissions();
+    perms.set_readonly(true);
+    std::fs::set_permissions(path, perms).unwrap();
+}
+
 pub fn edit_diff(left_tree: &Tree, right_tree: &Tree) -> Result<TreeId, DiffEditError> {
     // First create partial Trees of only the subset of the left and right trees
     // that affect files changed between them.
@@ -112,7 +123,7 @@ pub fn edit_diff(left_tree: &Tree, right_tree: &Tree) -> Result<TreeId, DiffEdit
         left_state_dir,
         left_partial_tree_id,
     )?;
-    // TODO: mark left dir readonly
+    set_readonly_recursively(&left_wc_dir);
     let mut right_tree_state = check_out(
         store.clone(),
         right_wc_dir.clone(),
