@@ -21,10 +21,9 @@ use crate::operation::Operation;
 use crate::repo::{ReadonlyRepo, Repo};
 use crate::settings::UserSettings;
 use crate::store;
-use crate::store::{CommitId, Timestamp, TreeValue};
+use crate::store::{CommitId, Timestamp};
 use crate::store_wrapper::StoreWrapper;
 use crate::view::{MutableView, ReadonlyView, View};
-use std::io::Cursor;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -118,18 +117,9 @@ impl<'r> Transaction<'r> {
         let mut tree_builder = store.tree_builder(commit.tree().id().clone());
         for (path, conflict_id) in commit.tree().conflicts() {
             let conflict = store.read_conflict(&conflict_id).unwrap();
-            let mut buf = vec![];
-            conflicts::materialize_conflict(store, &path, &conflict, &mut buf);
-            let file_id = store
-                .write_file(&path.to_file_repo_path(), &mut Cursor::new(&buf))
-                .unwrap();
-            tree_builder.set(
-                path,
-                TreeValue::Normal {
-                    id: file_id,
-                    executable: false,
-                },
-            );
+            let materialized_value =
+                conflicts::conflict_to_materialized_value(store, &path, &conflict);
+            tree_builder.set(path, materialized_value);
         }
         let tree_id = tree_builder.write_tree();
         let open_commit;

@@ -16,7 +16,7 @@ use crate::files;
 use crate::repo_path::RepoPath;
 use crate::store::{Conflict, TreeValue};
 use crate::store_wrapper::StoreWrapper;
-use std::io::Write;
+use std::io::{Cursor, Write};
 
 pub fn materialize_conflict(
     store: &StoreWrapper,
@@ -97,5 +97,21 @@ pub fn materialize_conflict(
         Some(_) => {
             file.write_all(b"Unresolved complex conflict.\n").unwrap();
         }
+    }
+}
+
+pub fn conflict_to_materialized_value(
+    store: &StoreWrapper,
+    path: &RepoPath,
+    conflict: &Conflict,
+) -> TreeValue {
+    let mut buf = vec![];
+    materialize_conflict(store, &path, &conflict, &mut buf);
+    let file_id = store
+        .write_file(&path.to_file_repo_path(), &mut Cursor::new(&buf))
+        .unwrap();
+    TreeValue::Normal {
+        id: file_id,
+        executable: false,
     }
 }
