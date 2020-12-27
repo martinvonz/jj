@@ -74,6 +74,12 @@ impl From<DiffEditError> for CommandError {
     }
 }
 
+impl From<git2::Error> for CommandError {
+    fn from(err: git2::Error) -> Self {
+        CommandError::UserError(format!("Git operation failed: {}", err))
+    }
+}
+
 fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandError> {
     let repo_path_str = matches.value_of("repository").unwrap();
     let repo_path = ui.cwd().join(repo_path_str);
@@ -411,6 +417,31 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .about("restore to the state at an operation")
                 .arg(op_arg()),
         );
+    let git_command = SubCommand::with_name("git")
+        .about("commands for working with the underlying git repo")
+        .subcommand(
+            SubCommand::with_name("push")
+                .about("push a revision to a git remote branch")
+                .arg(
+                    Arg::with_name("revision")
+                        .long("revision")
+                        .short("r")
+                        .takes_value(true)
+                        .default_value("@^"),
+                )
+                .arg(
+                    Arg::with_name("remote")
+                        .long("remote")
+                        .index(1)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("branch")
+                        .long("branch")
+                        .index(2)
+                        .required(true),
+                ),
+        );
     let bench_command = SubCommand::with_name("bench")
         .about("commands for benchmarking internal operations")
         .subcommand(
@@ -499,6 +530,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .subcommand(backout_command)
         .subcommand(evolve_command)
         .subcommand(operation_command)
+        .subcommand(git_command)
         .subcommand(bench_command)
         .subcommand(debug_command)
 }
@@ -1908,6 +1940,51 @@ fn cmd_operation(
     Ok(())
 }
 
+fn cmd_git_push(
+    ui: &mut Ui,
+    matches: &ArgMatches,
+    _git_matches: &ArgMatches,
+    cmd_matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    let mut repo = get_repo(ui, &matches)?;
+    let store = repo.store().clone();
+    let mut_repo = Arc::get_mut(&mut repo).unwrap();
+    let git_repo = store.git_repo().ok_or_else(|| {
+        CommandError::UserError("git push can only be used on repos back by a git repo".to_string())
+    })?;
+    let commit = resolve_revision_arg(ui, mut_repo, cmd_matches)?;
+    let remote_name = cmd_matches.value_of("remote").unwrap();
+    let branch_name = cmd_matches.value_of("branch").unwrap();
+    let locked_git_repo = git_repo.lock().unwrap();
+    // Create a temporary ref to work around https://github.com/libgit2/libgit2/issues/3178
+    let temp_ref_name = format!("refs/jj/git-push/{}", commit.id().hex());
+    let mut temp_ref = locked_git_repo.reference(
+        &temp_ref_name,
+        git2::Oid::from_bytes(&commit.id().0).unwrap(),
+        true,
+        "temporary reference for git push",
+    )?;
+    let mut remote = locked_git_repo.find_remote(remote_name)?;
+    // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
+    let refspec = format!("{}:refs/heads/{}", temp_ref_name, branch_name);
+    remote.push(&[refspec], None)?;
+    temp_ref.delete()?;
+    Ok(())
+}
+
+fn cmd_git(
+    ui: &mut Ui,
+    matches: &ArgMatches,
+    sub_matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    if let Some(command_matches) = sub_matches.subcommand_matches("push") {
+        cmd_git_push(ui, matches, sub_matches, command_matches)?;
+    } else {
+        panic!("unhandled command: {:#?}", matches);
+    }
+    Ok(())
+}
+
 pub fn dispatch<I, T>(mut ui: Ui, args: I) -> i32
 where
     I: IntoIterator<Item = T>,
@@ -1967,6 +2044,8 @@ where
         cmd_evolve(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("operation") {
         cmd_operation(&mut ui, &matches, &sub_matches)
+    } else if let Some(sub_matches) = matches.subcommand_matches("git") {
+        cmd_git(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("bench") {
         cmd_bench(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("debug") {

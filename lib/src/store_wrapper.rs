@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, Mutex, RwLock, Weak};
 
 use crate::commit::Commit;
 use crate::repo_path::{DirRepoPath, FileRepoPath};
@@ -24,6 +24,7 @@ use crate::store::{
 };
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
+use git2::Repository;
 use std::io::Read;
 
 /// Wraps the low-level store and makes it return more convenient types. Also
@@ -57,6 +58,10 @@ impl StoreWrapper {
 
     pub fn hash_length(&self) -> usize {
         self.store.hash_length()
+    }
+
+    pub fn git_repo(&self) -> Option<&Mutex<Repository>> {
+        self.store.git_repo()
     }
 
     pub fn empty_tree_id(&self) -> &TreeId {

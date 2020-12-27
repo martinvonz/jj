@@ -155,6 +155,10 @@ impl Store for GitStore {
         20
     }
 
+    fn git_repo(&self) -> Option<&Mutex<git2::Repository>> {
+        Some(&self.repo)
+    }
+
     fn read_file(&self, _path: &FileRepoPath, id: &FileId) -> StoreResult<Box<dyn Read>> {
         if id.0.len() != self.hash_length() {
             return Err(StoreError::NotFound);

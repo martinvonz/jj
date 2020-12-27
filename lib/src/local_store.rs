@@ -28,6 +28,7 @@ use crate::store::{
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictPart, FileId, MillisSinceEpoch,
     Signature, Store, StoreError, StoreResult, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
+use std::sync::Mutex;
 
 impl From<std::io::Error> for StoreError {
     fn from(err: std::io::Error) -> Self {
@@ -108,6 +109,10 @@ fn not_found_to_store_error(err: std::io::Error) -> StoreError {
 impl Store for LocalStore {
     fn hash_length(&self) -> usize {
         64
+    }
+
+    fn git_repo(&self) -> Option<&Mutex<git2::Repository>> {
+        None
     }
 
     fn read_file(&self, _path: &FileRepoPath, id: &FileId) -> StoreResult<Box<dyn Read>> {
