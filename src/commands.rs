@@ -260,6 +260,204 @@ fn update_checkout_after_rewrite(ui: &mut Ui, tx: &mut Transaction) {
 }
 
 fn get_app<'a, 'b>() -> App<'a, 'b> {
+    let init_command = SubCommand::with_name("init")
+        .about("initialize a repo")
+        .arg(Arg::with_name("destination").index(1).default_value("."))
+        .arg(
+            Arg::with_name("git-store")
+                .long("git-store")
+                .takes_value(true)
+                .help("path to a .git backing store"),
+        );
+    let checkout_command = SubCommand::with_name("checkout")
+        .alias("co")
+        .about("update the working copy to another commit")
+        .arg(Arg::with_name("revision").index(1).required(true));
+    let files_command = SubCommand::with_name("files")
+        .about("list files")
+        .arg(rev_arg());
+    let diff_command = SubCommand::with_name("diff")
+        .about("show modified files")
+        .arg(
+            Arg::with_name("summary")
+                .long("summary")
+                .short("s")
+                .help("show only the diff type (modified/added/removed)"),
+        )
+        .arg(
+            Arg::with_name("revision")
+                .long("revision")
+                .short("r")
+                .takes_value(true),
+        )
+        .arg(Arg::with_name("from").long("from").takes_value(true))
+        .arg(Arg::with_name("to").long("to").takes_value(true));
+    let status_command = SubCommand::with_name("status")
+        .alias("st")
+        .about("show repo status");
+    let log_command = SubCommand::with_name("log")
+        .about("show commit history")
+        .arg(
+            Arg::with_name("template")
+                .long("template")
+                .short("T")
+                .takes_value(true),
+        )
+        .arg(Arg::with_name("all").long("all"))
+        .arg(Arg::with_name("no-graph").long("no-graph"));
+    let obslog_command = SubCommand::with_name("obslog")
+        .about("show how a commit has evolved")
+        .arg(rev_arg())
+        .arg(
+            Arg::with_name("template")
+                .long("template")
+                .short("T")
+                .takes_value(true),
+        )
+        .arg(Arg::with_name("no-graph").long("no-graph"));
+    let describe_command = SubCommand::with_name("describe")
+        .about("edit the commit description")
+        .arg(rev_arg())
+        .arg(Arg::with_name("text").long("text").takes_value(true))
+        .arg(Arg::with_name("stdin").long("stdin"));
+    let close_command = SubCommand::with_name("close")
+        .about("mark a commit closed, making new work go into a new commit")
+        .arg(rev_arg());
+    let open_command = SubCommand::with_name("open")
+        .about("mark a commit open, making new work be added to it")
+        .arg(rev_arg());
+    let duplicate_command = SubCommand::with_name("duplicate")
+        .about("create a copy of the commit with a new change id")
+        .arg(rev_arg());
+    let prune_command = SubCommand::with_name("prune")
+        .about("create an empty successor of a commit")
+        .arg(rev_arg());
+    let new_command = SubCommand::with_name("new")
+        .about("create a new, empty commit")
+        .arg(rev_arg());
+    let squash_command = SubCommand::with_name("squash")
+        .about("squash a commit into its parent")
+        .arg(rev_arg());
+    let discard_command = SubCommand::with_name("discard")
+        .about("discard a commit (and its descendants)")
+        .arg(rev_arg());
+    let restore_command = SubCommand::with_name("restore")
+        .about("restore paths from another revision")
+        .arg(
+            Arg::with_name("source")
+                .long("source")
+                .short("s")
+                .takes_value(true)
+                .default_value("@^"),
+        )
+        .arg(
+            Arg::with_name("destination")
+                .long("destination")
+                .short("d")
+                .takes_value(true)
+                .default_value("@"),
+        )
+        .arg(Arg::with_name("interactive").long("interactive").short("i"))
+        .arg(Arg::with_name("paths").index(1).multiple(true));
+    let edit_command = SubCommand::with_name("edit")
+        .about("edit the content changes in a revision")
+        .arg(rev_arg());
+    let split_command = SubCommand::with_name("split")
+        .about("split a revision in two")
+        .arg(rev_arg());
+    let merge_command = SubCommand::with_name("merge")
+        .about("merge work from multiple branches")
+        .arg(
+            Arg::with_name("revisions")
+                .index(1)
+                .required(true)
+                .multiple(true),
+        );
+    let rebase_command = SubCommand::with_name("rebase")
+        .about("move a commit to a different parent")
+        .arg(rev_arg())
+        .arg(
+            Arg::with_name("destination")
+                .long("destination")
+                .short("d")
+                .takes_value(true)
+                .required(true)
+                .multiple(true),
+        );
+    let backout_command = SubCommand::with_name("backout")
+        .about("apply the reverse of a commit on top of another commit")
+        .arg(rev_arg())
+        .arg(
+            Arg::with_name("destination")
+                .long("destination")
+                .short("d")
+                .takes_value(true)
+                .default_value("@")
+                .multiple(true),
+        );
+    let evolve_command =
+        SubCommand::with_name("evolve").about("resolve problems with the repo's meta-history");
+    let operation_command = SubCommand::with_name("operation")
+        .alias("op")
+        .about("commands for working with the operation log")
+        .subcommand(SubCommand::with_name("log").about("show the operation log"))
+        .subcommand(
+            SubCommand::with_name("undo")
+                .about("undo an operation")
+                .arg(op_arg()),
+        )
+        .subcommand(
+            SubCommand::with_name("restore")
+                .about("restore to the state at an operation")
+                .arg(op_arg()),
+        );
+    let bench_command = SubCommand::with_name("bench")
+        .about("commands for benchmarking internal operations")
+        .subcommand(
+            SubCommand::with_name("commonancestors")
+                .about("finds the common ancestor(s) of a set of commits")
+                .arg(Arg::with_name("revision1").index(1).required(true))
+                .arg(Arg::with_name("revision2").index(2).required(true)),
+        )
+        .subcommand(
+            SubCommand::with_name("isancestor")
+                .about("checks if the first commit is an ancestor of the second commit")
+                .arg(Arg::with_name("ancestor").index(1).required(true))
+                .arg(Arg::with_name("descendant").index(2).required(true)),
+        )
+        .subcommand(
+            SubCommand::with_name("walkrevs")
+                .about("walks revisions that are ancestors of the second argument but not ancestors of the first")
+                .arg(Arg::with_name("unwanted").index(1).required(true))
+                .arg(Arg::with_name("wanted").index(2).required(true)),
+        )
+        .subcommand(
+            SubCommand::with_name("resolveprefix")
+                .about("resolve a commit id prefix")
+                .arg(Arg::with_name("prefix").index(1).required(true)),
+        );
+    let debug_command = SubCommand::with_name("debug")
+        .about("low-level commands not intended for users")
+        .subcommand(
+            SubCommand::with_name("resolverev")
+                .about("resolves a revision identifier to its full id")
+                .arg(rev_arg()),
+        )
+        .subcommand(
+            SubCommand::with_name("workingcopy")
+                .about("show information about the working copy state"),
+        )
+        .subcommand(
+            SubCommand::with_name("writeworkingcopy")
+                .about("write a tree from the working copy state"),
+        )
+        .subcommand(
+            SubCommand::with_name("template")
+                .about("parse a template")
+                .arg(Arg::with_name("template").index(1).required(true)),
+        )
+        .subcommand(SubCommand::with_name("index").about("show commit index stats"))
+        .subcommand(SubCommand::with_name("reindex").about("rebuild commit index"));
     App::new("Jujube")
         .global_setting(clap::AppSettings::ColoredHelp)
         .version("0.0.1")
@@ -272,261 +470,37 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .takes_value(true)
                 .default_value("."),
         )
-        .arg(Arg::with_name("at_op").long("at-operation").alias("at-op").takes_value(true))
-        .subcommand(
-            SubCommand::with_name("init")
-                .about("initialize a repo")
-                .arg(Arg::with_name("destination").index(1).default_value("."))
-                .arg(
-                    Arg::with_name("git-store")
-                        .long("git-store")
-                        .takes_value(true)
-                        .help("path to a .git backing store"),
-                ),
+        .arg(
+            Arg::with_name("at_op")
+                .long("at-operation")
+                .alias("at-op")
+                .takes_value(true),
         )
-        .subcommand(
-            SubCommand::with_name("checkout")
-                .alias("co")
-                .about("update the working copy to another commit")
-                .arg(Arg::with_name("revision").index(1).required(true)),
-        )
-        .subcommand(
-            SubCommand::with_name("files")
-                .about("list files")
-                .arg(rev_arg()),
-        )
-        .subcommand(
-            SubCommand::with_name("diff")
-                .about("show modified files")
-                .arg(
-                    Arg::with_name("summary")
-                        .long("summary")
-                        .short("s")
-                        .help("show only the diff type (modified/added/removed)"),
-                )
-                .arg(Arg::with_name("revision")
-                    .long("revision")
-                    .short("r")
-                    .takes_value(true)
-                )
-                .arg(Arg::with_name("from").long("from").takes_value(true))
-                .arg(Arg::with_name("to").long("to").takes_value(true)),
-        )
-        .subcommand(
-            SubCommand::with_name("status")
-                .alias("st")
-                .about("show repo status"),
-        )
-        .subcommand(
-            SubCommand::with_name("log")
-                .about("show commit history")
-                .arg(
-                    Arg::with_name("template")
-                        .long("template")
-                        .short("T")
-                        .takes_value(true),
-                )
-                .arg(Arg::with_name("all").long("all"))
-                .arg(Arg::with_name("no-graph").long("no-graph")),
-        )
-        .subcommand(
-            SubCommand::with_name("obslog")
-                .about("show how a commit has evolved")
-                .arg(rev_arg())
-                .arg(
-                    Arg::with_name("template")
-                        .long("template")
-                        .short("T")
-                        .takes_value(true),
-                )
-                .arg(Arg::with_name("no-graph").long("no-graph")),
-        )
-        .subcommand(
-            SubCommand::with_name("describe")
-                .about("edit the commit description")
-                .arg(rev_arg())
-                .arg(Arg::with_name("text").long("text").takes_value(true))
-                .arg(Arg::with_name("stdin").long("stdin")),
-        )
-        .subcommand(
-            SubCommand::with_name("close")
-                .about("mark a commit closed, making new work go into a new commit")
-                .arg(rev_arg()),
-        )
-        .subcommand(
-            SubCommand::with_name("open")
-                .about("mark a commit open, making new work be added to it")
-                .arg(rev_arg()),
-        )
-        .subcommand(
-            SubCommand::with_name("duplicate")
-                .about("create a copy of the commit with a new change id")
-                .arg(rev_arg()),
-        )
-        .subcommand(
-            SubCommand::with_name("prune")
-                .about("create an empty successor of a commit")
-                .arg(rev_arg()),
-        )
-        .subcommand(
-            SubCommand::with_name("new")
-                .about("create a new, empty commit")
-                .arg(rev_arg()),
-        )
-        .subcommand(
-            SubCommand::with_name("squash")
-                .about("squash a commit into its parent")
-                .arg(rev_arg()),
-        )
-        .subcommand(
-            SubCommand::with_name("discard")
-                .about("discard a commit (and its descendants)")
-                .arg(rev_arg()),
-        )
-        .subcommand(
-            SubCommand::with_name("restore")
-                .about("restore paths from another revision")
-                .arg(
-                    Arg::with_name("source")
-                        .long("source")
-                        .short("s")
-                        .takes_value(true)
-                        .default_value("@^"),
-                )
-                .arg(
-                    Arg::with_name("destination")
-                        .long("destination")
-                        .short("d")
-                        .takes_value(true)
-                        .default_value("@"),
-                )
-                .arg(
-                    Arg::with_name("interactive")
-                        .long("interactive")
-                        .short("i"),
-                )
-                .arg(
-                    Arg::with_name("paths")
-                        .index(1)
-                        .multiple(true),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("edit")
-                .about("edit the content changes in a revision")
-                .arg(rev_arg()),
-        )
-        .subcommand(
-            SubCommand::with_name("split")
-                .about("split a revision in two")
-                .arg(rev_arg()),
-        )
-        .subcommand(
-            SubCommand::with_name("merge")
-                .about("merge work from multiple branches")
-                .arg(
-                    Arg::with_name("revisions")
-                        .index(1)
-                        .required(true)
-                        .multiple(true),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("rebase")
-                .about("move a commit to a different parent")
-                .arg(rev_arg())
-                .arg(
-                    Arg::with_name("destination")
-                        .long("destination")
-                        .short("d")
-                        .takes_value(true)
-                        .required(true)
-                        .multiple(true),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("backout")
-                .about("apply the reverse of a commit on top of another commit")
-                .arg(rev_arg())
-                .arg(
-                    Arg::with_name("destination")
-                        .long("destination")
-                        .short("d")
-                        .takes_value(true)
-                        .default_value("@")
-                        .multiple(true),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("evolve").about("resolve problems with the repo's meta-history"),
-        )
-        .subcommand(
-            SubCommand::with_name("operation")
-                .alias("op")
-                .about("commands for working with the operation log")
-                .subcommand(SubCommand::with_name("log").about("show the operation log"))
-                .subcommand(
-                    SubCommand::with_name("undo")
-                        .about("undo an operation")
-                        .arg(op_arg()),
-                )
-                .subcommand(
-                    SubCommand::with_name("restore")
-                        .about("restore to the state at an operation")
-                        .arg(op_arg()),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("bench")
-                .about("commands for benchmarking internal operations")
-                .subcommand(
-                    SubCommand::with_name("commonancestors")
-                        .about("finds the common ancestor(s) of a set of commits")
-                        .arg(Arg::with_name("revision1").index(1).required(true))
-                        .arg(Arg::with_name("revision2").index(2).required(true)),
-                )
-                .subcommand(
-                    SubCommand::with_name("isancestor")
-                        .about("checks if the first commit is an ancestor of the second commit")
-                        .arg(Arg::with_name("ancestor").index(1).required(true))
-                        .arg(Arg::with_name("descendant").index(2).required(true)),
-                )
-                .subcommand(
-                    SubCommand::with_name("walkrevs")
-                        .about("walks revisions that are ancestors of the second argument but not ancestors of the first")
-                        .arg(Arg::with_name("unwanted").index(1).required(true))
-                        .arg(Arg::with_name("wanted").index(2).required(true)),
-                )
-                .subcommand(
-                    SubCommand::with_name("resolveprefix")
-                        .about("resolve a commit id prefix")
-                        .arg(Arg::with_name("prefix").index(1).required(true)),
-                ),
-        )
-        .subcommand(
-            SubCommand::with_name("debug")
-                .about("low-level commands not intended for users")
-                .subcommand(
-                    SubCommand::with_name("resolverev")
-                        .about("resolves a revision identifier to its full id")
-                        .arg(rev_arg()),
-                )
-                .subcommand(
-                    SubCommand::with_name("workingcopy")
-                        .about("show information about the working copy state"),
-                )
-                .subcommand(
-                    SubCommand::with_name("writeworkingcopy")
-                        .about("write a tree from the working copy state"),
-                )
-                .subcommand(
-                    SubCommand::with_name("template")
-                        .about("parse a template")
-                        .arg(Arg::with_name("template").index(1).required(true)),
-                )
-                .subcommand(SubCommand::with_name("index").about("show commit index stats"))
-                .subcommand(SubCommand::with_name("reindex").about("rebuild commit index")),
-        )
+        .subcommand(init_command)
+        .subcommand(checkout_command)
+        .subcommand(files_command)
+        .subcommand(diff_command)
+        .subcommand(status_command)
+        .subcommand(log_command)
+        .subcommand(obslog_command)
+        .subcommand(describe_command)
+        .subcommand(close_command)
+        .subcommand(open_command)
+        .subcommand(duplicate_command)
+        .subcommand(prune_command)
+        .subcommand(new_command)
+        .subcommand(squash_command)
+        .subcommand(discard_command)
+        .subcommand(restore_command)
+        .subcommand(edit_command)
+        .subcommand(split_command)
+        .subcommand(merge_command)
+        .subcommand(rebase_command)
+        .subcommand(backout_command)
+        .subcommand(evolve_command)
+        .subcommand(operation_command)
+        .subcommand(bench_command)
+        .subcommand(debug_command)
 }
 
 fn cmd_init(
