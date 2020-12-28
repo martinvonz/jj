@@ -270,6 +270,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
     let init_command = SubCommand::with_name("init")
         .about("initialize a repo")
         .arg(Arg::with_name("destination").index(1).default_value("."))
+        .arg(Arg::with_name("git").long("git"))
         .arg(
             Arg::with_name("git-store")
                 .long("git-store")
@@ -541,6 +542,11 @@ fn cmd_init(
     _matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
+    if sub_matches.is_present("git") && sub_matches.is_present("git-store") {
+        return Err(CommandError::UserError(String::from(
+            "--git cannot be used with --git-store",
+        )));
+    }
     let wc_path_str = sub_matches.value_of("destination").unwrap();
     let wc_path = ui.cwd().join(wc_path_str);
     if wc_path.exists() {
@@ -552,7 +558,9 @@ fn cmd_init(
     let repo;
     if let Some(git_store_str) = sub_matches.value_of("git-store") {
         let git_store_path = ui.cwd().join(git_store_str);
-        repo = ReadonlyRepo::init_git(ui.settings(), wc_path, git_store_path);
+        repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path, git_store_path);
+    } else if sub_matches.is_present("git") {
+        repo = ReadonlyRepo::init_internal_git(ui.settings(), wc_path);
     } else {
         repo = ReadonlyRepo::init_local(ui.settings(), wc_path);
     }

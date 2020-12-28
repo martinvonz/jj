@@ -62,7 +62,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     create_repo_clone(&source_repo_dir, &clone_repo_dir);
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let mut jj_repo =
-        ReadonlyRepo::init_git(&settings, jj_repo_dir.clone(), clone_repo_dir.clone());
+        ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), clone_repo_dir.clone());
     let new_commit = testutils::create_random_commit(&settings, &jj_repo)
         .set_parents(vec![initial_commit_id.clone()])
         .write_to_new_transaction(&jj_repo, "test");

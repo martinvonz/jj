@@ -44,7 +44,7 @@ pub fn init_repo(settings: &UserSettings, use_git: bool) -> (TempDir, Arc<Readon
     let repo = if use_git {
         let git_path = temp_dir.path().join("git-repo");
         git2::Repository::init(&git_path).unwrap();
-        ReadonlyRepo::init_git(&settings, wc_path, git_path)
+        ReadonlyRepo::init_external_git(&settings, wc_path, git_path)
     } else {
         ReadonlyRepo::init_local(&settings, wc_path)
     };

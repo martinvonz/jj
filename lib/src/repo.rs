@@ -91,7 +91,22 @@ impl ReadonlyRepo {
         ReadonlyRepo::init(settings, repo_path, wc_path, store)
     }
 
-    pub fn init_git(
+    /// Initializes a repo with a new Git store in .jj/git/ (bare Git repo)
+    pub fn init_internal_git(settings: &UserSettings, wc_path: PathBuf) -> Arc<ReadonlyRepo> {
+        let repo_path = wc_path.join(".jj");
+        fs::create_dir(repo_path.clone()).unwrap();
+        let git_store_path = repo_path.join("git");
+        git2::Repository::init_bare(&git_store_path).unwrap();
+        let store_path = repo_path.join("store");
+        let git_store_path = fs::canonicalize(git_store_path).unwrap();
+        let mut store_file = File::create(store_path).unwrap();
+        store_file.write_all(b"git: git").unwrap();
+        let store = Box::new(GitStore::load(git_store_path));
+        ReadonlyRepo::init(settings, repo_path, wc_path, store)
+    }
+
+    /// Initializes a repo with an existing Git store at the specified path
+    pub fn init_external_git(
         settings: &UserSettings,
         wc_path: PathBuf,
         git_store_path: PathBuf,
@@ -102,7 +117,7 @@ impl ReadonlyRepo {
         let git_store_path = fs::canonicalize(git_store_path).unwrap();
         let mut store_file = File::create(store_path).unwrap();
         store_file
-            .write_all((String::from("git: ") + git_store_path.to_str().unwrap()).as_bytes())
+            .write_all(format!("git: {}", git_store_path.to_str().unwrap()).as_bytes())
             .unwrap();
         let store = Box::new(GitStore::load(git_store_path));
         ReadonlyRepo::init(settings, repo_path, wc_path, store)
@@ -183,7 +198,8 @@ impl ReadonlyRepo {
             let contents = String::from_utf8(buf).unwrap();
             assert!(contents.starts_with("git: "));
             let git_store_path_str = contents[5..].to_string();
-            let git_store_path = PathBuf::from(git_store_path_str);
+            let git_store_path =
+                fs::canonicalize(repo_path.join(PathBuf::from(git_store_path_str))).unwrap();
             store = Box::new(GitStore::load(git_store_path));
         }
         let store = StoreWrapper::new(store);

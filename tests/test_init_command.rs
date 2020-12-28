@@ -15,7 +15,25 @@
 use jj::testutils;
 
 #[test]
-fn test_init_git() {
+fn test_init_git_internal() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let output = testutils::CommandRunner::new(temp_dir.path()).run(vec!["init", "repo", "--git"]);
+    assert_eq!(output.status, 0);
+
+    let repo_path = temp_dir.path().join("repo");
+    assert!(repo_path.is_dir());
+    assert!(repo_path.join(".jj").is_dir());
+    assert!(repo_path.join(".jj").join("git").is_dir());
+    let store_file_contents = std::fs::read_to_string(repo_path.join(".jj").join("store")).unwrap();
+    assert_eq!(store_file_contents, "git: git");
+    assert_eq!(
+        output.stdout_string(),
+        format!("Initialized repo in \"{}\"\n", repo_path.to_str().unwrap())
+    );
+}
+
+#[test]
+fn test_init_git_external() {
     let temp_dir = tempfile::tempdir().unwrap();
     let git_repo_path = temp_dir.path().join("git-repo");
     git2::Repository::init(git_repo_path.clone()).unwrap();
