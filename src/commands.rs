@@ -1950,7 +1950,9 @@ fn cmd_git_push(
     let store = repo.store().clone();
     let mut_repo = Arc::get_mut(&mut repo).unwrap();
     let git_repo = store.git_repo().ok_or_else(|| {
-        CommandError::UserError("git push can only be used on repos back by a git repo".to_string())
+        CommandError::UserError(
+            "git push can only be used in repos backed by a git repo".to_string(),
+        )
     })?;
     let commit = resolve_revision_arg(ui, mut_repo, cmd_matches)?;
     let remote_name = cmd_matches.value_of("remote").unwrap();
