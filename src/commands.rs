@@ -58,6 +58,7 @@ use crate::styler::{ColorStyler, Styler};
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
 use crate::ui::Ui;
+use jj_lib::git::GitPushError;
 use jj_lib::index::{HexPrefix, PrefixResolution};
 use jj_lib::operation::Operation;
 use jj_lib::transaction::Transaction;
@@ -1947,30 +1948,24 @@ fn cmd_git_push(
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo = get_repo(ui, &matches)?;
-    let store = repo.store().clone();
     let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let git_repo = store.git_repo().ok_or_else(|| {
-        CommandError::UserError(
-            "git push can only be used in repos backed by a git repo".to_string(),
-        )
-    })?;
     let commit = resolve_revision_arg(ui, mut_repo, cmd_matches)?;
     let remote_name = cmd_matches.value_of("remote").unwrap();
     let branch_name = cmd_matches.value_of("branch").unwrap();
-    let locked_git_repo = git_repo.lock().unwrap();
-    // Create a temporary ref to work around https://github.com/libgit2/libgit2/issues/3178
-    let temp_ref_name = format!("refs/jj/git-push/{}", commit.id().hex());
-    let mut temp_ref = locked_git_repo.reference(
-        &temp_ref_name,
-        git2::Oid::from_bytes(&commit.id().0).unwrap(),
-        true,
-        "temporary reference for git push",
-    )?;
-    let mut remote = locked_git_repo.find_remote(remote_name)?;
-    // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
-    let refspec = format!("{}:refs/heads/{}", temp_ref_name, branch_name);
-    remote.push(&[refspec], None)?;
-    temp_ref.delete()?;
+    jj_lib::git::push_commit(&commit, remote_name, branch_name).map_err(|err| match err {
+        GitPushError::NotAGitRepo => CommandError::UserError(
+            "git push can only be used in repos backed by a git repo".to_string(),
+        ),
+        GitPushError::NoSuchRemote => {
+            CommandError::UserError(format!("No such git remote: {}", remote_name))
+        }
+        GitPushError::NotFastForward => {
+            CommandError::UserError("Push is not fast-forwardable".to_string())
+        }
+        GitPushError::InternalGitError(err) => {
+            CommandError::UserError(format!("Push failed: {:?}", err))
+        }
+    })?;
     Ok(())
 }
 

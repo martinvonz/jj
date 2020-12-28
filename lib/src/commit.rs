@@ -67,6 +67,10 @@ impl Commit {
         Commit { store, id, data }
     }
 
+    pub fn store(&self) -> &Arc<StoreWrapper> {
+        &self.store
+    }
+
     pub fn id(&self) -> &CommitId {
         &self.id
     }

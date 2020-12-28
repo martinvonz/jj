@@ -24,6 +24,7 @@ pub mod conflicts;
 pub mod dag_walk;
 pub mod evolution;
 pub mod files;
+pub mod git;
 pub mod git_store;
 pub mod index;
 pub mod local_store;
