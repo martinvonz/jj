@@ -13,6 +13,41 @@
 // limitations under the License.
 
 use crate::commit::Commit;
+use crate::store::CommitId;
+use crate::transaction::Transaction;
+use git2::Error;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum GitImportError {
+    NotAGitRepo,
+    InternalGitError(String),
+}
+
+impl From<git2::Error> for GitImportError {
+    fn from(err: Error) -> Self {
+        GitImportError::InternalGitError(format!("failed to read git refs: {}", err))
+    }
+}
+
+// Reflect changes made in the underlying Git repo in the Jujube repo.
+pub fn import_refs(tx: &mut Transaction) -> Result<(), GitImportError> {
+    let store = tx.store().clone();
+    let git_repo = store.git_repo().ok_or(GitImportError::NotAGitRepo)?;
+    let git_refs = git_repo.references()?;
+    for git_ref in git_refs {
+        let git_ref = git_ref?;
+        if !(git_ref.is_tag() || git_ref.is_branch() || git_ref.is_remote()) {
+            // Skip other refs (such as notes) and symbolic refs.
+            // TODO: Is it useful to import HEAD (especially if it's detached)?
+            continue;
+        }
+        let git_commit = git_ref.peel_to_commit()?;
+        let id = CommitId(git_commit.id().as_bytes().to_vec());
+        let commit = store.get_commit(&id).unwrap();
+        tx.add_head(&commit);
+    }
+    Ok(())
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum GitPushError {

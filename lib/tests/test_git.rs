@@ -15,14 +15,94 @@
 use git2::Oid;
 use jj_lib::commit::Commit;
 use jj_lib::git;
-use jj_lib::git::GitPushError;
-use jj_lib::repo::ReadonlyRepo;
+use jj_lib::git::{GitImportError, GitPushError};
+use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::settings::UserSettings;
 use jj_lib::store::CommitId;
 use jj_lib::testutils;
+use maplit::hashset;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tempfile::TempDir;
+
+#[test]
+fn test_import_refs() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let git_repo_dir = temp_dir.path().join("git");
+    let jj_repo_dir = temp_dir.path().join("jj");
+
+    let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
+    let signature = git2::Signature::now("Someone", "someone@example.com").unwrap();
+    let empty_tree_id = Oid::from_str("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap();
+    let empty_tree = git_repo.find_tree(empty_tree_id).unwrap();
+    let create_commit = |ref_name: &str, parents: &[&git2::Commit]| -> git2::Commit {
+        let oid = git_repo
+            .commit(
+                Some(ref_name),
+                &signature,
+                &signature,
+                &format!("commit on {}", ref_name),
+                &empty_tree,
+                parents,
+            )
+            .unwrap();
+        git_repo.find_commit(oid).unwrap()
+    };
+    let commit1 = create_commit("refs/heads/main", &[]);
+    let commit2 = create_commit("refs/heads/main", &[&commit1]);
+    let commit3 = create_commit("refs/heads/feature1", &[&commit2]);
+    let commit4 = create_commit("refs/heads/feature2", &[&commit2]);
+    let commit_id3 = CommitId(commit3.id().as_bytes().to_vec());
+    let commit_id4 = CommitId(commit4.id().as_bytes().to_vec());
+
+    std::fs::create_dir(&jj_repo_dir).unwrap();
+    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
+    let mut tx = repo.start_transaction("test");
+    let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
+    jj_lib::git::import_refs(&mut tx).unwrap_or_default();
+    let heads_after: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    let expected_heads: HashSet<_> = heads_before
+        .union(&hashset!(commit_id3, commit_id4))
+        .cloned()
+        .collect();
+    assert_eq!(heads_after, expected_heads);
+    tx.discard();
+}
+
+#[test]
+fn test_import_refs_empty_git_repo() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let git_repo_dir = temp_dir.path().join("source");
+    let jj_repo_dir = temp_dir.path().join("jj");
+
+    git2::Repository::init_bare(&git_repo_dir).unwrap();
+
+    std::fs::create_dir(&jj_repo_dir).unwrap();
+    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
+    let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
+    let mut tx = repo.start_transaction("test");
+    jj_lib::git::import_refs(&mut tx).unwrap_or_default();
+    let heads_after: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    assert_eq!(heads_before, heads_after);
+    tx.discard();
+}
+
+#[test]
+fn test_import_refs_non_git() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let jj_repo_dir = temp_dir.path().join("jj");
+
+    std::fs::create_dir(&jj_repo_dir).unwrap();
+    let repo = ReadonlyRepo::init_local(&settings, jj_repo_dir);
+    let mut tx = repo.start_transaction("test");
+    let result = jj_lib::git::import_refs(&mut tx);
+    assert_eq!(result, Err(GitImportError::NotAGitRepo));
+    tx.discard();
+}
 
 /// Create a Git repo with a single commit in the "main" branch.
 fn create_source_repo(dir: &Path) -> CommitId {
