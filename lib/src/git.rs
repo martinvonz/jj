@@ -30,10 +30,9 @@ pub fn push_commit(
     remote_branch: &str,
 ) -> Result<(), GitPushError> {
     let git_repo = commit.store().git_repo().ok_or(GitPushError::NotAGitRepo)?;
-    let locked_git_repo = git_repo.lock().unwrap();
     // Create a temporary ref to work around https://github.com/libgit2/libgit2/issues/3178
     let temp_ref_name = format!("refs/jj/git-push/{}", commit.id().hex());
-    let mut temp_ref = locked_git_repo
+    let mut temp_ref = git_repo
         .reference(
             &temp_ref_name,
             git2::Oid::from_bytes(&commit.id().0).unwrap(),
@@ -46,13 +45,16 @@ pub fn push_commit(
                 err
             ))
         })?;
-    let mut remote = locked_git_repo.find_remote(remote_name).map_err(|err| {
-        match (err.class(), err.code()) {
-            (git2::ErrorClass::Config, git2::ErrorCode::NotFound) => GitPushError::NoSuchRemote,
-            (git2::ErrorClass::Config, git2::ErrorCode::InvalidSpec) => GitPushError::NoSuchRemote,
-            _ => panic!("unhandled git error: {:?}", err),
-        }
-    })?;
+    let mut remote =
+        git_repo
+            .find_remote(remote_name)
+            .map_err(|err| match (err.class(), err.code()) {
+                (git2::ErrorClass::Config, git2::ErrorCode::NotFound) => GitPushError::NoSuchRemote,
+                (git2::ErrorClass::Config, git2::ErrorCode::InvalidSpec) => {
+                    GitPushError::NoSuchRemote
+                }
+                _ => panic!("unhandled git error: {:?}", err),
+            })?;
     // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
     let refspec = format!("{}:refs/heads/{}", temp_ref_name, remote_branch);
     remote

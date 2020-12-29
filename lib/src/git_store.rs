@@ -155,8 +155,9 @@ impl Store for GitStore {
         20
     }
 
-    fn git_repo(&self) -> Option<&Mutex<git2::Repository>> {
-        Some(&self.repo)
+    fn git_repo(&self) -> Option<git2::Repository> {
+        let path = self.repo.lock().unwrap().path().to_owned();
+        Some(git2::Repository::open(&path).unwrap())
     }
 
     fn read_file(&self, _path: &FileRepoPath, id: &FileId) -> StoreResult<Box<dyn Read>> {

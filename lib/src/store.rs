@@ -21,7 +21,6 @@ use std::vec::Vec;
 use crate::repo_path::DirRepoPath;
 use crate::repo_path::FileRepoPath;
 use std::borrow::Borrow;
-use std::sync::Mutex;
 use thiserror::Error;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
@@ -333,7 +332,7 @@ impl Tree {
 pub trait Store: Send + Sync + Debug {
     fn hash_length(&self) -> usize;
 
-    fn git_repo(&self) -> Option<&Mutex<git2::Repository>>;
+    fn git_repo(&self) -> Option<git2::Repository>;
 
     fn read_file(&self, path: &FileRepoPath, id: &FileId) -> StoreResult<Box<dyn Read>>;
 

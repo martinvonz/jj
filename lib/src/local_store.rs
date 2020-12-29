@@ -28,7 +28,6 @@ use crate::store::{
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictPart, FileId, MillisSinceEpoch,
     Signature, Store, StoreError, StoreResult, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
-use std::sync::Mutex;
 
 impl From<std::io::Error> for StoreError {
     fn from(err: std::io::Error) -> Self {
@@ -111,7 +110,7 @@ impl Store for LocalStore {
         64
     }
 
-    fn git_repo(&self) -> Option<&Mutex<git2::Repository>> {
+    fn git_repo(&self) -> Option<git2::Repository> {
         None
     }
 
