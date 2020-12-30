@@ -369,11 +369,19 @@ impl MutableView {
         self.data.checkout = id;
     }
 
+    // TODO: This is surely terribly slow on large repos, at least in its current
+    // form. We should make it faster (using the index) and avoid calling it in
+    // most cases (avoid adding a head that's already reachable in the view).
+    fn remove_non_heads(&mut self) {
+        self.data.head_ids = heads_of_set(&self.store, self.heads().cloned());
+    }
+
     pub fn add_head(&mut self, head: &Commit) {
         self.data.head_ids.insert(head.id().clone());
         for parent in head.parents() {
             self.data.head_ids.remove(parent.id());
         }
+        self.remove_non_heads();
     }
 
     pub fn remove_head(&mut self, head: &Commit) {
@@ -381,18 +389,19 @@ impl MutableView {
         for parent in head.parents() {
             self.data.head_ids.insert(parent.id().clone());
         }
+        self.remove_non_heads();
     }
 
     pub fn set_view(&mut self, data: op_store::View) {
         self.data = data;
+        self.remove_non_heads();
     }
 
-    pub fn save(mut self, description: String, operation_start_time: Timestamp) -> Operation {
+    pub fn save(self, description: String, operation_start_time: Timestamp) -> Operation {
         let op_heads_dir = self.path.join("op_heads");
 
         // First write the current view whether or not there have been any concurrent
         // operations. We'll later create a merge operation if necessary.
-        self.data.head_ids = heads_of_set(&self.store, self.heads().cloned());
         let view_id = self.op_store.write_view(&self.data).unwrap();
         let mut operation_metadata = OperationMetadata::new(description);
         operation_metadata.start_time = operation_start_time;

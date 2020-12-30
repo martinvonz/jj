@@ -18,6 +18,7 @@ use jj_lib::repo_path::FileRepoPath;
 use jj_lib::store::{Conflict, ConflictId, ConflictPart, TreeValue};
 use jj_lib::store_wrapper::StoreWrapper;
 use jj_lib::testutils;
+use std::collections::HashSet;
 use std::sync::Arc;
 use test_case::test_case;
 
@@ -299,5 +300,66 @@ fn test_checkout_previous_empty_and_pruned(use_git: bool) {
         .evolution()
         .successors(old_checkout.id())
         .is_empty());
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+// #[test_case(true ; "git store")]
+fn test_add_head_success(use_git: bool) {
+    // Test that Transaction::add_head() adds the head, and that it's still there
+    // after commit.
+    let settings = testutils::user_settings();
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+
+    // Create a commit outside of the repo by using a temporary transaction. Then
+    // add that as a head.
+    let mut tx = repo.start_transaction("test");
+    let new_commit = CommitBuilder::for_new_commit(
+        &settings,
+        repo.store(),
+        repo.store().empty_tree_id().clone(),
+    )
+    .write_to_transaction(&mut tx);
+    tx.discard();
+
+    let mut tx = repo.start_transaction("test");
+    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    assert!(!heads.contains(new_commit.id()));
+    tx.add_head(&new_commit);
+    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    assert!(heads.contains(new_commit.id()));
+    tx.commit();
+    Arc::get_mut(&mut repo).unwrap().reload();
+    let heads: HashSet<_> = repo.view().heads().cloned().collect();
+    assert!(heads.contains(new_commit.id()));
+}
+
+#[test_case(false ; "local store")]
+// #[test_case(true ; "git store")]
+fn test_add_head_ancestor(use_git: bool) {
+    // Test that Transaction::add_head() does not add a head if it's an ancestor of
+    // an existing head.
+    let settings = testutils::user_settings();
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let store = repo.store();
+
+    // Create a commit outside of the repo by using a temporary transaction. Then
+    // add that as a head.
+    let mut tx = repo.start_transaction("test");
+    let commit1 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+        .write_to_transaction(&mut tx);
+    let commit2 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_transaction(&mut tx);
+    let _commit3 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+        .set_parents(vec![commit2.id().clone()])
+        .write_to_transaction(&mut tx);
+    tx.commit();
+    Arc::get_mut(&mut repo).unwrap().reload();
+
+    let mut tx = repo.start_transaction("test");
+    tx.add_head(&commit1);
+    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    assert!(!heads.contains(commit1.id()));
     tx.discard();
 }
