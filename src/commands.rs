@@ -409,6 +409,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
     let operation_command = SubCommand::with_name("operation")
         .alias("op")
         .about("commands for working with the operation log")
+        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(SubCommand::with_name("log").about("show the operation log"))
         .subcommand(
             SubCommand::with_name("undo")
@@ -422,6 +423,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         );
     let git_command = SubCommand::with_name("git")
         .about("commands for working with the underlying git repo")
+        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("push")
                 .about("push a revision to a git remote branch")
@@ -451,6 +453,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         );
     let bench_command = SubCommand::with_name("bench")
         .about("commands for benchmarking internal operations")
+        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("commonancestors")
                 .about("finds the common ancestor(s) of a set of commits")
@@ -476,6 +479,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         );
     let debug_command = SubCommand::with_name("debug")
         .about("low-level commands not intended for users")
+        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("resolverev")
                 .about("resolves a revision identifier to its full id")
@@ -498,6 +502,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .subcommand(SubCommand::with_name("reindex").about("rebuild commit index"));
     App::new("Jujube")
         .global_setting(clap::AppSettings::ColoredHelp)
+        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .version("0.0.1")
         .author("Martin von Zweigbergk <martinvonz@google.com>")
         .about("My source control tool")
@@ -2028,13 +2033,6 @@ where
     T: Into<OsString> + Clone,
 {
     let matches = get_app().get_matches_from(args);
-    if matches.subcommand_name().is_none() {
-        let mut help_text_buf = Vec::new();
-        get_app().write_long_help(&mut help_text_buf).unwrap();
-        ui.write(String::from_utf8(help_text_buf).unwrap().as_str());
-        ui.write("\n");
-        return 1;
-    }
     let result = if let Some(sub_matches) = matches.subcommand_matches("init") {
         cmd_init(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("checkout") {
