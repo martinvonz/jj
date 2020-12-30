@@ -59,7 +59,7 @@ use crate::styler::{ColorStyler, Styler};
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
 use crate::ui::Ui;
-use jj_lib::git::GitPushError;
+use jj_lib::git::{GitImportError, GitPushError};
 use jj_lib::index::{HexPrefix, PrefixResolution};
 use jj_lib::operation::Operation;
 use jj_lib::transaction::Transaction;
@@ -444,6 +444,10 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                         .index(2)
                         .required(true),
                 ),
+        )
+        .subcommand(
+            SubCommand::with_name("refresh")
+                .about("update repo with changes made in underlying git repo"),
         );
     let bench_command = SubCommand::with_name("bench")
         .about("commands for benchmarking internal operations")
@@ -1983,6 +1987,26 @@ fn cmd_git_push(
     Ok(())
 }
 
+fn cmd_git_refresh(
+    ui: &mut Ui,
+    matches: &ArgMatches,
+    _git_matches: &ArgMatches,
+    _cmd_matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    let repo = get_repo(ui, &matches)?;
+    let mut tx = repo.start_transaction("import git refs");
+    git::import_refs(&mut tx).map_err(|err| match err {
+        GitImportError::NotAGitRepo => CommandError::UserError(
+            "git refresh can only be used in repos backed by a git repo".to_string(),
+        ),
+        GitImportError::InternalGitError(err) => {
+            CommandError::UserError(format!("import of Git refs failed: {:?}", err))
+        }
+    })?;
+    tx.commit();
+    Ok(())
+}
+
 fn cmd_git(
     ui: &mut Ui,
     matches: &ArgMatches,
@@ -1990,6 +2014,8 @@ fn cmd_git(
 ) -> Result<(), CommandError> {
     if let Some(command_matches) = sub_matches.subcommand_matches("push") {
         cmd_git_push(ui, matches, sub_matches, command_matches)?;
+    } else if let Some(command_matches) = sub_matches.subcommand_matches("refresh") {
+        cmd_git_refresh(ui, matches, sub_matches, command_matches)?;
     } else {
         panic!("unhandled command: {:#?}", matches);
     }
