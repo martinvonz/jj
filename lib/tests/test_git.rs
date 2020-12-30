@@ -105,7 +105,7 @@ fn test_import_refs_non_git() {
 }
 
 /// Create a Git repo with a single commit in the "main" branch.
-fn create_source_repo(dir: &Path) -> CommitId {
+fn create_git_repo(dir: &Path) -> CommitId {
     let git_repo = git2::Repository::init_bare(dir).unwrap();
     let signature = git2::Signature::now("Someone", "someone@example.com").unwrap();
     let empty_tree_id = Oid::from_str("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap();
@@ -123,6 +123,21 @@ fn create_source_repo(dir: &Path) -> CommitId {
     CommitId(oid.as_bytes().to_vec())
 }
 
+#[test]
+fn test_init() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let git_repo_dir = temp_dir.path().join("git");
+    let jj_repo_dir = temp_dir.path().join("jj");
+    let initial_commit_id = create_git_repo(&git_repo_dir);
+    std::fs::create_dir(&jj_repo_dir).unwrap();
+    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), git_repo_dir);
+    let heads: HashSet<_> = repo.view().heads().cloned().collect();
+    // The refs were *not* imported -- it's the caller's responsibility to import
+    // any refs they care about.
+    assert!(!heads.contains(&initial_commit_id));
+}
+
 fn create_repo_clone(source: &Path, destination: &Path) {
     git2::Repository::clone(&source.to_str().unwrap(), destination).unwrap();
 }
@@ -138,7 +153,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let source_repo_dir = temp_dir.path().join("source");
     let clone_repo_dir = temp_dir.path().join("clone");
     let jj_repo_dir = temp_dir.path().join("jj");
-    let initial_commit_id = create_source_repo(&source_repo_dir);
+    let initial_commit_id = create_git_repo(&source_repo_dir);
     create_repo_clone(&source_repo_dir, &clone_repo_dir);
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let mut jj_repo =

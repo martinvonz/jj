@@ -39,6 +39,7 @@ use jj_lib::evolution::evolve;
 use jj_lib::evolution::EvolveListener;
 use jj_lib::files;
 use jj_lib::files::DiffLine;
+use jj_lib::git;
 use jj_lib::op_store::{OpStoreError, OperationId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
@@ -559,6 +560,11 @@ fn cmd_init(
     if let Some(git_store_str) = sub_matches.value_of("git-store") {
         let git_store_path = ui.cwd().join(git_store_str);
         repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path, git_store_path);
+        let mut tx = repo.start_transaction("import git refs");
+        git::import_refs(&mut tx).unwrap();
+        // TODO: Check out a recent commit. Maybe one with the highest generation
+        // number.
+        tx.commit();
     } else if sub_matches.is_present("git") {
         repo = ReadonlyRepo::init_internal_git(ui.settings(), wc_path);
     } else {
@@ -1960,7 +1966,7 @@ fn cmd_git_push(
     let commit = resolve_revision_arg(ui, mut_repo, cmd_matches)?;
     let remote_name = cmd_matches.value_of("remote").unwrap();
     let branch_name = cmd_matches.value_of("branch").unwrap();
-    jj_lib::git::push_commit(&commit, remote_name, branch_name).map_err(|err| match err {
+    git::push_commit(&commit, remote_name, branch_name).map_err(|err| match err {
         GitPushError::NotAGitRepo => CommandError::UserError(
             "git push can only be used in repos backed by a git repo".to_string(),
         ),
