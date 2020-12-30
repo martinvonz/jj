@@ -20,13 +20,12 @@ use jj_lib::testutils;
 use std::sync::Arc;
 use test_case::test_case;
 
-fn verify_view(repo: &ReadonlyRepo) {
+fn count_non_merge_operations(repo: &ReadonlyRepo) -> u32 {
     let view = repo.view();
     let op_store = view.op_store();
     let op_head_id = view.base_op_head_id().clone();
     let mut num_ops = 0;
 
-    // Count non-merge commits
     for op_id in dag_walk::bfs(
         vec![op_head_id],
         Box::new(|op_id| op_id.clone()),
@@ -36,9 +35,7 @@ fn verify_view(repo: &ReadonlyRepo) {
             num_ops += 1;
         }
     }
-    // One operation for initializing the repo (containing the root id and the
-    // initial working copy commit).
-    assert_eq!(num_ops, 101);
+    num_ops
 }
 
 #[test_case(false ; "local store")]
@@ -68,7 +65,9 @@ fn test_commit_parallel(use_git: bool) {
     // root commit
     assert_eq!(repo.view().heads().count(), 101);
 
-    verify_view(&repo);
+    // One operation for initializing the repo (containing the root id and the
+    // initial working copy commit).
+    assert_eq!(count_non_merge_operations(&repo), 101);
 }
 
 #[test_case(false ; "local store")]
@@ -97,5 +96,7 @@ fn test_commit_parallel_instances(use_git: bool) {
     let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone());
     assert_eq!(repo.view().heads().count(), 101);
 
-    verify_view(&repo);
+    // One operation for initializing the repo (containing the root id and the
+    // initial working copy commit).
+    assert_eq!(count_non_merge_operations(&repo), 101);
 }
