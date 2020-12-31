@@ -88,7 +88,7 @@ pub fn push_commit(
                 (git2::ErrorClass::Config, git2::ErrorCode::InvalidSpec) => {
                     GitPushError::NoSuchRemote
                 }
-                _ => panic!("unhandled git error: {:?}", err),
+                _ => GitPushError::InternalGitError(format!("unhandled git error: {:?}", err)),
             })?;
     // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
     let refspec = format!("{}:refs/heads/{}", temp_ref_name, remote_branch);
@@ -98,7 +98,7 @@ pub fn push_commit(
             (git2::ErrorClass::Reference, git2::ErrorCode::NotFastForward) => {
                 GitPushError::NotFastForward
             }
-            _ => panic!("unhandled git error: {:?}", err),
+            _ => GitPushError::InternalGitError(format!("unhandled git error: {:?}", err)),
         })?;
     temp_ref.delete().map_err(|err| {
         GitPushError::InternalGitError(format!(
