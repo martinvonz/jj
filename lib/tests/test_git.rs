@@ -15,7 +15,7 @@
 use git2::Oid;
 use jj_lib::commit::Commit;
 use jj_lib::git;
-use jj_lib::git::{GitImportError, GitPushError};
+use jj_lib::git::{GitFetchError, GitImportError, GitPushError};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::settings::UserSettings;
 use jj_lib::store::CommitId;
@@ -126,6 +126,68 @@ fn test_init() {
     // The refs were *not* imported -- it's the caller's responsibility to import
     // any refs they care about.
     assert!(!heads.contains(&initial_commit_id));
+}
+
+#[test]
+fn test_fetch_success() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let source_repo_dir = temp_dir.path().join("source");
+    let clone_repo_dir = temp_dir.path().join("clone");
+    let jj_repo_dir = temp_dir.path().join("jj");
+    let git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
+    let initial_git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    git2::Repository::clone(&source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
+    std::fs::create_dir(&jj_repo_dir).unwrap();
+    ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), clone_repo_dir.clone());
+
+    let new_git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[&initial_git_commit]);
+
+    // The new commit is not visible before git::fetch().
+    let jj_repo = ReadonlyRepo::load(&settings, jj_repo_dir.clone());
+    let heads: HashSet<_> = jj_repo.view().heads().cloned().collect();
+    assert!(!heads.contains(&commit_id(&new_git_commit)));
+
+    // The new commit is visible after git::fetch().
+    let mut tx = jj_repo.start_transaction("test");
+    git::fetch(&mut tx, "origin").unwrap();
+    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    assert!(heads.contains(&commit_id(&new_git_commit)));
+
+    tx.discard();
+}
+
+#[test]
+fn test_fetch_non_git() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let jj_repo_dir = temp_dir.path().join("jj");
+    std::fs::create_dir(&jj_repo_dir).unwrap();
+    let jj_repo = ReadonlyRepo::init_local(&settings, jj_repo_dir);
+
+    let mut tx = jj_repo.start_transaction("test");
+    let result = git::fetch(&mut tx, "origin");
+    assert_eq!(result, Err(GitFetchError::NotAGitRepo));
+
+    tx.discard();
+}
+
+#[test]
+fn test_fetch_no_such_remote() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let source_repo_dir = temp_dir.path().join("source");
+    let jj_repo_dir = temp_dir.path().join("jj");
+    git2::Repository::init_bare(&source_repo_dir).unwrap();
+    std::fs::create_dir(&jj_repo_dir).unwrap();
+    let jj_repo =
+        ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), source_repo_dir.clone());
+
+    let mut tx = jj_repo.start_transaction("test");
+    let result = git::fetch(&mut tx, "invalid-remote");
+    assert_eq!(result, Err(GitFetchError::NoSuchRemote));
+
+    tx.discard();
 }
 
 struct PushTestSetup {

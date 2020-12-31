@@ -59,7 +59,7 @@ use crate::styler::{ColorStyler, Styler};
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
 use crate::ui::Ui;
-use jj_lib::git::{GitImportError, GitPushError};
+use jj_lib::git::{GitFetchError, GitImportError, GitPushError};
 use jj_lib::index::{HexPrefix, PrefixResolution};
 use jj_lib::operation::Operation;
 use jj_lib::transaction::Transaction;
@@ -424,6 +424,16 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
     let git_command = SubCommand::with_name("git")
         .about("commands for working with the underlying git repo")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
+        .subcommand(
+            SubCommand::with_name("fetch")
+                .about("fetch from a git remote")
+                .arg(
+                    Arg::with_name("remote")
+                        .long("remote")
+                        .takes_value(true)
+                        .default_value("origin"),
+                ),
+        )
         .subcommand(
             SubCommand::with_name("push")
                 .about("push a revision to a git remote branch")
@@ -1964,6 +1974,30 @@ fn cmd_operation(
     Ok(())
 }
 
+fn cmd_git_fetch(
+    ui: &mut Ui,
+    matches: &ArgMatches,
+    _git_matches: &ArgMatches,
+    cmd_matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    let repo = get_repo(ui, &matches)?;
+    let remote_name = cmd_matches.value_of("remote").unwrap();
+    let mut tx = repo.start_transaction(&format!("fetch from git remote {}", remote_name));
+    git::fetch(&mut tx, remote_name).map_err(|err| match err {
+        GitFetchError::NotAGitRepo => CommandError::UserError(
+            "git push can only be used in repos backed by a git repo".to_string(),
+        ),
+        GitFetchError::NoSuchRemote => {
+            CommandError::UserError(format!("No such git remote: {}", remote_name))
+        }
+        GitFetchError::InternalGitError(err) => {
+            CommandError::UserError(format!("Fetch failed: {:?}", err))
+        }
+    })?;
+    tx.commit();
+    Ok(())
+}
+
 fn cmd_git_push(
     ui: &mut Ui,
     matches: &ArgMatches,
@@ -2017,7 +2051,9 @@ fn cmd_git(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    if let Some(command_matches) = sub_matches.subcommand_matches("push") {
+    if let Some(command_matches) = sub_matches.subcommand_matches("fetch") {
+        cmd_git_fetch(ui, matches, sub_matches, command_matches)?;
+    } else if let Some(command_matches) = sub_matches.subcommand_matches("push") {
         cmd_git_push(ui, matches, sub_matches, command_matches)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("refresh") {
         cmd_git_refresh(ui, matches, sub_matches, command_matches)?;

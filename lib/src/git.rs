@@ -50,6 +50,39 @@ pub fn import_refs(tx: &mut Transaction) -> Result<(), GitImportError> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum GitFetchError {
+    NotAGitRepo,
+    NoSuchRemote,
+    // TODO: I'm sure there are other errors possible, such as transport-level errors.
+    InternalGitError(String),
+}
+
+pub fn fetch(tx: &mut Transaction, remote_name: &str) -> Result<(), GitFetchError> {
+    let git_repo = tx.store().git_repo().ok_or(GitFetchError::NotAGitRepo)?;
+    let mut remote =
+        git_repo
+            .find_remote(remote_name)
+            .map_err(|err| match (err.class(), err.code()) {
+                (git2::ErrorClass::Config, git2::ErrorCode::NotFound) => {
+                    GitFetchError::NoSuchRemote
+                }
+                (git2::ErrorClass::Config, git2::ErrorCode::InvalidSpec) => {
+                    GitFetchError::NoSuchRemote
+                }
+                _ => GitFetchError::InternalGitError(format!("unhandled git error: {:?}", err)),
+            })?;
+    let refspec: &[&str] = &[];
+    remote.fetch(refspec, None, None).map_err(|err| {
+        GitFetchError::InternalGitError(format!("unhandled git error: {:?}", err))
+    })?;
+    import_refs(tx).map_err(|err| match err {
+        GitImportError::NotAGitRepo => panic!("git repo somehow became a non-git repo"),
+        GitImportError::InternalGitError(err) => GitFetchError::InternalGitError(err),
+    })?;
+    Ok(())
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum GitPushError {
     NotAGitRepo,
     NoSuchRemote,
