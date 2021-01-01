@@ -435,6 +435,12 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 ),
         )
         .subcommand(
+            SubCommand::with_name("clone")
+                .about("create a new repo backed by a clone of a git repo")
+                .arg(Arg::with_name("source").index(1).required(true))
+                .arg(Arg::with_name("destination").index(2).required(true)),
+        )
+        .subcommand(
             SubCommand::with_name("push")
                 .about("push a revision to a git remote branch")
                 .arg(
@@ -1998,6 +2004,47 @@ fn cmd_git_fetch(
     Ok(())
 }
 
+fn cmd_git_clone(
+    ui: &mut Ui,
+    _matches: &ArgMatches,
+    _git_matches: &ArgMatches,
+    cmd_matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    let source = cmd_matches.value_of("source").unwrap();
+    let wc_path_str = cmd_matches.value_of("destination").unwrap();
+    let wc_path = ui.cwd().join(wc_path_str);
+    if wc_path.exists() {
+        assert!(wc_path.is_dir());
+    } else {
+        fs::create_dir(&wc_path).unwrap();
+    }
+
+    let repo = ReadonlyRepo::init_internal_git(ui.settings(), wc_path);
+    writeln!(
+        ui,
+        "Fetching into new repo in {:?}",
+        repo.working_copy_path()
+    );
+    let remote_name = "origin";
+    repo.store()
+        .git_repo()
+        .unwrap()
+        .remote(remote_name, source)
+        .unwrap();
+    let mut tx = repo.start_transaction("fetch from git remote into empty repo");
+    git::fetch(&mut tx, remote_name).map_err(|err| match err {
+        GitFetchError::NotAGitRepo | GitFetchError::NoSuchRemote => {
+            panic!("should't happen as we just created the repo and the git remote")
+        }
+        GitFetchError::InternalGitError(err) => {
+            CommandError::UserError(format!("Fetch failed: {:?}", err))
+        }
+    })?;
+    tx.commit();
+    writeln!(ui, "Done");
+    Ok(())
+}
+
 fn cmd_git_push(
     ui: &mut Ui,
     matches: &ArgMatches,
@@ -2053,6 +2100,8 @@ fn cmd_git(
 ) -> Result<(), CommandError> {
     if let Some(command_matches) = sub_matches.subcommand_matches("fetch") {
         cmd_git_fetch(ui, matches, sub_matches, command_matches)?;
+    } else if let Some(command_matches) = sub_matches.subcommand_matches("clone") {
+        cmd_git_clone(ui, matches, sub_matches, command_matches)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("push") {
         cmd_git_push(ui, matches, sub_matches, command_matches)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("refresh") {
