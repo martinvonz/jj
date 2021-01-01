@@ -15,18 +15,14 @@
 use crate::commit::Commit;
 use crate::store::CommitId;
 use crate::transaction::Transaction;
-use git2::Error;
+use thiserror::Error;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum GitImportError {
+    #[error("The repo is not backed by a git repo")]
     NotAGitRepo,
-    InternalGitError(String),
-}
-
-impl From<git2::Error> for GitImportError {
-    fn from(err: Error) -> Self {
-        GitImportError::InternalGitError(format!("failed to read git refs: {}", err))
-    }
+    #[error("Unexpected git error when importing refs: {0}")]
+    InternalGitError(#[from] git2::Error),
 }
 
 // Reflect changes made in the underlying Git repo in the Jujube repo.
@@ -49,12 +45,15 @@ pub fn import_refs(tx: &mut Transaction) -> Result<(), GitImportError> {
     Ok(())
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum GitFetchError {
+    #[error("The repo is not backed by a git repo")]
     NotAGitRepo,
-    NoSuchRemote,
+    #[error("No git remote named '{0}'")]
+    NoSuchRemote(String),
     // TODO: I'm sure there are other errors possible, such as transport-level errors.
-    InternalGitError(String),
+    #[error("Unexpected git error when fetching: {0}")]
+    InternalGitError(#[from] git2::Error),
 }
 
 pub fn fetch(tx: &mut Transaction, remote_name: &str) -> Result<(), GitFetchError> {
@@ -64,32 +63,34 @@ pub fn fetch(tx: &mut Transaction, remote_name: &str) -> Result<(), GitFetchErro
             .find_remote(remote_name)
             .map_err(|err| match (err.class(), err.code()) {
                 (git2::ErrorClass::Config, git2::ErrorCode::NotFound) => {
-                    GitFetchError::NoSuchRemote
+                    GitFetchError::NoSuchRemote(remote_name.to_string())
                 }
                 (git2::ErrorClass::Config, git2::ErrorCode::InvalidSpec) => {
-                    GitFetchError::NoSuchRemote
+                    GitFetchError::NoSuchRemote(remote_name.to_string())
                 }
-                _ => GitFetchError::InternalGitError(format!("unhandled git error: {:?}", err)),
+                _ => GitFetchError::InternalGitError(err),
             })?;
     let refspec: &[&str] = &[];
-    remote.fetch(refspec, None, None).map_err(|err| {
-        GitFetchError::InternalGitError(format!("unhandled git error: {:?}", err))
-    })?;
+    remote.fetch(refspec, None, None)?;
     import_refs(tx).map_err(|err| match err {
         GitImportError::NotAGitRepo => panic!("git repo somehow became a non-git repo"),
-        GitImportError::InternalGitError(err) => GitFetchError::InternalGitError(err),
+        GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
     })?;
     Ok(())
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum GitPushError {
+    #[error("The repo is not backed by a git repo")]
     NotAGitRepo,
-    NoSuchRemote,
+    #[error("No git remote named '{0}'")]
+    NoSuchRemote(String),
+    #[error("Push is not fast-forwardable'")]
     NotFastForward,
     // TODO: I'm sure there are other errors possible, such as transport-level errors,
     // and errors caused by the remote rejecting the push.
-    InternalGitError(String),
+    #[error("Unexpected git error when pushing: {0}")]
+    InternalGitError(#[from] git2::Error),
 }
 
 pub fn push_commit(
@@ -100,28 +101,23 @@ pub fn push_commit(
     let git_repo = commit.store().git_repo().ok_or(GitPushError::NotAGitRepo)?;
     // Create a temporary ref to work around https://github.com/libgit2/libgit2/issues/3178
     let temp_ref_name = format!("refs/jj/git-push/{}", commit.id().hex());
-    let mut temp_ref = git_repo
-        .reference(
-            &temp_ref_name,
-            git2::Oid::from_bytes(&commit.id().0).unwrap(),
-            true,
-            "temporary reference for git push",
-        )
-        .map_err(|err| {
-            GitPushError::InternalGitError(format!(
-                "failed to create temporary git ref for push: {}",
-                err
-            ))
-        })?;
+    let mut temp_ref = git_repo.reference(
+        &temp_ref_name,
+        git2::Oid::from_bytes(&commit.id().0).unwrap(),
+        true,
+        "temporary reference for git push",
+    )?;
     let mut remote =
         git_repo
             .find_remote(remote_name)
             .map_err(|err| match (err.class(), err.code()) {
-                (git2::ErrorClass::Config, git2::ErrorCode::NotFound) => GitPushError::NoSuchRemote,
-                (git2::ErrorClass::Config, git2::ErrorCode::InvalidSpec) => {
-                    GitPushError::NoSuchRemote
+                (git2::ErrorClass::Config, git2::ErrorCode::NotFound) => {
+                    GitPushError::NoSuchRemote(remote_name.to_string())
                 }
-                _ => GitPushError::InternalGitError(format!("unhandled git error: {:?}", err)),
+                (git2::ErrorClass::Config, git2::ErrorCode::InvalidSpec) => {
+                    GitPushError::NoSuchRemote(remote_name.to_string())
+                }
+                _ => GitPushError::InternalGitError(err),
             })?;
     // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
     let refspec = format!("{}:refs/heads/{}", temp_ref_name, remote_branch);
@@ -131,12 +127,8 @@ pub fn push_commit(
             (git2::ErrorClass::Reference, git2::ErrorCode::NotFastForward) => {
                 GitPushError::NotFastForward
             }
-            _ => GitPushError::InternalGitError(format!("unhandled git error: {:?}", err)),
+            _ => GitPushError::InternalGitError(err),
         })?;
-    temp_ref.delete().map_err(|err| {
-        GitPushError::InternalGitError(format!(
-            "failed to delete temporary git ref for push: {}",
-            err
-        ))
-    })
+    temp_ref.delete()?;
+    Ok(())
 }

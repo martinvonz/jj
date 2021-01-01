@@ -185,7 +185,7 @@ fn test_fetch_no_such_remote() {
 
     let mut tx = jj_repo.start_transaction("test");
     let result = git::fetch(&mut tx, "invalid-remote");
-    assert_eq!(result, Err(GitFetchError::NoSuchRemote));
+    assert!(matches!(result, Err(GitFetchError::NoSuchRemote(_))));
 
     tx.discard();
 }
@@ -266,7 +266,7 @@ fn test_push_commit_no_such_remote() {
     let temp_dir = tempfile::tempdir().unwrap();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let result = git::push_commit(&setup.new_commit, "invalid-remote", "main");
-    assert_eq!(result, Err(GitPushError::NoSuchRemote));
+    assert!(matches!(result, Err(GitPushError::NoSuchRemote(_))));
 }
 
 #[test]
@@ -275,7 +275,7 @@ fn test_push_commit_invalid_remote() {
     let temp_dir = tempfile::tempdir().unwrap();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let result = git::push_commit(&setup.new_commit, "http://invalid-remote", "main");
-    assert_eq!(result, Err(GitPushError::NoSuchRemote));
+    assert!(matches!(result, Err(GitPushError::NoSuchRemote(_))));
 }
 
 #[test]

@@ -1993,12 +1993,7 @@ fn cmd_git_fetch(
         GitFetchError::NotAGitRepo => CommandError::UserError(
             "git push can only be used in repos backed by a git repo".to_string(),
         ),
-        GitFetchError::NoSuchRemote => {
-            CommandError::UserError(format!("No such git remote: {}", remote_name))
-        }
-        GitFetchError::InternalGitError(err) => {
-            CommandError::UserError(format!("Fetch failed: {:?}", err))
-        }
+        err => CommandError::UserError(err.to_string()),
     })?;
     tx.commit();
     Ok(())
@@ -2033,7 +2028,7 @@ fn cmd_git_clone(
         .unwrap();
     let mut tx = repo.start_transaction("fetch from git remote into empty repo");
     git::fetch(&mut tx, remote_name).map_err(|err| match err {
-        GitFetchError::NotAGitRepo | GitFetchError::NoSuchRemote => {
+        GitFetchError::NotAGitRepo | GitFetchError::NoSuchRemote(_) => {
             panic!("should't happen as we just created the repo and the git remote")
         }
         GitFetchError::InternalGitError(err) => {
@@ -2060,15 +2055,7 @@ fn cmd_git_push(
         GitPushError::NotAGitRepo => CommandError::UserError(
             "git push can only be used in repos backed by a git repo".to_string(),
         ),
-        GitPushError::NoSuchRemote => {
-            CommandError::UserError(format!("No such git remote: {}", remote_name))
-        }
-        GitPushError::NotFastForward => {
-            CommandError::UserError("Push is not fast-forwardable".to_string())
-        }
-        GitPushError::InternalGitError(err) => {
-            CommandError::UserError(format!("Push failed: {:?}", err))
-        }
+        err => CommandError::UserError(err.to_string()),
     })?;
     Ok(())
 }
@@ -2085,9 +2072,7 @@ fn cmd_git_refresh(
         GitImportError::NotAGitRepo => CommandError::UserError(
             "git refresh can only be used in repos backed by a git repo".to_string(),
         ),
-        GitImportError::InternalGitError(err) => {
-            CommandError::UserError(format!("import of Git refs failed: {:?}", err))
-        }
+        err => CommandError::UserError(err.to_string()),
     })?;
     tx.commit();
     Ok(())
