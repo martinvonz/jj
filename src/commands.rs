@@ -437,13 +437,13 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .arg(
                     Arg::with_name("remote")
                         .long("remote")
-                        .index(1)
-                        .required(true),
+                        .takes_value(true)
+                        .default_value("origin"),
                 )
                 .arg(
                     Arg::with_name("branch")
                         .long("branch")
-                        .index(2)
+                        .takes_value(true)
                         .required(true),
                 ),
         )
