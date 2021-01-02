@@ -87,6 +87,8 @@ pub enum GitPushError {
     NoSuchRemote(String),
     #[error("Push is not fast-forwardable'")]
     NotFastForward,
+    #[error("Remote reject the update'")]
+    RefUpdateRejected,
     // TODO: I'm sure there are other errors possible, such as transport-level errors,
     // and errors caused by the remote rejecting the push.
     #[error("Unexpected git error when pushing: {0}")]
@@ -122,8 +124,15 @@ pub fn push_commit(
     // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
     let qualified_remote_branch = format!("refs/heads/{}", remote_branch);
     let mut callbacks = git2::RemoteCallbacks::new();
+    let mut updated = false;
     callbacks.credentials(|_url, username_from_url, _allowed_types| {
         git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
+    });
+    callbacks.push_update_reference(|refname, status| {
+        if refname == &qualified_remote_branch && status.is_none() {
+            updated = true;
+        }
+        Ok(())
     });
     let refspec = format!("{}:{}", temp_ref_name, qualified_remote_branch);
     let mut push_options = git2::PushOptions::new();
@@ -136,6 +145,11 @@ pub fn push_commit(
             }
             _ => GitPushError::InternalGitError(err),
         })?;
+    drop(push_options);
     temp_ref.delete()?;
-    Ok(())
+    if updated {
+        Ok(())
+    } else {
+        Err(GitPushError::RefUpdateRejected)
+    }
 }
