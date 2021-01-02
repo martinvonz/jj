@@ -120,9 +120,16 @@ pub fn push_commit(
                 _ => GitPushError::InternalGitError(err),
             })?;
     // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
-    let refspec = format!("{}:refs/heads/{}", temp_ref_name, remote_branch);
+    let qualified_remote_branch = format!("refs/heads/{}", remote_branch);
+    let mut callbacks = git2::RemoteCallbacks::new();
+    callbacks.credentials(|_url, username_from_url, _allowed_types| {
+        git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
+    });
+    let refspec = format!("{}:{}", temp_ref_name, qualified_remote_branch);
+    let mut push_options = git2::PushOptions::new();
+    push_options.remote_callbacks(callbacks);
     remote
-        .push(&[refspec], None)
+        .push(&[refspec], Some(&mut push_options))
         .map_err(|err| match (err.class(), err.code()) {
             (git2::ErrorClass::Reference, git2::ErrorCode::NotFastForward) => {
                 GitPushError::NotFastForward
