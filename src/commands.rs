@@ -1139,7 +1139,12 @@ fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
         description_file.write_all(description.as_bytes()).unwrap();
     }
 
-    let exit_status = Command::new("pico")
+    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "pico".to_string());
+    // Handle things like `EDITOR=emacs -nw`
+    let args: Vec<_> = editor.split(' ').collect();
+    let editor_args = if args.len() > 1 { &args[1..] } else { &[] };
+    let exit_status = Command::new(args[0])
+        .args(editor_args)
         .arg(&description_file_path)
         .status()
         .expect("failed to run editor");
