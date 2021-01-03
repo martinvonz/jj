@@ -1,13 +1,13 @@
-[workspace]
-members = ["lib"]
-
 [package]
-name = "jj"
+name = "jujube"
 version = "0.1.0"
 authors = ["Martin von Zweigbergk <martinvonz@google.com>"]
 edition = "2018"
 
-[dependencies.jj-lib]
+[workspace]
+members = ["lib"]
+
+[dependencies.jujube-lib]
 path = "lib"
 
 [dependencies]

@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::commit::Commit;
-use jj_lib::commit_builder::CommitBuilder;
-use jj_lib::index::CompositeIndex;
-use jj_lib::repo::ReadonlyRepo;
-use jj_lib::settings::UserSettings;
-use jj_lib::store::CommitId;
-use jj_lib::testutils;
+use jujube_lib::commit::Commit;
+use jujube_lib::commit_builder::CommitBuilder;
+use jujube_lib::index::CompositeIndex;
+use jujube_lib::repo::ReadonlyRepo;
+use jujube_lib::settings::UserSettings;
+use jujube_lib::store::CommitId;
+use jujube_lib::testutils;
 use std::sync::Arc;
 use test_case::test_case;
 

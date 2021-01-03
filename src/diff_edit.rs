@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::repo_path::{DirRepoPath, RepoPath};
-use jj_lib::store::{StoreError, TreeId, TreeValue};
-use jj_lib::store_wrapper::StoreWrapper;
-use jj_lib::tree::Tree;
-use jj_lib::tree_builder::TreeBuilder;
-use jj_lib::trees::merge_trees;
-use jj_lib::working_copy::{CheckoutError, TreeState};
+use jujube_lib::repo_path::{DirRepoPath, RepoPath};
+use jujube_lib::store::{StoreError, TreeId, TreeValue};
+use jujube_lib::store_wrapper::StoreWrapper;
+use jujube_lib::tree::Tree;
+use jujube_lib::tree_builder::TreeBuilder;
+use jujube_lib::trees::merge_trees;
+use jujube_lib::working_copy::{CheckoutError, TreeState};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
@@ -57,7 +57,7 @@ fn add_to_tree(
         TreeValue::Conflict(conflict_id) => {
             let conflict = store.read_conflict(conflict_id)?;
             let materialized_value =
-                jj_lib::conflicts::conflict_to_materialized_value(store, repo_path, &conflict);
+                jujube_lib::conflicts::conflict_to_materialized_value(store, repo_path, &conflict);
             tree_builder.set(repo_path.clone(), materialized_value);
         }
         _ => {

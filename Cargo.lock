@@ -533,7 +533,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc6f3ad7b9d11a0c00842ff8de1b60ee58661048eb8049ed33c73594f359d7e6"
 
 [[package]]
-name = "jj"
+name = "jobserver"
+version = "0.1.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c71313ebb9439f74b00d9d2dcec36440beaf57a6aa0623068441dd7cd81a7f2"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "js-sys"
+version = "0.3.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca059e81d9486668f12d455a4ea6daa600bd408134cd17e3d3fb5a32d1f016f8"
+dependencies = [
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "jujube"
 version = "0.1.0"
 dependencies = [
  "blake2",
@@ -547,7 +565,7 @@ dependencies = [
  "git2",
  "hex",
  "indoc",
- "jj-lib",
+ "jujube-lib",
  "pest",
  "pest_derive",
  "protobuf",
@@ -562,7 +580,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "jj-lib"
+name = "jujube-lib"
 version = "0.1.0"
 dependencies = [
  "backoff",
@@ -586,24 +604,6 @@ dependencies = [
  "uuid",
  "whoami",
  "zstd",
-]
-
-[[package]]
-name = "jobserver"
-version = "0.1.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c71313ebb9439f74b00d9d2dcec36440beaf57a6aa0623068441dd7cd81a7f2"
-dependencies = [
- "libc",
-]
-
-[[package]]
-name = "js-sys"
-version = "0.3.45"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca059e81d9486668f12d455a4ea6daa600bd408134cd17e3d3fb5a32d1f016f8"
-dependencies = [
- "wasm-bindgen",
 ]
 
 [[package]]

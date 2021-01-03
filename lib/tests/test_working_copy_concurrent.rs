@@ -14,12 +14,12 @@
 
 use std::thread;
 
-use jj_lib::commit_builder::CommitBuilder;
-use jj_lib::repo::ReadonlyRepo;
-use jj_lib::repo_path::FileRepoPath;
-use jj_lib::store::CommitId;
-use jj_lib::testutils;
-use jj_lib::working_copy::CheckoutError;
+use jujube_lib::commit_builder::CommitBuilder;
+use jujube_lib::repo::ReadonlyRepo;
+use jujube_lib::repo_path::FileRepoPath;
+use jujube_lib::store::CommitId;
+use jujube_lib::testutils;
+use jujube_lib::working_copy::CheckoutError;
 use std::collections::HashSet;
 use std::sync::Arc;
 use test_case::test_case;

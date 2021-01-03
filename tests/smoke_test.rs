@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj::testutils;
+use jujube::testutils;
 use regex::Regex;
 
 #[test]

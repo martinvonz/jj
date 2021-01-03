@@ -15,9 +15,9 @@
 use std::borrow::BorrowMut;
 use std::ops::Add;
 
-use jj_lib::commit::Commit;
-use jj_lib::repo::Repo;
-use jj_lib::store::{CommitId, Signature};
+use jujube_lib::commit::Commit;
+use jujube_lib::repo::Repo;
+use jujube_lib::store::{CommitId, Signature};
 
 use crate::styler::Styler;
 

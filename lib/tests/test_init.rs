@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::repo::ReadonlyRepo;
-use jj_lib::testutils;
+use jujube_lib::repo::ReadonlyRepo;
+use jujube_lib::testutils;
 
 #[test]
 fn test_init_local() {

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::commit_builder::CommitBuilder;
-use jj_lib::repo::Repo;
-use jj_lib::repo_path::FileRepoPath;
-use jj_lib::store::{Conflict, ConflictId, ConflictPart, TreeValue};
-use jj_lib::store_wrapper::StoreWrapper;
-use jj_lib::testutils;
+use jujube_lib::commit_builder::CommitBuilder;
+use jujube_lib::repo::Repo;
+use jujube_lib::repo_path::FileRepoPath;
+use jujube_lib::store::{Conflict, ConflictId, ConflictPart, TreeValue};
+use jujube_lib::store_wrapper::StoreWrapper;
+use jujube_lib::testutils;
 use std::collections::HashSet;
 use std::sync::Arc;
 use test_case::test_case;

@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::repo_path::{DirRepoPath, FileRepoPath, RepoPath};
-use jj_lib::store::{ConflictPart, TreeValue};
-use jj_lib::testutils;
-use jj_lib::tree::Tree;
-use jj_lib::trees;
+use jujube_lib::repo_path::{DirRepoPath, FileRepoPath, RepoPath};
+use jujube_lib::store::{ConflictPart, TreeValue};
+use jujube_lib::testutils;
+use jujube_lib::tree::Tree;
+use jujube_lib::trees;
 use test_case::test_case;
 
 #[test_case(false ; "local store")]

@@ -1,5 +1,5 @@
 [package]
-name = "jj-lib"
+name = "jujube-lib"
 version = "0.1.0"
 authors = ["Martin von Zweigbergk <martinvonz@google.com>"]
 edition = "2018"

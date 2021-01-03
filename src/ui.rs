@@ -18,12 +18,12 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
-use jj_lib::commit::Commit;
-use jj_lib::settings::UserSettings;
+use jujube_lib::commit::Commit;
+use jujube_lib::settings::UserSettings;
 
 use crate::styler::{ColorStyler, PlainTextStyler, Styler};
 use crate::templater::TemplateFormatter;
-use jj_lib::repo::Repo;
+use jujube_lib::repo::Repo;
 
 pub struct Ui<'a> {
     cwd: PathBuf,

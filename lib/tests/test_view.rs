@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::repo::Repo;
-use jj_lib::store::CommitId;
-use jj_lib::testutils;
+use jujube_lib::repo::Repo;
+use jujube_lib::store::CommitId;
+use jujube_lib::testutils;
 use test_case::test_case;
 
 #[test_case(false ; "local store")]

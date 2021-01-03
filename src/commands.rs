@@ -31,25 +31,25 @@ use criterion::Criterion;
 
 use pest::Parser;
 
-use jj_lib::commit::Commit;
-use jj_lib::commit_builder::CommitBuilder;
-use jj_lib::conflicts;
-use jj_lib::dag_walk::{common_ancestor, topo_order_reverse, walk_ancestors};
-use jj_lib::evolution::evolve;
-use jj_lib::evolution::EvolveListener;
-use jj_lib::files;
-use jj_lib::files::DiffLine;
-use jj_lib::git;
-use jj_lib::op_store::{OpStoreError, OperationId};
-use jj_lib::repo::{ReadonlyRepo, Repo};
-use jj_lib::repo_path::RepoPath;
-use jj_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
-use jj_lib::settings::UserSettings;
-use jj_lib::store::{CommitId, Timestamp};
-use jj_lib::store::{StoreError, TreeValue};
-use jj_lib::tree::Tree;
-use jj_lib::trees::TreeValueDiff;
-use jj_lib::working_copy::{CheckoutStats, WorkingCopy};
+use jujube_lib::commit::Commit;
+use jujube_lib::commit_builder::CommitBuilder;
+use jujube_lib::conflicts;
+use jujube_lib::dag_walk::{common_ancestor, topo_order_reverse, walk_ancestors};
+use jujube_lib::evolution::evolve;
+use jujube_lib::evolution::EvolveListener;
+use jujube_lib::files;
+use jujube_lib::files::DiffLine;
+use jujube_lib::git;
+use jujube_lib::op_store::{OpStoreError, OperationId};
+use jujube_lib::repo::{ReadonlyRepo, Repo};
+use jujube_lib::repo_path::RepoPath;
+use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
+use jujube_lib::settings::UserSettings;
+use jujube_lib::store::{CommitId, Timestamp};
+use jujube_lib::store::{StoreError, TreeValue};
+use jujube_lib::tree::Tree;
+use jujube_lib::trees::TreeValueDiff;
+use jujube_lib::working_copy::{CheckoutStats, WorkingCopy};
 
 use self::chrono::{FixedOffset, TimeZone, Utc};
 use crate::commands::CommandError::UserError;
@@ -59,11 +59,11 @@ use crate::styler::{ColorStyler, Styler};
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
 use crate::ui::Ui;
-use jj_lib::git::{GitFetchError, GitImportError, GitPushError};
-use jj_lib::index::{HexPrefix, PrefixResolution};
-use jj_lib::operation::Operation;
-use jj_lib::transaction::Transaction;
-use jj_lib::view::merge_views;
+use jujube_lib::git::{GitFetchError, GitImportError, GitPushError};
+use jujube_lib::index::{HexPrefix, PrefixResolution};
+use jujube_lib::operation::Operation;
+use jujube_lib::transaction::Transaction;
+use jujube_lib::view::merge_views;
 
 enum CommandError {
     UserError(String),

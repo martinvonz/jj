@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use git2::Oid;
-use jj_lib::commit::Commit;
-use jj_lib::git;
-use jj_lib::git::{GitFetchError, GitImportError, GitPushError};
-use jj_lib::repo::{ReadonlyRepo, Repo};
-use jj_lib::settings::UserSettings;
-use jj_lib::store::CommitId;
-use jj_lib::testutils;
+use jujube_lib::commit::Commit;
+use jujube_lib::git;
+use jujube_lib::git::{GitFetchError, GitImportError, GitPushError};
+use jujube_lib::repo::{ReadonlyRepo, Repo};
+use jujube_lib::settings::UserSettings;
+use jujube_lib::store::CommitId;
+use jujube_lib::testutils;
 use maplit::hashset;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -68,7 +68,7 @@ fn test_import_refs() {
     let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
     let mut tx = repo.start_transaction("test");
     let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
-    jj_lib::git::import_refs(&mut tx).unwrap_or_default();
+    jujube_lib::git::import_refs(&mut tx).unwrap_or_default();
     let heads_after: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
     let expected_heads: HashSet<_> = heads_before
         .union(&hashset!(commit_id(&commit3), commit_id(&commit4)))
@@ -91,7 +91,7 @@ fn test_import_refs_empty_git_repo() {
     let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
     let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
     let mut tx = repo.start_transaction("test");
-    jj_lib::git::import_refs(&mut tx).unwrap_or_default();
+    jujube_lib::git::import_refs(&mut tx).unwrap_or_default();
     let heads_after: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
     assert_eq!(heads_before, heads_after);
     tx.discard();
@@ -106,7 +106,7 @@ fn test_import_refs_non_git() {
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let repo = ReadonlyRepo::init_local(&settings, jj_repo_dir);
     let mut tx = repo.start_transaction("test");
-    let result = jj_lib::git::import_refs(&mut tx);
+    let result = jujube_lib::git::import_refs(&mut tx);
     assert_eq!(result, Err(GitImportError::NotAGitRepo));
     tx.discard();
 }

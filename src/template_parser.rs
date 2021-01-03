@@ -18,8 +18,8 @@ use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::Parser;
 
-use jj_lib::commit::Commit;
-use jj_lib::store::{CommitId, Signature};
+use jujube_lib::commit::Commit;
+use jujube_lib::store::{CommitId, Signature};
 
 use crate::styler::PlainTextStyler;
 use crate::templater::{
@@ -29,7 +29,7 @@ use crate::templater::{
     ObsoleteProperty, OpenProperty, OrphanProperty, PrunedProperty, StringPropertyTemplate,
     Template, TemplateFunction, TemplateProperty,
 };
-use jj_lib::repo::Repo;
+use jujube_lib::repo::Repo;
 
 #[derive(Parser)]
 #[grammar = "template.pest"]
