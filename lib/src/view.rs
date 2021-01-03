@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::cmp::min;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -32,6 +32,7 @@ use crate::store_wrapper::StoreWrapper;
 pub trait View {
     fn checkout(&self) -> &CommitId;
     fn heads<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommitId> + 'a>;
+    fn git_refs(&self) -> &BTreeMap<String, CommitId>;
     fn op_store(&self) -> Arc<dyn OpStore>;
     fn base_op_head_id(&self) -> &OperationId;
 
@@ -151,6 +152,35 @@ pub fn merge_views(
     // TODO: Should it be considered a conflict if a commit-head is removed on one
     // side while a child or successor is created on another side? Maybe a
     // warning?
+
+    // Merge git refs
+    let base_git_ref_names: HashSet<_> = base.git_refs.keys().clone().collect();
+    let right_git_ref_names: HashSet<_> = right.git_refs.keys().clone().collect();
+    for maybe_modified_git_ref_name in right_git_ref_names.intersection(&base_git_ref_names) {
+        let base_commit_id = base.git_refs.get(*maybe_modified_git_ref_name).unwrap();
+        let right_commit_id = right.git_refs.get(*maybe_modified_git_ref_name).unwrap();
+        if base_commit_id == right_commit_id {
+            continue;
+        }
+        // TODO: Handle modify/modify conflict (i.e. if left and base are different
+        // here)
+        result.git_refs.insert(
+            (*maybe_modified_git_ref_name).clone(),
+            right_commit_id.clone(),
+        );
+    }
+    for added_git_ref_name in right_git_ref_names.difference(&base_git_ref_names) {
+        // TODO: Handle add/add conflict (i.e. if left also has the ref here)
+        result.git_refs.insert(
+            (*added_git_ref_name).clone(),
+            right.git_refs.get(*added_git_ref_name).unwrap().clone(),
+        );
+    }
+    for removed_git_ref_name in base_git_ref_names.difference(&right_git_ref_names) {
+        // TODO: Handle modify/remove conflict (i.e. if left and base are different
+        // here)
+        result.git_refs.remove(*removed_git_ref_name);
+    }
 
     result
 }
@@ -278,6 +308,10 @@ impl View for ReadonlyView {
         Box::new(self.data.head_ids.iter())
     }
 
+    fn git_refs(&self) -> &BTreeMap<String, CommitId> {
+        &self.data.git_refs
+    }
+
     fn op_store(&self) -> Arc<dyn OpStore> {
         self.op_store.clone()
     }
@@ -365,6 +399,10 @@ impl View for MutableView {
         Box::new(self.data.head_ids.iter())
     }
 
+    fn git_refs(&self) -> &BTreeMap<String, CommitId> {
+        &self.data.git_refs
+    }
+
     fn op_store(&self) -> Arc<dyn OpStore> {
         self.op_store.clone()
     }
@@ -400,6 +438,14 @@ impl MutableView {
             self.data.head_ids.insert(parent.id().clone());
         }
         self.remove_non_heads();
+    }
+
+    pub fn insert_git_ref(&mut self, name: String, commit_id: CommitId) {
+        self.data.git_refs.insert(name, commit_id);
+    }
+
+    pub fn remove_git_ref(&mut self, name: &str) {
+        self.data.git_refs.remove(name);
     }
 
     pub fn set_view(&mut self, data: op_store::View) {

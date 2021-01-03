@@ -63,19 +63,220 @@ fn test_import_refs() {
     let commit2 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
     let commit3 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
     let commit4 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
+    let commit5 = empty_git_commit(&git_repo, "refs/remotes/origin/main", &[&commit2]);
+    // Should not be imported
+    empty_git_commit(&git_repo, "refs/notes/x", &[&commit2]);
 
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
     let mut tx = repo.start_transaction("test");
     let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
     jujube_lib::git::import_refs(&mut tx).unwrap_or_default();
-    let heads_after: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    let view = tx.as_repo().view();
+    let heads_after: HashSet<_> = view.heads().cloned().collect();
     let expected_heads: HashSet<_> = heads_before
-        .union(&hashset!(commit_id(&commit3), commit_id(&commit4)))
+        .union(&hashset!(
+            commit_id(&commit3),
+            commit_id(&commit4),
+            commit_id(&commit5)
+        ))
         .cloned()
         .collect();
     assert_eq!(heads_after, expected_heads);
+    assert_eq!(view.git_refs().len(), 4);
+    assert_eq!(
+        view.git_refs().get("refs/heads/main"),
+        Some(commit_id(&commit2)).as_ref()
+    );
+    assert_eq!(
+        view.git_refs().get("refs/heads/feature1"),
+        Some(commit_id(&commit3)).as_ref()
+    );
+    assert_eq!(
+        view.git_refs().get("refs/heads/feature2"),
+        Some(commit_id(&commit4)).as_ref()
+    );
+    assert_eq!(
+        view.git_refs().get("refs/remotes/origin/main"),
+        Some(commit_id(&commit5)).as_ref()
+    );
     tx.discard();
+}
+
+#[test]
+fn test_import_refs_reimport() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let git_repo_dir = temp_dir.path().join("git");
+    let jj_repo_dir = temp_dir.path().join("jj");
+
+    let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
+    let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    let commit2 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
+    let commit3 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
+    let commit4 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
+
+    std::fs::create_dir(&jj_repo_dir).unwrap();
+    let mut repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
+    let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
+    let mut tx = repo.start_transaction("test");
+    jujube_lib::git::import_refs(&mut tx).unwrap_or_default();
+    tx.commit();
+
+    // Delete feature1 and rewrite feature2
+    git_repo
+        .find_reference("refs/heads/feature1")
+        .unwrap()
+        .delete()
+        .unwrap();
+    git_repo
+        .find_reference("refs/heads/feature2")
+        .unwrap()
+        .delete()
+        .unwrap();
+    let commit5 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
+
+    Arc::get_mut(&mut repo).unwrap().reload();
+    let mut tx = repo.start_transaction("test");
+    jujube_lib::git::import_refs(&mut tx).unwrap_or_default();
+
+    let view = tx.as_repo().view();
+    let heads_after: HashSet<_> = view.heads().cloned().collect();
+    // TODO: commit3 and commit4 should probably be removed
+    let expected_heads: HashSet<_> = heads_before
+        .union(&hashset!(
+            commit_id(&commit3),
+            commit_id(&commit4),
+            commit_id(&commit5)
+        ))
+        .cloned()
+        .collect();
+    assert_eq!(heads_after, expected_heads);
+    assert_eq!(view.git_refs().len(), 2);
+    assert_eq!(
+        view.git_refs().get("refs/heads/main"),
+        Some(commit_id(&commit2)).as_ref()
+    );
+    assert_eq!(
+        view.git_refs().get("refs/heads/feature2"),
+        Some(commit_id(&commit5)).as_ref()
+    );
+    tx.discard();
+}
+
+fn git_ref(git_repo: &git2::Repository, name: &str, target: Oid) {
+    git_repo.reference(name, target, true, "").unwrap();
+}
+
+fn delete_git_ref(git_repo: &git2::Repository, name: &str) {
+    git_repo.find_reference(name).unwrap().delete().unwrap();
+}
+
+#[test]
+fn test_import_refs_merge() {
+    let settings = testutils::user_settings();
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, true);
+    let git_repo = repo.store().git_repo().unwrap();
+
+    // Set up the following refs and update them as follows:
+    // sideways-unchanged: one operation rewrites the ref
+    // unchanged-sideways: the other operation rewrites the ref
+    // remove-unchanged: one operation removes the ref
+    // unchanged-remove: the other operation removes the ref
+    // forward-forward: two operations move forward by different amounts
+    // sideways-sideways: two operations rewrite the ref
+    // forward-remove: one operation moves forward, the other operation removes
+    // remove-forward: one operation removes, the other operation moves
+    // add-add: two operations add the ref with different target
+    //
+    // The above cases distinguish between refs moving forward and sideways (and
+    // there are no tests for refs moving backward) because we may want to treat
+    // the cases differently, although that's still unclear.
+    //
+    // TODO: Consider adding more systematic testing to cover
+    // all state transitions. For example, the above does not include a case
+    // where a ref is added on both sides and one is an ancestor of the other
+    // (we should probably resolve that in favor of the descendant).
+    let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    let commit2 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
+    let commit3 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit2]);
+    let commit4 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
+    let commit5 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
+    git_ref(&git_repo, "refs/heads/sideways-unchanged", commit3.id());
+    git_ref(&git_repo, "refs/heads/unchanged-sideways", commit3.id());
+    git_ref(&git_repo, "refs/heads/remove-unchanged", commit3.id());
+    git_ref(&git_repo, "refs/heads/unchanged-remove", commit3.id());
+    git_ref(&git_repo, "refs/heads/sideways-sideways", commit3.id());
+    git_ref(&git_repo, "refs/heads/forward-forward", commit1.id());
+    git_ref(&git_repo, "refs/heads/forward-remove", commit1.id());
+    git_ref(&git_repo, "refs/heads/remove-forward", commit1.id());
+    let mut tx = repo.start_transaction("initial import");
+    jujube_lib::git::import_refs(&mut tx).unwrap_or_default();
+    tx.commit();
+    Arc::get_mut(&mut repo).unwrap().reload();
+
+    // One of the concurrent operations:
+    git_ref(&git_repo, "refs/heads/sideways-unchanged", commit4.id());
+    delete_git_ref(&git_repo, "refs/heads/remove-unchanged");
+    git_ref(&git_repo, "refs/heads/sideways-sideways", commit4.id());
+    git_ref(&git_repo, "refs/heads/forward-forward", commit2.id());
+    git_ref(&git_repo, "refs/heads/forward-remove", commit2.id());
+    delete_git_ref(&git_repo, "refs/heads/remove-forward");
+    git_ref(&git_repo, "refs/heads/add-add", commit3.id());
+    let mut tx1 = repo.start_transaction("concurrent import 1");
+    jujube_lib::git::import_refs(&mut tx1).unwrap_or_default();
+    tx1.commit();
+
+    // The other concurrent operation:
+    git_ref(&git_repo, "refs/heads/unchanged-sideways", commit4.id());
+    delete_git_ref(&git_repo, "refs/heads/unchanged-remove");
+    git_ref(&git_repo, "refs/heads/sideways-sideways", commit5.id());
+    git_ref(&git_repo, "refs/heads/forward-forward", commit3.id());
+    delete_git_ref(&git_repo, "refs/heads/forward-remove");
+    git_ref(&git_repo, "refs/heads/remove-forward", commit2.id());
+    git_ref(&git_repo, "refs/heads/add-add", commit4.id());
+    let mut tx2 = repo.start_transaction("concurrent import 2");
+    jujube_lib::git::import_refs(&mut tx2).unwrap_or_default();
+    tx2.commit();
+
+    // Reload the repo, causing the operations to be merged.
+    Arc::get_mut(&mut repo).unwrap().reload();
+
+    let view = repo.view();
+    let git_refs = view.git_refs();
+    assert_eq!(git_refs.len(), 9);
+    assert_eq!(
+        git_refs.get("refs/heads/sideways-unchanged"),
+        Some(commit_id(&commit4)).as_ref()
+    );
+    assert_eq!(
+        git_refs.get("refs/heads/unchanged-sideways"),
+        Some(commit_id(&commit4)).as_ref()
+    );
+    assert_eq!(git_refs.get("refs/heads/remove-unchanged"), None);
+    assert_eq!(git_refs.get("refs/heads/unchanged-remove"), None);
+    // TODO: Perhaps we should automatically resolve this to the descendant-most
+    // commit? (We currently do get the descendant-most, but that's only because we
+    // let the later operation overwrite.)
+    assert_eq!(
+        git_refs.get("refs/heads/forward-forward"),
+        Some(commit_id(&commit3)).as_ref()
+    );
+    // TODO: The rest of these should be conflicts (however we decide to represent
+    // that).
+    assert_eq!(
+        git_refs.get("refs/heads/sideways-sideways"),
+        Some(commit_id(&commit5)).as_ref()
+    );
+    assert_eq!(git_refs.get("refs/heads/forward-remove"), None);
+    assert_eq!(
+        git_refs.get("refs/heads/remove-forward"),
+        Some(commit_id(&commit2)).as_ref()
+    );
+    assert_eq!(
+        git_refs.get("refs/heads/add-add"),
+        Some(commit_id(&commit4)).as_ref()
+    );
 }
 
 #[test]
@@ -92,8 +293,10 @@ fn test_import_refs_empty_git_repo() {
     let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
     let mut tx = repo.start_transaction("test");
     jujube_lib::git::import_refs(&mut tx).unwrap_or_default();
-    let heads_after: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    let view = tx.as_repo().view();
+    let heads_after: HashSet<_> = view.heads().cloned().collect();
     assert_eq!(heads_before, heads_after);
+    assert_eq!(view.git_refs().len(), 0);
     tx.discard();
 }
 

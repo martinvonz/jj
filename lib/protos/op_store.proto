@@ -14,9 +14,18 @@
 
 syntax = "proto3";
 
+message GitRef {
+  string name = 1;
+  // Always a commit id. Refs pointing to a non-commit object are not
+  // included.
+  bytes commit_id = 2;
+}
+
 message View {
   repeated bytes head_ids = 1;
   bytes checkout = 2;
+  // Only a subset of the refs. For example, does not include refs/notes/.
+  repeated GitRef git_refs = 3;
 }
 
 message Operation {

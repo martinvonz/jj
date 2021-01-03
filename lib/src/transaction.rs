@@ -171,6 +171,20 @@ impl<'r> Transaction<'r> {
         mut_repo.evolution.as_mut().unwrap().invalidate();
     }
 
+    pub fn insert_git_ref(&mut self, name: String, commit_id: CommitId) {
+        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
+        mut_repo
+            .view
+            .as_mut()
+            .unwrap()
+            .insert_git_ref(name, commit_id);
+    }
+
+    pub fn remove_git_ref(&mut self, name: &str) {
+        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
+        mut_repo.view.as_mut().unwrap().remove_git_ref(name);
+    }
+
     pub fn set_view(&mut self, data: op_store::View) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
         mut_repo.view.as_mut().unwrap().set_view(data);

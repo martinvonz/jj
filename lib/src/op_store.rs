@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::store::{CommitId, Timestamp};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
@@ -52,6 +52,7 @@ impl OperationId {
 pub struct View {
     /// All head commits
     pub head_ids: HashSet<CommitId>,
+    pub git_refs: BTreeMap<String, CommitId>,
     // The commit that *should be* checked out in the (default) working copy. Note that the
     // working copy (.jj/working_copy/) has the source of truth about which commit *is* checked out
     // (to be precise: the commit to which we most recently completed a checkout to).
@@ -63,6 +64,7 @@ impl View {
     pub fn new(checkout: CommitId) -> Self {
         Self {
             head_ids: HashSet::new(),
+            git_refs: BTreeMap::new(),
             checkout,
         }
     }

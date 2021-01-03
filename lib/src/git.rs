@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use crate::commit::Commit;
+use crate::repo::Repo;
 use crate::store::CommitId;
 use crate::transaction::Transaction;
 use thiserror::Error;
@@ -30,10 +31,22 @@ pub fn import_refs(tx: &mut Transaction) -> Result<(), GitImportError> {
     let store = tx.store().clone();
     let git_repo = store.git_repo().ok_or(GitImportError::NotAGitRepo)?;
     let git_refs = git_repo.references()?;
+    let existing_git_refs: Vec<_> = tx.as_repo().view().git_refs().keys().cloned().collect();
+    // TODO: Store the id of the previous import and read it back here, so we can
+    // merge the views instead of overwriting.
+    for existing_git_ref in existing_git_refs {
+        tx.remove_git_ref(&existing_git_ref);
+        // TODO: We should probably also remove heads pointing to the same
+        // commits and commits no longer reachable from other refs.
+        // If the underlying git repo has a branch that gets rewritten, we
+        // should probably not keep the commits it used to point to.
+    }
     for git_ref in git_refs {
         let git_ref = git_ref?;
-        if !(git_ref.is_tag() || git_ref.is_branch() || git_ref.is_remote()) {
-            // Skip other refs (such as notes) and symbolic refs.
+        if !(git_ref.is_tag() || git_ref.is_branch() || git_ref.is_remote())
+            || git_ref.name().is_none()
+        {
+            // Skip other refs (such as notes) and symbolic refs, as well as non-utf8 refs.
             // TODO: Is it useful to import HEAD (especially if it's detached)?
             continue;
         }
@@ -41,6 +54,7 @@ pub fn import_refs(tx: &mut Transaction) -> Result<(), GitImportError> {
         let id = CommitId(git_commit.id().as_bytes().to_vec());
         let commit = store.get_commit(&id).unwrap();
         tx.add_head(&commit);
+        tx.insert_git_ref(git_ref.name().unwrap().to_string(), id);
     }
     Ok(())
 }

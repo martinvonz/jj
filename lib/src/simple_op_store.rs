@@ -198,6 +198,12 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
     for head_id in &view.head_ids {
         proto.head_ids.push(head_id.0.clone());
     }
+    for (git_ref_name, commit_id) in &view.git_refs {
+        let mut git_ref_proto = crate::protos::op_store::GitRef::new();
+        git_ref_proto.set_name(git_ref_name.clone());
+        git_ref_proto.set_commit_id(commit_id.0.clone());
+        proto.git_refs.push(git_ref_proto);
+    }
     proto
 }
 
@@ -205,6 +211,10 @@ fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
     let mut view = View::new(CommitId(proto.checkout.clone()));
     for head_id_bytes in proto.head_ids.iter() {
         view.head_ids.insert(CommitId(head_id_bytes.to_vec()));
+    }
+    for git_ref in proto.git_refs.iter() {
+        view.git_refs
+            .insert(git_ref.name.clone(), CommitId(git_ref.commit_id.to_vec()));
     }
     view
 }
