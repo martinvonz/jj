@@ -3,6 +3,14 @@ name = "jujube"
 version = "0.1.0"
 authors = ["Martin von Zweigbergk <martinvonz@google.com>"]
 edition = "2018"
+license = "Apache-2.0"
+description = "Jujube (an experimental VCS)"
+homepage = "https://github.com/martinvonz/jj"
+repository = "https://github.com/martinvonz/jj"
+documentation = "https://docs.rs/jujube"
+readme = "README.md"
+keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
+categories = ["command-line-utilities", "development-tools"]
 
 [workspace]
 members = ["lib"]
