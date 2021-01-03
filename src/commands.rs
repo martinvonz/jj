@@ -1616,7 +1616,8 @@ fn cmd_evolve<'s>(
     matches: &ArgMatches,
     _sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let repo = get_repo(ui, &matches)?;
+    let mut repo = get_repo(ui, &matches)?;
+    let owned_wc = repo.working_copy().clone();
 
     struct Listener<'a, 's, 'r> {
         ui: &'a mut Ui<'s>,
@@ -1676,9 +1677,13 @@ fn cmd_evolve<'s>(
     };
     let mut tx = repo.start_transaction("evolve");
     evolve(&user_settings, &mut tx, &mut listener);
-    // TODO: update checkout
+    update_checkout_after_rewrite(ui, &mut tx);
     tx.commit();
-    // TODO: update working copy
+    update_working_copy(
+        ui,
+        Arc::get_mut(&mut repo).unwrap(),
+        &owned_wc.lock().unwrap(),
+    )?;
 
     Ok(())
 }
