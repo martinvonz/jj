@@ -129,7 +129,7 @@ pub fn push_commit(
         git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
     });
     callbacks.push_update_reference(|refname, status| {
-        if refname == &qualified_remote_branch && status.is_none() {
+        if refname == qualified_remote_branch && status.is_none() {
             updated = true;
         }
         Ok(())
