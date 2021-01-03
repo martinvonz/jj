@@ -81,6 +81,7 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result.insert(String::from("change_id"), String::from("magenta"));
     result.insert(String::from("author"), String::from("yellow"));
     result.insert(String::from("committer"), String::from("yellow"));
+    result.insert(String::from("git_refs"), String::from("magenta"));
     result.insert(String::from("pruned"), String::from("red"));
     result.insert(String::from("obsolete"), String::from("red"));
     result.insert(String::from("orphan"), String::from("red"));

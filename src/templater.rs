@@ -212,6 +212,24 @@ impl<'r> TemplateProperty<Commit, bool> for CurrentCheckoutProperty<'r> {
     }
 }
 
+pub struct GitRefsProperty<'r> {
+    pub repo: &'r dyn Repo,
+}
+
+impl<'r> TemplateProperty<Commit, String> for GitRefsProperty<'r> {
+    fn extract(&self, context: &Commit) -> String {
+        let refs: Vec<_> = self
+            .repo
+            .view()
+            .git_refs()
+            .iter()
+            .filter(|(_name, id)| *id == context.id())
+            .map(|(name, _id)| name.clone())
+            .collect();
+        refs.join(" ")
+    }
+}
+
 pub struct ObsoleteProperty<'r> {
     pub repo: &'r dyn Repo,
 }

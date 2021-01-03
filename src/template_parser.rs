@@ -25,9 +25,9 @@ use crate::styler::PlainTextStyler;
 use crate::templater::{
     AuthorProperty, ChangeIdProperty, CommitIdKeyword, CommitterProperty, ConditionalTemplate,
     ConflictProperty, ConstantTemplateProperty, CurrentCheckoutProperty, DescriptionProperty,
-    DivergentProperty, DynamicLabelTemplate, LabelTemplate, ListTemplate, LiteralTemplate,
-    ObsoleteProperty, OpenProperty, OrphanProperty, PrunedProperty, StringPropertyTemplate,
-    Template, TemplateFunction, TemplateProperty,
+    DivergentProperty, DynamicLabelTemplate, GitRefsProperty, LabelTemplate, ListTemplate,
+    LiteralTemplate, ObsoleteProperty, OpenProperty, OrphanProperty, PrunedProperty,
+    StringPropertyTemplate, Template, TemplateFunction, TemplateProperty,
 };
 use jujube_lib::repo::Repo;
 
@@ -229,6 +229,7 @@ fn parse_commit_keyword<'a, 'r: 'a>(
         "open" => Property::Boolean(Box::new(OpenProperty)),
         "pruned" => Property::Boolean(Box::new(PrunedProperty)),
         "current_checkout" => Property::Boolean(Box::new(CurrentCheckoutProperty { repo })),
+        "git_refs" => Property::String(Box::new(GitRefsProperty { repo })),
         "obsolete" => Property::Boolean(Box::new(ObsoleteProperty { repo })),
         "orphan" => Property::Boolean(Box::new(OrphanProperty { repo })),
         "divergent" => Property::Boolean(Box::new(DivergentProperty { repo })),
