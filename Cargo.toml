@@ -15,9 +15,6 @@ categories = ["command-line-utilities", "development-tools"]
 [workspace]
 members = ["lib"]
 
-[dependencies.jujube-lib]
-path = "lib"
-
 [dependencies]
 blake2 = "0.9.1"
 bytes = "1.0.0"
@@ -30,6 +27,7 @@ dirs = "3.0.1"
 git2 = "0.13.14"
 hex = "0.4.2"
 indoc = "1.0.3"
+jujube-lib = { version = "0.1.0", path = "lib"}
 pest = "2.1.3"
 pest_derive = "2.1.0"
 protobuf = { version = "2.18.1", features = ["with-bytes"] }
