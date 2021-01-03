@@ -12,6 +12,10 @@ readme = "README.md"
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 categories = ["command-line-utilities", "development-tools"]
 
+[[bin]]
+name = "jj"
+path = "src/main.rs"
+
 [workspace]
 members = ["lib"]
 
