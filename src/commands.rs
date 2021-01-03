@@ -1398,7 +1398,7 @@ fn cmd_restore(
             ));
         }
         tree_id = crate::diff_edit::edit_diff(&source_commit.tree(), &destination_commit.tree())?;
-    } else {
+    } else if sub_matches.is_present("paths") {
         let paths = sub_matches.values_of("paths").unwrap();
         let mut tree_builder = repo
             .store()
@@ -1415,6 +1415,8 @@ fn cmd_restore(
             }
         }
         tree_id = tree_builder.write_tree();
+    } else {
+        tree_id = source_commit.tree().id().clone();
     }
     if &tree_id == destination_commit.tree().id() {
         ui.write("Nothing changed.\n");
