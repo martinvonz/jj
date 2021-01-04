@@ -521,7 +521,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .version(crate_version!())
         .author("Martin von Zweigbergk <martinvonz@google.com>")
-        .about("My source control tool")
+        .about("An experimental VCS")
         .arg(
             Arg::with_name("repository")
                 .long("repository")
