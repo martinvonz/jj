@@ -106,7 +106,7 @@ fn test_bad_locking_children(use_git: bool) {
     // Simulate a write of a commit that happens on one machine
     let machine1_path = TempDir::new().unwrap().into_path();
     copy_directory(repo.working_copy_path(), &machine1_path);
-    let machine1_repo = ReadonlyRepo::load(&settings, machine1_path);
+    let machine1_repo = ReadonlyRepo::load(&settings, machine1_path).unwrap();
     let child1 = testutils::create_random_commit(&settings, &machine1_repo)
         .set_parents(vec![initial.id().clone()])
         .write_to_new_transaction(&machine1_repo, "test");
@@ -114,7 +114,7 @@ fn test_bad_locking_children(use_git: bool) {
     // Simulate a write of a commit that happens on another machine
     let machine2_path = TempDir::new().unwrap().into_path();
     copy_directory(repo.working_copy_path(), &machine2_path);
-    let machine2_repo = ReadonlyRepo::load(&settings, machine2_path);
+    let machine2_repo = ReadonlyRepo::load(&settings, machine2_path).unwrap();
     let child2 = testutils::create_random_commit(&settings, &machine2_repo)
         .set_parents(vec![initial.id().clone()])
         .write_to_new_transaction(&machine2_repo, "test");
@@ -128,7 +128,7 @@ fn test_bad_locking_children(use_git: bool) {
         machine2_repo.working_copy_path(),
         &merged_path,
     );
-    let merged_repo = ReadonlyRepo::load(&settings, merged_path);
+    let merged_repo = ReadonlyRepo::load(&settings, merged_path).unwrap();
     let heads: HashSet<_> = merged_repo.view().heads().cloned().collect();
     assert!(heads.contains(child1.id()));
     assert!(heads.contains(child2.id()));
@@ -170,10 +170,10 @@ fn test_bad_locking_interrupted(use_git: bool) {
 
     copy_directory(&backup_path, &op_heads_dir);
     // Reload the repo and check that only the new head is present.
-    let reloaded_repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone());
+    let reloaded_repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
     assert_eq!(reloaded_repo.view().base_op_head_id(), &op_head_id);
     // Reload once more to make sure that the view/op_heads/ directory was updated
     // correctly.
-    let reloaded_repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone());
+    let reloaded_repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
     assert_eq!(reloaded_repo.view().base_op_head_id(), &op_head_id);
 }

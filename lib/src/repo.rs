@@ -81,6 +81,12 @@ impl Debug for ReadonlyRepo {
     }
 }
 
+#[derive(Error, Debug, PartialEq)]
+pub enum RepoLoadError {
+    #[error("There is no Jujube repo in {0}")]
+    NoRepoHere(PathBuf),
+}
+
 impl ReadonlyRepo {
     pub fn init_local(settings: &UserSettings, wc_path: PathBuf) -> Arc<ReadonlyRepo> {
         let repo_path = wc_path.join(".jj");
@@ -185,8 +191,15 @@ impl ReadonlyRepo {
         repo
     }
 
-    pub fn load(user_settings: &UserSettings, wc_path: PathBuf) -> Arc<ReadonlyRepo> {
+    pub fn load(
+        user_settings: &UserSettings,
+        wc_path: PathBuf,
+    ) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
         let repo_path = wc_path.join(".jj");
+        // TODO: Check if ancestor directory has a .jj/
+        if !repo_path.is_dir() {
+            return Err(RepoLoadError::NoRepoHere(wc_path));
+        }
         let store_path = repo_path.join("store");
         let store: Box<dyn Store>;
         if store_path.is_dir() {
@@ -225,7 +238,7 @@ impl ReadonlyRepo {
         let static_lifetime_repo: &'static ReadonlyRepo = unsafe { std::mem::transmute(repo_ref) };
         let evolution = ReadonlyEvolution::new(static_lifetime_repo);
         ReadonlyRepo::init_cycles(&mut repo, evolution);
-        repo
+        Ok(repo)
     }
 
     fn init_cycles(mut repo: &mut Arc<ReadonlyRepo>, evolution: ReadonlyEvolution<'static>) {

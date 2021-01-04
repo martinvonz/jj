@@ -81,7 +81,7 @@ fn test_commit_parallel_instances(use_git: bool) {
     let mut threads = vec![];
     for _ in 0..100 {
         let settings = settings.clone();
-        let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone());
+        let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
         let handle = thread::spawn(move || {
             testutils::create_random_commit(&settings, &repo)
                 .write_to_new_transaction(&repo, "test");
@@ -93,7 +93,7 @@ fn test_commit_parallel_instances(use_git: bool) {
     }
     // One commit per thread plus the commit from the initial checkout on top of the
     // root commit
-    let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone());
+    let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
     assert_eq!(repo.view().heads().count(), 101);
 
     // One operation for initializing the repo (containing the root id and the

@@ -144,7 +144,7 @@ fn test_fetch_success() {
     let new_git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[&initial_git_commit]);
 
     // The new commit is not visible before git::fetch().
-    let jj_repo = ReadonlyRepo::load(&settings, jj_repo_dir.clone());
+    let jj_repo = ReadonlyRepo::load(&settings, jj_repo_dir.clone()).unwrap();
     let heads: HashSet<_> = jj_repo.view().heads().cloned().collect();
     assert!(!heads.contains(&commit_id(&new_git_commit)));
 

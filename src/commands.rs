@@ -41,7 +41,7 @@ use jujube_lib::files;
 use jujube_lib::files::DiffLine;
 use jujube_lib::git;
 use jujube_lib::op_store::{OpStoreError, OperationId};
-use jujube_lib::repo::{ReadonlyRepo, Repo};
+use jujube_lib::repo::{ReadonlyRepo, Repo, RepoLoadError};
 use jujube_lib::repo_path::RepoPath;
 use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujube_lib::settings::UserSettings;
@@ -82,10 +82,16 @@ impl From<git2::Error> for CommandError {
     }
 }
 
+impl From<RepoLoadError> for CommandError {
+    fn from(err: RepoLoadError) -> Self {
+        CommandError::UserError(format!("Failed to load repo: {}", err))
+    }
+}
+
 fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandError> {
     let repo_path_str = matches.value_of("repository").unwrap();
     let repo_path = ui.cwd().join(repo_path_str);
-    let mut repo = ReadonlyRepo::load(ui.settings(), repo_path);
+    let mut repo = ReadonlyRepo::load(ui.settings(), repo_path)?;
     if let Some(op_str) = matches.value_of("at_op") {
         let op = resolve_single_op(&repo, op_str)?;
         Arc::get_mut(&mut repo).unwrap().reload_at(&op);
