@@ -370,9 +370,9 @@ impl TreeState {
         let mut contents = self.store.read_file(path, id).unwrap();
         std::io::copy(&mut contents, &mut file).unwrap();
         self.set_executable(disk_path, executable);
-        // Read the file state while we still have the write lock. That way there is no
-        // race with other processes modifying it. We know that the file exists,
-        // and we know that the stat information is accurate. (The mtime is set
+        // Read the file state while we still have the file open. That way, know that
+        // the file exists, and the stat information is most likely accurate,
+        // except for other processes modifying the file concurrently (The mtime is set
         // at write time and won't change when we close the file.)
         self.file_state(&disk_path).unwrap()
     }
