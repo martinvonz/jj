@@ -552,7 +552,7 @@ dependencies = [
 
 [[package]]
 name = "jujube"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "blake2",
  "bytes 1.0.0",
@@ -581,7 +581,7 @@ dependencies = [
 
 [[package]]
 name = "jujube-lib"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "backoff",
  "blake2",
