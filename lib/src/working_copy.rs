@@ -69,6 +69,14 @@ impl FileState {
             size: 0,
         }
     }
+
+    fn mark_executable(&mut self, executable: bool) {
+        match (&self.file_type, executable) {
+            (FileType::Normal, true) => self.file_type = FileType::Executable,
+            (FileType::Executable, false) => self.file_type = FileType::Normal,
+            _ => {}
+        }
+    }
 }
 
 pub struct TreeState {
@@ -306,26 +314,38 @@ impl TreeState {
                     let disk_file = disk_dir.join(file_name);
                     deleted_files.remove(&file);
                     let new_file_state = self.file_state(&entry.path()).unwrap();
-                    let clean = match self.file_states.get(&file) {
+                    let clean;
+                    let executable;
+                    match self.file_states.get(&file) {
                         None => {
                             // untracked
                             if git_repo.status_should_ignore(&disk_file).unwrap() {
                                 continue;
                             }
-                            false
+                            clean = false;
+
+                            executable = new_file_state.file_type == FileType::Executable;
                         }
                         Some(current_entry) => {
-                            current_entry == &new_file_state && current_entry.mtime < self.read_time
+                            clean = current_entry == &new_file_state
+                                && current_entry.mtime < self.read_time;
+                            #[cfg(windows)]
+                            {
+                                // On Windows, we preserve the state we had recorded
+                                // when we wrote the file.
+                                executable = current_entry.file_type == FileType::Executable
+                            }
+                            #[cfg(not(windows))]
+                            {
+                                executable = new_file_state.file_type == FileType::Executable
+                            }
                         }
                     };
                     if !clean {
                         let file_value = match new_file_state.file_type {
                             FileType::Normal | FileType::Executable => {
                                 let id = self.write_file_to_store(&file, &disk_file);
-                                TreeValue::Normal {
-                                    id,
-                                    executable: new_file_state.file_type == FileType::Executable,
-                                }
+                                TreeValue::Normal { id, executable }
                             }
                             FileType::Symlink => {
                                 let id = self.write_symlink_to_store(&file, &disk_file);
@@ -374,7 +394,12 @@ impl TreeState {
         // the file exists, and the stat information is most likely accurate,
         // except for other processes modifying the file concurrently (The mtime is set
         // at write time and won't change when we close the file.)
-        self.file_state(&disk_path).unwrap()
+        let mut file_state = self.file_state(&disk_path).unwrap();
+        // Make sure the state we record is what we tried to set above. This is mostly
+        // for Windows, since the executable bit is not reflected in the file system
+        // there.
+        file_state.mark_executable(executable);
+        file_state
     }
 
     fn write_symlink(&self, disk_path: &PathBuf, path: &FileRepoPath, id: &SymlinkId) -> FileState {
@@ -393,8 +418,15 @@ impl TreeState {
     }
 
     fn set_executable(&self, disk_path: &PathBuf, executable: bool) {
-        let mode = if executable { 0o755 } else { 0o644 };
-        fs::set_permissions(disk_path, fs::Permissions::from_mode(mode)).unwrap();
+        #[cfg(windows)]
+        {
+            return;
+        }
+        #[cfg(not(windows))]
+        {
+            let mode = if executable { 0o755 } else { 0o644 };
+            fs::set_permissions(disk_path, fs::Permissions::from_mode(mode)).unwrap();
+        }
     }
 
     pub fn check_out(&mut self, tree_id: TreeId) -> Result<CheckoutStats, CheckoutError> {
@@ -475,11 +507,7 @@ impl TreeState {
                             assert_ne!(executable, old_executable);
                             self.set_executable(&disk_path, *executable);
                             let mut file_state = self.file_states.get(&path).unwrap().clone();
-                            file_state.file_type = if *executable {
-                                FileType::Executable
-                            } else {
-                                FileType::Normal
-                            };
+                            file_state.mark_executable(*executable);
                             file_state
                         }
                         (_, TreeValue::Normal { id, executable }) => {
