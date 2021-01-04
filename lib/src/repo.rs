@@ -183,8 +183,8 @@ impl ReadonlyRepo {
         IndexFile::init(repo_path.join("index"));
 
         let evolution = ReadonlyEvolution::new(static_lifetime_repo);
+        Arc::get_mut(&mut repo).unwrap().evolution = Some(evolution);
 
-        ReadonlyRepo::init_cycles(&mut repo, evolution);
         repo.working_copy_locked()
             .check_out(checkout_commit)
             .expect("failed to check out root commit");
@@ -237,13 +237,8 @@ impl ReadonlyRepo {
         let repo_ref: &ReadonlyRepo = repo.as_ref();
         let static_lifetime_repo: &'static ReadonlyRepo = unsafe { std::mem::transmute(repo_ref) };
         let evolution = ReadonlyEvolution::new(static_lifetime_repo);
-        ReadonlyRepo::init_cycles(&mut repo, evolution);
+        Arc::get_mut(&mut repo).unwrap().evolution = Some(evolution);
         Ok(repo)
-    }
-
-    fn init_cycles(mut repo: &mut Arc<ReadonlyRepo>, evolution: ReadonlyEvolution<'static>) {
-        let mut repo_ref_mut = Arc::get_mut(&mut repo).unwrap();
-        repo_ref_mut.evolution = Some(evolution);
     }
 
     pub fn repo_path(&self) -> &PathBuf {
