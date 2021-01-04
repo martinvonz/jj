@@ -25,7 +25,7 @@ use std::io::{Read, Write};
 use std::process::Command;
 use std::sync::Arc;
 
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 
 use criterion::Criterion;
 
@@ -519,7 +519,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
     App::new("Jujube")
         .global_setting(clap::AppSettings::ColoredHelp)
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
-        .version("0.0.1")
+        .version(crate_version!())
         .author("Martin von Zweigbergk <martinvonz@google.com>")
         .about("My source control tool")
         .arg(
