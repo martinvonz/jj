@@ -233,7 +233,14 @@ impl ReadonlyRepo {
         user_settings: &UserSettings,
         wc_path: PathBuf,
     ) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
-        RepoLoader::init(user_settings, wc_path)?.load()
+        ReadonlyRepo::loader(user_settings, wc_path)?.load_at_head()
+    }
+
+    pub fn loader(
+        user_settings: &UserSettings,
+        wc_path: PathBuf,
+    ) -> Result<RepoLoader, RepoLoadError> {
+        RepoLoader::init(user_settings, wc_path)
     }
 
     pub fn as_repo_ref(&self) -> RepoRef {
@@ -381,12 +388,26 @@ impl RepoLoader {
         &self.op_store
     }
 
-    pub fn load(self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
+    pub fn load_at_head(self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
         let view = ReadonlyView::load(
             self.store.clone(),
             self.op_store.clone(),
             self.repo_path.join("view"),
         );
+        self._finish_load(view)
+    }
+
+    pub fn load_at(self, op: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
+        let view = ReadonlyView::load_at(
+            self.store.clone(),
+            self.op_store.clone(),
+            self.repo_path.join("view"),
+            op,
+        );
+        self._finish_load(view)
+    }
+
+    fn _finish_load(self, view: ReadonlyView) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
         let working_copy = WorkingCopy::load(
             self.store.clone(),
             self.wc_path.clone(),

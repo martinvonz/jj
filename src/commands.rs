@@ -40,7 +40,7 @@ use jujube_lib::evolution::EvolveListener;
 use jujube_lib::files;
 use jujube_lib::files::DiffLine;
 use jujube_lib::git;
-use jujube_lib::op_store::{OpStoreError, OperationId};
+use jujube_lib::op_store::{OpStore, OpStoreError, OperationId};
 use jujube_lib::repo::{ReadonlyRepo, RepoLoadError};
 use jujube_lib::repo_path::RepoPath;
 use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
@@ -92,14 +92,15 @@ impl From<RepoLoadError> for CommandError {
 }
 
 fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandError> {
-    let repo_path_str = matches.value_of("repository").unwrap();
-    let repo_path = ui.cwd().join(repo_path_str);
-    let mut repo = ReadonlyRepo::load(ui.settings(), repo_path)?;
+    let wc_path_str = matches.value_of("repository").unwrap();
+    let wc_path = ui.cwd().join(wc_path_str);
+    let loader = ReadonlyRepo::loader(ui.settings(), wc_path)?;
     if let Some(op_str) = matches.value_of("at_op") {
-        let op = resolve_single_op(&repo, op_str)?;
-        Arc::get_mut(&mut repo).unwrap().reload_at(&op);
+        let op = resolve_single_op_from_store(loader.op_store(), op_str)?;
+        Ok(loader.load_at(&op)?)
+    } else {
+        Ok(loader.load_at_head()?)
     }
-    Ok(repo)
 }
 
 fn resolve_commit_id_prefix(
@@ -205,10 +206,19 @@ fn resolve_single_op(repo: &ReadonlyRepo, op_str: &str) -> Result<Operation, Com
     let view = repo.view();
     if op_str == "@" {
         Ok(view.as_view_ref().base_op_head())
-    } else if let Ok(binary_op_id) = hex::decode(op_str) {
+    } else {
+        resolve_single_op_from_store(&repo.view().op_store(), op_str)
+    }
+}
+
+fn resolve_single_op_from_store(
+    op_store: &Arc<dyn OpStore>,
+    op_str: &str,
+) -> Result<Operation, CommandError> {
+    if let Ok(binary_op_id) = hex::decode(op_str) {
         let op_id = OperationId(binary_op_id);
-        match view.as_view_ref().get_operation(&op_id) {
-            Ok(operation) => Ok(operation),
+        match op_store.read_operation(&op_id) {
+            Ok(operation) => Ok(Operation::new(op_store.clone(), op_id, operation)),
             Err(OpStoreError::NotFound) => Err(CommandError::UserError(format!(
                 "Operation id not found: {}",
                 op_str

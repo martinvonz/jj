@@ -403,6 +403,21 @@ impl ReadonlyView {
         }
     }
 
+    pub fn load_at(
+        store: Arc<StoreWrapper>,
+        op_store: Arc<dyn OpStore>,
+        path: PathBuf,
+        operation: &Operation,
+    ) -> Self {
+        ReadonlyView {
+            store,
+            path,
+            op_store,
+            op_id: operation.id().clone(),
+            data: operation.view().take_store_view(),
+        }
+    }
+
     pub fn reload(&mut self) -> OperationId {
         let op_heads_dir = self.path.join("op_heads");
         let (op_id, _operation, view) =
