@@ -16,7 +16,7 @@ use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use thiserror::Error;
@@ -233,51 +233,7 @@ impl ReadonlyRepo {
         user_settings: &UserSettings,
         wc_path: PathBuf,
     ) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
-        let repo_path = wc_path.join(".jj");
-        // TODO: Check if ancestor directory has a .jj/
-        if !repo_path.is_dir() {
-            return Err(RepoLoadError::NoRepoHere(wc_path));
-        }
-        let store_path = repo_path.join("store");
-        let store: Box<dyn Store>;
-        if store_path.is_dir() {
-            store = Box::new(LocalStore::load(store_path));
-        } else {
-            let mut store_file = File::open(store_path).unwrap();
-            let mut buf = Vec::new();
-            store_file.read_to_end(&mut buf).unwrap();
-            let contents = String::from_utf8(buf).unwrap();
-            assert!(contents.starts_with("git: "));
-            let git_store_path_str = contents[5..].to_string();
-            let git_store_path =
-                fs::canonicalize(repo_path.join(PathBuf::from(git_store_path_str))).unwrap();
-            store = Box::new(GitStore::load(&git_store_path));
-        }
-        let store = StoreWrapper::new(store);
-        let repo_settings = user_settings.with_repo(&repo_path).unwrap();
-        let working_copy = WorkingCopy::load(
-            store.clone(),
-            wc_path.clone(),
-            repo_path.join("working_copy"),
-        );
-        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
-        let view = ReadonlyView::load(store.clone(), op_store, repo_path.join("view"));
-        let repo = ReadonlyRepo {
-            repo_path,
-            wc_path,
-            store,
-            settings: repo_settings,
-            index: Mutex::new(None),
-            working_copy: Arc::new(Mutex::new(working_copy)),
-            view,
-            evolution: None,
-        };
-        let mut repo = Arc::new(repo);
-        let repo_ref: &ReadonlyRepo = repo.as_ref();
-        let static_lifetime_repo: &'static ReadonlyRepo = unsafe { std::mem::transmute(repo_ref) };
-        let evolution = ReadonlyEvolution::new(static_lifetime_repo);
-        Arc::get_mut(&mut repo).unwrap().evolution = Some(evolution);
-        Ok(repo)
+        RepoLoader::init(user_settings, wc_path)?.load()
     }
 
     pub fn as_repo_ref(&self) -> RepoRef {
@@ -370,6 +326,88 @@ impl ReadonlyRepo {
             locked_index.take();
         }
         self.evolution = Some(ReadonlyEvolution::new(static_lifetime_repo));
+    }
+}
+
+pub struct RepoLoader {
+    wc_path: PathBuf,
+    repo_path: PathBuf,
+    repo_settings: RepoSettings,
+    store: Arc<StoreWrapper>,
+    op_store: Arc<dyn OpStore>,
+}
+
+impl RepoLoader {
+    fn init(user_settings: &UserSettings, wc_path: PathBuf) -> Result<RepoLoader, RepoLoadError> {
+        let repo_path = wc_path.join(".jj");
+        // TODO: Check if ancestor directory has a .jj/
+        if !repo_path.is_dir() {
+            return Err(RepoLoadError::NoRepoHere(wc_path));
+        }
+        let store = RepoLoader::load_store(&repo_path);
+        let repo_settings = user_settings.with_repo(&repo_path).unwrap();
+        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
+        Ok(RepoLoader {
+            wc_path,
+            repo_path,
+            repo_settings,
+            store,
+            op_store,
+        })
+    }
+
+    // TODO: This probably belongs in StoreWrapper (once that type has a better
+    // name)
+    fn load_store(repo_path: &Path) -> Arc<StoreWrapper> {
+        let store_path = repo_path.join("store");
+        let store: Box<dyn Store>;
+        if store_path.is_dir() {
+            store = Box::new(LocalStore::load(store_path));
+        } else {
+            let mut store_file = File::open(store_path).unwrap();
+            let mut buf = Vec::new();
+            store_file.read_to_end(&mut buf).unwrap();
+            let contents = String::from_utf8(buf).unwrap();
+            assert!(contents.starts_with("git: "));
+            let git_store_path_str = contents[5..].to_string();
+            let git_store_path =
+                fs::canonicalize(repo_path.join(PathBuf::from(git_store_path_str))).unwrap();
+            store = Box::new(GitStore::load(&git_store_path));
+        }
+        StoreWrapper::new(store)
+    }
+
+    pub fn op_store(&self) -> &Arc<dyn OpStore> {
+        &self.op_store
+    }
+
+    pub fn load(self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
+        let view = ReadonlyView::load(
+            self.store.clone(),
+            self.op_store.clone(),
+            self.repo_path.join("view"),
+        );
+        let working_copy = WorkingCopy::load(
+            self.store.clone(),
+            self.wc_path.clone(),
+            self.repo_path.join("working_copy"),
+        );
+        let repo = ReadonlyRepo {
+            repo_path: self.repo_path,
+            wc_path: self.wc_path,
+            store: self.store,
+            settings: self.repo_settings,
+            index: Mutex::new(None),
+            working_copy: Arc::new(Mutex::new(working_copy)),
+            view,
+            evolution: None,
+        };
+        let mut repo = Arc::new(repo);
+        let repo_ref: &ReadonlyRepo = repo.as_ref();
+        let static_lifetime_repo: &'static ReadonlyRepo = unsafe { std::mem::transmute(repo_ref) };
+        let evolution = ReadonlyEvolution::new(static_lifetime_repo);
+        Arc::get_mut(&mut repo).unwrap().evolution = Some(evolution);
+        Ok(repo)
     }
 }
 
