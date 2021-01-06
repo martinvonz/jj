@@ -45,7 +45,6 @@ crate. Most of the code lives in the lib crate. The lib crate does not print
 anything to the terminal. The separate lib crate should make it relatively
 straight-forward to add a GUI.
 
-
 ### Operations are performed repo-first
 
 Almost all operations are done in the repo first and then possibly reflected in
@@ -86,7 +85,7 @@ commit --amend`/`hg amend`).
 A commit description can be added to the working copy before "commit". The same
 command (`jj describe`) is used for changing the description of any commit.
 
-### Commits can contains conflicts
+### Commits can contain conflicts
 
 When a merge conflict happens, it is recorded within the tree object as a
 special conflict object (not a file object with conflict markers). Conflicts are
@@ -149,20 +148,20 @@ normally only one parent operation, but there can be multiple parents if
 concurrent operations happened.
 
 I added the operation log as a solution for the problem of making concurrent
-repo edit safe. When the repo is loaded, it is loaded at a particular operation,
-which provides an immutable view of the repo. For a caller of the library to
-start making changes, they then have to start a transaction. Once they are done
-making changes to the transaction, they commit. The operation object is then
-created. This step cannot fail (except if the file system runs out of space or
-such). Pointers to the heads of the operation DAG are kept as files in a
-directory (the filename is the operation id). When a new operation object has
-been created, its operation id is added to the directory. The transaction's base
-operation id is then removed from that directory. If concurrent operations
-happened, there would be multiple new operation ids in the directory and only
-one base operation id would have been removed. If a reader sees the repo in this
-state, it will attempt to merge the views and create a new operation with
-multiple parents. If there are conflicts, the user will have to resolve it (I
-haven't implemented that yet).
+repo edits safe. When the repo is loaded, it is loaded at a particular
+operation, which provides an immutable view of the repo. For a caller of the
+library to start making changes, they then have to start a transaction. Once
+they are done making changes to the transaction, they commit the
+transaction. The operation object is then created. This step cannot fail (except
+if the file system runs out of space or such). Pointers to the heads of the
+operation DAG are kept as files in a directory (the filename is the operation
+id). When a new operation object has been created, its operation id is added to
+the directory. The transaction's base operation id is then removed from that
+directory. If concurrent operations happened, there would be multiple new
+operation ids in the directory and only one base operation id would have been
+removed. If a reader sees the repo in this state, it will attempt to merge the
+views and create a new operation with multiple parents. If there are conflicts,
+the user will have to resolve it (I haven't implemented that yet).
 
 As a nice side-effect of adding the operation log to solve the concurrent-edits
 problem, we get some very useful UX features. Many UX features come from mapping
