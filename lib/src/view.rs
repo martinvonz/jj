@@ -229,7 +229,7 @@ fn merge_op_heads(
     let op_heads =
         dag_walk::unreachable(op_heads, &neighbors_fn, &|op: &Operation| op.id().clone());
     let mut op_heads: Vec<_> = op_heads.into_iter().collect();
-    op_heads.sort_by_key(|op| op.id().0.clone());
+    op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
     let first_op_head = op_heads[0].clone();
     let mut merged_view = op_store.read_view(first_op_head.view().id()).unwrap();
 
