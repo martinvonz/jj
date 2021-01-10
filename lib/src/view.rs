@@ -48,7 +48,7 @@ pub trait View {
 pub struct ReadonlyView {
     store: Arc<StoreWrapper>,
     path: PathBuf,
-    op_store: Arc<SimpleOpStore>,
+    op_store: Arc<dyn OpStore>,
     op_id: OperationId,
     data: op_store::View,
 }
@@ -56,7 +56,7 @@ pub struct ReadonlyView {
 pub struct MutableView {
     store: Arc<StoreWrapper>,
     path: PathBuf,
-    op_store: Arc<SimpleOpStore>,
+    op_store: Arc<dyn OpStore>,
     base_op_head_id: OperationId,
     data: op_store::View,
 }
@@ -159,7 +159,7 @@ pub fn merge_views(
 // pass around OperationId and Operation separately like we do here.
 fn get_single_op_head(
     store: &StoreWrapper,
-    op_store: &dyn OpStore,
+    op_store: &Arc<dyn OpStore>,
     op_heads_dir: &PathBuf,
 ) -> Result<(OperationId, op_store::Operation, op_store::View), OpHeadResolutionError> {
     let mut op_heads = get_op_heads(&op_heads_dir);
@@ -213,7 +213,7 @@ fn get_single_op_head(
 
 fn merge_op_heads(
     store: &StoreWrapper,
-    op_store: &dyn OpStore,
+    op_store: &Arc<dyn OpStore>,
     op_heads: &[OperationId],
 ) -> Result<(OperationId, op_store::Operation, op_store::View), OpHeadResolutionError> {
     let neighbors_fn = |op_id: &OperationId| op_store.read_operation(op_id).unwrap().parents;
@@ -307,10 +307,10 @@ impl ReadonlyView {
     }
 
     pub fn load(store: Arc<StoreWrapper>, path: PathBuf) -> Self {
-        let op_store = Arc::new(SimpleOpStore::load(path.join("op_store")));
+        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(path.join("op_store")));
         let op_heads_dir = path.join("op_heads");
         let (op_id, _operation, view) =
-            get_single_op_head(&store, op_store.as_ref(), &op_heads_dir).unwrap();
+            get_single_op_head(&store, &op_store, &op_heads_dir).unwrap();
         ReadonlyView {
             store,
             path,
@@ -323,7 +323,7 @@ impl ReadonlyView {
     pub fn reload(&mut self) -> OperationId {
         let op_heads_dir = self.path.join("op_heads");
         let (op_id, _operation, view) =
-            get_single_op_head(&self.store, self.op_store.as_ref(), &op_heads_dir).unwrap();
+            get_single_op_head(&self.store, &self.op_store, &op_heads_dir).unwrap();
         self.op_id = op_id;
         self.data = view;
         self.op_id.clone()
