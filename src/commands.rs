@@ -1036,7 +1036,8 @@ fn cmd_log(
         heads = skip_uninteresting_heads(&repo, heads);
     };
     let mut heads: Vec<_> = heads.into_iter().collect();
-    heads.sort();
+    heads.sort_by_key(|commit| commit.committer().timestamp.clone());
+    heads.reverse();
 
     let commits = topo_order_reverse(
         heads,
