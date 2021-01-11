@@ -54,11 +54,9 @@ fn commit_id(commit: &git2::Commit) -> CommitId {
 #[test]
 fn test_import_refs() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
-    let git_repo_dir = temp_dir.path().join("git");
-    let jj_repo_dir = temp_dir.path().join("jj");
+    let (_temp_dir, repo) = testutils::init_repo(&settings, true);
+    let git_repo = repo.store().git_repo().unwrap();
 
-    let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     let commit2 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
     let commit3 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
@@ -67,8 +65,6 @@ fn test_import_refs() {
     // Should not be imported
     empty_git_commit(&git_repo, "refs/notes/x", &[&commit2]);
 
-    std::fs::create_dir(&jj_repo_dir).unwrap();
-    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
     let git_repo = repo.store().git_repo().unwrap();
     let mut tx = repo.start_transaction("test");
     let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
@@ -107,34 +103,22 @@ fn test_import_refs() {
 #[test]
 fn test_import_refs_reimport() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
-    let git_repo_dir = temp_dir.path().join("git");
-    let jj_repo_dir = temp_dir.path().join("jj");
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, true);
+    let git_repo = repo.store().git_repo().unwrap();
 
-    let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     let commit2 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
     let commit3 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
     let commit4 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
 
-    std::fs::create_dir(&jj_repo_dir).unwrap();
-    let mut repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
     let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
     let mut tx = repo.start_transaction("test");
     jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
     tx.commit();
 
     // Delete feature1 and rewrite feature2
-    git_repo
-        .find_reference("refs/heads/feature1")
-        .unwrap()
-        .delete()
-        .unwrap();
-    git_repo
-        .find_reference("refs/heads/feature2")
-        .unwrap()
-        .delete()
-        .unwrap();
+    delete_git_ref(&git_repo, "refs/heads/feature1");
+    delete_git_ref(&git_repo, "refs/heads/feature2");
     let commit5 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
 
     Arc::get_mut(&mut repo).unwrap().reload();
