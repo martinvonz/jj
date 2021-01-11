@@ -20,16 +20,16 @@ use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GitImportError {
-    #[error("The repo is not backed by a git repo")]
-    NotAGitRepo,
     #[error("Unexpected git error when importing refs: {0}")]
     InternalGitError(#[from] git2::Error),
 }
 
 // Reflect changes made in the underlying Git repo in the Jujube repo.
-pub fn import_refs(tx: &mut Transaction) -> Result<(), GitImportError> {
+pub fn import_refs(
+    tx: &mut Transaction,
+    git_repo: &git2::Repository,
+) -> Result<(), GitImportError> {
     let store = tx.store().clone();
-    let git_repo = store.git_repo().ok_or(GitImportError::NotAGitRepo)?;
     let git_refs = git_repo.references()?;
     let existing_git_refs: Vec<_> = tx.as_repo().view().git_refs().keys().cloned().collect();
     // TODO: Store the id of the previous import and read it back here, so we can
@@ -61,8 +61,6 @@ pub fn import_refs(tx: &mut Transaction) -> Result<(), GitImportError> {
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GitFetchError {
-    #[error("The repo is not backed by a git repo")]
-    NotAGitRepo,
     #[error("No git remote named '{0}'")]
     NoSuchRemote(String),
     // TODO: I'm sure there are other errors possible, such as transport-level errors.
@@ -70,8 +68,11 @@ pub enum GitFetchError {
     InternalGitError(#[from] git2::Error),
 }
 
-pub fn fetch(tx: &mut Transaction, remote_name: &str) -> Result<(), GitFetchError> {
-    let git_repo = tx.store().git_repo().ok_or(GitFetchError::NotAGitRepo)?;
+pub fn fetch(
+    tx: &mut Transaction,
+    git_repo: &git2::Repository,
+    remote_name: &str,
+) -> Result<(), GitFetchError> {
     let mut remote =
         git_repo
             .find_remote(remote_name)
@@ -86,8 +87,7 @@ pub fn fetch(tx: &mut Transaction, remote_name: &str) -> Result<(), GitFetchErro
             })?;
     let refspec: &[&str] = &[];
     remote.fetch(refspec, None, None)?;
-    import_refs(tx).map_err(|err| match err {
-        GitImportError::NotAGitRepo => panic!("git repo somehow became a non-git repo"),
+    import_refs(tx, git_repo).map_err(|err| match err {
         GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
     })?;
     Ok(())
@@ -95,8 +95,6 @@ pub fn fetch(tx: &mut Transaction, remote_name: &str) -> Result<(), GitFetchErro
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GitPushError {
-    #[error("The repo is not backed by a git repo")]
-    NotAGitRepo,
     #[error("No git remote named '{0}'")]
     NoSuchRemote(String),
     #[error("Push is not fast-forwardable'")]
@@ -110,11 +108,11 @@ pub enum GitPushError {
 }
 
 pub fn push_commit(
+    git_repo: &git2::Repository,
     commit: &Commit,
     remote_name: &str,
     remote_branch: &str,
 ) -> Result<(), GitPushError> {
-    let git_repo = commit.store().git_repo().ok_or(GitPushError::NotAGitRepo)?;
     // Create a temporary ref to work around https://github.com/libgit2/libgit2/issues/3178
     let temp_ref_name = format!("refs/jj/git-push/{}", commit.id().hex());
     let mut temp_ref = git_repo.reference(

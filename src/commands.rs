@@ -59,9 +59,10 @@ use crate::styler::{ColorStyler, Styler};
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
 use crate::ui::Ui;
-use jujube_lib::git::{GitFetchError, GitImportError, GitPushError};
+use jujube_lib::git::GitFetchError;
 use jujube_lib::index::{HexPrefix, PrefixResolution};
 use jujube_lib::operation::Operation;
+use jujube_lib::store_wrapper::StoreWrapper;
 use jujube_lib::transaction::Transaction;
 use jujube_lib::view::merge_views;
 
@@ -591,8 +592,9 @@ fn cmd_init(
     if let Some(git_store_str) = sub_matches.value_of("git-store") {
         let git_store_path = ui.cwd().join(git_store_str);
         repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path, git_store_path);
+        let git_repo = repo.store().git_repo().unwrap();
         let mut tx = repo.start_transaction("import git refs");
-        git::import_refs(&mut tx).unwrap();
+        git::import_refs(&mut tx, &git_repo).unwrap();
         // TODO: Check out a recent commit. Maybe one with the highest generation
         // number.
         tx.commit();
@@ -2001,6 +2003,15 @@ fn cmd_operation(
     Ok(())
 }
 
+fn get_git_repo(store: &StoreWrapper) -> Result<git2::Repository, CommandError> {
+    match store.git_repo() {
+        None => Err(CommandError::UserError(
+            "The repo is not backed by a git repo".to_string(),
+        )),
+        Some(git_repo) => Ok(git_repo),
+    }
+}
+
 fn cmd_git_fetch(
     ui: &mut Ui,
     matches: &ArgMatches,
@@ -2008,14 +2019,11 @@ fn cmd_git_fetch(
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
+    let git_repo = get_git_repo(repo.store())?;
     let remote_name = cmd_matches.value_of("remote").unwrap();
     let mut tx = repo.start_transaction(&format!("fetch from git remote {}", remote_name));
-    git::fetch(&mut tx, remote_name).map_err(|err| match err {
-        GitFetchError::NotAGitRepo => CommandError::UserError(
-            "git push can only be used in repos backed by a git repo".to_string(),
-        ),
-        err => CommandError::UserError(err.to_string()),
-    })?;
+    git::fetch(&mut tx, &git_repo, remote_name)
+        .map_err(|err| CommandError::UserError(err.to_string()))?;
     tx.commit();
     Ok(())
 }
@@ -2036,21 +2044,18 @@ fn cmd_git_clone(
     }
 
     let repo = ReadonlyRepo::init_internal_git(ui.settings(), wc_path);
+    let git_repo = get_git_repo(repo.store())?;
     writeln!(
         ui,
         "Fetching into new repo in {:?}",
         repo.working_copy_path()
     );
     let remote_name = "origin";
-    repo.store()
-        .git_repo()
-        .unwrap()
-        .remote(remote_name, source)
-        .unwrap();
+    git_repo.remote(remote_name, source).unwrap();
     let mut tx = repo.start_transaction("fetch from git remote into empty repo");
-    git::fetch(&mut tx, remote_name).map_err(|err| match err {
-        GitFetchError::NotAGitRepo | GitFetchError::NoSuchRemote(_) => {
-            panic!("should't happen as we just created the repo and the git remote")
+    git::fetch(&mut tx, &git_repo, remote_name).map_err(|err| match err {
+        GitFetchError::NoSuchRemote(_) => {
+            panic!("should't happen as we just created the git remote")
         }
         GitFetchError::InternalGitError(err) => {
             CommandError::UserError(format!("Fetch failed: {:?}", err))
@@ -2068,16 +2073,13 @@ fn cmd_git_push(
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo = get_repo(ui, &matches)?;
+    let git_repo = get_git_repo(repo.store())?;
     let mut_repo = Arc::get_mut(&mut repo).unwrap();
     let commit = resolve_revision_arg(ui, mut_repo, cmd_matches)?;
     let remote_name = cmd_matches.value_of("remote").unwrap();
     let branch_name = cmd_matches.value_of("branch").unwrap();
-    git::push_commit(&commit, remote_name, branch_name).map_err(|err| match err {
-        GitPushError::NotAGitRepo => CommandError::UserError(
-            "git push can only be used in repos backed by a git repo".to_string(),
-        ),
-        err => CommandError::UserError(err.to_string()),
-    })?;
+    git::push_commit(&git_repo, &commit, remote_name, branch_name)
+        .map_err(|err| CommandError::UserError(err.to_string()))?;
     Ok(())
 }
 
@@ -2088,13 +2090,9 @@ fn cmd_git_refresh(
     _cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
+    let git_repo = get_git_repo(repo.store())?;
     let mut tx = repo.start_transaction("import git refs");
-    git::import_refs(&mut tx).map_err(|err| match err {
-        GitImportError::NotAGitRepo => CommandError::UserError(
-            "git refresh can only be used in repos backed by a git repo".to_string(),
-        ),
-        err => CommandError::UserError(err.to_string()),
-    })?;
+    git::import_refs(&mut tx, &git_repo).map_err(|err| CommandError::UserError(err.to_string()))?;
     tx.commit();
     Ok(())
 }

@@ -15,7 +15,7 @@
 use git2::Oid;
 use jujube_lib::commit::Commit;
 use jujube_lib::git;
-use jujube_lib::git::{GitFetchError, GitImportError, GitPushError};
+use jujube_lib::git::{GitFetchError, GitPushError};
 use jujube_lib::repo::{ReadonlyRepo, Repo};
 use jujube_lib::settings::UserSettings;
 use jujube_lib::store::CommitId;
@@ -69,9 +69,10 @@ fn test_import_refs() {
 
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
+    let git_repo = repo.store().git_repo().unwrap();
     let mut tx = repo.start_transaction("test");
     let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
-    jujube_lib::git::import_refs(&mut tx).unwrap_or_default();
+    jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
     let view = tx.as_repo().view();
     let heads_after: HashSet<_> = view.heads().cloned().collect();
     let expected_heads: HashSet<_> = heads_before
@@ -120,7 +121,7 @@ fn test_import_refs_reimport() {
     let mut repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
     let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
     let mut tx = repo.start_transaction("test");
-    jujube_lib::git::import_refs(&mut tx).unwrap_or_default();
+    jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
     tx.commit();
 
     // Delete feature1 and rewrite feature2
@@ -138,7 +139,7 @@ fn test_import_refs_reimport() {
 
     Arc::get_mut(&mut repo).unwrap().reload();
     let mut tx = repo.start_transaction("test");
-    jujube_lib::git::import_refs(&mut tx).unwrap_or_default();
+    jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
 
     let view = tx.as_repo().view();
     let heads_after: HashSet<_> = view.heads().cloned().collect();
@@ -211,7 +212,7 @@ fn test_import_refs_merge() {
     git_ref(&git_repo, "refs/heads/forward-remove", commit1.id());
     git_ref(&git_repo, "refs/heads/remove-forward", commit1.id());
     let mut tx = repo.start_transaction("initial import");
-    jujube_lib::git::import_refs(&mut tx).unwrap_or_default();
+    jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -224,7 +225,7 @@ fn test_import_refs_merge() {
     delete_git_ref(&git_repo, "refs/heads/remove-forward");
     git_ref(&git_repo, "refs/heads/add-add", commit3.id());
     let mut tx1 = repo.start_transaction("concurrent import 1");
-    jujube_lib::git::import_refs(&mut tx1).unwrap_or_default();
+    jujube_lib::git::import_refs(&mut tx1, &git_repo).unwrap_or_default();
     tx1.commit();
 
     // The other concurrent operation:
@@ -236,7 +237,7 @@ fn test_import_refs_merge() {
     git_ref(&git_repo, "refs/heads/remove-forward", commit2.id());
     git_ref(&git_repo, "refs/heads/add-add", commit4.id());
     let mut tx2 = repo.start_transaction("concurrent import 2");
-    jujube_lib::git::import_refs(&mut tx2).unwrap_or_default();
+    jujube_lib::git::import_refs(&mut tx2, &git_repo).unwrap_or_default();
     tx2.commit();
 
     // Reload the repo, causing the operations to be merged.
@@ -286,31 +287,17 @@ fn test_import_refs_empty_git_repo() {
     let git_repo_dir = temp_dir.path().join("source");
     let jj_repo_dir = temp_dir.path().join("jj");
 
-    git2::Repository::init_bare(&git_repo_dir).unwrap();
+    let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
 
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
     let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
     let mut tx = repo.start_transaction("test");
-    jujube_lib::git::import_refs(&mut tx).unwrap_or_default();
+    jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
     let view = tx.as_repo().view();
     let heads_after: HashSet<_> = view.heads().cloned().collect();
     assert_eq!(heads_before, heads_after);
     assert_eq!(view.git_refs().len(), 0);
-    tx.discard();
-}
-
-#[test]
-fn test_import_refs_non_git() {
-    let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
-    let jj_repo_dir = temp_dir.path().join("jj");
-
-    std::fs::create_dir(&jj_repo_dir).unwrap();
-    let repo = ReadonlyRepo::init_local(&settings, jj_repo_dir);
-    let mut tx = repo.start_transaction("test");
-    let result = jujube_lib::git::import_refs(&mut tx);
-    assert_eq!(result, Err(GitImportError::NotAGitRepo));
     tx.discard();
 }
 
@@ -338,13 +325,15 @@ fn test_fetch_success() {
     let source_repo_dir = temp_dir.path().join("source");
     let clone_repo_dir = temp_dir.path().join("clone");
     let jj_repo_dir = temp_dir.path().join("jj");
-    let git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
-    let initial_git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
-    git2::Repository::clone(&source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
+    let source_git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
+    let initial_git_commit = empty_git_commit(&source_git_repo, "refs/heads/main", &[]);
+    let clone_git_repo =
+        git2::Repository::clone(&source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
     ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), clone_repo_dir.clone());
 
-    let new_git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[&initial_git_commit]);
+    let new_git_commit =
+        empty_git_commit(&source_git_repo, "refs/heads/main", &[&initial_git_commit]);
 
     // The new commit is not visible before git::fetch().
     let jj_repo = ReadonlyRepo::load(&settings, jj_repo_dir.clone()).unwrap();
@@ -353,24 +342,9 @@ fn test_fetch_success() {
 
     // The new commit is visible after git::fetch().
     let mut tx = jj_repo.start_transaction("test");
-    git::fetch(&mut tx, "origin").unwrap();
+    git::fetch(&mut tx, &clone_git_repo, "origin").unwrap();
     let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
     assert!(heads.contains(&commit_id(&new_git_commit)));
-
-    tx.discard();
-}
-
-#[test]
-fn test_fetch_non_git() {
-    let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
-    let jj_repo_dir = temp_dir.path().join("jj");
-    std::fs::create_dir(&jj_repo_dir).unwrap();
-    let jj_repo = ReadonlyRepo::init_local(&settings, jj_repo_dir);
-
-    let mut tx = jj_repo.start_transaction("test");
-    let result = git::fetch(&mut tx, "origin");
-    assert_eq!(result, Err(GitFetchError::NotAGitRepo));
 
     tx.discard();
 }
@@ -381,13 +355,13 @@ fn test_fetch_no_such_remote() {
     let temp_dir = tempfile::tempdir().unwrap();
     let source_repo_dir = temp_dir.path().join("source");
     let jj_repo_dir = temp_dir.path().join("jj");
-    git2::Repository::init_bare(&source_repo_dir).unwrap();
+    let git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let jj_repo =
         ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), source_repo_dir.clone());
 
     let mut tx = jj_repo.start_transaction("test");
-    let result = git::fetch(&mut tx, "invalid-remote");
+    let result = git::fetch(&mut tx, &git_repo, "invalid-remote");
     assert!(matches!(result, Err(GitFetchError::NoSuchRemote(_))));
 
     tx.discard();
@@ -395,7 +369,6 @@ fn test_fetch_no_such_remote() {
 
 struct PushTestSetup {
     source_repo_dir: PathBuf,
-    clone_repo_dir: PathBuf,
     jj_repo: Arc<ReadonlyRepo>,
     new_commit: Commit,
 }
@@ -404,8 +377,8 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let source_repo_dir = temp_dir.path().join("source");
     let clone_repo_dir = temp_dir.path().join("clone");
     let jj_repo_dir = temp_dir.path().join("jj");
-    let git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
-    let initial_git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    let source_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
+    let initial_git_commit = empty_git_commit(&source_repo, "refs/heads/main", &[]);
     let initial_commit_id = commit_id(&initial_git_commit);
     git2::Repository::clone(&source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
@@ -417,7 +390,6 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     Arc::get_mut(&mut jj_repo).unwrap().reload();
     PushTestSetup {
         source_repo_dir,
-        clone_repo_dir,
         jj_repo,
         new_commit,
     }
@@ -428,7 +400,8 @@ fn test_push_commit_success() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let setup = set_up_push_repos(&settings, &temp_dir);
-    let result = git::push_commit(&setup.new_commit, "origin", "main");
+    let clone_repo = setup.jj_repo.store().git_repo().unwrap();
+    let result = git::push_commit(&clone_repo, &setup.new_commit, "origin", "main");
     assert_eq!(result, Ok(()));
 
     // Check that the ref got updated in the source repo
@@ -443,7 +416,6 @@ fn test_push_commit_success() {
     // Check that the ref got updated in the cloned repo. This just tests our
     // assumptions about libgit2 because we want the refs/remotes/origin/main
     // branch to be updated.
-    let clone_repo = git2::Repository::open(&setup.clone_repo_dir).unwrap();
     let new_target = clone_repo
         .find_reference("refs/remotes/origin/main")
         .unwrap()
@@ -455,11 +427,16 @@ fn test_push_commit_success() {
 fn test_push_commit_not_fast_forward() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
-    let mut jj_repo = set_up_push_repos(&settings, &temp_dir).jj_repo;
-    let new_commit = testutils::create_random_commit(&settings, &jj_repo)
-        .write_to_new_transaction(&jj_repo, "test");
-    Arc::get_mut(&mut jj_repo).unwrap().reload();
-    let result = git::push_commit(&new_commit, "origin", "main");
+    let mut setup = set_up_push_repos(&settings, &temp_dir);
+    let new_commit = testutils::create_random_commit(&settings, &setup.jj_repo)
+        .write_to_new_transaction(&setup.jj_repo, "test");
+    Arc::get_mut(&mut setup.jj_repo).unwrap().reload();
+    let result = git::push_commit(
+        &setup.jj_repo.store().git_repo().unwrap(),
+        &new_commit,
+        "origin",
+        "main",
+    );
     assert_eq!(result, Err(GitPushError::NotFastForward));
 }
 
@@ -468,7 +445,12 @@ fn test_push_commit_no_such_remote() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let setup = set_up_push_repos(&settings, &temp_dir);
-    let result = git::push_commit(&setup.new_commit, "invalid-remote", "main");
+    let result = git::push_commit(
+        &setup.jj_repo.store().git_repo().unwrap(),
+        &setup.new_commit,
+        "invalid-remote",
+        "main",
+    );
     assert!(matches!(result, Err(GitPushError::NoSuchRemote(_))));
 }
 
@@ -477,16 +459,11 @@ fn test_push_commit_invalid_remote() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let setup = set_up_push_repos(&settings, &temp_dir);
-    let result = git::push_commit(&setup.new_commit, "http://invalid-remote", "main");
+    let result = git::push_commit(
+        &setup.jj_repo.store().git_repo().unwrap(),
+        &setup.new_commit,
+        "http://invalid-remote",
+        "main",
+    );
     assert!(matches!(result, Err(GitPushError::NoSuchRemote(_))));
-}
-
-#[test]
-fn test_push_commit_non_git() {
-    let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
-    let commit =
-        testutils::create_random_commit(&settings, &repo).write_to_new_transaction(&repo, "test");
-    let result = git::push_commit(&commit, "origin", "main");
-    assert_eq!(result, Err(GitPushError::NotAGitRepo));
 }
