@@ -2080,6 +2080,9 @@ fn cmd_git_push(
     let branch_name = cmd_matches.value_of("branch").unwrap();
     git::push_commit(&git_repo, &commit, remote_name, branch_name)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
+    let mut tx = repo.start_transaction("import git refs");
+    git::import_refs(&mut tx, &git_repo).map_err(|err| CommandError::UserError(err.to_string()))?;
+    tx.commit();
     Ok(())
 }
 
