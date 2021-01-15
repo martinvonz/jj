@@ -434,10 +434,6 @@ impl MutableView {
 
     pub fn remove_head(&mut self, head: &Commit) {
         self.data.head_ids.remove(head.id());
-        for parent in head.parents() {
-            self.data.head_ids.insert(parent.id().clone());
-        }
-        self.remove_non_heads();
     }
 
     pub fn insert_git_ref(&mut self, name: String, commit_id: CommitId) {

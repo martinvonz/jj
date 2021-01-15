@@ -343,8 +343,6 @@ fn test_add_head_ancestor(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store();
 
-    // Create a commit outside of the repo by using a temporary transaction. Then
-    // add that as a head.
     let mut tx = repo.start_transaction("test");
     let commit1 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
         .write_to_transaction(&mut tx);
@@ -362,4 +360,42 @@ fn test_add_head_ancestor(use_git: bool) {
     let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
     assert!(!heads.contains(commit1.id()));
     tx.discard();
+}
+
+#[test_case(false ; "local store")]
+// #[test_case(true ; "git store")]
+fn test_remove_head(use_git: bool) {
+    // Test that Transaction::remove_head() removes the head, and that it's still
+    // removed after commit.
+    let settings = testutils::user_settings();
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let store = repo.store();
+
+    let mut tx = repo.start_transaction("test");
+    let commit1 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+        .write_to_transaction(&mut tx);
+    let commit2 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_transaction(&mut tx);
+    let commit3 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+        .set_parents(vec![commit2.id().clone()])
+        .write_to_transaction(&mut tx);
+    tx.commit();
+    Arc::get_mut(&mut repo).unwrap().reload();
+
+    let mut tx = repo.start_transaction("test");
+    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    assert!(heads.contains(commit3.id()));
+    tx.remove_head(&commit3);
+    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    assert!(!heads.contains(commit3.id()));
+    assert!(!heads.contains(commit2.id()));
+    assert!(!heads.contains(commit1.id()));
+    tx.commit();
+
+    Arc::get_mut(&mut repo).unwrap().reload();
+    let heads: HashSet<_> = repo.view().heads().cloned().collect();
+    assert!(!heads.contains(commit3.id()));
+    assert!(!heads.contains(commit2.id()));
+    assert!(!heads.contains(commit1.id()));
 }

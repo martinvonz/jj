@@ -1384,6 +1384,9 @@ fn cmd_discard(
     let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
     let mut tx = repo.start_transaction(&format!("discard commit {}", commit.id().hex()));
     tx.remove_head(&commit);
+    for parent in commit.parents() {
+        tx.add_head(&parent);
+    }
     // TODO: also remove descendants
     tx.commit();
     // TODO: check out parent/ancestor if the current commit got hidden
