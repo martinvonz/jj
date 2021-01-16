@@ -63,7 +63,7 @@ fn test_commit_parallel(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
     // One commit per thread plus the commit from the initial checkout on top of the
     // root commit
-    assert_eq!(repo.view().heads().count(), 101);
+    assert_eq!(repo.view().heads().len(), 101);
 
     // One operation for initializing the repo (containing the root id and the
     // initial working copy commit).
@@ -94,7 +94,7 @@ fn test_commit_parallel_instances(use_git: bool) {
     // One commit per thread plus the commit from the initial checkout on top of the
     // root commit
     let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
-    assert_eq!(repo.view().heads().count(), 101);
+    assert_eq!(repo.view().heads().len(), 101);
 
     // One operation for initializing the repo (containing the root id and the
     // initial working copy commit).

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashSet;
 use std::path::PathBuf;
 
 use tempfile::TempDir;
@@ -129,9 +128,8 @@ fn test_bad_locking_children(use_git: bool) {
         &merged_path,
     );
     let merged_repo = ReadonlyRepo::load(&settings, merged_path).unwrap();
-    let heads: HashSet<_> = merged_repo.view().heads().cloned().collect();
-    assert!(heads.contains(child1.id()));
-    assert!(heads.contains(child2.id()));
+    assert!(merged_repo.view().heads().contains(child1.id()));
+    assert!(merged_repo.view().heads().contains(child2.id()));
     let op_head_id = merged_repo.view().base_op_head_id().clone();
     let op_head = merged_repo
         .view()

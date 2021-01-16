@@ -18,7 +18,6 @@ use jujube_lib::repo_path::FileRepoPath;
 use jujube_lib::store::{Conflict, ConflictId, ConflictPart, TreeValue};
 use jujube_lib::store_wrapper::StoreWrapper;
 use jujube_lib::testutils;
-use std::collections::HashSet;
 use std::sync::Arc;
 use test_case::test_case;
 
@@ -319,15 +318,12 @@ fn test_add_head_success(use_git: bool) {
     tx.discard();
 
     let mut tx = repo.start_transaction("test");
-    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
-    assert!(!heads.contains(new_commit.id()));
+    assert!(!tx.as_repo().view().heads().contains(new_commit.id()));
     tx.add_head(&new_commit);
-    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
-    assert!(heads.contains(new_commit.id()));
+    assert!(tx.as_repo().view().heads().contains(new_commit.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
-    let heads: HashSet<_> = repo.view().heads().cloned().collect();
-    assert!(heads.contains(new_commit.id()));
+    assert!(repo.view().heads().contains(new_commit.id()));
 }
 
 #[test_case(false ; "local store")]
@@ -351,8 +347,7 @@ fn test_add_head_ancestor(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     tx.add_head(&commit1);
-    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
-    assert!(!heads.contains(commit1.id()));
+    assert!(!tx.as_repo().view().heads().contains(commit1.id()));
     tx.discard();
 }
 
@@ -376,17 +371,16 @@ fn test_remove_head(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
-    assert!(heads.contains(commit3.id()));
+    assert!(tx.as_repo().view().heads().contains(commit3.id()));
     tx.remove_head(&commit3);
-    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    let heads = tx.as_repo().view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
     assert!(!heads.contains(commit1.id()));
     tx.commit();
 
     Arc::get_mut(&mut repo).unwrap().reload();
-    let heads: HashSet<_> = repo.view().heads().cloned().collect();
+    let heads = repo.view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
     assert!(!heads.contains(commit1.id()));
@@ -413,17 +407,17 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    let heads = tx.as_repo().view().heads().clone();
     assert!(heads.contains(commit3.id()));
     tx.remove_head(&commit3);
-    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    let heads = tx.as_repo().view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
     assert!(heads.contains(commit1.id()));
     tx.commit();
 
     Arc::get_mut(&mut repo).unwrap().reload();
-    let heads: HashSet<_> = repo.view().heads().cloned().collect();
+    let heads = repo.view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
     assert!(heads.contains(commit1.id()));
@@ -443,15 +437,12 @@ fn test_add_public_head(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    let public_heads: HashSet<_> = tx.as_repo().view().public_heads().cloned().collect();
-    assert!(!public_heads.contains(commit1.id()));
+    assert!(!tx.as_repo().view().public_heads().contains(commit1.id()));
     tx.add_public_head(&commit1);
-    let public_heads: HashSet<_> = tx.as_repo().view().public_heads().cloned().collect();
-    assert!(public_heads.contains(commit1.id()));
+    assert!(tx.as_repo().view().public_heads().contains(commit1.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
-    let public_heads: HashSet<_> = repo.view().public_heads().cloned().collect();
-    assert!(public_heads.contains(commit1.id()));
+    assert!(repo.view().public_heads().contains(commit1.id()));
 }
 
 #[test_case(false ; "local store")]
@@ -472,15 +463,12 @@ fn test_add_public_head_ancestor(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    let public_heads: HashSet<_> = tx.as_repo().view().public_heads().cloned().collect();
-    assert!(!public_heads.contains(commit1.id()));
+    assert!(!tx.as_repo().view().public_heads().contains(commit1.id()));
     tx.add_public_head(&commit1);
-    let public_heads: HashSet<_> = tx.as_repo().view().public_heads().cloned().collect();
-    assert!(!public_heads.contains(commit1.id()));
+    assert!(!tx.as_repo().view().public_heads().contains(commit1.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
-    let public_heads: HashSet<_> = repo.view().public_heads().cloned().collect();
-    assert!(!public_heads.contains(commit1.id()));
+    assert!(!repo.view().public_heads().contains(commit1.id()));
 }
 
 #[test_case(false ; "local store")]
@@ -498,13 +486,10 @@ fn test_remove_public_head(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    let public_heads: HashSet<_> = tx.as_repo().view().public_heads().cloned().collect();
-    assert!(public_heads.contains(commit1.id()));
+    assert!(tx.as_repo().view().public_heads().contains(commit1.id()));
     tx.remove_public_head(&commit1);
-    let public_heads: HashSet<_> = tx.as_repo().view().public_heads().cloned().collect();
-    assert!(!public_heads.contains(commit1.id()));
+    assert!(!tx.as_repo().view().public_heads().contains(commit1.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
-    let public_heads: HashSet<_> = repo.view().public_heads().cloned().collect();
-    assert!(!public_heads.contains(commit1.id()));
+    assert!(!repo.view().public_heads().contains(commit1.id()));
 }

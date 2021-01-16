@@ -145,6 +145,7 @@ fn resolve_single_rev(
         let heads: HashSet<Commit> = repo
             .view()
             .heads()
+            .iter()
             .map(|commit_id| repo.store().get_commit(commit_id).unwrap())
             .collect();
         let heads = skip_uninteresting_heads(repo, heads);
@@ -256,7 +257,7 @@ fn update_checkout_after_rewrite(ui: &mut Ui, tx: &mut Transaction) {
     // Filter out heads that already existed.
     // TODO: Filter out *commits* that already existed (so we get updated to an
     // appropriate new non-head)
-    let old_heads: HashSet<_> = tx.base_repo().view().heads().cloned().collect();
+    let old_heads = tx.base_repo().view().heads().clone();
     let new_checkout_candidates: HashSet<_> = new_checkout_candidates
         .difference(&old_heads)
         .cloned()
@@ -1034,6 +1035,7 @@ fn cmd_log(
     let mut heads: HashSet<_> = repo
         .view()
         .heads()
+        .iter()
         .map(|id| repo.store().get_commit(id).unwrap())
         .collect();
     if !sub_matches.is_present("all") {

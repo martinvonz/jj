@@ -67,10 +67,9 @@ fn test_import_refs() {
 
     let git_repo = repo.store().git_repo().unwrap();
     let mut tx = repo.start_transaction("test");
-    let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
+    let heads_before: HashSet<_> = repo.view().heads().clone();
     jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
     let view = tx.as_repo().view();
-    let heads_after: HashSet<_> = view.heads().cloned().collect();
     let expected_heads: HashSet<_> = heads_before
         .union(&hashset!(
             commit_id(&commit3),
@@ -79,9 +78,8 @@ fn test_import_refs() {
         ))
         .cloned()
         .collect();
-    assert_eq!(heads_after, expected_heads);
-    let public_heads_after: HashSet<_> = view.public_heads().cloned().collect();
-    assert_eq!(public_heads_after, hashset!(commit_id(&commit5)));
+    assert_eq!(*view.heads(), expected_heads);
+    assert_eq!(*view.public_heads(), hashset!(commit_id(&commit5)));
     assert_eq!(view.git_refs().len(), 4);
     assert_eq!(
         view.git_refs().get("refs/heads/main"),
@@ -113,7 +111,7 @@ fn test_import_refs_reimport() {
     let commit3 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
     let commit4 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
 
-    let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
+    let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
     jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
     tx.commit();
@@ -128,7 +126,6 @@ fn test_import_refs_reimport() {
     jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
 
     let view = tx.as_repo().view();
-    let heads_after: HashSet<_> = view.heads().cloned().collect();
     // TODO: commit3 and commit4 should probably be removed
     let expected_heads: HashSet<_> = heads_before
         .union(&hashset!(
@@ -138,7 +135,7 @@ fn test_import_refs_reimport() {
         ))
         .cloned()
         .collect();
-    assert_eq!(heads_after, expected_heads);
+    assert_eq!(*view.heads(), expected_heads);
     assert_eq!(view.git_refs().len(), 2);
     assert_eq!(
         view.git_refs().get("refs/heads/main"),
@@ -277,12 +274,11 @@ fn test_import_refs_empty_git_repo() {
 
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
-    let heads_before: HashSet<_> = repo.view().heads().cloned().collect();
+    let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
     jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
     let view = tx.as_repo().view();
-    let heads_after: HashSet<_> = view.heads().cloned().collect();
-    assert_eq!(heads_before, heads_after);
+    assert_eq!(*view.heads(), heads_before);
     assert_eq!(view.git_refs().len(), 0);
     tx.discard();
 }
@@ -298,10 +294,9 @@ fn test_init() {
     let initial_commit_id = commit_id(&initial_git_commit);
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), git_repo_dir);
-    let heads: HashSet<_> = repo.view().heads().cloned().collect();
     // The refs were *not* imported -- it's the caller's responsibility to import
     // any refs they care about.
-    assert!(!heads.contains(&initial_commit_id));
+    assert!(!repo.view().heads().contains(&initial_commit_id));
 }
 
 #[test]
@@ -323,14 +318,16 @@ fn test_fetch_success() {
 
     // The new commit is not visible before git::fetch().
     let jj_repo = ReadonlyRepo::load(&settings, jj_repo_dir.clone()).unwrap();
-    let heads: HashSet<_> = jj_repo.view().heads().cloned().collect();
-    assert!(!heads.contains(&commit_id(&new_git_commit)));
+    assert!(!jj_repo.view().heads().contains(&commit_id(&new_git_commit)));
 
     // The new commit is visible after git::fetch().
     let mut tx = jj_repo.start_transaction("test");
     git::fetch(&mut tx, &clone_git_repo, "origin").unwrap();
-    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
-    assert!(heads.contains(&commit_id(&new_git_commit)));
+    assert!(tx
+        .as_repo()
+        .view()
+        .heads()
+        .contains(&commit_id(&new_git_commit)));
 
     tx.discard();
 }

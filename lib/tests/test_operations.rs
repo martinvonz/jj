@@ -16,7 +16,6 @@ use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::repo::Repo;
 use jujube_lib::store::CommitId;
 use jujube_lib::testutils;
-use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 use test_case::test_case;
@@ -107,12 +106,8 @@ fn test_concurrent_operations(use_git: bool) {
 }
 
 fn assert_heads(repo: &impl Repo, expected: Vec<&CommitId>) {
-    let actual: HashSet<_> = {
-        let locked_heads = repo.view();
-        locked_heads.heads().cloned().collect()
-    };
     let expected = expected.iter().cloned().cloned().collect();
-    assert_eq!(actual, expected);
+    assert_eq!(*repo.view().heads(), expected);
 }
 
 #[test_case(false ; "local store")]

@@ -31,8 +31,8 @@ use crate::store_wrapper::StoreWrapper;
 
 pub trait View {
     fn checkout(&self) -> &CommitId;
-    fn heads<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommitId> + 'a>;
-    fn public_heads<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommitId> + 'a>;
+    fn heads(&self) -> &HashSet<CommitId>;
+    fn public_heads(&self) -> &HashSet<CommitId>;
     fn git_refs(&self) -> &BTreeMap<String, CommitId>;
     fn op_store(&self) -> Arc<dyn OpStore>;
     fn base_op_head_id(&self) -> &OperationId;
@@ -323,12 +323,12 @@ impl View for ReadonlyView {
         &self.data.checkout
     }
 
-    fn heads<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommitId> + 'a> {
-        Box::new(self.data.head_ids.iter())
+    fn heads(&self) -> &HashSet<CommitId> {
+        &self.data.head_ids
     }
 
-    fn public_heads<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommitId> + 'a> {
-        Box::new(self.data.public_head_ids.iter())
+    fn public_heads(&self) -> &HashSet<CommitId> {
+        &self.data.public_head_ids
     }
 
     fn git_refs(&self) -> &BTreeMap<String, CommitId> {
@@ -418,12 +418,12 @@ impl View for MutableView {
         &self.data.checkout
     }
 
-    fn heads<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommitId> + 'a> {
-        Box::new(self.data.head_ids.iter())
+    fn heads(&self) -> &HashSet<CommitId> {
+        &self.data.head_ids
     }
 
-    fn public_heads<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommitId> + 'a> {
-        Box::new(self.data.public_head_ids.iter())
+    fn public_heads(&self) -> &HashSet<CommitId> {
+        &self.data.public_head_ids
     }
 
     fn git_refs(&self) -> &BTreeMap<String, CommitId> {

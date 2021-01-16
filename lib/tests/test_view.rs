@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use jujube_lib::repo::Repo;
-use jujube_lib::store::CommitId;
 use jujube_lib::testutils;
+use maplit::hashset;
 use test_case::test_case;
 
 #[test_case(false ; "local store")]
@@ -23,10 +23,8 @@ fn test_heads_empty(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    let heads = repo.view();
     let wc = repo.working_copy_locked();
-    let all_heads: Vec<CommitId> = heads.heads().cloned().collect();
-    assert_eq!(all_heads, vec![wc.current_commit_id()]);
+    assert_eq!(*repo.view().heads(), hashset! {wc.current_commit_id()});
 }
 
 #[test_case(false ; "local store")]
@@ -46,18 +44,15 @@ fn test_heads_fork(use_git: bool) {
         .set_parents(vec![initial.id().clone()])
         .write_to_transaction(&mut tx);
 
-    let heads = tx.as_repo().view();
     let wc = repo.working_copy_locked();
-    let mut actual_all_heads: Vec<CommitId> = heads.heads().cloned().collect();
-    actual_all_heads.sort();
-    let mut expected_all_heads = vec![
-        wc.current_commit_id(),
-        child1.id().clone(),
-        child2.id().clone(),
-    ];
-    expected_all_heads.sort();
-    assert_eq!(actual_all_heads, expected_all_heads);
-    drop(heads);
+    assert_eq!(
+        *tx.as_repo().view().heads(),
+        hashset! {
+            wc.current_commit_id(),
+            child1.id().clone(),
+            child2.id().clone(),
+        }
+    );
     tx.discard();
 }
 
@@ -81,13 +76,10 @@ fn test_heads_merge(use_git: bool) {
         .set_parents(vec![child1.id().clone(), child2.id().clone()])
         .write_to_transaction(&mut tx);
 
-    let heads = tx.as_repo().view();
     let wc = repo.working_copy_locked();
-    let mut actual_all_heads: Vec<CommitId> = heads.heads().cloned().collect();
-    actual_all_heads.sort();
-    let mut expected_all_heads = vec![wc.current_commit_id(), merge.id().clone()];
-    expected_all_heads.sort();
-    assert_eq!(actual_all_heads, expected_all_heads);
-    drop(heads);
+    assert_eq!(
+        *tx.as_repo().view().heads(),
+        hashset! {wc.current_commit_id(), merge.id().clone()}
+    );
     tx.discard();
 }
