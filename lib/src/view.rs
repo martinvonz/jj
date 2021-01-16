@@ -32,6 +32,7 @@ use crate::store_wrapper::StoreWrapper;
 pub trait View {
     fn checkout(&self) -> &CommitId;
     fn heads<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommitId> + 'a>;
+    fn public_heads<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommitId> + 'a>;
     fn git_refs(&self) -> &BTreeMap<String, CommitId>;
     fn op_store(&self) -> Arc<dyn OpStore>;
     fn base_op_head_id(&self) -> &OperationId;
@@ -66,6 +67,8 @@ fn enforce_invariants(store: &StoreWrapper, view: &mut op_store::View) {
     // TODO: This is surely terribly slow on large repos, at least in its current
     // form. We should make it faster (using the index) and avoid calling it in
     // most cases (avoid adding a head that's already reachable in the view).
+    view.public_head_ids = heads_of_set(store, view.public_head_ids.iter().cloned());
+    view.head_ids.extend(view.public_head_ids.iter().cloned());
     view.head_ids.extend(view.git_refs.values().cloned());
     view.head_ids = heads_of_set(store, view.head_ids.iter().cloned());
 }
@@ -149,6 +152,14 @@ pub fn merge_views(
         // TODO: Return an error here. Or should we just pick one of the sides
         // and emit a warning?
     }
+
+    for removed_head in base.public_head_ids.difference(&right.public_head_ids) {
+        result.public_head_ids.remove(removed_head);
+    }
+    for added_head in right.public_head_ids.difference(&base.public_head_ids) {
+        result.public_head_ids.insert(added_head.clone());
+    }
+    result.public_head_ids = heads_of_set(store, result.public_head_ids.into_iter());
 
     for removed_head in base.head_ids.difference(&right.head_ids) {
         result.head_ids.remove(removed_head);
@@ -316,6 +327,10 @@ impl View for ReadonlyView {
         Box::new(self.data.head_ids.iter())
     }
 
+    fn public_heads<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommitId> + 'a> {
+        Box::new(self.data.public_head_ids.iter())
+    }
+
     fn git_refs(&self) -> &BTreeMap<String, CommitId> {
         &self.data.git_refs
     }
@@ -407,6 +422,10 @@ impl View for MutableView {
         Box::new(self.data.head_ids.iter())
     }
 
+    fn public_heads<'a>(&'a self) -> Box<dyn Iterator<Item = &'a CommitId> + 'a> {
+        Box::new(self.data.public_head_ids.iter())
+    }
+
     fn git_refs(&self) -> &BTreeMap<String, CommitId> {
         &self.data.git_refs
     }
@@ -435,8 +454,16 @@ impl MutableView {
 
     pub fn remove_head(&mut self, head: &Commit) {
         self.data.head_ids.remove(head.id());
-        // To potentially add back heads based on git refs
         enforce_invariants(&self.store, &mut self.data);
+    }
+
+    pub fn add_public_head(&mut self, head: &Commit) {
+        self.data.public_head_ids.insert(head.id().clone());
+        enforce_invariants(&self.store, &mut self.data);
+    }
+
+    pub fn remove_public_head(&mut self, head: &Commit) {
+        self.data.public_head_ids.remove(head.id());
     }
 
     pub fn insert_git_ref(&mut self, name: String, commit_id: CommitId) {

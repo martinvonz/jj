@@ -428,3 +428,83 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     assert!(!heads.contains(commit2.id()));
     assert!(heads.contains(commit1.id()));
 }
+
+#[test_case(false ; "local store")]
+// #[test_case(true ; "git store")]
+fn test_add_public_head(use_git: bool) {
+    // Test that Transaction::add_public_head() adds the head, and that it's still
+    // there after commit.
+    let settings = testutils::user_settings();
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    tx.commit();
+    Arc::get_mut(&mut repo).unwrap().reload();
+
+    let mut tx = repo.start_transaction("test");
+    let public_heads: HashSet<_> = tx.as_repo().view().public_heads().cloned().collect();
+    assert!(!public_heads.contains(commit1.id()));
+    tx.add_public_head(&commit1);
+    let public_heads: HashSet<_> = tx.as_repo().view().public_heads().cloned().collect();
+    assert!(public_heads.contains(commit1.id()));
+    tx.commit();
+    Arc::get_mut(&mut repo).unwrap().reload();
+    let public_heads: HashSet<_> = repo.view().public_heads().cloned().collect();
+    assert!(public_heads.contains(commit1.id()));
+}
+
+#[test_case(false ; "local store")]
+// #[test_case(true ; "git store")]
+fn test_add_public_head_ancestor(use_git: bool) {
+    // Test that Transaction::add_public_head() does not add a public head if it's
+    // an ancestor of an existing public head.
+    let settings = testutils::user_settings();
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    let commit2 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_transaction(&mut tx);
+    tx.add_public_head(&commit2);
+    tx.commit();
+    Arc::get_mut(&mut repo).unwrap().reload();
+
+    let mut tx = repo.start_transaction("test");
+    let public_heads: HashSet<_> = tx.as_repo().view().public_heads().cloned().collect();
+    assert!(!public_heads.contains(commit1.id()));
+    tx.add_public_head(&commit1);
+    let public_heads: HashSet<_> = tx.as_repo().view().public_heads().cloned().collect();
+    assert!(!public_heads.contains(commit1.id()));
+    tx.commit();
+    Arc::get_mut(&mut repo).unwrap().reload();
+    let public_heads: HashSet<_> = repo.view().public_heads().cloned().collect();
+    assert!(!public_heads.contains(commit1.id()));
+}
+
+#[test_case(false ; "local store")]
+// #[test_case(true ; "git store")]
+fn test_remove_public_head(use_git: bool) {
+    // Test that Transaction::remove_public_head() removes the head, and that it's
+    // still removed after commit.
+    let settings = testutils::user_settings();
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    tx.add_public_head(&commit1);
+    tx.commit();
+    Arc::get_mut(&mut repo).unwrap().reload();
+
+    let mut tx = repo.start_transaction("test");
+    let public_heads: HashSet<_> = tx.as_repo().view().public_heads().cloned().collect();
+    assert!(public_heads.contains(commit1.id()));
+    tx.remove_public_head(&commit1);
+    let public_heads: HashSet<_> = tx.as_repo().view().public_heads().cloned().collect();
+    assert!(!public_heads.contains(commit1.id()));
+    tx.commit();
+    Arc::get_mut(&mut repo).unwrap().reload();
+    let public_heads: HashSet<_> = repo.view().public_heads().cloned().collect();
+    assert!(!public_heads.contains(commit1.id()));
+}

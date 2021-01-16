@@ -23,6 +23,7 @@ message GitRef {
 
 message View {
   repeated bytes head_ids = 1;
+  repeated bytes public_head_ids = 4;
   bytes checkout = 2;
   // Only a subset of the refs. For example, does not include refs/notes/.
   repeated GitRef git_refs = 3;

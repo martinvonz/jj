@@ -52,6 +52,8 @@ impl OperationId {
 pub struct View {
     /// All head commits
     pub head_ids: HashSet<CommitId>,
+    /// Heads of the set of public commits.
+    pub public_head_ids: HashSet<CommitId>,
     pub git_refs: BTreeMap<String, CommitId>,
     // The commit that *should be* checked out in the (default) working copy. Note that the
     // working copy (.jj/working_copy/) has the source of truth about which commit *is* checked out
@@ -64,6 +66,7 @@ impl View {
     pub fn new(checkout: CommitId) -> Self {
         Self {
             head_ids: HashSet::new(),
+            public_head_ids: HashSet::new(),
             git_refs: BTreeMap::new(),
             checkout,
         }
