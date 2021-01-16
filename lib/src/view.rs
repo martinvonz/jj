@@ -66,6 +66,7 @@ fn enforce_invariants(store: &StoreWrapper, view: &mut op_store::View) {
     // TODO: This is surely terribly slow on large repos, at least in its current
     // form. We should make it faster (using the index) and avoid calling it in
     // most cases (avoid adding a head that's already reachable in the view).
+    view.head_ids.extend(view.git_refs.values().cloned());
     view.head_ids = heads_of_set(store, view.head_ids.iter().cloned());
 }
 
@@ -434,6 +435,8 @@ impl MutableView {
 
     pub fn remove_head(&mut self, head: &Commit) {
         self.data.head_ids.remove(head.id());
+        // To potentially add back heads based on git refs
+        enforce_invariants(&self.store, &mut self.data);
     }
 
     pub fn insert_git_ref(&mut self, name: String, commit_id: CommitId) {

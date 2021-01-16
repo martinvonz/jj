@@ -399,3 +399,42 @@ fn test_remove_head(use_git: bool) {
     assert!(!heads.contains(commit2.id()));
     assert!(!heads.contains(commit1.id()));
 }
+
+#[test_case(false ; "local store")]
+// #[test_case(true ; "git store")]
+fn test_remove_head_ancestor_git_ref(use_git: bool) {
+    // Test that Transaction::remove_head() does not leave the view with a git ref
+    // pointing to a commit that's not reachable by any head.
+    let settings = testutils::user_settings();
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let store = repo.store();
+
+    let mut tx = repo.start_transaction("test");
+    let commit1 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+        .write_to_transaction(&mut tx);
+    let commit2 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_transaction(&mut tx);
+    let commit3 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+        .set_parents(vec![commit2.id().clone()])
+        .write_to_transaction(&mut tx);
+    tx.insert_git_ref("refs/heads/main".to_string(), commit1.id().clone());
+    tx.commit();
+    Arc::get_mut(&mut repo).unwrap().reload();
+
+    let mut tx = repo.start_transaction("test");
+    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    assert!(heads.contains(commit3.id()));
+    tx.remove_head(&commit3);
+    let heads: HashSet<_> = tx.as_repo().view().heads().cloned().collect();
+    assert!(!heads.contains(commit3.id()));
+    assert!(!heads.contains(commit2.id()));
+    assert!(heads.contains(commit1.id()));
+    tx.commit();
+
+    Arc::get_mut(&mut repo).unwrap().reload();
+    let heads: HashSet<_> = repo.view().heads().cloned().collect();
+    assert!(!heads.contains(commit3.id()));
+    assert!(!heads.contains(commit2.id()));
+    assert!(heads.contains(commit1.id()));
+}
