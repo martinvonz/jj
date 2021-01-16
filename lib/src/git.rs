@@ -55,6 +55,11 @@ pub fn import_refs(
         let commit = store.get_commit(&id).unwrap();
         tx.add_head(&commit);
         tx.insert_git_ref(git_ref.name().unwrap().to_string(), id);
+        // For now, we consider all remotes "publishing".
+        // TODO: Make it configurable which remotes are publishing.
+        if git_ref.is_remote() {
+            tx.add_public_head(&commit);
+        }
     }
     Ok(())
 }

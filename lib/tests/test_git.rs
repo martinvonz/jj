@@ -80,6 +80,8 @@ fn test_import_refs() {
         .cloned()
         .collect();
     assert_eq!(heads_after, expected_heads);
+    let public_heads_after: HashSet<_> = view.public_heads().cloned().collect();
+    assert_eq!(public_heads_after, hashset!(commit_id(&commit5)));
     assert_eq!(view.git_refs().len(), 4);
     assert_eq!(
         view.git_refs().get("refs/heads/main"),
