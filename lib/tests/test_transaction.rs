@@ -314,12 +314,8 @@ fn test_add_head_success(use_git: bool) {
     // Create a commit outside of the repo by using a temporary transaction. Then
     // add that as a head.
     let mut tx = repo.start_transaction("test");
-    let new_commit = CommitBuilder::for_new_commit(
-        &settings,
-        repo.store(),
-        repo.store().empty_tree_id().clone(),
-    )
-    .write_to_transaction(&mut tx);
+    let new_commit =
+        testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
     tx.discard();
 
     let mut tx = repo.start_transaction("test");
@@ -341,15 +337,13 @@ fn test_add_head_ancestor(use_git: bool) {
     // an existing head.
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
-    let store = repo.store();
 
     let mut tx = repo.start_transaction("test");
-    let commit1 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
-        .write_to_transaction(&mut tx);
-    let commit2 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    let commit2 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit1.id().clone()])
         .write_to_transaction(&mut tx);
-    let _commit3 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+    let _commit3 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit2.id().clone()])
         .write_to_transaction(&mut tx);
     tx.commit();
@@ -369,15 +363,13 @@ fn test_remove_head(use_git: bool) {
     // removed after commit.
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
-    let store = repo.store();
 
     let mut tx = repo.start_transaction("test");
-    let commit1 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
-        .write_to_transaction(&mut tx);
-    let commit2 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    let commit2 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit1.id().clone()])
         .write_to_transaction(&mut tx);
-    let commit3 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+    let commit3 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit2.id().clone()])
         .write_to_transaction(&mut tx);
     tx.commit();
@@ -407,15 +399,13 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     // pointing to a commit that's not reachable by any head.
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
-    let store = repo.store();
 
     let mut tx = repo.start_transaction("test");
-    let commit1 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
-        .write_to_transaction(&mut tx);
-    let commit2 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    let commit2 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit1.id().clone()])
         .write_to_transaction(&mut tx);
-    let commit3 = CommitBuilder::for_new_commit(&settings, store, store.empty_tree_id().clone())
+    let commit3 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit2.id().clone()])
         .write_to_transaction(&mut tx);
     tx.insert_git_ref("refs/heads/main".to_string(), commit1.id().clone());
