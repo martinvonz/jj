@@ -24,50 +24,45 @@ fn is_same_word(a: u8, b: u8) -> bool {
     (is_word_byte(a) && is_word_byte(b)) || a & 0x80 != 0
 }
 
-fn tokenize(data: &[u8]) -> Vec<Vec<u8>> {
+fn tokenize(data: &[u8]) -> Vec<&[u8]> {
     // TODO: Fix this code to not be so inefficient, and to allow the word
     // delimiter to be configured.
     let mut output = vec![];
-    let mut current = vec![];
+    let mut word_start_pos = 0;
     let mut maybe_prev: Option<u8> = None;
-    for b in data {
+    for (i, b) in data.iter().enumerate() {
         let b = *b;
-        match maybe_prev {
-            None => current.push(b),
-            Some(prev) => {
-                if is_same_word(prev, b) {
-                    current.push(b);
-                } else {
-                    output.push(current);
-                    current = vec![b];
-                }
+        if let Some(prev) = maybe_prev {
+            if !is_same_word(prev, b) {
+                output.push(&data[word_start_pos..i]);
+                word_start_pos = i;
             }
         }
         maybe_prev = Some(b);
     }
-    if !current.is_empty() {
-        output.push(current);
+    if word_start_pos < data.len() {
+        output.push(&data[word_start_pos..]);
     }
     output
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub enum DiffHunk {
-    Unmodified(Vec<u8>),
-    Added(Vec<u8>),
-    Removed(Vec<u8>),
+pub enum DiffHunk<'a> {
+    Unmodified(&'a [u8]),
+    Added(&'a [u8]),
+    Removed(&'a [u8]),
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct DiffLine {
+pub struct DiffLine<'a> {
     pub left_line_number: u32,
     pub right_line_number: u32,
     pub has_left_content: bool,
     pub has_right_content: bool,
-    pub hunks: Vec<DiffHunk>,
+    pub hunks: Vec<DiffHunk<'a>>,
 }
 
-impl DiffLine {
+impl DiffLine<'_> {
     fn reset_line(&mut self) {
         self.has_left_content = false;
         self.has_right_content = false;
@@ -81,7 +76,7 @@ impl DiffLine {
     }
 }
 
-pub fn diff(left: &[u8], right: &[u8], callback: &mut impl FnMut(&DiffLine)) {
+pub fn diff<'a>(left: &'a [u8], right: &'a [u8], callback: &mut impl FnMut(&DiffLine<'a>)) {
     // TODO: Should we attempt to interpret as utf-8 and otherwise break only at
     // newlines?
     let left_tokens = tokenize(left);
@@ -100,7 +95,7 @@ pub fn diff(left: &[u8], right: &[u8], callback: &mut impl FnMut(&DiffLine)) {
                 assert!(left == right);
                 diff_line.has_left_content = true;
                 diff_line.has_right_content = true;
-                diff_line.hunks.push(DiffHunk::Unmodified(left.clone()));
+                diff_line.hunks.push(DiffHunk::Unmodified(left));
                 if left == &[b'\n'] {
                     callback(&diff_line);
                     diff_line.left_line_number += 1;
@@ -110,7 +105,7 @@ pub fn diff(left: &[u8], right: &[u8], callback: &mut impl FnMut(&DiffLine)) {
             }
             diff::Result::Left(left) => {
                 diff_line.has_left_content = true;
-                diff_line.hunks.push(DiffHunk::Removed(left.clone()));
+                diff_line.hunks.push(DiffHunk::Removed(left));
                 if left == &[b'\n'] {
                     callback(&diff_line);
                     diff_line.left_line_number += 1;
@@ -119,7 +114,7 @@ pub fn diff(left: &[u8], right: &[u8], callback: &mut impl FnMut(&DiffLine)) {
             }
             diff::Result::Right(right) => {
                 diff_line.has_right_content = true;
-                diff_line.hunks.push(DiffHunk::Added(right.clone()));
+                diff_line.hunks.push(DiffHunk::Added(right));
                 if right == &[b'\n'] {
                     callback(&diff_line);
                     diff_line.right_line_number += 1;

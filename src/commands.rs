@@ -715,16 +715,16 @@ fn print_diff_line(styler: &mut dyn Styler, diff_line: &DiffLine) {
     for hunk in &diff_line.hunks {
         match hunk {
             files::DiffHunk::Unmodified(data) => {
-                styler.write_bytes(data.as_slice());
+                styler.write_bytes(data);
             }
             files::DiffHunk::Removed(data) => {
                 styler.add_label(String::from("left"));
-                styler.write_bytes(data.as_slice());
+                styler.write_bytes(data);
                 styler.remove_label();
             }
             files::DiffHunk::Added(data) => {
                 styler.add_label(String::from("right"));
-                styler.write_bytes(data.as_slice());
+                styler.write_bytes(data);
                 styler.remove_label();
             }
         }
