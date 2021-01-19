@@ -14,6 +14,7 @@
 
 use diff::slice as diff_slice;
 use std::fmt::{Debug, Error, Formatter};
+use std::ops::Range;
 
 fn is_word_byte(a: u8) -> bool {
     a.is_ascii_alphanumeric() || a == b'_'
@@ -161,123 +162,121 @@ pub enum MergeResult {
     Conflict(Vec<MergeHunk>),
 }
 
-/// Returns None if the merge fails
-pub fn merge(base: &[u8], left: &[u8], right: &[u8]) -> MergeResult {
+/// A region where the base and two sides match.
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct SyncRegion {
+    base: Range<usize>,
+    left: Range<usize>,
+    right: Range<usize>,
+}
+
+fn diff_result_lengths(diff: &diff::Result<&&[u8]>) -> (usize, usize) {
+    match diff {
+        diff::Result::Left(&left) => (left.len(), 0),
+        diff::Result::Both(&left, &right) => (left.len(), right.len()),
+        diff::Result::Right(&right) => (0, right.len()),
+    }
+}
+
+fn unmodified_regions(
+    left_tokens: &[&[u8]],
+    right_tokens: &[&[u8]],
+) -> Vec<(Range<usize>, Range<usize>)> {
+    let diffs = diff_slice(left_tokens, right_tokens);
+    let mut left_pos = 0;
+    let mut right_pos = 0;
+    let mut regions = Vec::new();
+    for diff in diffs {
+        let (left_len, right_len) = diff_result_lengths(&diff);
+        match diff {
+            diff::Result::Both(&left, &right) if left == right => regions.push((
+                left_pos..left_pos + left_len,
+                right_pos..right_pos + right_len,
+            )),
+            _ => {}
+        }
+        left_pos += left_len;
+        right_pos += right_len;
+    }
+    regions
+}
+
+fn find_sync_regions(base: &[u8], left: &[u8], right: &[u8]) -> Vec<SyncRegion> {
     let base_tokens = tokenize(base);
     let left_tokens = tokenize(left);
     let right_tokens = tokenize(right);
 
-    let left_diff = diff_slice(&base_tokens, &left_tokens);
-    let right_diff = diff_slice(&base_tokens, &right_tokens);
+    let left_regions = unmodified_regions(&base_tokens, &left_tokens);
+    let right_regions = unmodified_regions(&base_tokens, &right_tokens);
 
-    let mut hunk: Vec<u8> = vec![];
-    let mut hunks: Vec<MergeHunk> = vec![];
-    let mut left_it = left_diff.iter();
-    let mut right_it = right_diff.iter();
+    let mut left_it = left_regions.iter().peekable();
+    let mut right_it = right_regions.iter().peekable();
 
-    let mut left_hunk = left_it.next();
-    let mut right_hunk = right_it.next();
-    loop {
-        match (left_hunk, right_hunk) {
-            (None, None) => {
-                break;
-            }
-            (Some(diff::Result::Both(left_data_before, left_data_after)), _)
-                if left_data_before == left_data_after =>
-            {
-                // Left unmodified
-                match right_hunk.unwrap() {
-                    diff::Result::Both(right_data_before, right_data_after) => {
-                        // Left unmodified, right modified
-                        assert_eq!(left_data_before, right_data_before);
-                        hunk.append(&mut right_data_after.to_vec());
-                        left_hunk = left_it.next();
-                        right_hunk = right_it.next();
-                    }
-                    diff::Result::Left(right_data_before) => {
-                        // Left unmodified, right deleted
-                        assert_eq!(left_data_before, right_data_before);
-                        left_hunk = left_it.next();
-                        right_hunk = right_it.next();
-                    }
-                    diff::Result::Right(right_data_after) => {
-                        // Left unmodified, right inserted
-                        hunk.append(&mut right_data_after.to_vec());
-                        right_hunk = right_it.next();
-                    }
-                }
-            }
-            (_, Some(diff::Result::Both(right_data_before, right_data_after)))
-                if right_data_before == right_data_after =>
-            {
-                // Right unmodified
-                match left_hunk.unwrap() {
-                    diff::Result::Both(left_data_before, left_data_after) => {
-                        // Right unmodified, left modified
-                        assert_eq!(left_data_before, right_data_before);
-                        hunk.append(&mut left_data_after.to_vec());
-                        left_hunk = left_it.next();
-                        right_hunk = right_it.next();
-                    }
-                    diff::Result::Left(left_data_before) => {
-                        // Right unmodified, left deleted
-                        assert_eq!(left_data_before, right_data_before);
-                        left_hunk = left_it.next();
-                        right_hunk = right_it.next();
-                    }
-                    diff::Result::Right(left_data_after) => {
-                        // Right unmodified, left inserted
-                        hunk.append(&mut left_data_after.to_vec());
-                        left_hunk = left_it.next();
-                    }
-                }
-            }
-            (
-                Some(diff::Result::Left(left_data_before)),
-                Some(diff::Result::Left(right_data_before)),
-            ) => {
-                // Both deleted the same
-                assert_eq!(left_data_before, right_data_before);
-                left_hunk = left_it.next();
-                right_hunk = right_it.next();
-            }
-            (
-                Some(diff::Result::Right(left_data_after)),
-                Some(diff::Result::Right(right_data_after)),
-            ) => {
-                if left_data_after == right_data_after {
-                    // Both inserted the same
-                    hunk.append(&mut left_data_after.to_vec());
-                } else {
-                    // Each side inserted different
-                    if !hunk.is_empty() {
-                        hunks.push(MergeHunk::Resolved(hunk));
-                    }
-                    hunks.push(MergeHunk::Conflict {
-                        base: vec![],
-                        left: left_data_after.to_vec(),
-                        right: right_data_after.to_vec(),
-                    });
-                    hunk = vec![];
-                }
-                left_hunk = left_it.next();
-                right_hunk = right_it.next();
-            }
-            (Some(diff::Result::Right(left_data_after)), None) => {
-                // Left inserted at EOF
-                hunk.append(&mut left_data_after.to_vec());
-                left_hunk = left_it.next();
-            }
-            (None, Some(diff::Result::Right(right_data_after))) => {
-                // Right inserted at EOF
-                hunk.append(&mut right_data_after.to_vec());
-                right_hunk = right_it.next();
-            }
-            _ => {
-                panic!("unhandled merge case: {:?}, {:?}", left_hunk, right_hunk);
-            }
+    let mut regions: Vec<SyncRegion> = vec![];
+    while let (Some((left_base_region, left_region)), Some((right_base_region, right_region))) =
+        (left_it.peek(), right_it.peek())
+    {
+        // TODO: if left_base_region and right_base_region at least intersect, use the
+        // intersection of the two regions.
+        if left_base_region == right_base_region {
+            regions.push(SyncRegion {
+                base: left_base_region.clone(),
+                left: left_region.clone(),
+                right: right_region.clone(),
+            });
+            left_it.next().unwrap();
+            right_it.next().unwrap();
+        } else if left_base_region.start < right_base_region.start {
+            left_it.next().unwrap();
+        } else {
+            right_it.next().unwrap();
         }
     }
+
+    regions.push(SyncRegion {
+        base: (base.len()..base.len()),
+        left: (left.len()..left.len()),
+        right: (right.len()..right.len()),
+    });
+    regions
+}
+
+pub fn merge(base: &[u8], left: &[u8], right: &[u8]) -> MergeResult {
+    let mut previous_region = SyncRegion {
+        base: 0..0,
+        left: 0..0,
+        right: 0..0,
+    };
+    let mut hunk: Vec<u8> = vec![];
+    let mut hunks: Vec<MergeHunk> = vec![];
+    // Find regions that match between base, left, and right. Emit the unchanged
+    // regions as is. For the potentially conflicting regions between them, use
+    // one side if the other is changed. If all three sides are different, emit
+    // a conflict.
+    for sync_region in find_sync_regions(base, left, right) {
+        let base_conflict_slice = &base[previous_region.base.end..sync_region.base.start];
+        let left_conflict_slice = &left[previous_region.left.end..sync_region.left.start];
+        let right_conflict_slice = &right[previous_region.right.end..sync_region.right.start];
+        if left_conflict_slice == base_conflict_slice || left_conflict_slice == right_conflict_slice
+        {
+            hunk.extend(right_conflict_slice);
+        } else if right_conflict_slice == base_conflict_slice {
+            hunk.extend(left_conflict_slice);
+        } else {
+            if !hunk.is_empty() {
+                hunks.push(MergeHunk::Resolved(hunk));
+                hunk = vec![];
+            }
+            hunks.push(MergeHunk::Conflict {
+                base: base_conflict_slice.to_vec(),
+                left: left_conflict_slice.to_vec(),
+                right: right_conflict_slice.to_vec(),
+            });
+        }
+        hunk.extend(base[sync_region.base.clone()].to_vec());
+        previous_region = sync_region;
+    }
+
     if hunks.is_empty() {
         MergeResult::Resolved(hunk)
     } else {
@@ -291,6 +290,54 @@ pub fn merge(base: &[u8], left: &[u8], right: &[u8]) -> MergeResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_find_sync_regions() {
+        assert_eq!(
+            find_sync_regions(b"", b"", b""),
+            vec![SyncRegion {
+                base: 0..0,
+                left: 0..0,
+                right: 0..0,
+            }]
+        );
+
+        assert_eq!(
+            find_sync_regions(b"a b c", b"a x b c", b"a b y c"),
+            vec![
+                SyncRegion {
+                    base: 0..1,
+                    left: 0..1,
+                    right: 0..1
+                },
+                SyncRegion {
+                    base: 1..2,
+                    left: 1..2,
+                    right: 1..2
+                },
+                SyncRegion {
+                    base: 2..3,
+                    left: 4..5,
+                    right: 2..3
+                },
+                SyncRegion {
+                    base: 3..4,
+                    left: 5..6,
+                    right: 3..4
+                },
+                SyncRegion {
+                    base: 4..5,
+                    left: 6..7,
+                    right: 6..7
+                },
+                SyncRegion {
+                    base: 5..5,
+                    left: 7..7,
+                    right: 7..7
+                }
+            ]
+        );
+    }
 
     #[test]
     fn test_merge() {
@@ -313,11 +360,11 @@ mod tests {
         assert_eq!(
             merge(b"a", b"a b", b"a c"),
             MergeResult::Conflict(vec![
-                MergeHunk::Resolved(b"a ".to_vec()),
+                MergeHunk::Resolved(b"a".to_vec()),
                 MergeHunk::Conflict {
                     base: b"".to_vec(),
-                    left: b"b".to_vec(),
-                    right: b"c".to_vec()
+                    left: b" b".to_vec(),
+                    right: b" c".to_vec()
                 }
             ])
         );
@@ -329,15 +376,26 @@ mod tests {
             merge(b"a", b"a", b"b"),
             MergeResult::Resolved(b"b".to_vec())
         );
-        // TODO: It seems like the a->b transition get reported as [Left(a),Right(b)]
-        // instead       of [Both(a,b)], so there is unexpectedly no conflict
-        // here
-        assert_eq!(merge(b"a", b"", b"b"), MergeResult::Resolved(b"b".to_vec()));
-        assert_eq!(merge(b"a", b"b", b""), MergeResult::Resolved(b"b".to_vec()));
+        assert_eq!(
+            merge(b"a", b"", b"b"),
+            MergeResult::Conflict(vec![MergeHunk::Conflict {
+                base: b"a".to_vec(),
+                left: b"".to_vec(),
+                right: b"b".to_vec()
+            }])
+        );
+        assert_eq!(
+            merge(b"a", b"b", b""),
+            MergeResult::Conflict(vec![MergeHunk::Conflict {
+                base: b"a".to_vec(),
+                left: b"b".to_vec(),
+                right: b"".to_vec()
+            }])
+        );
         assert_eq!(
             merge(b"a", b"b", b"c"),
             MergeResult::Conflict(vec![MergeHunk::Conflict {
-                base: b"".to_vec(),
+                base: b"a".to_vec(),
                 left: b"b".to_vec(),
                 right: b"c".to_vec()
             }])
