@@ -40,7 +40,7 @@ just like additional Git worktrees are).
 
 ### Written as a library
 
-The repo consists of two main parts: the lib crate and the main (CLI)
+The project consists of two main parts: the lib crate and the main (CLI)
 crate. Most of the code lives in the lib crate. The lib crate does not print
 anything to the terminal. The separate lib crate should make it relatively
 straight-forward to add a GUI.
@@ -70,7 +70,7 @@ The working copy gets automatically committed when you interact with the
 tool. This simplifies both implementation and UX. It also means that the working
 copy is frequently backed up.
 
-Any changes to the working copy stays in place when you check out another
+Any changes to the working copy stay in place when you check out another
 commit. That is different from Git and Mercurial, but I think it's more
 intuitive for new users. To replicate the default behavior of Git/Mercurial, use
 `jj rebase -r @ -d <destination>` (`@` is a name for the working copy
@@ -108,10 +108,12 @@ rebase-like commands to support continue/abort operations. Instead, the rebase
 can simply continue and create the desired new DAG shape.
 
 Conflicts get simplified on rebase by removing pairs of matching states in the
-"add" and "remove" lists. For example, if B is based on A and then rebased to C,
-and then to D, it will be a regular 3-way merge between B, and D with C as base
-(no trace of A). This means that you can keep old commits rebased to head
-without resolving conflicts, and you still won't have messy recursive conflicts.
+"add" and "remove" lists. For example, let's say commit B is based on A and is
+rebased to C, where it results in conflicts, which the user leaves
+unresolved. If the commit is then rebased to D, it will be a regular 3-way merge
+between B and D with A as base (no trace of C). This means that you can keep old
+commits rebased to head without resolving conflicts, and you still won't have
+messy recursive conflicts.
 
 The conflict handling also results in some Darcs-/Pijul-like properties. For
 example, if you rebase a commit and it results in conflicts, and you then back
