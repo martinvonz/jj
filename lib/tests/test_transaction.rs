@@ -74,7 +74,7 @@ fn test_checkout_closed(use_git: bool) {
 #[test_case(false ; "local store")]
 // #[test_case(true ; "git store")]
 fn test_checkout_open_with_conflict(use_git: bool) {
-    // Test that Transaction::check_out() creates a successor if the requested
+    // Test that Transaction::check_out() creates a child if the requested
     // commit is open and has conflicts
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
@@ -105,11 +105,8 @@ fn test_checkout_open_with_conflict(use_git: bool) {
         }) => {}
         _ => panic!("unexpected tree value: {:?}", file_value),
     }
-    assert_eq!(actual_checkout.predecessors().len(), 1);
-    assert_eq!(
-        actual_checkout.predecessors()[0].id(),
-        requested_checkout.id()
-    );
+    assert_eq!(actual_checkout.parents().len(), 1);
+    assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
     assert_eq!(repo.view().checkout(), actual_checkout.id());

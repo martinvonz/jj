@@ -123,8 +123,9 @@ impl<'r> Transaction<'r> {
         }
         let tree_id = tree_builder.write_tree();
         let open_commit;
-        if !commit.is_open() {
-            // If the commit is closed, create a new open commit on top
+        if !commit.is_open() || &tree_id != commit.tree().id() {
+            // If the commit is closed, or if it had conflicts, create a new open commit on
+            // top
             open_commit = CommitBuilder::for_open_commit(
                 settings,
                 self.store(),
@@ -132,12 +133,6 @@ impl<'r> Transaction<'r> {
                 tree_id,
             )
             .write_to_transaction(self);
-        } else if &tree_id != commit.tree().id() {
-            // If the commit is open but had conflicts, create a successor with the
-            // conflicts materialized.
-            open_commit = CommitBuilder::for_rewrite_from(settings, self.store(), commit)
-                .set_tree(tree_id)
-                .write_to_transaction(self);
         } else {
             // Otherwise the commit was open and didn't have any conflicts, so just use
             // that commit as is.
