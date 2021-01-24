@@ -184,6 +184,13 @@ fn rev_arg<'a, 'b>() -> Arg<'a, 'b> {
         .default_value("@")
 }
 
+fn message_arg<'a, 'b>() -> Arg<'a, 'b> {
+    Arg::with_name("message")
+        .long("message")
+        .short("m")
+        .takes_value(true)
+}
+
 fn op_arg<'a, 'b>() -> Arg<'a, 'b> {
     Arg::with_name("operation")
         .long("operation")
@@ -335,16 +342,12 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
     let describe_command = SubCommand::with_name("describe")
         .about("edit the commit description")
         .arg(rev_arg())
-        .arg(
-            Arg::with_name("message")
-                .long("message")
-                .short("m")
-                .takes_value(true),
-        )
+        .arg(message_arg())
         .arg(Arg::with_name("stdin").long("stdin"));
     let close_command = SubCommand::with_name("close")
         .about("mark a commit closed, making new work go into a new commit")
-        .arg(rev_arg());
+        .arg(rev_arg())
+        .arg(message_arg());
     let open_command = SubCommand::with_name("open")
         .about("mark a commit open, making new work be added to it")
         .arg(rev_arg());
@@ -394,7 +397,8 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .index(1)
                 .required(true)
                 .multiple(true),
-        );
+        )
+        .arg(message_arg());
     let rebase_command = SubCommand::with_name("rebase")
         .about("move a commit to a different parent")
         .arg(rev_arg())
@@ -1246,10 +1250,15 @@ fn cmd_close(
     let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
     let mut commit_builder =
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit).set_open(false);
-    if commit.description().is_empty() {
-        let description = edit_description(&repo, commit.description());
-        commit_builder = commit_builder.set_description(description);
+    let description;
+    if sub_matches.is_present("message") {
+        description = sub_matches.value_of("message").unwrap().to_string();
+    } else if commit.description().is_empty() {
+        description = edit_description(&repo, "");
+    } else {
+        description = commit.description().to_string();
     }
+    commit_builder = commit_builder.set_description(description);
     let mut tx = repo.start_transaction(&format!("close commit {}", commit.id().hex()));
     commit_builder.write_to_transaction(&mut tx);
     update_checkout_after_rewrite(ui, &mut tx);
@@ -1562,7 +1571,12 @@ fn cmd_merge(
         parent_ids.push(commit.id().clone());
         commits.push(commit);
     }
-    let description = edit_description(&repo, "");
+    let description;
+    if sub_matches.is_present("message") {
+        description = sub_matches.value_of("message").unwrap().to_string();
+    } else {
+        description = edit_description(&repo, "");
+    }
     let merged_tree = merge_commit_trees(repo.store(), &commits);
     let mut tx = repo.start_transaction("merge commits");
     CommitBuilder::for_new_commit(ui.settings(), repo.store(), merged_tree.id().clone())
