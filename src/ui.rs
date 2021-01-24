@@ -81,6 +81,7 @@ impl<'a> Ui<'a> {
         let mut styler = self.styler();
         styler.add_label(String::from("error"));
         styler.write_str(text);
+        styler.remove_label();
     }
 
     pub fn write_commit_summary<'r>(&mut self, repo: &'r dyn Repo, commit: &Commit) {
