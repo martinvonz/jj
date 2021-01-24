@@ -1562,10 +1562,12 @@ fn cmd_merge(
         parent_ids.push(commit.id().clone());
         commits.push(commit);
     }
+    let description = edit_description(&repo, "");
     let merged_tree = merge_commit_trees(repo.store(), &commits);
     let mut tx = repo.start_transaction("merge commits");
     CommitBuilder::for_new_commit(ui.settings(), repo.store(), merged_tree.id().clone())
         .set_parents(parent_ids)
+        .set_description(description)
         .set_open(false)
         .write_to_transaction(&mut tx);
     update_checkout_after_rewrite(ui, &mut tx);
