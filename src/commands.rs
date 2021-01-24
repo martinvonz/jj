@@ -335,7 +335,12 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
     let describe_command = SubCommand::with_name("describe")
         .about("edit the commit description")
         .arg(rev_arg())
-        .arg(Arg::with_name("text").long("text").takes_value(true))
+        .arg(
+            Arg::with_name("message")
+                .long("message")
+                .short("m")
+                .takes_value(true),
+        )
         .arg(Arg::with_name("stdin").long("stdin"));
     let close_command = SubCommand::with_name("close")
         .about("mark a commit closed, making new work go into a new commit")
@@ -1188,8 +1193,8 @@ fn cmd_describe(
         let mut buffer = String::new();
         io::stdin().read_to_string(&mut buffer).unwrap();
         description = buffer;
-    } else if sub_matches.is_present("text") {
-        description = sub_matches.value_of("text").unwrap().to_owned()
+    } else if sub_matches.is_present("message") {
+        description = sub_matches.value_of("message").unwrap().to_owned()
     } else {
         description = edit_description(&repo, commit.description());
     }
