@@ -87,7 +87,7 @@ fn smoke_test() {
 
     // Add a commit description
     let output =
-        testutils::CommandRunner::new(&repo_path).run(vec!["describe", "--text", "add some files"]);
+        testutils::CommandRunner::new(&repo_path).run(vec!["describe", "-m", "add some files"]);
     assert_eq!(output.status, 0);
     let stdout_string = output.stdout_string();
     let output_regex =
