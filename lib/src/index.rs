@@ -253,21 +253,21 @@ impl PrefixResolution {
 }
 
 #[derive(Debug)]
-struct UnsavedGraphEntry {
+struct MutableGraphEntry {
     commit_id: CommitId,
     generation_number: u32,
     parent_positions: Vec<u32>,
 }
 
-pub struct UnsavedIndexData {
+pub struct MutableIndex {
     parent_file: Option<Arc<ReadonlyIndex>>,
     num_parent_commits: u32,
     hash_length: usize,
-    graph: Vec<UnsavedGraphEntry>,
+    graph: Vec<MutableGraphEntry>,
     lookup: BTreeMap<CommitId, u32>,
 }
 
-impl UnsavedIndexData {
+impl MutableIndex {
     fn full(hash_length: usize) -> Self {
         Self {
             parent_file: None,
@@ -299,7 +299,7 @@ impl UnsavedIndexData {
     }
 
     fn add_commit_data(&mut self, id: CommitId, parent_ids: Vec<CommitId>) {
-        let mut entry = UnsavedGraphEntry {
+        let mut entry = MutableGraphEntry {
             commit_id: id,
             generation_number: 0,
             parent_positions: vec![],
@@ -798,7 +798,7 @@ impl IndexSegment for ReadonlyIndex {
     }
 }
 
-impl IndexSegment for UnsavedIndexData {
+impl IndexSegment for MutableIndex {
     fn num_parent_commits(&self) -> u32 {
         self.num_parent_commits
     }
@@ -999,7 +999,7 @@ impl ReadonlyIndex {
         ReadonlyIndex::load_from(&mut index_file, dir, index_file_id_hex, hash_length)
     }
 
-    fn from_unsaved_data(dir: &Path, data: UnsavedIndexData) -> io::Result<ReadonlyIndex> {
+    fn from_mutable(dir: &Path, data: MutableIndex) -> io::Result<ReadonlyIndex> {
         let hash_length = data.hash_length;
         let buf = data.serialize();
 
@@ -1043,14 +1043,14 @@ impl ReadonlyIndex {
         match parent_op_id {
             None => {
                 maybe_parent_file = None;
-                data = UnsavedIndexData::full(hash_length);
+                data = MutableIndex::full(hash_length);
             }
             Some(parent_op_id) => {
                 let parent_file = Arc::new(
                     ReadonlyIndex::load_at_operation(dir, hash_length, &parent_op_id).unwrap(),
                 );
                 maybe_parent_file = Some(parent_file.clone());
-                data = UnsavedIndexData::incremental(parent_file)
+                data = MutableIndex::incremental(parent_file)
             }
         }
 
@@ -1062,7 +1062,7 @@ impl ReadonlyIndex {
             data.add_commit(&commit);
         }
 
-        let index_file = ReadonlyIndex::from_unsaved_data(dir, data)?;
+        let index_file = ReadonlyIndex::from_mutable(dir, data)?;
 
         let mut temp_file = NamedTempFile::new_in(&dir)?;
         let file = temp_file.as_file_mut();
@@ -1152,13 +1152,13 @@ mod tests {
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn index_empty(use_file: bool) {
-        let unsaved = UnsavedIndexData::full(3);
+        let index = MutableIndex::full(3);
         let temp_dir;
         let source: Box<dyn IndexSegment> = if use_file {
             temp_dir = tempfile::tempdir().unwrap();
-            Box::new(ReadonlyIndex::from_unsaved_data(temp_dir.path(), unsaved).unwrap())
+            Box::new(ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap())
         } else {
-            Box::new(unsaved)
+            Box::new(index)
         };
         let index = CompositeIndex(source.as_ref());
 
@@ -1178,15 +1178,15 @@ mod tests {
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn index_root_commit(use_file: bool) {
-        let mut unsaved = UnsavedIndexData::full(3);
+        let mut index = MutableIndex::full(3);
         let id_0 = CommitId::from_hex("000000");
-        unsaved.add_commit_data(id_0.clone(), vec![]);
+        index.add_commit_data(id_0.clone(), vec![]);
         let temp_dir;
         let source: Box<dyn IndexSegment> = if use_file {
             temp_dir = tempfile::tempdir().unwrap();
-            Box::new(ReadonlyIndex::from_unsaved_data(temp_dir.path(), unsaved).unwrap())
+            Box::new(ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap())
         } else {
-            Box::new(unsaved)
+            Box::new(index)
         };
         let index = CompositeIndex(source.as_ref());
 
@@ -1217,10 +1217,10 @@ mod tests {
     #[test]
     #[should_panic(expected = "parent commit is not indexed")]
     fn index_missing_parent_commit() {
-        let mut unsaved = UnsavedIndexData::full(3);
+        let mut index = MutableIndex::full(3);
         let id_0 = CommitId::from_hex("000000");
         let id_1 = CommitId::from_hex("111111");
-        unsaved.add_commit_data(id_1, vec![id_0]);
+        index.add_commit_data(id_1, vec![id_0]);
     }
 
     #[test_case(false, false; "full in memory")]
@@ -1228,7 +1228,7 @@ mod tests {
     #[test_case(true, false; "incremental in memory")]
     #[test_case(true, true; "incremental on disk")]
     fn index_multiple_commits(incremental: bool, use_file: bool) {
-        let mut unsaved = UnsavedIndexData::full(3);
+        let mut index = MutableIndex::full(3);
         // 5
         // |\
         // 4 | 3
@@ -1242,26 +1242,26 @@ mod tests {
         let id_3 = CommitId::from_hex("055444");
         let id_4 = CommitId::from_hex("055555");
         let id_5 = CommitId::from_hex("033333");
-        unsaved.add_commit_data(id_0.clone(), vec![]);
-        unsaved.add_commit_data(id_1.clone(), vec![id_0.clone()]);
-        unsaved.add_commit_data(id_2.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_0.clone(), vec![]);
+        index.add_commit_data(id_1.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), vec![id_0.clone()]);
 
         // If testing incremental indexing, write the first three commits to one file
         // now and build the remainder as another segment on top.
         let temp_dir = tempfile::tempdir().unwrap();
         if incremental {
             let initial_file =
-                Arc::new(ReadonlyIndex::from_unsaved_data(temp_dir.path(), unsaved).unwrap());
-            unsaved = UnsavedIndexData::incremental(initial_file);
+                Arc::new(ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap());
+            index = MutableIndex::incremental(initial_file);
         }
 
-        unsaved.add_commit_data(id_3.clone(), vec![id_2.clone()]);
-        unsaved.add_commit_data(id_4.clone(), vec![id_1.clone()]);
-        unsaved.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
+        index.add_commit_data(id_3.clone(), vec![id_2.clone()]);
+        index.add_commit_data(id_4.clone(), vec![id_1.clone()]);
+        index.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
         let source: Box<dyn IndexSegment> = if use_file {
-            Box::new(ReadonlyIndex::from_unsaved_data(temp_dir.path(), unsaved).unwrap())
+            Box::new(ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap())
         } else {
-            Box::new(unsaved)
+            Box::new(index)
         };
         let index = CompositeIndex(source.as_ref());
 
@@ -1342,7 +1342,7 @@ mod tests {
 
     #[test]
     fn test_is_ancestor() {
-        let mut unsaved = UnsavedIndexData::full(3);
+        let mut index = MutableIndex::full(3);
         // 5
         // |\
         // 4 | 3
@@ -1356,13 +1356,13 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
-        unsaved.add_commit_data(id_0.clone(), vec![]);
-        unsaved.add_commit_data(id_1.clone(), vec![id_0.clone()]);
-        unsaved.add_commit_data(id_2.clone(), vec![id_0.clone()]);
-        unsaved.add_commit_data(id_3.clone(), vec![id_2.clone()]);
-        unsaved.add_commit_data(id_4.clone(), vec![id_1.clone()]);
-        unsaved.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
-        let index = CompositeIndex(&unsaved);
+        index.add_commit_data(id_0.clone(), vec![]);
+        index.add_commit_data(id_1.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_3.clone(), vec![id_2.clone()]);
+        index.add_commit_data(id_4.clone(), vec![id_1.clone()]);
+        index.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
+        let index = CompositeIndex(&index);
 
         assert!(index.is_ancestor(&id_0, &id_0));
         assert!(index.is_ancestor(&id_0, &id_1));
@@ -1379,7 +1379,7 @@ mod tests {
 
     #[test]
     fn test_walk_revs() {
-        let mut unsaved = UnsavedIndexData::full(3);
+        let mut index = MutableIndex::full(3);
         // 5
         // |\
         // 4 | 3
@@ -1393,13 +1393,13 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
-        unsaved.add_commit_data(id_0.clone(), vec![]);
-        unsaved.add_commit_data(id_1.clone(), vec![id_0.clone()]);
-        unsaved.add_commit_data(id_2.clone(), vec![id_0.clone()]);
-        unsaved.add_commit_data(id_3.clone(), vec![id_2.clone()]);
-        unsaved.add_commit_data(id_4.clone(), vec![id_1.clone()]);
-        unsaved.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
-        let index = CompositeIndex(&unsaved);
+        index.add_commit_data(id_0.clone(), vec![]);
+        index.add_commit_data(id_1.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_3.clone(), vec![id_2.clone()]);
+        index.add_commit_data(id_4.clone(), vec![id_1.clone()]);
+        index.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
+        let index = CompositeIndex(&index);
 
         // No wanted commits
         let revs: Vec<CommitId> = index.walk_revs(&[], &[]).collect();
@@ -1447,7 +1447,7 @@ mod tests {
 
     #[test]
     fn test_heads() {
-        let mut unsaved = UnsavedIndexData::full(3);
+        let mut index = MutableIndex::full(3);
         // 5
         // |\
         // 4 | 3
@@ -1461,13 +1461,13 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
-        unsaved.add_commit_data(id_0.clone(), vec![]);
-        unsaved.add_commit_data(id_1.clone(), vec![id_0.clone()]);
-        unsaved.add_commit_data(id_2.clone(), vec![id_0.clone()]);
-        unsaved.add_commit_data(id_3.clone(), vec![id_2.clone()]);
-        unsaved.add_commit_data(id_4.clone(), vec![id_1.clone()]);
-        unsaved.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
-        let index = CompositeIndex(&unsaved);
+        index.add_commit_data(id_0.clone(), vec![]);
+        index.add_commit_data(id_1.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_3.clone(), vec![id_2.clone()]);
+        index.add_commit_data(id_4.clone(), vec![id_1.clone()]);
+        index.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
+        let index = CompositeIndex(&index);
 
         // Empty input
         assert!(index.heads(&[]).is_empty());
