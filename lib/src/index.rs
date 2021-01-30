@@ -381,27 +381,27 @@ impl MutableIndex {
 }
 
 trait IndexSegment {
-    fn num_parent_commits(&self) -> u32;
+    fn segment_num_parent_commits(&self) -> u32;
 
-    fn num_commits(&self) -> u32;
+    fn segment_num_commits(&self) -> u32;
 
-    fn parent_file(&self) -> &Option<Arc<ReadonlyIndex>>;
+    fn segment_parent_file(&self) -> &Option<Arc<ReadonlyIndex>>;
 
-    fn name(&self) -> Option<String>;
+    fn segment_name(&self) -> Option<String>;
 
-    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32>;
+    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32>;
 
-    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution;
+    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution;
 
-    fn generation_number(&self, local_pos: u32) -> u32;
+    fn segment_generation_number(&self, local_pos: u32) -> u32;
 
-    fn commit_id(&self, local_pos: u32) -> CommitId;
+    fn segment_commit_id(&self, local_pos: u32) -> CommitId;
 
-    fn num_parents(&self, local_pos: u32) -> u32;
+    fn segment_num_parents(&self, local_pos: u32) -> u32;
 
-    fn parents_positions(&self, local_pos: u32) -> Vec<u32>;
+    fn segment_parents_positions(&self, local_pos: u32) -> Vec<u32>;
 
-    fn entry_by_pos(&self, pos: u32, local_pos: u32) -> IndexEntry;
+    fn segment_entry_by_pos(&self, pos: u32, local_pos: u32) -> IndexEntry;
 }
 
 // TODO: This is a weird name for a public type in this module. The callers
@@ -411,7 +411,7 @@ pub struct CompositeIndex<'a>(&'a dyn IndexSegment);
 
 impl<'a> CompositeIndex<'a> {
     pub fn num_commits(&self) -> u32 {
-        self.0.num_parent_commits() + self.0.num_commits()
+        self.0.segment_num_parent_commits() + self.0.segment_num_commits()
     }
 
     pub fn stats(&self) -> IndexStats {
@@ -432,17 +432,17 @@ impl<'a> CompositeIndex<'a> {
         let num_heads = is_head.iter().filter(|is_head| **is_head).count() as u32;
 
         let mut levels = vec![IndexLevelStats {
-            num_commits: self.0.num_commits(),
-            name: self.0.name(),
+            num_commits: self.0.segment_num_commits(),
+            name: self.0.segment_name(),
         }];
-        let mut parent_file = self.0.parent_file().clone();
+        let mut parent_file = self.0.segment_parent_file().clone();
         while parent_file.is_some() {
             let file = parent_file.as_ref().unwrap();
             levels.push(IndexLevelStats {
-                num_commits: file.num_commits(),
-                name: file.name(),
+                num_commits: file.segment_num_commits(),
+                name: file.segment_name(),
             });
-            parent_file = file.parent_file().clone();
+            parent_file = file.segment_parent_file().clone();
         }
 
         IndexStats {
@@ -455,11 +455,12 @@ impl<'a> CompositeIndex<'a> {
     }
 
     fn entry_by_pos(&self, pos: u32) -> IndexEntry<'a> {
-        let num_parent_commits = self.0.num_parent_commits();
+        let num_parent_commits = self.0.segment_num_parent_commits();
         if pos >= num_parent_commits {
-            self.0.entry_by_pos(pos, pos - num_parent_commits)
+            self.0.segment_entry_by_pos(pos, pos - num_parent_commits)
         } else {
-            let parent_file: &ReadonlyIndex = self.0.parent_file().as_ref().unwrap().as_ref();
+            let parent_file: &ReadonlyIndex =
+                self.0.segment_parent_file().as_ref().unwrap().as_ref();
             // The parent ReadonlyIndex outlives the child
             let parent_file: &'a ReadonlyIndex = unsafe { std::mem::transmute(parent_file) };
 
@@ -468,24 +469,24 @@ impl<'a> CompositeIndex<'a> {
     }
 
     pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
-        let local_match = self.0.commit_id_to_pos(commit_id);
+        let local_match = self.0.segment_commit_id_to_pos(commit_id);
         local_match.or_else(|| {
             self.0
-                .parent_file()
+                .segment_parent_file()
                 .as_ref()
                 .and_then(|file| file.as_composite().commit_id_to_pos(commit_id))
         })
     }
 
     pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
-        let local_match = self.0.resolve_prefix(prefix);
+        let local_match = self.0.segment_resolve_prefix(prefix);
         if local_match == PrefixResolution::AmbiguousMatch {
             // return early to avoid checking the parent file(s)
             return local_match;
         }
         let parent_match = self
             .0
-            .parent_file()
+            .segment_parent_file()
             .as_ref()
             .map_or(PrefixResolution::NoMatch, |file| {
                 file.as_composite().resolve_prefix(prefix)
@@ -690,23 +691,23 @@ impl<'a> Iterator for RevWalk<'a> {
 }
 
 impl IndexSegment for ReadonlyIndex {
-    fn num_parent_commits(&self) -> u32 {
+    fn segment_num_parent_commits(&self) -> u32 {
         self.num_parent_commits
     }
 
-    fn num_commits(&self) -> u32 {
+    fn segment_num_commits(&self) -> u32 {
         self.num_local_commits
     }
 
-    fn parent_file(&self) -> &Option<Arc<ReadonlyIndex>> {
+    fn segment_parent_file(&self) -> &Option<Arc<ReadonlyIndex>> {
         &self.parent_file
     }
 
-    fn name(&self) -> Option<String> {
+    fn segment_name(&self) -> Option<String> {
         Some(self.name.clone())
     }
 
-    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
+    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
         if self.num_local_commits == 0 {
             // Avoid overflow when subtracting 1 below
             return None;
@@ -734,7 +735,7 @@ impl IndexSegment for ReadonlyIndex {
         }
     }
 
-    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
+    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
         let (bytes_prefix, min_bytes_prefix) = prefix.bytes_prefixes();
         match self.commit_id_byte_prefix_to_pos(&min_bytes_prefix) {
             None => PrefixResolution::NoMatch,
@@ -761,19 +762,19 @@ impl IndexSegment for ReadonlyIndex {
         }
     }
 
-    fn generation_number(&self, local_pos: u32) -> u32 {
+    fn segment_generation_number(&self, local_pos: u32) -> u32 {
         self.graph_entry(local_pos).generation_number()
     }
 
-    fn commit_id(&self, local_pos: u32) -> CommitId {
+    fn segment_commit_id(&self, local_pos: u32) -> CommitId {
         self.graph_entry(local_pos).commit_id()
     }
 
-    fn num_parents(&self, local_pos: u32) -> u32 {
+    fn segment_num_parents(&self, local_pos: u32) -> u32 {
         self.graph_entry(local_pos).num_parents()
     }
 
-    fn parents_positions(&self, local_pos: u32) -> Vec<u32> {
+    fn segment_parents_positions(&self, local_pos: u32) -> Vec<u32> {
         let graph_entry = self.graph_entry(local_pos);
         let mut parent_entries = vec![];
         if graph_entry.num_parents() >= 1 {
@@ -789,7 +790,7 @@ impl IndexSegment for ReadonlyIndex {
         parent_entries
     }
 
-    fn entry_by_pos(&self, pos: u32, local_pos: u32) -> IndexEntry {
+    fn segment_entry_by_pos(&self, pos: u32, local_pos: u32) -> IndexEntry {
         IndexEntry {
             source: self,
             local_pos,
@@ -799,27 +800,27 @@ impl IndexSegment for ReadonlyIndex {
 }
 
 impl IndexSegment for MutableIndex {
-    fn num_parent_commits(&self) -> u32 {
+    fn segment_num_parent_commits(&self) -> u32 {
         self.num_parent_commits
     }
 
-    fn num_commits(&self) -> u32 {
+    fn segment_num_commits(&self) -> u32 {
         self.graph.len() as u32
     }
 
-    fn parent_file(&self) -> &Option<Arc<ReadonlyIndex>> {
+    fn segment_parent_file(&self) -> &Option<Arc<ReadonlyIndex>> {
         &self.parent_file
     }
 
-    fn name(&self) -> Option<String> {
+    fn segment_name(&self) -> Option<String> {
         None
     }
 
-    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
+    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
         self.lookup.get(commit_id).cloned()
     }
 
-    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
+    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
         let (bytes_prefix, min_bytes_prefix) = prefix.bytes_prefixes();
         let mut potential_range = self
             .lookup
@@ -849,23 +850,23 @@ impl IndexSegment for MutableIndex {
         }
     }
 
-    fn generation_number(&self, local_pos: u32) -> u32 {
+    fn segment_generation_number(&self, local_pos: u32) -> u32 {
         self.graph[local_pos as usize].generation_number
     }
 
-    fn commit_id(&self, local_pos: u32) -> CommitId {
+    fn segment_commit_id(&self, local_pos: u32) -> CommitId {
         self.graph[local_pos as usize].commit_id.clone()
     }
 
-    fn num_parents(&self, local_pos: u32) -> u32 {
+    fn segment_num_parents(&self, local_pos: u32) -> u32 {
         self.graph[local_pos as usize].parent_positions.len() as u32
     }
 
-    fn parents_positions(&self, local_pos: u32) -> Vec<u32> {
+    fn segment_parents_positions(&self, local_pos: u32) -> Vec<u32> {
         self.graph[local_pos as usize].parent_positions.clone()
     }
 
-    fn entry_by_pos(&self, pos: u32, local_pos: u32) -> IndexEntry {
+    fn segment_entry_by_pos(&self, pos: u32, local_pos: u32) -> IndexEntry {
         IndexEntry {
             source: self,
             local_pos,
@@ -891,19 +892,19 @@ impl Eq for IndexEntry<'_> {}
 
 impl IndexEntry<'_> {
     pub fn generation_number(&self) -> u32 {
-        self.source.generation_number(self.local_pos)
+        self.source.segment_generation_number(self.local_pos)
     }
 
     pub fn commit_id(&self) -> CommitId {
-        self.source.commit_id(self.local_pos)
+        self.source.segment_commit_id(self.local_pos)
     }
 
     pub fn num_parents(&self) -> u32 {
-        self.source.num_parents(self.local_pos)
+        self.source.segment_num_parents(self.local_pos)
     }
 
     fn parents_positions(&self) -> Vec<u32> {
-        self.source.parents_positions(self.local_pos)
+        self.source.segment_parents_positions(self.local_pos)
     }
 }
 
