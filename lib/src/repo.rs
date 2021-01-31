@@ -24,7 +24,7 @@ use thiserror::Error;
 use crate::commit_builder::{new_change_id, signature};
 use crate::evolution::{EvolutionRef, MutableEvolution, ReadonlyEvolution};
 use crate::git_store::GitStore;
-use crate::index::ReadonlyIndex;
+use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::local_store::LocalStore;
 use crate::operation::Operation;
 use crate::settings::{RepoSettings, UserSettings};
@@ -67,6 +67,13 @@ impl<'a, 'r> RepoRef<'a, 'r> {
         match self {
             RepoRef::Readonly(repo) => repo.store(),
             RepoRef::Mutable(repo) => repo.store(),
+        }
+    }
+
+    pub fn index(&self) -> IndexRef {
+        match self {
+            RepoRef::Readonly(repo) => IndexRef::Readonly(repo.index()),
+            RepoRef::Mutable(repo) => IndexRef::Mutable(repo.index()),
         }
     }
 
@@ -327,7 +334,12 @@ impl ReadonlyRepo {
     }
 
     pub fn start_transaction(&self, description: &str) -> Transaction {
-        let mut_repo = MutableRepo::new(self, &self.view, &self.evolution.as_ref().unwrap());
+        let mut_repo = MutableRepo::new(
+            self,
+            self.index(),
+            &self.view,
+            &self.evolution.as_ref().unwrap(),
+        );
         Transaction::new(mut_repo, description)
     }
 
@@ -356,6 +368,7 @@ impl ReadonlyRepo {
 
 pub struct MutableRepo<'r> {
     repo: &'r ReadonlyRepo,
+    index: Option<MutableIndex>,
     view: Option<MutableView>,
     evolution: Option<MutableEvolution<'static, 'static>>,
 }
@@ -363,12 +376,15 @@ pub struct MutableRepo<'r> {
 impl<'r> MutableRepo<'r> {
     pub fn new(
         repo: &'r ReadonlyRepo,
+        index: Arc<ReadonlyIndex>,
         view: &ReadonlyView,
         evolution: &ReadonlyEvolution<'r>,
     ) -> Arc<MutableRepo<'r>> {
         let mut_view = view.start_modification();
+        let mut_index = MutableIndex::incremental(index);
         let mut mut_repo = Arc::new(MutableRepo {
             repo,
+            index: Some(mut_index),
             view: Some(mut_view),
             evolution: None,
         });
@@ -388,6 +404,14 @@ impl<'r> MutableRepo<'r> {
 
     pub fn store(&self) -> &Arc<StoreWrapper> {
         self.repo.store()
+    }
+
+    pub fn index(&self) -> &MutableIndex {
+        self.index.as_ref().unwrap()
+    }
+
+    pub fn index_mut(&mut self) -> &mut MutableIndex {
+        self.index.as_mut().unwrap()
     }
 
     pub fn base_repo(&self) -> &'r ReadonlyRepo {

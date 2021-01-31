@@ -298,7 +298,7 @@ fn test_checkout_previous_empty_and_pruned(use_git: bool) {
 // #[test_case(true ; "git store")]
 fn test_add_head_success(use_git: bool) {
     // Test that Transaction::add_head() adds the head, and that it's still there
-    // after commit.
+    // after commit. It should also be indexed.
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
@@ -311,11 +311,14 @@ fn test_add_head_success(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     assert!(!tx.view().heads().contains(new_commit.id()));
+    assert!(!tx.as_repo_ref().index().has_id(new_commit.id()));
     tx.add_head(&new_commit);
     assert!(tx.view().heads().contains(new_commit.id()));
+    assert!(tx.as_repo_ref().index().has_id(new_commit.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
     assert!(repo.view().heads().contains(new_commit.id()));
+    assert!(repo.index().has_id(new_commit.id()));
 }
 
 #[test_case(false ; "local store")]
@@ -381,7 +384,12 @@ fn test_add_head_not_immediate_child(use_git: bool) {
 // #[test_case(true ; "git store")]
 fn test_remove_head(use_git: bool) {
     // Test that Transaction::remove_head() removes the head, and that it's still
-    // removed after commit.
+    // removed after commit. It should remain in the index, since we otherwise would
+    // have to reindex everything.
+    // TODO: Consider if it's better to have the index be exactly the commits
+    // reachable from the view's heads. We would probably want to add tombstones
+    // for commits no longer visible in that case so we don't have to reindex e.g.
+    // when the user does `jj op undo`.
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
@@ -403,6 +411,9 @@ fn test_remove_head(use_git: bool) {
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
     assert!(!heads.contains(commit1.id()));
+    assert!(tx.index().has_id(commit1.id()));
+    assert!(tx.index().has_id(commit2.id()));
+    assert!(tx.index().has_id(commit3.id()));
     tx.commit();
 
     Arc::get_mut(&mut repo).unwrap().reload();
@@ -410,6 +421,9 @@ fn test_remove_head(use_git: bool) {
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
     assert!(!heads.contains(commit1.id()));
+    assert!(repo.index().has_id(commit1.id()));
+    assert!(repo.index().has_id(commit2.id()));
+    assert!(repo.index().has_id(commit3.id()));
 }
 
 #[test_case(false ; "local store")]

@@ -124,10 +124,10 @@ where
 }
 
 /// Returns neighbors before the node itself.
-pub fn topo_order_reverse<T, ID, II, NI>(
+pub fn topo_order_reverse<'a, T, ID, II, NI>(
     start: II,
-    id_fn: Box<dyn Fn(&T) -> ID>,
-    mut neighbors_fn: Box<dyn FnMut(&T) -> NI>,
+    id_fn: Box<dyn Fn(&T) -> ID + 'a>,
+    mut neighbors_fn: Box<dyn FnMut(&T) -> NI + 'a>,
 ) -> Vec<T>
 where
     T: Hash + Eq + Clone,

@@ -15,7 +15,9 @@
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::conflicts;
+use crate::dag_walk::topo_order_reverse;
 use crate::evolution::MutableEvolution;
+use crate::index::MutableIndex;
 use crate::op_store;
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
@@ -57,6 +59,10 @@ impl<'r> Transaction<'r> {
 
     pub fn as_repo_mut(&mut self) -> &mut MutableRepo<'r> {
         Arc::get_mut(self.repo.as_mut().unwrap()).unwrap()
+    }
+
+    pub fn index(&self) -> &MutableIndex {
+        self.repo.as_ref().unwrap().index()
     }
 
     pub fn view(&self) -> &MutableView {
@@ -135,9 +141,25 @@ impl<'r> Transaction<'r> {
             .iter()
             .all(|parent_id| current_heads.contains(parent_id))
         {
+            mut_repo.index_mut().add_commit(head);
             mut_repo.view_mut().add_head(head);
             mut_repo.evolution_mut().add_commit(head);
         } else {
+            let missing_commits = topo_order_reverse(
+                vec![head.clone()],
+                Box::new(|commit: &Commit| commit.id().clone()),
+                Box::new(|commit: &Commit| -> Vec<Commit> {
+                    commit
+                        .parents()
+                        .into_iter()
+                        .filter(|parent| !current_heads.contains(parent.id()))
+                        .collect()
+                }),
+            );
+            let mut_index = mut_repo.index_mut();
+            for missing_commit in missing_commits.iter().rev() {
+                mut_index.add_commit(missing_commit);
+            }
             mut_repo.view_mut().add_head(head);
             mut_repo.evolution_mut().invalidate();
         }

@@ -375,11 +375,14 @@ impl MutableIndex {
         IndexRef::Mutable(self)
     }
 
-    fn add_commit(&mut self, commit: &Commit) {
+    pub fn add_commit(&mut self, commit: &Commit) {
         self.add_commit_data(commit.id().clone(), commit.parent_ids());
     }
 
     fn add_commit_data(&mut self, id: CommitId, parent_ids: Vec<CommitId>) {
+        if self.lookup.contains_key(&id) {
+            return;
+        }
         let mut entry = MutableGraphEntry {
             commit_id: id,
             generation_number: 0,
