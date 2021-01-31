@@ -23,7 +23,7 @@ use jujube_lib::settings::UserSettings;
 
 use crate::styler::{ColorStyler, PlainTextStyler, Styler};
 use crate::templater::TemplateFormatter;
-use jujube_lib::repo::Repo;
+use jujube_lib::repo::RepoRef;
 
 pub struct Ui<'a> {
     cwd: PathBuf,
@@ -84,7 +84,7 @@ impl<'a> Ui<'a> {
         styler.remove_label();
     }
 
-    pub fn write_commit_summary<'r>(&mut self, repo: &'r dyn Repo, commit: &Commit) {
+    pub fn write_commit_summary(&mut self, repo: RepoRef, commit: &Commit) {
         let template_string = self
             .settings
             .config()

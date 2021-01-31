@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::{bfs, closest_common_node, leaves, walk_ancestors};
-use crate::repo::{MutableRepo, ReadonlyRepo, Repo};
+use crate::repo::{MutableRepo, ReadonlyRepo};
 use crate::repo_path::DirRepoPath;
 use crate::rewrite::{merge_commit_trees, rebase_commit};
 use crate::settings::UserSettings;

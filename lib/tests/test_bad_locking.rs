@@ -16,8 +16,9 @@ use std::path::PathBuf;
 
 use tempfile::TempDir;
 
-use jujube_lib::repo::{ReadonlyRepo, Repo};
+use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::testutils;
+use jujube_lib::view::View;
 use std::sync::Arc;
 use test_case::test_case;
 

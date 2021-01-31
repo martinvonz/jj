@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::repo::Repo;
 use jujube_lib::repo_path::FileRepoPath;
 use jujube_lib::store::{Conflict, ConflictId, ConflictPart, TreeValue};
 use jujube_lib::store_wrapper::StoreWrapper;
 use jujube_lib::testutils;
+use jujube_lib::view::View;
 use std::sync::Arc;
 use test_case::test_case;
 
@@ -203,7 +203,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
         .set_open(true)
         .write_to_transaction(&mut tx);
     tx.check_out(&settings, &new_checkout);
-    assert!(!tx.as_repo().evolution().is_obsolete(old_checkout.id()));
+    assert!(!tx.as_repo_ref().evolution().is_obsolete(old_checkout.id()));
     tx.discard();
 }
 
@@ -232,7 +232,7 @@ fn test_checkout_previous_empty(use_git: bool) {
         .set_open(true)
         .write_to_transaction(&mut tx);
     tx.check_out(&settings, &new_checkout);
-    assert!(tx.as_repo().evolution().is_obsolete(old_checkout.id()));
+    assert!(tx.as_repo_ref().evolution().is_obsolete(old_checkout.id()));
     tx.discard();
 }
 
@@ -263,7 +263,7 @@ fn test_checkout_previous_empty_and_obsolete(use_git: bool) {
         .set_open(true)
         .write_to_transaction(&mut tx);
     tx.check_out(&settings, &new_checkout);
-    let successors = tx.as_repo().evolution().successors(old_checkout.id());
+    let successors = tx.as_repo_ref().evolution().successors(old_checkout.id());
     assert_eq!(successors.len(), 1);
     assert_eq!(successors.iter().next().unwrap(), successor.id());
     tx.discard();
@@ -292,7 +292,7 @@ fn test_checkout_previous_empty_and_pruned(use_git: bool) {
         .write_to_transaction(&mut tx);
     tx.check_out(&settings, &new_checkout);
     assert!(tx
-        .as_repo()
+        .as_repo_ref()
         .evolution()
         .successors(old_checkout.id())
         .is_empty());
@@ -315,9 +315,9 @@ fn test_add_head_success(use_git: bool) {
     tx.discard();
 
     let mut tx = repo.start_transaction("test");
-    assert!(!tx.as_repo().view().heads().contains(new_commit.id()));
+    assert!(!tx.as_repo_ref().view().heads().contains(new_commit.id()));
     tx.add_head(&new_commit);
-    assert!(tx.as_repo().view().heads().contains(new_commit.id()));
+    assert!(tx.as_repo_ref().view().heads().contains(new_commit.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
     assert!(repo.view().heads().contains(new_commit.id()));
@@ -344,7 +344,7 @@ fn test_add_head_ancestor(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     tx.add_head(&commit1);
-    assert!(!tx.as_repo().view().heads().contains(commit1.id()));
+    assert!(!tx.as_repo_ref().view().heads().contains(commit1.id()));
     tx.discard();
 }
 
@@ -368,9 +368,9 @@ fn test_remove_head(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    assert!(tx.as_repo().view().heads().contains(commit3.id()));
+    assert!(tx.as_repo_ref().view().heads().contains(commit3.id()));
     tx.remove_head(&commit3);
-    let heads = tx.as_repo().view().heads().clone();
+    let heads = tx.as_repo_ref().view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
     assert!(!heads.contains(commit1.id()));
@@ -404,10 +404,10 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    let heads = tx.as_repo().view().heads().clone();
+    let heads = tx.as_repo_ref().view().heads().clone();
     assert!(heads.contains(commit3.id()));
     tx.remove_head(&commit3);
-    let heads = tx.as_repo().view().heads().clone();
+    let heads = tx.as_repo_ref().view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
     assert!(heads.contains(commit1.id()));
@@ -434,9 +434,17 @@ fn test_add_public_head(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    assert!(!tx.as_repo().view().public_heads().contains(commit1.id()));
+    assert!(!tx
+        .as_repo_ref()
+        .view()
+        .public_heads()
+        .contains(commit1.id()));
     tx.add_public_head(&commit1);
-    assert!(tx.as_repo().view().public_heads().contains(commit1.id()));
+    assert!(tx
+        .as_repo_ref()
+        .view()
+        .public_heads()
+        .contains(commit1.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
     assert!(repo.view().public_heads().contains(commit1.id()));
@@ -460,9 +468,17 @@ fn test_add_public_head_ancestor(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    assert!(!tx.as_repo().view().public_heads().contains(commit1.id()));
+    assert!(!tx
+        .as_repo_ref()
+        .view()
+        .public_heads()
+        .contains(commit1.id()));
     tx.add_public_head(&commit1);
-    assert!(!tx.as_repo().view().public_heads().contains(commit1.id()));
+    assert!(!tx
+        .as_repo_ref()
+        .view()
+        .public_heads()
+        .contains(commit1.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
     assert!(!repo.view().public_heads().contains(commit1.id()));
@@ -483,9 +499,17 @@ fn test_remove_public_head(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    assert!(tx.as_repo().view().public_heads().contains(commit1.id()));
+    assert!(tx
+        .as_repo_ref()
+        .view()
+        .public_heads()
+        .contains(commit1.id()));
     tx.remove_public_head(&commit1);
-    assert!(!tx.as_repo().view().public_heads().contains(commit1.id()));
+    assert!(!tx
+        .as_repo_ref()
+        .view()
+        .public_heads()
+        .contains(commit1.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
     assert!(!repo.view().public_heads().contains(commit1.id()));

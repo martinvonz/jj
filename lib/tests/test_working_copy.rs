@@ -16,12 +16,13 @@
 use std::os::unix::fs::PermissionsExt;
 
 use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::repo::{ReadonlyRepo, Repo};
+use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::repo_path::{FileRepoPath, RepoPath};
 use jujube_lib::settings::UserSettings;
 use jujube_lib::store::TreeValue;
 use jujube_lib::testutils;
 use jujube_lib::tree_builder::TreeBuilder;
+use jujube_lib::view::View;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::sync::Arc;

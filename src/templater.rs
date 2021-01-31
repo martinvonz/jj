@@ -16,7 +16,7 @@ use std::borrow::BorrowMut;
 use std::ops::Add;
 
 use jujube_lib::commit::Commit;
-use jujube_lib::repo::Repo;
+use jujube_lib::repo::RepoRef;
 use jujube_lib::store::{CommitId, Signature};
 
 use crate::styler::Styler;
@@ -202,21 +202,21 @@ impl TemplateProperty<Commit, bool> for PrunedProperty {
     }
 }
 
-pub struct CurrentCheckoutProperty<'r> {
-    pub repo: &'r dyn Repo,
+pub struct CurrentCheckoutProperty<'a, 'r> {
+    pub repo: RepoRef<'a, 'r>,
 }
 
-impl<'r> TemplateProperty<Commit, bool> for CurrentCheckoutProperty<'r> {
+impl TemplateProperty<Commit, bool> for CurrentCheckoutProperty<'_, '_> {
     fn extract(&self, context: &Commit) -> bool {
         context.id() == self.repo.view().checkout()
     }
 }
 
-pub struct GitRefsProperty<'r> {
-    pub repo: &'r dyn Repo,
+pub struct GitRefsProperty<'a, 'r> {
+    pub repo: RepoRef<'a, 'r>,
 }
 
-impl<'r> TemplateProperty<Commit, String> for GitRefsProperty<'r> {
+impl TemplateProperty<Commit, String> for GitRefsProperty<'_, '_> {
     fn extract(&self, context: &Commit) -> String {
         let refs: Vec<_> = self
             .repo
@@ -230,31 +230,31 @@ impl<'r> TemplateProperty<Commit, String> for GitRefsProperty<'r> {
     }
 }
 
-pub struct ObsoleteProperty<'r> {
-    pub repo: &'r dyn Repo,
+pub struct ObsoleteProperty<'a, 'r> {
+    pub repo: RepoRef<'a, 'r>,
 }
 
-impl<'r> TemplateProperty<Commit, bool> for ObsoleteProperty<'r> {
+impl TemplateProperty<Commit, bool> for ObsoleteProperty<'_, '_> {
     fn extract(&self, context: &Commit) -> bool {
         self.repo.evolution().is_obsolete(context.id())
     }
 }
 
-pub struct OrphanProperty<'r> {
-    pub repo: &'r dyn Repo,
+pub struct OrphanProperty<'a, 'r> {
+    pub repo: RepoRef<'a, 'r>,
 }
 
-impl<'r> TemplateProperty<Commit, bool> for OrphanProperty<'r> {
+impl TemplateProperty<Commit, bool> for OrphanProperty<'_, '_> {
     fn extract(&self, context: &Commit) -> bool {
         self.repo.evolution().is_orphan(context.id())
     }
 }
 
-pub struct DivergentProperty<'r> {
-    pub repo: &'r dyn Repo,
+pub struct DivergentProperty<'a, 'r> {
+    pub repo: RepoRef<'a, 'r>,
 }
 
-impl<'r> TemplateProperty<Commit, bool> for DivergentProperty<'r> {
+impl TemplateProperty<Commit, bool> for DivergentProperty<'_, '_> {
     fn extract(&self, context: &Commit) -> bool {
         self.repo.evolution().is_divergent(context.change_id())
     }
@@ -262,7 +262,7 @@ impl<'r> TemplateProperty<Commit, bool> for DivergentProperty<'r> {
 
 pub struct ConflictProperty;
 
-impl<'r> TemplateProperty<Commit, bool> for ConflictProperty {
+impl TemplateProperty<Commit, bool> for ConflictProperty {
     fn extract(&self, context: &Commit) -> bool {
         context.tree().has_conflict()
     }

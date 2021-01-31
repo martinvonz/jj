@@ -36,12 +36,12 @@ use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::conflicts;
 use jujube_lib::dag_walk::{common_ancestor, topo_order_reverse, walk_ancestors};
 use jujube_lib::evolution::evolve;
-use jujube_lib::evolution::EvolveListener;
+use jujube_lib::evolution::{Evolution, EvolveListener};
 use jujube_lib::files;
 use jujube_lib::files::DiffLine;
 use jujube_lib::git;
 use jujube_lib::op_store::{OpStoreError, OperationId};
-use jujube_lib::repo::{ReadonlyRepo, Repo, RepoLoadError};
+use jujube_lib::repo::{ReadonlyRepo, RepoLoadError, RepoRef};
 use jujube_lib::repo_path::RepoPath;
 use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujube_lib::settings::UserSettings;
@@ -49,6 +49,7 @@ use jujube_lib::store::{CommitId, Timestamp};
 use jujube_lib::store::{StoreError, TreeValue};
 use jujube_lib::tree::Tree;
 use jujube_lib::trees::TreeValueDiff;
+use jujube_lib::view::View;
 use jujube_lib::working_copy::{CheckoutStats, WorkingCopy};
 
 use self::chrono::{FixedOffset, TimeZone, Utc};
@@ -237,7 +238,7 @@ fn update_working_copy(
         return Ok(None);
     }
     ui.write("leaving: ");
-    ui.write_commit_summary(repo, &old_commit);
+    ui.write_commit_summary(repo.as_repo_ref(), &old_commit);
     ui.write("\n");
     // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
     // warning for most commands (but be an error for the checkout command)
@@ -249,14 +250,14 @@ fn update_working_copy(
         ))
     })?;
     ui.write("now at: ");
-    ui.write_commit_summary(repo, &new_commit);
+    ui.write_commit_summary(repo.as_repo_ref(), &new_commit);
     ui.write("\n");
     Ok(Some(stats))
 }
 
 fn update_checkout_after_rewrite(ui: &mut Ui, tx: &mut Transaction) {
     // TODO: Perhaps this method should be in Transaction.
-    let repo = tx.as_repo();
+    let repo = tx.as_repo_ref();
     let new_checkout_candidates = repo.evolution().new_parent(repo.view().checkout());
     if new_checkout_candidates.is_empty() {
         return;
@@ -929,10 +930,10 @@ fn cmd_status(
     let wc = owned_wc.lock().unwrap();
     let commit = wc.commit(ui.settings(), mut_repo);
     ui.write("Working copy : ");
-    ui.write_commit_summary(repo.as_ref(), &commit);
+    ui.write_commit_summary(repo.as_repo_ref(), &commit);
     ui.write("\n");
     ui.write("Parent commit: ");
-    ui.write_commit_summary(repo.as_ref(), &commit.parents()[0]);
+    ui.write_commit_summary(repo.as_repo_ref(), &commit.parents()[0]);
     ui.write("\n");
     ui.write("Diff summary:\n");
     show_diff_summary(ui, &commit.parents()[0].tree(), &commit.tree());
@@ -1035,7 +1036,8 @@ fn cmd_log(
             }
         }
     };
-    let template = crate::template_parser::parse_commit_template(repo.as_ref(), &template_string);
+    let template =
+        crate::template_parser::parse_commit_template(repo.as_repo_ref(), &template_string);
 
     let mut styler = ui.styler();
     let mut styler = styler.as_mut();
@@ -1108,7 +1110,8 @@ fn cmd_obslog(
             }
         }
     };
-    let template = crate::template_parser::parse_commit_template(repo.as_ref(), &template_string);
+    let template =
+        crate::template_parser::parse_commit_template(repo.as_repo_ref(), &template_string);
 
     let mut styler = ui.styler();
     let mut styler = styler.as_mut();
@@ -1284,7 +1287,7 @@ fn cmd_duplicate(
         .generate_new_change_id()
         .write_to_transaction(&mut tx);
     ui.write("created: ");
-    ui.write_commit_summary(tx.as_repo(), &new_commit);
+    ui.write_commit_summary(tx.as_repo_ref(), &new_commit);
     ui.write("\n");
     tx.commit();
     Ok(())
@@ -1335,7 +1338,7 @@ fn cmd_new(
     );
     let mut tx = repo.start_transaction("new empty commit");
     let new_commit = commit_builder.write_to_transaction(&mut tx);
-    if tx.as_repo().view().checkout() == parent.id() {
+    if tx.as_repo_ref().view().checkout() == parent.id() {
         tx.check_out(ui.settings(), &new_commit);
     }
     tx.commit();
@@ -1460,7 +1463,7 @@ fn cmd_restore(
                 .set_tree(tree_id)
                 .write_to_transaction(&mut tx);
         ui.write("Created ");
-        ui.write_commit_summary(tx.as_repo(), &new_commit);
+        ui.write_commit_summary(tx.as_repo_ref(), &new_commit);
         ui.write("\n");
         update_checkout_after_rewrite(ui, &mut tx);
         tx.commit();
@@ -1492,7 +1495,7 @@ fn cmd_edit(
             .set_tree(tree_id)
             .write_to_transaction(&mut tx);
         ui.write("Created ");
-        ui.write_commit_summary(tx.as_repo(), &new_commit);
+        ui.write_commit_summary(tx.as_repo_ref(), &new_commit);
         ui.write("\n");
         update_checkout_after_rewrite(ui, &mut tx);
         tx.commit();
@@ -1535,9 +1538,9 @@ fn cmd_split(
             .set_description(second_description)
             .write_to_transaction(&mut tx);
         ui.write("First part: ");
-        ui.write_commit_summary(tx.as_repo(), &first_commit);
+        ui.write_commit_summary(tx.as_repo_ref(), &first_commit);
         ui.write("Second part: ");
-        ui.write_commit_summary(tx.as_repo(), &second_commit);
+        ui.write_commit_summary(tx.as_repo_ref(), &second_commit);
         ui.write("\n");
         update_checkout_after_rewrite(ui, &mut tx);
         tx.commit();
@@ -1660,7 +1663,7 @@ fn cmd_evolve<'s>(
 
     struct Listener<'a, 's, 'r> {
         ui: &'a mut Ui<'s>,
-        repo: &'r dyn Repo,
+        repo: RepoRef<'a, 'r>,
     };
 
     impl<'a, 's, 'r> EvolveListener for Listener<'a, 's, 'r> {
@@ -1710,9 +1713,9 @@ fn cmd_evolve<'s>(
     let user_settings = ui.settings().clone();
     let mut listener = Listener {
         ui,
-        // TODO: This should be using tx.as_repo() so the templater sees the updated state, but
+        // TODO: This should be using tx.as_repo_ref() so the templater sees the updated state, but
         // we can't do that because we let evolution::evolve() mutably borrow the Transaction.
-        repo: repo.as_ref(),
+        repo: repo.as_repo_ref(),
     };
     let mut tx = repo.start_transaction("evolve");
     evolve(&user_settings, &mut tx, &mut listener);

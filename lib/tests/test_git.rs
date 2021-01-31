@@ -16,10 +16,11 @@ use git2::Oid;
 use jujube_lib::commit::Commit;
 use jujube_lib::git;
 use jujube_lib::git::{GitFetchError, GitPushError};
-use jujube_lib::repo::{ReadonlyRepo, Repo};
+use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::settings::UserSettings;
 use jujube_lib::store::CommitId;
 use jujube_lib::testutils;
+use jujube_lib::view::View;
 use maplit::hashset;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -69,7 +70,7 @@ fn test_import_refs() {
     let mut tx = repo.start_transaction("test");
     let heads_before: HashSet<_> = repo.view().heads().clone();
     jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
-    let view = tx.as_repo().view();
+    let view = tx.as_repo_ref().view();
     let expected_heads: HashSet<_> = heads_before
         .union(&hashset!(
             commit_id(&commit3),
@@ -125,7 +126,7 @@ fn test_import_refs_reimport() {
     let mut tx = repo.start_transaction("test");
     jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
 
-    let view = tx.as_repo().view();
+    let view = tx.as_repo_ref().view();
     // TODO: commit3 and commit4 should probably be removed
     let expected_heads: HashSet<_> = heads_before
         .union(&hashset!(
@@ -277,7 +278,7 @@ fn test_import_refs_empty_git_repo() {
     let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
     jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
-    let view = tx.as_repo().view();
+    let view = tx.as_repo_ref().view();
     assert_eq!(*view.heads(), heads_before);
     assert_eq!(view.git_refs().len(), 0);
     tx.discard();
@@ -324,7 +325,7 @@ fn test_fetch_success() {
     let mut tx = jj_repo.start_transaction("test");
     git::fetch(&mut tx, &clone_git_repo, "origin").unwrap();
     assert!(tx
-        .as_repo()
+        .as_repo_ref()
         .view()
         .heads()
         .contains(&commit_id(&new_git_commit)));

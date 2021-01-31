@@ -54,10 +54,35 @@ impl From<StoreError> for RepoError {
 
 pub type RepoResult<T> = Result<T, RepoError>;
 
-pub trait Repo: Sync {
-    fn store(&self) -> &Arc<StoreWrapper>;
-    fn view(&self) -> &dyn View;
-    fn evolution(&self) -> &dyn Evolution;
+// TODO: Should we implement From<&ReadonlyRepo> and From<&MutableRepo> for
+// RepoRef?
+#[derive(Clone, Copy)]
+pub enum RepoRef<'a, 'r: 'a> {
+    Readonly(&'a ReadonlyRepo),
+    Mutable(&'a MutableRepo<'r>),
+}
+
+impl<'a, 'r> RepoRef<'a, 'r> {
+    pub fn store(&self) -> &'a Arc<StoreWrapper> {
+        match self {
+            RepoRef::Readonly(repo) => repo.store(),
+            RepoRef::Mutable(repo) => repo.store(),
+        }
+    }
+
+    pub fn view(&self) -> &'a dyn View {
+        match self {
+            RepoRef::Readonly(repo) => repo.view(),
+            RepoRef::Mutable(repo) => repo.view(),
+        }
+    }
+
+    pub fn evolution(&self) -> &'a dyn Evolution {
+        match self {
+            RepoRef::Readonly(repo) => repo.evolution(),
+            RepoRef::Mutable(repo) => repo.evolution(),
+        }
+    }
 }
 
 pub struct ReadonlyRepo {
@@ -241,12 +266,26 @@ impl ReadonlyRepo {
         Ok(repo)
     }
 
+    pub fn as_repo_ref(&self) -> RepoRef {
+        RepoRef::Readonly(&self)
+    }
+
     pub fn repo_path(&self) -> &PathBuf {
         &self.repo_path
     }
 
     pub fn working_copy_path(&self) -> &PathBuf {
         &self.wc_path
+    }
+
+    pub fn view(&self) -> &ReadonlyView {
+        &self.view
+    }
+
+    pub fn evolution<'a>(&'a self) -> &ReadonlyEvolution<'a> {
+        let evolution: &ReadonlyEvolution<'static> = self.evolution.as_ref().unwrap();
+        let evolution: &ReadonlyEvolution<'a> = unsafe { std::mem::transmute(evolution) };
+        evolution
     }
 
     pub fn index(&self) -> Arc<ReadonlyIndex> {
@@ -315,38 +354,10 @@ impl ReadonlyRepo {
     }
 }
 
-impl Repo for ReadonlyRepo {
-    fn store(&self) -> &Arc<StoreWrapper> {
-        &self.store
-    }
-
-    fn view(&self) -> &dyn View {
-        &self.view
-    }
-
-    fn evolution(&self) -> &dyn Evolution {
-        self.evolution.as_ref().unwrap()
-    }
-}
-
 pub struct MutableRepo<'r> {
     repo: &'r ReadonlyRepo,
     view: Option<MutableView>,
     evolution: Option<MutableEvolution<'static, 'static>>,
-}
-
-impl<'r> Repo for MutableRepo<'r> {
-    fn store(&self) -> &Arc<StoreWrapper> {
-        self.repo.store()
-    }
-
-    fn view(&self) -> &dyn View {
-        self.view.as_ref().unwrap()
-    }
-
-    fn evolution(&self) -> &dyn Evolution {
-        self.evolution.as_ref().unwrap()
-    }
 }
 
 impl<'r> MutableRepo<'r> {
@@ -371,8 +382,20 @@ impl<'r> MutableRepo<'r> {
         mut_repo
     }
 
+    pub fn as_repo_ref(&self) -> RepoRef {
+        RepoRef::Mutable(&self)
+    }
+
+    pub fn store(&self) -> &Arc<StoreWrapper> {
+        self.repo.store()
+    }
+
     pub fn base_repo(&self) -> &'r ReadonlyRepo {
         self.repo
+    }
+
+    pub fn view(&self) -> &dyn View {
+        self.view.as_ref().unwrap()
     }
 
     pub fn view_mut(&mut self) -> &mut MutableView {
@@ -381,6 +404,10 @@ impl<'r> MutableRepo<'r> {
 
     pub fn take_view(mut self) -> MutableView {
         self.view.take().unwrap()
+    }
+
+    pub fn evolution(&self) -> &dyn Evolution {
+        self.evolution.as_ref().unwrap()
     }
 
     pub fn evolution_mut<'m>(&'m mut self) -> &'m mut MutableEvolution<'r, 'm> {

@@ -13,9 +13,11 @@
 // limitations under the License.
 
 use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::repo::Repo;
+use jujube_lib::evolution::Evolution;
+use jujube_lib::repo::RepoRef;
 use jujube_lib::store::CommitId;
 use jujube_lib::testutils;
+use jujube_lib::view::View;
 use std::path::Path;
 use std::sync::Arc;
 use test_case::test_case;
@@ -105,7 +107,7 @@ fn test_concurrent_operations(use_git: bool) {
     assert_eq!(list_dir(&op_heads_dir), vec![merged_op_head_id.hex()]);
 }
 
-fn assert_heads(repo: &impl Repo, expected: Vec<&CommitId>) {
+fn assert_heads(repo: RepoRef, expected: Vec<&CommitId>) {
     let expected = expected.iter().cloned().cloned().collect();
     assert_eq!(*repo.view().heads(), expected);
 }
@@ -126,12 +128,12 @@ fn test_isolation(use_git: bool) {
     let mut tx1 = repo.start_transaction("transaction 1");
     let mut tx2 = repo.start_transaction("transaction 2");
 
-    assert_heads(repo.as_ref(), vec![&wc_id, initial.id()]);
-    assert_heads(tx1.as_repo(), vec![&wc_id, initial.id()]);
-    assert_heads(tx2.as_repo(), vec![&wc_id, initial.id()]);
+    assert_heads(repo.as_repo_ref(), vec![&wc_id, initial.id()]);
+    assert_heads(tx1.as_repo_ref(), vec![&wc_id, initial.id()]);
+    assert_heads(tx2.as_repo_ref(), vec![&wc_id, initial.id()]);
     assert!(!repo.evolution().is_obsolete(initial.id()));
-    assert!(!tx1.as_repo().evolution().is_obsolete(initial.id()));
-    assert!(!tx2.as_repo().evolution().is_obsolete(initial.id()));
+    assert!(!tx1.as_repo_ref().evolution().is_obsolete(initial.id()));
+    assert!(!tx2.as_repo_ref().evolution().is_obsolete(initial.id()));
 
     let rewrite1 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial)
         .set_description("rewrite1".to_string())
@@ -142,25 +144,25 @@ fn test_isolation(use_git: bool) {
 
     // Neither transaction has committed yet, so each transaction sees its own
     // commit.
-    assert_heads(repo.as_ref(), vec![&wc_id, initial.id()]);
-    assert_heads(tx1.as_repo(), vec![&wc_id, initial.id(), rewrite1.id()]);
-    assert_heads(tx2.as_repo(), vec![&wc_id, initial.id(), rewrite2.id()]);
+    assert_heads(repo.as_repo_ref(), vec![&wc_id, initial.id()]);
+    assert_heads(tx1.as_repo_ref(), vec![&wc_id, initial.id(), rewrite1.id()]);
+    assert_heads(tx2.as_repo_ref(), vec![&wc_id, initial.id(), rewrite2.id()]);
     assert!(!repo.evolution().is_obsolete(initial.id()));
-    assert!(tx1.as_repo().evolution().is_obsolete(initial.id()));
-    assert!(tx2.as_repo().evolution().is_obsolete(initial.id()));
+    assert!(tx1.as_repo_ref().evolution().is_obsolete(initial.id()));
+    assert!(tx2.as_repo_ref().evolution().is_obsolete(initial.id()));
 
     // The base repo and tx2 don't see the commits from tx1.
     tx1.commit();
-    assert_heads(repo.as_ref(), vec![&wc_id, initial.id()]);
-    assert_heads(tx2.as_repo(), vec![&wc_id, initial.id(), rewrite2.id()]);
+    assert_heads(repo.as_repo_ref(), vec![&wc_id, initial.id()]);
+    assert_heads(tx2.as_repo_ref(), vec![&wc_id, initial.id(), rewrite2.id()]);
 
     // The base repo still doesn't see the commits after both transactions commit.
     tx2.commit();
-    assert_heads(repo.as_ref(), vec![&wc_id, initial.id()]);
+    assert_heads(repo.as_repo_ref(), vec![&wc_id, initial.id()]);
     // After reload, the base repo sees both rewrites.
     Arc::get_mut(&mut repo).unwrap().reload();
     assert_heads(
-        repo.as_ref(),
+        repo.as_repo_ref(),
         vec![&wc_id, initial.id(), rewrite1.id(), rewrite2.id()],
     );
 }

@@ -29,7 +29,7 @@ use crate::templater::{
     LiteralTemplate, ObsoleteProperty, OpenProperty, OrphanProperty, PrunedProperty,
     StringPropertyTemplate, Template, TemplateFunction, TemplateProperty,
 };
-use jujube_lib::repo::Repo;
+use jujube_lib::repo::RepoRef;
 
 #[derive(Parser)]
 #[grammar = "template.pest"]
@@ -216,7 +216,7 @@ impl<'a, I: 'a> Property<'a, I> {
 }
 
 fn parse_commit_keyword<'a, 'r: 'a>(
-    repo: &'r dyn Repo,
+    repo: RepoRef<'a, 'r>,
     pair: Pair<Rule>,
 ) -> (Property<'a, Commit>, String) {
     assert_eq!(pair.as_rule(), Rule::identifier);
@@ -260,7 +260,7 @@ fn coerce_to_string<'a, I: 'a>(
 }
 
 fn parse_boolean_commit_property<'a, 'r: 'a>(
-    repo: &'r dyn Repo,
+    repo: RepoRef<'a, 'r>,
     pair: Pair<Rule>,
 ) -> Box<dyn TemplateProperty<Commit, bool> + 'a> {
     let mut inner = pair.into_inner();
@@ -277,7 +277,7 @@ fn parse_boolean_commit_property<'a, 'r: 'a>(
 }
 
 fn parse_commit_term<'a, 'r: 'a>(
-    repo: &'r dyn Repo,
+    repo: RepoRef<'a, 'r>,
     pair: Pair<Rule>,
 ) -> Box<dyn Template<Commit> + 'a> {
     assert_eq!(pair.as_rule(), Rule::term);
@@ -375,7 +375,7 @@ fn parse_commit_term<'a, 'r: 'a>(
 }
 
 fn parse_commit_template_rule<'a, 'r: 'a>(
-    repo: &'r dyn Repo,
+    repo: RepoRef<'a, 'r>,
     pair: Pair<Rule>,
 ) -> Box<dyn Template<Commit> + 'a> {
     match pair.as_rule() {
@@ -398,7 +398,7 @@ fn parse_commit_template_rule<'a, 'r: 'a>(
 }
 
 pub fn parse_commit_template<'a, 'r: 'a>(
-    repo: &'r dyn Repo,
+    repo: RepoRef<'a, 'r>,
     template_text: &str,
 ) -> Box<dyn Template<Commit> + 'a> {
     let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::template, template_text).unwrap();

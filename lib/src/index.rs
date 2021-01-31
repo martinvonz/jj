@@ -30,9 +30,10 @@ use crate::commit::Commit;
 use crate::dag_walk;
 use crate::op_store::OperationId;
 use crate::operation::Operation;
-use crate::repo::{ReadonlyRepo, Repo};
+use crate::repo::ReadonlyRepo;
 use crate::store::CommitId;
 use crate::store_wrapper::StoreWrapper;
+use crate::view::View;
 use std::fmt::{Debug, Formatter};
 use std::ops::Bound;
 

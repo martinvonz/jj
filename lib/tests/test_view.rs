@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujube_lib::repo::Repo;
 use jujube_lib::testutils;
+use jujube_lib::view::View;
 use maplit::hashset;
 use test_case::test_case;
 
@@ -46,7 +46,7 @@ fn test_heads_fork(use_git: bool) {
 
     let wc = repo.working_copy_locked();
     assert_eq!(
-        *tx.as_repo().view().heads(),
+        *tx.as_repo_ref().view().heads(),
         hashset! {
             wc.current_commit_id(),
             child1.id().clone(),
@@ -78,7 +78,7 @@ fn test_heads_merge(use_git: bool) {
 
     let wc = repo.working_copy_locked();
     assert_eq!(
-        *tx.as_repo().view().heads(),
+        *tx.as_repo_ref().view().heads(),
         hashset! {wc.current_commit_id(), merge.id().clone()}
     );
     tx.discard();
