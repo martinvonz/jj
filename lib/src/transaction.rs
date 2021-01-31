@@ -71,11 +71,11 @@ impl<'r> Transaction<'r> {
     }
 
     pub fn base_repo(&self) -> &'r ReadonlyRepo {
-        self.repo.as_ref().unwrap().repo
+        self.repo.as_ref().unwrap().base_repo()
     }
 
     pub fn store(&self) -> &Arc<StoreWrapper> {
-        self.repo.as_ref().unwrap().repo.store()
+        self.repo.as_ref().unwrap().store()
     }
 
     pub fn as_repo<'a: 'r>(&'a self) -> &(impl Repo + 'a) {
@@ -134,13 +134,13 @@ impl<'r> Transaction<'r> {
         }
         let id = open_commit.id().clone();
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view.as_mut().unwrap().set_checkout(id);
+        mut_repo.view_mut().set_checkout(id);
         open_commit
     }
 
     pub fn set_checkout(&mut self, id: CommitId) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view.as_mut().unwrap().set_checkout(id);
+        mut_repo.view_mut().set_checkout(id);
     }
 
     pub fn add_head(&mut self, head: &Commit) {
@@ -150,53 +150,47 @@ impl<'r> Transaction<'r> {
         // out some commit, we'll need add all ancestors of that commit. This
         // code probably needs to be restructured a bit. Perhaps it should be
         // higher-level code that makes sure unknown ancestors are also added.
-        mut_repo.view.as_mut().unwrap().add_head(head);
-        mut_repo.evolution.as_mut().unwrap().add_commit(head);
+        mut_repo.view_mut().add_head(head);
+        mut_repo.evolution_mut().add_commit(head);
     }
 
     pub fn remove_head(&mut self, head: &Commit) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view.as_mut().unwrap().remove_head(head);
-        mut_repo.evolution.as_mut().unwrap().invalidate();
+        mut_repo.view_mut().remove_head(head);
+        mut_repo.evolution_mut().invalidate();
     }
 
     pub fn add_public_head(&mut self, head: &Commit) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view.as_mut().unwrap().add_public_head(head);
-        mut_repo.evolution.as_mut().unwrap().add_commit(head);
+        mut_repo.view_mut().add_public_head(head);
+        mut_repo.evolution_mut().add_commit(head);
     }
 
     pub fn remove_public_head(&mut self, head: &Commit) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view.as_mut().unwrap().remove_public_head(head);
-        mut_repo.evolution.as_mut().unwrap().invalidate();
+        mut_repo.view_mut().remove_public_head(head);
+        mut_repo.evolution_mut().invalidate();
     }
 
     pub fn insert_git_ref(&mut self, name: String, commit_id: CommitId) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo
-            .view
-            .as_mut()
-            .unwrap()
-            .insert_git_ref(name, commit_id);
+        mut_repo.view_mut().insert_git_ref(name, commit_id);
     }
 
     pub fn remove_git_ref(&mut self, name: &str) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view.as_mut().unwrap().remove_git_ref(name);
+        mut_repo.view_mut().remove_git_ref(name);
     }
 
     pub fn set_view(&mut self, data: op_store::View) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view.as_mut().unwrap().set_view(data);
-        mut_repo.evolution.as_mut().unwrap().invalidate();
+        mut_repo.view_mut().set_view(data);
+        mut_repo.evolution_mut().invalidate();
     }
 
     pub fn commit(mut self) -> Operation {
-        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.evolution = None;
-        let mut internal = Arc::try_unwrap(self.repo.take().unwrap()).ok().unwrap();
-        let view = internal.view.take().unwrap();
+        let mut_repo = Arc::try_unwrap(self.repo.take().unwrap()).ok().unwrap();
+        let view = mut_repo.take_view();
         let operation = view.save(self.description.clone(), self.start_time.clone());
         self.closed = true;
         operation
@@ -230,6 +224,18 @@ impl<'r> Repo for MutableRepo<'r> {
 }
 
 impl<'r> MutableRepo<'r> {
+    pub fn base_repo(&self) -> &'r ReadonlyRepo {
+        self.repo
+    }
+
+    pub fn view_mut(&mut self) -> &mut MutableView {
+        self.view.as_mut().unwrap()
+    }
+
+    pub fn take_view(mut self) -> MutableView {
+        self.view.take().unwrap()
+    }
+
     pub fn evolution_mut<'m>(&'m mut self) -> &'m mut MutableEvolution<'r, 'm> {
         let evolution: &mut MutableEvolution<'static, 'static> = self.evolution.as_mut().unwrap();
         let evolution: &mut MutableEvolution<'r, 'm> = unsafe { std::mem::transmute(evolution) };
