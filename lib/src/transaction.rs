@@ -87,13 +87,7 @@ impl<'r> Transaction<'r> {
     }
 
     pub fn write_commit(&mut self, commit: store::Commit) -> Commit {
-        let commit = self
-            .repo
-            .as_ref()
-            .unwrap()
-            .repo
-            .store()
-            .write_commit(commit);
+        let commit = self.store().write_commit(commit);
         self.add_head(&commit);
         commit
     }
