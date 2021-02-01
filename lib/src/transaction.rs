@@ -47,27 +47,13 @@ impl<'r> Transaction<'r> {
         evolution: &ReadonlyEvolution<'r>,
         description: &str,
     ) -> Transaction<'r> {
-        let mut_view = view.start_modification();
-        let internal = Arc::new(MutableRepo {
-            repo,
-            view: Some(mut_view),
-            evolution: None,
-        });
-        let repo_ref: &MutableRepo = internal.as_ref();
-        let static_lifetime_repo: &'static MutableRepo = unsafe { std::mem::transmute(repo_ref) };
-        let mut tx = Transaction {
-            repo: Some(internal),
+        let mut_repo = MutableRepo::new(repo, view, evolution);
+        Transaction {
+            repo: Some(mut_repo),
             description: description.to_owned(),
             start_time: Timestamp::now(),
             closed: false,
-        };
-        let mut_evolution: MutableEvolution<'_, '_> =
-            evolution.start_modification(static_lifetime_repo);
-        let static_lifetime_mut_evolution: MutableEvolution<'static, 'static> =
-            unsafe { std::mem::transmute(mut_evolution) };
-        Arc::get_mut(tx.repo.as_mut().unwrap()).unwrap().evolution =
-            Some(static_lifetime_mut_evolution);
-        tx
+        }
     }
 
     pub fn base_repo(&self) -> &'r ReadonlyRepo {
@@ -224,6 +210,27 @@ impl<'r> Repo for MutableRepo<'r> {
 }
 
 impl<'r> MutableRepo<'r> {
+    pub fn new(
+        repo: &'r ReadonlyRepo,
+        view: &ReadonlyView,
+        evolution: &ReadonlyEvolution<'r>,
+    ) -> Arc<MutableRepo<'r>> {
+        let mut_view = view.start_modification();
+        let mut mut_repo = Arc::new(MutableRepo {
+            repo,
+            view: Some(mut_view),
+            evolution: None,
+        });
+        let repo_ref: &MutableRepo = mut_repo.as_ref();
+        let static_lifetime_repo: &'static MutableRepo = unsafe { std::mem::transmute(repo_ref) };
+        let mut_evolution: MutableEvolution<'_, '_> =
+            evolution.start_modification(static_lifetime_repo);
+        let static_lifetime_mut_evolution: MutableEvolution<'static, 'static> =
+            unsafe { std::mem::transmute(mut_evolution) };
+        Arc::get_mut(&mut mut_repo).unwrap().evolution = Some(static_lifetime_mut_evolution);
+        mut_repo
+    }
+
     pub fn base_repo(&self) -> &'r ReadonlyRepo {
         self.repo
     }
