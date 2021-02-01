@@ -316,14 +316,39 @@ impl State {
     }
 }
 
-pub trait Evolution {
-    fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId>;
+pub enum EvolutionRef<'a, 'm: 'a, 'r: 'm> {
+    Readonly(&'a ReadonlyEvolution<'r>),
+    Mutable(&'a MutableEvolution<'m, 'r>),
+}
 
-    fn is_obsolete(&self, commit_id: &CommitId) -> bool;
+impl EvolutionRef<'_, '_, '_> {
+    pub fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId> {
+        match self {
+            EvolutionRef::Readonly(evolution) => evolution.successors(commit_id),
+            EvolutionRef::Mutable(evolution) => evolution.successors(commit_id),
+        }
+    }
 
-    fn is_orphan(&self, commit_id: &CommitId) -> bool;
+    pub fn is_obsolete(&self, commit_id: &CommitId) -> bool {
+        match self {
+            EvolutionRef::Readonly(evolution) => evolution.is_obsolete(commit_id),
+            EvolutionRef::Mutable(evolution) => evolution.is_obsolete(commit_id),
+        }
+    }
 
-    fn is_divergent(&self, change_id: &ChangeId) -> bool;
+    pub fn is_orphan(&self, commit_id: &CommitId) -> bool {
+        match self {
+            EvolutionRef::Readonly(evolution) => evolution.is_orphan(commit_id),
+            EvolutionRef::Mutable(evolution) => evolution.is_orphan(commit_id),
+        }
+    }
+
+    pub fn is_divergent(&self, change_id: &ChangeId) -> bool {
+        match self {
+            EvolutionRef::Readonly(evolution) => evolution.is_divergent(change_id),
+            EvolutionRef::Mutable(evolution) => evolution.is_divergent(change_id),
+        }
+    }
 
     /// Given a current parent, finds the new parent candidates. If the current
     /// parent is not obsolete, then a singleton set of that commit will be
@@ -340,7 +365,12 @@ pub trait Evolution {
     /// change id as A). Then C is rebased to somewhere else and becomes C'.
     /// We will choose that C' as effective successor even though it has a
     /// different change id and is not a descendant of one that does.
-    fn new_parent(&self, old_parent_id: &CommitId) -> HashSet<CommitId>;
+    pub fn new_parent(&self, old_parent_id: &CommitId) -> HashSet<CommitId> {
+        match self {
+            EvolutionRef::Readonly(evolution) => evolution.new_parent(old_parent_id),
+            EvolutionRef::Mutable(evolution) => evolution.new_parent(old_parent_id),
+        }
+    }
 }
 
 pub struct ReadonlyEvolution<'r> {
@@ -353,29 +383,6 @@ pub trait EvolveListener {
     fn orphan_target_ambiguous(&mut self, orphan: &Commit);
     fn divergent_resolved(&mut self, divergents: &[Commit], resolved: &Commit);
     fn divergent_no_common_predecessor(&mut self, commit1: &Commit, commit2: &Commit);
-}
-
-impl Evolution for ReadonlyEvolution<'_> {
-    fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId> {
-        self.get_state().successors(commit_id)
-    }
-
-    fn is_obsolete(&self, commit_id: &CommitId) -> bool {
-        self.get_state().is_obsolete(commit_id)
-    }
-
-    fn is_orphan(&self, commit_id: &CommitId) -> bool {
-        self.get_state().is_orphan(commit_id)
-    }
-
-    fn is_divergent(&self, change_id: &ChangeId) -> bool {
-        self.get_state().is_divergent(change_id)
-    }
-
-    fn new_parent(&self, old_parent_id: &CommitId) -> HashSet<CommitId> {
-        self.get_state()
-            .new_parent(self.repo.store(), old_parent_id)
-    }
 }
 
 impl<'r> ReadonlyEvolution<'r> {
@@ -403,6 +410,27 @@ impl<'r> ReadonlyEvolution<'r> {
             state: self.get_state().as_ref().clone(),
         }
     }
+
+    pub fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId> {
+        self.get_state().successors(commit_id)
+    }
+
+    pub fn is_obsolete(&self, commit_id: &CommitId) -> bool {
+        self.get_state().is_obsolete(commit_id)
+    }
+
+    pub fn is_orphan(&self, commit_id: &CommitId) -> bool {
+        self.get_state().is_orphan(commit_id)
+    }
+
+    pub fn is_divergent(&self, change_id: &ChangeId) -> bool {
+        self.get_state().is_divergent(change_id)
+    }
+
+    pub fn new_parent(&self, old_parent_id: &CommitId) -> HashSet<CommitId> {
+        self.get_state()
+            .new_parent(self.repo.store(), old_parent_id)
+    }
 }
 
 pub struct MutableEvolution<'r: 'm, 'm> {
@@ -410,29 +438,27 @@ pub struct MutableEvolution<'r: 'm, 'm> {
     state: State,
 }
 
-impl Evolution for MutableEvolution<'_, '_> {
-    fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId> {
+impl MutableEvolution<'_, '_> {
+    pub fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId> {
         self.state.successors(commit_id)
     }
 
-    fn is_obsolete(&self, commit_id: &CommitId) -> bool {
+    pub fn is_obsolete(&self, commit_id: &CommitId) -> bool {
         self.state.is_obsolete(commit_id)
     }
 
-    fn is_orphan(&self, commit_id: &CommitId) -> bool {
+    pub fn is_orphan(&self, commit_id: &CommitId) -> bool {
         self.state.is_orphan(commit_id)
     }
 
-    fn is_divergent(&self, change_id: &ChangeId) -> bool {
+    pub fn is_divergent(&self, change_id: &ChangeId) -> bool {
         self.state.is_divergent(change_id)
     }
 
-    fn new_parent(&self, old_parent_id: &CommitId) -> HashSet<CommitId> {
+    pub fn new_parent(&self, old_parent_id: &CommitId) -> HashSet<CommitId> {
         self.state.new_parent(self.repo.store(), old_parent_id)
     }
-}
 
-impl MutableEvolution<'_, '_> {
     pub fn add_commit(&mut self, commit: &Commit) {
         self.state.add_commit(commit);
     }

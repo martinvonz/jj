@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::evolution::Evolution;
 use jujube_lib::repo::RepoRef;
 use jujube_lib::store::CommitId;
 use jujube_lib::testutils;

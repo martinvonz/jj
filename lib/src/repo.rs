@@ -22,7 +22,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use thiserror::Error;
 
 use crate::commit_builder::{new_change_id, signature};
-use crate::evolution::{Evolution, MutableEvolution, ReadonlyEvolution};
+use crate::evolution::{EvolutionRef, MutableEvolution, ReadonlyEvolution};
 use crate::git_store::GitStore;
 use crate::index::ReadonlyIndex;
 use crate::local_store::LocalStore;
@@ -77,10 +77,10 @@ impl<'a, 'r> RepoRef<'a, 'r> {
         }
     }
 
-    pub fn evolution(&self) -> &'a dyn Evolution {
+    pub fn evolution(&self) -> EvolutionRef {
         match self {
-            RepoRef::Readonly(repo) => repo.evolution(),
-            RepoRef::Mutable(repo) => repo.evolution(),
+            RepoRef::Readonly(repo) => EvolutionRef::Readonly(repo.evolution()),
+            RepoRef::Mutable(repo) => EvolutionRef::Mutable(repo.evolution()),
         }
     }
 }
@@ -406,8 +406,10 @@ impl<'r> MutableRepo<'r> {
         self.view.take().unwrap()
     }
 
-    pub fn evolution(&self) -> &dyn Evolution {
-        self.evolution.as_ref().unwrap()
+    pub fn evolution<'m>(&'m self) -> &MutableEvolution<'r, 'm> {
+        let evolution: &MutableEvolution<'static, 'static> = self.evolution.as_ref().unwrap();
+        let evolution: &MutableEvolution<'r, 'm> = unsafe { std::mem::transmute(evolution) };
+        evolution
     }
 
     pub fn evolution_mut<'m>(&'m mut self) -> &'m mut MutableEvolution<'r, 'm> {

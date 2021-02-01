@@ -36,7 +36,7 @@ use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::conflicts;
 use jujube_lib::dag_walk::{common_ancestor, topo_order_reverse, walk_ancestors};
 use jujube_lib::evolution::evolve;
-use jujube_lib::evolution::{Evolution, EvolveListener};
+use jujube_lib::evolution::EvolveListener;
 use jujube_lib::files;
 use jujube_lib::files::DiffLine;
 use jujube_lib::git;
