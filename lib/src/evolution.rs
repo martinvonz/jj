@@ -18,13 +18,13 @@ use std::sync::{Arc, Mutex};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::{bfs, closest_common_node, leaves, walk_ancestors};
-use crate::repo::{ReadonlyRepo, Repo};
+use crate::repo::{MutableRepo, ReadonlyRepo, Repo};
 use crate::repo_path::DirRepoPath;
 use crate::rewrite::{merge_commit_trees, rebase_commit};
 use crate::settings::UserSettings;
 use crate::store::{ChangeId, CommitId};
 use crate::store_wrapper::StoreWrapper;
-use crate::transaction::{MutableRepo, Transaction};
+use crate::transaction::Transaction;
 use crate::trees::merge_trees;
 use crate::view::View;
 

@@ -22,7 +22,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use thiserror::Error;
 
 use crate::commit_builder::{new_change_id, signature};
-use crate::evolution::{Evolution, ReadonlyEvolution};
+use crate::evolution::{Evolution, MutableEvolution, ReadonlyEvolution};
 use crate::git_store::GitStore;
 use crate::index::IndexFile;
 use crate::local_store::LocalStore;
@@ -31,8 +31,8 @@ use crate::settings::{RepoSettings, UserSettings};
 use crate::store;
 use crate::store::{Store, StoreError};
 use crate::store_wrapper::StoreWrapper;
-use crate::transaction::{MutableRepo, Transaction};
-use crate::view::{ReadonlyView, View};
+use crate::transaction::Transaction;
+use crate::view::{MutableView, ReadonlyView, View};
 use crate::working_copy::WorkingCopy;
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -322,5 +322,66 @@ impl Repo for ReadonlyRepo {
 
     fn evolution(&self) -> &dyn Evolution {
         self.evolution.as_ref().unwrap()
+    }
+}
+
+pub struct MutableRepo<'r> {
+    repo: &'r ReadonlyRepo,
+    view: Option<MutableView>,
+    evolution: Option<MutableEvolution<'static, 'static>>,
+}
+
+impl<'r> Repo for MutableRepo<'r> {
+    fn store(&self) -> &Arc<StoreWrapper> {
+        self.repo.store()
+    }
+
+    fn view(&self) -> &dyn View {
+        self.view.as_ref().unwrap()
+    }
+
+    fn evolution(&self) -> &dyn Evolution {
+        self.evolution.as_ref().unwrap()
+    }
+}
+
+impl<'r> MutableRepo<'r> {
+    pub fn new(
+        repo: &'r ReadonlyRepo,
+        view: &ReadonlyView,
+        evolution: &ReadonlyEvolution<'r>,
+    ) -> Arc<MutableRepo<'r>> {
+        let mut_view = view.start_modification();
+        let mut mut_repo = Arc::new(MutableRepo {
+            repo,
+            view: Some(mut_view),
+            evolution: None,
+        });
+        let repo_ref: &MutableRepo = mut_repo.as_ref();
+        let static_lifetime_repo: &'static MutableRepo = unsafe { std::mem::transmute(repo_ref) };
+        let mut_evolution: MutableEvolution<'_, '_> =
+            evolution.start_modification(static_lifetime_repo);
+        let static_lifetime_mut_evolution: MutableEvolution<'static, 'static> =
+            unsafe { std::mem::transmute(mut_evolution) };
+        Arc::get_mut(&mut mut_repo).unwrap().evolution = Some(static_lifetime_mut_evolution);
+        mut_repo
+    }
+
+    pub fn base_repo(&self) -> &'r ReadonlyRepo {
+        self.repo
+    }
+
+    pub fn view_mut(&mut self) -> &mut MutableView {
+        self.view.as_mut().unwrap()
+    }
+
+    pub fn take_view(mut self) -> MutableView {
+        self.view.take().unwrap()
+    }
+
+    pub fn evolution_mut<'m>(&'m mut self) -> &'m mut MutableEvolution<'r, 'm> {
+        let evolution: &mut MutableEvolution<'static, 'static> = self.evolution.as_mut().unwrap();
+        let evolution: &mut MutableEvolution<'r, 'm> = unsafe { std::mem::transmute(evolution) };
+        evolution
     }
 }
