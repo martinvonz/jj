@@ -26,7 +26,7 @@ use crate::store::{ChangeId, CommitId};
 use crate::store_wrapper::StoreWrapper;
 use crate::transaction::Transaction;
 use crate::trees::merge_trees;
-use crate::view::View;
+use crate::view::ViewRef;
 
 // TODO: Combine some maps/sets and use a struct as value instead.
 // TODO: Move some of this into the index?
@@ -46,7 +46,7 @@ struct State {
 }
 
 impl State {
-    fn calculate(store: &StoreWrapper, view: &dyn View) -> State {
+    fn calculate(store: &StoreWrapper, view: ViewRef) -> State {
         let mut state = State::default();
         let mut heads = vec![];
         for commit_id in view.heads() {
@@ -398,7 +398,7 @@ impl<'r> ReadonlyEvolution<'r> {
         if locked_state.is_none() {
             locked_state.replace(Arc::new(State::calculate(
                 self.repo.store(),
-                self.repo.view(),
+                self.repo.view().as_view_ref(),
             )));
         }
         locked_state.as_ref().unwrap().clone()
@@ -464,7 +464,7 @@ impl MutableEvolution<'_, '_> {
     }
 
     pub fn invalidate(&mut self) {
-        self.state = State::calculate(self.repo.store(), self.repo.view());
+        self.state = State::calculate(self.repo.store(), self.repo.view().as_view_ref());
     }
 }
 

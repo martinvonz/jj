@@ -29,20 +29,61 @@ use crate::simple_op_store::SimpleOpStore;
 use crate::store::{CommitId, Timestamp};
 use crate::store_wrapper::StoreWrapper;
 
-pub trait View {
-    fn checkout(&self) -> &CommitId;
-    fn heads(&self) -> &HashSet<CommitId>;
-    fn public_heads(&self) -> &HashSet<CommitId>;
-    fn git_refs(&self) -> &BTreeMap<String, CommitId>;
-    fn op_store(&self) -> Arc<dyn OpStore>;
-    fn base_op_head_id(&self) -> &OperationId;
+pub enum ViewRef<'a> {
+    Readonly(&'a ReadonlyView),
+    Mutable(&'a MutableView),
+}
 
-    fn get_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
+// TODO: Move OpStore out of View?
+impl<'a> ViewRef<'a> {
+    pub fn checkout(&self) -> &'a CommitId {
+        match self {
+            ViewRef::Readonly(view) => view.checkout(),
+            ViewRef::Mutable(view) => view.checkout(),
+        }
+    }
+
+    pub fn heads(&self) -> &'a HashSet<CommitId> {
+        match self {
+            ViewRef::Readonly(view) => view.heads(),
+            ViewRef::Mutable(view) => view.heads(),
+        }
+    }
+
+    pub fn public_heads(&self) -> &'a HashSet<CommitId> {
+        match self {
+            ViewRef::Readonly(view) => view.public_heads(),
+            ViewRef::Mutable(view) => view.public_heads(),
+        }
+    }
+
+    pub fn git_refs(&self) -> &'a BTreeMap<String, CommitId> {
+        match self {
+            ViewRef::Readonly(view) => view.git_refs(),
+            ViewRef::Mutable(view) => view.git_refs(),
+        }
+    }
+
+    pub fn op_store(&self) -> Arc<dyn OpStore> {
+        match self {
+            ViewRef::Readonly(view) => view.op_store(),
+            ViewRef::Mutable(view) => view.op_store(),
+        }
+    }
+
+    pub fn base_op_head_id(&self) -> &'a OperationId {
+        match self {
+            ViewRef::Readonly(view) => view.base_op_head_id(),
+            ViewRef::Mutable(view) => view.base_op_head_id(),
+        }
+    }
+
+    pub fn get_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
         let data = self.op_store().read_operation(id)?;
         Ok(Operation::new(self.op_store().clone(), id.clone(), data))
     }
 
-    fn base_op_head(&self) -> Operation {
+    pub fn base_op_head(&self) -> Operation {
         self.get_operation(self.base_op_head_id()).unwrap()
     }
 }
@@ -318,32 +359,6 @@ fn merge_op_heads(
     Ok((merge_operation_id, merge_operation, merged_view))
 }
 
-impl View for ReadonlyView {
-    fn checkout(&self) -> &CommitId {
-        &self.data.checkout
-    }
-
-    fn heads(&self) -> &HashSet<CommitId> {
-        &self.data.head_ids
-    }
-
-    fn public_heads(&self) -> &HashSet<CommitId> {
-        &self.data.public_head_ids
-    }
-
-    fn git_refs(&self) -> &BTreeMap<String, CommitId> {
-        &self.data.git_refs
-    }
-
-    fn op_store(&self) -> Arc<dyn OpStore> {
-        self.op_store.clone()
-    }
-
-    fn base_op_head_id(&self) -> &OperationId {
-        &self.op_id
-    }
-}
-
 impl ReadonlyView {
     pub fn init(store: Arc<StoreWrapper>, path: PathBuf, checkout: CommitId) -> Self {
         std::fs::create_dir(path.join("op_store")).unwrap();
@@ -411,35 +426,65 @@ impl ReadonlyView {
             data: self.data.clone(),
         }
     }
-}
 
-impl View for MutableView {
-    fn checkout(&self) -> &CommitId {
+    pub fn as_view_ref(&self) -> ViewRef {
+        ViewRef::Readonly(self)
+    }
+
+    pub fn checkout(&self) -> &CommitId {
         &self.data.checkout
     }
 
-    fn heads(&self) -> &HashSet<CommitId> {
+    pub fn heads(&self) -> &HashSet<CommitId> {
         &self.data.head_ids
     }
 
-    fn public_heads(&self) -> &HashSet<CommitId> {
+    pub fn public_heads(&self) -> &HashSet<CommitId> {
         &self.data.public_head_ids
     }
 
-    fn git_refs(&self) -> &BTreeMap<String, CommitId> {
+    pub fn git_refs(&self) -> &BTreeMap<String, CommitId> {
         &self.data.git_refs
     }
 
-    fn op_store(&self) -> Arc<dyn OpStore> {
+    pub fn op_store(&self) -> Arc<dyn OpStore> {
         self.op_store.clone()
     }
 
-    fn base_op_head_id(&self) -> &OperationId {
-        &self.base_op_head_id
+    pub fn base_op_head_id(&self) -> &OperationId {
+        &self.op_id
     }
 }
 
 impl MutableView {
+    pub fn as_view_ref(&self) -> ViewRef {
+        ViewRef::Mutable(self)
+    }
+
+    pub fn checkout(&self) -> &CommitId {
+        &self.data.checkout
+    }
+
+    pub fn heads(&self) -> &HashSet<CommitId> {
+        &self.data.head_ids
+    }
+
+    pub fn public_heads(&self) -> &HashSet<CommitId> {
+        &self.data.public_head_ids
+    }
+
+    pub fn git_refs(&self) -> &BTreeMap<String, CommitId> {
+        &self.data.git_refs
+    }
+
+    pub fn op_store(&self) -> Arc<dyn OpStore> {
+        self.op_store.clone()
+    }
+
+    pub fn base_op_head_id(&self) -> &OperationId {
+        &self.base_op_head_id
+    }
+
     pub fn set_checkout(&mut self, id: CommitId) {
         self.data.checkout = id;
     }

@@ -32,7 +32,7 @@ use crate::store;
 use crate::store::{Store, StoreError};
 use crate::store_wrapper::StoreWrapper;
 use crate::transaction::Transaction;
-use crate::view::{MutableView, ReadonlyView, View};
+use crate::view::{MutableView, ReadonlyView, ViewRef};
 use crate::working_copy::WorkingCopy;
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -70,14 +70,14 @@ impl<'a, 'r> RepoRef<'a, 'r> {
         }
     }
 
-    pub fn view(&self) -> &'a dyn View {
+    pub fn view(&self) -> ViewRef<'a> {
         match self {
-            RepoRef::Readonly(repo) => repo.view(),
-            RepoRef::Mutable(repo) => repo.view(),
+            RepoRef::Readonly(repo) => ViewRef::Readonly(repo.view()),
+            RepoRef::Mutable(repo) => ViewRef::Mutable(repo.view()),
         }
     }
 
-    pub fn evolution(&self) -> EvolutionRef {
+    pub fn evolution(&self) -> EvolutionRef<'a, 'a, 'r> {
         match self {
             RepoRef::Readonly(repo) => EvolutionRef::Readonly(repo.evolution()),
             RepoRef::Mutable(repo) => EvolutionRef::Mutable(repo.evolution()),
@@ -394,7 +394,7 @@ impl<'r> MutableRepo<'r> {
         self.repo
     }
 
-    pub fn view(&self) -> &dyn View {
+    pub fn view(&self) -> &MutableView {
         self.view.as_ref().unwrap()
     }
 

@@ -33,7 +33,6 @@ use crate::operation::Operation;
 use crate::repo::ReadonlyRepo;
 use crate::store::CommitId;
 use crate::store_wrapper::StoreWrapper;
-use crate::view::View;
 use std::fmt::{Debug, Formatter};
 use std::ops::Bound;
 
@@ -925,7 +924,7 @@ impl ReadonlyIndex {
             let op_id = OperationId(hex::decode(op_id_hex).unwrap());
             ReadonlyIndex::load_at_operation(&dir, repo.store().hash_length(), &op_id).unwrap()
         } else {
-            let op = repo.view().get_operation(&op_id).unwrap();
+            let op = repo.view().as_view_ref().get_operation(&op_id).unwrap();
             ReadonlyIndex::index(repo.store(), &dir, &op).unwrap()
         };
 

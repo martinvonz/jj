@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use jujube_lib::testutils;
-use jujube_lib::view::View;
 use maplit::hashset;
 use test_case::test_case;
 

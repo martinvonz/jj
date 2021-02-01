@@ -17,7 +17,6 @@ use jujube_lib::repo_path::FileRepoPath;
 use jujube_lib::store::{Conflict, ConflictId, ConflictPart, TreeValue};
 use jujube_lib::store_wrapper::StoreWrapper;
 use jujube_lib::testutils;
-use jujube_lib::view::View;
 use std::sync::Arc;
 use test_case::test_case;
 

@@ -49,7 +49,6 @@ use jujube_lib::store::{CommitId, Timestamp};
 use jujube_lib::store::{StoreError, TreeValue};
 use jujube_lib::tree::Tree;
 use jujube_lib::trees::TreeValueDiff;
-use jujube_lib::view::View;
 use jujube_lib::working_copy::{CheckoutStats, WorkingCopy};
 
 use self::chrono::{FixedOffset, TimeZone, Utc};
@@ -204,10 +203,10 @@ fn op_arg<'a, 'b>() -> Arg<'a, 'b> {
 fn resolve_single_op(repo: &ReadonlyRepo, op_str: &str) -> Result<Operation, CommandError> {
     let view = repo.view();
     if op_str == "@" {
-        Ok(view.base_op_head())
+        Ok(view.as_view_ref().base_op_head())
     } else if let Ok(binary_op_id) = hex::decode(op_str) {
         let op_id = OperationId(binary_op_id);
-        match view.get_operation(&op_id) {
+        match view.as_view_ref().get_operation(&op_id) {
             Ok(operation) => Ok(operation),
             Err(OpStoreError::NotFound) => Err(CommandError::UserError(format!(
                 "Operation id not found: {}",
@@ -1886,7 +1885,7 @@ fn cmd_op_log(
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
     let view = repo.view();
-    let head_op = view.base_op_head();
+    let head_op = view.as_view_ref().base_op_head();
     let mut styler = ui.styler();
     let mut styler = styler.as_mut();
     struct OpTemplate;
@@ -1974,7 +1973,7 @@ fn cmd_op_undo(
         let view = repo.view();
         let parent_view = parent_ops[0].view();
         let bad_view = bad_op.view();
-        let current_view = view.base_op_head().view();
+        let current_view = view.as_view_ref().base_op_head().view();
         merge_views(
             repo.store(),
             current_view.store_view(),

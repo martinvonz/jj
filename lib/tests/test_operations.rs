@@ -16,7 +16,6 @@ use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::repo::RepoRef;
 use jujube_lib::store::CommitId;
 use jujube_lib::testutils;
-use jujube_lib::view::View;
 use std::path::Path;
 use std::sync::Arc;
 use test_case::test_case;

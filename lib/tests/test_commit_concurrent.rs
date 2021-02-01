@@ -17,7 +17,6 @@ use std::thread;
 use jujube_lib::dag_walk;
 use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::testutils;
-use jujube_lib::view::View;
 use std::sync::Arc;
 use test_case::test_case;
 

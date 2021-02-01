@@ -20,7 +20,6 @@ use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::settings::UserSettings;
 use jujube_lib::store::CommitId;
 use jujube_lib::testutils;
-use jujube_lib::view::View;
 use maplit::hashset;
 use std::collections::HashSet;
 use std::path::PathBuf;
