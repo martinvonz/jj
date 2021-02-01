@@ -41,13 +41,7 @@ pub struct MutableRepo<'r> {
 }
 
 impl<'r> Transaction<'r> {
-    pub fn new(
-        repo: &'r ReadonlyRepo,
-        view: &ReadonlyView,
-        evolution: &ReadonlyEvolution<'r>,
-        description: &str,
-    ) -> Transaction<'r> {
-        let mut_repo = MutableRepo::new(repo, view, evolution);
+    pub fn new(mut_repo: Arc<MutableRepo<'r>>, description: &str) -> Transaction<'r> {
         Transaction {
             repo: Some(mut_repo),
             description: description.to_owned(),

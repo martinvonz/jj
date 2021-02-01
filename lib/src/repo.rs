@@ -31,7 +31,7 @@ use crate::settings::{RepoSettings, UserSettings};
 use crate::store;
 use crate::store::{Store, StoreError};
 use crate::store_wrapper::StoreWrapper;
-use crate::transaction::Transaction;
+use crate::transaction::{MutableRepo, Transaction};
 use crate::view::{ReadonlyView, View};
 use crate::working_copy::WorkingCopy;
 
@@ -284,12 +284,8 @@ impl ReadonlyRepo {
     }
 
     pub fn start_transaction(&self, description: &str) -> Transaction {
-        Transaction::new(
-            &self,
-            &self.view,
-            &self.evolution.as_ref().unwrap(),
-            description,
-        )
+        let mut_repo = MutableRepo::new(self, &self.view, &self.evolution.as_ref().unwrap());
+        Transaction::new(mut_repo, description)
     }
 
     pub fn reload(&mut self) {
