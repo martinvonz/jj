@@ -14,7 +14,7 @@
 
 use jujube_lib::commit::Commit;
 use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::index::CompositeIndex;
+use jujube_lib::index::IndexRef;
 use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::settings::UserSettings;
 use jujube_lib::store::CommitId;
@@ -28,8 +28,12 @@ fn child_commit(settings: &UserSettings, repo: &ReadonlyRepo, commit: &Commit) -
 }
 
 // Helper just to reduce line wrapping
-fn generation_number(index: &CompositeIndex, commit_id: &CommitId) -> u32 {
-    index.entry_by_id(commit_id).unwrap().generation_number()
+fn generation_number<'a>(index: impl Into<IndexRef<'a>>, commit_id: &CommitId) -> u32 {
+    index
+        .into()
+        .entry_by_id(commit_id)
+        .unwrap()
+        .generation_number()
 }
 
 #[test_case(false ; "local store")]
@@ -39,14 +43,19 @@ fn test_index_commits_empty_repo(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let index = repo.index();
-    let index = index.as_composite();
     // There should be the root commit and the working copy commit
     assert_eq!(index.num_commits(), 2);
 
     // Check the generation numbers of the root and the working copy
-    assert_eq!(generation_number(&index, repo.store().root_commit_id()), 0);
     assert_eq!(
-        generation_number(&index, &repo.working_copy_locked().current_commit_id()),
+        generation_number(index.clone(), repo.store().root_commit_id()),
+        0
+    );
+    assert_eq!(
+        generation_number(
+            index.clone(),
+            &repo.working_copy_locked().current_commit_id()
+        ),
         1
     );
 }
@@ -88,7 +97,6 @@ fn test_index_commits_standard_cases(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let index = repo.index();
-    let index = index.as_composite();
     // There should be the root commit and the working copy commit, plus
     // 8 more
     assert_eq!(index.num_commits(), 2 + 8);
@@ -98,16 +106,16 @@ fn test_index_commits_standard_cases(use_git: bool) {
     assert_eq!(stats.num_merges, 1);
     assert_eq!(stats.max_generation_number, 6);
 
-    assert_eq!(generation_number(&index, root_commit.id()), 0);
-    assert_eq!(generation_number(&index, wc_commit.id()), 1);
-    assert_eq!(generation_number(&index, commit_a.id()), 1);
-    assert_eq!(generation_number(&index, commit_b.id()), 2);
-    assert_eq!(generation_number(&index, commit_c.id()), 2);
-    assert_eq!(generation_number(&index, commit_d.id()), 3);
-    assert_eq!(generation_number(&index, commit_e.id()), 4);
-    assert_eq!(generation_number(&index, commit_f.id()), 5);
-    assert_eq!(generation_number(&index, commit_g.id()), 6);
-    assert_eq!(generation_number(&index, commit_h.id()), 5);
+    assert_eq!(generation_number(index.clone(), root_commit.id()), 0);
+    assert_eq!(generation_number(index.clone(), wc_commit.id()), 1);
+    assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
+    assert_eq!(generation_number(index.clone(), commit_b.id()), 2);
+    assert_eq!(generation_number(index.clone(), commit_c.id()), 2);
+    assert_eq!(generation_number(index.clone(), commit_d.id()), 3);
+    assert_eq!(generation_number(index.clone(), commit_e.id()), 4);
+    assert_eq!(generation_number(index.clone(), commit_f.id()), 5);
+    assert_eq!(generation_number(index.clone(), commit_g.id()), 6);
+    assert_eq!(generation_number(index.clone(), commit_h.id()), 5);
 
     assert!(index.is_ancestor(root_commit.id(), commit_a.id()));
     assert!(!index.is_ancestor(commit_a.id(), root_commit.id()));
@@ -161,7 +169,6 @@ fn test_index_commits_criss_cross(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let index = repo.index();
-    let index = index.as_composite();
     // There should the root commit and the working copy commit, plus 2 for each
     // generation
     assert_eq!(index.num_commits(), 2 + 2 * (num_generations as u32));
@@ -175,11 +182,11 @@ fn test_index_commits_criss_cross(use_git: bool) {
     // Check generation numbers
     for gen in 0..num_generations {
         assert_eq!(
-            generation_number(&index, left_commits[gen].id()),
+            generation_number(index.clone(), left_commits[gen].id()),
             (gen as u32) + 1
         );
         assert_eq!(
-            generation_number(&index, right_commits[gen].id()),
+            generation_number(index.clone(), right_commits[gen].id()),
             (gen as u32) + 1
         );
     }
@@ -276,7 +283,6 @@ fn test_index_commits_previous_operations(use_git: bool) {
 
     let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
     let index = repo.index();
-    let index = index.as_composite();
     // There should be the root commit and the working copy commit, plus
     // 3 more
     assert_eq!(index.num_commits(), 2 + 3);
@@ -286,9 +292,9 @@ fn test_index_commits_previous_operations(use_git: bool) {
     assert_eq!(stats.num_merges, 0);
     assert_eq!(stats.max_generation_number, 3);
 
-    assert_eq!(generation_number(&index, commit_a.id()), 1);
-    assert_eq!(generation_number(&index, commit_b.id()), 2);
-    assert_eq!(generation_number(&index, commit_c.id()), 3);
+    assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
+    assert_eq!(generation_number(index.clone(), commit_b.id()), 2);
+    assert_eq!(generation_number(index.clone(), commit_c.id()), 3);
 }
 
 #[test_case(false ; "local store")]
@@ -312,7 +318,6 @@ fn test_index_commits_incremental(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let index = repo.index();
-    let index = index.as_composite();
     // There should be the root commit and the working copy commit, plus
     // 1 more
     assert_eq!(index.num_commits(), 2 + 1);
@@ -324,7 +329,6 @@ fn test_index_commits_incremental(use_git: bool) {
 
     let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
     let index = repo.index();
-    let index = index.as_composite();
     // There should be the root commit and the working copy commit, plus
     // 3 more
     assert_eq!(index.num_commits(), 2 + 3);
@@ -338,10 +342,10 @@ fn test_index_commits_incremental(use_git: bool) {
     assert_eq!(stats.levels[1].num_commits, 3);
     assert_ne!(stats.levels[1].name, stats.levels[0].name);
 
-    assert_eq!(generation_number(&index, root_commit.id()), 0);
-    assert_eq!(generation_number(&index, commit_a.id()), 1);
-    assert_eq!(generation_number(&index, commit_b.id()), 2);
-    assert_eq!(generation_number(&index, commit_c.id()), 3);
+    assert_eq!(generation_number(index.clone(), root_commit.id()), 0);
+    assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
+    assert_eq!(generation_number(index.clone(), commit_b.id()), 2);
+    assert_eq!(generation_number(index.clone(), commit_c.id()), 3);
 }
 
 #[test_case(false ; "local store")]
@@ -363,7 +367,6 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let index = repo.index();
-    let index = index.as_composite();
     // There should be the root commit and the working copy commit, plus
     // 1 more
     assert_eq!(index.num_commits(), 2 + 1);
@@ -372,7 +375,6 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
 
     let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
     let index = repo.index();
-    let index = index.as_composite();
     // There should be the root commit and the working copy commit, plus
     // 1 more
     assert_eq!(index.num_commits(), 2 + 1);
@@ -385,6 +387,6 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     assert_eq!(stats.levels[0].num_commits, 0);
     assert_eq!(stats.levels[1].num_commits, 3);
 
-    assert_eq!(generation_number(&index, root_commit.id()), 0);
-    assert_eq!(generation_number(&index, commit_a.id()), 1);
+    assert_eq!(generation_number(index.clone(), root_commit.id()), 0);
+    assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
 }

@@ -36,6 +36,92 @@ use crate::store_wrapper::StoreWrapper;
 use std::fmt::{Debug, Formatter};
 use std::ops::Bound;
 
+#[derive(Clone)]
+pub enum IndexRef<'a> {
+    Readonly(Arc<ReadonlyIndex>),
+    Mutable(&'a MutableIndex),
+}
+
+impl From<Arc<ReadonlyIndex>> for IndexRef<'_> {
+    fn from(index: Arc<ReadonlyIndex>) -> Self {
+        IndexRef::Readonly(index)
+    }
+}
+
+impl<'a> From<&'a MutableIndex> for IndexRef<'a> {
+    fn from(index: &'a MutableIndex) -> Self {
+        IndexRef::Mutable(index)
+    }
+}
+
+impl<'a> IndexRef<'a> {
+    pub fn num_commits(&self) -> u32 {
+        match self {
+            IndexRef::Readonly(index) => index.num_commits(),
+            IndexRef::Mutable(index) => index.num_commits(),
+        }
+    }
+
+    pub fn stats(&self) -> IndexStats {
+        match self {
+            IndexRef::Readonly(index) => index.stats(),
+            IndexRef::Mutable(index) => index.stats(),
+        }
+    }
+
+    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
+        match self {
+            IndexRef::Readonly(index) => index.commit_id_to_pos(commit_id),
+            IndexRef::Mutable(index) => index.commit_id_to_pos(commit_id),
+        }
+    }
+
+    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
+        match self {
+            IndexRef::Readonly(index) => index.resolve_prefix(prefix),
+            IndexRef::Mutable(index) => index.resolve_prefix(prefix),
+        }
+    }
+
+    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
+        match self {
+            IndexRef::Readonly(index) => index.entry_by_id(commit_id),
+            IndexRef::Mutable(index) => index.entry_by_id(commit_id),
+        }
+    }
+
+    pub fn has_id(&self, commit_id: &CommitId) -> bool {
+        match self {
+            IndexRef::Readonly(index) => index.has_id(commit_id),
+            IndexRef::Mutable(index) => index.has_id(commit_id),
+        }
+    }
+
+    pub fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
+        match self {
+            IndexRef::Readonly(index) => index.is_ancestor(ancestor_id, descendant_id),
+            IndexRef::Mutable(index) => index.is_ancestor(ancestor_id, descendant_id),
+        }
+    }
+
+    pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
+        match self {
+            IndexRef::Readonly(index) => index.walk_revs(wanted, unwanted),
+            IndexRef::Mutable(index) => index.walk_revs(wanted, unwanted),
+        }
+    }
+
+    pub fn heads<'candidates>(
+        &self,
+        candidates: impl IntoIterator<Item = &'candidates CommitId>,
+    ) -> Vec<CommitId> {
+        match self {
+            IndexRef::Readonly(index) => index.heads(candidates),
+            IndexRef::Mutable(index) => index.heads(candidates),
+        }
+    }
+}
+
 struct CommitGraphEntry<'a> {
     data: &'a [u8],
     hash_length: usize,
@@ -273,7 +359,7 @@ impl MutableIndex {
         }
     }
 
-    fn incremental(parent_file: Arc<ReadonlyIndex>) -> Self {
+    pub fn incremental(parent_file: Arc<ReadonlyIndex>) -> Self {
         let num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;
         let hash_length = parent_file.hash_length;
         Self {
@@ -285,8 +371,8 @@ impl MutableIndex {
         }
     }
 
-    pub fn as_composite(&self) -> CompositeIndex {
-        CompositeIndex(self)
+    pub fn as_index_ref(&self) -> IndexRef {
+        IndexRef::Mutable(self)
     }
 
     fn add_commit(&mut self, commit: &Commit) {
@@ -437,10 +523,8 @@ trait IndexSegment {
     fn segment_entry_by_pos(&self, pos: u32, local_pos: u32) -> IndexEntry;
 }
 
-// TODO: This is a weird name for a public type in this module. The callers
-// shouldn't need to know that it's composite. Rename.
 #[derive(Clone)]
-pub struct CompositeIndex<'a>(&'a dyn IndexSegment);
+struct CompositeIndex<'a>(&'a dyn IndexSegment);
 
 impl<'a> CompositeIndex<'a> {
     pub fn num_commits(&self) -> u32 {
@@ -497,7 +581,7 @@ impl<'a> CompositeIndex<'a> {
             // The parent ReadonlyIndex outlives the child
             let parent_file: &'a ReadonlyIndex = unsafe { std::mem::transmute(parent_file) };
 
-            parent_file.as_composite().entry_by_pos(pos)
+            CompositeIndex(parent_file).entry_by_pos(pos)
         }
     }
 
@@ -507,7 +591,7 @@ impl<'a> CompositeIndex<'a> {
             self.0
                 .segment_parent_file()
                 .as_ref()
-                .and_then(|file| file.as_composite().commit_id_to_pos(commit_id))
+                .and_then(|file| IndexRef::Readonly(file.clone()).commit_id_to_pos(commit_id))
         })
     }
 
@@ -1106,10 +1190,6 @@ impl ReadonlyIndex {
         Ok(index_file)
     }
 
-    pub fn as_composite(&self) -> CompositeIndex {
-        CompositeIndex(self)
-    }
-
     pub fn num_commits(&self) -> u32 {
         CompositeIndex(self).num_commits()
     }
@@ -1227,13 +1307,14 @@ mod tests {
     fn index_empty(use_file: bool) {
         let index = MutableIndex::full(3);
         let temp_dir;
-        let source: Box<dyn IndexSegment> = if use_file {
+        let index = if use_file {
             temp_dir = tempfile::tempdir().unwrap();
-            Box::new(ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap())
+            IndexRef::Readonly(Arc::new(
+                ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap(),
+            ))
         } else {
-            Box::new(index)
+            IndexRef::Mutable(&index)
         };
-        let index = CompositeIndex(source.as_ref());
 
         // Stats are as expected
         let stats = index.stats();
@@ -1255,13 +1336,14 @@ mod tests {
         let id_0 = CommitId::from_hex("000000");
         index.add_commit_data(id_0.clone(), vec![]);
         let temp_dir;
-        let source: Box<dyn IndexSegment> = if use_file {
+        let index = if use_file {
             temp_dir = tempfile::tempdir().unwrap();
-            Box::new(ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap())
+            IndexRef::Readonly(Arc::new(
+                ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap(),
+            ))
         } else {
-            Box::new(index)
+            IndexRef::Mutable(&index)
         };
-        let index = CompositeIndex(source.as_ref());
 
         // Stats are as expected
         let stats = index.stats();
@@ -1281,10 +1363,6 @@ mod tests {
         assert_eq!(entry.generation_number(), 0);
         assert_eq!(entry.num_parents(), 0);
         assert_eq!(entry.parents_positions(), Vec::<u32>::new());
-        // Can get same entry by position
-        let entry = index.entry_by_pos(0);
-        assert_eq!(entry.pos, 0);
-        assert_eq!(entry.commit_id(), id_0);
     }
 
     #[test]
@@ -1331,12 +1409,13 @@ mod tests {
         index.add_commit_data(id_3.clone(), vec![id_2.clone()]);
         index.add_commit_data(id_4.clone(), vec![id_1.clone()]);
         index.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
-        let source: Box<dyn IndexSegment> = if use_file {
-            Box::new(ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap())
+        let index = if use_file {
+            IndexRef::Readonly(Arc::new(
+                ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap(),
+            ))
         } else {
-            Box::new(index)
+            IndexRef::Mutable(&index)
         };
-        let index = CompositeIndex(source.as_ref());
 
         // Stats are as expected
         let stats = index.stats();
@@ -1435,7 +1514,6 @@ mod tests {
         index.add_commit_data(id_3.clone(), vec![id_2.clone()]);
         index.add_commit_data(id_4.clone(), vec![id_1.clone()]);
         index.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
-        let index = CompositeIndex(&index);
 
         assert!(index.is_ancestor(&id_0, &id_0));
         assert!(index.is_ancestor(&id_0, &id_1));
@@ -1472,7 +1550,6 @@ mod tests {
         index.add_commit_data(id_3.clone(), vec![id_2.clone()]);
         index.add_commit_data(id_4.clone(), vec![id_1.clone()]);
         index.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
-        let index = CompositeIndex(&index);
 
         // No wanted commits
         let revs: Vec<CommitId> = index.walk_revs(&[], &[]).collect();
@@ -1540,7 +1617,6 @@ mod tests {
         index.add_commit_data(id_3.clone(), vec![id_2.clone()]);
         index.add_commit_data(id_4.clone(), vec![id_1.clone()]);
         index.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
-        let index = CompositeIndex(&index);
 
         // Empty input
         assert!(index.heads(&[]).is_empty());
