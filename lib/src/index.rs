@@ -143,15 +143,10 @@ fn topo_order_parents_first(
     let mut commits = vec![];
     let mut visited = HashSet::new();
     let mut in_parent_file = HashSet::new();
-    let parent_file_source = parent_file
-        .as_ref()
-        .map(|file| file.as_ref().as_composite());
+    let parent_file_source = parent_file.as_ref().map(|file| file.as_ref());
     while !work.is_empty() {
         let commit = work.pop().unwrap();
-        if parent_file_source
-            .as_ref()
-            .map_or(false, |index| index.has_id(commit.id()))
-        {
+        if parent_file_source.map_or(false, |index| index.has_id(commit.id())) {
             in_parent_file.insert(commit.id().clone());
             continue;
         } else if !visited.insert(commit.id().clone()) {
@@ -306,7 +301,6 @@ impl MutableIndex {
         };
         for parent_id in parent_ids {
             let parent_entry = self
-                .as_composite()
                 .entry_by_id(&parent_id)
                 .expect("parent commit is not indexed");
             entry.generation_number = max(
@@ -377,6 +371,45 @@ impl MutableIndex {
         }
 
         buf
+    }
+
+    pub fn num_commits(&self) -> u32 {
+        CompositeIndex(self).num_commits()
+    }
+
+    pub fn stats(&self) -> IndexStats {
+        CompositeIndex(self).stats()
+    }
+
+    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
+        CompositeIndex(self).commit_id_to_pos(commit_id)
+    }
+
+    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
+        CompositeIndex(self).resolve_prefix(prefix)
+    }
+
+    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
+        CompositeIndex(self).entry_by_id(commit_id)
+    }
+
+    pub fn has_id(&self, commit_id: &CommitId) -> bool {
+        CompositeIndex(self).has_id(commit_id)
+    }
+
+    pub fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
+        CompositeIndex(self).is_ancestor(ancestor_id, descendant_id)
+    }
+
+    pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
+        CompositeIndex(self).walk_revs(wanted, unwanted)
+    }
+
+    pub fn heads<'candidates>(
+        &self,
+        candidates: impl IntoIterator<Item = &'candidates CommitId>,
+    ) -> Vec<CommitId> {
+        CompositeIndex(self).heads(candidates)
     }
 }
 
@@ -489,7 +522,7 @@ impl<'a> CompositeIndex<'a> {
             .segment_parent_file()
             .as_ref()
             .map_or(PrefixResolution::NoMatch, |file| {
-                file.as_composite().resolve_prefix(prefix)
+                file.resolve_prefix(prefix)
             });
         local_match.plus(&parent_match)
     }
@@ -530,7 +563,7 @@ impl<'a> CompositeIndex<'a> {
         false
     }
 
-    pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
+    pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk<'a> {
         let mut rev_walk = RevWalk::new(self.clone());
         for pos in wanted.iter().map(|id| self.commit_id_to_pos(id).unwrap()) {
             rev_walk.add_wanted(pos);
@@ -1075,6 +1108,45 @@ impl ReadonlyIndex {
 
     pub fn as_composite(&self) -> CompositeIndex {
         CompositeIndex(self)
+    }
+
+    pub fn num_commits(&self) -> u32 {
+        CompositeIndex(self).num_commits()
+    }
+
+    pub fn stats(&self) -> IndexStats {
+        CompositeIndex(self).stats()
+    }
+
+    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
+        CompositeIndex(self).commit_id_to_pos(commit_id)
+    }
+
+    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
+        CompositeIndex(self).resolve_prefix(prefix)
+    }
+
+    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
+        CompositeIndex(self).entry_by_id(commit_id)
+    }
+
+    pub fn has_id(&self, commit_id: &CommitId) -> bool {
+        CompositeIndex(self).has_id(commit_id)
+    }
+
+    pub fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
+        CompositeIndex(self).is_ancestor(ancestor_id, descendant_id)
+    }
+
+    pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
+        CompositeIndex(self).walk_revs(wanted, unwanted)
+    }
+
+    pub fn heads<'candidates>(
+        &self,
+        candidates: impl IntoIterator<Item = &'candidates CommitId>,
+    ) -> Vec<CommitId> {
+        CompositeIndex(self).heads(candidates)
     }
 
     fn graph_entry(&self, local_pos: u32) -> CommitGraphEntry {

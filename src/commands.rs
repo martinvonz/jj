@@ -104,8 +104,7 @@ fn resolve_commit_id_prefix(
     repo: &ReadonlyRepo,
     prefix: &HexPrefix,
 ) -> Result<CommitId, CommandError> {
-    let index = repo.index();
-    match index.as_composite().resolve_prefix(prefix) {
+    match repo.index().resolve_prefix(prefix) {
         PrefixResolution::NoMatch => Err(CommandError::UserError(String::from("No such commit"))),
         PrefixResolution::AmbiguousMatch => {
             Err(CommandError::UserError(String::from("Ambiguous prefix")))
@@ -1767,8 +1766,7 @@ fn cmd_debug(
         writeln!(ui, "{:?}", parse);
     } else if let Some(_reindex_matches) = sub_matches.subcommand_matches("index") {
         let repo = get_repo(ui, &matches)?;
-        let index = repo.index();
-        let stats = index.as_composite().stats();
+        let stats = repo.index().stats();
         writeln!(ui, "Number of commits: {}", stats.num_commits);
         writeln!(ui, "Number of merges: {}", stats.num_merges);
         writeln!(ui, "Max generation number: {}", stats.max_generation_number);
@@ -1783,11 +1781,7 @@ fn cmd_debug(
         let mut repo = get_repo(ui, &matches)?;
         let mut_repo = Arc::get_mut(&mut repo).unwrap();
         let index = mut_repo.reindex();
-        writeln!(
-            ui,
-            "Finished indexing {:?} commits.",
-            index.as_composite().num_commits()
-        );
+        writeln!(ui, "Finished indexing {:?} commits.", index.num_commits());
     } else {
         panic!("unhandled command: {:#?}", matches);
     }
@@ -1823,7 +1817,6 @@ fn cmd_bench(
             command_matches.value_of("descendant").unwrap(),
         )?;
         let index = repo.index();
-        let index = index.as_composite();
         let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
         writeln!(ui, "Result: {:?}", routine());
         criterion.bench_function("isancestor", |bencher: &mut criterion::Bencher| {
@@ -1837,7 +1830,6 @@ fn cmd_bench(
         let wanted_commit =
             resolve_single_rev(ui, mut_repo, command_matches.value_of("wanted").unwrap())?;
         let index = repo.index();
-        let index = index.as_composite();
         let routine = || {
             index
                 .walk_revs(
@@ -1854,7 +1846,6 @@ fn cmd_bench(
         let repo = get_repo(ui, &matches)?;
         let prefix = HexPrefix::new(command_matches.value_of("prefix").unwrap().to_string());
         let index = repo.index();
-        let index = index.as_composite();
         let routine = || index.resolve_prefix(&prefix);
         writeln!(ui, "Result: {:?}", routine());
         criterion.bench_function("resolveprefix", |bencher: &mut criterion::Bencher| {
