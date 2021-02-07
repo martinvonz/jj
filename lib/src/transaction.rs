@@ -176,7 +176,7 @@ impl<'r> Transaction<'r> {
 impl<'r> Drop for Transaction<'r> {
     fn drop(&mut self) {
         if !std::thread::panicking() {
-            assert!(self.closed, "Transaction was dropped without being closed.");
+            debug_assert!(self.closed, "Transaction was dropped without being closed.");
         }
     }
 }
