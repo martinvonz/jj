@@ -381,7 +381,7 @@ impl TreeState {
         create_parent_dirs(disk_path);
         #[cfg(windows)]
         {
-            unimplemented!();
+            println!("ignoring symlink at {:?}", path);
         }
         #[cfg(not(windows))]
         {
