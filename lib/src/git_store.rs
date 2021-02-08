@@ -31,7 +31,6 @@ use backoff::{ExponentialBackoff, Operation};
 use std::ops::Deref;
 
 const COMMITS_NOTES_REF: &str = "refs/notes/jj/commits";
-const CONFLICTS_NOTES_REF: &str = "refs/notes/jj/conflicts";
 const CONFLICT_SUFFIX: &str = ".jjconflict";
 
 impl From<git2::Error> for StoreError {
@@ -388,22 +387,6 @@ impl Store for GitStore {
         let bytes = json_string.as_bytes();
         let locked_repo = self.repo.lock().unwrap();
         let oid = locked_repo.blob(bytes).unwrap();
-        let signature = git2::Signature::now("Jujube", "jj@example.com").unwrap();
-        let note_result = write_note(
-            locked_repo.deref(),
-            &signature,
-            CONFLICTS_NOTES_REF,
-            oid,
-            "Conflict object used by Jujube",
-        );
-        match note_result {
-            // It's fine if the conflict already existed (no need to update the note), but
-            // any other error is unexpected.
-            Err(err) if err.code() != git2::ErrorCode::Exists => {
-                return Err(StoreError::from(err));
-            }
-            _ => {}
-        }
         Ok(ConflictId(oid.as_bytes().to_vec()))
     }
 }
