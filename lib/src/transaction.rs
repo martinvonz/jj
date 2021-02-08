@@ -202,8 +202,10 @@ impl<'r> Transaction<'r> {
 
     pub fn commit(mut self) -> Operation {
         let mut_repo = Arc::try_unwrap(self.repo.take().unwrap()).ok().unwrap();
-        let view = mut_repo.take_view();
-        let operation = view.save(self.description.clone(), self.start_time.clone());
+        let (mut_index, mut_view) = mut_repo.consume();
+        let index = mut_index.save().unwrap();
+        let operation = mut_view.save(self.description.clone(), self.start_time.clone());
+        index.associate_with_operation(operation.id()).unwrap();
         self.closed = true;
         operation
     }

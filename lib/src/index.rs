@@ -466,7 +466,7 @@ impl MutableIndex {
         buf
     }
 
-    fn save(self) -> io::Result<ReadonlyIndex> {
+    pub fn save(self) -> io::Result<ReadonlyIndex> {
         let hash_length = self.hash_length;
         let dir = self.dir.clone();
         let buf = self.serialize();
@@ -1178,11 +1178,11 @@ impl ReadonlyIndex {
         match parent_op_id {
             None => {
                 maybe_parent_file = None;
-                data = MutableIndex::full(dir.clone(), hash_length);
+                data = MutableIndex::full(dir, hash_length);
             }
             Some(parent_op_id) => {
                 let parent_file = Arc::new(
-                    ReadonlyIndex::load_at_operation(dir.clone(), hash_length, &parent_op_id).unwrap(),
+                    ReadonlyIndex::load_at_operation(dir, hash_length, &parent_op_id).unwrap(),
                 );
                 maybe_parent_file = Some(parent_file.clone());
                 data = MutableIndex::incremental(parent_file)
@@ -1199,12 +1199,18 @@ impl ReadonlyIndex {
 
         let index_file = data.save()?;
 
-        let mut temp_file = NamedTempFile::new_in(&dir)?;
-        let file = temp_file.as_file_mut();
-        file.write_all(&index_file.name.as_bytes()).unwrap();
-        temp_file.persist(&operations_dir.join(operation.id().hex()))?;
+        index_file.associate_with_operation(operation.id())?;
 
         Ok(index_file)
+    }
+
+    /// Records a link from the given operation to the this index version.
+    pub fn associate_with_operation(&self, op_id: &OperationId) -> io::Result<()> {
+        let mut temp_file = NamedTempFile::new_in(&self.dir)?;
+        let file = temp_file.as_file_mut();
+        file.write_all(&self.name.as_bytes()).unwrap();
+        temp_file.persist(&self.dir.join("operations").join(op_id.hex()))?;
+        Ok(())
     }
 
     pub fn num_commits(&self) -> u32 {

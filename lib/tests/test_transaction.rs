@@ -309,6 +309,10 @@ fn test_add_head_success(use_git: bool) {
         testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
     tx.discard();
 
+    let index_stats = repo.index().stats();
+    assert_eq!(index_stats.num_heads, 1);
+    assert_eq!(index_stats.num_commits, 2);
+    assert_eq!(index_stats.max_generation_number, 1);
     let mut tx = repo.start_transaction("test");
     assert!(!tx.view().heads().contains(new_commit.id()));
     assert!(!tx.index().has_id(new_commit.id()));
@@ -319,6 +323,10 @@ fn test_add_head_success(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
     assert!(repo.view().heads().contains(new_commit.id()));
     assert!(repo.index().has_id(new_commit.id()));
+    let index_stats = repo.index().stats();
+    assert_eq!(index_stats.num_heads, 2);
+    assert_eq!(index_stats.num_commits, 3);
+    assert_eq!(index_stats.max_generation_number, 1);
 }
 
 #[test_case(false ; "local store")]
@@ -340,9 +348,17 @@ fn test_add_head_ancestor(use_git: bool) {
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
+    let index_stats = repo.index().stats();
+    assert_eq!(index_stats.num_heads, 2);
+    assert_eq!(index_stats.num_commits, 5);
+    assert_eq!(index_stats.max_generation_number, 3);
     let mut tx = repo.start_transaction("test");
     tx.add_head(&commit1);
     assert!(!tx.view().heads().contains(commit1.id()));
+    let index_stats = tx.index().stats();
+    assert_eq!(index_stats.num_heads, 2);
+    assert_eq!(index_stats.num_commits, 5);
+    assert_eq!(index_stats.max_generation_number, 3);
     tx.discard();
 }
 
@@ -371,6 +387,10 @@ fn test_add_head_not_immediate_child(use_git: bool) {
         .write_to_transaction(&mut tx);
     tx.discard();
 
+    let index_stats = repo.index().stats();
+    assert_eq!(index_stats.num_heads, 2);
+    assert_eq!(index_stats.num_commits, 3);
+    assert_eq!(index_stats.max_generation_number, 1);
     let mut tx = repo.start_transaction("test");
     tx.add_head(&child);
     assert!(tx.view().heads().contains(initial.id()));
@@ -380,6 +400,10 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     assert!(tx.index().has_id(rewritten.id()));
     assert!(tx.index().has_id(child.id()));
     assert!(tx.evolution().is_obsolete(initial.id()));
+    let index_stats = tx.index().stats();
+    assert_eq!(index_stats.num_heads, 3);
+    assert_eq!(index_stats.num_commits, 5);
+    assert_eq!(index_stats.max_generation_number, 2);
     tx.discard();
 }
 

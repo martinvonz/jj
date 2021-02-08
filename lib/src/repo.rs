@@ -426,8 +426,8 @@ impl<'r> MutableRepo<'r> {
         self.view.as_mut().unwrap()
     }
 
-    pub fn take_view(mut self) -> MutableView {
-        self.view.take().unwrap()
+    pub fn consume(mut self) -> (MutableIndex, MutableView) {
+        (self.index.take().unwrap(), self.view.take().unwrap())
     }
 
     pub fn evolution<'m>(&'m self) -> &MutableEvolution<'r, 'm> {
