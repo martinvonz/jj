@@ -19,7 +19,7 @@ use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet};
 use std::fs::File;
 use std::io;
 use std::io::{Cursor, Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use blake2::{Blake2b, Digest};
@@ -193,6 +193,7 @@ impl CommitLookupEntry<'_> {
 //       ids
 // TODO: add a fanout table like git's commit graph has?
 pub struct ReadonlyIndex {
+    dir: PathBuf,
     parent_file: Option<Arc<ReadonlyIndex>>,
     num_parent_commits: u32,
     name: String,
@@ -341,6 +342,7 @@ struct MutableGraphEntry {
 }
 
 pub struct MutableIndex {
+    dir: PathBuf,
     parent_file: Option<Arc<ReadonlyIndex>>,
     num_parent_commits: u32,
     hash_length: usize,
@@ -349,8 +351,9 @@ pub struct MutableIndex {
 }
 
 impl MutableIndex {
-    fn full(hash_length: usize) -> Self {
+    fn full(dir: PathBuf, hash_length: usize) -> Self {
         Self {
+            dir,
             parent_file: None,
             num_parent_commits: 0,
             hash_length,
@@ -363,6 +366,7 @@ impl MutableIndex {
         let num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;
         let hash_length = parent_file.hash_length;
         Self {
+            dir: parent_file.dir.clone(),
             parent_file: Some(parent_file),
             num_parent_commits,
             hash_length,
@@ -462,8 +466,9 @@ impl MutableIndex {
         buf
     }
 
-    fn save(self, dir: &Path) -> io::Result<ReadonlyIndex> {
+    fn save(self) -> io::Result<ReadonlyIndex> {
         let hash_length = self.hash_length;
+        let dir = self.dir.clone();
         let buf = self.serialize();
 
         let mut hasher = Blake2b::new();
@@ -1061,10 +1066,10 @@ impl ReadonlyIndex {
         let op_id_file = dir.join("operations").join(&op_id_hex);
         let index_file = if op_id_file.exists() {
             let op_id = OperationId(hex::decode(op_id_hex).unwrap());
-            ReadonlyIndex::load_at_operation(&dir, repo.store().hash_length(), &op_id).unwrap()
+            ReadonlyIndex::load_at_operation(dir, repo.store().hash_length(), &op_id).unwrap()
         } else {
             let op = repo.view().as_view_ref().get_operation(&op_id).unwrap();
-            ReadonlyIndex::index(repo.store(), &dir, &op).unwrap()
+            ReadonlyIndex::index(repo.store(), dir, &op).unwrap()
         };
 
         Arc::new(index_file)
@@ -1072,7 +1077,7 @@ impl ReadonlyIndex {
 
     fn load_from(
         file: &mut dyn Read,
-        dir: &Path,
+        dir: PathBuf,
         name: String,
         hash_length: usize,
     ) -> io::Result<ReadonlyIndex> {
@@ -1085,8 +1090,12 @@ impl ReadonlyIndex {
             let parent_filename = String::from_utf8(parent_filename_bytes).unwrap();
             let parent_file_path = dir.join(&parent_filename);
             let mut index_file = File::open(&parent_file_path).unwrap();
-            let parent_file =
-                ReadonlyIndex::load_from(&mut index_file, dir, parent_filename, hash_length)?;
+            let parent_file = ReadonlyIndex::load_from(
+                &mut index_file,
+                dir.clone(),
+                parent_filename,
+                hash_length,
+            )?;
             num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;
             maybe_parent_file = Some(Arc::new(parent_file));
         } else {
@@ -1108,6 +1117,7 @@ impl ReadonlyIndex {
         let lookup = data.split_off(graph_size);
         let graph = data;
         Ok(ReadonlyIndex {
+            dir,
             parent_file: maybe_parent_file,
             num_parent_commits,
             name,
@@ -1122,7 +1132,7 @@ impl ReadonlyIndex {
     }
 
     fn load_at_operation(
-        dir: &Path,
+        dir: PathBuf,
         hash_length: usize,
         op_id: &OperationId,
     ) -> io::Result<ReadonlyIndex> {
@@ -1138,7 +1148,11 @@ impl ReadonlyIndex {
         ReadonlyIndex::load_from(&mut index_file, dir, index_file_id_hex, hash_length)
     }
 
-    fn index(store: &StoreWrapper, dir: &Path, operation: &Operation) -> io::Result<ReadonlyIndex> {
+    fn index(
+        store: &StoreWrapper,
+        dir: PathBuf,
+        operation: &Operation,
+    ) -> io::Result<ReadonlyIndex> {
         let view = operation.view();
         let operations_dir = dir.join("operations");
         let hash_length = store.hash_length();
@@ -1164,11 +1178,12 @@ impl ReadonlyIndex {
         match parent_op_id {
             None => {
                 maybe_parent_file = None;
-                data = MutableIndex::full(hash_length);
+                data = MutableIndex::full(dir.clone(), hash_length);
             }
             Some(parent_op_id) => {
                 let parent_file = Arc::new(
-                    ReadonlyIndex::load_at_operation(dir, hash_length, &parent_op_id).unwrap(),
+                    ReadonlyIndex::load_at_operation(dir.clone(), hash_length, &parent_op_id)
+                        .unwrap(),
                 );
                 maybe_parent_file = Some(parent_file.clone());
                 data = MutableIndex::incremental(parent_file)
@@ -1183,7 +1198,7 @@ impl ReadonlyIndex {
             data.add_commit(&commit);
         }
 
-        let index_file = data.save(dir)?;
+        let index_file = data.save()?;
 
         let mut temp_file = NamedTempFile::new_in(&dir)?;
         let file = temp_file.as_file_mut();
@@ -1308,11 +1323,10 @@ mod tests {
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn index_empty(use_file: bool) {
-        let index = MutableIndex::full(3);
-        let temp_dir;
+        let temp_dir = tempfile::tempdir().unwrap();
+        let index = MutableIndex::full(temp_dir.path().to_owned(), 3);
         let index = if use_file {
-            temp_dir = tempfile::tempdir().unwrap();
-            IndexRef::Readonly(Arc::new(index.save(temp_dir.path()).unwrap()))
+            IndexRef::Readonly(Arc::new(index.save().unwrap()))
         } else {
             IndexRef::Mutable(&index)
         };
@@ -1333,13 +1347,12 @@ mod tests {
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn index_root_commit(use_file: bool) {
-        let mut index = MutableIndex::full(3);
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut index = MutableIndex::full(temp_dir.path().to_owned(), 3);
         let id_0 = CommitId::from_hex("000000");
         index.add_commit_data(id_0.clone(), vec![]);
-        let temp_dir;
         let index = if use_file {
-            temp_dir = tempfile::tempdir().unwrap();
-            IndexRef::Readonly(Arc::new(index.save(temp_dir.path()).unwrap()))
+            IndexRef::Readonly(Arc::new(index.save().unwrap()))
         } else {
             IndexRef::Mutable(&index)
         };
@@ -1367,7 +1380,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "parent commit is not indexed")]
     fn index_missing_parent_commit() {
-        let mut index = MutableIndex::full(3);
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut index = MutableIndex::full(temp_dir.path().to_owned(), 3);
         let id_0 = CommitId::from_hex("000000");
         let id_1 = CommitId::from_hex("111111");
         index.add_commit_data(id_1, vec![id_0]);
@@ -1378,7 +1392,8 @@ mod tests {
     #[test_case(true, false; "incremental in memory")]
     #[test_case(true, true; "incremental on disk")]
     fn index_multiple_commits(incremental: bool, use_file: bool) {
-        let mut index = MutableIndex::full(3);
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut index = MutableIndex::full(temp_dir.path().to_owned(), 3);
         // 5
         // |\
         // 4 | 3
@@ -1398,9 +1413,8 @@ mod tests {
 
         // If testing incremental indexing, write the first three commits to one file
         // now and build the remainder as another segment on top.
-        let temp_dir = tempfile::tempdir().unwrap();
         if incremental {
-            let initial_file = Arc::new(index.save(temp_dir.path()).unwrap());
+            let initial_file = Arc::new(index.save().unwrap());
             index = MutableIndex::incremental(initial_file);
         }
 
@@ -1408,7 +1422,7 @@ mod tests {
         index.add_commit_data(id_4.clone(), vec![id_1.clone()]);
         index.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
         let index = if use_file {
-            IndexRef::Readonly(Arc::new(index.save(temp_dir.path()).unwrap()))
+            IndexRef::Readonly(Arc::new(index.save().unwrap()))
         } else {
             IndexRef::Mutable(&index)
         };
@@ -1490,7 +1504,8 @@ mod tests {
 
     #[test]
     fn test_is_ancestor() {
-        let mut index = MutableIndex::full(3);
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut index = MutableIndex::full(temp_dir.path().to_owned(), 3);
         // 5
         // |\
         // 4 | 3
@@ -1526,7 +1541,8 @@ mod tests {
 
     #[test]
     fn test_walk_revs() {
-        let mut index = MutableIndex::full(3);
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut index = MutableIndex::full(temp_dir.path().to_owned(), 3);
         // 5
         // |\
         // 4 | 3
@@ -1593,7 +1609,8 @@ mod tests {
 
     #[test]
     fn test_heads() {
-        let mut index = MutableIndex::full(3);
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut index = MutableIndex::full(temp_dir.path().to_owned(), 3);
         // 5
         // |\
         // 4 | 3
