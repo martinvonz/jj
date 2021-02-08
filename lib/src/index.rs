@@ -462,6 +462,24 @@ impl MutableIndex {
         buf
     }
 
+    fn save(self, dir: &Path) -> io::Result<ReadonlyIndex> {
+        let hash_length = self.hash_length;
+        let buf = self.serialize();
+
+        let mut hasher = Blake2b::new();
+        hasher.update(&buf);
+        let index_file_id_hex = hex::encode(&hasher.finalize());
+        let index_file_path = dir.join(&index_file_id_hex);
+
+        let mut temp_file = NamedTempFile::new_in(&dir)?;
+        let file = temp_file.as_file_mut();
+        file.write_all(&buf).unwrap();
+        temp_file.persist(&index_file_path)?;
+
+        let mut cursor = Cursor::new(&buf);
+        ReadonlyIndex::load_from(&mut cursor, dir, index_file_id_hex, hash_length)
+    }
+
     pub fn num_commits(&self) -> u32 {
         CompositeIndex(self).num_commits()
     }
@@ -1120,24 +1138,6 @@ impl ReadonlyIndex {
         ReadonlyIndex::load_from(&mut index_file, dir, index_file_id_hex, hash_length)
     }
 
-    fn from_mutable(dir: &Path, data: MutableIndex) -> io::Result<ReadonlyIndex> {
-        let hash_length = data.hash_length;
-        let buf = data.serialize();
-
-        let mut hasher = Blake2b::new();
-        hasher.update(&buf);
-        let index_file_id_hex = hex::encode(&hasher.finalize());
-        let index_file_path = dir.join(&index_file_id_hex);
-
-        let mut temp_file = NamedTempFile::new_in(&dir)?;
-        let file = temp_file.as_file_mut();
-        file.write_all(&buf).unwrap();
-        temp_file.persist(&index_file_path)?;
-
-        let mut cursor = Cursor::new(&buf);
-        ReadonlyIndex::load_from(&mut cursor, dir, index_file_id_hex, hash_length)
-    }
-
     fn index(store: &StoreWrapper, dir: &Path, operation: &Operation) -> io::Result<ReadonlyIndex> {
         let view = operation.view();
         let operations_dir = dir.join("operations");
@@ -1183,7 +1183,7 @@ impl ReadonlyIndex {
             data.add_commit(&commit);
         }
 
-        let index_file = ReadonlyIndex::from_mutable(dir, data)?;
+        let index_file = data.save(dir)?;
 
         let mut temp_file = NamedTempFile::new_in(&dir)?;
         let file = temp_file.as_file_mut();
@@ -1312,9 +1312,7 @@ mod tests {
         let temp_dir;
         let index = if use_file {
             temp_dir = tempfile::tempdir().unwrap();
-            IndexRef::Readonly(Arc::new(
-                ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap(),
-            ))
+            IndexRef::Readonly(Arc::new(index.save(temp_dir.path()).unwrap()))
         } else {
             IndexRef::Mutable(&index)
         };
@@ -1341,9 +1339,7 @@ mod tests {
         let temp_dir;
         let index = if use_file {
             temp_dir = tempfile::tempdir().unwrap();
-            IndexRef::Readonly(Arc::new(
-                ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap(),
-            ))
+            IndexRef::Readonly(Arc::new(index.save(temp_dir.path()).unwrap()))
         } else {
             IndexRef::Mutable(&index)
         };
@@ -1404,8 +1400,7 @@ mod tests {
         // now and build the remainder as another segment on top.
         let temp_dir = tempfile::tempdir().unwrap();
         if incremental {
-            let initial_file =
-                Arc::new(ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap());
+            let initial_file = Arc::new(index.save(temp_dir.path()).unwrap());
             index = MutableIndex::incremental(initial_file);
         }
 
@@ -1413,9 +1408,7 @@ mod tests {
         index.add_commit_data(id_4.clone(), vec![id_1.clone()]);
         index.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
         let index = if use_file {
-            IndexRef::Readonly(Arc::new(
-                ReadonlyIndex::from_mutable(temp_dir.path(), index).unwrap(),
-            ))
+            IndexRef::Readonly(Arc::new(index.save(temp_dir.path()).unwrap()))
         } else {
             IndexRef::Mutable(&index)
         };
