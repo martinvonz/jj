@@ -29,7 +29,11 @@ use crate::store::{
 };
 use backoff::{ExponentialBackoff, Operation};
 use std::ops::Deref;
+use uuid::Uuid;
 
+/// Ref namespace used only for preventing GC.
+const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
+/// Notes ref for commit metadata
 const COMMITS_NOTES_REF: &str = "refs/notes/jj/commits";
 const CONFLICT_SUFFIX: &str = ".jjconflict";
 
@@ -106,6 +110,18 @@ fn deserialize_note(commit: &mut Commit, note: &str) {
     for predecessor in &proto.predecessors {
         commit.predecessors.push(CommitId(predecessor.clone()));
     }
+}
+
+/// Creates a random ref in refs/jj/. Used for preventing GC of commits we
+/// create.
+fn create_no_gc_ref() -> String {
+    let mut no_gc_ref = NO_GC_REF_NAMESPACE.to_owned();
+    let mut uuid_buffer = Uuid::encode_buffer();
+    let uuid_str = Uuid::new_v4()
+        .to_hyphenated()
+        .encode_lower(&mut uuid_buffer);
+    no_gc_ref.push_str(uuid_str);
+    no_gc_ref
 }
 
 fn write_note(
@@ -349,8 +365,14 @@ impl Store for GitStore {
             parents.push(parent_git_commit);
         }
         let parent_refs: Vec<_> = parents.iter().collect();
-        let git_id =
-            locked_repo.commit(None, &author, &committer, &message, &git_tree, &parent_refs)?;
+        let git_id = locked_repo.commit(
+            Some(&create_no_gc_ref()),
+            &author,
+            &committer,
+            &message,
+            &git_tree,
+            &parent_refs,
+        )?;
         let id = CommitId(git_id.as_bytes().to_vec());
         let note = serialize_note(contents);
 
@@ -577,6 +599,40 @@ mod tests {
             symlink.value(),
             &TreeValue::Symlink(SymlinkId(blob2.as_bytes().to_vec()))
         );
+    }
+
+    #[test]
+    fn commit_has_ref() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let git_repo_path = temp_dir.path();
+        let git_repo = git2::Repository::init(git_repo_path.clone()).unwrap();
+        let store = GitStore::load(git_repo_path.to_owned());
+        let signature = Signature {
+            name: "Someone".to_string(),
+            email: "someone@example.com".to_string(),
+            timestamp: Timestamp {
+                timestamp: MillisSinceEpoch(0),
+                tz_offset: 0,
+            },
+        };
+        let commit = Commit {
+            parents: vec![],
+            predecessors: vec![],
+            root_tree: store.empty_tree_id().clone(),
+            change_id: ChangeId(vec![]),
+            description: "initial".to_string(),
+            author: signature.clone(),
+            committer: signature,
+            is_open: false,
+            is_pruned: false,
+        };
+        let commit_id = store.write_commit(&commit).unwrap();
+        let git_refs: Vec<_> = git_repo
+            .references_glob("refs/jj/keep/*")
+            .unwrap()
+            .map(|git_ref| git_ref.unwrap().target().unwrap())
+            .collect();
+        assert_eq!(git_refs, vec![Oid::from_bytes(&commit_id.0).unwrap()]);
     }
 
     #[test]
