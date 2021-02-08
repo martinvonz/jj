@@ -1049,27 +1049,24 @@ fn cmd_log(
     let mut styler = styler.as_mut();
     styler.add_label(String::from("log"));
 
+    let store = repo.store();
     let mut heads: HashSet<_> = repo
         .view()
         .heads()
         .iter()
-        .map(|id| repo.store().get_commit(id).unwrap())
+        .map(|id| store.get_commit(id).unwrap())
         .collect();
     if !sub_matches.is_present("all") {
         heads = skip_uninteresting_heads(&repo, heads);
     };
-    let mut heads: Vec<_> = heads.into_iter().collect();
-    heads.sort_by_key(|commit| commit.committer().timestamp.clone());
-    heads.reverse();
 
-    let commits = topo_order_reverse(
-        heads,
-        Box::new(|commit: &Commit| commit.id().clone()),
-        Box::new(|commit: &Commit| commit.parents()),
-    );
+    let head_ids: Vec<_> = heads.iter().map(|commit| commit.id().clone()).collect();
+    let index = repo.index();
+    let index_entries = index.walk_revs(&head_ids, &[]);
     if use_graph {
         let mut graph = AsciiGraphDrawer::new(&mut styler);
-        for commit in commits {
+        for index_entry in index_entries {
+            let commit = store.get_commit(&index_entry.commit_id()).unwrap();
             let mut edges = vec![];
             for parent in commit.parents() {
                 edges.push(Edge::direct(parent.id().clone()));
@@ -1087,7 +1084,8 @@ fn cmd_log(
             graph.add_node(commit.id(), &edges, b"o", &buffer);
         }
     } else {
-        for commit in commits {
+        for index_entry in index_entries {
+            let commit = store.get_commit(&index_entry.commit_id()).unwrap();
             template.format(&commit, styler);
         }
     }
