@@ -69,7 +69,7 @@ fn test_import_refs() {
     let mut tx = repo.start_transaction("test");
     let heads_before: HashSet<_> = repo.view().heads().clone();
     jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
-    let view = tx.as_repo_ref().view();
+    let view = tx.view();
     let expected_heads: HashSet<_> = heads_before
         .union(&hashset!(
             commit_id(&commit3),
@@ -125,7 +125,7 @@ fn test_import_refs_reimport() {
     let mut tx = repo.start_transaction("test");
     jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
 
-    let view = tx.as_repo_ref().view();
+    let view = tx.view();
     // TODO: commit3 and commit4 should probably be removed
     let expected_heads: HashSet<_> = heads_before
         .union(&hashset!(
@@ -277,9 +277,8 @@ fn test_import_refs_empty_git_repo() {
     let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
     jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
-    let view = tx.as_repo_ref().view();
-    assert_eq!(*view.heads(), heads_before);
-    assert_eq!(view.git_refs().len(), 0);
+    assert_eq!(*tx.view().heads(), heads_before);
+    assert_eq!(tx.view().git_refs().len(), 0);
     tx.discard();
 }
 
@@ -323,11 +322,7 @@ fn test_fetch_success() {
     // The new commit is visible after git::fetch().
     let mut tx = jj_repo.start_transaction("test");
     git::fetch(&mut tx, &clone_git_repo, "origin").unwrap();
-    assert!(tx
-        .as_repo_ref()
-        .view()
-        .heads()
-        .contains(&commit_id(&new_git_commit)));
+    assert!(tx.view().heads().contains(&commit_id(&new_git_commit)));
 
     tx.discard();
 }

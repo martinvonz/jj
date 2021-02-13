@@ -130,8 +130,8 @@ fn test_isolation(use_git: bool) {
     assert_heads(tx1.as_repo_ref(), vec![&wc_id, initial.id()]);
     assert_heads(tx2.as_repo_ref(), vec![&wc_id, initial.id()]);
     assert!(!repo.evolution().is_obsolete(initial.id()));
-    assert!(!tx1.as_repo_ref().evolution().is_obsolete(initial.id()));
-    assert!(!tx2.as_repo_ref().evolution().is_obsolete(initial.id()));
+    assert!(!tx1.evolution().is_obsolete(initial.id()));
+    assert!(!tx2.evolution().is_obsolete(initial.id()));
 
     let rewrite1 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial)
         .set_description("rewrite1".to_string())
@@ -146,8 +146,8 @@ fn test_isolation(use_git: bool) {
     assert_heads(tx1.as_repo_ref(), vec![&wc_id, initial.id(), rewrite1.id()]);
     assert_heads(tx2.as_repo_ref(), vec![&wc_id, initial.id(), rewrite2.id()]);
     assert!(!repo.evolution().is_obsolete(initial.id()));
-    assert!(tx1.as_repo_ref().evolution().is_obsolete(initial.id()));
-    assert!(tx2.as_repo_ref().evolution().is_obsolete(initial.id()));
+    assert!(tx1.evolution().is_obsolete(initial.id()));
+    assert!(tx2.evolution().is_obsolete(initial.id()));
 
     // The base repo and tx2 don't see the commits from tx1.
     tx1.commit();

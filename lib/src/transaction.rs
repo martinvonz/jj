@@ -15,6 +15,7 @@
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::conflicts;
+use crate::evolution::MutableEvolution;
 use crate::op_store;
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
@@ -22,6 +23,7 @@ use crate::settings::UserSettings;
 use crate::store;
 use crate::store::{CommitId, Timestamp};
 use crate::store_wrapper::StoreWrapper;
+use crate::view::MutableView;
 use std::sync::Arc;
 
 pub struct Transaction<'r> {
@@ -57,6 +59,14 @@ impl<'r> Transaction<'r> {
         Arc::get_mut(self.repo.as_mut().unwrap()).unwrap()
     }
 
+    pub fn view(&self) -> &MutableView {
+        self.repo.as_ref().unwrap().view()
+    }
+
+    pub fn evolution(&self) -> &MutableEvolution {
+        self.repo.as_ref().unwrap().evolution()
+    }
+
     pub fn write_commit(&mut self, commit: store::Commit) -> Commit {
         let commit = self.store().write_commit(commit);
         self.add_head(&commit);
@@ -64,15 +74,11 @@ impl<'r> Transaction<'r> {
     }
 
     pub fn check_out(&mut self, settings: &UserSettings, commit: &Commit) -> Commit {
-        let current_checkout_id = self.as_repo_ref().view().checkout().clone();
+        let current_checkout_id = self.view().checkout().clone();
         let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
         assert!(current_checkout.is_open(), "current checkout is closed");
         if current_checkout.is_empty()
-            && !(current_checkout.is_pruned()
-                || self
-                    .as_repo_ref()
-                    .evolution()
-                    .is_obsolete(&current_checkout_id))
+            && !(current_checkout.is_pruned() || self.evolution().is_obsolete(&current_checkout_id))
         {
             // Prune the checkout we're leaving if it's empty.
             // TODO: Also prune it if the only changes are conflicts that got materialized.

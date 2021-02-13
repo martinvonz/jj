@@ -30,7 +30,7 @@ pub fn import_refs(
 ) -> Result<(), GitImportError> {
     let store = tx.store().clone();
     let git_refs = git_repo.references()?;
-    let existing_git_refs: Vec<_> = tx.as_repo_ref().view().git_refs().keys().cloned().collect();
+    let existing_git_refs: Vec<_> = tx.view().git_refs().keys().cloned().collect();
     // TODO: Store the id of the previous import and read it back here, so we can
     // merge the views instead of overwriting.
     for existing_git_ref in existing_git_refs {

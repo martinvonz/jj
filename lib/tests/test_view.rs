@@ -45,7 +45,7 @@ fn test_heads_fork(use_git: bool) {
 
     let wc = repo.working_copy_locked();
     assert_eq!(
-        *tx.as_repo_ref().view().heads(),
+        *tx.view().heads(),
         hashset! {
             wc.current_commit_id(),
             child1.id().clone(),
@@ -77,7 +77,7 @@ fn test_heads_merge(use_git: bool) {
 
     let wc = repo.working_copy_locked();
     assert_eq!(
-        *tx.as_repo_ref().view().heads(),
+        *tx.view().heads(),
         hashset! {wc.current_commit_id(), merge.id().clone()}
     );
     tx.discard();

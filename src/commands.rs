@@ -256,8 +256,7 @@ fn update_working_copy(
 
 fn update_checkout_after_rewrite(ui: &mut Ui, tx: &mut Transaction) {
     // TODO: Perhaps this method should be in Transaction.
-    let repo = tx.as_repo_ref();
-    let new_checkout_candidates = repo.evolution().new_parent(repo.view().checkout());
+    let new_checkout_candidates = tx.evolution().new_parent(tx.view().checkout());
     if new_checkout_candidates.is_empty() {
         return;
     }
@@ -278,7 +277,7 @@ fn update_checkout_after_rewrite(ui: &mut Ui, tx: &mut Transaction) {
         );
     }
     let new_checkout = new_checkout_candidates.iter().min().unwrap();
-    let new_commit = repo.store().get_commit(new_checkout).unwrap();
+    let new_commit = tx.store().get_commit(new_checkout).unwrap();
     tx.check_out(ui.settings(), &new_commit);
 }
 
@@ -1337,7 +1336,7 @@ fn cmd_new(
     );
     let mut tx = repo.start_transaction("new empty commit");
     let new_commit = commit_builder.write_to_transaction(&mut tx);
-    if tx.as_repo_ref().view().checkout() == parent.id() {
+    if tx.view().checkout() == parent.id() {
         tx.check_out(ui.settings(), &new_commit);
     }
     tx.commit();

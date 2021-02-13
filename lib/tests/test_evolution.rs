@@ -37,8 +37,8 @@ fn test_obsolete_and_orphan(use_git: bool) {
 
     // A commit without successors should not be obsolete and not an orphan.
     let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    assert!(!tx.as_repo_ref().evolution().is_obsolete(original.id()));
-    assert!(!tx.as_repo_ref().evolution().is_orphan(original.id()));
+    assert!(!tx.evolution().is_obsolete(original.id()));
+    assert!(!tx.evolution().is_orphan(original.id()));
 
     // A commit with a successor with a different change_id should not be obsolete.
     let child = child_commit(&settings, &repo, &original).write_to_transaction(&mut tx);
@@ -46,30 +46,30 @@ fn test_obsolete_and_orphan(use_git: bool) {
     let cherry_picked = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
         .write_to_transaction(&mut tx);
-    assert!(!tx.as_repo_ref().evolution().is_obsolete(original.id()));
-    assert!(!tx.as_repo_ref().evolution().is_orphan(original.id()));
-    assert!(!tx.as_repo_ref().evolution().is_obsolete(child.id()));
-    assert!(!tx.as_repo_ref().evolution().is_orphan(child.id()));
+    assert!(!tx.evolution().is_obsolete(original.id()));
+    assert!(!tx.evolution().is_orphan(original.id()));
+    assert!(!tx.evolution().is_obsolete(child.id()));
+    assert!(!tx.evolution().is_orphan(child.id()));
 
     // A commit with a successor with the same change_id should be obsolete.
     let rewritten = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
         .write_to_transaction(&mut tx);
-    assert!(tx.as_repo_ref().evolution().is_obsolete(original.id()));
-    assert!(!tx.as_repo_ref().evolution().is_obsolete(child.id()));
-    assert!(tx.as_repo_ref().evolution().is_orphan(child.id()));
-    assert!(tx.as_repo_ref().evolution().is_orphan(grandchild.id()));
-    assert!(!tx.as_repo_ref().evolution().is_obsolete(cherry_picked.id()));
-    assert!(!tx.as_repo_ref().evolution().is_orphan(cherry_picked.id()));
-    assert!(!tx.as_repo_ref().evolution().is_obsolete(rewritten.id()));
-    assert!(!tx.as_repo_ref().evolution().is_orphan(rewritten.id()));
+    assert!(tx.evolution().is_obsolete(original.id()));
+    assert!(!tx.evolution().is_obsolete(child.id()));
+    assert!(tx.evolution().is_orphan(child.id()));
+    assert!(tx.evolution().is_orphan(grandchild.id()));
+    assert!(!tx.evolution().is_obsolete(cherry_picked.id()));
+    assert!(!tx.evolution().is_orphan(cherry_picked.id()));
+    assert!(!tx.evolution().is_obsolete(rewritten.id()));
+    assert!(!tx.evolution().is_orphan(rewritten.id()));
 
     // It should no longer be obsolete if we remove the successor.
     tx.remove_head(&rewritten);
-    assert!(!tx.as_repo_ref().evolution().is_obsolete(original.id()));
-    assert!(!tx.as_repo_ref().evolution().is_orphan(child.id()));
-    assert!(!tx.as_repo_ref().evolution().is_orphan(grandchild.id()));
+    assert!(!tx.evolution().is_obsolete(original.id()));
+    assert!(!tx.evolution().is_orphan(child.id()));
+    assert!(!tx.evolution().is_orphan(grandchild.id()));
     tx.discard();
 }
 
@@ -83,10 +83,7 @@ fn test_divergent(use_git: bool) {
 
     // A single commit should not be divergent
     let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    assert!(!tx
-        .as_repo_ref()
-        .evolution()
-        .is_divergent(original.change_id()));
+    assert!(!tx.evolution().is_divergent(original.change_id()));
 
     // Commits with the same change id are divergent, including the original commit
     // (it's the change that's divergent)
@@ -98,10 +95,7 @@ fn test_divergent(use_git: bool) {
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
         .write_to_transaction(&mut tx);
-    assert!(tx
-        .as_repo_ref()
-        .evolution()
-        .is_divergent(original.change_id()));
+    assert!(tx.evolution().is_divergent(original.change_id()));
     tx.discard();
 }
 
@@ -127,10 +121,7 @@ fn test_divergent_pruned(use_git: bool) {
         .set_change_id(original.change_id().clone())
         .set_pruned(true)
         .write_to_transaction(&mut tx);
-    assert!(tx
-        .as_repo_ref()
-        .evolution()
-        .is_divergent(original.change_id()));
+    assert!(tx.evolution().is_divergent(original.change_id()));
     tx.discard();
 }
 
@@ -150,18 +141,9 @@ fn test_divergent_duplicate(use_git: bool) {
     let cherry_picked2 = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
         .write_to_transaction(&mut tx);
-    assert!(!tx
-        .as_repo_ref()
-        .evolution()
-        .is_divergent(original.change_id()));
-    assert!(!tx
-        .as_repo_ref()
-        .evolution()
-        .is_divergent(cherry_picked1.change_id()));
-    assert!(!tx
-        .as_repo_ref()
-        .evolution()
-        .is_divergent(cherry_picked2.change_id()));
+    assert!(!tx.evolution().is_divergent(original.change_id()));
+    assert!(!tx.evolution().is_divergent(cherry_picked1.change_id()));
+    assert!(!tx.evolution().is_divergent(cherry_picked2.change_id()));
     tx.discard();
 }
 
@@ -182,7 +164,7 @@ fn test_new_parent_rewritten(use_git: bool) {
         .set_change_id(original.change_id().clone())
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.as_repo_ref().evolution().new_parent(original.id()),
+        tx.evolution().new_parent(original.id()),
         vec![rewritten.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -202,7 +184,7 @@ fn test_new_parent_cherry_picked(use_git: bool) {
         .set_predecessors(vec![original.id().clone()])
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.as_repo_ref().evolution().new_parent(original.id()),
+        tx.evolution().new_parent(original.id()),
         vec![original.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -226,7 +208,7 @@ fn test_new_parent_is_pruned(use_git: bool) {
         .set_change_id(original.change_id().clone())
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.as_repo_ref().evolution().new_parent(original.id()),
+        tx.evolution().new_parent(original.id()),
         vec![new_parent.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -255,7 +237,7 @@ fn test_new_parent_divergent(use_git: bool) {
         .set_change_id(original.change_id().clone())
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.as_repo_ref().evolution().new_parent(original.id()),
+        tx.evolution().new_parent(original.id()),
         vec![
             rewritten1.id().clone(),
             rewritten2.id().clone(),
@@ -296,7 +278,7 @@ fn test_new_parent_divergent_one_not_pruned(use_git: bool) {
         .set_pruned(true)
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.as_repo_ref().evolution().new_parent(original.id()),
+        tx.evolution().new_parent(original.id()),
         vec![
             rewritten1.id().clone(),
             parent2.id().clone(),
@@ -339,7 +321,7 @@ fn test_new_parent_divergent_all_pruned(use_git: bool) {
         .set_pruned(true)
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.as_repo_ref().evolution().new_parent(original.id()),
+        tx.evolution().new_parent(original.id()),
         vec![
             parent1.id().clone(),
             parent2.id().clone(),
@@ -375,7 +357,7 @@ fn test_new_parent_split(use_git: bool) {
         .set_predecessors(vec![original.id().clone()])
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.as_repo_ref().evolution().new_parent(original.id()),
+        tx.evolution().new_parent(original.id()),
         vec![rewritten3.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -409,7 +391,7 @@ fn test_new_parent_split_pruned_descendant(use_git: bool) {
         .set_predecessors(vec![original.id().clone()])
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.as_repo_ref().evolution().new_parent(original.id()),
+        tx.evolution().new_parent(original.id()),
         vec![rewritten2.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -443,7 +425,7 @@ fn test_new_parent_split_forked(use_git: bool) {
         .set_predecessors(vec![original.id().clone()])
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.as_repo_ref().evolution().new_parent(original.id()),
+        tx.evolution().new_parent(original.id()),
         vec![rewritten2.id().clone(), rewritten3.id().clone()]
             .into_iter()
             .collect()
@@ -479,7 +461,7 @@ fn test_new_parent_split_forked_pruned(use_git: bool) {
         .set_predecessors(vec![original.id().clone()])
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.as_repo_ref().evolution().new_parent(original.id()),
+        tx.evolution().new_parent(original.id()),
         vec![rewritten3.id().clone()].into_iter().collect()
     );
     tx.discard();
