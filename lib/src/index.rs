@@ -466,7 +466,11 @@ impl MutableIndex {
         buf
     }
 
-    pub fn save(self) -> io::Result<ReadonlyIndex> {
+    pub fn save(self) -> io::Result<Arc<ReadonlyIndex>> {
+        if self.segment_num_commits() == 0 && self.parent_file.is_some() {
+            return Ok(self.parent_file.unwrap());
+        }
+
         let hash_length = self.hash_length;
         let dir = self.dir.clone();
         let buf = self.serialize();
@@ -1064,15 +1068,13 @@ impl ReadonlyIndex {
     pub fn load(repo: &ReadonlyRepo, dir: PathBuf, op_id: OperationId) -> Arc<ReadonlyIndex> {
         let op_id_hex = op_id.hex();
         let op_id_file = dir.join("operations").join(&op_id_hex);
-        let index_file = if op_id_file.exists() {
+        if op_id_file.exists() {
             let op_id = OperationId(hex::decode(op_id_hex).unwrap());
             ReadonlyIndex::load_at_operation(dir, repo.store().hash_length(), &op_id).unwrap()
         } else {
             let op = repo.view().as_view_ref().get_operation(&op_id).unwrap();
             ReadonlyIndex::index(repo.store(), dir, &op).unwrap()
-        };
-
-        Arc::new(index_file)
+        }
     }
 
     fn load_from(
@@ -1080,7 +1082,7 @@ impl ReadonlyIndex {
         dir: PathBuf,
         name: String,
         hash_length: usize,
-    ) -> io::Result<ReadonlyIndex> {
+    ) -> io::Result<Arc<ReadonlyIndex>> {
         let parent_filename_len = file.read_u32::<LittleEndian>()?;
         let num_parent_commits;
         let maybe_parent_file;
@@ -1097,7 +1099,7 @@ impl ReadonlyIndex {
                 hash_length,
             )?;
             num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;
-            maybe_parent_file = Some(Arc::new(parent_file));
+            maybe_parent_file = Some(parent_file);
         } else {
             num_parent_commits = 0;
             maybe_parent_file = None;
@@ -1116,7 +1118,7 @@ impl ReadonlyIndex {
         let overflow_parent = data.split_off(graph_size + lookup_size);
         let lookup = data.split_off(graph_size);
         let graph = data;
-        Ok(ReadonlyIndex {
+        Ok(Arc::new(ReadonlyIndex {
             dir,
             parent_file: maybe_parent_file,
             num_parent_commits,
@@ -1128,14 +1130,14 @@ impl ReadonlyIndex {
             graph,
             lookup,
             overflow_parent,
-        })
+        }))
     }
 
     fn load_at_operation(
         dir: PathBuf,
         hash_length: usize,
         op_id: &OperationId,
-    ) -> io::Result<ReadonlyIndex> {
+    ) -> io::Result<Arc<ReadonlyIndex>> {
         let op_id_file = dir.join("operations").join(op_id.hex());
         let mut buf = vec![];
         File::open(op_id_file)
@@ -1152,7 +1154,7 @@ impl ReadonlyIndex {
         store: &StoreWrapper,
         dir: PathBuf,
         operation: &Operation,
-    ) -> io::Result<ReadonlyIndex> {
+    ) -> io::Result<Arc<ReadonlyIndex>> {
         let view = operation.view();
         let operations_dir = dir.join("operations");
         let hash_length = store.hash_length();
@@ -1181,9 +1183,8 @@ impl ReadonlyIndex {
                 data = MutableIndex::full(dir, hash_length);
             }
             Some(parent_op_id) => {
-                let parent_file = Arc::new(
-                    ReadonlyIndex::load_at_operation(dir, hash_length, &parent_op_id).unwrap(),
-                );
+                let parent_file =
+                    ReadonlyIndex::load_at_operation(dir, hash_length, &parent_op_id).unwrap();
                 maybe_parent_file = Some(parent_file.clone());
                 data = MutableIndex::incremental(parent_file)
             }
@@ -1331,7 +1332,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let index = MutableIndex::full(temp_dir.path().to_owned(), 3);
         let index = if use_file {
-            IndexRef::Readonly(Arc::new(index.save().unwrap()))
+            IndexRef::Readonly(index.save().unwrap())
         } else {
             IndexRef::Mutable(&index)
         };
@@ -1357,7 +1358,7 @@ mod tests {
         let id_0 = CommitId::from_hex("000000");
         index.add_commit_data(id_0.clone(), vec![]);
         let index = if use_file {
-            IndexRef::Readonly(Arc::new(index.save().unwrap()))
+            IndexRef::Readonly(index.save().unwrap())
         } else {
             IndexRef::Mutable(&index)
         };
@@ -1419,7 +1420,7 @@ mod tests {
         // If testing incremental indexing, write the first three commits to one file
         // now and build the remainder as another segment on top.
         if incremental {
-            let initial_file = Arc::new(index.save().unwrap());
+            let initial_file = index.save().unwrap();
             index = MutableIndex::incremental(initial_file);
         }
 
@@ -1427,7 +1428,7 @@ mod tests {
         index.add_commit_data(id_4.clone(), vec![id_1.clone()]);
         index.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
         let index = if use_file {
-            IndexRef::Readonly(Arc::new(index.save().unwrap()))
+            IndexRef::Readonly(index.save().unwrap())
         } else {
             IndexRef::Mutable(&index)
         };

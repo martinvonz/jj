@@ -386,10 +386,9 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     assert_eq!(stats.num_commits, 2 + 1);
     assert_eq!(stats.num_merges, 0);
     assert_eq!(stats.max_generation_number, 1);
-    assert_eq!(stats.levels.len(), 3);
-    assert_eq!(stats.levels[0].num_commits, 0);
-    assert_eq!(stats.levels[1].num_commits, 1);
-    assert_eq!(stats.levels[2].num_commits, 2);
+    assert_eq!(stats.levels.len(), 2);
+    assert_eq!(stats.levels[0].num_commits, 1);
+    assert_eq!(stats.levels[1].num_commits, 2);
 
     assert_eq!(generation_number(index.clone(), root_commit.id()), 0);
     assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
