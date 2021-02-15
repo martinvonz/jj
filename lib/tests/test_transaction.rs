@@ -311,10 +311,10 @@ fn test_add_head_success(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     assert!(!tx.view().heads().contains(new_commit.id()));
-    assert!(!tx.as_repo_ref().index().has_id(new_commit.id()));
+    assert!(!tx.index().has_id(new_commit.id()));
     tx.add_head(&new_commit);
     assert!(tx.view().heads().contains(new_commit.id()));
-    assert!(tx.as_repo_ref().index().has_id(new_commit.id()));
+    assert!(tx.index().has_id(new_commit.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
     assert!(repo.view().heads().contains(new_commit.id()));
@@ -376,6 +376,9 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     assert!(tx.view().heads().contains(initial.id()));
     assert!(!tx.view().heads().contains(rewritten.id()));
     assert!(tx.view().heads().contains(child.id()));
+    assert!(tx.index().has_id(initial.id()));
+    assert!(tx.index().has_id(rewritten.id()));
+    assert!(tx.index().has_id(child.id()));
     assert!(tx.evolution().is_obsolete(initial.id()));
     tx.discard();
 }
