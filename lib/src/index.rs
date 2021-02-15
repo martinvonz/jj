@@ -591,6 +591,7 @@ impl<'a> CompositeIndex<'a> {
             });
             parent_file = file.segment_parent_file().clone();
         }
+        levels.reverse();
 
         IndexStats {
             num_commits,
