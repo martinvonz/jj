@@ -145,6 +145,7 @@ impl<'r> Transaction<'r> {
             mut_repo.view_mut().add_head(head);
             mut_repo.evolution_mut().add_commit(head);
         } else {
+            let index = mut_repo.index();
             let missing_commits = topo_order_reverse(
                 vec![head.clone()],
                 Box::new(|commit: &Commit| commit.id().clone()),
@@ -152,7 +153,7 @@ impl<'r> Transaction<'r> {
                     commit
                         .parents()
                         .into_iter()
-                        .filter(|parent| !current_heads.contains(parent.id()))
+                        .filter(|parent| !index.has_id(parent.id()))
                         .collect()
                 }),
             );
