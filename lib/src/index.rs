@@ -384,7 +384,7 @@ impl MutableIndex {
     }
 
     fn add_commit_data(&mut self, id: CommitId, parent_ids: Vec<CommitId>) {
-        if self.lookup.contains_key(&id) {
+        if self.has_id(&id) {
             return;
         }
         let mut entry = MutableGraphEntry {
@@ -1182,8 +1182,7 @@ impl ReadonlyIndex {
             }
             Some(parent_op_id) => {
                 let parent_file = Arc::new(
-                    ReadonlyIndex::load_at_operation(dir.clone(), hash_length, &parent_op_id)
-                        .unwrap(),
+                    ReadonlyIndex::load_at_operation(dir.clone(), hash_length, &parent_op_id).unwrap(),
                 );
                 maybe_parent_file = Some(parent_file.clone());
                 data = MutableIndex::incremental(parent_file)

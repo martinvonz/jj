@@ -394,3 +394,29 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     assert_eq!(generation_number(index.clone(), root_commit.id()), 0);
     assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
 }
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_index_commits_incremental_already_indexed(use_git: bool) {
+    // Tests that trying to add a commit that's already been added is a no-op.
+    let settings = testutils::user_settings();
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+
+    // Create A in one operation, then try to add it again an new transaction.
+    // o A
+    // | o working copy
+    // |/
+    // o root
+
+    let root_commit = repo.store().root_commit();
+    let commit_a =
+        child_commit(&settings, &repo, &root_commit).write_to_new_transaction(&repo, "test");
+    Arc::get_mut(&mut repo).unwrap().reload();
+
+    assert!(repo.index().has_id(commit_a.id()));
+    assert_eq!(repo.index().num_commits(), 2 + 1);
+    let mut tx = repo.start_transaction("test");
+    tx.add_head(&commit_a);
+    assert_eq!(tx.index().num_commits(), 2 + 1);
+    tx.discard();
+}
