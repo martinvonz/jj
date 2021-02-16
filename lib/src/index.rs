@@ -104,6 +104,13 @@ impl<'a> IndexRef<'a> {
         }
     }
 
+    pub fn common_ancestors(&self, ids1: &[CommitId], ids2: &[CommitId]) -> Vec<CommitId> {
+        match self {
+            IndexRef::Readonly(index) => index.common_ancestors(ids1, ids2),
+            IndexRef::Mutable(index) => index.common_ancestors(ids1, ids2),
+        }
+    }
+
     pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
         match self {
             IndexRef::Readonly(index) => index.walk_revs(wanted, unwanted),
@@ -561,6 +568,10 @@ impl MutableIndex {
         CompositeIndex(self).is_ancestor(ancestor_id, descendant_id)
     }
 
+    pub fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
+        CompositeIndex(self).common_ancestors(set1, set2)
+    }
+
     pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
         CompositeIndex(self).walk_revs(wanted, unwanted)
     }
@@ -720,6 +731,58 @@ impl<'a> CompositeIndex<'a> {
             work.extend(descendant_entry.parents_positions());
         }
         false
+    }
+
+    pub fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
+        let pos1: Vec<_> = set1
+            .iter()
+            .map(|id| self.commit_id_to_pos(id).unwrap())
+            .collect();
+        let pos2: Vec<_> = set2
+            .iter()
+            .map(|id| self.commit_id_to_pos(id).unwrap())
+            .collect();
+        self.common_ancestors_pos(&pos1, &pos2)
+            .iter()
+            .map(|pos| self.entry_by_pos(*pos).commit_id())
+            .collect()
+    }
+
+    fn common_ancestors_pos(&self, set1: &[u32], set2: &[u32]) -> BTreeSet<u32> {
+        let mut items1: BTreeSet<_> = set1
+            .iter()
+            .map(|pos| IndexEntryByGeneration(self.entry_by_pos(*pos)))
+            .collect();
+        let mut items2: BTreeSet<_> = set2
+            .iter()
+            .map(|pos| IndexEntryByGeneration(self.entry_by_pos(*pos)))
+            .collect();
+
+        let mut result = BTreeSet::new();
+        while !(items1.is_empty() || items2.is_empty()) {
+            let entry1 = items1.last().unwrap();
+            let entry2 = items2.last().unwrap();
+            match entry1.cmp(&entry2) {
+                Ordering::Greater => {
+                    let entry1 = items1.pop_last().unwrap();
+                    for pos in entry1.0.parents_positions() {
+                        items1.insert(IndexEntryByGeneration(self.entry_by_pos(pos)));
+                    }
+                }
+                Ordering::Less => {
+                    let entry2 = items2.pop_last().unwrap();
+                    for pos in entry2.0.parents_positions() {
+                        items2.insert(IndexEntryByGeneration(self.entry_by_pos(pos)));
+                    }
+                }
+                Ordering::Equal => {
+                    result.insert(entry1.0.pos);
+                    items1.pop_last();
+                    items2.pop_last();
+                }
+            }
+        }
+        self.heads_pos(result)
     }
 
     pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk<'a> {
@@ -1293,6 +1356,10 @@ impl ReadonlyIndex {
         CompositeIndex(self).is_ancestor(ancestor_id, descendant_id)
     }
 
+    pub fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
+        CompositeIndex(self).common_ancestors(set1, set2)
+    }
+
     pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
         CompositeIndex(self).walk_revs(wanted, unwanted)
     }
@@ -1594,6 +1661,143 @@ mod tests {
         assert!(!index.is_ancestor(&id_3, &id_5));
         assert!(!index.is_ancestor(&id_2, &id_4));
         assert!(!index.is_ancestor(&id_4, &id_2));
+    }
+
+    #[test]
+    fn test_common_ancestors() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut index = MutableIndex::full(temp_dir.path().to_owned(), 3);
+        // 5
+        // |\
+        // 4 |
+        // | |
+        // 1 2 3
+        // | |/
+        // |/
+        // 0
+        let id_0 = CommitId::from_hex("000000");
+        let id_1 = CommitId::from_hex("111111");
+        let id_2 = CommitId::from_hex("222222");
+        let id_3 = CommitId::from_hex("333333");
+        let id_4 = CommitId::from_hex("444444");
+        let id_5 = CommitId::from_hex("555555");
+        index.add_commit_data(id_0.clone(), vec![]);
+        index.add_commit_data(id_1.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_3.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_4.clone(), vec![id_1.clone()]);
+        index.add_commit_data(id_5.clone(), vec![id_4.clone(), id_2.clone()]);
+
+        assert_eq!(
+            index.common_ancestors(&[id_0.clone()], &[id_0.clone()]),
+            vec![id_0.clone()]
+        );
+        assert_eq!(
+            index.common_ancestors(&[id_5.clone()], &[id_5.clone()]),
+            vec![id_5.clone()]
+        );
+        assert_eq!(
+            index.common_ancestors(&[id_1.clone()], &[id_2.clone()]),
+            vec![id_0.clone()]
+        );
+        assert_eq!(
+            index.common_ancestors(&[id_2.clone()], &[id_1.clone()]),
+            vec![id_0.clone()]
+        );
+        assert_eq!(
+            index.common_ancestors(&[id_1.clone()], &[id_4.clone()]),
+            vec![id_1.clone()]
+        );
+        assert_eq!(
+            index.common_ancestors(&[id_4.clone()], &[id_1.clone()]),
+            vec![id_1.clone()]
+        );
+        assert_eq!(
+            index.common_ancestors(&[id_3.clone()], &[id_5.clone()]),
+            vec![id_0.clone()]
+        );
+        assert_eq!(
+            index.common_ancestors(&[id_5.clone()], &[id_3.clone()]),
+            vec![id_0.clone()]
+        );
+
+        // With multiple commits in an input set
+        assert_eq!(
+            index.common_ancestors(&[id_0.clone(), id_1.clone()], &[id_0.clone()]),
+            vec![id_0.clone()]
+        );
+        assert_eq!(
+            index.common_ancestors(&[id_0.clone(), id_1.clone()], &[id_1.clone()]),
+            vec![id_1.clone()]
+        );
+        assert_eq!(
+            index.common_ancestors(&[id_1.clone(), id_2.clone()], &[id_1.clone()]),
+            vec![id_1.clone()]
+        );
+        assert_eq!(
+            index.common_ancestors(&[id_1.clone(), id_2.clone()], &[id_4.clone()]),
+            vec![id_1.clone()]
+        );
+        assert_eq!(
+            index.common_ancestors(&[id_1.clone(), id_2.clone()], &[id_5.clone()]),
+            vec![id_1.clone(), id_2.clone()]
+        );
+        assert_eq!(
+            index.common_ancestors(&[id_1.clone(), id_2.clone()], &[id_3.clone()]),
+            vec![id_0.clone()]
+        );
+    }
+
+    #[test]
+    fn test_common_ancestors_criss_cross() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut index = MutableIndex::full(temp_dir.path().to_owned(), 3);
+        // 3 4
+        // |X|
+        // 1 2
+        // |/
+        // 0
+        let id_0 = CommitId::from_hex("000000");
+        let id_1 = CommitId::from_hex("111111");
+        let id_2 = CommitId::from_hex("222222");
+        let id_3 = CommitId::from_hex("333333");
+        let id_4 = CommitId::from_hex("444444");
+        index.add_commit_data(id_0.clone(), vec![]);
+        index.add_commit_data(id_1.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_3.clone(), vec![id_1.clone(), id_2.clone()]);
+        index.add_commit_data(id_4.clone(), vec![id_1.clone(), id_2.clone()]);
+
+        let mut common_ancestors = index.common_ancestors(&[id_3.clone()], &[id_4.clone()]);
+        common_ancestors.sort();
+        assert_eq!(common_ancestors, vec![id_1.clone(), id_2.clone()]);
+    }
+
+    #[test]
+    fn test_common_ancestors_merge_with_ancestor() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut index = MutableIndex::full(temp_dir.path().to_owned(), 3);
+        // 4   5
+        // |\ /|
+        // 1 2 3
+        //  \|/
+        //   0
+        let id_0 = CommitId::from_hex("000000");
+        let id_1 = CommitId::from_hex("111111");
+        let id_2 = CommitId::from_hex("222222");
+        let id_3 = CommitId::from_hex("333333");
+        let id_4 = CommitId::from_hex("444444");
+        let id_5 = CommitId::from_hex("555555");
+        index.add_commit_data(id_0.clone(), vec![]);
+        index.add_commit_data(id_1.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_3.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_4.clone(), vec![id_0.clone(), id_2.clone()]);
+        index.add_commit_data(id_5.clone(), vec![id_0.clone(), id_2.clone()]);
+
+        let mut common_ancestors = index.common_ancestors(&[id_4.clone()], &[id_5.clone()]);
+        common_ancestors.sort();
+        assert_eq!(common_ancestors, vec![id_2.clone()]);
     }
 
     #[test]

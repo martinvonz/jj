@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #![feature(get_mut_unchecked)]
+#![feature(map_first_last)]
 
 #[cfg(test)]
 #[macro_use]

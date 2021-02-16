@@ -34,7 +34,7 @@ use pest::Parser;
 use jujube_lib::commit::Commit;
 use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::conflicts;
-use jujube_lib::dag_walk::{common_ancestor, topo_order_reverse, walk_ancestors};
+use jujube_lib::dag_walk::{topo_order_reverse, walk_ancestors};
 use jujube_lib::evolution::evolve;
 use jujube_lib::evolution::EvolveListener;
 use jujube_lib::files;
@@ -1826,7 +1826,10 @@ fn cmd_bench(
             resolve_single_rev(ui, mut_repo, command_matches.value_of("revision1").unwrap())?;
         let commit2 =
             resolve_single_rev(ui, mut_repo, command_matches.value_of("revision2").unwrap())?;
-        let routine = || common_ancestor(vec![&commit1], vec![&commit2]);
+        let routine = || {
+            repo.index()
+                .common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()])
+        };
         run_bench(ui, "commonancestors", routine);
     } else if let Some(command_matches) = sub_matches.subcommand_matches("isancestor") {
         let mut repo = get_repo(ui, &matches)?;
