@@ -466,6 +466,46 @@ impl MutableIndex {
         buf
     }
 
+    /// If the MutableIndex has more commits than its parent ReadonlyIndex,
+    /// return MutableIndex with the commits from both. This is done
+    /// recursively, so the stack of index files has O(log n) files.
+    fn maybe_squash_with_ancestors(self) -> MutableIndex {
+        if self.parent_file.is_none() {
+            return self;
+        }
+
+        let mut num_new_commits = self.segment_num_commits();
+        let mut parent_file = self.parent_file.as_ref().unwrap().clone();
+        let mut squashed;
+        loop {
+            // TODO: We should probably also squash if the parent file has less than N
+            // commits, regardless of how many (few) are in `self`.
+            if num_new_commits < parent_file.segment_num_commits() {
+                squashed = MutableIndex::incremental(parent_file);
+                break;
+            }
+            if parent_file.parent_file.is_none() {
+                squashed = MutableIndex::full(self.dir.clone(), self.hash_length);
+                break;
+            }
+            num_new_commits += parent_file.segment_num_commits();
+            parent_file = parent_file.parent_file.as_ref().unwrap().clone();
+        }
+
+        // TODO: This can be made more efficient by walking the parent files in order
+        // and not looking up via `self`.
+        for pos in squashed.num_parent_commits..self.num_commits() {
+            let entry = self.entry_by_pos(pos);
+            let parent_ids: Vec<_> = entry
+                .parents_positions()
+                .iter()
+                .map(|pos| self.entry_by_pos(*pos).commit_id())
+                .collect();
+            squashed.add_commit_data(entry.commit_id(), parent_ids);
+        }
+        squashed
+    }
+
     pub fn save(self) -> io::Result<Arc<ReadonlyIndex>> {
         if self.segment_num_commits() == 0 && self.parent_file.is_some() {
             return Ok(self.parent_file.unwrap());
@@ -473,8 +513,8 @@ impl MutableIndex {
 
         let hash_length = self.hash_length;
         let dir = self.dir.clone();
-        let buf = self.serialize();
 
+        let buf = self.maybe_squash_with_ancestors().serialize();
         let mut hasher = Blake2b::new();
         hasher.update(&buf);
         let index_file_id_hex = hex::encode(&hasher.finalize());
@@ -507,6 +547,10 @@ impl MutableIndex {
 
     pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
         CompositeIndex(self).entry_by_id(commit_id)
+    }
+
+    pub fn entry_by_pos(&self, pos: u32) -> IndexEntry {
+        CompositeIndex(self).entry_by_pos(pos)
     }
 
     pub fn has_id(&self, commit_id: &CommitId) -> bool {
@@ -1233,6 +1277,10 @@ impl ReadonlyIndex {
 
     pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
         CompositeIndex(self).entry_by_id(commit_id)
+    }
+
+    pub fn entry_by_pos(&self, pos: u32) -> IndexEntry {
+        CompositeIndex(self).entry_by_pos(pos)
     }
 
     pub fn has_id(&self, commit_id: &CommitId) -> bool {

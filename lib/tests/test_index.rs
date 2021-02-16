@@ -19,6 +19,7 @@ use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::settings::UserSettings;
 use jujube_lib::store::CommitId;
 use jujube_lib::testutils;
+use jujube_lib::testutils::create_random_commit;
 use std::sync::Arc;
 use test_case::test_case;
 
@@ -337,13 +338,8 @@ fn test_index_commits_incremental(use_git: bool) {
     assert_eq!(stats.num_commits, 2 + 3);
     assert_eq!(stats.num_merges, 0);
     assert_eq!(stats.max_generation_number, 3);
-    assert_eq!(stats.levels.len(), 3);
-    assert_eq!(stats.levels[0].num_commits, 2);
-    assert_eq!(stats.levels[1].num_commits, 1);
-    assert_ne!(stats.levels[1].name, stats.levels[0].name);
-    assert_eq!(stats.levels[2].num_commits, 2);
-    assert_ne!(stats.levels[2].name, stats.levels[0].name);
-    assert_ne!(stats.levels[2].name, stats.levels[1].name);
+    assert_eq!(stats.levels.len(), 1);
+    assert_eq!(stats.levels[0].num_commits, 5);
 
     assert_eq!(generation_number(index.clone(), root_commit.id()), 0);
     assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
@@ -389,6 +385,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     assert_eq!(stats.levels.len(), 2);
     assert_eq!(stats.levels[0].num_commits, 2);
     assert_eq!(stats.levels[1].num_commits, 1);
+    assert_ne!(stats.levels[1].name, stats.levels[0].name);
 
     assert_eq!(generation_number(index.clone(), root_commit.id()), 0);
     assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
@@ -418,4 +415,70 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
     tx.add_head(&commit_a);
     assert_eq!(tx.index().num_commits(), 2 + 1);
     tx.discard();
+}
+
+fn create_n_commits(settings: &UserSettings, repo: &mut Arc<ReadonlyRepo>, num_commits: i32) {
+    let mut tx = repo.start_transaction("test");
+    for _ in 0..num_commits {
+        create_random_commit(settings, repo).write_to_transaction(&mut tx);
+    }
+    tx.commit();
+    Arc::get_mut(repo).unwrap().reload();
+}
+
+fn commits_by_level(repo: &ReadonlyRepo) -> Vec<u32> {
+    repo.index()
+        .stats()
+        .levels
+        .iter()
+        .map(|level| level.num_commits)
+        .collect()
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_index_commits_incremental_squashed(use_git: bool) {
+    let settings = testutils::user_settings();
+
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    create_n_commits(&settings, &mut repo, 1);
+    assert_eq!(commits_by_level(&repo), vec![2, 1]);
+    create_n_commits(&settings, &mut repo, 1);
+    assert_eq!(commits_by_level(&repo), vec![4]);
+
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    create_n_commits(&settings, &mut repo, 2);
+    assert_eq!(commits_by_level(&repo), vec![4]);
+
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    create_n_commits(&settings, &mut repo, 100);
+    assert_eq!(commits_by_level(&repo), vec![102]);
+
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    create_n_commits(&settings, &mut repo, 2);
+    create_n_commits(&settings, &mut repo, 4);
+    create_n_commits(&settings, &mut repo, 8);
+    create_n_commits(&settings, &mut repo, 16);
+    create_n_commits(&settings, &mut repo, 32);
+    assert_eq!(commits_by_level(&repo), vec![64]);
+
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    create_n_commits(&settings, &mut repo, 32);
+    create_n_commits(&settings, &mut repo, 16);
+    create_n_commits(&settings, &mut repo, 8);
+    create_n_commits(&settings, &mut repo, 4);
+    create_n_commits(&settings, &mut repo, 2);
+    assert_eq!(commits_by_level(&repo), vec![34, 16, 8, 4, 2]);
+
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    create_n_commits(&settings, &mut repo, 10);
+    create_n_commits(&settings, &mut repo, 10);
+    create_n_commits(&settings, &mut repo, 10);
+    create_n_commits(&settings, &mut repo, 10);
+    create_n_commits(&settings, &mut repo, 10);
+    create_n_commits(&settings, &mut repo, 10);
+    create_n_commits(&settings, &mut repo, 10);
+    create_n_commits(&settings, &mut repo, 10);
+    create_n_commits(&settings, &mut repo, 10);
+    assert_eq!(commits_by_level(&repo), vec![72, 20]);
 }
