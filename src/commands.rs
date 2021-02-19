@@ -65,6 +65,8 @@ use jujube_lib::operation::Operation;
 use jujube_lib::store_wrapper::StoreWrapper;
 use jujube_lib::transaction::Transaction;
 use jujube_lib::view::merge_views;
+use std::fmt::Debug;
+use std::time::Instant;
 
 enum CommandError {
     UserError(String),
@@ -1792,12 +1794,31 @@ fn cmd_debug(
     Ok(())
 }
 
+fn run_bench<R, O>(ui: &mut Ui, id: &str, mut routine: R)
+where
+    R: (FnMut() -> O) + Copy,
+    O: Debug,
+{
+    let mut criterion = Criterion::default();
+    let before = Instant::now();
+    let result = routine();
+    let after = Instant::now();
+    writeln!(
+        ui,
+        "First run took {:?} and produced: {:?}",
+        after.duration_since(before),
+        result
+    );
+    criterion.bench_function(id, |bencher: &mut criterion::Bencher| {
+        bencher.iter(routine);
+    });
+}
+
 fn cmd_bench(
     ui: &mut Ui,
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut criterion = Criterion::default();
     if let Some(command_matches) = sub_matches.subcommand_matches("commonancestors") {
         let mut repo = get_repo(ui, &matches)?;
         let mut_repo = Arc::get_mut(&mut repo).unwrap();
@@ -1806,10 +1827,7 @@ fn cmd_bench(
         let commit2 =
             resolve_single_rev(ui, mut_repo, command_matches.value_of("revision2").unwrap())?;
         let routine = || common_ancestor(vec![&commit1], vec![&commit2]);
-        writeln!(ui, "Result: {:?}", routine());
-        criterion.bench_function("commonancestors", |bencher: &mut criterion::Bencher| {
-            bencher.iter(routine);
-        });
+        run_bench(ui, "commonancestors", routine);
     } else if let Some(command_matches) = sub_matches.subcommand_matches("isancestor") {
         let mut repo = get_repo(ui, &matches)?;
         let mut_repo = Arc::get_mut(&mut repo).unwrap();
@@ -1822,10 +1840,7 @@ fn cmd_bench(
         )?;
         let index = repo.index();
         let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
-        writeln!(ui, "Result: {:?}", routine());
-        criterion.bench_function("isancestor", |bencher: &mut criterion::Bencher| {
-            bencher.iter(routine);
-        });
+        run_bench(ui, "isancestor", routine);
     } else if let Some(command_matches) = sub_matches.subcommand_matches("walkrevs") {
         let mut repo = get_repo(ui, &matches)?;
         let mut_repo = Arc::get_mut(&mut repo).unwrap();
@@ -1842,19 +1857,13 @@ fn cmd_bench(
                 )
                 .count()
         };
-        writeln!(ui, "Result: {:?}", routine());
-        criterion.bench_function("walkrevs", |bencher: &mut criterion::Bencher| {
-            bencher.iter(routine);
-        });
+        run_bench(ui, "walkrevs", routine);
     } else if let Some(command_matches) = sub_matches.subcommand_matches("resolveprefix") {
         let repo = get_repo(ui, &matches)?;
         let prefix = HexPrefix::new(command_matches.value_of("prefix").unwrap().to_string());
         let index = repo.index();
         let routine = || index.resolve_prefix(&prefix);
-        writeln!(ui, "Result: {:?}", routine());
-        criterion.bench_function("resolveprefix", |bencher: &mut criterion::Bencher| {
-            bencher.iter(routine);
-        });
+        run_bench(ui, "resolveprefix", routine);
     } else {
         panic!("unhandled command: {:#?}", matches);
     };
