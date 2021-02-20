@@ -735,19 +735,30 @@ impl<'a> CompositeIndex<'a> {
 
     pub fn heads<'candidates>(
         &self,
-        candidates: impl IntoIterator<Item = &'candidates CommitId>,
+        candidate_ids: impl IntoIterator<Item = &'candidates CommitId>,
     ) -> Vec<CommitId> {
+        let candidate_positions: HashSet<_> = candidate_ids
+            .into_iter()
+            .map(|id| self.commit_id_to_pos(id).unwrap())
+            .collect();
+
+        let mut heads: Vec<_> = self
+            .heads_pos(candidate_positions)
+            .iter()
+            .map(|pos| self.entry_by_pos(*pos).commit_id())
+            .collect();
+        heads.sort();
+        heads
+    }
+
+    pub fn heads_pos(&self, mut candidate_positions: HashSet<u32>) -> HashSet<u32> {
         // Add all parents of the candidates to the work queue. The parents and their
         // ancestors are not heads.
         // Also find the smallest generation number among the candidates.
         let mut work = BinaryHeap::new();
         let mut min_generation = std::u32::MAX;
-        let mut candidate_positions = HashSet::new();
-        for entry in candidates
-            .into_iter()
-            .map(|id| self.entry_by_id(id).unwrap())
-        {
-            candidate_positions.insert(entry.pos);
+        for pos in &candidate_positions {
+            let entry = self.entry_by_pos(*pos);
             min_generation = min(min_generation, entry.generation_number());
             for parent_pos in entry.parents_positions() {
                 work.push(IndexEntryByGeneration(self.entry_by_pos(parent_pos)));
@@ -771,13 +782,7 @@ impl<'a> CompositeIndex<'a> {
                 work.push(IndexEntryByGeneration(self.entry_by_pos(parent_pos)));
             }
         }
-
-        let mut heads: Vec<_> = candidate_positions
-            .iter()
-            .map(|pos| self.entry_by_pos(*pos).commit_id())
-            .collect();
-        heads.sort();
-        heads
+        candidate_positions
     }
 }
 
