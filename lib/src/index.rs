@@ -104,10 +104,10 @@ impl<'a> IndexRef<'a> {
         }
     }
 
-    pub fn common_ancestors(&self, ids1: &[CommitId], ids2: &[CommitId]) -> Vec<CommitId> {
+    pub fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
         match self {
-            IndexRef::Readonly(index) => index.common_ancestors(ids1, ids2),
-            IndexRef::Mutable(index) => index.common_ancestors(ids1, ids2),
+            IndexRef::Readonly(index) => index.common_ancestors(set1, set2),
+            IndexRef::Mutable(index) => index.common_ancestors(set1, set2),
         }
     }
 

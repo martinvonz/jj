@@ -769,7 +769,7 @@ fn cmd_diff(
             sub_matches.value_of("revision").unwrap_or("@"),
         )?;
         let parents = commit.parents();
-        from_tree = merge_commit_trees(repo.store(), &parents);
+        from_tree = merge_commit_trees(repo.as_repo_ref(), &parents);
         to_tree = commit.tree()
     }
     if sub_matches.is_present("summary") {
@@ -1484,7 +1484,7 @@ fn cmd_edit(
     let owned_wc = repo.working_copy().clone();
     let mut_repo = Arc::get_mut(&mut repo).unwrap();
     let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
-    let base_tree = merge_commit_trees(repo.store(), &commit.parents());
+    let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
     if &tree_id == commit.tree().id() {
         ui.write("Nothing changed.\n");
@@ -1516,7 +1516,7 @@ fn cmd_split(
     let owned_wc = repo.working_copy().clone();
     let mut_repo = Arc::get_mut(&mut repo).unwrap();
     let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
-    let base_tree = merge_commit_trees(repo.store(), &commit.parents());
+    let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
     if &tree_id == commit.tree().id() {
         ui.write("Nothing changed.\n");
@@ -1579,7 +1579,7 @@ fn cmd_merge(
     } else {
         description = edit_description(&repo, "");
     }
-    let merged_tree = merge_commit_trees(repo.store(), &commits);
+    let merged_tree = merge_commit_trees(repo.as_repo_ref(), &commits);
     let mut tx = repo.start_transaction("merge commits");
     CommitBuilder::for_new_commit(ui.settings(), repo.store(), merged_tree.id().clone())
         .set_parents(parent_ids)

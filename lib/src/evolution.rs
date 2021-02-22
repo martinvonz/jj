@@ -619,16 +619,16 @@ fn evolve_two_divergent_commits(
     let rebased_tree2 = if commit2.parents() == new_parents {
         commit2.tree()
     } else {
-        let old_base_tree = merge_commit_trees(store, &commit2.parents());
-        let new_base_tree = merge_commit_trees(store, &new_parents);
+        let old_base_tree = merge_commit_trees(tx.as_repo_ref(), &commit2.parents());
+        let new_base_tree = merge_commit_trees(tx.as_repo_ref(), &new_parents);
         let tree_id = merge_trees(&new_base_tree, &old_base_tree, &commit2.tree()).unwrap();
         store.get_tree(&DirRepoPath::root(), &tree_id).unwrap()
     };
     let rebased_predecessor_tree = if common_predecessor.parents() == new_parents {
         common_predecessor.tree()
     } else {
-        let old_base_tree = merge_commit_trees(store, &common_predecessor.parents());
-        let new_base_tree = merge_commit_trees(store, &new_parents);
+        let old_base_tree = merge_commit_trees(tx.as_repo_ref(), &common_predecessor.parents());
+        let new_base_tree = merge_commit_trees(tx.as_repo_ref(), &new_parents);
         let tree_id =
             merge_trees(&new_base_tree, &old_base_tree, &common_predecessor.tree()).unwrap();
         store.get_tree(&DirRepoPath::root(), &tree_id).unwrap()

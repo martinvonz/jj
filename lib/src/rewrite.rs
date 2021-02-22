@@ -14,23 +14,27 @@
 
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
-use crate::dag_walk::common_ancestor;
+use crate::repo::RepoRef;
 use crate::repo_path::DirRepoPath;
 use crate::settings::UserSettings;
-use crate::store_wrapper::StoreWrapper;
 use crate::transaction::Transaction;
 use crate::tree::Tree;
 use crate::trees::merge_trees;
 
-pub fn merge_commit_trees(store: &StoreWrapper, commits: &[Commit]) -> Tree {
+pub fn merge_commit_trees(repo: RepoRef, commits: &[Commit]) -> Tree {
+    let store = repo.store();
     if commits.is_empty() {
         store
             .get_tree(&DirRepoPath::root(), store.empty_tree_id())
             .unwrap()
     } else {
+        let index = repo.index();
         let mut new_tree = commits[0].tree();
+        let commit_ids: Vec<_> = commits.iter().map(|commit| commit.id().clone()).collect();
         for (i, other_commit) in commits.iter().enumerate().skip(1) {
-            let ancestor = common_ancestor(&commits[0..i], vec![other_commit]);
+            let ancestors = index.common_ancestors(&commit_ids[0..i], &[commit_ids[i].clone()]);
+            // TODO: Do recursive merge here instead of using just the first ancestor.
+            let ancestor = store.get_commit(&ancestors[0]).unwrap();
             let new_tree_id =
                 merge_trees(&new_tree, &ancestor.tree(), &other_commit.tree()).unwrap();
             new_tree = store.get_tree(&DirRepoPath::root(), &new_tree_id).unwrap();
@@ -46,8 +50,8 @@ pub fn rebase_commit(
     new_parents: &[Commit],
 ) -> Commit {
     let store = tx.store();
-    let old_base_tree = merge_commit_trees(store, &old_commit.parents());
-    let new_base_tree = merge_commit_trees(store, &new_parents);
+    let old_base_tree = merge_commit_trees(tx.as_repo_ref(), &old_commit.parents());
+    let new_base_tree = merge_commit_trees(tx.as_repo_ref(), &new_parents);
     // TODO: pass in labels for the merge parts
     let new_tree_id = merge_trees(&new_base_tree, &old_base_tree, &old_commit.tree()).unwrap();
     let new_parent_ids = new_parents
@@ -67,8 +71,8 @@ pub fn back_out_commit(
     new_parents: &[Commit],
 ) -> Commit {
     let store = tx.store();
-    let old_base_tree = merge_commit_trees(store, &old_commit.parents());
-    let new_base_tree = merge_commit_trees(store, &new_parents);
+    let old_base_tree = merge_commit_trees(tx.as_repo_ref(), &old_commit.parents());
+    let new_base_tree = merge_commit_trees(tx.as_repo_ref(), &new_parents);
     // TODO: pass in labels for the merge parts
     let new_tree_id = merge_trees(&new_base_tree, &old_commit.tree(), &old_base_tree).unwrap();
     let new_parent_ids = new_parents
