@@ -41,7 +41,7 @@ use jujube_lib::files;
 use jujube_lib::files::DiffLine;
 use jujube_lib::git;
 use jujube_lib::op_store::{OpStoreError, OperationId};
-use jujube_lib::repo::{ReadonlyRepo, RepoLoadError, RepoRef};
+use jujube_lib::repo::{ReadonlyRepo, RepoLoadError};
 use jujube_lib::repo_path::RepoPath;
 use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujube_lib::settings::UserSettings;
@@ -1658,48 +1658,57 @@ fn cmd_evolve<'s>(
     let mut repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
 
-    struct Listener<'a, 's, 'r> {
+    struct Listener<'a, 's> {
         ui: &'a mut Ui<'s>,
-        repo: RepoRef<'a, 'r>,
     };
 
-    impl<'a, 's, 'r> EvolveListener for Listener<'a, 's, 'r> {
-        fn orphan_evolved(&mut self, orphan: &Commit, new_commit: &Commit) {
+    impl<'a, 's> EvolveListener for Listener<'a, 's> {
+        fn orphan_evolved(&mut self, tx: &mut Transaction, orphan: &Commit, new_commit: &Commit) {
             self.ui.write("Resolving orphan: ");
-            self.ui.write_commit_summary(self.repo, &orphan);
+            self.ui.write_commit_summary(tx.as_repo_ref(), &orphan);
             self.ui.write("\n");
             self.ui.write("Resolved as: ");
-            self.ui.write_commit_summary(self.repo, &new_commit);
+            self.ui.write_commit_summary(tx.as_repo_ref(), &new_commit);
             self.ui.write("\n");
         }
 
-        fn orphan_target_ambiguous(&mut self, orphan: &Commit) {
+        fn orphan_target_ambiguous(&mut self, tx: &mut Transaction, orphan: &Commit) {
             self.ui
                 .write("Skipping orphan with ambiguous new parents: ");
-            self.ui.write_commit_summary(self.repo, &orphan);
+            self.ui.write_commit_summary(tx.as_repo_ref(), &orphan);
             self.ui.write("\n");
         }
 
-        fn divergent_resolved(&mut self, sources: &[Commit], resolved: &Commit) {
+        fn divergent_resolved(
+            &mut self,
+            tx: &mut Transaction,
+            sources: &[Commit],
+            resolved: &Commit,
+        ) {
             self.ui.write("Resolving divergent commits:\n");
             for source in sources {
                 self.ui.write("  ");
-                self.ui.write_commit_summary(self.repo, &source);
+                self.ui.write_commit_summary(tx.as_repo_ref(), &source);
                 self.ui.write("\n");
             }
             self.ui.write("Resolved as: ");
-            self.ui.write_commit_summary(self.repo, &resolved);
+            self.ui.write_commit_summary(tx.as_repo_ref(), &resolved);
             self.ui.write("\n");
         }
 
-        fn divergent_no_common_predecessor(&mut self, commit1: &Commit, commit2: &Commit) {
+        fn divergent_no_common_predecessor(
+            &mut self,
+            tx: &mut Transaction,
+            commit1: &Commit,
+            commit2: &Commit,
+        ) {
             self.ui
                 .write("Skipping divergent commits with no common predecessor:\n");
             self.ui.write("  ");
-            self.ui.write_commit_summary(self.repo, &commit1);
+            self.ui.write_commit_summary(tx.as_repo_ref(), &commit1);
             self.ui.write("\n");
             self.ui.write("  ");
-            self.ui.write_commit_summary(self.repo, &commit2);
+            self.ui.write_commit_summary(tx.as_repo_ref(), &commit2);
             self.ui.write("\n");
         }
     }
@@ -1708,12 +1717,7 @@ fn cmd_evolve<'s>(
     // mutable borrow? But the mutable borrow might be useful for making sure we
     // have only one Ui instance we write to across threads?
     let user_settings = ui.settings().clone();
-    let mut listener = Listener {
-        ui,
-        // TODO: This should be using tx.as_repo_ref() so the templater sees the updated state, but
-        // we can't do that because we let evolution::evolve() mutably borrow the Transaction.
-        repo: repo.as_repo_ref(),
-    };
+    let mut listener = Listener { ui };
     let mut tx = repo.start_transaction("evolve");
     evolve(&user_settings, &mut tx, &mut listener);
     update_checkout_after_rewrite(ui, &mut tx);

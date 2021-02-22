@@ -379,10 +379,20 @@ pub struct ReadonlyEvolution<'r> {
 }
 
 pub trait EvolveListener {
-    fn orphan_evolved(&mut self, orphan: &Commit, new_commit: &Commit);
-    fn orphan_target_ambiguous(&mut self, orphan: &Commit);
-    fn divergent_resolved(&mut self, divergents: &[Commit], resolved: &Commit);
-    fn divergent_no_common_predecessor(&mut self, commit1: &Commit, commit2: &Commit);
+    fn orphan_evolved(&mut self, tx: &mut Transaction, orphan: &Commit, new_commit: &Commit);
+    fn orphan_target_ambiguous(&mut self, tx: &mut Transaction, orphan: &Commit);
+    fn divergent_resolved(
+        &mut self,
+        tx: &mut Transaction,
+        divergents: &[Commit],
+        resolved: &Commit,
+    );
+    fn divergent_no_common_predecessor(
+        &mut self,
+        tx: &mut Transaction,
+        commit1: &Commit,
+        commit2: &Commit,
+    );
 }
 
 impl<'r> ReadonlyEvolution<'r> {
@@ -541,10 +551,10 @@ pub fn evolve(
             );
         }
         if ambiguous_new_parents {
-            listener.orphan_target_ambiguous(&orphan);
+            listener.orphan_target_ambiguous(tx, &orphan);
         } else {
             let new_commit = rebase_commit(user_settings, tx, &orphan, &new_parents);
-            listener.orphan_evolved(&orphan, &new_commit);
+            listener.orphan_evolved(tx, &orphan, &new_commit);
         }
     }
 }
@@ -576,7 +586,7 @@ fn evolve_divergent_change(
         );
         match common_predecessor {
             None => {
-                listener.divergent_no_common_predecessor(&commit1, &commit2);
+                listener.divergent_no_common_predecessor(tx, &commit1, &commit2);
                 return;
             }
             Some(common_predecessor) => {
@@ -594,7 +604,7 @@ fn evolve_divergent_change(
     }
 
     let resolved = commits.pop().unwrap();
-    listener.divergent_resolved(&sources, &resolved);
+    listener.divergent_resolved(tx, &sources, &resolved);
 }
 
 fn evolve_two_divergent_commits(
