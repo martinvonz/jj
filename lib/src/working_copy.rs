@@ -708,8 +708,18 @@ impl WorkingCopy {
         // just created in that case, so we need to reset our state to have the new
         // commit id.
         let current_proto = self.read_proto();
-        self.commit_id
-            .replace(Some(CommitId(current_proto.commit_id)));
+        let maybe_previous_commit_id = self
+            .commit_id
+            .replace(Some(CommitId(current_proto.commit_id.clone())));
+        match maybe_previous_commit_id {
+            Some(previous_commit_id) if previous_commit_id.0 != current_proto.commit_id => {
+                // Reload the repo so the new commit is visible in the index and view
+                // TODO: This is not enough. The new commit is not necessarily still in the
+                // view when we reload.
+                repo.reload();
+            }
+            _ => {}
+        }
         let current_commit = self.current_commit();
 
         let new_tree_id = self.tree_state().as_mut().unwrap().write_tree().clone();

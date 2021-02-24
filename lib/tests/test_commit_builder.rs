@@ -17,6 +17,7 @@ use jujube_lib::repo_path::FileRepoPath;
 use jujube_lib::settings::UserSettings;
 use jujube_lib::testutils;
 use jujube_lib::tree::DiffSummary;
+use std::sync::Arc;
 use test_case::test_case;
 
 #[test_case(false ; "local store")]
@@ -62,8 +63,8 @@ fn test_initial(use_git: bool) {
 #[test_case(true ; "git store")]
 fn test_rewrite(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
-    let store = repo.store();
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let store = repo.store().clone();
 
     let root_file_path = FileRepoPath::from("file");
     let dir_file_path = FileRepoPath::from("dir/file");
@@ -75,9 +76,11 @@ fn test_rewrite(use_git: bool) {
         ],
     );
 
-    let initial_commit = CommitBuilder::for_new_commit(&settings, store, initial_tree.id().clone())
-        .set_parents(vec![store.root_commit_id().clone()])
-        .write_to_new_transaction(&repo, "test");
+    let initial_commit =
+        CommitBuilder::for_new_commit(&settings, &store, initial_tree.id().clone())
+            .set_parents(vec![store.root_commit_id().clone()])
+            .write_to_new_transaction(&repo, "test");
+    Arc::get_mut(&mut repo).unwrap().reload();
 
     let rewritten_tree = testutils::create_tree(
         &repo,
@@ -94,7 +97,7 @@ fn test_rewrite(use_git: bool) {
         .unwrap();
     let rewrite_settings = UserSettings::from_config(config);
     let rewritten_commit =
-        CommitBuilder::for_rewrite_from(&rewrite_settings, store, &initial_commit)
+        CommitBuilder::for_rewrite_from(&rewrite_settings, &store, &initial_commit)
             .set_tree(rewritten_tree.id().clone())
             .write_to_new_transaction(&repo, "test");
     assert_eq!(rewritten_commit.parents(), vec![store.root_commit()]);
