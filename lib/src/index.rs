@@ -15,7 +15,7 @@
 extern crate byteorder;
 
 use std::cmp::{max, min, Ordering};
-use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet};
 use std::fs::File;
 use std::io;
 use std::io::{Cursor, Read, Write};
@@ -737,21 +737,18 @@ impl<'a> CompositeIndex<'a> {
         &self,
         candidate_ids: impl IntoIterator<Item = &'candidates CommitId>,
     ) -> Vec<CommitId> {
-        let candidate_positions: HashSet<_> = candidate_ids
+        let candidate_positions: BTreeSet<_> = candidate_ids
             .into_iter()
             .map(|id| self.commit_id_to_pos(id).unwrap())
             .collect();
 
-        let mut heads: Vec<_> = self
-            .heads_pos(candidate_positions)
+        self.heads_pos(candidate_positions)
             .iter()
             .map(|pos| self.entry_by_pos(*pos).commit_id())
-            .collect();
-        heads.sort();
-        heads
+            .collect()
     }
 
-    pub fn heads_pos(&self, mut candidate_positions: HashSet<u32>) -> HashSet<u32> {
+    fn heads_pos(&self, mut candidate_positions: BTreeSet<u32>) -> BTreeSet<u32> {
         // Add all parents of the candidates to the work queue. The parents and their
         // ancestors are not heads.
         // Also find the smallest generation number among the candidates.
