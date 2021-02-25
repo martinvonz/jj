@@ -1030,7 +1030,7 @@ impl<'a> RevWalk<'a> {
 }
 
 impl<'a> Iterator for RevWalk<'a> {
-    type Item = CommitId;
+    type Item = IndexEntry<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while !self.wanted_boundary_set.is_empty() {
@@ -1043,7 +1043,7 @@ impl<'a> Iterator for RevWalk<'a> {
                 for parent_pos in item.entry.0.parent_positions() {
                     self.add_wanted(parent_pos);
                 }
-                return Some(item.entry.0.commit_id());
+                return Some(item.entry.0);
             } else {
                 self.unwanted_boundary_set.remove(&item.entry.0.pos);
                 for parent_pos in item.entry.0.parent_positions() {
@@ -2294,48 +2294,59 @@ mod tests {
             vec![],
         );
 
+        let walk_commit_ids = |wanted: &[CommitId], unwanted: &[CommitId]| {
+            index
+                .walk_revs(wanted, unwanted)
+                .map(|entry| entry.commit_id())
+                .collect::<Vec<_>>()
+        };
+
         // No wanted commits
-        let revs: Vec<CommitId> = index.walk_revs(&[], &[]).collect();
-        assert!(revs.is_empty());
+        assert!(walk_commit_ids(&[], &[]).is_empty());
         // Simple linear walk to roo
-        let revs: Vec<CommitId> = index.walk_revs(&[id_4.clone()], &[]).collect();
-        assert_eq!(revs, vec![id_4.clone(), id_1.clone(), id_0.clone()]);
+        assert_eq!(
+            walk_commit_ids(&[id_4.clone()], &[]),
+            vec![id_4.clone(), id_1.clone(), id_0.clone()]
+        );
         // Commits that are both wanted and unwanted are not walked
-        let revs: Vec<CommitId> = index.walk_revs(&[id_0.clone()], &[id_0.clone()]).collect();
-        assert_eq!(revs, vec![]);
+        assert_eq!(walk_commit_ids(&[id_0.clone()], &[id_0.clone()]), vec![]);
         // Commits that are listed twice are only walked once
-        let revs: Vec<CommitId> = index
-            .walk_revs(&[id_0.clone(), id_0.clone()], &[])
-            .collect();
-        assert_eq!(revs, vec![id_0.clone()]);
+        assert_eq!(
+            walk_commit_ids(&[id_0.clone(), id_0.clone()], &[]),
+            vec![id_0.clone()]
+        );
         // If a commit and its ancestor are both wanted, the ancestor still gets walked
         // only once
-        let revs: Vec<CommitId> = index
-            .walk_revs(&[id_0.clone(), id_1.clone()], &[])
-            .collect();
-        assert_eq!(revs, vec![id_1.clone(), id_0.clone()]);
+        assert_eq!(
+            walk_commit_ids(&[id_0.clone(), id_1.clone()], &[]),
+            vec![id_1.clone(), id_0.clone()]
+        );
         // Ancestors of both wanted and unwanted commits are not walked
-        let revs: Vec<CommitId> = index.walk_revs(&[id_2.clone()], &[id_1.clone()]).collect();
-        assert_eq!(revs, vec![id_2.clone()]);
+        assert_eq!(
+            walk_commit_ids(&[id_2.clone()], &[id_1.clone()]),
+            vec![id_2.clone()]
+        );
         // Same as above, but the opposite order, to make sure that order in index
         // doesn't matter
-        let revs: Vec<CommitId> = index.walk_revs(&[id_1.clone()], &[id_2.clone()]).collect();
-        assert_eq!(revs, vec![id_1.clone()]);
+        assert_eq!(
+            walk_commit_ids(&[id_1.clone()], &[id_2.clone()]),
+            vec![id_1.clone()]
+        );
         // Two wanted nodes
-        let revs: Vec<CommitId> = index
-            .walk_revs(&[id_1.clone(), id_2.clone()], &[])
-            .collect();
-        assert_eq!(revs, vec![id_2.clone(), id_1.clone(), id_0.clone()]);
+        assert_eq!(
+            walk_commit_ids(&[id_1.clone(), id_2.clone()], &[]),
+            vec![id_2.clone(), id_1.clone(), id_0.clone()]
+        );
         // Order of output doesn't depend on order of input
-        let revs: Vec<CommitId> = index
-            .walk_revs(&[id_2.clone(), id_1.clone()], &[])
-            .collect();
-        assert_eq!(revs, vec![id_2.clone(), id_1.clone(), id_0]);
+        assert_eq!(
+            walk_commit_ids(&[id_2.clone(), id_1.clone()], &[]),
+            vec![id_2.clone(), id_1.clone(), id_0]
+        );
         // Two wanted nodes that share an unwanted ancestor
-        let revs: Vec<CommitId> = index
-            .walk_revs(&[id_5.clone(), id_3.clone()], &[id_2])
-            .collect();
-        assert_eq!(revs, vec![id_5, id_4, id_3, id_1]);
+        assert_eq!(
+            walk_commit_ids(&[id_5.clone(), id_3.clone()], &[id_2]),
+            vec![id_5, id_4, id_3, id_1]
+        );
     }
 
     #[test]
