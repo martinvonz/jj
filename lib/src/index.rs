@@ -90,6 +90,13 @@ impl<'a> IndexRef<'a> {
         }
     }
 
+    pub fn entry_by_pos(&self, pos: u32) -> IndexEntry {
+        match self {
+            IndexRef::Readonly(index) => index.entry_by_pos(pos),
+            IndexRef::Mutable(index) => index.entry_by_pos(pos),
+        }
+    }
+
     pub fn has_id(&self, commit_id: &CommitId) -> bool {
         match self {
             IndexRef::Readonly(index) => index.has_id(commit_id),
@@ -1313,7 +1320,7 @@ impl IndexEntry<'_> {
         self.source.segment_change_id(self.local_pos)
     }
 
-    fn is_pruned(&self) -> bool {
+    pub fn is_pruned(&self) -> bool {
         self.source.segment_is_pruned(self.local_pos)
     }
 
@@ -1321,7 +1328,7 @@ impl IndexEntry<'_> {
         self.source.segment_num_parents(self.local_pos)
     }
 
-    fn parent_positions(&self) -> Vec<u32> {
+    pub fn parent_positions(&self) -> Vec<u32> {
         self.source.segment_parent_positions(self.local_pos)
     }
 
@@ -1329,7 +1336,7 @@ impl IndexEntry<'_> {
         self.source.segment_num_predecessors(self.local_pos)
     }
 
-    fn predecessor_positions(&self) -> Vec<u32> {
+    pub fn predecessor_positions(&self) -> Vec<u32> {
         self.source.segment_predecessor_positions(self.local_pos)
     }
 }

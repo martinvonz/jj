@@ -18,7 +18,7 @@ use std::sync::{Arc, Mutex};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::{bfs, closest_common_node, leaves, walk_ancestors};
-use crate::repo::{MutableRepo, ReadonlyRepo};
+use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use crate::repo_path::DirRepoPath;
 use crate::rewrite::{merge_commit_trees, rebase_commit};
 use crate::settings::UserSettings;
@@ -26,7 +26,6 @@ use crate::store::{ChangeId, CommitId};
 use crate::store_wrapper::StoreWrapper;
 use crate::transaction::Transaction;
 use crate::trees::merge_trees;
-use crate::view::ViewRef;
 
 // TODO: Combine some maps/sets and use a struct as value instead.
 // TODO: Move some of this into the index?
@@ -46,47 +45,47 @@ struct State {
 }
 
 impl State {
-    fn calculate(store: &StoreWrapper, view: ViewRef) -> State {
+    fn calculate(repo: RepoRef) -> State {
+        let view = repo.view();
+        let index = repo.index();
         let mut state = State::default();
-        let mut heads = vec![];
-        for commit_id in view.heads() {
-            heads.push(store.get_commit(commit_id).unwrap());
-        }
-        let mut commits = HashSet::new();
+        let head_ids: Vec<_> = view.heads().iter().cloned().collect();
         let mut change_to_commits = HashMap::new();
-        for commit in walk_ancestors(heads) {
-            state.children.insert(commit.id().clone(), HashSet::new());
-            change_to_commits
-                .entry(commit.change_id().clone())
-                .or_insert_with(HashSet::new)
-                .insert(commit.id().clone());
-            commits.insert(commit);
+        for head_id in &head_ids {
+            state.children.insert(head_id.clone(), HashSet::new());
         }
-        // Scan all commits to find obsolete commits and to build a lookup for
-        // children of a commit
-        for commit in &commits {
-            if commit.is_pruned() {
-                state.pruned_commits.insert(commit.id().clone());
+        for entry in index.walk_revs(&head_ids, &[]) {
+            let commit_id = entry.commit_id();
+            change_to_commits
+                .entry(entry.change_id().clone())
+                .or_insert_with(HashSet::new)
+                .insert(commit_id.clone());
+            if entry.is_pruned() {
+                state.pruned_commits.insert(commit_id.clone());
             }
-            for predecessor in commit.predecessors() {
-                if !commits.contains(&predecessor) {
-                    continue;
-                }
+            for parent_pos in entry.parent_positions() {
+                let parent_entry = index.entry_by_pos(parent_pos);
+                let parent_id = parent_entry.commit_id();
+                state
+                    .children
+                    .entry(parent_id.clone())
+                    .or_insert_with(HashSet::new)
+                    .insert(commit_id.clone());
+            }
+            for predecessor_pos in entry.predecessor_positions() {
+                let predecessor_entry = index.entry_by_pos(predecessor_pos);
+                let predecessor_id = predecessor_entry.commit_id();
                 state
                     .successors
-                    .entry(predecessor.id().clone())
+                    .entry(predecessor_id.clone())
                     .or_insert_with(HashSet::new)
-                    .insert(commit.id().clone());
-                if predecessor.change_id() == commit.change_id() {
-                    state.obsolete_commits.insert(predecessor.id().clone());
-                }
-            }
-            for parent in commit.parents() {
-                if let Some(children) = state.children.get_mut(parent.id()) {
-                    children.insert(commit.id().clone());
+                    .insert(commit_id.clone());
+                if predecessor_entry.change_id() == entry.change_id() {
+                    state.obsolete_commits.insert(predecessor_id.clone());
                 }
             }
         }
+
         // Find non-obsolete commits by change id (potentially divergent commits)
         for (change_id, commit_ids) in change_to_commits {
             let non_obsoletes: HashSet<CommitId> = commit_ids
@@ -406,10 +405,7 @@ impl<'r> ReadonlyEvolution<'r> {
     fn get_state(&self) -> Arc<State> {
         let mut locked_state = self.state.lock().unwrap();
         if locked_state.is_none() {
-            locked_state.replace(Arc::new(State::calculate(
-                self.repo.store(),
-                self.repo.view().as_view_ref(),
-            )));
+            locked_state.replace(Arc::new(State::calculate(self.repo.as_repo_ref())));
         }
         locked_state.as_ref().unwrap().clone()
     }
@@ -474,7 +470,7 @@ impl MutableEvolution<'_, '_> {
     }
 
     pub fn invalidate(&mut self) {
-        self.state = State::calculate(self.repo.store(), self.repo.view().as_view_ref());
+        self.state = State::calculate(self.repo.as_repo_ref());
     }
 }
 
