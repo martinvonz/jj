@@ -543,6 +543,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
             Arg::with_name("repository")
                 .long("repository")
                 .short("R")
+                .global(true)
                 .takes_value(true)
                 .default_value("."),
         )
@@ -550,6 +551,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
             Arg::with_name("at_op")
                 .long("at-operation")
                 .alias("at-op")
+                .global(true)
                 .takes_value(true),
         )
         .subcommand(init_command)
