@@ -14,6 +14,7 @@
 
 use std::cmp::min;
 use std::collections::{BTreeMap, HashSet};
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -154,11 +155,11 @@ pub enum OpHeadResolutionError {
     NoHeads,
 }
 
-fn add_op_head(op_heads_dir: &PathBuf, id: &OperationId) {
+fn add_op_head(op_heads_dir: &Path, id: &OperationId) {
     std::fs::write(op_heads_dir.join(id.hex()), "").unwrap();
 }
 
-fn remove_op_head(op_heads_dir: &PathBuf, id: &OperationId) {
+fn remove_op_head(op_heads_dir: &Path, id: &OperationId) {
     // It's fine if the old head was not found. It probably means
     // that we're on a distributed file system where the locking
     // doesn't work. We'll probably end up with two current
@@ -166,7 +167,7 @@ fn remove_op_head(op_heads_dir: &PathBuf, id: &OperationId) {
     std::fs::remove_file(op_heads_dir.join(id.hex())).ok();
 }
 
-fn get_op_heads(op_heads_dir: &PathBuf) -> Vec<OperationId> {
+fn get_op_heads(op_heads_dir: &Path) -> Vec<OperationId> {
     let mut op_heads = vec![];
     for op_head_entry in std::fs::read_dir(op_heads_dir).unwrap() {
         let op_head_file_name = op_head_entry.unwrap().file_name();
@@ -250,7 +251,7 @@ pub fn merge_views(
 fn get_single_op_head(
     store: &StoreWrapper,
     op_store: &Arc<dyn OpStore>,
-    op_heads_dir: &PathBuf,
+    op_heads_dir: &Path,
 ) -> Result<(OperationId, op_store::Operation, op_store::View), OpHeadResolutionError> {
     let mut op_heads = get_op_heads(&op_heads_dir);
 

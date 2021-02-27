@@ -23,6 +23,7 @@ use std::os::unix::fs::symlink;
 use std::os::unix::fs::PermissionsExt;
 #[cfg(windows)]
 use std::os::windows::fs::symlink_file;
+use std::path::Path;
 use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 
@@ -125,7 +126,7 @@ fn file_states_from_proto(
     file_states
 }
 
-fn create_parent_dirs(disk_path: &PathBuf) {
+fn create_parent_dirs(disk_path: &Path) {
     fs::create_dir_all(disk_path.parent().unwrap())
         .unwrap_or_else(|_| panic!("failed to create parent directories for {:?}", &disk_path));
 }
@@ -242,7 +243,7 @@ impl TreeState {
             .unwrap();
     }
 
-    fn file_state(&self, path: &PathBuf) -> Option<FileState> {
+    fn file_state(&self, path: &Path) -> Option<FileState> {
         let metadata = path.symlink_metadata().ok()?;
         let time = metadata.modified().unwrap();
         let since_epoch = time.duration_since(UNIX_EPOCH).unwrap();
@@ -268,12 +269,12 @@ impl TreeState {
         })
     }
 
-    fn write_file_to_store(&self, path: &FileRepoPath, disk_path: &PathBuf) -> FileId {
+    fn write_file_to_store(&self, path: &FileRepoPath, disk_path: &Path) -> FileId {
         let file = File::open(disk_path).unwrap();
         self.store.write_file(path, &mut Box::new(file)).unwrap()
     }
 
-    fn write_symlink_to_store(&self, path: &FileRepoPath, disk_path: &PathBuf) -> SymlinkId {
+    fn write_symlink_to_store(&self, path: &FileRepoPath, disk_path: &Path) -> SymlinkId {
         let target = disk_path.read_link().unwrap();
         let str_target = target.to_str().unwrap();
         self.store.write_symlink(path, str_target).unwrap()
@@ -375,7 +376,7 @@ impl TreeState {
 
     fn write_file(
         &self,
-        disk_path: &PathBuf,
+        disk_path: &Path,
         path: &FileRepoPath,
         id: &FileId,
         executable: bool,
@@ -402,7 +403,7 @@ impl TreeState {
         file_state
     }
 
-    fn write_symlink(&self, disk_path: &PathBuf, path: &FileRepoPath, id: &SymlinkId) -> FileState {
+    fn write_symlink(&self, disk_path: &Path, path: &FileRepoPath, id: &SymlinkId) -> FileState {
         create_parent_dirs(disk_path);
         #[cfg(windows)]
         {
@@ -417,7 +418,7 @@ impl TreeState {
         self.file_state(&disk_path).unwrap()
     }
 
-    fn set_executable(&self, disk_path: &PathBuf, executable: bool) {
+    fn set_executable(&self, disk_path: &Path, executable: bool) {
         #[cfg(windows)]
         {
             return;

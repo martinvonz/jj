@@ -139,7 +139,7 @@ impl ReadonlyRepo {
         let git_store_path = fs::canonicalize(git_store_path).unwrap();
         let mut store_file = File::create(store_path).unwrap();
         store_file.write_all(b"git: git").unwrap();
-        let store = Box::new(GitStore::load(git_store_path));
+        let store = Box::new(GitStore::load(&git_store_path));
         ReadonlyRepo::init(settings, repo_path, wc_path, store)
     }
 
@@ -157,7 +157,7 @@ impl ReadonlyRepo {
         store_file
             .write_all(format!("git: {}", git_store_path.to_str().unwrap()).as_bytes())
             .unwrap();
-        let store = Box::new(GitStore::load(git_store_path));
+        let store = Box::new(GitStore::load(&git_store_path));
         ReadonlyRepo::init(settings, repo_path, wc_path, store)
     }
 
@@ -245,7 +245,7 @@ impl ReadonlyRepo {
             let git_store_path_str = contents[5..].to_string();
             let git_store_path =
                 fs::canonicalize(repo_path.join(PathBuf::from(git_store_path_str))).unwrap();
-            store = Box::new(GitStore::load(git_store_path));
+            store = Box::new(GitStore::load(&git_store_path));
         }
         let store = StoreWrapper::new(store);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();

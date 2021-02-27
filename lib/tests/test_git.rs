@@ -292,7 +292,7 @@ fn test_init() {
     let initial_git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     let initial_commit_id = commit_id(&initial_git_commit);
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), git_repo_dir);
+    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
     // The refs were *not* imported -- it's the caller's responsibility to import
     // any refs they care about.
     assert!(!repo.view().heads().contains(&initial_commit_id));
@@ -310,13 +310,13 @@ fn test_fetch_success() {
     let clone_git_repo =
         git2::Repository::clone(&source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), clone_repo_dir.clone());
+    ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), clone_repo_dir);
 
     let new_git_commit =
         empty_git_commit(&source_git_repo, "refs/heads/main", &[&initial_git_commit]);
 
     // The new commit is not visible before git::fetch().
-    let jj_repo = ReadonlyRepo::load(&settings, jj_repo_dir.clone()).unwrap();
+    let jj_repo = ReadonlyRepo::load(&settings, jj_repo_dir).unwrap();
     assert!(!jj_repo.view().heads().contains(&commit_id(&new_git_commit)));
 
     // The new commit is visible after git::fetch().
@@ -335,8 +335,7 @@ fn test_fetch_no_such_remote() {
     let jj_repo_dir = temp_dir.path().join("jj");
     let git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let jj_repo =
-        ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), source_repo_dir.clone());
+    let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, source_repo_dir);
 
     let mut tx = jj_repo.start_transaction("test");
     let result = git::fetch(&mut tx, &git_repo, "invalid-remote");
@@ -360,10 +359,9 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let initial_commit_id = commit_id(&initial_git_commit);
     git2::Repository::clone(&source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let mut jj_repo =
-        ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), clone_repo_dir.clone());
+    let mut jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, clone_repo_dir);
     let new_commit = testutils::create_random_commit(&settings, &jj_repo)
-        .set_parents(vec![initial_commit_id.clone()])
+        .set_parents(vec![initial_commit_id])
         .write_to_new_transaction(&jj_repo, "test");
     Arc::get_mut(&mut jj_repo).unwrap().reload();
     PushTestSetup {

@@ -53,10 +53,7 @@ fn test_index_commits_empty_repo(use_git: bool) {
         0
     );
     assert_eq!(
-        generation_number(
-            index.clone(),
-            &repo.working_copy_locked().current_commit_id()
-        ),
+        generation_number(index, &repo.working_copy_locked().current_commit_id()),
         1
     );
 }
@@ -295,7 +292,7 @@ fn test_index_commits_previous_operations(use_git: bool) {
 
     assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
     assert_eq!(generation_number(index.clone(), commit_b.id()), 2);
-    assert_eq!(generation_number(index.clone(), commit_c.id()), 3);
+    assert_eq!(generation_number(index, commit_c.id()), 3);
 }
 
 #[test_case(false ; "local store")]
@@ -344,7 +341,7 @@ fn test_index_commits_incremental(use_git: bool) {
     assert_eq!(generation_number(index.clone(), root_commit.id()), 0);
     assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
     assert_eq!(generation_number(index.clone(), commit_b.id()), 2);
-    assert_eq!(generation_number(index.clone(), commit_c.id()), 3);
+    assert_eq!(generation_number(index, commit_c.id()), 3);
 }
 
 #[test_case(false ; "local store")]
@@ -388,7 +385,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     assert_ne!(stats.levels[1].name, stats.levels[0].name);
 
     assert_eq!(generation_number(index.clone(), root_commit.id()), 0);
-    assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
+    assert_eq!(generation_number(index, commit_a.id()), 1);
 }
 
 #[test_case(false ; "local store")]

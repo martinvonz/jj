@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::PathBuf;
+use std::path::Path;
 
 #[derive(Debug, Clone)]
 pub struct UserSettings {
@@ -43,7 +43,7 @@ impl UserSettings {
         Ok(UserSettings { config })
     }
 
-    pub fn with_repo(&self, repo_path: &PathBuf) -> Result<RepoSettings, config::ConfigError> {
+    pub fn with_repo(&self, repo_path: &Path) -> Result<RepoSettings, config::ConfigError> {
         let mut config = self.config.clone();
         config.merge(
             config::File::from(repo_path.join("config"))

@@ -720,7 +720,7 @@ mod tests {
             &rewritten_commit,
             &initial_change,
             &[],
-            &[initial_commit.clone()],
+            &[initial_commit],
             false,
         );
         assert!(state.is_orphan(&orphan_commit1));
@@ -751,13 +751,7 @@ mod tests {
             &[initial_commit.clone()],
             false,
         );
-        state.add_commit_data(
-            &new_commit,
-            &new_change,
-            &[initial_commit.clone()],
-            &[],
-            false,
-        );
+        state.add_commit_data(&new_commit, &new_change, &[initial_commit], &[], false);
         assert!(state.is_orphan(&new_commit));
     }
 
@@ -784,17 +778,11 @@ mod tests {
         state.add_commit_data(
             &orphan_commit,
             &orphan_change,
-            &[initial_commit.clone()],
+            &[initial_commit],
             &[],
             false,
         );
-        state.add_commit_data(
-            &new_commit,
-            &new_change,
-            &[orphan_commit.clone()],
-            &[],
-            false,
-        );
+        state.add_commit_data(&new_commit, &new_change, &[orphan_commit], &[], false);
         assert!(state.is_orphan(&new_commit));
     }
 
@@ -808,13 +796,7 @@ mod tests {
         let new_change = ChangeId::from_hex("bbb111");
 
         state.add_commit_data(&pruned_commit, &pruned_change, &[], &[], true);
-        state.add_commit_data(
-            &new_commit,
-            &new_change,
-            &[pruned_commit.clone()],
-            &[],
-            false,
-        );
+        state.add_commit_data(&new_commit, &new_change, &[pruned_commit], &[], false);
         assert!(state.is_orphan(&new_commit));
     }
 
@@ -876,7 +858,7 @@ mod tests {
         assert!(!state.is_divergent(&duplicate_change2));
         assert_eq!(
             state.successors(&initial_commit),
-            hashset!(duplicate_commit1.clone(), duplicate_commit2.clone())
+            hashset!(duplicate_commit1, duplicate_commit2)
         );
     }
 
@@ -910,7 +892,7 @@ mod tests {
         assert!(state.is_divergent(&initial_change));
         assert_eq!(
             state.successors(&initial_commit),
-            hashset!(rewritten_commit1.clone(), rewritten_commit2.clone())
+            hashset!(rewritten_commit1, rewritten_commit2)
         );
     }
 
@@ -945,7 +927,7 @@ mod tests {
         assert!(state.is_divergent(&initial_change));
         assert_eq!(
             state.successors(&initial_commit),
-            hashset!(rewritten_pruned.clone(), rewritten_non_pruned.clone())
+            hashset!(rewritten_pruned, rewritten_non_pruned)
         );
     }
 
@@ -1009,7 +991,7 @@ mod tests {
         );
         assert_eq!(
             state.successors(&rewritten_commit2),
-            hashset!(convergent_commit.clone())
+            hashset!(convergent_commit)
         );
     }
 }

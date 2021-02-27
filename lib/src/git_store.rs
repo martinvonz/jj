@@ -15,7 +15,7 @@
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Cursor;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -52,7 +52,7 @@ pub struct GitStore {
 }
 
 impl GitStore {
-    pub fn load(path: PathBuf) -> Self {
+    pub fn load(path: &Path) -> Self {
         let repo = Mutex::new(git2::Repository::open(path).unwrap());
         let empty_tree_id =
             TreeId(hex::decode("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap());
@@ -145,9 +145,11 @@ fn write_note(
             Ok(_) => Ok(()),
         }
     };
-    let mut backoff = ExponentialBackoff::default();
-    backoff.initial_interval = Duration::from_millis(1);
-    backoff.max_elapsed_time = Some(Duration::from_secs(10));
+    let mut backoff = ExponentialBackoff {
+        initial_interval: Duration::from_millis(1),
+        max_elapsed_time: Some(Duration::from_secs(10)),
+        ..Default::default()
+    };
     try_write_note
         .retry(&mut backoff)
         .map_err(|err| match err {
@@ -495,7 +497,7 @@ mod tests {
     fn read_plain_git_commit() {
         let temp_dir = tempfile::tempdir().unwrap();
         let git_repo_path = temp_dir.path();
-        let git_repo = git2::Repository::init(git_repo_path.clone()).unwrap();
+        let git_repo = git2::Repository::init(git_repo_path).unwrap();
 
         // Add a commit with some files in
         let blob1 = git_repo.blob(b"content1").unwrap();
@@ -534,7 +536,7 @@ mod tests {
             .unwrap();
         let commit_id = CommitId(git_commit_id.as_bytes().to_vec());
 
-        let store = GitStore::load(git_repo_path.to_owned());
+        let store = GitStore::load(git_repo_path);
         let commit = store.read_commit(&commit_id).unwrap();
         assert_eq!(
             &commit.change_id,
@@ -605,8 +607,8 @@ mod tests {
     fn commit_has_ref() {
         let temp_dir = tempfile::tempdir().unwrap();
         let git_repo_path = temp_dir.path();
-        let git_repo = git2::Repository::init(git_repo_path.clone()).unwrap();
-        let store = GitStore::load(git_repo_path.to_owned());
+        let git_repo = git2::Repository::init(git_repo_path).unwrap();
+        let store = GitStore::load(git_repo_path);
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),
@@ -639,8 +641,8 @@ mod tests {
     fn overlapping_git_commit_id() {
         let temp_dir = tempfile::tempdir().unwrap();
         let git_repo_path = temp_dir.path();
-        git2::Repository::init(git_repo_path.clone()).unwrap();
-        let store = GitStore::load(git_repo_path.to_owned());
+        git2::Repository::init(git_repo_path).unwrap();
+        let store = GitStore::load(git_repo_path);
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),

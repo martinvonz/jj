@@ -69,7 +69,7 @@ fn test_checkout_file_transitions(use_git: bool) {
         Symlink,
         Tree,
         GitSubmodule,
-    };
+    }
 
     fn write_path(
         settings: &UserSettings,
@@ -130,7 +130,7 @@ fn test_checkout_file_transitions(use_git: bool) {
             }
         };
         tree_builder.set(RepoPath::from(path), value);
-    };
+    }
 
     let mut kinds = vec![
         Kind::Missing,

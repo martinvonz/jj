@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::PathBuf;
+use std::path::Path;
 
 use tempfile::TempDir;
 
@@ -21,7 +21,7 @@ use jujube_lib::testutils;
 use std::sync::Arc;
 use test_case::test_case;
 
-fn copy_directory(src: &PathBuf, dst: &PathBuf) {
+fn copy_directory(src: &Path, dst: &Path) {
     std::fs::create_dir(dst).ok();
     for entry in std::fs::read_dir(src).unwrap() {
         let child_src = entry.unwrap().path();
@@ -35,7 +35,7 @@ fn copy_directory(src: &PathBuf, dst: &PathBuf) {
     }
 }
 
-fn merge_directories(left: &PathBuf, base: &PathBuf, right: &PathBuf, output: &PathBuf) {
+fn merge_directories(left: &Path, base: &Path, right: &Path, output: &Path) {
     std::fs::create_dir(output).ok();
     let mut sub_dirs = vec![];
     // Walk the left side and copy to the output

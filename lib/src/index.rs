@@ -496,10 +496,10 @@ impl MutableIndex {
         buf.write_u32::<LittleEndian>(num_commits).unwrap();
         // We'll write the actual value later
         let parent_overflow_offset = buf.len();
-        buf.write_u32::<LittleEndian>(0 as u32).unwrap();
+        buf.write_u32::<LittleEndian>(0_u32).unwrap();
         // We'll write the actual value later
         let predecessor_overflow_offset = buf.len();
-        buf.write_u32::<LittleEndian>(0 as u32).unwrap();
+        buf.write_u32::<LittleEndian>(0_u32).unwrap();
 
         let mut parent_overflow = vec![];
         let mut predecessor_overflow = vec![];
@@ -1851,24 +1851,12 @@ mod tests {
             vec![id_0.clone()],
             vec![],
         );
-        index.add_commit_data(
-            id_5.clone(),
-            null_change_id(),
-            false,
-            vec![id_0.clone()],
-            vec![],
-        );
+        index.add_commit_data(id_5.clone(), null_change_id(), false, vec![id_0], vec![]);
         index.add_commit_data(
             id_6.clone(),
             null_change_id(),
             false,
-            vec![
-                id_1.clone(),
-                id_2.clone(),
-                id_3.clone(),
-                id_4.clone(),
-                id_5.clone(),
-            ],
+            vec![id_1, id_2, id_3, id_4, id_5],
             vec![],
         );
         let index = if on_disk {
@@ -1912,22 +1900,22 @@ mod tests {
         let id_3 = CommitId::from_hex("055444");
         let id_4 = CommitId::from_hex("055555");
         let id_5 = CommitId::from_hex("033333");
-        index.add_commit_data(id_3.clone(), null_change_id(), false, vec![], vec![]);
-        index.add_commit_data(id_4.clone(), null_change_id(), false, vec![], vec![]);
-        index.add_commit_data(id_5.clone(), null_change_id(), false, vec![], vec![]);
+        index.add_commit_data(id_3, null_change_id(), false, vec![], vec![]);
+        index.add_commit_data(id_4, null_change_id(), false, vec![], vec![]);
+        index.add_commit_data(id_5, null_change_id(), false, vec![], vec![]);
 
         // Can find commits given the full hex number
         assert_eq!(
             index.resolve_prefix(&HexPrefix::new(id_0.hex())),
-            PrefixResolution::SingleMatch(id_0.clone())
+            PrefixResolution::SingleMatch(id_0)
         );
         assert_eq!(
             index.resolve_prefix(&HexPrefix::new(id_1.hex())),
-            PrefixResolution::SingleMatch(id_1.clone())
+            PrefixResolution::SingleMatch(id_1)
         );
         assert_eq!(
             index.resolve_prefix(&HexPrefix::new(id_2.hex())),
-            PrefixResolution::SingleMatch(id_2.clone())
+            PrefixResolution::SingleMatch(id_2)
         );
         // Test non-existent commits
         assert_eq!(
@@ -2128,17 +2116,14 @@ mod tests {
             vec![id_1.clone()]
         );
         assert_eq!(
-            index.common_ancestors(&[id_1.clone(), id_2.clone()], &[id_4.clone()]),
+            index.common_ancestors(&[id_1.clone(), id_2.clone()], &[id_4]),
             vec![id_1.clone()]
         );
         assert_eq!(
-            index.common_ancestors(&[id_1.clone(), id_2.clone()], &[id_5.clone()]),
+            index.common_ancestors(&[id_1.clone(), id_2.clone()], &[id_5]),
             vec![id_1.clone(), id_2.clone()]
         );
-        assert_eq!(
-            index.common_ancestors(&[id_1.clone(), id_2.clone()], &[id_3.clone()]),
-            vec![id_0.clone()]
-        );
+        assert_eq!(index.common_ancestors(&[id_1, id_2], &[id_3]), vec![id_0]);
     }
 
     #[test]
@@ -2163,13 +2148,7 @@ mod tests {
             vec![id_0.clone()],
             vec![],
         );
-        index.add_commit_data(
-            id_2.clone(),
-            null_change_id(),
-            false,
-            vec![id_0.clone()],
-            vec![],
-        );
+        index.add_commit_data(id_2.clone(), null_change_id(), false, vec![id_0], vec![]);
         index.add_commit_data(
             id_3.clone(),
             null_change_id(),
@@ -2185,9 +2164,9 @@ mod tests {
             vec![],
         );
 
-        let mut common_ancestors = index.common_ancestors(&[id_3.clone()], &[id_4.clone()]);
+        let mut common_ancestors = index.common_ancestors(&[id_3], &[id_4]);
         common_ancestors.sort();
-        assert_eq!(common_ancestors, vec![id_1.clone(), id_2.clone()]);
+        assert_eq!(common_ancestors, vec![id_1, id_2]);
     }
 
     #[test]
@@ -2206,13 +2185,7 @@ mod tests {
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
         index.add_commit_data(id_0.clone(), null_change_id(), false, vec![], vec![]);
-        index.add_commit_data(
-            id_1.clone(),
-            null_change_id(),
-            false,
-            vec![id_0.clone()],
-            vec![],
-        );
+        index.add_commit_data(id_1, null_change_id(), false, vec![id_0.clone()], vec![]);
         index.add_commit_data(
             id_2.clone(),
             null_change_id(),
@@ -2220,13 +2193,7 @@ mod tests {
             vec![id_0.clone()],
             vec![],
         );
-        index.add_commit_data(
-            id_3.clone(),
-            null_change_id(),
-            false,
-            vec![id_0.clone()],
-            vec![],
-        );
+        index.add_commit_data(id_3, null_change_id(), false, vec![id_0.clone()], vec![]);
         index.add_commit_data(
             id_4.clone(),
             null_change_id(),
@@ -2238,13 +2205,13 @@ mod tests {
             id_5.clone(),
             null_change_id(),
             false,
-            vec![id_0.clone(), id_2.clone()],
+            vec![id_0, id_2.clone()],
             vec![],
         );
 
-        let mut common_ancestors = index.common_ancestors(&[id_4.clone()], &[id_5.clone()]);
+        let mut common_ancestors = index.common_ancestors(&[id_4], &[id_5]);
         common_ancestors.sort();
-        assert_eq!(common_ancestors, vec![id_2.clone()]);
+        assert_eq!(common_ancestors, vec![id_2]);
     }
 
     #[test]

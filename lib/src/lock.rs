@@ -37,9 +37,11 @@ impl FileLock {
             }
             Err(err) => Err(backoff::Error::Permanent(err)),
         };
-        let mut backoff = ExponentialBackoff::default();
-        backoff.initial_interval = Duration::from_millis(1);
-        backoff.max_elapsed_time = Some(Duration::from_secs(10));
+        let mut backoff = ExponentialBackoff {
+            initial_interval: Duration::from_millis(1),
+            max_elapsed_time: Some(Duration::from_secs(10)),
+            ..Default::default()
+        };
         match try_write_lock_file.retry(&mut backoff) {
             Err(err) => panic!(
                 "failed to create lock file {}: {}",

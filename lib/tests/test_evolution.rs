@@ -495,7 +495,7 @@ impl EvolveListener for RecordingEvolveListener {
 
     fn divergent_resolved(&mut self, _tx: &mut Transaction, sources: &[Commit], resolved: &Commit) {
         self.evolved_divergents
-            .push((sources.iter().cloned().collect(), resolved.clone()));
+            .push((sources.to_vec(), resolved.clone()));
     }
 
     fn divergent_no_common_predecessor(
@@ -644,7 +644,7 @@ fn test_evolve_divergent(use_git: bool) {
         &[commit6.clone(), commit4.clone()]
     );
     let resolved = listener.evolved_divergents[0].1.clone();
-    assert_eq!(resolved.predecessors(), &[commit6.clone(), commit4.clone()]);
+    assert_eq!(resolved.predecessors(), &[commit6, commit4]);
 
     let tree = resolved.tree();
     let entries: Vec<_> = tree.entries().collect();
