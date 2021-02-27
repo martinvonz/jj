@@ -26,8 +26,10 @@ use crate::evolution::{EvolutionRef, MutableEvolution, ReadonlyEvolution};
 use crate::git_store::GitStore;
 use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::local_store::LocalStore;
+use crate::op_store::OpStore;
 use crate::operation::Operation;
 use crate::settings::{RepoSettings, UserSettings};
+use crate::simple_op_store::SimpleOpStore;
 use crate::store;
 use crate::store::{Store, StoreError};
 use crate::store_wrapper::StoreWrapper;
@@ -191,8 +193,12 @@ impl ReadonlyRepo {
             is_pruned: false,
         };
         let checkout_commit = store.write_commit(checkout_commit);
+
+        std::fs::create_dir(repo_path.join("op_store")).unwrap();
+        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(repo_path.join("op_store")));
         let view = ReadonlyView::init(
             store.clone(),
+            op_store,
             repo_path.join("view"),
             checkout_commit.id().clone(),
         );
@@ -254,7 +260,8 @@ impl ReadonlyRepo {
             wc_path.clone(),
             repo_path.join("working_copy"),
         );
-        let view = ReadonlyView::load(store.clone(), repo_path.join("view"));
+        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
+        let view = ReadonlyView::load(store.clone(), op_store, repo_path.join("view"));
         let repo = ReadonlyRepo {
             repo_path,
             wc_path,

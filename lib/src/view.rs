@@ -26,7 +26,6 @@ use crate::lock::FileLock;
 use crate::op_store;
 use crate::op_store::{OpStore, OpStoreResult, OperationId, OperationMetadata};
 use crate::operation::Operation;
-use crate::simple_op_store::SimpleOpStore;
 use crate::store::{CommitId, Timestamp};
 use crate::store_wrapper::StoreWrapper;
 
@@ -361,10 +360,12 @@ fn merge_op_heads(
 }
 
 impl ReadonlyView {
-    pub fn init(store: Arc<StoreWrapper>, path: PathBuf, checkout: CommitId) -> Self {
-        std::fs::create_dir(path.join("op_store")).unwrap();
-
-        let op_store = Arc::new(SimpleOpStore::init(path.join("op_store")));
+    pub fn init(
+        store: Arc<StoreWrapper>,
+        op_store: Arc<dyn OpStore>,
+        path: PathBuf,
+        checkout: CommitId,
+    ) -> Self {
         let mut root_view = op_store::View::new(checkout.clone());
         root_view.head_ids.insert(checkout);
         let root_view_id = op_store.write_view(&root_view).unwrap();
@@ -389,8 +390,7 @@ impl ReadonlyView {
         }
     }
 
-    pub fn load(store: Arc<StoreWrapper>, path: PathBuf) -> Self {
-        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(path.join("op_store")));
+    pub fn load(store: Arc<StoreWrapper>, op_store: Arc<dyn OpStore>, path: PathBuf) -> Self {
         let op_heads_dir = path.join("op_heads");
         let (op_id, _operation, view) =
             get_single_op_head(&store, &op_store, &op_heads_dir).unwrap();
