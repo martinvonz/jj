@@ -353,10 +353,9 @@ fn parse_commit_term<'a, 'r: 'a>(
                             None => panic!("if() requires at least two arguments"),
                             Some(pair) => parse_commit_template_rule(repo, pair),
                         };
-                        let false_template = match inner.next() {
-                            None => None,
-                            Some(pair) => Some(parse_commit_template_rule(repo, pair)),
-                        };
+                        let false_template = inner
+                            .next()
+                            .map(|pair| parse_commit_template_rule(repo, pair));
                         if inner.next().is_some() {
                             panic!("if() accepts at most three arguments")
                         }

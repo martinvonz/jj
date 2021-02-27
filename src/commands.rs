@@ -1664,7 +1664,7 @@ fn cmd_evolve<'s>(
 
     struct Listener<'a, 's> {
         ui: &'a mut Ui<'s>,
-    };
+    }
 
     impl<'a, 's> EvolveListener for Listener<'a, 's> {
         fn orphan_evolved(&mut self, tx: &mut Transaction, orphan: &Commit, new_commit: &Commit) {
