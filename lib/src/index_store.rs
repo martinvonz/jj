@@ -21,7 +21,9 @@ use crate::repo::ReadonlyRepo;
 use crate::store::CommitId;
 use crate::store_wrapper::StoreWrapper;
 use std::collections::{HashMap, HashSet};
+use std::fs::File;
 use std::io;
+use std::io::Read;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -49,12 +51,34 @@ impl IndexStore {
         let op_id_file = self.dir.join("operations").join(&op_id_hex);
         if op_id_file.exists() {
             let op_id = OperationId(hex::decode(op_id_hex).unwrap());
-            ReadonlyIndex::load_at_operation(self.dir.clone(), repo.store().hash_length(), &op_id)
+            self.load_index_at_operation(repo.store().hash_length(), &op_id)
                 .unwrap()
         } else {
             let op = repo.view().as_view_ref().get_operation(&op_id).unwrap();
             self.index_at_operation(repo.store(), &op).unwrap()
         }
+    }
+
+    fn load_index_at_operation(
+        &self,
+        hash_length: usize,
+        op_id: &OperationId,
+    ) -> io::Result<Arc<ReadonlyIndex>> {
+        let op_id_file = self.dir.join("operations").join(op_id.hex());
+        let mut buf = vec![];
+        File::open(op_id_file)
+            .unwrap()
+            .read_to_end(&mut buf)
+            .unwrap();
+        let index_file_id_hex = String::from_utf8(buf).unwrap();
+        let index_file_path = self.dir.join(&index_file_id_hex);
+        let mut index_file = File::open(&index_file_path).unwrap();
+        ReadonlyIndex::load_from(
+            &mut index_file,
+            self.dir.clone(),
+            index_file_id_hex,
+            hash_length,
+        )
     }
 
     fn index_at_operation(
@@ -90,9 +114,9 @@ impl IndexStore {
                 data = MutableIndex::full(self.dir.clone(), hash_length);
             }
             Some(parent_op_id) => {
-                let parent_file =
-                    ReadonlyIndex::load_at_operation(self.dir.clone(), hash_length, &parent_op_id)
-                        .unwrap();
+                let parent_file = self
+                    .load_index_at_operation(hash_length, &parent_op_id)
+                    .unwrap();
                 maybe_parent_file = Some(parent_file.clone());
                 data = MutableIndex::incremental(parent_file)
             }

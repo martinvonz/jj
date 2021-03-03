@@ -1283,7 +1283,7 @@ impl IndexEntry<'_> {
 }
 
 impl ReadonlyIndex {
-    fn load_from(
+    pub(crate) fn load_from(
         file: &mut dyn Read,
         dir: PathBuf,
         name: String,
@@ -1342,23 +1342,6 @@ impl ReadonlyIndex {
             overflow_parent,
             overflow_predecessor,
         }))
-    }
-
-    pub fn load_at_operation(
-        dir: PathBuf,
-        hash_length: usize,
-        op_id: &OperationId,
-    ) -> io::Result<Arc<ReadonlyIndex>> {
-        let op_id_file = dir.join("operations").join(op_id.hex());
-        let mut buf = vec![];
-        File::open(op_id_file)
-            .unwrap()
-            .read_to_end(&mut buf)
-            .unwrap();
-        let index_file_id_hex = String::from_utf8(buf).unwrap();
-        let index_file_path = dir.join(&index_file_id_hex);
-        let mut index_file = File::open(&index_file_path).unwrap();
-        ReadonlyIndex::load_from(&mut index_file, dir, index_file_id_hex, hash_length)
     }
 
     /// Records a link from the given operation to the this index version.
