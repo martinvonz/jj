@@ -15,7 +15,7 @@
 extern crate byteorder;
 
 use std::cmp::{max, min, Ordering};
-use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashSet};
 use std::fs::File;
 use std::io;
 use std::io::{Cursor, Read, Write};
@@ -27,11 +27,11 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use tempfile::NamedTempFile;
 
 use crate::commit::Commit;
-use crate::dag_walk;
+
 use crate::op_store::OperationId;
-use crate::operation::Operation;
+
 use crate::store::{ChangeId, CommitId};
-use crate::store_wrapper::StoreWrapper;
+
 use std::fmt::{Debug, Formatter};
 use std::ops::Bound;
 
@@ -256,74 +256,6 @@ impl Debug for ReadonlyIndex {
     }
 }
 
-// Returns the ancestors of heads with parents and predecessors come before the
-// commit itself
-fn topo_order_earlier_first(
-    store: &StoreWrapper,
-    heads: Vec<CommitId>,
-    parent_file: Option<Arc<ReadonlyIndex>>,
-) -> Vec<Commit> {
-    // First create a list of all commits in topological order with
-    // children/successors first (reverse of what we want)
-    let mut work = vec![];
-    for head in &heads {
-        work.push(store.get_commit(head).unwrap());
-    }
-    let mut commits = vec![];
-    let mut visited = HashSet::new();
-    let mut in_parent_file = HashSet::new();
-    let parent_file_source = parent_file.as_ref().map(|file| file.as_ref());
-    while !work.is_empty() {
-        let commit = work.pop().unwrap();
-        if parent_file_source.map_or(false, |index| index.has_id(commit.id())) {
-            in_parent_file.insert(commit.id().clone());
-            continue;
-        } else if !visited.insert(commit.id().clone()) {
-            continue;
-        }
-
-        work.extend(commit.parents());
-        work.extend(commit.predecessors());
-        commits.push(commit);
-    }
-    drop(visited);
-
-    // Now create the topological order with earlier commits first. If we run into
-    // any commits whose parents/predecessors have not all been indexed, put
-    // them in the map of waiting commit (keyed by the commit they're waiting
-    // for). Note that the order in the graph doesn't really have to be
-    // topological, but it seems like a useful property to have.
-
-    // Commits waiting for their parents/predecessors to be added
-    let mut waiting = HashMap::new();
-
-    let mut result = vec![];
-    let mut visited = in_parent_file;
-    while !commits.is_empty() {
-        let commit = commits.pop().unwrap();
-        let mut waiting_for_earlier_commit = false;
-        for earlier in commit.parents().iter().chain(commit.predecessors().iter()) {
-            if !visited.contains(earlier.id()) {
-                waiting
-                    .entry(earlier.id().clone())
-                    .or_insert_with(Vec::new)
-                    .push(commit.clone());
-                waiting_for_earlier_commit = true;
-                break;
-            }
-        }
-        if !waiting_for_earlier_commit {
-            visited.insert(commit.id().clone());
-            if let Some(dependents) = waiting.remove(commit.id()) {
-                commits.extend(dependents);
-            }
-            result.push(commit);
-        }
-    }
-    assert!(waiting.is_empty());
-    result
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HexPrefix(String);
 
@@ -397,7 +329,7 @@ pub struct MutableIndex {
 }
 
 impl MutableIndex {
-    fn full(dir: PathBuf, hash_length: usize) -> Self {
+    pub(crate) fn full(dir: PathBuf, hash_length: usize) -> Self {
         Self {
             dir,
             parent_file: None,
@@ -1427,61 +1359,6 @@ impl ReadonlyIndex {
         let index_file_path = dir.join(&index_file_id_hex);
         let mut index_file = File::open(&index_file_path).unwrap();
         ReadonlyIndex::load_from(&mut index_file, dir, index_file_id_hex, hash_length)
-    }
-
-    pub fn index(
-        store: &StoreWrapper,
-        dir: PathBuf,
-        operation: &Operation,
-    ) -> io::Result<Arc<ReadonlyIndex>> {
-        let view = operation.view();
-        let operations_dir = dir.join("operations");
-        let hash_length = store.hash_length();
-        let mut new_heads = view.heads().clone();
-        let mut parent_op_id: Option<OperationId> = None;
-        for op in dag_walk::bfs(
-            vec![operation.clone()],
-            Box::new(|op: &Operation| op.id().clone()),
-            Box::new(|op: &Operation| op.parents()),
-        ) {
-            if operations_dir.join(op.id().hex()).is_file() {
-                if parent_op_id.is_none() {
-                    parent_op_id = Some(op.id().clone())
-                }
-            } else {
-                for head in op.view().heads() {
-                    new_heads.insert(head.clone());
-                }
-            }
-        }
-        let mut data;
-        let maybe_parent_file;
-        match parent_op_id {
-            None => {
-                maybe_parent_file = None;
-                data = MutableIndex::full(dir, hash_length);
-            }
-            Some(parent_op_id) => {
-                let parent_file =
-                    ReadonlyIndex::load_at_operation(dir, hash_length, &parent_op_id).unwrap();
-                maybe_parent_file = Some(parent_file.clone());
-                data = MutableIndex::incremental(parent_file)
-            }
-        }
-
-        let mut heads: Vec<CommitId> = new_heads.into_iter().collect();
-        heads.sort();
-        let commits = topo_order_earlier_first(store, heads, maybe_parent_file);
-
-        for commit in &commits {
-            data.add_commit(&commit);
-        }
-
-        let index_file = data.save()?;
-
-        index_file.associate_with_operation(operation.id())?;
-
-        Ok(index_file)
     }
 
     /// Records a link from the given operation to the this index version.

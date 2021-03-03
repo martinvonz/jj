@@ -12,9 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::index::ReadonlyIndex;
+use crate::commit::Commit;
+use crate::dag_walk;
+use crate::index::{MutableIndex, ReadonlyIndex};
 use crate::op_store::OperationId;
+use crate::operation::Operation;
 use crate::repo::ReadonlyRepo;
+use crate::store::CommitId;
+use crate::store_wrapper::StoreWrapper;
+use std::collections::{HashMap, HashSet};
+use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -46,7 +53,131 @@ impl IndexStore {
                 .unwrap()
         } else {
             let op = repo.view().as_view_ref().get_operation(&op_id).unwrap();
-            ReadonlyIndex::index(repo.store(), self.dir.clone(), &op).unwrap()
+            self.index_at_operation(repo.store(), &op).unwrap()
         }
     }
+
+    fn index_at_operation(
+        &self,
+        store: &StoreWrapper,
+        operation: &Operation,
+    ) -> io::Result<Arc<ReadonlyIndex>> {
+        let view = operation.view();
+        let operations_dir = self.dir.join("operations");
+        let hash_length = store.hash_length();
+        let mut new_heads = view.heads().clone();
+        let mut parent_op_id: Option<OperationId> = None;
+        for op in dag_walk::bfs(
+            vec![operation.clone()],
+            Box::new(|op: &Operation| op.id().clone()),
+            Box::new(|op: &Operation| op.parents()),
+        ) {
+            if operations_dir.join(op.id().hex()).is_file() {
+                if parent_op_id.is_none() {
+                    parent_op_id = Some(op.id().clone())
+                }
+            } else {
+                for head in op.view().heads() {
+                    new_heads.insert(head.clone());
+                }
+            }
+        }
+        let mut data;
+        let maybe_parent_file;
+        match parent_op_id {
+            None => {
+                maybe_parent_file = None;
+                data = MutableIndex::full(self.dir.clone(), hash_length);
+            }
+            Some(parent_op_id) => {
+                let parent_file =
+                    ReadonlyIndex::load_at_operation(self.dir.clone(), hash_length, &parent_op_id)
+                        .unwrap();
+                maybe_parent_file = Some(parent_file.clone());
+                data = MutableIndex::incremental(parent_file)
+            }
+        }
+
+        let mut heads: Vec<CommitId> = new_heads.into_iter().collect();
+        heads.sort();
+        let commits = topo_order_earlier_first(store, heads, maybe_parent_file);
+
+        for commit in &commits {
+            data.add_commit(&commit);
+        }
+
+        let index_file = data.save()?;
+
+        index_file.associate_with_operation(operation.id())?;
+
+        Ok(index_file)
+    }
+}
+
+// Returns the ancestors of heads with parents and predecessors come before the
+// commit itself
+fn topo_order_earlier_first(
+    store: &StoreWrapper,
+    heads: Vec<CommitId>,
+    parent_file: Option<Arc<ReadonlyIndex>>,
+) -> Vec<Commit> {
+    // First create a list of all commits in topological order with
+    // children/successors first (reverse of what we want)
+    let mut work = vec![];
+    for head in &heads {
+        work.push(store.get_commit(head).unwrap());
+    }
+    let mut commits = vec![];
+    let mut visited = HashSet::new();
+    let mut in_parent_file = HashSet::new();
+    let parent_file_source = parent_file.as_ref().map(|file| file.as_ref());
+    while !work.is_empty() {
+        let commit = work.pop().unwrap();
+        if parent_file_source.map_or(false, |index| index.has_id(commit.id())) {
+            in_parent_file.insert(commit.id().clone());
+            continue;
+        } else if !visited.insert(commit.id().clone()) {
+            continue;
+        }
+
+        work.extend(commit.parents());
+        work.extend(commit.predecessors());
+        commits.push(commit);
+    }
+    drop(visited);
+
+    // Now create the topological order with earlier commits first. If we run into
+    // any commits whose parents/predecessors have not all been indexed, put
+    // them in the map of waiting commit (keyed by the commit they're waiting
+    // for). Note that the order in the graph doesn't really have to be
+    // topological, but it seems like a useful property to have.
+
+    // Commits waiting for their parents/predecessors to be added
+    let mut waiting = HashMap::new();
+
+    let mut result = vec![];
+    let mut visited = in_parent_file;
+    while !commits.is_empty() {
+        let commit = commits.pop().unwrap();
+        let mut waiting_for_earlier_commit = false;
+        for earlier in commit.parents().iter().chain(commit.predecessors().iter()) {
+            if !visited.contains(earlier.id()) {
+                waiting
+                    .entry(earlier.id().clone())
+                    .or_insert_with(Vec::new)
+                    .push(commit.clone());
+                waiting_for_earlier_commit = true;
+                break;
+            }
+        }
+        if !waiting_for_earlier_commit {
+            visited.insert(commit.id().clone());
+            if let Some(dependents) = waiting.remove(commit.id()) {
+                commits.extend(dependents);
+            }
+            result.push(commit);
+        }
+    }
+    assert!(waiting.is_empty());
+    result
 }
