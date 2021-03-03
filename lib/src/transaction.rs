@@ -204,7 +204,14 @@ impl<'r> Transaction<'r> {
         let mut_repo = Arc::try_unwrap(self.repo.take().unwrap()).ok().unwrap();
         let index_store = mut_repo.base_repo().index_store();
         let (mut_index, mut_view) = mut_repo.consume();
-        let index = mut_index.save().unwrap();
+        // TODO: There is a race here: We add the operation to the list of head
+        // operations (in mut_view.save()) before we associate the operation with the
+        // index. That means that there's a small risk that another process finds the
+        // new operation and does redundant work to calculate the. We should
+        // probably make mut_view.save() write the operation without recording
+        // the new head (and without removing the old head), so we can associate the
+        // operation id with the index before we mark the operation as a head.
+        let index = index_store.write_index(mut_index).unwrap();
         let operation = mut_view.save(self.description.clone(), self.start_time.clone());
         index_store
             .associate_file_with_operation(&index, operation.id())

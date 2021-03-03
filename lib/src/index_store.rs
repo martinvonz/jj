@@ -60,6 +60,10 @@ impl IndexStore {
         }
     }
 
+    pub fn write_index(&self, index: MutableIndex) -> io::Result<Arc<ReadonlyIndex>> {
+        index.save_in(self.dir.clone())
+    }
+
     fn load_index_at_operation(
         &self,
         hash_length: usize,
@@ -112,7 +116,7 @@ impl IndexStore {
         match parent_op_id {
             None => {
                 maybe_parent_file = None;
-                data = MutableIndex::full(self.dir.clone(), hash_length);
+                data = MutableIndex::full(hash_length);
             }
             Some(parent_op_id) => {
                 let parent_file = self
@@ -131,7 +135,7 @@ impl IndexStore {
             data.add_commit(&commit);
         }
 
-        let index_file = data.save()?;
+        let index_file = data.save_in(self.dir.clone())?;
 
         self.associate_file_with_operation(&index_file, operation.id())?;
 
