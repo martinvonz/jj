@@ -28,6 +28,7 @@ pub mod files;
 pub mod git;
 pub mod git_store;
 pub mod index;
+pub mod index_store;
 pub mod local_store;
 pub mod lock;
 pub mod matchers;

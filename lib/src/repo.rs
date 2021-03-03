@@ -25,6 +25,7 @@ use crate::commit_builder::{new_change_id, signature};
 use crate::evolution::{EvolutionRef, MutableEvolution, ReadonlyEvolution};
 use crate::git_store::GitStore;
 use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
+use crate::index_store::IndexStore;
 use crate::local_store::LocalStore;
 use crate::op_store::OpStore;
 use crate::operation::Operation;
@@ -99,6 +100,7 @@ pub struct ReadonlyRepo {
     wc_path: PathBuf,
     store: Arc<StoreWrapper>,
     settings: RepoSettings,
+    index_store: IndexStore,
     index: Mutex<Option<Arc<ReadonlyIndex>>>,
     working_copy: Arc<Mutex<WorkingCopy>>,
     view: ReadonlyView,
@@ -203,11 +205,15 @@ impl ReadonlyRepo {
             checkout_commit.id().clone(),
         );
 
+        fs::create_dir(repo_path.join("index")).unwrap();
+        let index_store = IndexStore::init(repo_path.join("index"));
+
         let repo = ReadonlyRepo {
-            repo_path: repo_path.clone(),
+            repo_path,
             wc_path,
             store,
             settings: repo_settings,
+            index_store,
             index: Mutex::new(None),
             working_copy: Arc::new(Mutex::new(working_copy)),
             view,
@@ -216,9 +222,6 @@ impl ReadonlyRepo {
         let mut repo = Arc::new(repo);
         let repo_ref: &ReadonlyRepo = repo.as_ref();
         let static_lifetime_repo: &'static ReadonlyRepo = unsafe { std::mem::transmute(repo_ref) };
-
-        fs::create_dir(repo_path.join("index")).unwrap();
-        ReadonlyIndex::init(repo_path.join("index"));
 
         let evolution = ReadonlyEvolution::new(static_lifetime_repo);
         Arc::get_mut(&mut repo).unwrap().evolution = Some(evolution);
@@ -279,7 +282,7 @@ impl ReadonlyRepo {
     }
 
     pub fn reindex(&mut self) -> Arc<ReadonlyIndex> {
-        ReadonlyIndex::reinit(self.repo_path.join("index"));
+        self.index_store.reinit();
         {
             let mut locked_index = self.index.lock().unwrap();
             locked_index.take();
@@ -342,6 +345,7 @@ pub struct RepoLoader {
     repo_settings: RepoSettings,
     store: Arc<StoreWrapper>,
     op_store: Arc<dyn OpStore>,
+    index_store: IndexStore,
 }
 
 impl RepoLoader {
@@ -354,12 +358,14 @@ impl RepoLoader {
         let store = RepoLoader::load_store(&repo_path);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
+        let index_store = IndexStore::load(repo_path.join("index"));
         Ok(RepoLoader {
             wc_path,
             repo_path,
             repo_settings,
             store,
             op_store,
+            index_store,
         })
     }
 
@@ -418,6 +424,7 @@ impl RepoLoader {
             wc_path: self.wc_path,
             store: self.store,
             settings: self.repo_settings,
+            index_store: self.index_store,
             index: Mutex::new(None),
             working_copy: Arc::new(Mutex::new(working_copy)),
             view,

@@ -1352,15 +1352,6 @@ impl IndexEntry<'_> {
 }
 
 impl ReadonlyIndex {
-    pub fn init(dir: PathBuf) {
-        std::fs::create_dir(dir.join("operations")).unwrap();
-    }
-
-    pub fn reinit(dir: PathBuf) {
-        std::fs::remove_dir_all(dir.join("operations")).unwrap();
-        ReadonlyIndex::init(dir);
-    }
-
     pub fn load(repo: &ReadonlyRepo, dir: PathBuf, op_id: OperationId) -> Arc<ReadonlyIndex> {
         let op_id_hex = op_id.hex();
         let op_id_file = dir.join("operations").join(&op_id_hex);
