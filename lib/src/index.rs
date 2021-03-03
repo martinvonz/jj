@@ -28,8 +28,6 @@ use tempfile::NamedTempFile;
 
 use crate::commit::Commit;
 
-use crate::op_store::OperationId;
-
 use crate::store::{ChangeId, CommitId};
 
 use std::fmt::{Debug, Formatter};
@@ -1344,17 +1342,12 @@ impl ReadonlyIndex {
         }))
     }
 
-    /// Records a link from the given operation to the this index version.
-    pub fn associate_with_operation(&self, op_id: &OperationId) -> io::Result<()> {
-        let mut temp_file = NamedTempFile::new_in(&self.dir)?;
-        let file = temp_file.as_file_mut();
-        file.write_all(&self.name.as_bytes()).unwrap();
-        temp_file.persist(&self.dir.join("operations").join(op_id.hex()))?;
-        Ok(())
-    }
-
     pub fn num_commits(&self) -> u32 {
         CompositeIndex(self).num_commits()
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn stats(&self) -> IndexStats {

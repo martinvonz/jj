@@ -298,6 +298,10 @@ impl ReadonlyRepo {
         &self.store
     }
 
+    pub fn index_store(&self) -> &IndexStore {
+        &self.index_store
+    }
+
     pub fn settings(&self) -> &RepoSettings {
         &self.settings
     }
