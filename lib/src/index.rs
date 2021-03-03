@@ -736,6 +736,8 @@ impl<'a> CompositeIndex<'a> {
         let mut num_merges = 0;
         let mut max_generation_number = 0;
         let mut is_head = vec![true; num_commits as usize];
+        let mut change_ids = HashSet::new();
+        let mut num_pruned_commits = 0;
         for pos in 0..num_commits {
             let entry = self.entry_by_pos(pos);
             max_generation_number = max(max_generation_number, entry.generation_number());
@@ -745,6 +747,10 @@ impl<'a> CompositeIndex<'a> {
             for parent_pos in entry.parent_positions() {
                 is_head[parent_pos as usize] = false;
             }
+            if entry.is_pruned() {
+                num_pruned_commits += 1;
+            }
+            change_ids.insert(entry.change_id());
         }
         let num_heads = is_head.iter().filter(|is_head| **is_head).count() as u32;
 
@@ -768,6 +774,8 @@ impl<'a> CompositeIndex<'a> {
             num_merges,
             max_generation_number,
             num_heads,
+            num_pruned_commits,
+            num_changes: change_ids.len() as u32,
             levels,
         }
     }
@@ -971,6 +979,8 @@ pub struct IndexStats {
     pub num_merges: u32,
     pub max_generation_number: u32,
     pub num_heads: u32,
+    pub num_pruned_commits: u32,
+    pub num_changes: u32,
     pub levels: Vec<IndexLevelStats>,
 }
 
@@ -1633,6 +1643,8 @@ mod tests {
         assert_eq!(stats.num_heads, 0);
         assert_eq!(stats.max_generation_number, 0);
         assert_eq!(stats.num_merges, 0);
+        assert_eq!(stats.num_changes, 0);
+        assert_eq!(stats.num_pruned_commits, 0);
         assert_eq!(index.num_commits(), 0);
         // Cannot find any commits
         assert!(index.entry_by_id(&CommitId::from_hex("000000")).is_none());
@@ -1646,7 +1658,8 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let mut index = MutableIndex::full(temp_dir.path().to_owned(), 3);
         let id_0 = CommitId::from_hex("000000");
-        index.add_commit_data(id_0.clone(), new_change_id(), false, vec![], vec![]);
+        let change_id0 = new_change_id();
+        index.add_commit_data(id_0.clone(), change_id0.clone(), false, vec![], vec![]);
         let index = if on_disk {
             IndexRef::Readonly(index.save().unwrap())
         } else {
@@ -1659,6 +1672,8 @@ mod tests {
         assert_eq!(stats.num_heads, 1);
         assert_eq!(stats.max_generation_number, 0);
         assert_eq!(stats.num_merges, 0);
+        assert_eq!(stats.num_changes, 1);
+        assert_eq!(stats.num_pruned_commits, 0);
         assert_eq!(index.num_commits(), 1);
         // Can find only the root commit
         assert_eq!(index.commit_id_to_pos(&id_0), Some(0));
@@ -1668,6 +1683,8 @@ mod tests {
         let entry = index.entry_by_id(&id_0).unwrap();
         assert_eq!(entry.pos, 0);
         assert_eq!(entry.commit_id(), id_0);
+        assert_eq!(entry.change_id(), change_id0);
+        assert_eq!(entry.is_pruned(), false);
         assert_eq!(entry.generation_number(), 0);
         assert_eq!(entry.num_parents(), 0);
         assert_eq!(entry.parent_positions(), Vec::<u32>::new());
@@ -1685,6 +1702,16 @@ mod tests {
         index.add_commit_data(id_1, new_change_id(), false, vec![id_0], vec![]);
     }
 
+    #[test]
+    #[should_panic(expected = "predecessor commit is not indexed")]
+    fn index_missing_predecessor_commit() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let mut index = MutableIndex::full(temp_dir.path().to_owned(), 3);
+        let id_0 = CommitId::from_hex("000000");
+        let id_1 = CommitId::from_hex("111111");
+        index.add_commit_data(id_1, new_change_id(), false, vec![], vec![id_0]);
+    }
+
     #[test_case(false, false; "full in memory")]
     #[test_case(false, true; "full on disk")]
     #[test_case(true, false; "incremental in memory")]
@@ -1700,19 +1727,22 @@ mod tests {
         // |/
         // 0
         let id_0 = CommitId::from_hex("000000");
+        let change_id0 = new_change_id();
         let id_1 = CommitId::from_hex("111111");
+        let change_id1 = new_change_id();
         let id_2 = CommitId::from_hex("222222");
-        index.add_commit_data(id_0.clone(), new_change_id(), false, vec![], vec![]);
+        let change_id2 = change_id1.clone();
+        index.add_commit_data(id_0.clone(), change_id0, false, vec![], vec![]);
         index.add_commit_data(
             id_1.clone(),
-            new_change_id(),
+            change_id1.clone(),
             false,
             vec![id_0.clone()],
             vec![],
         );
         index.add_commit_data(
             id_2.clone(),
-            new_change_id(),
+            change_id2.clone(),
             false,
             vec![id_0.clone()],
             vec![],
@@ -1726,25 +1756,28 @@ mod tests {
         }
 
         let id_3 = CommitId::from_hex("333333");
+        let change_id3 = new_change_id();
         let id_4 = CommitId::from_hex("444444");
+        let change_id4 = new_change_id();
         let id_5 = CommitId::from_hex("555555");
+        let change_id5 = change_id3.clone();
         index.add_commit_data(
             id_3.clone(),
-            new_change_id(),
-            false,
+            change_id3.clone(),
+            true,
             vec![id_2.clone()],
             vec![],
         );
         index.add_commit_data(
             id_4.clone(),
-            new_change_id(),
+            change_id4,
             false,
             vec![id_1.clone()],
             vec![id_2.clone(), id_3.clone()],
         );
         index.add_commit_data(
             id_5.clone(),
-            new_change_id(),
+            change_id5,
             false,
             vec![id_4.clone(), id_2.clone()],
             vec![],
@@ -1761,6 +1794,8 @@ mod tests {
         assert_eq!(stats.num_heads, 2);
         assert_eq!(stats.max_generation_number, 3);
         assert_eq!(stats.num_merges, 1);
+        assert_eq!(stats.num_changes, 4);
+        assert_eq!(stats.num_pruned_commits, 1);
         assert_eq!(index.num_commits(), 6);
         // Can find all the commits
         let entry_0 = index.entry_by_id(&id_0).unwrap();
@@ -1774,6 +1809,8 @@ mod tests {
         assert_eq!(entry_0.commit_id(), id_0);
         assert_eq!(entry_1.pos, 1);
         assert_eq!(entry_1.commit_id(), id_1);
+        assert_eq!(entry_1.change_id(), change_id1);
+        assert_eq!(entry_1.is_pruned(), false);
         assert_eq!(entry_1.generation_number(), 1);
         assert_eq!(entry_1.num_parents(), 1);
         assert_eq!(entry_1.parent_positions(), vec![0]);
@@ -1781,11 +1818,15 @@ mod tests {
         assert_eq!(entry_1.predecessor_positions(), Vec::<u32>::new());
         assert_eq!(entry_2.pos, 2);
         assert_eq!(entry_2.commit_id(), id_2);
+        assert_eq!(entry_2.change_id(), change_id2);
+        assert_eq!(entry_2.is_pruned(), false);
         assert_eq!(entry_2.generation_number(), 1);
         assert_eq!(entry_2.num_parents(), 1);
         assert_eq!(entry_2.parent_positions(), vec![0]);
+        assert_eq!(entry_3.change_id(), change_id3);
         assert_eq!(entry_3.generation_number(), 2);
         assert_eq!(entry_3.parent_positions(), vec![2]);
+        assert_eq!(entry_3.is_pruned(), true);
         assert_eq!(entry_4.pos, 4);
         assert_eq!(entry_4.generation_number(), 2);
         assert_eq!(entry_4.num_parents(), 1);

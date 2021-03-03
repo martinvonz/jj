@@ -1779,6 +1779,8 @@ fn cmd_debug(
         writeln!(ui, "Number of merges: {}", stats.num_merges);
         writeln!(ui, "Max generation number: {}", stats.max_generation_number);
         writeln!(ui, "Number of heads: {}", stats.num_heads);
+        writeln!(ui, "Number of pruned commits: {}", stats.num_pruned_commits);
+        writeln!(ui, "Number of changes: {}", stats.num_changes);
         writeln!(ui, "Stats per level:");
         for (i, level) in stats.levels.iter().enumerate() {
             writeln!(ui, "  Level {}:", i);
