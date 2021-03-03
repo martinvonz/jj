@@ -272,11 +272,7 @@ impl ReadonlyRepo {
         let mut locked_index = self.index.lock().unwrap();
         if locked_index.is_none() {
             let op_id = self.view.base_op_head_id().clone();
-            locked_index.replace(ReadonlyIndex::load(
-                self,
-                self.repo_path.join("index"),
-                op_id,
-            ));
+            locked_index.replace(self.index_store.get_index_at_op(self, op_id));
         }
         locked_index.as_ref().unwrap().clone()
     }

@@ -30,7 +30,6 @@ use crate::commit::Commit;
 use crate::dag_walk;
 use crate::op_store::OperationId;
 use crate::operation::Operation;
-use crate::repo::ReadonlyRepo;
 use crate::store::{ChangeId, CommitId};
 use crate::store_wrapper::StoreWrapper;
 use std::fmt::{Debug, Formatter};
@@ -1352,18 +1351,6 @@ impl IndexEntry<'_> {
 }
 
 impl ReadonlyIndex {
-    pub fn load(repo: &ReadonlyRepo, dir: PathBuf, op_id: OperationId) -> Arc<ReadonlyIndex> {
-        let op_id_hex = op_id.hex();
-        let op_id_file = dir.join("operations").join(&op_id_hex);
-        if op_id_file.exists() {
-            let op_id = OperationId(hex::decode(op_id_hex).unwrap());
-            ReadonlyIndex::load_at_operation(dir, repo.store().hash_length(), &op_id).unwrap()
-        } else {
-            let op = repo.view().as_view_ref().get_operation(&op_id).unwrap();
-            ReadonlyIndex::index(repo.store(), dir, &op).unwrap()
-        }
-    }
-
     fn load_from(
         file: &mut dyn Read,
         dir: PathBuf,
@@ -1425,7 +1412,7 @@ impl ReadonlyIndex {
         }))
     }
 
-    fn load_at_operation(
+    pub fn load_at_operation(
         dir: PathBuf,
         hash_length: usize,
         op_id: &OperationId,
@@ -1442,7 +1429,7 @@ impl ReadonlyIndex {
         ReadonlyIndex::load_from(&mut index_file, dir, index_file_id_hex, hash_length)
     }
 
-    fn index(
+    pub fn index(
         store: &StoreWrapper,
         dir: PathBuf,
         operation: &Operation,
