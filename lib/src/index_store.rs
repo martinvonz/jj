@@ -17,7 +17,6 @@ use crate::dag_walk;
 use crate::index::{MutableIndex, ReadonlyIndex};
 use crate::op_store::OperationId;
 use crate::operation::Operation;
-use crate::repo::ReadonlyRepo;
 use crate::store::CommitId;
 use crate::store_wrapper::StoreWrapper;
 use std::collections::{HashMap, HashSet};
@@ -47,16 +46,14 @@ impl IndexStore {
         IndexStore { dir }
     }
 
-    pub fn get_index_at_op(&self, repo: &ReadonlyRepo, op_id: OperationId) -> Arc<ReadonlyIndex> {
-        let op_id_hex = op_id.hex();
+    pub fn get_index_at_op(&self, op: &Operation, store: &StoreWrapper) -> Arc<ReadonlyIndex> {
+        let op_id_hex = op.id().hex();
         let op_id_file = self.dir.join("operations").join(&op_id_hex);
         if op_id_file.exists() {
-            let op_id = OperationId(hex::decode(op_id_hex).unwrap());
-            self.load_index_at_operation(repo.store().hash_length(), &op_id)
+            self.load_index_at_operation(store.hash_length(), op.id())
                 .unwrap()
         } else {
-            let op = repo.view().as_view_ref().get_operation(&op_id).unwrap();
-            self.index_at_operation(repo.store(), &op).unwrap()
+            self.index_at_operation(store, op).unwrap()
         }
     }
 
