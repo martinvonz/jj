@@ -22,6 +22,8 @@ use thiserror::Error;
 
 use crate::commit::Commit;
 use crate::dag_walk;
+use crate::index::MutableIndex;
+use crate::index_store::IndexStore;
 use crate::lock::FileLock;
 use crate::op_store;
 use crate::op_store::{OpStore, OpStoreResult, OperationId, OperationMetadata};
@@ -93,6 +95,7 @@ pub struct ReadonlyView {
     path: PathBuf,
     op_store: Arc<dyn OpStore>,
     op_id: OperationId,
+    index_store: Arc<IndexStore>,
     data: op_store::View,
 }
 
@@ -250,6 +253,7 @@ pub fn merge_views(
 fn get_single_op_head(
     store: &StoreWrapper,
     op_store: &Arc<dyn OpStore>,
+    index_store: &Arc<IndexStore>,
     op_heads_dir: &Path,
 ) -> Result<(OperationId, op_store::Operation, op_store::View), OpHeadResolutionError> {
     let mut op_heads = get_op_heads(&op_heads_dir);
@@ -289,7 +293,7 @@ fn get_single_op_head(
     }
 
     let (merge_operation_id, merge_operation, merged_view) =
-        merge_op_heads(store, op_store, &op_heads)?;
+        merge_op_heads(store, op_store, index_store, &op_heads)?;
     add_op_head(&op_heads_dir, &merge_operation_id);
     for old_op_head_id in op_heads {
         // The merged one will be in the input to the merge if it's a "fast-forward"
@@ -304,6 +308,7 @@ fn get_single_op_head(
 fn merge_op_heads(
     store: &StoreWrapper,
     op_store: &Arc<dyn OpStore>,
+    index_store: &Arc<IndexStore>,
     op_head_ids: &[OperationId],
 ) -> Result<(OperationId, op_store::Operation, op_store::View), OpHeadResolutionError> {
     let op_heads: Vec<_> = op_head_ids
@@ -332,7 +337,11 @@ fn merge_op_heads(
         ));
     }
 
+    let base_index = index_store.get_index_at_op(&first_op_head, store);
+    let mut index = MutableIndex::incremental(base_index);
     for (i, other_op_head) in op_heads.iter().enumerate().skip(1) {
+        let other_index = index_store.get_index_at_op(other_op_head, store);
+        index.merge_in(&other_index);
         let ancestor_op = dag_walk::closest_common_node(
             op_heads[0..i].to_vec(),
             vec![other_op_head.clone()],
@@ -347,6 +356,7 @@ fn merge_op_heads(
             other_op_head.view().store_view(),
         );
     }
+    let merged_index = index_store.write_index(index).unwrap();
     let merged_view_id = op_store.write_view(&merged_view).unwrap();
     let operation_metadata = OperationMetadata::new("resolve concurrent operations".to_string());
     let op_parent_ids = op_heads.iter().map(|op| op.id().clone()).collect();
@@ -356,6 +366,10 @@ fn merge_op_heads(
         metadata: operation_metadata,
     };
     let merge_operation_id = op_store.write_operation(&merge_operation).unwrap();
+    // TODO: Like in Transaction::commit(), there's a race here.
+    index_store
+        .associate_file_with_operation(merged_index.as_ref(), &merge_operation_id)
+        .unwrap();
     Ok((merge_operation_id, merge_operation, merged_view))
 }
 
@@ -363,6 +377,7 @@ impl ReadonlyView {
     pub fn init(
         store: Arc<StoreWrapper>,
         op_store: Arc<dyn OpStore>,
+        index_store: Arc<IndexStore>,
         path: PathBuf,
         checkout: CommitId,
     ) -> Self {
@@ -386,19 +401,26 @@ impl ReadonlyView {
             path,
             op_store,
             op_id: init_operation_id,
+            index_store,
             data: root_view,
         }
     }
 
-    pub fn load(store: Arc<StoreWrapper>, op_store: Arc<dyn OpStore>, path: PathBuf) -> Self {
+    pub fn load(
+        store: Arc<StoreWrapper>,
+        op_store: Arc<dyn OpStore>,
+        index_store: Arc<IndexStore>,
+        path: PathBuf,
+    ) -> Self {
         let op_heads_dir = path.join("op_heads");
         let (op_id, _operation, view) =
-            get_single_op_head(&store, &op_store, &op_heads_dir).unwrap();
+            get_single_op_head(&store, &op_store, &index_store, &op_heads_dir).unwrap();
         ReadonlyView {
             store,
             path,
             op_store,
             op_id,
+            index_store,
             data: view,
         }
     }
@@ -406,6 +428,7 @@ impl ReadonlyView {
     pub fn load_at(
         store: Arc<StoreWrapper>,
         op_store: Arc<dyn OpStore>,
+        index_store: Arc<IndexStore>,
         path: PathBuf,
         operation: &Operation,
     ) -> Self {
@@ -414,14 +437,20 @@ impl ReadonlyView {
             path,
             op_store,
             op_id: operation.id().clone(),
+            index_store,
             data: operation.view().take_store_view(),
         }
     }
 
     pub fn reload(&mut self) -> OperationId {
         let op_heads_dir = self.path.join("op_heads");
-        let (op_id, _operation, view) =
-            get_single_op_head(&self.store, &self.op_store, &op_heads_dir).unwrap();
+        let (op_id, _operation, view) = get_single_op_head(
+            &self.store,
+            &self.op_store,
+            &self.index_store,
+            &op_heads_dir,
+        )
+        .unwrap();
         self.op_id = op_id;
         self.data = view;
         self.op_id.clone()

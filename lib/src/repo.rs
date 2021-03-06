@@ -100,7 +100,7 @@ pub struct ReadonlyRepo {
     wc_path: PathBuf,
     store: Arc<StoreWrapper>,
     settings: RepoSettings,
-    index_store: IndexStore,
+    index_store: Arc<IndexStore>,
     index: Mutex<Option<Arc<ReadonlyIndex>>>,
     working_copy: Arc<Mutex<WorkingCopy>>,
     view: ReadonlyView,
@@ -198,15 +198,17 @@ impl ReadonlyRepo {
 
         std::fs::create_dir(repo_path.join("op_store")).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(repo_path.join("op_store")));
+
+        fs::create_dir(repo_path.join("index")).unwrap();
+        let index_store = Arc::new(IndexStore::init(repo_path.join("index")));
+
         let view = ReadonlyView::init(
             store.clone(),
             op_store,
+            index_store.clone(),
             repo_path.join("view"),
             checkout_commit.id().clone(),
         );
-
-        fs::create_dir(repo_path.join("index")).unwrap();
-        let index_store = IndexStore::init(repo_path.join("index"));
 
         let repo = ReadonlyRepo {
             repo_path,
@@ -300,7 +302,7 @@ impl ReadonlyRepo {
         &self.store
     }
 
-    pub fn index_store(&self) -> &IndexStore {
+    pub fn index_store(&self) -> &Arc<IndexStore> {
         &self.index_store
     }
 
@@ -347,7 +349,7 @@ pub struct RepoLoader {
     repo_settings: RepoSettings,
     store: Arc<StoreWrapper>,
     op_store: Arc<dyn OpStore>,
-    index_store: IndexStore,
+    index_store: Arc<IndexStore>,
 }
 
 impl RepoLoader {
@@ -360,7 +362,7 @@ impl RepoLoader {
         let store = RepoLoader::load_store(&repo_path);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
-        let index_store = IndexStore::load(repo_path.join("index"));
+        let index_store = Arc::new(IndexStore::load(repo_path.join("index")));
         Ok(RepoLoader {
             wc_path,
             repo_path,
@@ -400,6 +402,7 @@ impl RepoLoader {
         let view = ReadonlyView::load(
             self.store.clone(),
             self.op_store.clone(),
+            self.index_store.clone(),
             self.repo_path.join("view"),
         );
         self._finish_load(view)
@@ -409,6 +412,7 @@ impl RepoLoader {
         let view = ReadonlyView::load_at(
             self.store.clone(),
             self.op_store.clone(),
+            self.index_store.clone(),
             self.repo_path.join("view"),
             op,
         );

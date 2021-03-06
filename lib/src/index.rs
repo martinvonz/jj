@@ -427,6 +427,37 @@ impl MutableIndex {
         }
     }
 
+    pub fn merge_in(&mut self, other: &Arc<ReadonlyIndex>) {
+        let mut maybe_own_ancestor = self.parent_file.clone();
+        let mut maybe_other_ancestor = Some(other.clone());
+        let mut files_to_add = vec![];
+        loop {
+            if maybe_other_ancestor.is_none() {
+                break;
+            }
+            let other_ancestor = maybe_other_ancestor.as_ref().unwrap();
+            if maybe_own_ancestor.is_none() {
+                files_to_add.push(other_ancestor.clone());
+                maybe_other_ancestor = other_ancestor.parent_file.clone();
+                continue;
+            }
+            let own_ancestor = maybe_own_ancestor.as_ref().unwrap();
+            if own_ancestor.name == other_ancestor.name {
+                break;
+            }
+            if own_ancestor.num_commits() < other_ancestor.num_commits() {
+                files_to_add.push(other_ancestor.clone());
+                maybe_other_ancestor = other_ancestor.parent_file.clone();
+            } else {
+                maybe_own_ancestor = own_ancestor.parent_file.clone();
+            }
+        }
+
+        for file in files_to_add.iter().rev() {
+            self.add_commits_from(file.as_ref());
+        }
+    }
+
     fn serialize(self) -> Vec<u8> {
         assert_eq!(self.graph.len(), self.lookup.len());
 
