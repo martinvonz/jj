@@ -403,6 +403,30 @@ impl MutableIndex {
         self.graph.push(entry);
     }
 
+    fn add_commits_from(&mut self, other_segment: &dyn IndexSegment) {
+        let other = CompositeIndex(other_segment);
+        for pos in other_segment.segment_num_parent_commits()..other.num_commits() {
+            let entry = other.entry_by_pos(pos);
+            let parent_ids: Vec<_> = entry
+                .parent_positions()
+                .iter()
+                .map(|pos| other.entry_by_pos(*pos).commit_id())
+                .collect();
+            let predecessor_ids: Vec<_> = entry
+                .predecessor_positions()
+                .iter()
+                .map(|pos| other.entry_by_pos(*pos).commit_id())
+                .collect();
+            self.add_commit_data(
+                entry.commit_id(),
+                entry.change_id(),
+                entry.is_pruned(),
+                parent_ids,
+                predecessor_ids,
+            );
+        }
+    }
+
     fn serialize(self) -> Vec<u8> {
         assert_eq!(self.graph.len(), self.lookup.len());
 
@@ -498,50 +522,38 @@ impl MutableIndex {
     /// return MutableIndex with the commits from both. This is done
     /// recursively, so the stack of index files has O(log n) files.
     fn maybe_squash_with_ancestors(self) -> MutableIndex {
-        if self.parent_file.is_none() {
+        let mut num_new_commits = self.segment_num_commits();
+        let mut files_to_squash = vec![];
+        let mut maybe_parent_file = self.parent_file.clone();
+        let mut squashed;
+        loop {
+            match maybe_parent_file {
+                Some(parent_file) => {
+                    // TODO: We should probably also squash if the parent file has less than N
+                    // commits, regardless of how many (few) are in `self`.
+                    if num_new_commits < parent_file.segment_num_commits() {
+                        squashed = MutableIndex::incremental(parent_file);
+                        break;
+                    }
+                    num_new_commits += parent_file.segment_num_commits();
+                    files_to_squash.push(parent_file.clone());
+                    maybe_parent_file = parent_file.parent_file.clone();
+                }
+                None => {
+                    squashed = MutableIndex::full(self.hash_length);
+                    break;
+                }
+            }
+        }
+
+        if files_to_squash.is_empty() {
             return self;
         }
 
-        let mut num_new_commits = self.segment_num_commits();
-        let mut parent_file = self.parent_file.as_ref().unwrap().clone();
-        let mut squashed;
-        loop {
-            // TODO: We should probably also squash if the parent file has less than N
-            // commits, regardless of how many (few) are in `self`.
-            if num_new_commits < parent_file.segment_num_commits() {
-                squashed = MutableIndex::incremental(parent_file);
-                break;
-            }
-            if parent_file.parent_file.is_none() {
-                squashed = MutableIndex::full(self.hash_length);
-                break;
-            }
-            num_new_commits += parent_file.segment_num_commits();
-            parent_file = parent_file.parent_file.as_ref().unwrap().clone();
+        for parent_file in files_to_squash.iter().rev() {
+            squashed.add_commits_from(parent_file.as_ref());
         }
-
-        // TODO: This can be made more efficient by walking the parent files in order
-        // and not looking up via `self`.
-        for pos in squashed.num_parent_commits..self.num_commits() {
-            let entry = self.entry_by_pos(pos);
-            let parent_ids: Vec<_> = entry
-                .parent_positions()
-                .iter()
-                .map(|pos| self.entry_by_pos(*pos).commit_id())
-                .collect();
-            let predecessor_ids: Vec<_> = entry
-                .predecessor_positions()
-                .iter()
-                .map(|pos| self.entry_by_pos(*pos).commit_id())
-                .collect();
-            squashed.add_commit_data(
-                entry.commit_id(),
-                entry.change_id(),
-                entry.is_pruned(),
-                parent_ids,
-                predecessor_ids,
-            );
-        }
+        squashed.add_commits_from(&self);
         squashed
     }
 
