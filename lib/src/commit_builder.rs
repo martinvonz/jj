@@ -15,7 +15,7 @@
 use uuid::Uuid;
 
 use crate::commit::Commit;
-use crate::repo::ReadonlyRepo;
+use crate::repo::{MutableRepo, ReadonlyRepo};
 use crate::settings::UserSettings;
 use crate::store;
 use crate::store::{ChangeId, CommitId, Signature, Timestamp, TreeId};
@@ -168,5 +168,14 @@ impl CommitBuilder {
             parents.clear();
         }
         tx.write_commit(self.commit)
+    }
+
+    pub fn write_to_repo(mut self, repo: &mut MutableRepo) -> Commit {
+        let parents = &mut self.commit.parents;
+        if parents.contains(self.store.root_commit_id()) {
+            assert_eq!(parents.len(), 1);
+            parents.clear();
+        }
+        repo.write_commit(self.commit)
     }
 }

@@ -485,7 +485,7 @@ pub fn evolve(
     // divergence first.
     let divergent_changes: Vec<_> = tx
         .as_repo_mut()
-        .evolution_mut()
+        .evolution()
         .state
         .non_obsoletes_by_changeid
         .values()
@@ -504,7 +504,7 @@ pub fn evolve(
     // created new orphans, or resolved existing orphans.
     let orphans: HashSet<Commit> = tx
         .as_repo_mut()
-        .evolution_mut()
+        .evolution()
         .state
         .orphan_commits
         .iter()

@@ -13,9 +13,6 @@
 // limitations under the License.
 
 use crate::commit::Commit;
-use crate::commit_builder::CommitBuilder;
-use crate::conflicts;
-use crate::dag_walk::topo_order_reverse;
 use crate::evolution::MutableEvolution;
 use crate::index::MutableIndex;
 use crate::op_store;
@@ -74,130 +71,53 @@ impl<'r> Transaction<'r> {
     }
 
     pub fn write_commit(&mut self, commit: store::Commit) -> Commit {
-        let commit = self.store().write_commit(commit);
-        self.add_head(&commit);
-        commit
+        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
+        mut_repo.write_commit(commit)
     }
 
     pub fn check_out(&mut self, settings: &UserSettings, commit: &Commit) -> Commit {
-        let current_checkout_id = self.view().checkout().clone();
-        let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
-        assert!(current_checkout.is_open(), "current checkout is closed");
-        if current_checkout.is_empty()
-            && !(current_checkout.is_pruned() || self.evolution().is_obsolete(&current_checkout_id))
-        {
-            // Prune the checkout we're leaving if it's empty.
-            // TODO: Also prune it if the only changes are conflicts that got materialized.
-            CommitBuilder::for_rewrite_from(settings, self.store(), &current_checkout)
-                .set_pruned(true)
-                .write_to_transaction(self);
-        }
-        let store = self.store();
-        // Create a new tree with any conflicts resolved.
-        let mut tree_builder = store.tree_builder(commit.tree().id().clone());
-        for (path, conflict_id) in commit.tree().conflicts() {
-            let conflict = store.read_conflict(&conflict_id).unwrap();
-            let materialized_value =
-                conflicts::conflict_to_materialized_value(store, &path, &conflict);
-            tree_builder.set(path, materialized_value);
-        }
-        let tree_id = tree_builder.write_tree();
-        let open_commit;
-        if !commit.is_open() || &tree_id != commit.tree().id() {
-            // If the commit is closed, or if it had conflicts, create a new open commit on
-            // top
-            open_commit = CommitBuilder::for_open_commit(
-                settings,
-                self.store(),
-                commit.id().clone(),
-                tree_id,
-            )
-            .write_to_transaction(self);
-        } else {
-            // Otherwise the commit was open and didn't have any conflicts, so just use
-            // that commit as is.
-            open_commit = commit.clone();
-        }
-        let id = open_commit.id().clone();
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view_mut().set_checkout(id);
-        open_commit
+        mut_repo.check_out(settings, commit)
     }
 
     pub fn set_checkout(&mut self, id: CommitId) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view_mut().set_checkout(id);
+        mut_repo.set_checkout(id);
     }
 
     pub fn add_head(&mut self, head: &Commit) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        let view = mut_repo.view();
-        let current_heads = view.heads();
-        // Use incremental update for common case of adding a single commit on top a
-        // current head. TODO: Also use incremental update when adding a single
-        // commit on top a non-head.
-        if head
-            .parent_ids()
-            .iter()
-            .all(|parent_id| current_heads.contains(parent_id))
-        {
-            mut_repo.index_mut().add_commit(head);
-            mut_repo.view_mut().add_head(head);
-            mut_repo.evolution_mut().add_commit(head);
-        } else {
-            let index = mut_repo.index();
-            let missing_commits = topo_order_reverse(
-                vec![head.clone()],
-                Box::new(|commit: &Commit| commit.id().clone()),
-                Box::new(|commit: &Commit| -> Vec<Commit> {
-                    commit
-                        .parents()
-                        .into_iter()
-                        .filter(|parent| !index.has_id(parent.id()))
-                        .collect()
-                }),
-            );
-            let mut_index = mut_repo.index_mut();
-            for missing_commit in missing_commits.iter().rev() {
-                mut_index.add_commit(missing_commit);
-            }
-            mut_repo.view_mut().add_head(head);
-            mut_repo.evolution_mut().invalidate();
-        }
+        mut_repo.add_head(head)
     }
 
     pub fn remove_head(&mut self, head: &Commit) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view_mut().remove_head(head);
-        mut_repo.evolution_mut().invalidate();
+        mut_repo.remove_head(head)
     }
 
     pub fn add_public_head(&mut self, head: &Commit) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view_mut().add_public_head(head);
-        mut_repo.evolution_mut().add_commit(head);
+        mut_repo.add_public_head(head)
     }
 
     pub fn remove_public_head(&mut self, head: &Commit) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view_mut().remove_public_head(head);
-        mut_repo.evolution_mut().invalidate();
+        mut_repo.remove_public_head(head);
     }
 
     pub fn insert_git_ref(&mut self, name: String, commit_id: CommitId) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view_mut().insert_git_ref(name, commit_id);
+        mut_repo.insert_git_ref(name, commit_id);
     }
 
     pub fn remove_git_ref(&mut self, name: &str) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view_mut().remove_git_ref(name);
+        mut_repo.remove_git_ref(name);
     }
 
     pub fn set_view(&mut self, data: op_store::View) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.view_mut().set_view(data);
-        mut_repo.evolution_mut().invalidate();
+        mut_repo.set_view(data);
     }
 
     pub fn commit(mut self) -> Operation {
