@@ -451,8 +451,8 @@ impl RepoLoader {
 
 pub struct MutableRepo<'r> {
     repo: &'r ReadonlyRepo,
-    index: Option<MutableIndex>,
-    view: Option<MutableView>,
+    index: MutableIndex,
+    view: MutableView,
     evolution: Option<MutableEvolution<'static, 'static>>,
 }
 
@@ -467,8 +467,8 @@ impl<'r> MutableRepo<'r> {
         let mut_index = MutableIndex::incremental(index);
         let mut mut_repo = Arc::new(MutableRepo {
             repo,
-            index: Some(mut_index),
-            view: Some(mut_view),
+            index: mut_index,
+            view: mut_view,
             evolution: None,
         });
         let repo_ref: &MutableRepo = mut_repo.as_ref();
@@ -490,11 +490,11 @@ impl<'r> MutableRepo<'r> {
     }
 
     pub fn index(&self) -> &MutableIndex {
-        self.index.as_ref().unwrap()
+        &self.index
     }
 
     fn index_mut(&mut self) -> &mut MutableIndex {
-        self.index.as_mut().unwrap()
+        &mut self.index
     }
 
     pub fn base_repo(&self) -> &'r ReadonlyRepo {
@@ -502,15 +502,15 @@ impl<'r> MutableRepo<'r> {
     }
 
     pub fn view(&self) -> &MutableView {
-        self.view.as_ref().unwrap()
+        &self.view
     }
 
     fn view_mut(&mut self) -> &mut MutableView {
-        self.view.as_mut().unwrap()
+        &mut self.view
     }
 
-    pub fn consume(mut self) -> (MutableIndex, MutableView) {
-        (self.index.take().unwrap(), self.view.take().unwrap())
+    pub fn consume(self) -> (MutableIndex, MutableView) {
+        (self.index, self.view)
     }
 
     pub fn evolution<'m>(&'m self) -> &MutableEvolution<'r, 'm> {
