@@ -493,20 +493,12 @@ impl<'r> MutableRepo<'r> {
         &self.index
     }
 
-    fn index_mut(&mut self) -> &mut MutableIndex {
-        &mut self.index
-    }
-
     pub fn base_repo(&self) -> &'r ReadonlyRepo {
         self.repo
     }
 
     pub fn view(&self) -> &MutableView {
         &self.view
-    }
-
-    fn view_mut(&mut self) -> &mut MutableView {
-        &mut self.view
     }
 
     pub fn consume(self) -> (MutableIndex, MutableView) {
@@ -519,12 +511,6 @@ impl<'r> MutableRepo<'r> {
         evolution
     }
 
-    fn evolution_mut<'m>(&'m mut self) -> &'m mut MutableEvolution<'r, 'm> {
-        let evolution: &mut MutableEvolution<'static, 'static> = self.evolution.as_mut().unwrap();
-        let evolution: &mut MutableEvolution<'r, 'm> = unsafe { std::mem::transmute(evolution) };
-        evolution
-    }
-
     pub fn write_commit(&mut self, commit: store::Commit) -> Commit {
         let commit = self.store().write_commit(commit);
         self.add_head(&commit);
@@ -532,11 +518,11 @@ impl<'r> MutableRepo<'r> {
     }
 
     pub fn set_checkout(&mut self, id: CommitId) {
-        self.view_mut().set_checkout(id);
+        self.view.set_checkout(id);
     }
 
     pub fn check_out(&mut self, settings: &UserSettings, commit: &Commit) -> Commit {
-        let current_checkout_id = self.view().checkout().clone();
+        let current_checkout_id = self.view.checkout().clone();
         let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
         assert!(current_checkout.is_open(), "current checkout is closed");
         if current_checkout.is_empty()
@@ -575,13 +561,12 @@ impl<'r> MutableRepo<'r> {
             open_commit = commit.clone();
         }
         let id = open_commit.id().clone();
-        self.view_mut().set_checkout(id);
+        self.view.set_checkout(id);
         open_commit
     }
 
     pub fn add_head(&mut self, head: &Commit) {
-        let view = self.view();
-        let current_heads = view.heads();
+        let current_heads = self.view.heads();
         // Use incremental update for common case of adding a single commit on top a
         // current head. TODO: Also use incremental update when adding a single
         // commit on top a non-head.
@@ -590,11 +575,10 @@ impl<'r> MutableRepo<'r> {
             .iter()
             .all(|parent_id| current_heads.contains(parent_id))
         {
-            self.index_mut().add_commit(head);
-            self.view_mut().add_head(head);
-            self.evolution_mut().add_commit(head);
+            self.index.add_commit(head);
+            self.view.add_head(head);
+            self.evolution.as_mut().unwrap().add_commit(head);
         } else {
-            let index = self.index();
             let missing_commits = topo_order_reverse(
                 vec![head.clone()],
                 Box::new(|commit: &Commit| commit.id().clone()),
@@ -602,44 +586,43 @@ impl<'r> MutableRepo<'r> {
                     commit
                         .parents()
                         .into_iter()
-                        .filter(|parent| !index.has_id(parent.id()))
+                        .filter(|parent| !self.index.has_id(parent.id()))
                         .collect()
                 }),
             );
-            let mut_index = self.index_mut();
             for missing_commit in missing_commits.iter().rev() {
-                mut_index.add_commit(missing_commit);
+                self.index.add_commit(missing_commit);
             }
-            self.view_mut().add_head(head);
-            self.evolution_mut().invalidate();
+            self.view.add_head(head);
+            self.evolution.as_mut().unwrap().invalidate();
         }
     }
 
     pub fn remove_head(&mut self, head: &Commit) {
-        self.view_mut().remove_head(head);
-        self.evolution_mut().invalidate();
+        self.view.remove_head(head);
+        self.evolution.as_mut().unwrap().invalidate();
     }
 
     pub fn add_public_head(&mut self, head: &Commit) {
-        self.view_mut().add_public_head(head);
-        self.evolution_mut().add_commit(head);
+        self.view.add_public_head(head);
+        self.evolution.as_mut().unwrap().add_commit(head);
     }
 
     pub fn remove_public_head(&mut self, head: &Commit) {
-        self.view_mut().remove_public_head(head);
-        self.evolution_mut().invalidate();
+        self.view.remove_public_head(head);
+        self.evolution.as_mut().unwrap().invalidate();
     }
 
     pub fn insert_git_ref(&mut self, name: String, commit_id: CommitId) {
-        self.view_mut().insert_git_ref(name, commit_id);
+        self.view.insert_git_ref(name, commit_id);
     }
 
     pub fn remove_git_ref(&mut self, name: &str) {
-        self.view_mut().remove_git_ref(name);
+        self.view.remove_git_ref(name);
     }
 
     pub fn set_view(&mut self, data: op_store::View) {
-        self.view_mut().set_view(data);
-        self.evolution_mut().invalidate();
+        self.view.set_view(data);
+        self.evolution.as_mut().unwrap().invalidate();
     }
 }
