@@ -906,7 +906,7 @@ impl<'a> CompositeIndex<'a> {
         // ancestors are not heads.
         // Also find the smallest generation number among the candidates.
         let mut work = BinaryHeap::new();
-        let mut min_generation = std::u32::MAX;
+        let mut min_generation = u32::MAX;
         for pos in &candidate_positions {
             let entry = self.entry_by_pos(*pos);
             min_generation = min(min_generation, entry.generation_number());

@@ -123,7 +123,7 @@ fn heads_of_set(
 ) -> HashSet<CommitId> {
     let mut visited = HashSet::new();
     let mut work = vec![];
-    let mut oldest = std::u64::MAX;
+    let mut oldest = u64::MAX;
     let mut heads: HashSet<CommitId> = commit_ids.collect();
     for commit_id in &heads {
         let commit = store.get_commit(commit_id).unwrap();
