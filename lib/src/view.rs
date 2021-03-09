@@ -203,7 +203,6 @@ pub fn merge_views(
     for added_head in right.public_head_ids.difference(&base.public_head_ids) {
         result.public_head_ids.insert(added_head.clone());
     }
-    result.public_head_ids = heads_of_set(store, result.public_head_ids.into_iter());
 
     for removed_head in base.head_ids.difference(&right.head_ids) {
         result.head_ids.remove(removed_head);
