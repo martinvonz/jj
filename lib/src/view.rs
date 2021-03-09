@@ -571,8 +571,6 @@ impl MutableView {
     pub fn save(self, description: String, operation_start_time: Timestamp) -> Operation {
         let op_heads_dir = self.path.join("op_heads");
 
-        // First write the current view whether or not there have been any concurrent
-        // operations. We'll later create a merge operation if necessary.
         let view_id = self.op_store.write_view(&self.data).unwrap();
         let mut operation_metadata = OperationMetadata::new(description);
         operation_metadata.start_time = operation_start_time;
