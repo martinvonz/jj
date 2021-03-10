@@ -567,7 +567,7 @@ impl MutableView {
         enforce_invariants(&self.store, &mut self.data);
     }
 
-    pub fn save(self, description: String, operation_start_time: Timestamp) -> Operation {
+    pub fn save(&self, description: String, operation_start_time: Timestamp) -> Operation {
         let view_id = self.op_store.write_view(&self.data).unwrap();
         let mut operation_metadata = OperationMetadata::new(description);
         operation_metadata.start_time = operation_start_time;
@@ -577,11 +577,7 @@ impl MutableView {
             metadata: operation_metadata,
         };
         let new_op_head_id = self.op_store.write_operation(&operation).unwrap();
-        let operation = Operation::new(self.op_store.clone(), new_op_head_id, operation);
-
-        self.update_op_heads(&operation);
-
-        operation
+        Operation::new(self.op_store.clone(), new_op_head_id, operation)
     }
 
     pub fn update_op_heads(&self, op: &Operation) {
