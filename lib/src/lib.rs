@@ -32,6 +32,7 @@ pub mod index_store;
 pub mod local_store;
 pub mod lock;
 pub mod matchers;
+pub mod op_heads_store;
 pub mod op_store;
 pub mod operation;
 pub mod protos;
