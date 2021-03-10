@@ -36,7 +36,6 @@ pub enum ViewRef<'a> {
     Mutable(&'a MutableView),
 }
 
-// TODO: Move OpStore out of View?
 impl<'a> ViewRef<'a> {
     pub fn checkout(&self) -> &'a CommitId {
         match self {
@@ -66,10 +65,10 @@ impl<'a> ViewRef<'a> {
         }
     }
 
-    pub fn op_store(&self) -> Arc<dyn OpStore> {
+    fn op_store(&self) -> &Arc<dyn OpStore> {
         match self {
-            ViewRef::Readonly(view) => view.op_store(),
-            ViewRef::Mutable(view) => view.op_store(),
+            ViewRef::Readonly(view) => &view.op_store,
+            ViewRef::Mutable(view) => &view.op_store,
         }
     }
 
@@ -80,7 +79,7 @@ impl<'a> ViewRef<'a> {
         }
     }
 
-    pub fn get_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
+    fn get_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
         let data = self.op_store().read_operation(id)?;
         Ok(Operation::new(self.op_store().clone(), id.clone(), data))
     }
@@ -490,10 +489,6 @@ impl ReadonlyView {
         &self.data.git_refs
     }
 
-    pub fn op_store(&self) -> Arc<dyn OpStore> {
-        self.op_store.clone()
-    }
-
     pub fn op_id(&self) -> &OperationId {
         &self.op_id
     }
@@ -518,10 +513,6 @@ impl MutableView {
 
     pub fn git_refs(&self) -> &BTreeMap<String, CommitId> {
         &self.data.git_refs
-    }
-
-    pub fn op_store(&self) -> Arc<dyn OpStore> {
-        self.op_store.clone()
     }
 
     pub fn base_op_id(&self) -> &OperationId {

@@ -207,7 +207,7 @@ fn resolve_single_op(repo: &ReadonlyRepo, op_str: &str) -> Result<Operation, Com
     if op_str == "@" {
         Ok(view.as_view_ref().base_op())
     } else {
-        resolve_single_op_from_store(&repo.view().op_store(), op_str)
+        resolve_single_op_from_store(&repo.op_store(), op_str)
     }
 }
 

@@ -131,11 +131,7 @@ fn test_bad_locking_children(use_git: bool) {
     assert!(merged_repo.view().heads().contains(child1.id()));
     assert!(merged_repo.view().heads().contains(child2.id()));
     let op_id = merged_repo.view().op_id().clone();
-    let op = merged_repo
-        .view()
-        .op_store()
-        .read_operation(&op_id)
-        .unwrap();
+    let op = merged_repo.op_store().read_operation(&op_id).unwrap();
     assert_eq!(op.parents.len(), 2);
 }
 

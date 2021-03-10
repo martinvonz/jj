@@ -77,6 +77,13 @@ impl<'a, 'r> RepoRef<'a, 'r> {
         }
     }
 
+    pub fn op_store(&self) -> &'a Arc<dyn OpStore> {
+        match self {
+            RepoRef::Readonly(repo) => repo.op_store(),
+            RepoRef::Mutable(repo) => repo.op_store(),
+        }
+    }
+
     pub fn index(&self) -> IndexRef {
         match self {
             RepoRef::Readonly(repo) => IndexRef::Readonly(repo.index()),
@@ -103,6 +110,7 @@ pub struct ReadonlyRepo {
     repo_path: PathBuf,
     wc_path: PathBuf,
     store: Arc<StoreWrapper>,
+    op_store: Arc<dyn OpStore>,
     settings: RepoSettings,
     index_store: Arc<IndexStore>,
     index: Mutex<Option<Arc<ReadonlyIndex>>>,
@@ -208,7 +216,7 @@ impl ReadonlyRepo {
 
         let view = ReadonlyView::init(
             store.clone(),
-            op_store,
+            op_store.clone(),
             index_store.clone(),
             repo_path.join("view"),
             checkout_commit.id().clone(),
@@ -218,6 +226,7 @@ impl ReadonlyRepo {
             repo_path,
             wc_path,
             store,
+            op_store,
             settings: repo_settings,
             index_store,
             index: Mutex::new(None),
@@ -278,8 +287,8 @@ impl ReadonlyRepo {
         let mut locked_index = self.index.lock().unwrap();
         if locked_index.is_none() {
             let op_id = self.view.op_id().clone();
-            let op = self.view.op_store().read_operation(&op_id).unwrap();
-            let op = Operation::new(self.view.op_store().clone(), op_id, op);
+            let op = self.op_store.read_operation(&op_id).unwrap();
+            let op = Operation::new(self.op_store.clone(), op_id, op);
             locked_index.replace(self.index_store.get_index_at_op(&op, self.store.as_ref()));
         }
         locked_index.as_ref().unwrap().clone()
@@ -304,6 +313,10 @@ impl ReadonlyRepo {
 
     pub fn store(&self) -> &Arc<StoreWrapper> {
         &self.store
+    }
+
+    pub fn op_store(&self) -> &Arc<dyn OpStore> {
+        &self.op_store
     }
 
     pub fn index_store(&self) -> &Arc<IndexStore> {
@@ -433,6 +446,7 @@ impl RepoLoader {
             repo_path: self.repo_path,
             wc_path: self.wc_path,
             store: self.store,
+            op_store: self.op_store,
             settings: self.repo_settings,
             index_store: self.index_store,
             index: Mutex::new(None),
@@ -485,16 +499,20 @@ impl<'r> MutableRepo<'r> {
         RepoRef::Mutable(&self)
     }
 
+    pub fn base_repo(&self) -> &'r ReadonlyRepo {
+        self.repo
+    }
+
     pub fn store(&self) -> &Arc<StoreWrapper> {
         self.repo.store()
     }
 
-    pub fn index(&self) -> &MutableIndex {
-        &self.index
+    pub fn op_store(&self) -> &Arc<dyn OpStore> {
+        self.repo.op_store()
     }
 
-    pub fn base_repo(&self) -> &'r ReadonlyRepo {
-        self.repo
+    pub fn index(&self) -> &MutableIndex {
+        &self.index
     }
 
     pub fn view(&self) -> &MutableView {
