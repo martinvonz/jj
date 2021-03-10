@@ -23,11 +23,11 @@ use test_case::test_case;
 fn count_non_merge_operations(repo: &ReadonlyRepo) -> u32 {
     let view = repo.view();
     let op_store = view.op_store();
-    let op_head_id = view.base_op_head_id().clone();
+    let op_id = view.op_id().clone();
     let mut num_ops = 0;
 
     for op_id in dag_walk::bfs(
-        vec![op_head_id],
+        vec![op_id],
         Box::new(|op_id| op_id.clone()),
         Box::new(|op_id| op_store.read_operation(&op_id).unwrap().parents),
     ) {

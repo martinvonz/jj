@@ -277,7 +277,7 @@ impl ReadonlyRepo {
     pub fn index(&self) -> Arc<ReadonlyIndex> {
         let mut locked_index = self.index.lock().unwrap();
         if locked_index.is_none() {
-            let op_id = self.view.base_op_head_id().clone();
+            let op_id = self.view.op_id().clone();
             let op = self.view.op_store().read_operation(&op_id).unwrap();
             let op = Operation::new(self.view.op_store().clone(), op_id, op);
             locked_index.replace(self.index_store.get_index_at_op(&op, self.store.as_ref()));

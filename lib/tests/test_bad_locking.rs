@@ -130,13 +130,13 @@ fn test_bad_locking_children(use_git: bool) {
     let merged_repo = ReadonlyRepo::load(&settings, merged_path).unwrap();
     assert!(merged_repo.view().heads().contains(child1.id()));
     assert!(merged_repo.view().heads().contains(child2.id()));
-    let op_head_id = merged_repo.view().base_op_head_id().clone();
-    let op_head = merged_repo
+    let op_id = merged_repo.view().op_id().clone();
+    let op = merged_repo
         .view()
         .op_store()
-        .read_operation(&op_head_id)
+        .read_operation(&op_id)
         .unwrap();
-    assert_eq!(op_head.parents.len(), 2);
+    assert_eq!(op.parents.len(), 2);
 }
 
 #[test_case(false ; "local store")]
@@ -164,14 +164,14 @@ fn test_bad_locking_interrupted(use_git: bool) {
     testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![initial.id().clone()])
         .write_to_transaction(&mut tx);
-    let op_head_id = tx.commit().id().clone();
+    let op_id = tx.commit().id().clone();
 
     copy_directory(&backup_path, &op_heads_dir);
     // Reload the repo and check that only the new head is present.
     let reloaded_repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
-    assert_eq!(reloaded_repo.view().base_op_head_id(), &op_head_id);
+    assert_eq!(reloaded_repo.view().op_id(), &op_id);
     // Reload once more to make sure that the view/op_heads/ directory was updated
     // correctly.
     let reloaded_repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
-    assert_eq!(reloaded_repo.view().base_op_head_id(), &op_head_id);
+    assert_eq!(reloaded_repo.view().op_id(), &op_id);
 }

@@ -36,30 +36,27 @@ fn test_consecutive_operations(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let op_heads_dir = repo.repo_path().join("view").join("op_heads");
-    let op_head_id0 = repo.view().base_op_head_id().clone();
-    assert_eq!(
-        list_dir(&op_heads_dir),
-        vec![repo.view().base_op_head_id().hex()]
-    );
+    let op_id0 = repo.view().op_id().clone();
+    assert_eq!(list_dir(&op_heads_dir), vec![repo.view().op_id().hex()]);
 
     let mut tx1 = repo.start_transaction("transaction 1");
     testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx1);
-    let op_head_id1 = tx1.commit().id().clone();
-    assert_ne!(op_head_id1, op_head_id0);
-    assert_eq!(list_dir(&op_heads_dir), vec![op_head_id1.hex()]);
+    let op_id1 = tx1.commit().id().clone();
+    assert_ne!(op_id1, op_id0);
+    assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
 
     Arc::get_mut(&mut repo).unwrap().reload();
     let mut tx2 = repo.start_transaction("transaction 2");
     testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx2);
-    let op_head_id2 = tx2.commit().id().clone();
-    assert_ne!(op_head_id2, op_head_id0);
-    assert_ne!(op_head_id2, op_head_id1);
-    assert_eq!(list_dir(&op_heads_dir), vec![op_head_id2.hex()]);
+    let op_id2 = tx2.commit().id().clone();
+    assert_ne!(op_id2, op_id0);
+    assert_ne!(op_id2, op_id1);
+    assert_eq!(list_dir(&op_heads_dir), vec![op_id2.hex()]);
 
     // Reloading the repo makes no difference (there are no conflicting operations
     // to resolve).
     Arc::get_mut(&mut repo).unwrap().reload();
-    assert_eq!(list_dir(&op_heads_dir), vec![op_head_id2.hex()]);
+    assert_eq!(list_dir(&op_heads_dir), vec![op_id2.hex()]);
 }
 
 #[test_case(false ; "local store")]
@@ -71,38 +68,35 @@ fn test_concurrent_operations(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let op_heads_dir = repo.repo_path().join("view").join("op_heads");
-    let op_head_id0 = repo.view().base_op_head_id().clone();
-    assert_eq!(
-        list_dir(&op_heads_dir),
-        vec![repo.view().base_op_head_id().hex()]
-    );
+    let op_id0 = repo.view().op_id().clone();
+    assert_eq!(list_dir(&op_heads_dir), vec![repo.view().op_id().hex()]);
 
     let mut tx1 = repo.start_transaction("transaction 1");
     testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx1);
-    let op_head_id1 = tx1.commit().id().clone();
-    assert_ne!(op_head_id1, op_head_id0);
-    assert_eq!(list_dir(&op_heads_dir), vec![op_head_id1.hex()]);
+    let op_id1 = tx1.commit().id().clone();
+    assert_ne!(op_id1, op_id0);
+    assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
 
     // After both transactions have committed, we should have two op-heads on disk,
     // since they were run in parallel.
     let mut tx2 = repo.start_transaction("transaction 2");
     testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx2);
-    let op_head_id2 = tx2.commit().id().clone();
-    assert_ne!(op_head_id2, op_head_id0);
-    assert_ne!(op_head_id2, op_head_id1);
+    let op_id2 = tx2.commit().id().clone();
+    assert_ne!(op_id2, op_id0);
+    assert_ne!(op_id2, op_id1);
     let mut actual_heads_on_disk = list_dir(&op_heads_dir);
     actual_heads_on_disk.sort();
-    let mut expected_heads_on_disk = vec![op_head_id1.hex(), op_head_id2.hex()];
+    let mut expected_heads_on_disk = vec![op_id1.hex(), op_id2.hex()];
     expected_heads_on_disk.sort();
     assert_eq!(actual_heads_on_disk, expected_heads_on_disk);
 
     // Reloading the repo causes the operations to be merged
     Arc::get_mut(&mut repo).unwrap().reload();
-    let merged_op_head_id = repo.view().base_op_head_id().clone();
-    assert_ne!(merged_op_head_id, op_head_id0);
-    assert_ne!(merged_op_head_id, op_head_id1);
-    assert_ne!(merged_op_head_id, op_head_id2);
-    assert_eq!(list_dir(&op_heads_dir), vec![merged_op_head_id.hex()]);
+    let merged_op_id = repo.view().op_id().clone();
+    assert_ne!(merged_op_id, op_id0);
+    assert_ne!(merged_op_id, op_id1);
+    assert_ne!(merged_op_id, op_id2);
+    assert_eq!(list_dir(&op_heads_dir), vec![merged_op_id.hex()]);
 }
 
 fn assert_heads(repo: RepoRef, expected: Vec<&CommitId>) {

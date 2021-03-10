@@ -73,10 +73,10 @@ impl<'a> ViewRef<'a> {
         }
     }
 
-    pub fn base_op_head_id(&self) -> &'a OperationId {
+    pub fn base_op_id(&self) -> &'a OperationId {
         match self {
-            ViewRef::Readonly(view) => view.base_op_head_id(),
-            ViewRef::Mutable(view) => view.base_op_head_id(),
+            ViewRef::Readonly(view) => view.op_id(),
+            ViewRef::Mutable(view) => view.base_op_id(),
         }
     }
 
@@ -85,8 +85,8 @@ impl<'a> ViewRef<'a> {
         Ok(Operation::new(self.op_store().clone(), id.clone(), data))
     }
 
-    pub fn base_op_head(&self) -> Operation {
-        self.get_operation(self.base_op_head_id()).unwrap()
+    pub fn base_op(&self) -> Operation {
+        self.get_operation(self.base_op_id()).unwrap()
     }
 }
 
@@ -103,7 +103,7 @@ pub struct MutableView {
     store: Arc<StoreWrapper>,
     path: PathBuf,
     op_store: Arc<dyn OpStore>,
-    base_op_head_id: OperationId,
+    base_op_id: OperationId,
     data: op_store::View,
 }
 
@@ -465,7 +465,7 @@ impl ReadonlyView {
             store: self.store.clone(),
             path: self.path.clone(),
             op_store: self.op_store.clone(),
-            base_op_head_id: self.op_id.clone(),
+            base_op_id: self.op_id.clone(),
             data: self.data.clone(),
         }
     }
@@ -494,7 +494,7 @@ impl ReadonlyView {
         self.op_store.clone()
     }
 
-    pub fn base_op_head_id(&self) -> &OperationId {
+    pub fn op_id(&self) -> &OperationId {
         &self.op_id
     }
 }
@@ -524,8 +524,8 @@ impl MutableView {
         self.op_store.clone()
     }
 
-    pub fn base_op_head_id(&self) -> &OperationId {
-        &self.base_op_head_id
+    pub fn base_op_id(&self) -> &OperationId {
+        &self.base_op_id
     }
 
     pub fn set_checkout(&mut self, id: CommitId) {
@@ -573,11 +573,11 @@ impl MutableView {
         operation_metadata.start_time = operation_start_time;
         let operation = op_store::Operation {
             view_id,
-            parents: vec![self.base_op_head_id.clone()],
+            parents: vec![self.base_op_id.clone()],
             metadata: operation_metadata,
         };
-        let new_op_head_id = self.op_store.write_operation(&operation).unwrap();
-        Operation::new(self.op_store.clone(), new_op_head_id, operation)
+        let new_op_id = self.op_store.write_operation(&operation).unwrap();
+        Operation::new(self.op_store.clone(), new_op_id, operation)
     }
 
     pub fn update_op_heads(&self, op: &Operation) {
