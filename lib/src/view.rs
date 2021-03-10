@@ -365,7 +365,6 @@ fn merge_op_heads(
         metadata: operation_metadata,
     };
     let merge_operation_id = op_store.write_operation(&merge_operation).unwrap();
-    // TODO: Like in Transaction::commit(), there's a race here.
     index_store
         .associate_file_with_operation(merged_index.as_ref(), &merge_operation_id)
         .unwrap();
