@@ -568,8 +568,6 @@ impl MutableView {
     }
 
     pub fn save(self, description: String, operation_start_time: Timestamp) -> Operation {
-        let op_heads_dir = self.path.join("op_heads");
-
         let view_id = self.op_store.write_view(&self.data).unwrap();
         let mut operation_metadata = OperationMetadata::new(description);
         operation_metadata.start_time = operation_start_time;
@@ -578,16 +576,20 @@ impl MutableView {
             parents: vec![self.base_op_head_id.clone()],
             metadata: operation_metadata,
         };
-        let old_op_head_id = self.base_op_head_id.clone();
         let new_op_head_id = self.op_store.write_operation(&operation).unwrap();
+        let operation = Operation::new(self.op_store.clone(), new_op_head_id, operation);
 
-        // Update .jj/view/op_heads/.
-        {
-            let _op_heads_lock = FileLock::lock(op_heads_dir.join("lock"));
-            add_op_head(&op_heads_dir, &new_op_head_id);
-            remove_op_head(&op_heads_dir, &old_op_head_id);
+        self.update_op_heads(&operation);
+
+        operation
+    }
+
+    pub fn update_op_heads(&self, op: &Operation) {
+        let op_heads_dir = self.path.join("op_heads");
+        let _op_heads_lock = FileLock::lock(op_heads_dir.join("lock"));
+        add_op_head(&op_heads_dir, op.id());
+        for old_parent_id in op.parent_ids() {
+            remove_op_head(&op_heads_dir, old_parent_id);
         }
-
-        Operation::new(self.op_store, new_op_head_id, operation)
     }
 }

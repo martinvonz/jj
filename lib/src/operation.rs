@@ -73,6 +73,10 @@ impl Operation {
         &self.id
     }
 
+    pub fn parent_ids(&self) -> &Vec<OperationId> {
+        &self.data.parents
+    }
+
     pub fn parents(&self) -> Vec<Operation> {
         let mut parents = Vec::new();
         for parent_id in &self.data.parents {
