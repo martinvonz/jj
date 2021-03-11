@@ -50,6 +50,7 @@ fn test_root(use_git: bool) {
     assert_eq!(wc_commit.committer().email, settings.user_email());
 }
 
+#[cfg(unix)]
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
 fn test_checkout_file_transitions(use_git: bool) {

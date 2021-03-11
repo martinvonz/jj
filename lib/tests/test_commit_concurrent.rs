@@ -36,6 +36,7 @@ fn count_non_merge_operations(repo: &ReadonlyRepo) -> u32 {
     num_ops
 }
 
+#[cfg(unix)]
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
 fn test_commit_parallel(use_git: bool) {
@@ -68,6 +69,7 @@ fn test_commit_parallel(use_git: bool) {
     assert_eq!(count_non_merge_operations(&repo), 101);
 }
 
+#[cfg(unix)]
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
 fn test_commit_parallel_instances(use_git: bool) {
