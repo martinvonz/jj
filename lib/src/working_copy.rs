@@ -254,7 +254,10 @@ impl TreeState {
         } else if metadata_file_type.is_symlink() {
             FileType::Symlink
         } else {
+            #[cfg(unix)]
             let mode = metadata.permissions().mode();
+            #[cfg(windows)]
+            let mode = 0;
             if mode & 0o111 != 0 {
                 FileType::Executable
             } else {
