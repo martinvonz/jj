@@ -35,7 +35,7 @@ fn test_consecutive_operations(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
-    let op_heads_dir = repo.repo_path().join("view").join("op_heads");
+    let op_heads_dir = repo.repo_path().join("op_heads");
     let op_id0 = repo.view().op_id().clone();
     assert_eq!(list_dir(&op_heads_dir), vec![repo.view().op_id().hex()]);
 
@@ -67,7 +67,7 @@ fn test_concurrent_operations(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
-    let op_heads_dir = repo.repo_path().join("view").join("op_heads");
+    let op_heads_dir = repo.repo_path().join("op_heads");
     let op_id0 = repo.view().op_id().clone();
     assert_eq!(list_dir(&op_heads_dir), vec![repo.view().op_id().hex()]);
 

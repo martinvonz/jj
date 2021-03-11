@@ -150,10 +150,10 @@ fn test_bad_locking_interrupted(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     // Simulate a crash that resulted in the old op-head left in place. We simulate
-    // it somewhat hackily by copying the view/op_heads/ directory before the
+    // it somewhat hackily by copying the .jj/op_heads/ directory before the
     // operation and then copying that back afterwards, leaving the existing
     // op-head(s) in place.
-    let op_heads_dir = repo.repo_path().join("view").join("op_heads");
+    let op_heads_dir = repo.repo_path().join("op_heads");
     let backup_path = TempDir::new().unwrap().into_path();
     copy_directory(&op_heads_dir, &backup_path);
     let mut tx = repo.start_transaction("test");
@@ -166,7 +166,7 @@ fn test_bad_locking_interrupted(use_git: bool) {
     // Reload the repo and check that only the new head is present.
     let reloaded_repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
     assert_eq!(reloaded_repo.view().op_id(), &op_id);
-    // Reload once more to make sure that the view/op_heads/ directory was updated
+    // Reload once more to make sure that the .jj/op_heads/ directory was updated
     // correctly.
     let reloaded_repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
     assert_eq!(reloaded_repo.view().op_id(), &op_id);

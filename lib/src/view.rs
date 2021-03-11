@@ -14,7 +14,6 @@
 
 use std::cmp::min;
 use std::collections::{BTreeMap, HashSet};
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::commit::Commit;
@@ -215,19 +214,15 @@ impl ReadonlyView {
     pub fn init(
         store: Arc<StoreWrapper>,
         op_store: Arc<dyn OpStore>,
+        op_heads_store: Arc<OpHeadsStore>,
         index_store: Arc<IndexStore>,
-        path: PathBuf,
-        checkout: CommitId,
+        init_op_id: OperationId,
+        root_view: op_store::View,
     ) -> Self {
-        let op_heads_dir = path.join("op_heads");
-        std::fs::create_dir(&op_heads_dir).unwrap();
-        let (op_heads_store, init_op_id, root_view) =
-            OpHeadsStore::init(op_heads_dir, &op_store, checkout);
-
         ReadonlyView {
             store,
             op_store,
-            op_heads_store: Arc::new(op_heads_store),
+            op_heads_store,
             op_id: init_op_id,
             index_store,
             data: root_view,
@@ -237,11 +232,9 @@ impl ReadonlyView {
     pub fn load(
         store: Arc<StoreWrapper>,
         op_store: Arc<dyn OpStore>,
+        op_heads_store: Arc<OpHeadsStore>,
         index_store: Arc<IndexStore>,
-        path: PathBuf,
     ) -> Self {
-        let op_heads_dir = path.join("op_heads");
-        let op_heads_store = Arc::new(OpHeadsStore::load(op_heads_dir));
         let (op_id, _operation, view) = op_heads_store
             .get_single_op_head(&store, &op_store, &index_store)
             .unwrap();
@@ -258,12 +251,10 @@ impl ReadonlyView {
     pub fn load_at(
         store: Arc<StoreWrapper>,
         op_store: Arc<dyn OpStore>,
+        op_heads_store: Arc<OpHeadsStore>,
         index_store: Arc<IndexStore>,
-        path: PathBuf,
         operation: &Operation,
     ) -> Self {
-        let op_heads_dir = path.join("op_heads");
-        let op_heads_store = Arc::new(OpHeadsStore::load(op_heads_dir));
         ReadonlyView {
             store,
             op_store,

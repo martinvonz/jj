@@ -30,6 +30,7 @@ use crate::git_store::GitStore;
 use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
 use crate::local_store::LocalStore;
+use crate::op_heads_store::OpHeadsStore;
 use crate::op_store;
 use crate::op_store::OpStore;
 use crate::operation::Operation;
@@ -211,15 +212,22 @@ impl ReadonlyRepo {
         std::fs::create_dir(repo_path.join("op_store")).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(repo_path.join("op_store")));
 
+        let op_heads_dir = repo_path.join("op_heads");
+        std::fs::create_dir(&op_heads_dir).unwrap();
+        let (op_heads_store, init_op_id, root_view) =
+            OpHeadsStore::init(op_heads_dir, &op_store, checkout_commit.id().clone());
+        let op_heads_store = Arc::new(op_heads_store);
+
         fs::create_dir(repo_path.join("index")).unwrap();
         let index_store = Arc::new(IndexStore::init(repo_path.join("index")));
 
         let view = ReadonlyView::init(
             store.clone(),
             op_store.clone(),
+            op_heads_store,
             index_store.clone(),
-            repo_path.join("view"),
-            checkout_commit.id().clone(),
+            init_op_id,
+            root_view,
         );
 
         let repo = ReadonlyRepo {
@@ -366,6 +374,7 @@ pub struct RepoLoader {
     repo_settings: RepoSettings,
     store: Arc<StoreWrapper>,
     op_store: Arc<dyn OpStore>,
+    op_heads_store: Arc<OpHeadsStore>,
     index_store: Arc<IndexStore>,
 }
 
@@ -379,6 +388,7 @@ impl RepoLoader {
         let store = RepoLoader::load_store(&repo_path);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
+        let op_heads_store = Arc::new(OpHeadsStore::load(repo_path.join("op_heads")));
         let index_store = Arc::new(IndexStore::load(repo_path.join("index")));
         Ok(RepoLoader {
             wc_path,
@@ -386,6 +396,7 @@ impl RepoLoader {
             repo_settings,
             store,
             op_store,
+            op_heads_store,
             index_store,
         })
     }
@@ -419,8 +430,8 @@ impl RepoLoader {
         let view = ReadonlyView::load(
             self.store.clone(),
             self.op_store.clone(),
+            self.op_heads_store.clone(),
             self.index_store.clone(),
-            self.repo_path.join("view"),
         );
         self._finish_load(view)
     }
@@ -429,8 +440,8 @@ impl RepoLoader {
         let view = ReadonlyView::load_at(
             self.store.clone(),
             self.op_store.clone(),
+            self.op_heads_store.clone(),
             self.index_store.clone(),
-            self.repo_path.join("view"),
             op,
         );
         self._finish_load(view)
