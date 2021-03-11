@@ -615,7 +615,11 @@ fn cmd_init(
     } else {
         repo = ReadonlyRepo::init_local(ui.settings(), wc_path);
     }
-    writeln!(ui, "Initialized repo in {:?}", repo.working_copy_path());
+    writeln!(
+        ui,
+        "Initialized repo in \"{}\"",
+        repo.working_copy_path().display()
+    );
     Ok(())
 }
 

@@ -51,10 +51,12 @@ fn test_init_git_external() {
     assert!(repo_path.join(".jj").is_dir());
     let store_file_contents = std::fs::read_to_string(repo_path.join(".jj").join("store")).unwrap();
     assert!(store_file_contents.starts_with("git: "));
-    assert!(store_file_contents.ends_with("/git-repo"));
+    assert!(store_file_contents
+        .replace('\\', "/")
+        .ends_with("/git-repo"));
     assert_eq!(
         output.stdout_string(),
-        format!("Initialized repo in \"{}\"\n", repo_path.to_str().unwrap())
+        format!("Initialized repo in \"{}\"\n", repo_path.display())
     );
 }
 
