@@ -57,8 +57,12 @@ impl OpHeadsStore {
         op_heads
     }
 
+    pub fn lock(&self) -> FileLock {
+        FileLock::lock(self.dir.join("lock"))
+    }
+
     pub fn update_op_heads(&self, op: &Operation) {
-        let _op_heads_lock = FileLock::lock(self.dir.join("lock"));
+        let _op_heads_lock = self.lock();
         self.add_op_head(op.id());
         for old_parent_id in op.parent_ids() {
             self.remove_op_head(old_parent_id);

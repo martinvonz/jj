@@ -14,7 +14,6 @@
 
 use std::cmp::min;
 use std::collections::{BTreeMap, HashSet};
-use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -24,7 +23,6 @@ use crate::commit::Commit;
 use crate::dag_walk;
 use crate::index::MutableIndex;
 use crate::index_store::IndexStore;
-use crate::lock::FileLock;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store;
 use crate::op_store::{OpStore, OpStoreResult, OperationId, OperationMetadata};
@@ -92,7 +90,6 @@ impl<'a> ViewRef<'a> {
 
 pub struct ReadonlyView {
     store: Arc<StoreWrapper>,
-    path: PathBuf,
     op_store: Arc<dyn OpStore>,
     op_heads_store: Arc<OpHeadsStore>,
     op_id: OperationId,
@@ -231,7 +228,6 @@ fn get_single_op_head(
     op_store: &Arc<dyn OpStore>,
     index_store: &Arc<IndexStore>,
     op_head_store: &Arc<OpHeadsStore>,
-    op_heads_dir: &Path,
 ) -> Result<(OperationId, op_store::Operation, op_store::View), OpHeadResolutionError> {
     let mut op_heads = op_head_store.get_op_heads();
 
@@ -254,8 +250,7 @@ fn get_single_op_head(
     // Note that the locking isn't necessary for correctness; we take the lock
     // only to avoid other concurrent processes from doing the same work (and
     // producing another set of divergent heads).
-    // TODO: Add a function to OpHeadsStore for taking the lock?
-    let _lock = FileLock::lock(op_heads_dir.join("lock"));
+    let _lock = op_head_store.lock();
     let op_heads = op_head_store.get_op_heads();
 
     if op_heads.is_empty() {
@@ -376,7 +371,6 @@ impl ReadonlyView {
 
         ReadonlyView {
             store,
-            path,
             op_store,
             op_heads_store,
             op_id: init_operation_id,
@@ -392,18 +386,11 @@ impl ReadonlyView {
         path: PathBuf,
     ) -> Self {
         let op_heads_dir = path.join("op_heads");
-        let op_heads_store = Arc::new(OpHeadsStore::load(op_heads_dir.clone()));
-        let (op_id, _operation, view) = get_single_op_head(
-            &store,
-            &op_store,
-            &index_store,
-            &op_heads_store,
-            &op_heads_dir,
-        )
-        .unwrap();
+        let op_heads_store = Arc::new(OpHeadsStore::load(op_heads_dir));
+        let (op_id, _operation, view) =
+            get_single_op_head(&store, &op_store, &index_store, &op_heads_store).unwrap();
         ReadonlyView {
             store,
-            path,
             op_store,
             op_heads_store,
             op_id,
@@ -423,7 +410,6 @@ impl ReadonlyView {
         let op_heads_store = Arc::new(OpHeadsStore::load(op_heads_dir));
         ReadonlyView {
             store,
-            path,
             op_store,
             op_heads_store,
             op_id: operation.id().clone(),
@@ -433,13 +419,11 @@ impl ReadonlyView {
     }
 
     pub fn reload(&mut self) -> OperationId {
-        let op_heads_dir = self.path.join("op_heads");
         let (op_id, _operation, view) = get_single_op_head(
             &self.store,
             &self.op_store,
             &self.index_store,
             &self.op_heads_store,
-            &op_heads_dir,
         )
         .unwrap();
         self.op_id = op_id;
