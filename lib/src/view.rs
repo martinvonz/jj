@@ -95,7 +95,6 @@ pub struct ReadonlyView {
 pub struct MutableView {
     store: Arc<StoreWrapper>,
     op_store: Arc<dyn OpStore>,
-    op_heads_store: Arc<OpHeadsStore>,
     base_op_id: OperationId,
     data: op_store::View,
 }
@@ -235,6 +234,7 @@ impl ReadonlyView {
         op_heads_store: Arc<OpHeadsStore>,
         index_store: Arc<IndexStore>,
     ) -> Self {
+        // TODO: We should probably move this get_single_op_head() call to ReadonlyRepo.
         let (op_id, _operation, view) = op_heads_store
             .get_single_op_head(&store, &op_store, &index_store)
             .unwrap();
@@ -285,7 +285,6 @@ impl ReadonlyView {
         MutableView {
             store: self.store.clone(),
             op_store: self.op_store.clone(),
-            op_heads_store: self.op_heads_store.clone(),
             base_op_id: self.op_id.clone(),
             data: self.data.clone(),
         }
@@ -391,9 +390,5 @@ impl MutableView {
         };
         let new_op_id = self.op_store.write_operation(&operation).unwrap();
         Operation::new(self.op_store.clone(), new_op_id, operation)
-    }
-
-    pub fn update_op_heads(&self, op: &Operation) {
-        self.op_heads_store.update_op_heads(op)
     }
 }

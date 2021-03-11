@@ -112,6 +112,7 @@ pub struct ReadonlyRepo {
     wc_path: PathBuf,
     store: Arc<StoreWrapper>,
     op_store: Arc<dyn OpStore>,
+    op_heads_store: Arc<OpHeadsStore>,
     settings: RepoSettings,
     index_store: Arc<IndexStore>,
     index: Mutex<Option<Arc<ReadonlyIndex>>>,
@@ -224,7 +225,7 @@ impl ReadonlyRepo {
         let view = ReadonlyView::init(
             store.clone(),
             op_store.clone(),
-            op_heads_store,
+            op_heads_store.clone(),
             index_store.clone(),
             init_op_id,
             root_view,
@@ -235,6 +236,7 @@ impl ReadonlyRepo {
             wc_path,
             store,
             op_store,
+            op_heads_store,
             settings: repo_settings,
             index_store,
             index: Mutex::new(None),
@@ -325,6 +327,10 @@ impl ReadonlyRepo {
 
     pub fn op_store(&self) -> &Arc<dyn OpStore> {
         &self.op_store
+    }
+
+    pub fn op_heads_store(&self) -> &Arc<OpHeadsStore> {
+        &self.op_heads_store
     }
 
     pub fn index_store(&self) -> &Arc<IndexStore> {
@@ -458,6 +464,7 @@ impl RepoLoader {
             wc_path: self.wc_path,
             store: self.store,
             op_store: self.op_store,
+            op_heads_store: self.op_heads_store,
             settings: self.repo_settings,
             index_store: self.index_store,
             index: Mutex::new(None),

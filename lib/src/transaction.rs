@@ -130,7 +130,7 @@ impl<'r> Transaction<'r> {
         index_store
             .associate_file_with_operation(&index, operation.id())
             .unwrap();
-        mut_view.update_op_heads(&operation);
+        base_repo.op_heads_store().update_op_heads(&operation);
         self.closed = true;
         operation
     }
