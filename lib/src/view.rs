@@ -219,27 +219,16 @@ impl ReadonlyView {
         path: PathBuf,
         checkout: CommitId,
     ) -> Self {
-        let mut root_view = op_store::View::new(checkout.clone());
-        root_view.head_ids.insert(checkout);
-        let root_view_id = op_store.write_view(&root_view).unwrap();
-        let operation_metadata = OperationMetadata::new("initialize repo".to_string());
-        let init_operation = op_store::Operation {
-            view_id: root_view_id,
-            parents: vec![],
-            metadata: operation_metadata,
-        };
-        let init_operation_id = op_store.write_operation(&init_operation).unwrap();
-
         let op_heads_dir = path.join("op_heads");
         std::fs::create_dir(&op_heads_dir).unwrap();
-        let op_heads_store = Arc::new(OpHeadsStore::init(op_heads_dir));
-        op_heads_store.add_op_head(&init_operation_id);
+        let (op_heads_store, init_op_id, root_view) =
+            OpHeadsStore::init(op_heads_dir, &op_store, checkout);
 
         ReadonlyView {
             store,
             op_store,
-            op_heads_store,
-            op_id: init_operation_id,
+            op_heads_store: Arc::new(op_heads_store),
+            op_id: init_op_id,
             index_store,
             data: root_view,
         }
