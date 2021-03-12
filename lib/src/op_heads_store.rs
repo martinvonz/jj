@@ -25,6 +25,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::store::CommitId;
+use std::collections::HashSet;
 use thiserror::Error;
 
 /// Manages the very set of current heads of the operation log. The store is
@@ -153,24 +154,32 @@ impl OpHeadsStore {
                 Operation::new(op_store.clone(), op_id.clone(), data)
             })
             .collect();
+        let op_heads = self.handle_ancestor_ops(op_heads);
+
+        let (merge_operation_id, merge_operation, merged_view) =
+            merge_op_heads(store, op_store, index_store, op_heads)?;
+        self.add_op_head(&merge_operation_id);
+        for old_op_head_id in &merge_operation.parents {
+            self.remove_op_head(old_op_head_id);
+        }
+        Ok((merge_operation_id, merge_operation, merged_view))
+    }
+
+    /// Removes operations in the input that are ancestors of other operations
+    /// in the input. The ancestors are removed both from the list and from
+    /// disk.
+    fn handle_ancestor_ops(&self, op_heads: Vec<Operation>) -> Vec<Operation> {
+        let op_head_ids_before: HashSet<_> = op_heads.iter().map(|op| op.id().clone()).collect();
         let neighbors_fn = |op: &Operation| op.parents();
         // Remove ancestors so we don't create merge operation with an operation and its
         // ancestor
         let op_heads =
             dag_walk::unreachable(op_heads, &neighbors_fn, &|op: &Operation| op.id().clone());
-        let op_heads: Vec<_> = op_heads.into_iter().collect();
-
-        let (merge_operation_id, merge_operation, merged_view) =
-            merge_op_heads(store, op_store, index_store, op_heads)?;
-        self.add_op_head(&merge_operation_id);
-        for old_op_head_id in op_head_ids {
-            // The merged one will be in the input to the merge if it's a "fast-forward"
-            // merge.
-            if old_op_head_id != merge_operation_id {
-                self.remove_op_head(&old_op_head_id);
-            }
+        let op_head_ids_after: HashSet<_> = op_heads.iter().map(|op| op.id().clone()).collect();
+        for removed_op_head in op_head_ids_before.difference(&op_head_ids_after) {
+            self.remove_op_head(&removed_op_head);
         }
-        Ok((merge_operation_id, merge_operation, merged_view))
+        op_heads.into_iter().collect()
     }
 }
 
