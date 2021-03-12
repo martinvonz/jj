@@ -14,16 +14,17 @@
 
 use crate::dag_walk;
 use crate::index::MutableIndex;
-use crate::index_store::IndexStore;
+
 use crate::lock::FileLock;
 use crate::op_store;
 use crate::op_store::{OpStore, OperationId, OperationMetadata};
 use crate::operation::Operation;
-use crate::store_wrapper::StoreWrapper;
+
 use crate::view;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::repo::RepoLoader;
 use crate::store::CommitId;
 use std::collections::HashSet;
 use thiserror::Error;
@@ -107,9 +108,7 @@ impl OpHeadsStore {
     // pass around OperationId and Operation separately like we do here.
     pub fn get_single_op_head(
         &self,
-        store: &StoreWrapper,
-        op_store: &Arc<dyn OpStore>,
-        index_store: &Arc<IndexStore>,
+        repo_loader: &RepoLoader,
     ) -> Result<(OperationId, op_store::Operation, op_store::View), OpHeadResolutionError> {
         let mut op_heads = self.get_op_heads();
 
@@ -117,6 +116,7 @@ impl OpHeadsStore {
             return Err(OpHeadResolutionError::NoHeads);
         }
 
+        let op_store = repo_loader.op_store();
         if op_heads.len() == 1 {
             let operation_id = op_heads.pop().unwrap();
             let operation = op_store.read_operation(&operation_id).unwrap();
@@ -157,7 +157,7 @@ impl OpHeadsStore {
         let op_heads = self.handle_ancestor_ops(op_heads);
 
         let (merge_operation_id, merge_operation, merged_view) =
-            merge_op_heads(store, op_store, index_store, op_heads)?;
+            merge_op_heads(repo_loader, op_heads)?;
         self.add_op_head(&merge_operation_id);
         for old_op_head_id in &merge_operation.parents {
             self.remove_op_head(old_op_head_id);
@@ -184,13 +184,12 @@ impl OpHeadsStore {
 }
 
 fn merge_op_heads(
-    store: &StoreWrapper,
-    op_store: &Arc<dyn OpStore>,
-    index_store: &Arc<IndexStore>,
+    repo_loader: &RepoLoader,
     mut op_heads: Vec<Operation>,
 ) -> Result<(OperationId, op_store::Operation, op_store::View), OpHeadResolutionError> {
     op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
     let first_op_head = op_heads[0].clone();
+    let op_store = repo_loader.op_store();
     let mut merged_view = op_store.read_view(first_op_head.view().id()).unwrap();
 
     // Return without creating a merge operation
@@ -203,6 +202,8 @@ fn merge_op_heads(
     }
 
     let neighbors_fn = |op: &Operation| op.parents();
+    let store = repo_loader.store();
+    let index_store = repo_loader.index_store();
     let base_index = index_store.get_index_at_op(&first_op_head, store);
     let mut index = MutableIndex::incremental(base_index);
     for (i, other_op_head) in op_heads.iter().enumerate().skip(1) {

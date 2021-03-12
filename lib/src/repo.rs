@@ -345,9 +345,18 @@ impl ReadonlyRepo {
     }
 
     pub fn reload(&mut self) {
+        let repo_loader = RepoLoader {
+            wc_path: self.working_copy_path().clone(),
+            repo_path: self.repo_path.clone(),
+            repo_settings: self.settings.clone(),
+            store: self.store.clone(),
+            op_store: self.op_store.clone(),
+            op_heads_store: self.op_heads_store.clone(),
+            index_store: self.index_store.clone(),
+        };
         let (op_id, _operation, op_store_view) = self
             .op_heads_store
-            .get_single_op_head(&self.store, &self.op_store, &self.index_store)
+            .get_single_op_head(&repo_loader)
             .unwrap();
         self.view = ReadonlyView::new(
             self.store.clone(),
@@ -435,15 +444,21 @@ impl RepoLoader {
         StoreWrapper::new(store)
     }
 
+    pub fn store(&self) -> &Arc<StoreWrapper> {
+        &self.store
+    }
+
+    pub fn index_store(&self) -> &Arc<IndexStore> {
+        &self.index_store
+    }
+
     pub fn op_store(&self) -> &Arc<dyn OpStore> {
         &self.op_store
     }
 
     pub fn load_at_head(self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
-        let (op_id, _operation, op_store_view) = self
-            .op_heads_store
-            .get_single_op_head(&self.store, &self.op_store, &self.index_store)
-            .unwrap();
+        let (op_id, _operation, op_store_view) =
+            self.op_heads_store.get_single_op_head(&self).unwrap();
         let view = ReadonlyView::new(
             self.store.clone(),
             self.op_store.clone(),
