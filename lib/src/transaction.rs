@@ -15,6 +15,7 @@
 use crate::commit::Commit;
 use crate::evolution::MutableEvolution;
 use crate::index::MutableIndex;
+use crate::op_heads_store::OpHeadsStore;
 use crate::op_store;
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
@@ -120,7 +121,15 @@ impl<'r> Transaction<'r> {
         mut_repo.set_view(data);
     }
 
-    pub fn commit(mut self) -> Operation {
+    /// Writes the transaction to the operation store and publishes it.
+    pub fn commit(self) -> Operation {
+        self.write().publish()
+    }
+
+    /// Writes the transaction to the operation store, but does not publish it.
+    /// That means that a repo can be loaded at the operation, but the
+    /// operation will not be seen when loading the repo at head.
+    pub fn write(mut self) -> UnpublishedOperation {
         let mut_repo = Arc::try_unwrap(self.repo.take().unwrap()).ok().unwrap();
         let base_repo = mut_repo.base_repo();
         let index_store = base_repo.index_store();
@@ -130,9 +139,8 @@ impl<'r> Transaction<'r> {
         index_store
             .associate_file_with_operation(&index, operation.id())
             .unwrap();
-        base_repo.op_heads_store().update_op_heads(&operation);
         self.closed = true;
-        operation
+        UnpublishedOperation::new(base_repo.op_heads_store().clone(), operation)
     }
 
     pub fn discard(mut self) {
@@ -140,10 +148,53 @@ impl<'r> Transaction<'r> {
     }
 }
 
-impl<'r> Drop for Transaction<'r> {
+impl Drop for Transaction<'_> {
     fn drop(&mut self) {
         if !std::thread::panicking() {
             debug_assert!(self.closed, "Transaction was dropped without being closed.");
+        }
+    }
+}
+
+pub struct UnpublishedOperation {
+    op_heads_store: Arc<OpHeadsStore>,
+    operation: Option<Operation>,
+    closed: bool,
+}
+
+impl UnpublishedOperation {
+    fn new(op_heads_store: Arc<OpHeadsStore>, operation: Operation) -> Self {
+        UnpublishedOperation {
+            op_heads_store,
+            operation: Some(operation),
+            closed: false,
+        }
+    }
+
+    pub fn operation(&self) -> &Operation {
+        self.operation.as_ref().unwrap()
+    }
+
+    pub fn publish(mut self) -> Operation {
+        let operation = self.operation.take().unwrap();
+        self.op_heads_store.update_op_heads(&operation);
+        self.closed = true;
+        operation
+    }
+
+    pub fn leave_unpublished(mut self) -> Operation {
+        self.closed = true;
+        self.operation.take().unwrap()
+    }
+}
+
+impl Drop for UnpublishedOperation {
+    fn drop(&mut self) {
+        if !std::thread::panicking() {
+            debug_assert!(
+                self.closed,
+                "UnpublishedOperation was dropped without being closed."
+            );
         }
     }
 }

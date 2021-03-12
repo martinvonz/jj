@@ -29,6 +29,27 @@ fn list_dir(dir: &Path) -> Vec<String> {
 
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
+fn test_unpublished_operation(use_git: bool) {
+    // Test that the operation doesn't get published until that's requested.
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let op_heads_dir = repo.repo_path().join("op_heads");
+    let op_id0 = repo.view().op_id().clone();
+    assert_eq!(list_dir(&op_heads_dir), vec![repo.view().op_id().hex()]);
+
+    let mut tx1 = repo.start_transaction("transaction 1");
+    testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx1);
+    let unpublished_op = tx1.write();
+    let op_id1 = unpublished_op.operation().id().clone();
+    assert_ne!(op_id1, op_id0);
+    assert_eq!(list_dir(&op_heads_dir), vec![op_id0.hex()]);
+    unpublished_op.publish();
+    assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
 fn test_consecutive_operations(use_git: bool) {
     // Test that consecutive operations result in a single op-head on disk after
     // each operation
