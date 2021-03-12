@@ -222,14 +222,7 @@ impl ReadonlyRepo {
         fs::create_dir(repo_path.join("index")).unwrap();
         let index_store = Arc::new(IndexStore::init(repo_path.join("index")));
 
-        let view = ReadonlyView::init(
-            store.clone(),
-            op_store.clone(),
-            op_heads_store.clone(),
-            index_store.clone(),
-            init_op_id,
-            root_view,
-        );
+        let view = ReadonlyView::new(store.clone(), op_store.clone(), init_op_id, root_view);
 
         let repo = ReadonlyRepo {
             repo_path,
@@ -352,7 +345,16 @@ impl ReadonlyRepo {
     }
 
     pub fn reload(&mut self) {
-        self.view.reload();
+        let (op_id, _operation, op_store_view) = self
+            .op_heads_store
+            .get_single_op_head(&self.store, &self.op_store, &self.index_store)
+            .unwrap();
+        self.view = ReadonlyView::new(
+            self.store.clone(),
+            self.op_store.clone(),
+            op_id,
+            op_store_view,
+        );
         let repo_ref: &ReadonlyRepo = self;
         let static_lifetime_repo: &'static ReadonlyRepo = unsafe { std::mem::transmute(repo_ref) };
         {
@@ -363,7 +365,12 @@ impl ReadonlyRepo {
     }
 
     pub fn reload_at(&mut self, operation: &Operation) {
-        self.view.reload_at(operation);
+        self.view = ReadonlyView::new(
+            self.store.clone(),
+            self.op_store.clone(),
+            operation.id().clone(),
+            operation.view().take_store_view(),
+        );
         let repo_ref: &ReadonlyRepo = self;
         let static_lifetime_repo: &'static ReadonlyRepo = unsafe { std::mem::transmute(repo_ref) };
         {
@@ -433,22 +440,25 @@ impl RepoLoader {
     }
 
     pub fn load_at_head(self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
-        let view = ReadonlyView::load(
+        let (op_id, _operation, op_store_view) = self
+            .op_heads_store
+            .get_single_op_head(&self.store, &self.op_store, &self.index_store)
+            .unwrap();
+        let view = ReadonlyView::new(
             self.store.clone(),
             self.op_store.clone(),
-            self.op_heads_store.clone(),
-            self.index_store.clone(),
+            op_id,
+            op_store_view,
         );
         self._finish_load(view)
     }
 
     pub fn load_at(self, op: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
-        let view = ReadonlyView::load_at(
+        let view = ReadonlyView::new(
             self.store.clone(),
             self.op_store.clone(),
-            self.op_heads_store.clone(),
-            self.index_store.clone(),
-            op,
+            op.id().clone(),
+            op.view().take_store_view(),
         );
         self._finish_load(view)
     }

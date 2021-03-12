@@ -17,8 +17,6 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use crate::commit::Commit;
-use crate::index_store::IndexStore;
-use crate::op_heads_store::OpHeadsStore;
 use crate::op_store;
 use crate::op_store::{OpStore, OpStoreResult, OperationId, OperationMetadata};
 use crate::operation::Operation;
@@ -86,9 +84,7 @@ impl<'a> ViewRef<'a> {
 pub struct ReadonlyView {
     store: Arc<StoreWrapper>,
     op_store: Arc<dyn OpStore>,
-    op_heads_store: Arc<OpHeadsStore>,
     op_id: OperationId,
-    index_store: Arc<IndexStore>,
     data: op_store::View,
 }
 
@@ -210,74 +206,18 @@ pub fn merge_views(
 }
 
 impl ReadonlyView {
-    pub fn init(
+    pub fn new(
         store: Arc<StoreWrapper>,
         op_store: Arc<dyn OpStore>,
-        op_heads_store: Arc<OpHeadsStore>,
-        index_store: Arc<IndexStore>,
-        init_op_id: OperationId,
-        root_view: op_store::View,
+        op_id: OperationId,
+        op_store_view: op_store::View,
     ) -> Self {
         ReadonlyView {
             store,
             op_store,
-            op_heads_store,
-            op_id: init_op_id,
-            index_store,
-            data: root_view,
-        }
-    }
-
-    pub fn load(
-        store: Arc<StoreWrapper>,
-        op_store: Arc<dyn OpStore>,
-        op_heads_store: Arc<OpHeadsStore>,
-        index_store: Arc<IndexStore>,
-    ) -> Self {
-        // TODO: We should probably move this get_single_op_head() call to ReadonlyRepo.
-        let (op_id, _operation, view) = op_heads_store
-            .get_single_op_head(&store, &op_store, &index_store)
-            .unwrap();
-        ReadonlyView {
-            store,
-            op_store,
-            op_heads_store,
             op_id,
-            index_store,
-            data: view,
+            data: op_store_view,
         }
-    }
-
-    pub fn load_at(
-        store: Arc<StoreWrapper>,
-        op_store: Arc<dyn OpStore>,
-        op_heads_store: Arc<OpHeadsStore>,
-        index_store: Arc<IndexStore>,
-        operation: &Operation,
-    ) -> Self {
-        ReadonlyView {
-            store,
-            op_store,
-            op_heads_store,
-            op_id: operation.id().clone(),
-            index_store,
-            data: operation.view().take_store_view(),
-        }
-    }
-
-    pub fn reload(&mut self) -> OperationId {
-        let (op_id, _operation, view) = self
-            .op_heads_store
-            .get_single_op_head(&self.store, &self.op_store, &self.index_store)
-            .unwrap();
-        self.op_id = op_id;
-        self.data = view;
-        self.op_id.clone()
-    }
-
-    pub fn reload_at(&mut self, operation: &Operation) {
-        self.op_id = operation.id().clone();
-        self.data = operation.view().take_store_view();
     }
 
     pub fn start_modification(&self) -> MutableView {
