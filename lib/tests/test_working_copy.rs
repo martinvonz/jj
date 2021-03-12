@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(not(windows))]
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
 use jujube_lib::commit_builder::CommitBuilder;

@@ -17,9 +17,9 @@ use std::collections::{BTreeMap, HashSet};
 use std::convert::TryInto;
 use std::fs;
 use std::fs::{File, OpenOptions};
-#[cfg(not(windows))]
+#[cfg(unix)]
 use std::os::unix::fs::symlink;
-#[cfg(not(windows))]
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 #[cfg(windows)]
 use std::os::windows::fs::symlink_file;
@@ -336,7 +336,7 @@ impl TreeState {
                                 // when we wrote the file.
                                 executable = current_entry.file_type == FileType::Executable
                             }
-                            #[cfg(not(windows))]
+                            #[cfg(unix)]
                             {
                                 executable = new_file_state.file_type == FileType::Executable
                             }
@@ -409,7 +409,7 @@ impl TreeState {
         {
             println!("ignoring symlink at {:?}", path);
         }
-        #[cfg(not(windows))]
+        #[cfg(unix)]
         {
             let target = self.store.read_symlink(path, id).unwrap();
             let target = PathBuf::from(&target);
@@ -423,7 +423,7 @@ impl TreeState {
         {
             return;
         }
-        #[cfg(not(windows))]
+        #[cfg(unix)]
         {
             let mode = if executable { 0o755 } else { 0o644 };
             fs::set_permissions(disk_path, fs::Permissions::from_mode(mode)).unwrap();
