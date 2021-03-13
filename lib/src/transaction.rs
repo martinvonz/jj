@@ -17,6 +17,7 @@ use crate::evolution::MutableEvolution;
 use crate::index::MutableIndex;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store;
+use crate::op_store::OperationId;
 use crate::op_store::OperationMetadata;
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
@@ -29,6 +30,7 @@ use std::sync::Arc;
 
 pub struct Transaction<'r> {
     repo: Option<Arc<MutableRepo<'r>>>,
+    parents: Vec<OperationId>,
     description: String,
     start_time: Timestamp,
     closed: bool,
@@ -36,8 +38,10 @@ pub struct Transaction<'r> {
 
 impl<'r> Transaction<'r> {
     pub fn new(mut_repo: Arc<MutableRepo<'r>>, description: &str) -> Transaction<'r> {
+        let parents = vec![mut_repo.base_repo().op_id().clone()];
         Transaction {
             repo: Some(mut_repo),
+            parents,
             description: description.to_owned(),
             start_time: Timestamp::now(),
             closed: false,
@@ -48,6 +52,9 @@ impl<'r> Transaction<'r> {
         self.repo.as_ref().unwrap().base_repo()
     }
 
+    pub fn set_parents(&mut self, parents: Vec<OperationId>) {
+        self.parents = parents;
+    }
     pub fn store(&self) -> &Arc<StoreWrapper> {
         self.repo.as_ref().unwrap().store()
     }
@@ -144,7 +151,7 @@ impl<'r> Transaction<'r> {
             OperationMetadata::new(self.description.clone(), self.start_time.clone());
         let store_operation = op_store::Operation {
             view_id,
-            parents: vec![base_repo.op_id().clone()],
+            parents: self.parents.clone(),
             metadata: operation_metadata,
         };
         let new_op_id = base_repo

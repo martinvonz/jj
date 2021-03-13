@@ -13,14 +13,11 @@
 // limitations under the License.
 
 use crate::dag_walk;
-use crate::index::MutableIndex;
-
 use crate::lock::FileLock;
 use crate::op_store;
 use crate::op_store::{OpStore, OperationId, OperationMetadata};
 use crate::operation::Operation;
-
-use crate::view;
+use crate::transaction::UnpublishedOperation;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -116,6 +113,7 @@ impl OpHeadsStore {
         }
 
         let op_store = repo_loader.op_store();
+
         if op_heads.len() == 1 {
             let operation_id = op_heads.pop().unwrap();
             let operation = op_store.read_operation(&operation_id).unwrap();
@@ -158,7 +156,7 @@ impl OpHeadsStore {
             return Ok(op_heads.pop().unwrap());
         }
 
-        let merge_operation = merge_op_heads(repo_loader, op_heads)?;
+        let merge_operation = merge_op_heads(repo_loader, op_heads)?.leave_unpublished();
         self.add_op_head(merge_operation.id());
         for old_op_head_id in merge_operation.parent_ids() {
             self.remove_op_head(old_op_head_id);
@@ -187,20 +185,13 @@ impl OpHeadsStore {
 fn merge_op_heads(
     repo_loader: &RepoLoader,
     mut op_heads: Vec<Operation>,
-) -> Result<Operation, OpHeadResolutionError> {
+) -> Result<UnpublishedOperation, OpHeadResolutionError> {
     op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
-    let first_op_head = op_heads[0].clone();
-    let op_store = repo_loader.op_store();
-    let mut merged_view = op_store.read_view(first_op_head.view().id()).unwrap();
-
+    let base_repo = repo_loader.load_at(&op_heads[0]).unwrap();
+    let mut tx = base_repo.start_transaction("resolve concurrent operations");
+    let merged_repo = tx.mut_repo();
     let neighbors_fn = |op: &Operation| op.parents();
-    let store = repo_loader.store();
-    let index_store = repo_loader.index_store();
-    let base_index = index_store.get_index_at_op(&first_op_head, store);
-    let mut index = MutableIndex::incremental(base_index);
     for (i, other_op_head) in op_heads.iter().enumerate().skip(1) {
-        let other_index = index_store.get_index_at_op(other_op_head, store);
-        index.merge_in(&other_index);
         let ancestor_op = dag_walk::closest_common_node(
             op_heads[0..i].to_vec(),
             vec![other_op_head.clone()],
@@ -208,35 +199,14 @@ fn merge_op_heads(
             &|op: &Operation| op.id().clone(),
         )
         .unwrap();
-        merged_view = view::merge_views(
-            store,
-            &merged_view,
-            ancestor_op.view().store_view(),
-            other_op_head.view().store_view(),
-        );
+        let base_repo = repo_loader.load_at(&ancestor_op).unwrap();
+        let other_repo = repo_loader.load_at(&other_op_head).unwrap();
+        merged_repo.merge(&base_repo, &other_repo);
     }
-    let merged_index = index_store.write_index(index).unwrap();
-    let merged_view_id = op_store.write_view(&merged_view).unwrap();
-    let operation_metadata = OperationMetadata::new(
-        "resolve concurrent operations".to_string(),
-        Timestamp::now(),
-    );
     let op_parent_ids = op_heads.iter().map(|op| op.id().clone()).collect();
-    let merge_operation = op_store::Operation {
-        view_id: merged_view_id,
-        parents: op_parent_ids,
-        metadata: operation_metadata,
-    };
-    let merge_operation_id = op_store.write_operation(&merge_operation).unwrap();
-    index_store
-        .associate_file_with_operation(merged_index.as_ref(), &merge_operation_id)
-        .unwrap();
+    tx.set_parents(op_parent_ids);
     // TODO: We already have the resulting View in this case but Operation cannot
     // keep it. Teach Operation to have a cached View so the caller won't have
     // to re-read it from the store (by calling Operation::view())?
-    Ok(Operation::new(
-        op_store.clone(),
-        merge_operation_id,
-        merge_operation,
-    ))
+    Ok(tx.write())
 }

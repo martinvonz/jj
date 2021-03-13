@@ -212,6 +212,10 @@ impl ReadonlyView {
     pub fn git_refs(&self) -> &BTreeMap<String, CommitId> {
         &self.data.git_refs
     }
+
+    pub fn store_view(&self) -> &op_store::View {
+        &self.data
+    }
 }
 
 impl MutableView {

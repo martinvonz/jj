@@ -40,7 +40,7 @@ use crate::store;
 use crate::store::{CommitId, Store, StoreError};
 use crate::store_wrapper::StoreWrapper;
 use crate::transaction::Transaction;
-use crate::view::{MutableView, ReadonlyView, ViewRef};
+use crate::view::{merge_views, MutableView, ReadonlyView, ViewRef};
 use crate::working_copy::WorkingCopy;
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -259,9 +259,7 @@ impl ReadonlyRepo {
         RepoLoader::init(user_settings, wc_path)?.load_at_head()
     }
 
-    pub fn loader(
-        &self
-    ) -> RepoLoader {
+    pub fn loader(&self) -> RepoLoader {
         RepoLoader {
             wc_path: self.wc_path.clone(),
             repo_path: self.repo_path.clone(),
@@ -403,7 +401,10 @@ pub struct RepoLoader {
 }
 
 impl RepoLoader {
-    pub fn init(user_settings: &UserSettings, wc_path: PathBuf) -> Result<RepoLoader, RepoLoadError> {
+    pub fn init(
+        user_settings: &UserSettings,
+        wc_path: PathBuf,
+    ) -> Result<RepoLoader, RepoLoadError> {
         let repo_path = wc_path.join(".jj");
         // TODO: Check if ancestor directory has a .jj/
         if !repo_path.is_dir() {
@@ -458,19 +459,19 @@ impl RepoLoader {
         &self.op_store
     }
 
-    pub fn load_at_head(self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
+    pub fn load_at_head(&self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
         let op = self.op_heads_store.get_single_op_head(&self).unwrap();
         let view = ReadonlyView::new(self.store.clone(), op.view().take_store_view());
         self._finish_load(op.id().clone(), view)
     }
 
-    pub fn load_at(self, op: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
+    pub fn load_at(&self, op: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
         let view = ReadonlyView::new(self.store.clone(), op.view().take_store_view());
         self._finish_load(op.id().clone(), view)
     }
 
     fn _finish_load(
-        self,
+        &self,
         op_id: OperationId,
         view: ReadonlyView,
     ) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
@@ -480,14 +481,14 @@ impl RepoLoader {
             self.repo_path.join("working_copy"),
         );
         let repo = ReadonlyRepo {
-            repo_path: self.repo_path,
-            wc_path: self.wc_path,
-            store: self.store,
-            op_store: self.op_store,
-            op_heads_store: self.op_heads_store,
+            repo_path: self.repo_path.clone(),
+            wc_path: self.wc_path.clone(),
+            store: self.store.clone(),
+            op_store: self.op_store.clone(),
+            op_heads_store: self.op_heads_store.clone(),
             op_id,
-            settings: self.repo_settings,
-            index_store: self.index_store,
+            settings: self.repo_settings.clone(),
+            index_store: self.index_store.clone(),
             index: Mutex::new(None),
             working_copy: Arc::new(Mutex::new(working_copy)),
             view,
@@ -680,6 +681,25 @@ impl<'r> MutableRepo<'r> {
 
     pub fn set_view(&mut self, data: op_store::View) {
         self.view.set_view(data);
+        self.evolution.as_mut().unwrap().invalidate();
+    }
+
+    pub fn merge(&mut self, base_repo: &ReadonlyRepo, other_repo: &ReadonlyRepo) {
+        // First, merge the index, so we can take advantage of a valid index when
+        // merging the view. Merging in base_repo's index isn't typically
+        // necessary, but it can be if base_repo is ahead of either self or other_repo
+        // (e.g. because we're undoing an operation that hasn't been published).
+        self.index.merge_in(&base_repo.index());
+        self.index.merge_in(&other_repo.index());
+
+        let merged_view = merge_views(
+            self.store(),
+            self.view.store_view(),
+            base_repo.view.store_view(),
+            other_repo.view.store_view(),
+        );
+        self.view.set_view(merged_view);
+
         self.evolution.as_mut().unwrap().invalidate();
     }
 }
