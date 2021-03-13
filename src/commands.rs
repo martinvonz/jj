@@ -41,7 +41,7 @@ use jujube_lib::files;
 use jujube_lib::files::DiffLine;
 use jujube_lib::git;
 use jujube_lib::op_store::{OpStore, OpStoreError, OperationId};
-use jujube_lib::repo::{ReadonlyRepo, RepoLoadError};
+use jujube_lib::repo::{ReadonlyRepo, RepoLoadError, RepoLoader};
 use jujube_lib::repo_path::RepoPath;
 use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujube_lib::settings::UserSettings;
@@ -94,7 +94,7 @@ impl From<RepoLoadError> for CommandError {
 fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandError> {
     let wc_path_str = matches.value_of("repository").unwrap();
     let wc_path = ui.cwd().join(wc_path_str);
-    let loader = ReadonlyRepo::loader(ui.settings(), wc_path)?;
+    let loader = RepoLoader::init(ui.settings(), wc_path)?;
     if let Some(op_str) = matches.value_of("at_op") {
         let op = resolve_single_op_from_store(loader.op_store(), op_str)?;
         Ok(loader.load_at(&op)?)

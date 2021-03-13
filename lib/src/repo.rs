@@ -256,14 +256,21 @@ impl ReadonlyRepo {
         user_settings: &UserSettings,
         wc_path: PathBuf,
     ) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
-        ReadonlyRepo::loader(user_settings, wc_path)?.load_at_head()
+        RepoLoader::init(user_settings, wc_path)?.load_at_head()
     }
 
     pub fn loader(
-        user_settings: &UserSettings,
-        wc_path: PathBuf,
-    ) -> Result<RepoLoader, RepoLoadError> {
-        RepoLoader::init(user_settings, wc_path)
+        &self
+    ) -> RepoLoader {
+        RepoLoader {
+            wc_path: self.wc_path.clone(),
+            repo_path: self.repo_path.clone(),
+            repo_settings: self.settings.clone(),
+            store: self.store.clone(),
+            op_store: self.op_store.clone(),
+            op_heads_store: self.op_heads_store.clone(),
+            index_store: self.index_store.clone(),
+        }
     }
 
     pub fn as_repo_ref(&self) -> RepoRef {
@@ -356,15 +363,7 @@ impl ReadonlyRepo {
     }
 
     pub fn reload(&mut self) {
-        let repo_loader = RepoLoader {
-            wc_path: self.working_copy_path().clone(),
-            repo_path: self.repo_path.clone(),
-            repo_settings: self.settings.clone(),
-            store: self.store.clone(),
-            op_store: self.op_store.clone(),
-            op_heads_store: self.op_heads_store.clone(),
-            index_store: self.index_store.clone(),
-        };
+        let repo_loader = self.loader();
         let operation = self
             .op_heads_store
             .get_single_op_head(&repo_loader)
@@ -404,7 +403,7 @@ pub struct RepoLoader {
 }
 
 impl RepoLoader {
-    fn init(user_settings: &UserSettings, wc_path: PathBuf) -> Result<RepoLoader, RepoLoadError> {
+    pub fn init(user_settings: &UserSettings, wc_path: PathBuf) -> Result<RepoLoader, RepoLoadError> {
         let repo_path = wc_path.join(".jj");
         // TODO: Check if ancestor directory has a .jj/
         if !repo_path.is_dir() {
