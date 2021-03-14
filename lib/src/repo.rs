@@ -37,7 +37,7 @@ use crate::simple_op_store::SimpleOpStore;
 use crate::store::{CommitId, Store, StoreError};
 use crate::store_wrapper::StoreWrapper;
 use crate::transaction::Transaction;
-use crate::view::{heads_of_set, merge_views, MutableView, ReadonlyView, ViewRef};
+use crate::view::{merge_views, MutableView, ReadonlyView, ViewRef};
 use crate::working_copy::WorkingCopy;
 use crate::{conflicts, op_store, store};
 
@@ -612,15 +612,24 @@ impl<'r> MutableRepo<'r> {
     }
 
     fn enforce_view_invariants(&mut self) {
+        let view = self.view.store_view_mut();
         // TODO: This is surely terribly slow on large repos, at least in its current
         // form. We should make it faster (using the index) and avoid calling it in
         // most cases (avoid adding a head that's already reachable in the view).
-        let store = self.store().clone();
-        let view = self.view.store_view_mut();
-        view.public_head_ids = heads_of_set(&store, view.public_head_ids.iter().cloned());
+        view.public_head_ids = self
+            .index
+            .heads(view.public_head_ids.iter())
+            .iter()
+            .cloned()
+            .collect();
         view.head_ids.extend(view.public_head_ids.iter().cloned());
         view.head_ids.extend(view.git_refs.values().cloned());
-        view.head_ids = heads_of_set(&store, view.head_ids.iter().cloned());
+        view.head_ids = self
+            .index
+            .heads(view.head_ids.iter())
+            .iter()
+            .cloned()
+            .collect();
     }
 
     pub fn add_head(&mut self, head: &Commit) {

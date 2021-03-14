@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cmp::min;
 use std::collections::{BTreeMap, HashSet};
 
 use crate::op_store;
 use crate::store::CommitId;
-use crate::store_wrapper::StoreWrapper;
 
 pub enum ViewRef<'a> {
     Readonly(&'a ReadonlyView),
@@ -60,40 +58,6 @@ pub struct ReadonlyView {
 
 pub struct MutableView {
     data: op_store::View,
-}
-
-pub(crate) fn heads_of_set(
-    store: &StoreWrapper,
-    commit_ids: impl Iterator<Item = CommitId>,
-) -> HashSet<CommitId> {
-    let mut visited = HashSet::new();
-    let mut work = vec![];
-    let mut oldest = u64::MAX;
-    let mut heads: HashSet<CommitId> = commit_ids.collect();
-    for commit_id in &heads {
-        let commit = store.get_commit(commit_id).unwrap();
-        oldest = min(oldest, commit.committer().timestamp.timestamp.0);
-        work.push(commit);
-    }
-    // Assume clock skew less than a month:
-    // TODO: use generation numbers here
-    let threshold = oldest.saturating_sub(1000 * 3600 * 24 * 30);
-    while !work.is_empty() {
-        let commit = work.pop().unwrap();
-        if visited.contains(commit.id()) {
-            continue;
-        }
-        visited.insert(commit.id().clone());
-
-        for parent in commit.parents() {
-            if parent.committer().timestamp.timestamp.0 < threshold {
-                continue;
-            }
-            heads.remove(parent.id());
-            work.push(parent);
-        }
-    }
-    heads
 }
 
 // TODO: Make a member of MutableView?
