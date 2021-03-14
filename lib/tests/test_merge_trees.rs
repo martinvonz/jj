@@ -14,9 +14,8 @@
 
 use jujube_lib::repo_path::{DirRepoPath, FileRepoPath, RepoPath};
 use jujube_lib::store::{ConflictPart, TreeValue};
-use jujube_lib::testutils;
 use jujube_lib::tree::Tree;
-use jujube_lib::trees;
+use jujube_lib::{testutils, trees};
 use test_case::test_case;
 
 #[test_case(false ; "local store")]

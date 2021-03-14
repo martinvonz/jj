@@ -17,8 +17,7 @@ extern crate pest;
 use jujube_lib::commit::Commit;
 use jujube_lib::repo::RepoRef;
 use jujube_lib::store::{CommitId, Signature};
-use pest::iterators::Pair;
-use pest::iterators::Pairs;
+use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 
 use crate::styler::PlainTextStyler;

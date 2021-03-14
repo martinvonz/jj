@@ -18,12 +18,11 @@ use std::sync::Arc;
 
 use git2::Oid;
 use jujube_lib::commit::Commit;
-use jujube_lib::git;
 use jujube_lib::git::{GitFetchError, GitPushError};
 use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::settings::UserSettings;
 use jujube_lib::store::CommitId;
-use jujube_lib::testutils;
+use jujube_lib::{git, testutils};
 use maplit::hashset;
 use tempfile::TempDir;
 

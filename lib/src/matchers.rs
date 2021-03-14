@@ -14,13 +14,9 @@
 
 #![allow(dead_code)]
 
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-use crate::repo_path::DirRepoPath;
-use crate::repo_path::DirRepoPathComponent;
-use crate::repo_path::FileRepoPath;
-use crate::repo_path::FileRepoPathComponent;
+use crate::repo_path::{DirRepoPath, DirRepoPathComponent, FileRepoPath, FileRepoPathComponent};
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Visit<'a> {
@@ -156,10 +152,9 @@ mod tests {
     use std::collections::HashSet;
 
     use super::*;
-    use crate::repo_path::DirRepoPath;
-    use crate::repo_path::DirRepoPathComponent;
-    use crate::repo_path::FileRepoPath;
-    use crate::repo_path::FileRepoPathComponent;
+    use crate::repo_path::{
+        DirRepoPath, DirRepoPathComponent, FileRepoPath, FileRepoPathComponent,
+    };
 
     #[test]
     fn dirs_empty() {

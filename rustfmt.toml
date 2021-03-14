@@ -2,3 +2,4 @@ max_width = 100
 wrap_comments = true
 error_on_line_overflow = true
 group_imports = "StdExternalCrate"
+imports_granularity = "Module"

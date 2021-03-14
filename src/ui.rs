@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt;
-use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
+use std::{fmt, io};
 
 use jujube_lib::commit::Commit;
 use jujube_lib::repo::RepoRef;

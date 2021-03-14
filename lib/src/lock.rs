@@ -62,8 +62,7 @@ impl Drop for FileLock {
 
 #[cfg(test)]
 mod tests {
-    use std::env;
-    use std::thread;
+    use std::{env, thread};
 
     use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 

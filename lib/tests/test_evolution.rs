@@ -14,8 +14,7 @@
 
 use jujube_lib::commit::Commit;
 use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::evolution::evolve;
-use jujube_lib::evolution::EvolveListener;
+use jujube_lib::evolution::{evolve, EvolveListener};
 use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::repo_path::FileRepoPath;
 use jujube_lib::settings::UserSettings;

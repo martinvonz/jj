@@ -21,8 +21,7 @@ use std::vec::Vec;
 
 use thiserror::Error;
 
-use crate::repo_path::DirRepoPath;
-use crate::repo_path::FileRepoPath;
+use crate::repo_path::{DirRepoPath, FileRepoPath};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct CommitId(pub Vec<u8>);

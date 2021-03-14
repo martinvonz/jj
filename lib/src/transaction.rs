@@ -18,16 +18,14 @@ use crate::commit::Commit;
 use crate::evolution::MutableEvolution;
 use crate::index::MutableIndex;
 use crate::op_heads_store::OpHeadsStore;
-use crate::op_store;
-use crate::op_store::OperationId;
-use crate::op_store::OperationMetadata;
+use crate::op_store::{OperationId, OperationMetadata};
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use crate::settings::UserSettings;
-use crate::store;
 use crate::store::{CommitId, Timestamp};
 use crate::store_wrapper::StoreWrapper;
 use crate::view::MutableView;
+use crate::{op_store, store};
 
 pub struct Transaction<'r> {
     repo: Option<Arc<MutableRepo<'r>>>,

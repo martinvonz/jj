@@ -13,8 +13,7 @@
 // limitations under the License.
 
 use std::fmt::{Debug, Error, Formatter};
-use std::io::Cursor;
-use std::io::Read;
+use std::io::{Cursor, Read};
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::Mutex;

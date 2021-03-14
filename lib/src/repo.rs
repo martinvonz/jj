@@ -23,7 +23,6 @@ use thiserror::Error;
 
 use crate::commit::Commit;
 use crate::commit_builder::{new_change_id, signature, CommitBuilder};
-use crate::conflicts;
 use crate::dag_walk::topo_order_reverse;
 use crate::evolution::{EvolutionRef, MutableEvolution, ReadonlyEvolution};
 use crate::git_store::GitStore;
@@ -31,17 +30,16 @@ use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
 use crate::local_store::LocalStore;
 use crate::op_heads_store::OpHeadsStore;
-use crate::op_store;
 use crate::op_store::{OpStore, OperationId};
 use crate::operation::Operation;
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_store::SimpleOpStore;
-use crate::store;
 use crate::store::{CommitId, Store, StoreError};
 use crate::store_wrapper::StoreWrapper;
 use crate::transaction::Transaction;
 use crate::view::{merge_views, MutableView, ReadonlyView, ViewRef};
 use crate::working_copy::WorkingCopy;
+use crate::{conflicts, op_store, store};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum RepoError {

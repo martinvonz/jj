@@ -15,8 +15,7 @@
 use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
-use std::io::ErrorKind;
-use std::io::Write;
+use std::io::{ErrorKind, Write};
 use std::path::PathBuf;
 
 use blake2::{Blake2b, Digest};
