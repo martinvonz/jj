@@ -691,7 +691,6 @@ impl<'r> MutableRepo<'r> {
         self.index.merge_in(&other_repo.index());
 
         let merged_view = merge_views(
-            self.store(),
             self.view.store_view(),
             base_repo.view.store_view(),
             other_repo.view.store_view(),

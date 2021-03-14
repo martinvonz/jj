@@ -111,8 +111,7 @@ fn heads_of_set(
 }
 
 // TODO: Make a member of MutableView?
-pub fn merge_views(
-    store: &StoreWrapper,
+pub(crate) fn merge_views(
     left: &op_store::View,
     base: &op_store::View,
     right: &op_store::View,
@@ -140,7 +139,6 @@ pub fn merge_views(
     for added_head in right.head_ids.difference(&base.head_ids) {
         result.head_ids.insert(added_head.clone());
     }
-    enforce_invariants(store, &mut result);
     // TODO: Should it be considered a conflict if a commit-head is removed on one
     // side while a child or successor is created on another side? Maybe a
     // warning?
