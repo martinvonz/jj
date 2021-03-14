@@ -104,12 +104,10 @@ impl OpHeadsStore {
         }
     }
 
-    // TODO: Introduce context objects (like commit::Commit) so we won't have to
-    // pass around OperationId and Operation separately like we do here.
     pub fn get_single_op_head(
         &self,
         repo_loader: &RepoLoader,
-    ) -> Result<(OperationId, op_store::Operation, op_store::View), OpHeadResolutionError> {
+    ) -> Result<Operation, OpHeadResolutionError> {
         let mut op_heads = self.get_op_heads();
 
         if op_heads.is_empty() {
@@ -120,8 +118,7 @@ impl OpHeadsStore {
         if op_heads.len() == 1 {
             let operation_id = op_heads.pop().unwrap();
             let operation = op_store.read_operation(&operation_id).unwrap();
-            let view = op_store.read_view(&operation.view_id).unwrap();
-            return Ok((operation_id, operation, view));
+            return Ok(Operation::new(op_store.clone(), operation_id, operation));
         }
 
         // There are multiple heads. We take a lock, then check if there are still
@@ -143,8 +140,7 @@ impl OpHeadsStore {
             let op_head_id = op_head_ids[0].clone();
             let op_head = op_store.read_operation(&op_head_id).unwrap();
             // Return early so we don't write a merge operation with a single parent
-            let view = op_store.read_view(&op_head.view_id).unwrap();
-            return Ok((op_head_id, op_head, view));
+            return Ok(Operation::new(op_store.clone(), op_head_id, op_head));
         }
 
         let op_heads: Vec<_> = op_head_ids
@@ -154,24 +150,19 @@ impl OpHeadsStore {
                 Operation::new(op_store.clone(), op_id.clone(), data)
             })
             .collect();
-        let op_heads = self.handle_ancestor_ops(op_heads);
+        let mut op_heads = self.handle_ancestor_ops(op_heads);
 
         // Return without creating a merge operation
         if op_heads.len() == 1 {
-            return Ok((
-                op_heads[0].id().clone(),
-                op_heads[0].store_operation().clone(),
-                op_heads[0].view().take_store_view(),
-            ));
+            return Ok(op_heads.pop().unwrap());
         }
 
-        let (merge_operation_id, merge_operation, merged_view) =
-            merge_op_heads(repo_loader, op_heads)?;
-        self.add_op_head(&merge_operation_id);
-        for old_op_head_id in &merge_operation.parents {
+        let merge_operation = merge_op_heads(repo_loader, op_heads)?;
+        self.add_op_head(merge_operation.id());
+        for old_op_head_id in merge_operation.parent_ids() {
             self.remove_op_head(old_op_head_id);
         }
-        Ok((merge_operation_id, merge_operation, merged_view))
+        Ok(merge_operation)
     }
 
     /// Removes operations in the input that are ancestors of other operations
@@ -195,7 +186,7 @@ impl OpHeadsStore {
 fn merge_op_heads(
     repo_loader: &RepoLoader,
     mut op_heads: Vec<Operation>,
-) -> Result<(OperationId, op_store::Operation, op_store::View), OpHeadResolutionError> {
+) -> Result<Operation, OpHeadResolutionError> {
     op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
     let first_op_head = op_heads[0].clone();
     let op_store = repo_loader.op_store();
@@ -236,5 +227,12 @@ fn merge_op_heads(
     index_store
         .associate_file_with_operation(merged_index.as_ref(), &merge_operation_id)
         .unwrap();
-    Ok((merge_operation_id, merge_operation, merged_view))
+    // TODO: We already have the resulting View in this case but Operation cannot
+    // keep it. Teach Operation to have a cached View so the caller won't have
+    // to re-read it from the store (by calling Operation::view())?
+    Ok(Operation::new(
+        op_store.clone(),
+        merge_operation_id,
+        merge_operation,
+    ))
 }

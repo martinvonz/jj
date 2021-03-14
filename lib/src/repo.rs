@@ -354,15 +354,15 @@ impl ReadonlyRepo {
             op_heads_store: self.op_heads_store.clone(),
             index_store: self.index_store.clone(),
         };
-        let (op_id, _operation, op_store_view) = self
+        let operation = self
             .op_heads_store
             .get_single_op_head(&repo_loader)
             .unwrap();
         self.view = ReadonlyView::new(
             self.store.clone(),
             self.op_store.clone(),
-            op_id,
-            op_store_view,
+            operation.id().clone(),
+            operation.view().take_store_view(),
         );
         let repo_ref: &ReadonlyRepo = self;
         let static_lifetime_repo: &'static ReadonlyRepo = unsafe { std::mem::transmute(repo_ref) };
@@ -457,13 +457,12 @@ impl RepoLoader {
     }
 
     pub fn load_at_head(self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
-        let (op_id, _operation, op_store_view) =
-            self.op_heads_store.get_single_op_head(&self).unwrap();
+        let operation = self.op_heads_store.get_single_op_head(&self).unwrap();
         let view = ReadonlyView::new(
             self.store.clone(),
             self.op_store.clone(),
-            op_id,
-            op_store_view,
+            operation.id().clone(),
+            operation.view().take_store_view(),
         );
         self._finish_load(view)
     }
