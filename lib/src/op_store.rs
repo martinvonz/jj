@@ -103,13 +103,13 @@ pub struct OperationMetadata {
 }
 
 impl OperationMetadata {
-    pub fn new(description: String) -> Self {
-        let timestamp = Timestamp::now();
+    pub fn new(description: String, start_time: Timestamp) -> Self {
+        let end_time = Timestamp::now();
         let hostname = whoami::hostname();
         let username = whoami::username();
         OperationMetadata {
-            start_time: timestamp.clone(),
-            end_time: timestamp,
+            start_time,
+            end_time,
             description,
             hostname,
             username,

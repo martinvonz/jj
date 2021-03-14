@@ -18,9 +18,9 @@ use std::sync::Arc;
 
 use crate::commit::Commit;
 use crate::op_store;
-use crate::op_store::{OpStore, OpStoreResult, OperationId, OperationMetadata};
+use crate::op_store::{OpStore, OpStoreResult, OperationId};
 use crate::operation::Operation;
-use crate::store::{CommitId, Timestamp};
+use crate::store::{CommitId};
 use crate::store_wrapper::StoreWrapper;
 
 pub enum ViewRef<'a> {
@@ -319,16 +319,7 @@ impl MutableView {
         enforce_invariants(&self.store, &mut self.data);
     }
 
-    pub fn save(&self, description: String, operation_start_time: Timestamp) -> Operation {
-        let view_id = self.op_store.write_view(&self.data).unwrap();
-        let mut operation_metadata = OperationMetadata::new(description);
-        operation_metadata.start_time = operation_start_time;
-        let operation = op_store::Operation {
-            view_id,
-            parents: vec![self.base_op_id.clone()],
-            metadata: operation_metadata,
-        };
-        let new_op_id = self.op_store.write_operation(&operation).unwrap();
-        Operation::new(self.op_store.clone(), new_op_id, operation)
+    pub fn store_view(&self) -> &op_store::View {
+        &self.data
     }
 }

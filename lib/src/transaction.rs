@@ -25,6 +25,7 @@ use crate::store::{CommitId, Timestamp};
 use crate::store_wrapper::StoreWrapper;
 use crate::view::MutableView;
 use std::sync::Arc;
+use crate::op_store::OperationMetadata;
 
 pub struct Transaction<'r> {
     repo: Option<Arc<MutableRepo<'r>>>,
@@ -132,11 +133,20 @@ impl<'r> Transaction<'r> {
     pub fn write(mut self) -> UnpublishedOperation {
         let mut_repo = Arc::try_unwrap(self.repo.take().unwrap()).ok().unwrap();
         let base_repo = mut_repo.base_repo();
-        let index_store = base_repo.index_store();
         let (mut_index, mut_view) = mut_repo.consume();
-        let index = index_store.write_index(mut_index).unwrap();
-        let operation = mut_view.save(self.description.clone(), self.start_time.clone());
-        index_store
+        let index = base_repo.index_store().write_index(mut_index).unwrap();
+
+        let view_id = base_repo.op_store().write_view(mut_view.store_view()).unwrap();
+        let operation_metadata = OperationMetadata::new(self.description.clone(),self.start_time.clone());
+        let store_operation = op_store::Operation {
+            view_id,
+            parents: vec![base_repo.view().op_id().clone()],
+            metadata: operation_metadata,
+        };
+        let new_op_id = base_repo.op_store().write_operation(&store_operation).unwrap();
+        let operation = Operation::new(base_repo.op_store().clone(), new_op_id, store_operation);
+
+        base_repo.index_store()
             .associate_file_with_operation(&index, operation.id())
             .unwrap();
         self.closed = true;
