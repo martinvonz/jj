@@ -110,6 +110,7 @@ fn heads_of_set(
     heads
 }
 
+// TODO: Make a member of MutableView?
 pub fn merge_views(
     store: &StoreWrapper,
     left: &op_store::View,

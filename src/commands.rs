@@ -46,7 +46,6 @@ use jujube_lib::store_wrapper::StoreWrapper;
 use jujube_lib::transaction::Transaction;
 use jujube_lib::tree::Tree;
 use jujube_lib::trees::TreeValueDiff;
-use jujube_lib::view::merge_views;
 use jujube_lib::working_copy::{CheckoutStats, WorkingCopy};
 use jujube_lib::{conflicts, files, git};
 use pest::Parser;
@@ -1979,20 +1978,10 @@ fn cmd_op_undo(
         ));
     }
 
-    let fixed_view = {
-        let parent_view = parent_ops[0].view();
-        let bad_view = bad_op.view();
-        let current_view = repo.op().view();
-        merge_views(
-            repo.store(),
-            current_view.store_view(),
-            bad_view.store_view(),
-            parent_view.store_view(),
-        )
-    };
-
     let mut tx = repo.start_transaction(&format!("undo operation {}", bad_op.id().hex()));
-    tx.set_view(fixed_view);
+    let bad_repo = repo.loader().load_at(&bad_op)?;
+    let parent_repo = repo.loader().load_at(&parent_ops[0])?;
+    tx.mut_repo().merge(&bad_repo, &parent_repo);
     tx.commit();
     update_working_copy(
         ui,
