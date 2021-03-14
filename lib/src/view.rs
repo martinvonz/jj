@@ -14,7 +14,6 @@
 
 use std::cmp::min;
 use std::collections::{BTreeMap, HashSet};
-use std::sync::Arc;
 
 use crate::commit::Commit;
 use crate::op_store;
@@ -57,26 +56,14 @@ impl<'a> ViewRef<'a> {
 }
 
 pub struct ReadonlyView {
-    store: Arc<StoreWrapper>,
     data: op_store::View,
 }
 
 pub struct MutableView {
-    store: Arc<StoreWrapper>,
     data: op_store::View,
 }
 
-fn enforce_invariants(store: &StoreWrapper, view: &mut op_store::View) {
-    // TODO: This is surely terribly slow on large repos, at least in its current
-    // form. We should make it faster (using the index) and avoid calling it in
-    // most cases (avoid adding a head that's already reachable in the view).
-    view.public_head_ids = heads_of_set(store, view.public_head_ids.iter().cloned());
-    view.head_ids.extend(view.public_head_ids.iter().cloned());
-    view.head_ids.extend(view.git_refs.values().cloned());
-    view.head_ids = heads_of_set(store, view.head_ids.iter().cloned());
-}
-
-fn heads_of_set(
+pub(crate) fn heads_of_set(
     store: &StoreWrapper,
     commit_ids: impl Iterator<Item = CommitId>,
 ) -> HashSet<CommitId> {
@@ -176,9 +163,8 @@ pub(crate) fn merge_views(
 }
 
 impl ReadonlyView {
-    pub fn new(store: Arc<StoreWrapper>, op_store_view: op_store::View) -> Self {
+    pub fn new(op_store_view: op_store::View) -> Self {
         ReadonlyView {
-            store,
             data: op_store_view,
         }
     }
@@ -186,7 +172,6 @@ impl ReadonlyView {
     pub fn start_modification(&self) -> MutableView {
         // TODO: Avoid the cloning of the sets here.
         MutableView {
-            store: self.store.clone(),
             data: self.data.clone(),
         }
     }
@@ -243,17 +228,14 @@ impl MutableView {
 
     pub fn add_head(&mut self, head: &Commit) {
         self.data.head_ids.insert(head.id().clone());
-        enforce_invariants(&self.store, &mut self.data);
     }
 
     pub fn remove_head(&mut self, head: &Commit) {
         self.data.head_ids.remove(head.id());
-        enforce_invariants(&self.store, &mut self.data);
     }
 
     pub fn add_public_head(&mut self, head: &Commit) {
         self.data.public_head_ids.insert(head.id().clone());
-        enforce_invariants(&self.store, &mut self.data);
     }
 
     pub fn remove_public_head(&mut self, head: &Commit) {
@@ -270,10 +252,13 @@ impl MutableView {
 
     pub fn set_view(&mut self, data: op_store::View) {
         self.data = data;
-        enforce_invariants(&self.store, &mut self.data);
     }
 
     pub fn store_view(&self) -> &op_store::View {
         &self.data
+    }
+
+    pub fn store_view_mut(&mut self) -> &mut op_store::View {
+        &mut self.data
     }
 }

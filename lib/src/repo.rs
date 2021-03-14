@@ -37,7 +37,7 @@ use crate::simple_op_store::SimpleOpStore;
 use crate::store::{CommitId, Store, StoreError};
 use crate::store_wrapper::StoreWrapper;
 use crate::transaction::Transaction;
-use crate::view::{merge_views, MutableView, ReadonlyView, ViewRef};
+use crate::view::{heads_of_set, merge_views, MutableView, ReadonlyView, ViewRef};
 use crate::working_copy::WorkingCopy;
 use crate::{conflicts, op_store, store};
 
@@ -221,7 +221,7 @@ impl ReadonlyRepo {
         fs::create_dir(repo_path.join("index")).unwrap();
         let index_store = Arc::new(IndexStore::init(repo_path.join("index")));
 
-        let view = ReadonlyView::new(store.clone(), root_view);
+        let view = ReadonlyView::new(root_view);
 
         let repo = ReadonlyRepo {
             repo_path,
@@ -358,14 +358,14 @@ impl ReadonlyRepo {
             .get_single_op_head(&repo_loader)
             .unwrap();
         self.op_id = operation.id().clone();
-        self.view = ReadonlyView::new(self.store.clone(), operation.view().take_store_view());
+        self.view = ReadonlyView::new(operation.view().take_store_view());
         self.index.lock().unwrap().take();
         self.evolution.lock().unwrap().take();
     }
 
     pub fn reload_at(&mut self, operation: &Operation) {
         self.op_id = operation.id().clone();
-        self.view = ReadonlyView::new(self.store.clone(), operation.view().take_store_view());
+        self.view = ReadonlyView::new(operation.view().take_store_view());
         self.index.lock().unwrap().take();
         self.evolution.lock().unwrap().take();
     }
@@ -442,12 +442,12 @@ impl RepoLoader {
 
     pub fn load_at_head(&self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
         let op = self.op_heads_store.get_single_op_head(&self).unwrap();
-        let view = ReadonlyView::new(self.store.clone(), op.view().take_store_view());
+        let view = ReadonlyView::new(op.view().take_store_view());
         self._finish_load(op.id().clone(), view)
     }
 
     pub fn load_at(&self, op: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
-        let view = ReadonlyView::new(self.store.clone(), op.view().take_store_view());
+        let view = ReadonlyView::new(op.view().take_store_view());
         self._finish_load(op.id().clone(), view)
     }
 
@@ -548,7 +548,7 @@ impl<'r> MutableRepo<'r> {
         let mut locked_evolution = self.evolution.lock().unwrap();
         let maybe_evolution = locked_evolution.as_mut();
         // Extend lifetime from lifetime of MutexGuard to lifetime of self. Safe because
-        // the value won't change again except for by invalidate_evolution(), which        
+        // the value won't change again except for by invalidate_evolution(), which
         // requires a mutable reference.
         unsafe { std::mem::transmute(maybe_evolution) }
     }
@@ -611,6 +611,18 @@ impl<'r> MutableRepo<'r> {
         open_commit
     }
 
+    fn enforce_view_invariants(&mut self) {
+        // TODO: This is surely terribly slow on large repos, at least in its current
+        // form. We should make it faster (using the index) and avoid calling it in
+        // most cases (avoid adding a head that's already reachable in the view).
+        let store = self.store().clone();
+        let view = self.view.store_view_mut();
+        view.public_head_ids = heads_of_set(&store, view.public_head_ids.iter().cloned());
+        view.head_ids.extend(view.public_head_ids.iter().cloned());
+        view.head_ids.extend(view.git_refs.values().cloned());
+        view.head_ids = heads_of_set(&store, view.head_ids.iter().cloned());
+    }
+
     pub fn add_head(&mut self, head: &Commit) {
         let current_heads = self.view.heads();
         // Use incremental update for common case of adding a single commit on top a
@@ -623,6 +635,7 @@ impl<'r> MutableRepo<'r> {
         {
             self.index.add_commit(head);
             self.view.add_head(head);
+            self.enforce_view_invariants();
             if let Some(evolution) = self.evolution_mut() {
                 evolution.add_commit(head)
             }
@@ -642,17 +655,20 @@ impl<'r> MutableRepo<'r> {
                 self.index.add_commit(missing_commit);
             }
             self.view.add_head(head);
+            self.enforce_view_invariants();
             self.invalidate_evolution();
         }
     }
 
     pub fn remove_head(&mut self, head: &Commit) {
         self.view.remove_head(head);
+        self.enforce_view_invariants();
         self.invalidate_evolution();
     }
 
     pub fn add_public_head(&mut self, head: &Commit) {
         self.view.add_public_head(head);
+        self.enforce_view_invariants();
         if let Some(evolution) = self.evolution_mut() {
             evolution.add_commit(head)
         }
@@ -673,6 +689,7 @@ impl<'r> MutableRepo<'r> {
 
     pub fn set_view(&mut self, data: op_store::View) {
         self.view.set_view(data);
+        self.enforce_view_invariants();
         self.invalidate_evolution();
     }
 
@@ -690,6 +707,7 @@ impl<'r> MutableRepo<'r> {
             other_repo.view.store_view(),
         );
         self.view.set_view(merged_view);
+        self.enforce_view_invariants();
 
         self.invalidate_evolution();
     }
