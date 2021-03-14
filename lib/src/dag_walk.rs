@@ -13,11 +13,11 @@
 // limitations under the License.
 
 use std::collections::HashSet;
+use std::hash::Hash;
 use std::iter::Iterator;
 
 use crate::commit::Commit;
 use crate::store::CommitId;
-use std::hash::Hash;
 
 pub struct AncestorsIter {
     bfs_iter: BfsIter<'static, 'static, Commit, CommitId, Vec<Commit>>,

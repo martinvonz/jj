@@ -15,21 +15,21 @@
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Cursor;
 use std::io::Read;
+use std::ops::Deref;
 use std::path::Path;
 use std::sync::Mutex;
 use std::time::Duration;
 
+use backoff::{ExponentialBackoff, Operation};
 use git2::Oid;
 use protobuf::Message;
+use uuid::Uuid;
 
 use crate::repo_path::{DirRepoPath, FileRepoPath};
 use crate::store::{
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictPart, FileId, MillisSinceEpoch,
     Signature, Store, StoreError, StoreResult, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
-use backoff::{ExponentialBackoff, Operation};
-use std::ops::Deref;
-use uuid::Uuid;
 
 /// Ref namespace used only for preventing GC.
 const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
@@ -489,9 +489,8 @@ fn bytes_vec_from_json(value: &serde_json::Value) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
 
-    use crate::store::{FileId, MillisSinceEpoch};
-
     use super::*;
+    use crate::store::{FileId, MillisSinceEpoch};
 
     #[test]
     fn read_plain_git_commit() {

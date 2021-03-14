@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use thiserror::Error;
+
 use crate::commit::Commit;
 use crate::store::CommitId;
 use crate::transaction::Transaction;
-use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GitImportError {

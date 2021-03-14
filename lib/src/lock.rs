@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use backoff::{ExponentialBackoff, Operation};
 use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 use std::time::Duration;
+
+use backoff::{ExponentialBackoff, Operation};
 
 pub struct FileLock {
     path: PathBuf,

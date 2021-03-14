@@ -14,12 +14,12 @@
 
 extern crate pest;
 
+use jujube_lib::commit::Commit;
+use jujube_lib::repo::RepoRef;
+use jujube_lib::store::{CommitId, Signature};
 use pest::iterators::Pair;
 use pest::iterators::Pairs;
 use pest::Parser;
-
-use jujube_lib::commit::Commit;
-use jujube_lib::store::{CommitId, Signature};
 
 use crate::styler::PlainTextStyler;
 use crate::templater::{
@@ -29,7 +29,6 @@ use crate::templater::{
     LiteralTemplate, ObsoleteProperty, OpenProperty, OrphanProperty, PrunedProperty,
     StringPropertyTemplate, Template, TemplateFunction, TemplateProperty,
 };
-use jujube_lib::repo::RepoRef;
 
 #[derive(Parser)]
 #[grammar = "template.pest"]

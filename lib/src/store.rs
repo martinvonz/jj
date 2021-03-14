@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Borrow;
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Read;
 use std::result::Result;
 use std::vec::Vec;
 
+use thiserror::Error;
+
 use crate::repo_path::DirRepoPath;
 use crate::repo_path::FileRepoPath;
-use std::borrow::Borrow;
-use thiserror::Error;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct CommitId(pub Vec<u8>);

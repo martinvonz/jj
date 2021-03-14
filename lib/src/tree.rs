@@ -14,6 +14,7 @@
 
 use std::borrow::Borrow;
 use std::fmt::{Debug, Error, Formatter};
+use std::pin::Pin;
 use std::sync::Arc;
 
 use crate::matchers::AlwaysMatcher;
@@ -24,7 +25,6 @@ use crate::store;
 use crate::store::{ConflictId, TreeEntriesNonRecursiveIter, TreeEntry, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
 use crate::trees::{recursive_tree_diff, TreeValueDiff};
-use std::pin::Pin;
 
 #[derive(Clone)]
 pub struct Tree {

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use crate::commit::Commit;
 use crate::evolution::MutableEvolution;
 use crate::index::MutableIndex;
@@ -26,7 +28,6 @@ use crate::store;
 use crate::store::{CommitId, Timestamp};
 use crate::store_wrapper::StoreWrapper;
 use crate::view::MutableView;
-use std::sync::Arc;
 
 pub struct Transaction<'r> {
     repo: Option<Arc<MutableRepo<'r>>>,

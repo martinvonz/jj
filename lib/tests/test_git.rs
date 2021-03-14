@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashSet;
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use git2::Oid;
 use jujube_lib::commit::Commit;
 use jujube_lib::git;
@@ -21,9 +25,6 @@ use jujube_lib::settings::UserSettings;
 use jujube_lib::store::CommitId;
 use jujube_lib::testutils;
 use maplit::hashset;
-use std::collections::HashSet;
-use std::path::PathBuf;
-use std::sync::Arc;
 use tempfile::TempDir;
 
 fn empty_git_commit<'r>(

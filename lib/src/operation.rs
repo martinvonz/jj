@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::op_store;
-use crate::op_store::{OpStore, OperationId, ViewId};
-use crate::store::CommitId;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
+
+use crate::op_store;
+use crate::op_store::{OpStore, OperationId, ViewId};
+use crate::store::CommitId;
 
 #[derive(Clone)]
 pub struct Operation {

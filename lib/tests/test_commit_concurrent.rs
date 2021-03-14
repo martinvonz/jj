@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
 use std::thread;
 
 use jujube_lib::dag_walk;
 use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::testutils;
-use std::sync::Arc;
 use test_case::test_case;
 
 fn count_non_merge_operations(repo: &ReadonlyRepo) -> u32 {

@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use diff::slice as diff_slice;
 use std::fmt::{Debug, Error, Formatter};
 use std::ops::Range;
+
+use diff::slice as diff_slice;
 
 fn is_word_byte(a: u8) -> bool {
     a.is_ascii_alphanumeric() || a == b'_'

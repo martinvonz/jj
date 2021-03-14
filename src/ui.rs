@@ -19,11 +19,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
 use jujube_lib::commit::Commit;
+use jujube_lib::repo::RepoRef;
 use jujube_lib::settings::UserSettings;
 
 use crate::styler::{ColorStyler, PlainTextStyler, Styler};
 use crate::templater::TemplateFormatter;
-use jujube_lib::repo::RepoRef;
 
 pub struct Ui<'a> {
     cwd: PathBuf,

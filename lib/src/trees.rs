@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cmp::Ordering;
+
 use crate::files;
 use crate::files::MergeResult;
 use crate::matchers::Matcher;
@@ -21,7 +23,6 @@ use crate::repo_path::{
 use crate::store::{Conflict, ConflictPart, StoreError, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
 use crate::tree::Tree;
-use std::cmp::Ordering;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Diff<T> {

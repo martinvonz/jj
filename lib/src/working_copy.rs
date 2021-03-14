@@ -25,8 +25,10 @@ use std::os::unix::fs::PermissionsExt;
 use std::os::windows::fs::symlink_file;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
+use git2::{Repository, RepositoryInitOptions};
 use protobuf::Message;
 use tempfile::NamedTempFile;
 use thiserror::Error;
@@ -42,8 +44,6 @@ use crate::settings::UserSettings;
 use crate::store::{CommitId, FileId, MillisSinceEpoch, StoreError, SymlinkId, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
 use crate::trees::TreeValueDiff;
-use git2::{Repository, RepositoryInitOptions};
-use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FileType {

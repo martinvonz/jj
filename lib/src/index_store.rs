@@ -12,6 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io;
+use std::io::{Read, Write};
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use tempfile::NamedTempFile;
+
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::index::{MutableIndex, ReadonlyIndex};
@@ -19,13 +28,6 @@ use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::store::CommitId;
 use crate::store_wrapper::StoreWrapper;
-use std::collections::{HashMap, HashSet};
-use std::fs::File;
-use std::io;
-use std::io::{Read, Write};
-use std::path::PathBuf;
-use std::sync::Arc;
-use tempfile::NamedTempFile;
 
 pub struct IndexStore {
     dir: PathBuf,

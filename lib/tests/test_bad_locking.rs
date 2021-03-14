@@ -13,12 +13,11 @@
 // limitations under the License.
 
 use std::path::Path;
-
-use tempfile::TempDir;
+use std::sync::Arc;
 
 use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::testutils;
-use std::sync::Arc;
+use tempfile::TempDir;
 use test_case::test_case;
 
 fn copy_directory(src: &Path, dst: &Path) {

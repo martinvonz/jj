@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use std::collections::{BTreeMap, HashSet};
+use std::sync::Arc;
 
 use crate::repo_path::{DirRepoPath, RepoPath, RepoPathJoin};
 use crate::store;
 use crate::store::{TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
 use crate::tree::Tree;
-use std::sync::Arc;
 
 #[derive(Debug)]
 enum Override {

@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::{Cursor, Write};
+
 use crate::files;
 use crate::repo_path::RepoPath;
 use crate::store::{Conflict, TreeValue};
 use crate::store_wrapper::StoreWrapper;
-use std::io::{Cursor, Write};
 
 pub fn materialize_conflict(
     store: &StoreWrapper,

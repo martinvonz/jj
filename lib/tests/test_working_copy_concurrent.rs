@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashSet;
+use std::sync::Arc;
 use std::thread;
 
 use jujube_lib::commit_builder::CommitBuilder;
@@ -20,8 +22,6 @@ use jujube_lib::repo_path::FileRepoPath;
 use jujube_lib::store::CommitId;
 use jujube_lib::testutils;
 use jujube_lib::working_copy::CheckoutError;
-use std::collections::HashSet;
-use std::sync::Arc;
 use test_case::test_case;
 
 #[test_case(false ; "local store")]

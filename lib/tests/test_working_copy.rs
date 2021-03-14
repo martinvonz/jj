@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fs::OpenOptions;
+use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+use std::sync::Arc;
 
 use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::repo::ReadonlyRepo;
@@ -22,9 +25,6 @@ use jujube_lib::settings::UserSettings;
 use jujube_lib::store::TreeValue;
 use jujube_lib::testutils;
 use jujube_lib::tree_builder::TreeBuilder;
-use std::fs::OpenOptions;
-use std::io::Write;
-use std::sync::Arc;
 use test_case::test_case;
 
 #[test_case(false ; "local store")]

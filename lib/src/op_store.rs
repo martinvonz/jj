@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::store::{CommitId, Timestamp};
 use std::collections::{BTreeMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
+
+use crate::store::{CommitId, Timestamp};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct ViewId(pub Vec<u8>);

@@ -19,11 +19,11 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use crate::conflicts;
 use thiserror::Error;
 
 use crate::commit::Commit;
 use crate::commit_builder::{new_change_id, signature, CommitBuilder};
+use crate::conflicts;
 use crate::dag_walk::topo_order_reverse;
 use crate::evolution::{EvolutionRef, MutableEvolution, ReadonlyEvolution};
 use crate::git_store::GitStore;

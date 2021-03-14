@@ -18,19 +18,17 @@ extern crate config;
 
 use std::collections::{HashSet, VecDeque};
 use std::ffi::OsString;
+use std::fmt::Debug;
 use std::fs;
 use std::fs::OpenOptions;
 use std::io;
 use std::io::{Read, Write};
 use std::process::Command;
 use std::sync::Arc;
+use std::time::Instant;
 
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
-
 use criterion::Criterion;
-
-use pest::Parser;
-
 use jujube_lib::commit::Commit;
 use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::conflicts;
@@ -40,16 +38,23 @@ use jujube_lib::evolution::EvolveListener;
 use jujube_lib::files;
 use jujube_lib::files::DiffLine;
 use jujube_lib::git;
+use jujube_lib::git::GitFetchError;
+use jujube_lib::index::{HexPrefix, PrefixResolution};
 use jujube_lib::op_store::{OpStore, OpStoreError, OperationId};
+use jujube_lib::operation::Operation;
 use jujube_lib::repo::{ReadonlyRepo, RepoLoadError, RepoLoader};
 use jujube_lib::repo_path::RepoPath;
 use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujube_lib::settings::UserSettings;
 use jujube_lib::store::{CommitId, Timestamp};
 use jujube_lib::store::{StoreError, TreeValue};
+use jujube_lib::store_wrapper::StoreWrapper;
+use jujube_lib::transaction::Transaction;
 use jujube_lib::tree::Tree;
 use jujube_lib::trees::TreeValueDiff;
+use jujube_lib::view::merge_views;
 use jujube_lib::working_copy::{CheckoutStats, WorkingCopy};
+use pest::Parser;
 
 use self::chrono::{FixedOffset, TimeZone, Utc};
 use crate::commands::CommandError::UserError;
@@ -59,14 +64,6 @@ use crate::styler::{ColorStyler, Styler};
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
 use crate::ui::Ui;
-use jujube_lib::git::GitFetchError;
-use jujube_lib::index::{HexPrefix, PrefixResolution};
-use jujube_lib::operation::Operation;
-use jujube_lib::store_wrapper::StoreWrapper;
-use jujube_lib::transaction::Transaction;
-use jujube_lib::view::merge_views;
-use std::fmt::Debug;
-use std::time::Instant;
 
 enum CommandError {
     UserError(String),

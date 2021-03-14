@@ -16,9 +16,11 @@ extern crate byteorder;
 
 use std::cmp::{max, min, Ordering};
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashSet};
+use std::fmt::{Debug, Formatter};
 use std::fs::File;
 use std::io;
 use std::io::{Cursor, Read, Write};
+use std::ops::Bound;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -27,11 +29,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use tempfile::NamedTempFile;
 
 use crate::commit::Commit;
-
 use crate::store::{ChangeId, CommitId};
-
-use std::fmt::{Debug, Formatter};
-use std::ops::Bound;
 
 #[derive(Clone)]
 pub enum IndexRef<'a> {
@@ -1485,9 +1483,9 @@ impl ReadonlyIndex {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use test_case::test_case;
 
+    use super::*;
     use crate::commit_builder::new_change_id;
 
     #[test_case(false; "memory")]

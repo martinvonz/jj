@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::repo_path::FileRepoPath;
 use jujube_lib::store::{Conflict, ConflictId, ConflictPart, TreeValue};
 use jujube_lib::store_wrapper::StoreWrapper;
 use jujube_lib::testutils;
-use std::sync::Arc;
 use test_case::test_case;
 
 // TODO Many of the tests here are not run with Git because they end up creating

@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use jujube_lib::repo::{ReadonlyRepo, RepoLoadError, RepoLoader};
 use jujube_lib::testutils;
-use std::sync::Arc;
 use test_case::test_case;
 
 #[test]

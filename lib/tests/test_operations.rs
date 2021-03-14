@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+use std::sync::Arc;
+
 use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::repo::RepoRef;
 use jujube_lib::store::CommitId;
 use jujube_lib::testutils;
-use std::path::Path;
-use std::sync::Arc;
 use test_case::test_case;
 
 fn list_dir(dir: &Path) -> Vec<String> {

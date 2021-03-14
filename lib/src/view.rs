@@ -18,7 +18,6 @@ use std::sync::Arc;
 
 use crate::commit::Commit;
 use crate::op_store;
-
 use crate::store::CommitId;
 use crate::store_wrapper::StoreWrapper;
 

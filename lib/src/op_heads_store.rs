@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashSet;
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use thiserror::Error;
+
 use crate::dag_walk;
 use crate::lock::FileLock;
 use crate::op_store;
 use crate::op_store::{OpStore, OperationId, OperationMetadata};
 use crate::operation::Operation;
-use crate::transaction::UnpublishedOperation;
-use std::path::PathBuf;
-use std::sync::Arc;
-
 use crate::repo::RepoLoader;
 use crate::store::{CommitId, Timestamp};
-use std::collections::HashSet;
-use thiserror::Error;
+use crate::transaction::UnpublishedOperation;
 
 /// Manages the very set of current heads of the operation log. The store is
 /// simply a directory where each operation id is a file with that name (and no

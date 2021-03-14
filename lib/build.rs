@@ -14,8 +14,9 @@
 
 extern crate protobuf_codegen_pure;
 
-use protobuf_codegen_pure::Customize;
 use std::path::Path;
+
+use protobuf_codegen_pure::Customize;
 
 fn main() {
     let out_dir = format!("{}/protos", std::env::var("OUT_DIR").unwrap());

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use uuid::Uuid;
 
 use crate::commit::Commit;
@@ -21,7 +23,6 @@ use crate::store;
 use crate::store::{ChangeId, CommitId, Signature, Timestamp, TreeId};
 use crate::store_wrapper::StoreWrapper;
 use crate::transaction::Transaction;
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct CommitBuilder {

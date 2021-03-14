@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::io::Read;
 use std::sync::{Arc, RwLock, Weak};
 
 use crate::commit::Commit;
@@ -24,7 +25,6 @@ use crate::store::{
 };
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
-use std::io::Read;
 
 /// Wraps the low-level store and makes it return more convenient types. Also
 /// adds the root commit and adds caching.
