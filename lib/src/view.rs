@@ -243,9 +243,6 @@ impl MutableView {
 
     pub fn add_head(&mut self, head: &Commit) {
         self.data.head_ids.insert(head.id().clone());
-        for parent in head.parents() {
-            self.data.head_ids.remove(parent.id());
-        }
         enforce_invariants(&self.store, &mut self.data);
     }
 
