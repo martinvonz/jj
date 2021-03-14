@@ -18,9 +18,8 @@ use std::sync::Arc;
 
 use crate::commit::Commit;
 use crate::op_store;
-use crate::op_store::{OpStore, OpStoreResult, OperationId};
-use crate::operation::Operation;
-use crate::store::{CommitId};
+
+use crate::store::CommitId;
 use crate::store_wrapper::StoreWrapper;
 
 pub enum ViewRef<'a> {
@@ -56,42 +55,15 @@ impl<'a> ViewRef<'a> {
             ViewRef::Mutable(view) => view.git_refs(),
         }
     }
-
-    fn op_store(&self) -> &Arc<dyn OpStore> {
-        match self {
-            ViewRef::Readonly(view) => &view.op_store,
-            ViewRef::Mutable(view) => &view.op_store,
-        }
-    }
-
-    pub fn base_op_id(&self) -> &'a OperationId {
-        match self {
-            ViewRef::Readonly(view) => view.op_id(),
-            ViewRef::Mutable(view) => view.base_op_id(),
-        }
-    }
-
-    fn get_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
-        let data = self.op_store().read_operation(id)?;
-        Ok(Operation::new(self.op_store().clone(), id.clone(), data))
-    }
-
-    pub fn base_op(&self) -> Operation {
-        self.get_operation(self.base_op_id()).unwrap()
-    }
 }
 
 pub struct ReadonlyView {
     store: Arc<StoreWrapper>,
-    op_store: Arc<dyn OpStore>,
-    op_id: OperationId,
     data: op_store::View,
 }
 
 pub struct MutableView {
     store: Arc<StoreWrapper>,
-    op_store: Arc<dyn OpStore>,
-    base_op_id: OperationId,
     data: op_store::View,
 }
 
@@ -206,16 +178,9 @@ pub fn merge_views(
 }
 
 impl ReadonlyView {
-    pub fn new(
-        store: Arc<StoreWrapper>,
-        op_store: Arc<dyn OpStore>,
-        op_id: OperationId,
-        op_store_view: op_store::View,
-    ) -> Self {
+    pub fn new(store: Arc<StoreWrapper>, op_store_view: op_store::View) -> Self {
         ReadonlyView {
             store,
-            op_store,
-            op_id,
             data: op_store_view,
         }
     }
@@ -224,8 +189,6 @@ impl ReadonlyView {
         // TODO: Avoid the cloning of the sets here.
         MutableView {
             store: self.store.clone(),
-            op_store: self.op_store.clone(),
-            base_op_id: self.op_id.clone(),
             data: self.data.clone(),
         }
     }
@@ -249,10 +212,6 @@ impl ReadonlyView {
     pub fn git_refs(&self) -> &BTreeMap<String, CommitId> {
         &self.data.git_refs
     }
-
-    pub fn op_id(&self) -> &OperationId {
-        &self.op_id
-    }
 }
 
 impl MutableView {
@@ -274,10 +233,6 @@ impl MutableView {
 
     pub fn git_refs(&self) -> &BTreeMap<String, CommitId> {
         &self.data.git_refs
-    }
-
-    pub fn base_op_id(&self) -> &OperationId {
-        &self.base_op_id
     }
 
     pub fn set_checkout(&mut self, id: CommitId) {

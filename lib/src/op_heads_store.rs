@@ -51,7 +51,8 @@ impl OpHeadsStore {
         let mut root_view = op_store::View::new(checkout.clone());
         root_view.head_ids.insert(checkout);
         let root_view_id = op_store.write_view(&root_view).unwrap();
-        let operation_metadata = OperationMetadata::new("initialize repo".to_string(), Timestamp::now());
+        let operation_metadata =
+            OperationMetadata::new("initialize repo".to_string(), Timestamp::now());
         let init_operation = op_store::Operation {
             view_id: root_view_id,
             parents: vec![],
@@ -216,7 +217,10 @@ fn merge_op_heads(
     }
     let merged_index = index_store.write_index(index).unwrap();
     let merged_view_id = op_store.write_view(&merged_view).unwrap();
-    let operation_metadata = OperationMetadata::new("resolve concurrent operations".to_string(), Timestamp::now());
+    let operation_metadata = OperationMetadata::new(
+        "resolve concurrent operations".to_string(),
+        Timestamp::now(),
+    );
     let op_parent_ids = op_heads.iter().map(|op| op.id().clone()).collect();
     let merge_operation = op_store::Operation {
         view_id: merged_view_id,

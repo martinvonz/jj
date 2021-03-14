@@ -203,9 +203,8 @@ fn op_arg<'a, 'b>() -> Arg<'a, 'b> {
 }
 
 fn resolve_single_op(repo: &ReadonlyRepo, op_str: &str) -> Result<Operation, CommandError> {
-    let view = repo.view();
     if op_str == "@" {
-        Ok(view.as_view_ref().base_op())
+        Ok(repo.op())
     } else {
         resolve_single_op_from_store(&repo.op_store(), op_str)
     }
@@ -1904,8 +1903,7 @@ fn cmd_op_log(
     _cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let view = repo.view();
-    let head_op = view.as_view_ref().base_op();
+    let head_op = repo.op();
     let mut styler = ui.styler();
     let mut styler = styler.as_mut();
     struct OpTemplate;
@@ -1990,10 +1988,9 @@ fn cmd_op_undo(
     }
 
     let fixed_view = {
-        let view = repo.view();
         let parent_view = parent_ops[0].view();
         let bad_view = bad_op.view();
-        let current_view = view.as_view_ref().base_op().view();
+        let current_view = repo.op().view();
         merge_views(
             repo.store(),
             current_view.store_view(),

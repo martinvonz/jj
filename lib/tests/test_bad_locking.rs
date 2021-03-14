@@ -130,7 +130,7 @@ fn test_bad_locking_children(use_git: bool) {
     let merged_repo = ReadonlyRepo::load(&settings, merged_path).unwrap();
     assert!(merged_repo.view().heads().contains(child1.id()));
     assert!(merged_repo.view().heads().contains(child2.id()));
-    let op_id = merged_repo.view().op_id().clone();
+    let op_id = merged_repo.op_id().clone();
     let op = merged_repo.op_store().read_operation(&op_id).unwrap();
     assert_eq!(op.parents.len(), 2);
 }
@@ -165,9 +165,9 @@ fn test_bad_locking_interrupted(use_git: bool) {
     copy_directory(&backup_path, &op_heads_dir);
     // Reload the repo and check that only the new head is present.
     let reloaded_repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
-    assert_eq!(reloaded_repo.view().op_id(), &op_id);
+    assert_eq!(reloaded_repo.op_id(), &op_id);
     // Reload once more to make sure that the .jj/op_heads/ directory was updated
     // correctly.
     let reloaded_repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
-    assert_eq!(reloaded_repo.view().op_id(), &op_id);
+    assert_eq!(reloaded_repo.op_id(), &op_id);
 }

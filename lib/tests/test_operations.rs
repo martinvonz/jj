@@ -35,8 +35,8 @@ fn test_unpublished_operation(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let op_heads_dir = repo.repo_path().join("op_heads");
-    let op_id0 = repo.view().op_id().clone();
-    assert_eq!(list_dir(&op_heads_dir), vec![repo.view().op_id().hex()]);
+    let op_id0 = repo.op_id().clone();
+    assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
     let mut tx1 = repo.start_transaction("transaction 1");
     testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx1);
@@ -57,8 +57,8 @@ fn test_consecutive_operations(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let op_heads_dir = repo.repo_path().join("op_heads");
-    let op_id0 = repo.view().op_id().clone();
-    assert_eq!(list_dir(&op_heads_dir), vec![repo.view().op_id().hex()]);
+    let op_id0 = repo.op_id().clone();
+    assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
     let mut tx1 = repo.start_transaction("transaction 1");
     testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx1);
@@ -89,8 +89,8 @@ fn test_concurrent_operations(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let op_heads_dir = repo.repo_path().join("op_heads");
-    let op_id0 = repo.view().op_id().clone();
-    assert_eq!(list_dir(&op_heads_dir), vec![repo.view().op_id().hex()]);
+    let op_id0 = repo.op_id().clone();
+    assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
     let mut tx1 = repo.start_transaction("transaction 1");
     testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx1);
@@ -113,7 +113,7 @@ fn test_concurrent_operations(use_git: bool) {
 
     // Reloading the repo causes the operations to be merged
     Arc::get_mut(&mut repo).unwrap().reload();
-    let merged_op_id = repo.view().op_id().clone();
+    let merged_op_id = repo.op_id().clone();
     assert_ne!(merged_op_id, op_id0);
     assert_ne!(merged_op_id, op_id1);
     assert_ne!(merged_op_id, op_id2);
