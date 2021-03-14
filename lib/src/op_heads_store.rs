@@ -156,6 +156,15 @@ impl OpHeadsStore {
             .collect();
         let op_heads = self.handle_ancestor_ops(op_heads);
 
+        // Return without creating a merge operation
+        if op_heads.len() == 1 {
+            return Ok((
+                op_heads[0].id().clone(),
+                op_heads[0].store_operation().clone(),
+                op_heads[0].view().take_store_view(),
+            ));
+        }
+
         let (merge_operation_id, merge_operation, merged_view) =
             merge_op_heads(repo_loader, op_heads)?;
         self.add_op_head(&merge_operation_id);
@@ -191,15 +200,6 @@ fn merge_op_heads(
     let first_op_head = op_heads[0].clone();
     let op_store = repo_loader.op_store();
     let mut merged_view = op_store.read_view(first_op_head.view().id()).unwrap();
-
-    // Return without creating a merge operation
-    if op_heads.len() == 1 {
-        return Ok((
-            op_heads[0].id().clone(),
-            first_op_head.store_operation().clone(),
-            merged_view,
-        ));
-    }
 
     let neighbors_fn = |op: &Operation| op.parents();
     let store = repo_loader.store();
