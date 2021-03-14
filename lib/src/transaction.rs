@@ -56,7 +56,7 @@ impl<'r> Transaction<'r> {
         self.repo.as_ref().unwrap().as_repo_ref()
     }
 
-    pub fn as_repo_mut(&mut self) -> &mut MutableRepo<'r> {
+    pub fn mut_repo(&mut self) -> &mut MutableRepo<'r> {
         Arc::get_mut(self.repo.as_mut().unwrap()).unwrap()
     }
 

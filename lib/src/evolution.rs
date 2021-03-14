@@ -484,7 +484,7 @@ pub fn evolve(
     // Resolving divergence can creates new orphans but not vice versa, so resolve
     // divergence first.
     let divergent_changes: Vec<_> = tx
-        .as_repo_mut()
+        .mut_repo()
         .evolution()
         .state
         .non_obsoletes_by_changeid
@@ -503,7 +503,7 @@ pub fn evolve(
     // Dom't reuse the state from above, since the divergence-resolution may have
     // created new orphans, or resolved existing orphans.
     let orphans: HashSet<Commit> = tx
-        .as_repo_mut()
+        .mut_repo()
         .evolution()
         .state
         .orphan_commits
@@ -533,7 +533,7 @@ pub fn evolve(
         let old_parents = orphan.parents();
         let mut new_parents = vec![];
         let mut ambiguous_new_parents = false;
-        let evolution = tx.as_repo_mut().evolution();
+        let evolution = tx.mut_repo().evolution();
         for old_parent in &old_parents {
             let new_parent_candidates = evolution.new_parent(old_parent.id());
             if new_parent_candidates.len() > 1 {
