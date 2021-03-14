@@ -110,6 +110,8 @@ fn test_import_refs_reimport() {
     let commit2 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
     let commit3 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
     let commit4 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
+    let pgp_key_oid = git_repo.blob(b"my PGP key").unwrap();
+    git_repo.reference("refs/tags/my-gpg-key", pgp_key_oid, false, "").unwrap();
 
     let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");

@@ -50,7 +50,13 @@ pub fn import_refs(
             // TODO: Is it useful to import HEAD (especially if it's detached)?
             continue;
         }
-        let git_commit = git_ref.peel_to_commit()?;
+        let git_commit = match git_ref.peel_to_commit() {
+            Ok(git_commit) => git_commit,
+            Err(_) => {
+                // Perhaps a tag pointing to a GPG key or similar. Just skip it.
+                continue;
+            }
+        };
         let id = CommitId(git_commit.id().as_bytes().to_vec());
         let commit = store.get_commit(&id).unwrap();
         tx.add_head(&commit);
