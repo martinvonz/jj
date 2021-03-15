@@ -544,15 +544,13 @@ impl<'r> MutableRepo<'r> {
         unsafe { std::mem::transmute(evolution) }
     }
 
-    pub fn evolution_mut(&mut self) -> &mut MutableEvolution {
+    pub fn evolution_mut(&mut self) -> Option<&mut MutableEvolution> {
         let mut locked_evolution = self.evolution.lock().unwrap();
-        if locked_evolution.is_none() {
-            locked_evolution.replace(MutableEvolution::new(self));
-        }
+        let maybe_evolution = locked_evolution.as_mut();
         // Extend lifetime from lifetime of MutexGuard to lifetime of self. Safe because
-        // the value won't change again except for by invalidate_evolution(), which
+        // the value won't change again except for by invalidate_evolution(), which        
         // requires a mutable reference.
-        unsafe { std::mem::transmute(locked_evolution.as_mut().unwrap()) }
+        unsafe { std::mem::transmute(maybe_evolution) }
     }
 
     pub fn invalidate_evolution(&mut self) {
@@ -625,7 +623,9 @@ impl<'r> MutableRepo<'r> {
         {
             self.index.add_commit(head);
             self.view.add_head(head);
-            self.evolution_mut().add_commit(head);
+            if let Some(evolution) = self.evolution_mut() {
+                evolution.add_commit(head)
+            }
         } else {
             let missing_commits = topo_order_reverse(
                 vec![head.clone()],
@@ -653,7 +653,9 @@ impl<'r> MutableRepo<'r> {
 
     pub fn add_public_head(&mut self, head: &Commit) {
         self.view.add_public_head(head);
-        self.evolution_mut().add_commit(head);
+        if let Some(evolution) = self.evolution_mut() {
+            evolution.add_commit(head)
+        }
     }
 
     pub fn remove_public_head(&mut self, head: &Commit) {
