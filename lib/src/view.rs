@@ -15,7 +15,6 @@
 use std::cmp::min;
 use std::collections::{BTreeMap, HashSet};
 
-use crate::commit::Commit;
 use crate::op_store;
 use crate::store::CommitId;
 use crate::store_wrapper::StoreWrapper;
@@ -226,20 +225,20 @@ impl MutableView {
         self.data.checkout = id;
     }
 
-    pub fn add_head(&mut self, head: &Commit) {
-        self.data.head_ids.insert(head.id().clone());
+    pub fn add_head(&mut self, head_id: &CommitId) {
+        self.data.head_ids.insert(head_id.clone());
     }
 
-    pub fn remove_head(&mut self, head: &Commit) {
-        self.data.head_ids.remove(head.id());
+    pub fn remove_head(&mut self, head_id: &CommitId) {
+        self.data.head_ids.remove(head_id);
     }
 
-    pub fn add_public_head(&mut self, head: &Commit) {
-        self.data.public_head_ids.insert(head.id().clone());
+    pub fn add_public_head(&mut self, head_id: &CommitId) {
+        self.data.public_head_ids.insert(head_id.clone());
     }
 
-    pub fn remove_public_head(&mut self, head: &Commit) {
-        self.data.public_head_ids.remove(head.id());
+    pub fn remove_public_head(&mut self, head_id: &CommitId) {
+        self.data.public_head_ids.remove(head_id);
     }
 
     pub fn insert_git_ref(&mut self, name: String, commit_id: CommitId) {

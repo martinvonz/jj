@@ -634,7 +634,7 @@ impl<'r> MutableRepo<'r> {
             .all(|parent_id| current_heads.contains(parent_id))
         {
             self.index.add_commit(head);
-            self.view.add_head(head);
+            self.view.add_head(head.id());
             self.enforce_view_invariants();
             if let Some(evolution) = self.evolution_mut() {
                 evolution.add_commit(head)
@@ -654,20 +654,20 @@ impl<'r> MutableRepo<'r> {
             for missing_commit in missing_commits.iter().rev() {
                 self.index.add_commit(missing_commit);
             }
-            self.view.add_head(head);
+            self.view.add_head(head.id());
             self.enforce_view_invariants();
             self.invalidate_evolution();
         }
     }
 
     pub fn remove_head(&mut self, head: &Commit) {
-        self.view.remove_head(head);
+        self.view.remove_head(head.id());
         self.enforce_view_invariants();
         self.invalidate_evolution();
     }
 
     pub fn add_public_head(&mut self, head: &Commit) {
-        self.view.add_public_head(head);
+        self.view.add_public_head(head.id());
         self.enforce_view_invariants();
         if let Some(evolution) = self.evolution_mut() {
             evolution.add_commit(head)
@@ -675,7 +675,7 @@ impl<'r> MutableRepo<'r> {
     }
 
     pub fn remove_public_head(&mut self, head: &Commit) {
-        self.view.remove_public_head(head);
+        self.view.remove_public_head(head.id());
         self.invalidate_evolution();
     }
 
