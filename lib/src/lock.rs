@@ -36,6 +36,9 @@ impl FileLock {
             Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
                 Err(backoff::Error::Transient(err))
             }
+            Err(err) if cfg!(windows) && err.kind() == std::io::ErrorKind::PermissionDenied => {
+                Err(backoff::Error::Transient(err))
+            }
             Err(err) => Err(backoff::Error::Permanent(err)),
         };
         let mut backoff = ExponentialBackoff {

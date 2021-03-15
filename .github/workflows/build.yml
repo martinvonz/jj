@@ -1,0 +1,29 @@
+name: build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      matrix:
+        operating-system: [ ubuntu-latest, windows-latest, macos-latest ]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Rust nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true
+        profile: minimal
+    - name: Build
+      run: |
+        cargo build --workspace --verbose
+    - name: Test
+      run: |
+        cargo test --workspace --verbose

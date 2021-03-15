@@ -254,7 +254,10 @@ impl TreeState {
         } else if metadata_file_type.is_symlink() {
             FileType::Symlink
         } else {
+            #[cfg(unix)]
             let mode = metadata.permissions().mode();
+            #[cfg(windows)]
+            let mode = 0;
             if mode & 0o111 != 0 {
                 FileType::Executable
             } else {
@@ -289,6 +292,19 @@ impl TreeState {
         let git_repo_dir = tempfile::tempdir().unwrap();
         let mut git_repo_options = RepositoryInitOptions::new();
         git_repo_options.workdir_path(&self.working_copy_path);
+        // Repository::init_opts creates a ".git" file in the working copy,
+        // which is undesired. On Windows it's worse because that ".git" makes
+        // the next Repository::init_opts fail with "Permission Denied".
+        // Automatically remove it.
+        let _cleanup_dot_git = {
+            struct Cleanup(PathBuf);
+            impl Drop for Cleanup {
+                fn drop(&mut self) {
+                    let _ = fs::remove_file(&self.0);
+                }
+            }
+            Cleanup(self.working_copy_path.join(".git"))
+        };
         let git_repo = Repository::init_opts(git_repo_dir.path(), &git_repo_options).unwrap();
 
         let mut work = vec![(DirRepoPath::root(), self.working_copy_path.clone())];

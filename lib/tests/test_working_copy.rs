@@ -50,6 +50,7 @@ fn test_root(use_git: bool) {
     assert_eq!(wc_commit.committer().email, settings.user_email());
 }
 
+#[cfg(unix)]
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
 fn test_checkout_file_transitions(use_git: bool) {
@@ -195,6 +196,7 @@ fn test_checkout_file_transitions(use_git: bool) {
                 assert_eq!(maybe_metadata.is_ok(), true, "{:?} should exist", path);
                 let metadata = maybe_metadata.unwrap();
                 assert_eq!(metadata.is_file(), true, "{:?} should be a file", path);
+                #[cfg(unix)]
                 assert_eq!(
                     metadata.permissions().mode() & 0o111,
                     0,
@@ -206,6 +208,7 @@ fn test_checkout_file_transitions(use_git: bool) {
                 assert_eq!(maybe_metadata.is_ok(), true, "{:?} should exist", path);
                 let metadata = maybe_metadata.unwrap();
                 assert_eq!(metadata.is_file(), true, "{:?} should be a file", path);
+                #[cfg(unix)]
                 assert_ne!(
                     metadata.permissions().mode() & 0o111,
                     0,
