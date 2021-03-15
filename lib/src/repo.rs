@@ -635,7 +635,9 @@ impl<'r> MutableRepo<'r> {
         {
             self.index.add_commit(head);
             self.view.add_head(head.id());
-            self.enforce_view_invariants();
+            for parent_id in head.parent_ids() {
+                self.view.remove_head(&parent_id);
+            }
             if let Some(evolution) = self.evolution_mut() {
                 evolution.add_commit(head)
             }
