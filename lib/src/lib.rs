@@ -14,6 +14,8 @@
 
 #![feature(get_mut_unchecked)]
 #![feature(map_first_last)]
+// Work around https://github.com/stepancheg/rust-protobuf/issues/551
+#![allow(soft_unstable)]
 
 #[cfg(test)]
 #[macro_use]
