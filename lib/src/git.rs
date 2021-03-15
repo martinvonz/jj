@@ -90,8 +90,14 @@ pub fn fetch(
                 }
                 _ => GitFetchError::InternalGitError(err),
             })?;
+    let mut callbacks = git2::RemoteCallbacks::new();
+    callbacks.credentials(|_url, username_from_url, _allowed_types| {
+        git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
+    });
+    let mut fetch_options = git2::FetchOptions::new();
+    fetch_options.remote_callbacks(callbacks);
     let refspec: &[&str] = &[];
-    remote.fetch(refspec, None, None)?;
+    remote.fetch(refspec, Some(&mut fetch_options), None)?;
     import_refs(tx, git_repo).map_err(|err| match err {
         GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
     })?;
