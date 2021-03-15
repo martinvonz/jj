@@ -315,12 +315,12 @@ impl State {
     }
 }
 
-pub enum EvolutionRef<'a, 'm: 'a, 'r: 'm> {
+pub enum EvolutionRef<'a> {
     Readonly(Arc<ReadonlyEvolution>),
-    Mutable(&'a MutableEvolution<'m, 'r>),
+    Mutable(&'a MutableEvolution),
 }
 
-impl EvolutionRef<'_, '_, '_> {
+impl EvolutionRef<'_> {
     pub fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId> {
         match self {
             EvolutionRef::Readonly(evolution) => evolution.successors(commit_id),
@@ -367,7 +367,7 @@ impl EvolutionRef<'_, '_, '_> {
     pub fn new_parent(&self, store: &StoreWrapper, old_parent_id: &CommitId) -> HashSet<CommitId> {
         match self {
             EvolutionRef::Readonly(evolution) => evolution.new_parent(store, old_parent_id),
-            EvolutionRef::Mutable(evolution) => evolution.new_parent(old_parent_id),
+            EvolutionRef::Mutable(evolution) => evolution.new_parent(store, old_parent_id),
         }
     }
 }
@@ -400,12 +400,8 @@ impl ReadonlyEvolution {
         }
     }
 
-    pub fn start_modification<'r: 'm, 'm>(
-        &self,
-        repo: &'m MutableRepo<'r>,
-    ) -> MutableEvolution<'r, 'm> {
+    pub fn start_modification(&self) -> MutableEvolution {
         MutableEvolution {
-            repo,
             state: self.state.clone(),
         }
     }
@@ -431,12 +427,17 @@ impl ReadonlyEvolution {
     }
 }
 
-pub struct MutableEvolution<'r: 'm, 'm> {
-    repo: &'m MutableRepo<'r>,
+pub struct MutableEvolution {
     state: State,
 }
 
-impl MutableEvolution<'_, '_> {
+impl MutableEvolution {
+    pub fn new(repo: &MutableRepo) -> MutableEvolution {
+        MutableEvolution {
+            state: State::calculate(repo.as_repo_ref()),
+        }
+    }
+
     pub fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId> {
         self.state.successors(commit_id)
     }
@@ -453,16 +454,12 @@ impl MutableEvolution<'_, '_> {
         self.state.is_divergent(change_id)
     }
 
-    pub fn new_parent(&self, old_parent_id: &CommitId) -> HashSet<CommitId> {
-        self.state.new_parent(self.repo.store(), old_parent_id)
+    pub fn new_parent(&self, store: &StoreWrapper, old_parent_id: &CommitId) -> HashSet<CommitId> {
+        self.state.new_parent(store, old_parent_id)
     }
 
     pub fn add_commit(&mut self, commit: &Commit) {
         self.state.add_commit(commit);
-    }
-
-    pub fn invalidate(&mut self) {
-        self.state = State::calculate(self.repo.as_repo_ref());
     }
 }
 
@@ -527,7 +524,7 @@ pub fn evolve(
         let mut ambiguous_new_parents = false;
         let evolution = tx.mut_repo().evolution();
         for old_parent in &old_parents {
-            let new_parent_candidates = evolution.new_parent(old_parent.id());
+            let new_parent_candidates = evolution.new_parent(&store, old_parent.id());
             if new_parent_candidates.len() > 1 {
                 ambiguous_new_parents = true;
                 break;

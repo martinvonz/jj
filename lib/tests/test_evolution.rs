@@ -164,7 +164,7 @@ fn test_new_parent_rewritten(use_git: bool) {
         .set_change_id(original.change_id().clone())
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.evolution().new_parent(original.id()),
+        tx.evolution().new_parent(tx.store(), original.id()),
         vec![rewritten.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -184,7 +184,7 @@ fn test_new_parent_cherry_picked(use_git: bool) {
         .set_predecessors(vec![original.id().clone()])
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.evolution().new_parent(original.id()),
+        tx.evolution().new_parent(tx.store(), original.id()),
         vec![original.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -208,7 +208,7 @@ fn test_new_parent_is_pruned(use_git: bool) {
         .set_change_id(original.change_id().clone())
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.evolution().new_parent(original.id()),
+        tx.evolution().new_parent(tx.store(), original.id()),
         vec![new_parent.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -237,7 +237,7 @@ fn test_new_parent_divergent(use_git: bool) {
         .set_change_id(original.change_id().clone())
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.evolution().new_parent(original.id()),
+        tx.evolution().new_parent(tx.store(), original.id()),
         vec![
             rewritten1.id().clone(),
             rewritten2.id().clone(),
@@ -278,7 +278,7 @@ fn test_new_parent_divergent_one_not_pruned(use_git: bool) {
         .set_pruned(true)
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.evolution().new_parent(original.id()),
+        tx.evolution().new_parent(tx.store(), original.id()),
         vec![
             rewritten1.id().clone(),
             parent2.id().clone(),
@@ -321,7 +321,7 @@ fn test_new_parent_divergent_all_pruned(use_git: bool) {
         .set_pruned(true)
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.evolution().new_parent(original.id()),
+        tx.evolution().new_parent(tx.store(), original.id()),
         vec![
             parent1.id().clone(),
             parent2.id().clone(),
@@ -357,7 +357,7 @@ fn test_new_parent_split(use_git: bool) {
         .set_predecessors(vec![original.id().clone()])
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.evolution().new_parent(original.id()),
+        tx.evolution().new_parent(tx.store(), original.id()),
         vec![rewritten3.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -391,7 +391,7 @@ fn test_new_parent_split_pruned_descendant(use_git: bool) {
         .set_predecessors(vec![original.id().clone()])
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.evolution().new_parent(original.id()),
+        tx.evolution().new_parent(tx.store(), original.id()),
         vec![rewritten2.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -425,7 +425,7 @@ fn test_new_parent_split_forked(use_git: bool) {
         .set_predecessors(vec![original.id().clone()])
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.evolution().new_parent(original.id()),
+        tx.evolution().new_parent(tx.store(), original.id()),
         vec![rewritten2.id().clone(), rewritten3.id().clone()]
             .into_iter()
             .collect()
@@ -461,7 +461,7 @@ fn test_new_parent_split_forked_pruned(use_git: bool) {
         .set_predecessors(vec![original.id().clone()])
         .write_to_transaction(&mut tx);
     assert_eq!(
-        tx.evolution().new_parent(original.id()),
+        tx.evolution().new_parent(tx.store(), original.id()),
         vec![rewritten3.id().clone()].into_iter().collect()
     );
     tx.discard();

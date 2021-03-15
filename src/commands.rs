@@ -257,7 +257,7 @@ fn update_working_copy(
 
 fn update_checkout_after_rewrite(ui: &mut Ui, tx: &mut Transaction) {
     // TODO: Perhaps this method should be in Transaction.
-    let new_checkout_candidates = tx.evolution().new_parent(tx.view().checkout());
+    let new_checkout_candidates = tx.evolution().new_parent(tx.store(), tx.view().checkout());
     if new_checkout_candidates.is_empty() {
         return;
     }

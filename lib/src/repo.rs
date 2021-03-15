@@ -97,7 +97,7 @@ impl<'a, 'r> RepoRef<'a, 'r> {
         }
     }
 
-    pub fn evolution(&self) -> EvolutionRef<'a, 'a, 'r> {
+    pub fn evolution(&self) -> EvolutionRef {
         match self {
             RepoRef::Readonly(repo) => EvolutionRef::Readonly(repo.evolution()),
             RepoRef::Mutable(repo) => EvolutionRef::Mutable(repo.evolution()),
@@ -346,7 +346,8 @@ impl ReadonlyRepo {
     }
 
     pub fn start_transaction(&self, description: &str) -> Transaction {
-        let mut_repo = MutableRepo::new(self, self.index(), &self.view, self.evolution());
+        let locked_evolution = self.evolution.lock().unwrap();
+        let mut_repo = MutableRepo::new(self, self.index(), &self.view, locked_evolution.as_ref());
         Transaction::new(mut_repo, description)
     }
 
@@ -482,7 +483,7 @@ pub struct MutableRepo<'r> {
     repo: &'r ReadonlyRepo,
     index: MutableIndex,
     view: MutableView,
-    evolution: Option<MutableEvolution<'static, 'static>>,
+    evolution: Mutex<Option<MutableEvolution>>,
 }
 
 impl<'r> MutableRepo<'r> {
@@ -490,24 +491,17 @@ impl<'r> MutableRepo<'r> {
         repo: &'r ReadonlyRepo,
         index: Arc<ReadonlyIndex>,
         view: &ReadonlyView,
-        evolution: Arc<ReadonlyEvolution>,
+        evolution: Option<&Arc<ReadonlyEvolution>>,
     ) -> Arc<MutableRepo<'r>> {
         let mut_view = view.start_modification();
         let mut_index = MutableIndex::incremental(index);
-        let mut mut_repo = Arc::new(MutableRepo {
+        let mut_evolution = evolution.map(|evolution| evolution.start_modification());
+        Arc::new(MutableRepo {
             repo,
             index: mut_index,
             view: mut_view,
-            evolution: None,
-        });
-        let repo_ref: &MutableRepo = mut_repo.as_ref();
-        let static_lifetime_repo: &'static MutableRepo = unsafe { std::mem::transmute(repo_ref) };
-        let mut_evolution: MutableEvolution<'_, '_> =
-            evolution.start_modification(static_lifetime_repo);
-        let static_lifetime_mut_evolution: MutableEvolution<'static, 'static> =
-            unsafe { std::mem::transmute(mut_evolution) };
-        Arc::get_mut(&mut mut_repo).unwrap().evolution = Some(static_lifetime_mut_evolution);
-        mut_repo
+            evolution: Mutex::new(mut_evolution),
+        })
     }
 
     pub fn as_repo_ref(&self) -> RepoRef {
@@ -538,10 +532,31 @@ impl<'r> MutableRepo<'r> {
         (self.index, self.view)
     }
 
-    pub fn evolution<'m>(&'m self) -> &MutableEvolution<'r, 'm> {
-        let evolution: &MutableEvolution<'static, 'static> = self.evolution.as_ref().unwrap();
-        let evolution: &MutableEvolution<'r, 'm> = unsafe { std::mem::transmute(evolution) };
-        evolution
+    pub fn evolution(&self) -> &MutableEvolution {
+        let mut locked_evolution = self.evolution.lock().unwrap();
+        if locked_evolution.is_none() {
+            locked_evolution.replace(MutableEvolution::new(self));
+        }
+        let evolution = locked_evolution.as_ref().unwrap();
+        // Extend lifetime from lifetime of MutexGuard to lifetime of self. Safe because
+        // the value won't change again except for by invalidate_evolution(), which
+        // requires a mutable reference.
+        unsafe { std::mem::transmute(evolution) }
+    }
+
+    pub fn evolution_mut(&mut self) -> &mut MutableEvolution {
+        let mut locked_evolution = self.evolution.lock().unwrap();
+        if locked_evolution.is_none() {
+            locked_evolution.replace(MutableEvolution::new(self));
+        }
+        // Extend lifetime from lifetime of MutexGuard to lifetime of self. Safe because
+        // the value won't change again except for by invalidate_evolution(), which
+        // requires a mutable reference.
+        unsafe { std::mem::transmute(locked_evolution.as_mut().unwrap()) }
+    }
+
+    pub fn invalidate_evolution(&mut self) {
+        self.evolution.lock().unwrap().take();
     }
 
     pub fn write_commit(&mut self, commit: store::Commit) -> Commit {
@@ -610,7 +625,7 @@ impl<'r> MutableRepo<'r> {
         {
             self.index.add_commit(head);
             self.view.add_head(head);
-            self.evolution.as_mut().unwrap().add_commit(head);
+            self.evolution_mut().add_commit(head);
         } else {
             let missing_commits = topo_order_reverse(
                 vec![head.clone()],
@@ -627,23 +642,23 @@ impl<'r> MutableRepo<'r> {
                 self.index.add_commit(missing_commit);
             }
             self.view.add_head(head);
-            self.evolution.as_mut().unwrap().invalidate();
+            self.invalidate_evolution();
         }
     }
 
     pub fn remove_head(&mut self, head: &Commit) {
         self.view.remove_head(head);
-        self.evolution.as_mut().unwrap().invalidate();
+        self.invalidate_evolution();
     }
 
     pub fn add_public_head(&mut self, head: &Commit) {
         self.view.add_public_head(head);
-        self.evolution.as_mut().unwrap().add_commit(head);
+        self.evolution_mut().add_commit(head);
     }
 
     pub fn remove_public_head(&mut self, head: &Commit) {
         self.view.remove_public_head(head);
-        self.evolution.as_mut().unwrap().invalidate();
+        self.invalidate_evolution();
     }
 
     pub fn insert_git_ref(&mut self, name: String, commit_id: CommitId) {
@@ -656,7 +671,7 @@ impl<'r> MutableRepo<'r> {
 
     pub fn set_view(&mut self, data: op_store::View) {
         self.view.set_view(data);
-        self.evolution.as_mut().unwrap().invalidate();
+        self.invalidate_evolution();
     }
 
     pub fn merge(&mut self, base_repo: &ReadonlyRepo, other_repo: &ReadonlyRepo) {
@@ -674,6 +689,6 @@ impl<'r> MutableRepo<'r> {
         );
         self.view.set_view(merged_view);
 
-        self.evolution.as_mut().unwrap().invalidate();
+        self.invalidate_evolution();
     }
 }
