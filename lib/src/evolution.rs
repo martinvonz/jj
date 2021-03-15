@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
@@ -316,7 +316,7 @@ impl State {
 }
 
 pub enum EvolutionRef<'a, 'm: 'a, 'r: 'm> {
-    Readonly(&'a ReadonlyEvolution<'r>),
+    Readonly(Arc<ReadonlyEvolution>),
     Mutable(&'a MutableEvolution<'m, 'r>),
 }
 
@@ -364,17 +364,16 @@ impl EvolutionRef<'_, '_, '_> {
     /// change id as A). Then C is rebased to somewhere else and becomes C'.
     /// We will choose that C' as effective successor even though it has a
     /// different change id and is not a descendant of one that does.
-    pub fn new_parent(&self, old_parent_id: &CommitId) -> HashSet<CommitId> {
+    pub fn new_parent(&self, store: &StoreWrapper, old_parent_id: &CommitId) -> HashSet<CommitId> {
         match self {
-            EvolutionRef::Readonly(evolution) => evolution.new_parent(old_parent_id),
+            EvolutionRef::Readonly(evolution) => evolution.new_parent(store, old_parent_id),
             EvolutionRef::Mutable(evolution) => evolution.new_parent(old_parent_id),
         }
     }
 }
 
-pub struct ReadonlyEvolution<'r> {
-    repo: &'r ReadonlyRepo,
-    state: Mutex<Option<Arc<State>>>,
+pub struct ReadonlyEvolution {
+    state: State,
 }
 
 pub trait EvolveListener {
@@ -394,48 +393,41 @@ pub trait EvolveListener {
     );
 }
 
-impl<'r> ReadonlyEvolution<'r> {
-    pub fn new(repo: &'r ReadonlyRepo) -> Self {
+impl ReadonlyEvolution {
+    pub fn new(repo: &ReadonlyRepo) -> ReadonlyEvolution {
         ReadonlyEvolution {
-            repo,
-            state: Mutex::new(None),
+            state: State::calculate(repo.as_repo_ref()),
         }
     }
 
-    fn get_state(&self) -> Arc<State> {
-        let mut locked_state = self.state.lock().unwrap();
-        if locked_state.is_none() {
-            locked_state.replace(Arc::new(State::calculate(self.repo.as_repo_ref())));
-        }
-        locked_state.as_ref().unwrap().clone()
-    }
-
-    pub fn start_modification<'m>(&self, repo: &'m MutableRepo<'r>) -> MutableEvolution<'r, 'm> {
+    pub fn start_modification<'r: 'm, 'm>(
+        &self,
+        repo: &'m MutableRepo<'r>,
+    ) -> MutableEvolution<'r, 'm> {
         MutableEvolution {
             repo,
-            state: self.get_state().as_ref().clone(),
+            state: self.state.clone(),
         }
     }
 
     pub fn successors(&self, commit_id: &CommitId) -> HashSet<CommitId> {
-        self.get_state().successors(commit_id)
+        self.state.successors(commit_id)
     }
 
     pub fn is_obsolete(&self, commit_id: &CommitId) -> bool {
-        self.get_state().is_obsolete(commit_id)
+        self.state.is_obsolete(commit_id)
     }
 
     pub fn is_orphan(&self, commit_id: &CommitId) -> bool {
-        self.get_state().is_orphan(commit_id)
+        self.state.is_orphan(commit_id)
     }
 
     pub fn is_divergent(&self, change_id: &ChangeId) -> bool {
-        self.get_state().is_divergent(change_id)
+        self.state.is_divergent(change_id)
     }
 
-    pub fn new_parent(&self, old_parent_id: &CommitId) -> HashSet<CommitId> {
-        self.get_state()
-            .new_parent(self.repo.store(), old_parent_id)
+    pub fn new_parent(&self, store: &StoreWrapper, old_parent_id: &CommitId) -> HashSet<CommitId> {
+        self.state.new_parent(store, old_parent_id)
     }
 }
 

@@ -117,7 +117,7 @@ pub struct ReadonlyRepo {
     index: Mutex<Option<Arc<ReadonlyIndex>>>,
     working_copy: Arc<Mutex<WorkingCopy>>,
     view: ReadonlyView,
-    evolution: Option<ReadonlyEvolution<'static>>,
+    evolution: Mutex<Option<Arc<ReadonlyEvolution>>>,
 }
 
 impl Debug for ReadonlyRepo {
@@ -235,14 +235,9 @@ impl ReadonlyRepo {
             index: Mutex::new(None),
             working_copy: Arc::new(Mutex::new(working_copy)),
             view,
-            evolution: None,
+            evolution: Mutex::new(None),
         };
-        let mut repo = Arc::new(repo);
-        let repo_ref: &ReadonlyRepo = repo.as_ref();
-        let static_lifetime_repo: &'static ReadonlyRepo = unsafe { std::mem::transmute(repo_ref) };
-
-        let evolution = ReadonlyEvolution::new(static_lifetime_repo);
-        Arc::get_mut(&mut repo).unwrap().evolution = Some(evolution);
+        let repo = Arc::new(repo);
 
         repo.working_copy_locked()
             .check_out(checkout_commit)
@@ -294,10 +289,12 @@ impl ReadonlyRepo {
         &self.view
     }
 
-    pub fn evolution<'a>(&'a self) -> &ReadonlyEvolution<'a> {
-        let evolution: &ReadonlyEvolution<'static> = self.evolution.as_ref().unwrap();
-        let evolution: &ReadonlyEvolution<'a> = unsafe { std::mem::transmute(evolution) };
-        evolution
+    pub fn evolution(&self) -> Arc<ReadonlyEvolution> {
+        let mut locked_evolution = self.evolution.lock().unwrap();
+        if locked_evolution.is_none() {
+            locked_evolution.replace(Arc::new(ReadonlyEvolution::new(self)));
+        }
+        locked_evolution.as_ref().unwrap().clone()
     }
 
     pub fn index(&self) -> Arc<ReadonlyIndex> {
@@ -349,12 +346,7 @@ impl ReadonlyRepo {
     }
 
     pub fn start_transaction(&self, description: &str) -> Transaction {
-        let mut_repo = MutableRepo::new(
-            self,
-            self.index(),
-            &self.view,
-            &self.evolution.as_ref().unwrap(),
-        );
+        let mut_repo = MutableRepo::new(self, self.index(), &self.view, self.evolution());
         Transaction::new(mut_repo, description)
     }
 
@@ -366,25 +358,15 @@ impl ReadonlyRepo {
             .unwrap();
         self.op_id = operation.id().clone();
         self.view = ReadonlyView::new(self.store.clone(), operation.view().take_store_view());
-        let repo_ref: &ReadonlyRepo = self;
-        let static_lifetime_repo: &'static ReadonlyRepo = unsafe { std::mem::transmute(repo_ref) };
-        {
-            let mut locked_index = self.index.lock().unwrap();
-            locked_index.take();
-        }
-        self.evolution = Some(ReadonlyEvolution::new(static_lifetime_repo));
+        self.index.lock().unwrap().take();
+        self.evolution.lock().unwrap().take();
     }
 
     pub fn reload_at(&mut self, operation: &Operation) {
         self.op_id = operation.id().clone();
         self.view = ReadonlyView::new(self.store.clone(), operation.view().take_store_view());
-        let repo_ref: &ReadonlyRepo = self;
-        let static_lifetime_repo: &'static ReadonlyRepo = unsafe { std::mem::transmute(repo_ref) };
-        {
-            let mut locked_index = self.index.lock().unwrap();
-            locked_index.take();
-        }
-        self.evolution = Some(ReadonlyEvolution::new(static_lifetime_repo));
+        self.index.lock().unwrap().take();
+        self.evolution.lock().unwrap().take();
     }
 }
 
@@ -490,14 +472,9 @@ impl RepoLoader {
             index: Mutex::new(None),
             working_copy: Arc::new(Mutex::new(working_copy)),
             view,
-            evolution: None,
+            evolution: Mutex::new(None),
         };
-        let mut repo = Arc::new(repo);
-        let repo_ref: &ReadonlyRepo = repo.as_ref();
-        let static_lifetime_repo: &'static ReadonlyRepo = unsafe { std::mem::transmute(repo_ref) };
-        let evolution = ReadonlyEvolution::new(static_lifetime_repo);
-        Arc::get_mut(&mut repo).unwrap().evolution = Some(evolution);
-        Ok(repo)
+        Ok(Arc::new(repo))
     }
 }
 
@@ -513,7 +490,7 @@ impl<'r> MutableRepo<'r> {
         repo: &'r ReadonlyRepo,
         index: Arc<ReadonlyIndex>,
         view: &ReadonlyView,
-        evolution: &ReadonlyEvolution<'r>,
+        evolution: Arc<ReadonlyEvolution>,
     ) -> Arc<MutableRepo<'r>> {
         let mut_view = view.start_modification();
         let mut_index = MutableIndex::incremental(index);
