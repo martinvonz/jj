@@ -218,7 +218,7 @@ impl TreeState {
     fn read(&mut self, mut file: File) {
         self.update_read_time();
         let proto: crate::protos::working_copy::TreeState =
-            protobuf::parse_from_reader(&mut file).unwrap();
+            Message::parse_from_reader(&mut file).unwrap();
         self.tree_id = TreeId(proto.tree_id.clone());
         self.file_states = file_states_from_proto(&proto);
     }
@@ -615,7 +615,7 @@ impl WorkingCopy {
 
     fn read_proto(&self) -> crate::protos::working_copy::Checkout {
         let mut file = File::open(self.state_path.join("checkout")).unwrap();
-        protobuf::parse_from_reader(&mut file).unwrap()
+        Message::parse_from_reader(&mut file).unwrap()
     }
 
     /// The id of the commit that's currently checked out in the working copy.

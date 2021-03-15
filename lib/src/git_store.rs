@@ -102,7 +102,7 @@ fn serialize_note(commit: &Commit) -> String {
 fn deserialize_note(commit: &mut Commit, note: &str) {
     let bytes = hex::decode(note).unwrap();
     let mut cursor = Cursor::new(bytes);
-    let proto: crate::protos::store::Commit = protobuf::parse_from_reader(&mut cursor).unwrap();
+    let proto: crate::protos::store::Commit = Message::parse_from_reader(&mut cursor).unwrap();
     commit.is_open = proto.is_open;
     commit.is_pruned = proto.is_pruned;
     commit.change_id = ChangeId(proto.change_id);

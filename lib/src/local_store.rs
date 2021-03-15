@@ -171,7 +171,7 @@ impl Store for LocalStore {
         let path = self.tree_path(&id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
-        let proto: crate::protos::store::Tree = protobuf::parse_from_reader(&mut file)?;
+        let proto: crate::protos::store::Tree = Message::parse_from_reader(&mut file)?;
         Ok(tree_from_proto(&proto))
     }
 
@@ -194,7 +194,7 @@ impl Store for LocalStore {
         let path = self.commit_path(&id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
-        let proto: crate::protos::store::Commit = protobuf::parse_from_reader(&mut file)?;
+        let proto: crate::protos::store::Commit = Message::parse_from_reader(&mut file)?;
         Ok(commit_from_proto(&proto))
     }
 
@@ -217,7 +217,7 @@ impl Store for LocalStore {
         let path = self.conflict_path(&id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
-        let proto: crate::protos::store::Conflict = protobuf::parse_from_reader(&mut file)?;
+        let proto: crate::protos::store::Conflict = Message::parse_from_reader(&mut file)?;
         Ok(conflict_from_proto(&proto))
     }
 

@@ -83,7 +83,7 @@ impl OpStore for SimpleOpStore {
         let path = self.view_path(&id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
-        let proto: crate::protos::op_store::View = protobuf::parse_from_reader(&mut file)?;
+        let proto: crate::protos::op_store::View = Message::parse_from_reader(&mut file)?;
         Ok(view_from_proto(&proto))
     }
 
@@ -106,7 +106,7 @@ impl OpStore for SimpleOpStore {
         let path = self.operation_path(&id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
-        let proto: crate::protos::op_store::Operation = protobuf::parse_from_reader(&mut file)?;
+        let proto: crate::protos::op_store::Operation = Message::parse_from_reader(&mut file)?;
         Ok(operation_from_proto(&proto))
     }
 
