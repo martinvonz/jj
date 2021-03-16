@@ -480,7 +480,7 @@ impl RepoLoader {
 }
 
 pub struct MutableRepo<'r> {
-    repo: &'r ReadonlyRepo,
+    base_repo: &'r ReadonlyRepo,
     index: MutableIndex,
     view: MutableView,
     evolution: Mutex<Option<MutableEvolution>>,
@@ -488,7 +488,7 @@ pub struct MutableRepo<'r> {
 
 impl<'r> MutableRepo<'r> {
     pub fn new(
-        repo: &'r ReadonlyRepo,
+        base_repo: &'r ReadonlyRepo,
         index: Arc<ReadonlyIndex>,
         view: &ReadonlyView,
         evolution: Option<&Arc<ReadonlyEvolution>>,
@@ -497,7 +497,7 @@ impl<'r> MutableRepo<'r> {
         let mut_index = MutableIndex::incremental(index);
         let mut_evolution = evolution.map(|evolution| evolution.start_modification());
         Arc::new(MutableRepo {
-            repo,
+            base_repo,
             index: mut_index,
             view: mut_view,
             evolution: Mutex::new(mut_evolution),
@@ -509,15 +509,15 @@ impl<'r> MutableRepo<'r> {
     }
 
     pub fn base_repo(&self) -> &'r ReadonlyRepo {
-        self.repo
+        self.base_repo
     }
 
     pub fn store(&self) -> &Arc<StoreWrapper> {
-        self.repo.store()
+        self.base_repo.store()
     }
 
     pub fn op_store(&self) -> &Arc<dyn OpStore> {
-        self.repo.op_store()
+        self.base_repo.op_store()
     }
 
     pub fn index(&self) -> &MutableIndex {
