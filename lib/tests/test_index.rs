@@ -410,8 +410,9 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
     assert!(repo.index().has_id(commit_a.id()));
     assert_eq!(repo.index().num_commits(), 2 + 1);
     let mut tx = repo.start_transaction("test");
-    tx.add_head(&commit_a);
-    assert_eq!(tx.index().num_commits(), 2 + 1);
+    let mut_repo = tx.mut_repo();
+    mut_repo.add_head(&commit_a);
+    assert_eq!(mut_repo.index().num_commits(), 2 + 1);
     tx.discard();
 }
 

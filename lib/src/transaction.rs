@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use crate::commit::Commit;
 use crate::evolution::MutableEvolution;
-use crate::index::MutableIndex;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{OperationId, OperationMetadata};
 use crate::operation::Operation;
@@ -24,7 +23,6 @@ use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use crate::settings::UserSettings;
 use crate::store::{CommitId, Timestamp};
 use crate::store_wrapper::StoreWrapper;
-use crate::view::MutableView;
 use crate::{op_store, store};
 
 pub struct Transaction<'r> {
@@ -64,14 +62,6 @@ impl<'r> Transaction<'r> {
 
     pub fn mut_repo(&mut self) -> &mut MutableRepo<'r> {
         Arc::get_mut(self.repo.as_mut().unwrap()).unwrap()
-    }
-
-    pub fn index(&self) -> &MutableIndex {
-        self.repo.as_ref().unwrap().index()
-    }
-
-    pub fn view(&self) -> &MutableView {
-        self.repo.as_ref().unwrap().view()
     }
 
     pub fn evolution(&self) -> &MutableEvolution {

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::fs::File;
@@ -609,6 +610,10 @@ impl<'r> MutableRepo<'r> {
         let id = open_commit.id().clone();
         self.view.set_checkout(id);
         open_commit
+    }
+
+    pub fn heads(&self) -> &HashSet<CommitId> {
+        self.view.heads()
     }
 
     fn enforce_view_invariants(&mut self) {

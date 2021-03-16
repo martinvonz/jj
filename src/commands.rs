@@ -1344,7 +1344,7 @@ fn cmd_new(
     );
     let mut tx = repo.start_transaction("new empty commit");
     let new_commit = commit_builder.write_to_transaction(&mut tx);
-    if tx.view().checkout() == parent.id() {
+    if tx.mut_repo().view().checkout() == parent.id() {
         tx.check_out(ui.settings(), &new_commit);
     }
     tx.commit();

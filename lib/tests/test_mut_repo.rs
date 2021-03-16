@@ -315,11 +315,12 @@ fn test_add_head_success(use_git: bool) {
     assert_eq!(index_stats.num_commits, 2);
     assert_eq!(index_stats.max_generation_number, 1);
     let mut tx = repo.start_transaction("test");
-    assert!(!tx.view().heads().contains(new_commit.id()));
-    assert!(!tx.index().has_id(new_commit.id()));
-    tx.mut_repo().add_head(&new_commit);
-    assert!(tx.view().heads().contains(new_commit.id()));
-    assert!(tx.index().has_id(new_commit.id()));
+    let mut_repo = tx.mut_repo();
+    assert!(!mut_repo.view().heads().contains(new_commit.id()));
+    assert!(!mut_repo.index().has_id(new_commit.id()));
+    mut_repo.add_head(&new_commit);
+    assert!(mut_repo.view().heads().contains(new_commit.id()));
+    assert!(mut_repo.index().has_id(new_commit.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
     assert!(repo.view().heads().contains(new_commit.id()));
@@ -354,9 +355,10 @@ fn test_add_head_ancestor(use_git: bool) {
     assert_eq!(index_stats.num_commits, 5);
     assert_eq!(index_stats.max_generation_number, 3);
     let mut tx = repo.start_transaction("test");
-    tx.mut_repo().add_head(&commit1);
-    assert!(!tx.view().heads().contains(commit1.id()));
-    let index_stats = tx.index().stats();
+    let mut_repo = tx.mut_repo();
+    mut_repo.add_head(&commit1);
+    assert!(!mut_repo.view().heads().contains(commit1.id()));
+    let index_stats = mut_repo.index().stats();
     assert_eq!(index_stats.num_heads, 2);
     assert_eq!(index_stats.num_commits, 5);
     assert_eq!(index_stats.max_generation_number, 3);
@@ -393,15 +395,16 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     assert_eq!(index_stats.num_commits, 3);
     assert_eq!(index_stats.max_generation_number, 1);
     let mut tx = repo.start_transaction("test");
-    tx.mut_repo().add_head(&child);
-    assert!(tx.view().heads().contains(initial.id()));
-    assert!(!tx.view().heads().contains(rewritten.id()));
-    assert!(tx.view().heads().contains(child.id()));
-    assert!(tx.index().has_id(initial.id()));
-    assert!(tx.index().has_id(rewritten.id()));
-    assert!(tx.index().has_id(child.id()));
-    assert!(tx.evolution().is_obsolete(initial.id()));
-    let index_stats = tx.index().stats();
+    let mut_repo = tx.mut_repo();
+    mut_repo.add_head(&child);
+    assert!(mut_repo.view().heads().contains(initial.id()));
+    assert!(!mut_repo.view().heads().contains(rewritten.id()));
+    assert!(mut_repo.view().heads().contains(child.id()));
+    assert!(mut_repo.index().has_id(initial.id()));
+    assert!(mut_repo.index().has_id(rewritten.id()));
+    assert!(mut_repo.index().has_id(child.id()));
+    assert!(mut_repo.evolution().is_obsolete(initial.id()));
+    let index_stats = mut_repo.index().stats();
     assert_eq!(index_stats.num_heads, 3);
     assert_eq!(index_stats.num_commits, 5);
     assert_eq!(index_stats.max_generation_number, 2);
@@ -433,15 +436,16 @@ fn test_remove_head(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    assert!(tx.view().heads().contains(commit3.id()));
-    tx.mut_repo().remove_head(&commit3);
-    let heads = tx.view().heads().clone();
+    let mut_repo = tx.mut_repo();
+    assert!(mut_repo.view().heads().contains(commit3.id()));
+    mut_repo.remove_head(&commit3);
+    let heads = mut_repo.view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
     assert!(!heads.contains(commit1.id()));
-    assert!(tx.index().has_id(commit1.id()));
-    assert!(tx.index().has_id(commit2.id()));
-    assert!(tx.index().has_id(commit3.id()));
+    assert!(mut_repo.index().has_id(commit1.id()));
+    assert!(mut_repo.index().has_id(commit2.id()));
+    assert!(mut_repo.index().has_id(commit3.id()));
     tx.commit();
 
     Arc::get_mut(&mut repo).unwrap().reload();
@@ -476,10 +480,11 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    let heads = tx.view().heads().clone();
+    let mut_repo = tx.mut_repo();
+    let heads = mut_repo.view().heads().clone();
     assert!(heads.contains(commit3.id()));
-    tx.mut_repo().remove_head(&commit3);
-    let heads = tx.view().heads().clone();
+    mut_repo.remove_head(&commit3);
+    let heads = mut_repo.view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
     assert!(heads.contains(commit1.id()));
@@ -506,9 +511,10 @@ fn test_add_public_head(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    assert!(!tx.view().public_heads().contains(commit1.id()));
-    tx.mut_repo().add_public_head(&commit1);
-    assert!(tx.view().public_heads().contains(commit1.id()));
+    let mut_repo = tx.mut_repo();
+    assert!(!mut_repo.view().public_heads().contains(commit1.id()));
+    mut_repo.add_public_head(&commit1);
+    assert!(mut_repo.view().public_heads().contains(commit1.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
     assert!(repo.view().public_heads().contains(commit1.id()));
@@ -532,9 +538,10 @@ fn test_add_public_head_ancestor(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    assert!(!tx.view().public_heads().contains(commit1.id()));
-    tx.mut_repo().add_public_head(&commit1);
-    assert!(!tx.view().public_heads().contains(commit1.id()));
+    let mut_repo = tx.mut_repo();
+    assert!(!mut_repo.view().public_heads().contains(commit1.id()));
+    mut_repo.add_public_head(&commit1);
+    assert!(!mut_repo.view().public_heads().contains(commit1.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
     assert!(!repo.view().public_heads().contains(commit1.id()));
@@ -555,9 +562,10 @@ fn test_remove_public_head(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    assert!(tx.view().public_heads().contains(commit1.id()));
-    tx.mut_repo().remove_public_head(&commit1);
-    assert!(!tx.view().public_heads().contains(commit1.id()));
+    let mut_repo = tx.mut_repo();
+    assert!(mut_repo.view().public_heads().contains(commit1.id()));
+    mut_repo.remove_public_head(&commit1);
+    assert!(!mut_repo.view().public_heads().contains(commit1.id()));
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
     assert!(!repo.view().public_heads().contains(commit1.id()));

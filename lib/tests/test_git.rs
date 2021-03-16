@@ -67,9 +67,10 @@ fn test_import_refs() {
 
     let git_repo = repo.store().git_repo().unwrap();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
     let heads_before: HashSet<_> = repo.view().heads().clone();
-    jujube_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
-    let view = tx.view();
+    jujube_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
+    let view = mut_repo.view();
     let expected_heads: HashSet<_> = heads_before
         .union(&hashset!(
             commit_id(&commit3),
@@ -127,9 +128,10 @@ fn test_import_refs_reimport() {
 
     Arc::get_mut(&mut repo).unwrap().reload();
     let mut tx = repo.start_transaction("test");
-    jujube_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
+    let mut_repo = tx.mut_repo();
+    jujube_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
 
-    let view = tx.view();
+    let view = mut_repo.view();
     // TODO: commit3 and commit4 should probably be removed
     let expected_heads: HashSet<_> = heads_before
         .union(&hashset!(
@@ -280,9 +282,10 @@ fn test_import_refs_empty_git_repo() {
     let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
     let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
-    jujube_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
-    assert_eq!(*tx.view().heads(), heads_before);
-    assert_eq!(tx.view().git_refs().len(), 0);
+    let mut_repo = tx.mut_repo();
+    jujube_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
+    assert_eq!(*mut_repo.view().heads(), heads_before);
+    assert_eq!(mut_repo.view().git_refs().len(), 0);
     tx.discard();
 }
 
@@ -325,8 +328,9 @@ fn test_fetch_success() {
 
     // The new commit is visible after git::fetch().
     let mut tx = jj_repo.start_transaction("test");
-    git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
-    assert!(tx.view().heads().contains(&commit_id(&new_git_commit)));
+    let mut_repo = tx.mut_repo();
+    git::fetch(mut_repo, &clone_git_repo, "origin").unwrap();
+    assert!(mut_repo.heads().contains(&commit_id(&new_git_commit)));
 
     tx.discard();
 }
