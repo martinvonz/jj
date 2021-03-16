@@ -140,35 +140,46 @@ fn test_isolation(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx1 = repo.start_transaction("transaction 1");
+    let mut_repo1 = tx1.mut_repo();
     let mut tx2 = repo.start_transaction("transaction 2");
+    let mut_repo2 = tx2.mut_repo();
 
     assert_heads(repo.as_repo_ref(), vec![&wc_id, initial.id()]);
-    assert_heads(tx1.as_repo_ref(), vec![&wc_id, initial.id()]);
-    assert_heads(tx2.as_repo_ref(), vec![&wc_id, initial.id()]);
+    assert_heads(mut_repo1.as_repo_ref(), vec![&wc_id, initial.id()]);
+    assert_heads(mut_repo2.as_repo_ref(), vec![&wc_id, initial.id()]);
     assert!(!repo.evolution().is_obsolete(initial.id()));
-    assert!(!tx1.evolution().is_obsolete(initial.id()));
-    assert!(!tx2.evolution().is_obsolete(initial.id()));
+    assert!(!mut_repo1.evolution().is_obsolete(initial.id()));
+    assert!(!mut_repo2.evolution().is_obsolete(initial.id()));
 
     let rewrite1 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial)
         .set_description("rewrite1".to_string())
-        .write_to_transaction(&mut tx1);
+        .write_to_repo(mut_repo1);
     let rewrite2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial)
         .set_description("rewrite2".to_string())
-        .write_to_transaction(&mut tx2);
+        .write_to_repo(mut_repo2);
 
     // Neither transaction has committed yet, so each transaction sees its own
     // commit.
     assert_heads(repo.as_repo_ref(), vec![&wc_id, initial.id()]);
-    assert_heads(tx1.as_repo_ref(), vec![&wc_id, initial.id(), rewrite1.id()]);
-    assert_heads(tx2.as_repo_ref(), vec![&wc_id, initial.id(), rewrite2.id()]);
+    assert_heads(
+        mut_repo1.as_repo_ref(),
+        vec![&wc_id, initial.id(), rewrite1.id()],
+    );
+    assert_heads(
+        mut_repo2.as_repo_ref(),
+        vec![&wc_id, initial.id(), rewrite2.id()],
+    );
     assert!(!repo.evolution().is_obsolete(initial.id()));
-    assert!(tx1.evolution().is_obsolete(initial.id()));
-    assert!(tx2.evolution().is_obsolete(initial.id()));
+    assert!(mut_repo1.evolution().is_obsolete(initial.id()));
+    assert!(mut_repo2.evolution().is_obsolete(initial.id()));
 
     // The base repo and tx2 don't see the commits from tx1.
     tx1.commit();
     assert_heads(repo.as_repo_ref(), vec![&wc_id, initial.id()]);
-    assert_heads(tx2.as_repo_ref(), vec![&wc_id, initial.id(), rewrite2.id()]);
+    assert_heads(
+        mut_repo2.as_repo_ref(),
+        vec![&wc_id, initial.id(), rewrite2.id()],
+    );
 
     // The base repo still doesn't see the commits after both transactions commit.
     tx2.commit();

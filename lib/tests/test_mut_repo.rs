@@ -34,7 +34,7 @@ fn test_checkout_open(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let requested_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -57,7 +57,7 @@ fn test_checkout_closed(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let requested_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(false)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -91,7 +91,7 @@ fn test_checkout_open_with_conflict(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let requested_checkout = CommitBuilder::for_new_commit(&settings, store, tree_id)
         .set_open(true)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -132,7 +132,7 @@ fn test_checkout_closed_with_conflict(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let requested_checkout = CommitBuilder::for_new_commit(&settings, store, tree_id)
         .set_open(false)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -191,19 +191,21 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
     let old_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
-        .write_to_transaction(&mut tx);
-    tx.mut_repo().check_out(&settings, &old_checkout);
+        .write_to_repo(mut_repo);
+    mut_repo.check_out(&settings, &old_checkout);
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
-        .write_to_transaction(&mut tx);
-    tx.mut_repo().check_out(&settings, &new_checkout);
-    assert!(!tx.evolution().is_obsolete(old_checkout.id()));
+        .write_to_repo(mut_repo);
+    mut_repo.check_out(&settings, &new_checkout);
+    assert!(!mut_repo.evolution().is_obsolete(old_checkout.id()));
     tx.discard();
 }
 
@@ -216,23 +218,25 @@ fn test_checkout_previous_empty(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
     let old_checkout = CommitBuilder::for_open_commit(
         &settings,
         repo.store(),
         repo.store().root_commit_id().clone(),
         repo.store().empty_tree_id().clone(),
     )
-    .write_to_transaction(&mut tx);
-    tx.mut_repo().check_out(&settings, &old_checkout);
+    .write_to_repo(mut_repo);
+    mut_repo.check_out(&settings, &old_checkout);
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
-        .write_to_transaction(&mut tx);
-    tx.mut_repo().check_out(&settings, &new_checkout);
-    assert!(tx.evolution().is_obsolete(old_checkout.id()));
+        .write_to_repo(mut_repo);
+    mut_repo.check_out(&settings, &new_checkout);
+    assert!(mut_repo.evolution().is_obsolete(old_checkout.id()));
     tx.discard();
 }
 
@@ -245,25 +249,27 @@ fn test_checkout_previous_empty_and_obsolete(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
     let old_checkout = CommitBuilder::for_open_commit(
         &settings,
         repo.store(),
         repo.store().root_commit_id().clone(),
         repo.store().empty_tree_id().clone(),
     )
-    .write_to_transaction(&mut tx);
+    .write_to_repo(mut_repo);
     let successor = CommitBuilder::for_rewrite_from(&settings, repo.store(), &old_checkout)
-        .write_to_transaction(&mut tx);
-    tx.mut_repo().check_out(&settings, &old_checkout);
+        .write_to_repo(mut_repo);
+    mut_repo.check_out(&settings, &old_checkout);
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
-        .write_to_transaction(&mut tx);
-    tx.mut_repo().check_out(&settings, &new_checkout);
-    let successors = tx.evolution().successors(old_checkout.id());
+        .write_to_repo(mut_repo);
+    mut_repo.check_out(&settings, &new_checkout);
+    let successors = mut_repo.evolution().successors(old_checkout.id());
     assert_eq!(successors.len(), 1);
     assert_eq!(successors.iter().next().unwrap(), successor.id());
     tx.discard();
@@ -278,20 +284,25 @@ fn test_checkout_previous_empty_and_pruned(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
     let old_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .set_pruned(true)
-        .write_to_transaction(&mut tx);
-    tx.mut_repo().check_out(&settings, &old_checkout);
+        .write_to_repo(mut_repo);
+    mut_repo.check_out(&settings, &old_checkout);
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
-        .write_to_transaction(&mut tx);
-    tx.mut_repo().check_out(&settings, &new_checkout);
-    assert!(tx.evolution().successors(old_checkout.id()).is_empty());
+        .write_to_repo(mut_repo);
+    mut_repo.check_out(&settings, &new_checkout);
+    assert!(mut_repo
+        .evolution()
+        .successors(old_checkout.id())
+        .is_empty());
     tx.discard();
 }
 
@@ -306,8 +317,7 @@ fn test_add_head_success(use_git: bool) {
     // Create a commit outside of the repo by using a temporary transaction. Then
     // add that as a head.
     let mut tx = repo.start_transaction("test");
-    let new_commit =
-        testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    let new_commit = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
     tx.discard();
 
     let index_stats = repo.index().stats();
@@ -340,13 +350,13 @@ fn test_add_head_ancestor(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
     let commit2 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit1.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     let _commit3 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit2.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -374,7 +384,7 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
-    let initial = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    let initial = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -384,10 +394,10 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     let rewritten = testutils::create_random_commit(&settings, &repo)
         .set_change_id(initial.change_id().clone())
         .set_predecessors(vec![initial.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     let child = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![rewritten.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     tx.discard();
 
     let index_stats = repo.index().stats();
@@ -425,13 +435,13 @@ fn test_remove_head(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
     let commit2 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit1.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     let commit3 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit2.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -467,15 +477,15 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    let mut_repo = tx.mut_repo();
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     let commit2 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit1.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let commit3 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit2.id().clone()])
-        .write_to_transaction(&mut tx);
-    tx.mut_repo()
-        .insert_git_ref("refs/heads/main".to_string(), commit1.id().clone());
+        .write_to_repo(mut_repo);
+    mut_repo.insert_git_ref("refs/heads/main".to_string(), commit1.id().clone());
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -506,7 +516,7 @@ fn test_add_public_head(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -529,11 +539,12 @@ fn test_add_public_head_ancestor(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    let mut_repo = tx.mut_repo();
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     let commit2 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit1.id().clone()])
-        .write_to_transaction(&mut tx);
-    tx.mut_repo().add_public_head(&commit2);
+        .write_to_repo(mut_repo);
+    mut_repo.add_public_head(&commit2);
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -556,8 +567,9 @@ fn test_remove_public_head(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
-    tx.mut_repo().add_public_head(&commit1);
+    let mut_repo = tx.mut_repo();
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    mut_repo.add_public_head(&commit1);
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 

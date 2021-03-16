@@ -15,7 +15,6 @@
 use std::sync::Arc;
 
 use crate::commit::Commit;
-use crate::evolution::MutableEvolution;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{OperationId, OperationMetadata};
 use crate::operation::Operation;
@@ -52,9 +51,6 @@ impl<'r> Transaction<'r> {
     pub fn set_parents(&mut self, parents: Vec<OperationId>) {
         self.parents = parents;
     }
-    pub fn store(&self) -> &Arc<StoreWrapper> {
-        self.repo.as_ref().unwrap().store()
-    }
 
     pub fn as_repo_ref(&self) -> RepoRef {
         self.repo.as_ref().unwrap().as_repo_ref()
@@ -62,10 +58,6 @@ impl<'r> Transaction<'r> {
 
     pub fn mut_repo(&mut self) -> &mut MutableRepo<'r> {
         Arc::get_mut(self.repo.as_mut().unwrap()).unwrap()
-    }
-
-    pub fn evolution(&self) -> &MutableEvolution {
-        self.repo.as_ref().unwrap().evolution()
     }
 
     pub fn write_commit(&mut self, commit: store::Commit) -> Commit {

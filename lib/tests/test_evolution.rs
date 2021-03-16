@@ -33,42 +33,43 @@ fn test_obsolete_and_orphan(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // A commit without successors should not be obsolete and not an orphan.
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    assert!(!tx.evolution().is_obsolete(original.id()));
-    assert!(!tx.evolution().is_orphan(original.id()));
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
+    assert!(!mut_repo.evolution().is_obsolete(original.id()));
+    assert!(!mut_repo.evolution().is_orphan(original.id()));
 
     // A commit with a successor with a different change_id should not be obsolete.
-    let child = child_commit(&settings, &repo, &original).write_to_transaction(&mut tx);
-    let grandchild = child_commit(&settings, &repo, &child).write_to_transaction(&mut tx);
+    let child = child_commit(&settings, &repo, &original).write_to_repo(mut_repo);
+    let grandchild = child_commit(&settings, &repo, &child).write_to_repo(mut_repo);
     let cherry_picked = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
-    assert!(!tx.evolution().is_obsolete(original.id()));
-    assert!(!tx.evolution().is_orphan(original.id()));
-    assert!(!tx.evolution().is_obsolete(child.id()));
-    assert!(!tx.evolution().is_orphan(child.id()));
+        .write_to_repo(mut_repo);
+    assert!(!mut_repo.evolution().is_obsolete(original.id()));
+    assert!(!mut_repo.evolution().is_orphan(original.id()));
+    assert!(!mut_repo.evolution().is_obsolete(child.id()));
+    assert!(!mut_repo.evolution().is_orphan(child.id()));
 
     // A commit with a successor with the same change_id should be obsolete.
     let rewritten = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
-    assert!(tx.evolution().is_obsolete(original.id()));
-    assert!(!tx.evolution().is_obsolete(child.id()));
-    assert!(tx.evolution().is_orphan(child.id()));
-    assert!(tx.evolution().is_orphan(grandchild.id()));
-    assert!(!tx.evolution().is_obsolete(cherry_picked.id()));
-    assert!(!tx.evolution().is_orphan(cherry_picked.id()));
-    assert!(!tx.evolution().is_obsolete(rewritten.id()));
-    assert!(!tx.evolution().is_orphan(rewritten.id()));
+        .write_to_repo(mut_repo);
+    assert!(mut_repo.evolution().is_obsolete(original.id()));
+    assert!(!mut_repo.evolution().is_obsolete(child.id()));
+    assert!(mut_repo.evolution().is_orphan(child.id()));
+    assert!(mut_repo.evolution().is_orphan(grandchild.id()));
+    assert!(!mut_repo.evolution().is_obsolete(cherry_picked.id()));
+    assert!(!mut_repo.evolution().is_orphan(cherry_picked.id()));
+    assert!(!mut_repo.evolution().is_obsolete(rewritten.id()));
+    assert!(!mut_repo.evolution().is_orphan(rewritten.id()));
 
     // It should no longer be obsolete if we remove the successor.
-    tx.remove_head(&rewritten);
-    assert!(!tx.evolution().is_obsolete(original.id()));
-    assert!(!tx.evolution().is_orphan(child.id()));
-    assert!(!tx.evolution().is_orphan(grandchild.id()));
+    mut_repo.remove_head(&rewritten);
+    assert!(!mut_repo.evolution().is_obsolete(original.id()));
+    assert!(!mut_repo.evolution().is_orphan(child.id()));
+    assert!(!mut_repo.evolution().is_orphan(grandchild.id()));
     tx.discard();
 }
 
@@ -79,22 +80,23 @@ fn test_divergent(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // A single commit should not be divergent
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    assert!(!tx.evolution().is_divergent(original.change_id()));
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
+    assert!(!mut_repo.evolution().is_divergent(original.change_id()));
 
     // Commits with the same change id are divergent, including the original commit
     // (it's the change that's divergent)
     child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
-    assert!(tx.evolution().is_divergent(original.change_id()));
+        .write_to_repo(mut_repo);
+    assert!(mut_repo.evolution().is_divergent(original.change_id()));
     tx.discard();
 }
 
@@ -105,8 +107,9 @@ fn test_divergent_pruned(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
 
     // Pruned commits are also divergent (because it's unclear where descendants
     // should be evolved to).
@@ -114,13 +117,13 @@ fn test_divergent_pruned(use_git: bool) {
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
         .set_pruned(true)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
         .set_pruned(true)
-        .write_to_transaction(&mut tx);
-    assert!(tx.evolution().is_divergent(original.change_id()));
+        .write_to_repo(mut_repo);
+    assert!(mut_repo.evolution().is_divergent(original.change_id()));
     tx.discard();
 }
 
@@ -131,18 +134,23 @@ fn test_divergent_duplicate(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // Successors with different change id are not divergent
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let cherry_picked1 = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let cherry_picked2 = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
-    assert!(!tx.evolution().is_divergent(original.change_id()));
-    assert!(!tx.evolution().is_divergent(cherry_picked1.change_id()));
-    assert!(!tx.evolution().is_divergent(cherry_picked2.change_id()));
+        .write_to_repo(mut_repo);
+    assert!(!mut_repo.evolution().is_divergent(original.change_id()));
+    assert!(!mut_repo
+        .evolution()
+        .is_divergent(cherry_picked1.change_id()));
+    assert!(!mut_repo
+        .evolution()
+        .is_divergent(cherry_picked2.change_id()));
     tx.discard();
 }
 
@@ -155,15 +163,18 @@ fn test_new_parent_rewritten(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // After a simple rewrite, the new parent is the successor.
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let rewritten = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     assert_eq!(
-        tx.evolution().new_parent(tx.store(), original.id()),
+        mut_repo
+            .evolution()
+            .new_parent(mut_repo.store(), original.id()),
         vec![rewritten.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -176,14 +187,17 @@ fn test_new_parent_cherry_picked(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // A successor with a different change id has no effect.
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let _cherry_picked = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     assert_eq!(
-        tx.evolution().new_parent(tx.store(), original.id()),
+        mut_repo
+            .evolution()
+            .new_parent(mut_repo.store(), original.id()),
         vec![original.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -196,18 +210,21 @@ fn test_new_parent_is_pruned(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // If a commit's successor is pruned, the new parent is the parent of the
     // pruned commit.
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    let new_parent = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
+    let new_parent = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let _rewritten = child_commit(&settings, &repo, &new_parent)
         .set_pruned(true)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     assert_eq!(
-        tx.evolution().new_parent(tx.store(), original.id()),
+        mut_repo
+            .evolution()
+            .new_parent(mut_repo.store(), original.id()),
         vec![new_parent.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -220,23 +237,26 @@ fn test_new_parent_divergent(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // If a commit has multiple successors, then they will all be returned.
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let rewritten1 = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let rewritten2 = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let rewritten3 = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     assert_eq!(
-        tx.evolution().new_parent(tx.store(), original.id()),
+        mut_repo
+            .evolution()
+            .new_parent(mut_repo.store(), original.id()),
         vec![
             rewritten1.id().clone(),
             rewritten2.id().clone(),
@@ -255,29 +275,32 @@ fn test_new_parent_divergent_one_not_pruned(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // If a commit has multiple successors, then they will all be returned, even if
     // all but one are pruned (the parents of the pruned commits, not the pruned
     // commits themselves).
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let rewritten1 = child_commit(&settings, &repo, &root_commit)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
-    let parent2 = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
+    let parent2 = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let _rewritten2 = child_commit(&settings, &repo, &parent2)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
         .set_pruned(true)
-        .write_to_transaction(&mut tx);
-    let parent3 = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
+    let parent3 = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let _rewritten3 = child_commit(&settings, &repo, &parent3)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
         .set_pruned(true)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     assert_eq!(
-        tx.evolution().new_parent(tx.store(), original.id()),
+        mut_repo
+            .evolution()
+            .new_parent(mut_repo.store(), original.id()),
         vec![
             rewritten1.id().clone(),
             parent2.id().clone(),
@@ -296,31 +319,34 @@ fn test_new_parent_divergent_all_pruned(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // If a commit has multiple successors, then they will all be returned, even if
     // they are all pruned (the parents of the pruned commits, not the pruned
     // commits themselves).
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    let parent1 = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
+    let parent1 = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let _rewritten1 = child_commit(&settings, &repo, &parent1)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
         .set_pruned(true)
-        .write_to_transaction(&mut tx);
-    let parent2 = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
+    let parent2 = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let _rewritten2 = child_commit(&settings, &repo, &parent2)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
         .set_pruned(true)
-        .write_to_transaction(&mut tx);
-    let parent3 = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
+    let parent3 = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let _rewritten3 = child_commit(&settings, &repo, &parent3)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
         .set_pruned(true)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     assert_eq!(
-        tx.evolution().new_parent(tx.store(), original.id()),
+        mut_repo
+            .evolution()
+            .new_parent(mut_repo.store(), original.id()),
         vec![
             parent1.id().clone(),
             parent2.id().clone(),
@@ -339,24 +365,27 @@ fn test_new_parent_split(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // If a commit was split, the new parent is the tip-most rewritten
     // commit. Here we let the middle commit inherit the change id, but it shouldn't
     // matter which one inherits it.
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    let new_parent = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
+    let new_parent = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let rewritten1 = child_commit(&settings, &repo, &new_parent)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let rewritten2 = child_commit(&settings, &repo, &rewritten1)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let rewritten3 = child_commit(&settings, &repo, &rewritten2)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     assert_eq!(
-        tx.evolution().new_parent(tx.store(), original.id()),
+        mut_repo
+            .evolution()
+            .new_parent(mut_repo.store(), original.id()),
         vec![rewritten3.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -369,28 +398,31 @@ fn test_new_parent_split_pruned_descendant(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // If a commit was split and the tip-most successor became pruned,
     // we use that that descendant's parent.
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    let new_parent = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
+    let new_parent = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let rewritten1 = child_commit(&settings, &repo, &new_parent)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let rewritten2 = child_commit(&settings, &repo, &rewritten1)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let rewritten3 = child_commit(&settings, &repo, &rewritten2)
         .set_pruned(true)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let _rewritten4 = child_commit(&settings, &repo, &rewritten3)
         .set_pruned(true)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     assert_eq!(
-        tx.evolution().new_parent(tx.store(), original.id()),
+        mut_repo
+            .evolution()
+            .new_parent(mut_repo.store(), original.id()),
         vec![rewritten2.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -403,28 +435,31 @@ fn test_new_parent_split_forked(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // If a commit was split and the successors were split up across topological
     // branches, we return only the descendants from the branch with the same
     // change id (we can't tell a split from two unrelated rewrites and cherry-picks
     // anyway).
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    let new_parent = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
+    let new_parent = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let rewritten1 = child_commit(&settings, &repo, &new_parent)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let rewritten2 = child_commit(&settings, &repo, &rewritten1)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let rewritten3 = child_commit(&settings, &repo, &rewritten1)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let _rewritten4 = child_commit(&settings, &repo, &original)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     assert_eq!(
-        tx.evolution().new_parent(tx.store(), original.id()),
+        mut_repo
+            .evolution()
+            .new_parent(mut_repo.store(), original.id()),
         vec![rewritten2.id().clone(), rewritten3.id().clone()]
             .into_iter()
             .collect()
@@ -439,28 +474,31 @@ fn test_new_parent_split_forked_pruned(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // If a commit was split and the successors were split up across topological
     // branches and some commits were pruned, we won't return a parent of the pruned
     // commit if the parent is an ancestor of another commit we'd return.
-    let original = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    let new_parent = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
+    let new_parent = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     let rewritten1 = child_commit(&settings, &repo, &new_parent)
         .set_predecessors(vec![original.id().clone()])
         .set_change_id(original.change_id().clone())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let rewritten2 = child_commit(&settings, &repo, &rewritten1)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let rewritten3 = child_commit(&settings, &repo, &rewritten2)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let _rewritten4 = child_commit(&settings, &repo, &rewritten1)
         .set_pruned(true)
         .set_predecessors(vec![original.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     assert_eq!(
-        tx.evolution().new_parent(tx.store(), original.id()),
+        mut_repo
+            .evolution()
+            .new_parent(mut_repo.store(), original.id()),
         vec![rewritten3.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -525,16 +563,17 @@ fn test_evolve_orphan(use_git: bool) {
     let root_commit = repo.store().root_commit();
 
     let mut tx = repo.start_transaction("test");
-    let initial = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    let child = child_commit(&settings, &repo, &initial).write_to_transaction(&mut tx);
-    let grandchild = child_commit(&settings, &repo, &child).write_to_transaction(&mut tx);
+    let mut_repo = tx.mut_repo();
+    let initial = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
+    let child = child_commit(&settings, &repo, &initial).write_to_repo(mut_repo);
+    let grandchild = child_commit(&settings, &repo, &child).write_to_repo(mut_repo);
 
     let rewritten = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial)
         .set_description("rewritten".to_string())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
 
     let mut listener = RecordingEvolveListener::default();
-    evolve(&settings, tx.mut_repo(), &mut listener);
+    evolve(&settings, mut_repo, &mut listener);
     assert_eq!(listener.evolved_divergents.len(), 0);
     assert_eq!(listener.evolved_orphans.len(), 2);
     assert_eq!(&listener.evolved_orphans[0].0, &child);
@@ -555,20 +594,21 @@ fn test_evolve_pruned_orphan(use_git: bool) {
     let root_commit = repo.store().root_commit();
 
     let mut tx = repo.start_transaction("test");
-    let initial = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
+    let mut_repo = tx.mut_repo();
+    let initial = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
     // Create a pruned child and a non-pruned child to show that the pruned one does
     // not get evolved (the non-pruned one is there to show that the setup is not
     // broken).
-    let child = child_commit(&settings, &repo, &initial).write_to_transaction(&mut tx);
+    let child = child_commit(&settings, &repo, &initial).write_to_repo(mut_repo);
     let _pruned_child = child_commit(&settings, &repo, &initial)
         .set_pruned(true)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let _rewritten = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial)
         .set_description("rewritten".to_string())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
 
     let mut listener = RecordingEvolveListener::default();
-    evolve(&settings, tx.mut_repo(), &mut listener);
+    evolve(&settings, mut_repo, &mut listener);
     assert_eq!(listener.evolved_divergents.len(), 0);
     assert_eq!(listener.evolved_orphans.len(), 1);
     assert_eq!(listener.evolved_orphans[0].0.id(), child.id());
@@ -585,6 +625,7 @@ fn test_evolve_divergent(use_git: bool) {
     let root_commit = store.root_commit();
 
     let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
 
     // Set up a repo like this:
     //
@@ -616,24 +657,24 @@ fn test_evolve_divergent(use_git: bool) {
     let commit1 = CommitBuilder::for_new_commit(&settings, repo.store(), tree1.id().clone())
         .set_parents(vec![root_commit.id().clone()])
         .set_description("add file A, contents A".to_string())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let commit3 = CommitBuilder::for_new_commit(&settings, repo.store(), tree3.id().clone())
         .set_parents(vec![root_commit.id().clone()])
         .set_description("add file A, contents B".to_string())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let commit5 = CommitBuilder::for_new_commit(&settings, repo.store(), tree5.id().clone())
         .set_parents(vec![root_commit.id().clone()])
         .set_description("add file A, contents C".to_string())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let commit2 = CommitBuilder::for_new_commit(&settings, repo.store(), tree2.id().clone())
         .set_parents(vec![commit1.id().clone()])
         .set_description("add file X".to_string())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let commit4 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit2)
         .set_parents(vec![commit3.id().clone()])
         .set_tree(tree4.id().clone())
         .set_description("add files X and Y".to_string())
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     let mut later_time = commit4.committer().clone();
     later_time.timestamp.timestamp.0 += 1;
     let commit6 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit2)
@@ -641,10 +682,10 @@ fn test_evolve_divergent(use_git: bool) {
         .set_tree(tree6.id().clone())
         .set_description("add files X and Z".to_string())
         .set_committer(later_time)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
 
     let mut listener = RecordingEvolveListener::default();
-    evolve(&settings, tx.mut_repo(), &mut listener);
+    evolve(&settings, mut_repo, &mut listener);
     assert_eq!(listener.evolved_orphans.len(), 0);
     assert_eq!(listener.evolved_divergents.len(), 1);
     assert_eq!(
