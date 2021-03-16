@@ -15,11 +15,10 @@
 use jujube_lib::commit::Commit;
 use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::evolution::{evolve, EvolveListener};
-use jujube_lib::repo::ReadonlyRepo;
+use jujube_lib::repo::{MutableRepo, ReadonlyRepo};
 use jujube_lib::repo_path::FileRepoPath;
 use jujube_lib::settings::UserSettings;
 use jujube_lib::testutils;
-use jujube_lib::transaction::Transaction;
 use test_case::test_case;
 
 #[must_use]
@@ -482,24 +481,34 @@ impl Default for RecordingEvolveListener {
 }
 
 impl EvolveListener for RecordingEvolveListener {
-    fn orphan_evolved(&mut self, _tx: &mut Transaction, orphan: &Commit, new_commit: &Commit) {
+    fn orphan_evolved(
+        &mut self,
+        _mut_repo: &mut MutableRepo,
+        orphan: &Commit,
+        new_commit: &Commit,
+    ) {
         self.evolved_orphans
             .push((orphan.clone(), new_commit.clone()));
     }
 
-    fn orphan_target_ambiguous(&mut self, _tx: &mut Transaction, _orphan: &Commit) {
+    fn orphan_target_ambiguous(&mut self, _mut_repo: &mut MutableRepo, _orphan: &Commit) {
         // TODO: Record this too and add tests
         panic!("unexpected call to orphan_target_ambiguous");
     }
 
-    fn divergent_resolved(&mut self, _tx: &mut Transaction, sources: &[Commit], resolved: &Commit) {
+    fn divergent_resolved(
+        &mut self,
+        _mut_repo: &mut MutableRepo,
+        sources: &[Commit],
+        resolved: &Commit,
+    ) {
         self.evolved_divergents
             .push((sources.to_vec(), resolved.clone()));
     }
 
     fn divergent_no_common_predecessor(
         &mut self,
-        _tx: &mut Transaction,
+        _mut_repo: &mut MutableRepo,
         _commit1: &Commit,
         _commit2: &Commit,
     ) {
@@ -525,7 +534,7 @@ fn test_evolve_orphan(use_git: bool) {
         .write_to_transaction(&mut tx);
 
     let mut listener = RecordingEvolveListener::default();
-    evolve(&settings, &mut tx, &mut listener);
+    evolve(&settings, tx.mut_repo(), &mut listener);
     assert_eq!(listener.evolved_divergents.len(), 0);
     assert_eq!(listener.evolved_orphans.len(), 2);
     assert_eq!(&listener.evolved_orphans[0].0, &child);
@@ -559,7 +568,7 @@ fn test_evolve_pruned_orphan(use_git: bool) {
         .write_to_transaction(&mut tx);
 
     let mut listener = RecordingEvolveListener::default();
-    evolve(&settings, &mut tx, &mut listener);
+    evolve(&settings, tx.mut_repo(), &mut listener);
     assert_eq!(listener.evolved_divergents.len(), 0);
     assert_eq!(listener.evolved_orphans.len(), 1);
     assert_eq!(listener.evolved_orphans[0].0.id(), child.id());
@@ -635,7 +644,7 @@ fn test_evolve_divergent(use_git: bool) {
         .write_to_transaction(&mut tx);
 
     let mut listener = RecordingEvolveListener::default();
-    evolve(&settings, &mut tx, &mut listener);
+    evolve(&settings, tx.mut_repo(), &mut listener);
     assert_eq!(listener.evolved_orphans.len(), 0);
     assert_eq!(listener.evolved_divergents.len(), 1);
     assert_eq!(

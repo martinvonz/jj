@@ -24,7 +24,6 @@ use crate::rewrite::{merge_commit_trees, rebase_commit};
 use crate::settings::UserSettings;
 use crate::store::{ChangeId, CommitId};
 use crate::store_wrapper::StoreWrapper;
-use crate::transaction::Transaction;
 use crate::trees::merge_trees;
 
 // TODO: Combine some maps/sets and use a struct as value instead.
@@ -377,17 +376,17 @@ pub struct ReadonlyEvolution {
 }
 
 pub trait EvolveListener {
-    fn orphan_evolved(&mut self, tx: &mut Transaction, orphan: &Commit, new_commit: &Commit);
-    fn orphan_target_ambiguous(&mut self, tx: &mut Transaction, orphan: &Commit);
+    fn orphan_evolved(&mut self, mut_repo: &mut MutableRepo, orphan: &Commit, new_commit: &Commit);
+    fn orphan_target_ambiguous(&mut self, mut_repo: &mut MutableRepo, orphan: &Commit);
     fn divergent_resolved(
         &mut self,
-        tx: &mut Transaction,
+        mut_repo: &mut MutableRepo,
         divergents: &[Commit],
         resolved: &Commit,
     );
     fn divergent_no_common_predecessor(
         &mut self,
-        tx: &mut Transaction,
+        mut_repo: &mut MutableRepo,
         commit1: &Commit,
         commit2: &Commit,
     );
@@ -465,15 +464,14 @@ impl MutableEvolution {
 
 pub fn evolve(
     user_settings: &UserSettings,
-    tx: &mut Transaction,
+    mut_repo: &mut MutableRepo,
     listener: &mut dyn EvolveListener,
 ) {
-    let store = tx.store().clone();
+    let store = mut_repo.store().clone();
 
     // Resolving divergence can creates new orphans but not vice versa, so resolve
     // divergence first.
-    let divergent_changes: Vec<_> = tx
-        .mut_repo()
+    let divergent_changes: Vec<_> = mut_repo
         .evolution()
         .state
         .non_obsoletes_by_changeid
@@ -486,13 +484,12 @@ pub fn evolve(
             .iter()
             .map(|id| store.get_commit(&id).unwrap())
             .collect();
-        evolve_divergent_change(user_settings, &store, tx, listener, &commits);
+        evolve_divergent_change(user_settings, &store, mut_repo, listener, &commits);
     }
 
     // Dom't reuse the state from above, since the divergence-resolution may have
     // created new orphans, or resolved existing orphans.
-    let orphans: HashSet<Commit> = tx
-        .mut_repo()
+    let orphans: HashSet<Commit> = mut_repo
         .evolution()
         .state
         .orphan_commits
@@ -522,7 +519,7 @@ pub fn evolve(
         let old_parents = orphan.parents();
         let mut new_parents = vec![];
         let mut ambiguous_new_parents = false;
-        let evolution = tx.mut_repo().evolution();
+        let evolution = mut_repo.evolution();
         for old_parent in &old_parents {
             let new_parent_candidates = evolution.new_parent(&store, old_parent.id());
             if new_parent_candidates.len() > 1 {
@@ -536,10 +533,10 @@ pub fn evolve(
             );
         }
         if ambiguous_new_parents {
-            listener.orphan_target_ambiguous(tx, &orphan);
+            listener.orphan_target_ambiguous(mut_repo, &orphan);
         } else {
-            let new_commit = rebase_commit(user_settings, tx.mut_repo(), &orphan, &new_parents);
-            listener.orphan_evolved(tx, &orphan, &new_commit);
+            let new_commit = rebase_commit(user_settings, mut_repo, &orphan, &new_parents);
+            listener.orphan_evolved(mut_repo, &orphan, &new_commit);
         }
     }
 }
@@ -547,7 +544,7 @@ pub fn evolve(
 fn evolve_divergent_change(
     user_settings: &UserSettings,
     store: &Arc<StoreWrapper>,
-    tx: &mut Transaction,
+    mut_repo: &mut MutableRepo,
     listener: &mut dyn EvolveListener,
     commits: &HashSet<Commit>,
 ) {
@@ -571,14 +568,14 @@ fn evolve_divergent_change(
         );
         match common_predecessor {
             None => {
-                listener.divergent_no_common_predecessor(tx, &commit1, &commit2);
+                listener.divergent_no_common_predecessor(mut_repo, &commit1, &commit2);
                 return;
             }
             Some(common_predecessor) => {
                 let resolved_commit = evolve_two_divergent_commits(
                     user_settings,
                     store,
-                    tx,
+                    mut_repo,
                     &common_predecessor,
                     &commit1,
                     &commit2,
@@ -589,13 +586,13 @@ fn evolve_divergent_change(
     }
 
     let resolved = commits.pop().unwrap();
-    listener.divergent_resolved(tx, &sources, &resolved);
+    listener.divergent_resolved(mut_repo, &sources, &resolved);
 }
 
 fn evolve_two_divergent_commits(
     user_settings: &UserSettings,
     store: &Arc<StoreWrapper>,
-    tx: &mut Transaction,
+    mut_repo: &mut MutableRepo,
     common_predecessor: &Commit,
     commit1: &Commit,
     commit2: &Commit,
@@ -604,16 +601,17 @@ fn evolve_two_divergent_commits(
     let rebased_tree2 = if commit2.parents() == new_parents {
         commit2.tree()
     } else {
-        let old_base_tree = merge_commit_trees(tx.as_repo_ref(), &commit2.parents());
-        let new_base_tree = merge_commit_trees(tx.as_repo_ref(), &new_parents);
+        let old_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &commit2.parents());
+        let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &new_parents);
         let tree_id = merge_trees(&new_base_tree, &old_base_tree, &commit2.tree()).unwrap();
         store.get_tree(&DirRepoPath::root(), &tree_id).unwrap()
     };
     let rebased_predecessor_tree = if common_predecessor.parents() == new_parents {
         common_predecessor.tree()
     } else {
-        let old_base_tree = merge_commit_trees(tx.as_repo_ref(), &common_predecessor.parents());
-        let new_base_tree = merge_commit_trees(tx.as_repo_ref(), &new_parents);
+        let old_base_tree =
+            merge_commit_trees(mut_repo.as_repo_ref(), &common_predecessor.parents());
+        let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &new_parents);
         let tree_id =
             merge_trees(&new_base_tree, &old_base_tree, &common_predecessor.tree()).unwrap();
         store.get_tree(&DirRepoPath::root(), &tree_id).unwrap()
@@ -628,7 +626,7 @@ fn evolve_two_divergent_commits(
     CommitBuilder::for_rewrite_from(user_settings, store, &commit1)
         .set_tree(resolved_tree)
         .set_predecessors(vec![commit1.id().clone(), commit2.id().clone()])
-        .write_to_transaction(tx)
+        .write_to_repo(mut_repo)
 }
 
 #[cfg(test)]

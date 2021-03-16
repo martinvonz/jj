@@ -43,7 +43,6 @@ use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujube_lib::settings::UserSettings;
 use jujube_lib::store::{CommitId, StoreError, Timestamp, TreeValue};
 use jujube_lib::store_wrapper::StoreWrapper;
-use jujube_lib::transaction::Transaction;
 use jujube_lib::tree::Tree;
 use jujube_lib::trees::TreeValueDiff;
 use jujube_lib::working_copy::{CheckoutStats, WorkingCopy};
@@ -1673,52 +1672,64 @@ fn cmd_evolve<'s>(
     }
 
     impl<'a, 's> EvolveListener for Listener<'a, 's> {
-        fn orphan_evolved(&mut self, tx: &mut Transaction, orphan: &Commit, new_commit: &Commit) {
+        fn orphan_evolved(
+            &mut self,
+            mut_repo: &mut MutableRepo,
+            orphan: &Commit,
+            new_commit: &Commit,
+        ) {
             self.ui.write("Resolving orphan: ");
-            self.ui.write_commit_summary(tx.as_repo_ref(), &orphan);
+            self.ui
+                .write_commit_summary(mut_repo.as_repo_ref(), &orphan);
             self.ui.write("\n");
             self.ui.write("Resolved as: ");
-            self.ui.write_commit_summary(tx.as_repo_ref(), &new_commit);
+            self.ui
+                .write_commit_summary(mut_repo.as_repo_ref(), &new_commit);
             self.ui.write("\n");
         }
 
-        fn orphan_target_ambiguous(&mut self, tx: &mut Transaction, orphan: &Commit) {
+        fn orphan_target_ambiguous(&mut self, mut_repo: &mut MutableRepo, orphan: &Commit) {
             self.ui
                 .write("Skipping orphan with ambiguous new parents: ");
-            self.ui.write_commit_summary(tx.as_repo_ref(), &orphan);
+            self.ui
+                .write_commit_summary(mut_repo.as_repo_ref(), &orphan);
             self.ui.write("\n");
         }
 
         fn divergent_resolved(
             &mut self,
-            tx: &mut Transaction,
+            mut_repo: &mut MutableRepo,
             sources: &[Commit],
             resolved: &Commit,
         ) {
             self.ui.write("Resolving divergent commits:\n");
             for source in sources {
                 self.ui.write("  ");
-                self.ui.write_commit_summary(tx.as_repo_ref(), &source);
+                self.ui
+                    .write_commit_summary(mut_repo.as_repo_ref(), &source);
                 self.ui.write("\n");
             }
             self.ui.write("Resolved as: ");
-            self.ui.write_commit_summary(tx.as_repo_ref(), &resolved);
+            self.ui
+                .write_commit_summary(mut_repo.as_repo_ref(), &resolved);
             self.ui.write("\n");
         }
 
         fn divergent_no_common_predecessor(
             &mut self,
-            tx: &mut Transaction,
+            mut_repo: &mut MutableRepo,
             commit1: &Commit,
             commit2: &Commit,
         ) {
             self.ui
                 .write("Skipping divergent commits with no common predecessor:\n");
             self.ui.write("  ");
-            self.ui.write_commit_summary(tx.as_repo_ref(), &commit1);
+            self.ui
+                .write_commit_summary(mut_repo.as_repo_ref(), &commit1);
             self.ui.write("\n");
             self.ui.write("  ");
-            self.ui.write_commit_summary(tx.as_repo_ref(), &commit2);
+            self.ui
+                .write_commit_summary(mut_repo.as_repo_ref(), &commit2);
             self.ui.write("\n");
         }
     }
@@ -1729,7 +1740,7 @@ fn cmd_evolve<'s>(
     let user_settings = ui.settings().clone();
     let mut listener = Listener { ui };
     let mut tx = repo.start_transaction("evolve");
-    evolve(&user_settings, &mut tx, &mut listener);
+    evolve(&user_settings, tx.mut_repo(), &mut listener);
     update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
