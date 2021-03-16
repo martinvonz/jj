@@ -146,7 +146,7 @@ fn write_note(
     };
     let mut backoff = ExponentialBackoff {
         initial_interval: Duration::from_millis(1),
-        max_elapsed_time: Some(Duration::from_secs(10)),
+        max_elapsed_time: Some(Duration::from_secs(60)),
         ..Default::default()
     };
     try_write_note
