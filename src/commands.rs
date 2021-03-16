@@ -607,7 +607,7 @@ fn cmd_init(
         repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path, git_store_path);
         let git_repo = repo.store().git_repo().unwrap();
         let mut tx = repo.start_transaction("import git refs");
-        git::import_refs(&mut tx, &git_repo).unwrap();
+        git::import_refs(tx.mut_repo(), &git_repo).unwrap();
         // TODO: Check out a recent commit. Maybe one with the highest generation
         // number.
         tx.commit();
@@ -2065,7 +2065,7 @@ fn cmd_git_fetch(
     let git_repo = get_git_repo(repo.store())?;
     let remote_name = cmd_matches.value_of("remote").unwrap();
     let mut tx = repo.start_transaction(&format!("fetch from git remote {}", remote_name));
-    git::fetch(&mut tx, &git_repo, remote_name)
+    git::fetch(tx.mut_repo(), &git_repo, remote_name)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
     tx.commit();
     Ok(())
@@ -2096,7 +2096,7 @@ fn cmd_git_clone(
     let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();
     let mut tx = repo.start_transaction("fetch from git remote into empty repo");
-    git::fetch(&mut tx, &git_repo, remote_name).map_err(|err| match err {
+    git::fetch(tx.mut_repo(), &git_repo, remote_name).map_err(|err| match err {
         GitFetchError::NoSuchRemote(_) => {
             panic!("should't happen as we just created the git remote")
         }
@@ -2124,7 +2124,8 @@ fn cmd_git_push(
     git::push_commit(&git_repo, &commit, remote_name, branch_name)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
     let mut tx = repo.start_transaction("import git refs");
-    git::import_refs(&mut tx, &git_repo).map_err(|err| CommandError::UserError(err.to_string()))?;
+    git::import_refs(tx.mut_repo(), &git_repo)
+        .map_err(|err| CommandError::UserError(err.to_string()))?;
     tx.commit();
     Ok(())
 }
@@ -2138,7 +2139,8 @@ fn cmd_git_refresh(
     let repo = get_repo(ui, &matches)?;
     let git_repo = get_git_repo(repo.store())?;
     let mut tx = repo.start_transaction("import git refs");
-    git::import_refs(&mut tx, &git_repo).map_err(|err| CommandError::UserError(err.to_string()))?;
+    git::import_refs(tx.mut_repo(), &git_repo)
+        .map_err(|err| CommandError::UserError(err.to_string()))?;
     tx.commit();
     Ok(())
 }

@@ -68,7 +68,7 @@ fn test_import_refs() {
     let git_repo = repo.store().git_repo().unwrap();
     let mut tx = repo.start_transaction("test");
     let heads_before: HashSet<_> = repo.view().heads().clone();
-    jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
+    jujube_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
     let view = tx.view();
     let expected_heads: HashSet<_> = heads_before
         .union(&hashset!(
@@ -117,7 +117,7 @@ fn test_import_refs_reimport() {
 
     let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
-    jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
+    jujube_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
     tx.commit();
 
     // Delete feature1 and rewrite feature2
@@ -127,7 +127,7 @@ fn test_import_refs_reimport() {
 
     Arc::get_mut(&mut repo).unwrap().reload();
     let mut tx = repo.start_transaction("test");
-    jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
+    jujube_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
 
     let view = tx.view();
     // TODO: commit3 and commit4 should probably be removed
@@ -199,7 +199,7 @@ fn test_import_refs_merge() {
     git_ref(&git_repo, "refs/heads/forward-remove", commit1.id());
     git_ref(&git_repo, "refs/heads/remove-forward", commit1.id());
     let mut tx = repo.start_transaction("initial import");
-    jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
+    jujube_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -212,7 +212,7 @@ fn test_import_refs_merge() {
     delete_git_ref(&git_repo, "refs/heads/remove-forward");
     git_ref(&git_repo, "refs/heads/add-add", commit3.id());
     let mut tx1 = repo.start_transaction("concurrent import 1");
-    jujube_lib::git::import_refs(&mut tx1, &git_repo).unwrap_or_default();
+    jujube_lib::git::import_refs(tx1.mut_repo(), &git_repo).unwrap_or_default();
     tx1.commit();
 
     // The other concurrent operation:
@@ -224,7 +224,7 @@ fn test_import_refs_merge() {
     git_ref(&git_repo, "refs/heads/remove-forward", commit2.id());
     git_ref(&git_repo, "refs/heads/add-add", commit4.id());
     let mut tx2 = repo.start_transaction("concurrent import 2");
-    jujube_lib::git::import_refs(&mut tx2, &git_repo).unwrap_or_default();
+    jujube_lib::git::import_refs(tx2.mut_repo(), &git_repo).unwrap_or_default();
     tx2.commit();
 
     // Reload the repo, causing the operations to be merged.
@@ -280,7 +280,7 @@ fn test_import_refs_empty_git_repo() {
     let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
     let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
-    jujube_lib::git::import_refs(&mut tx, &git_repo).unwrap_or_default();
+    jujube_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
     assert_eq!(*tx.view().heads(), heads_before);
     assert_eq!(tx.view().git_refs().len(), 0);
     tx.discard();
@@ -325,7 +325,7 @@ fn test_fetch_success() {
 
     // The new commit is visible after git::fetch().
     let mut tx = jj_repo.start_transaction("test");
-    git::fetch(&mut tx, &clone_git_repo, "origin").unwrap();
+    git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
     assert!(tx.view().heads().contains(&commit_id(&new_git_commit)));
 
     tx.discard();
@@ -342,7 +342,7 @@ fn test_fetch_no_such_remote() {
     let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, source_repo_dir);
 
     let mut tx = jj_repo.start_transaction("test");
-    let result = git::fetch(&mut tx, &git_repo, "invalid-remote");
+    let result = git::fetch(tx.mut_repo(), &git_repo, "invalid-remote");
     assert!(matches!(result, Err(GitFetchError::NoSuchRemote(_))));
 
     tx.discard();

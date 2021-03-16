@@ -103,26 +103,6 @@ impl<'r> Transaction<'r> {
         mut_repo.remove_head(head)
     }
 
-    pub fn add_public_head(&mut self, head: &Commit) {
-        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.add_public_head(head)
-    }
-
-    pub fn remove_public_head(&mut self, head: &Commit) {
-        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.remove_public_head(head);
-    }
-
-    pub fn insert_git_ref(&mut self, name: String, commit_id: CommitId) {
-        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.insert_git_ref(name, commit_id);
-    }
-
-    pub fn remove_git_ref(&mut self, name: &str) {
-        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.remove_git_ref(name);
-    }
-
     pub fn set_view(&mut self, data: op_store::View) {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
         mut_repo.set_view(data);

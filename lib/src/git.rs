@@ -15,8 +15,8 @@
 use thiserror::Error;
 
 use crate::commit::Commit;
+use crate::repo::MutableRepo;
 use crate::store::CommitId;
-use crate::transaction::Transaction;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GitImportError {
@@ -26,16 +26,16 @@ pub enum GitImportError {
 
 // Reflect changes made in the underlying Git repo in the Jujube repo.
 pub fn import_refs(
-    tx: &mut Transaction,
+    mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
 ) -> Result<(), GitImportError> {
-    let store = tx.store().clone();
+    let store = mut_repo.store().clone();
     let git_refs = git_repo.references()?;
-    let existing_git_refs: Vec<_> = tx.view().git_refs().keys().cloned().collect();
+    let existing_git_refs: Vec<_> = mut_repo.view().git_refs().keys().cloned().collect();
     // TODO: Store the id of the previous import and read it back here, so we can
     // merge the views instead of overwriting.
     for existing_git_ref in existing_git_refs {
-        tx.remove_git_ref(&existing_git_ref);
+        mut_repo.remove_git_ref(&existing_git_ref);
         // TODO: We should probably also remove heads pointing to the same
         // commits and commits no longer reachable from other refs.
         // If the underlying git repo has a branch that gets rewritten, we
@@ -59,12 +59,12 @@ pub fn import_refs(
         };
         let id = CommitId(git_commit.id().as_bytes().to_vec());
         let commit = store.get_commit(&id).unwrap();
-        tx.add_head(&commit);
-        tx.insert_git_ref(git_ref.name().unwrap().to_string(), id);
+        mut_repo.add_head(&commit);
+        mut_repo.insert_git_ref(git_ref.name().unwrap().to_string(), id);
         // For now, we consider all remotes "publishing".
         // TODO: Make it configurable which remotes are publishing.
         if git_ref.is_remote() {
-            tx.add_public_head(&commit);
+            mut_repo.add_public_head(&commit);
         }
     }
     Ok(())
@@ -80,7 +80,7 @@ pub enum GitFetchError {
 }
 
 pub fn fetch(
-    tx: &mut Transaction,
+    mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     remote_name: &str,
 ) -> Result<(), GitFetchError> {
@@ -104,7 +104,7 @@ pub fn fetch(
     fetch_options.remote_callbacks(callbacks);
     let refspec: &[&str] = &[];
     remote.fetch(refspec, Some(&mut fetch_options), None)?;
-    import_refs(tx, git_repo).map_err(|err| match err {
+    import_refs(mut_repo, git_repo).map_err(|err| match err {
         GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
     })?;
     Ok(())
