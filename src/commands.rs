@@ -1619,7 +1619,7 @@ fn cmd_rebase(
         parents.push(resolve_single_rev(ui, mut_repo, revision_str)?);
     }
     let mut tx = repo.start_transaction(&format!("rebase commit {}", commit_to_rebase.id().hex()));
-    rebase_commit(ui.settings(), &mut tx, &commit_to_rebase, &parents);
+    rebase_commit(ui.settings(), tx.mut_repo(), &commit_to_rebase, &parents);
     update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
@@ -1648,7 +1648,7 @@ fn cmd_backout(
         "back out commit {}",
         commit_to_back_out.id().hex()
     ));
-    back_out_commit(ui.settings(), &mut tx, &commit_to_back_out, &parents);
+    back_out_commit(ui.settings(), tx.mut_repo(), &commit_to_back_out, &parents);
     update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(

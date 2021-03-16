@@ -538,7 +538,7 @@ pub fn evolve(
         if ambiguous_new_parents {
             listener.orphan_target_ambiguous(tx, &orphan);
         } else {
-            let new_commit = rebase_commit(user_settings, tx, &orphan, &new_parents);
+            let new_commit = rebase_commit(user_settings, tx.mut_repo(), &orphan, &new_parents);
             listener.orphan_evolved(tx, &orphan, &new_commit);
         }
     }

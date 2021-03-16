@@ -14,10 +14,9 @@
 
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
-use crate::repo::RepoRef;
+use crate::repo::{MutableRepo, RepoRef};
 use crate::repo_path::DirRepoPath;
 use crate::settings::UserSettings;
-use crate::transaction::Transaction;
 use crate::tree::Tree;
 use crate::trees::merge_trees;
 
@@ -45,13 +44,13 @@ pub fn merge_commit_trees(repo: RepoRef, commits: &[Commit]) -> Tree {
 
 pub fn rebase_commit(
     settings: &UserSettings,
-    tx: &mut Transaction,
+    mut_repo: &mut MutableRepo,
     old_commit: &Commit,
     new_parents: &[Commit],
 ) -> Commit {
-    let store = tx.store();
-    let old_base_tree = merge_commit_trees(tx.as_repo_ref(), &old_commit.parents());
-    let new_base_tree = merge_commit_trees(tx.as_repo_ref(), &new_parents);
+    let store = mut_repo.store();
+    let old_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &old_commit.parents());
+    let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &new_parents);
     // TODO: pass in labels for the merge parts
     let new_tree_id = merge_trees(&new_base_tree, &old_base_tree, &old_commit.tree()).unwrap();
     let new_parent_ids = new_parents
@@ -61,18 +60,18 @@ pub fn rebase_commit(
     CommitBuilder::for_rewrite_from(settings, store, &old_commit)
         .set_parents(new_parent_ids)
         .set_tree(new_tree_id)
-        .write_to_transaction(tx)
+        .write_to_repo(mut_repo)
 }
 
 pub fn back_out_commit(
     settings: &UserSettings,
-    tx: &mut Transaction,
+    mut_repo: &mut MutableRepo,
     old_commit: &Commit,
     new_parents: &[Commit],
 ) -> Commit {
-    let store = tx.store();
-    let old_base_tree = merge_commit_trees(tx.as_repo_ref(), &old_commit.parents());
-    let new_base_tree = merge_commit_trees(tx.as_repo_ref(), &new_parents);
+    let store = mut_repo.store();
+    let old_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &old_commit.parents());
+    let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &new_parents);
     // TODO: pass in labels for the merge parts
     let new_tree_id = merge_trees(&new_base_tree, &old_commit.tree(), &old_base_tree).unwrap();
     let new_parent_ids = new_parents
@@ -86,5 +85,5 @@ pub fn back_out_commit(
             "backout of commit {}",
             hex::encode(&old_commit.id().0)
         ))
-        .write_to_transaction(tx)
+        .write_to_repo(mut_repo)
 }
