@@ -37,7 +37,7 @@ use jujube_lib::git::GitFetchError;
 use jujube_lib::index::{HexPrefix, PrefixResolution};
 use jujube_lib::op_store::{OpStore, OpStoreError, OperationId};
 use jujube_lib::operation::Operation;
-use jujube_lib::repo::{ReadonlyRepo, RepoLoadError, RepoLoader};
+use jujube_lib::repo::{MutableRepo, ReadonlyRepo, RepoLoadError, RepoLoader};
 use jujube_lib::repo_path::RepoPath;
 use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujube_lib::settings::UserSettings;
@@ -255,16 +255,18 @@ fn update_working_copy(
     Ok(Some(stats))
 }
 
-fn update_checkout_after_rewrite(ui: &mut Ui, tx: &mut Transaction) {
-    // TODO: Perhaps this method should be in Transaction.
-    let new_checkout_candidates = tx.evolution().new_parent(tx.store(), tx.view().checkout());
+fn update_checkout_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) {
+    // TODO: Perhaps this method should be in MutableRepo.
+    let new_checkout_candidates = mut_repo
+        .evolution()
+        .new_parent(mut_repo.store(), mut_repo.view().checkout());
     if new_checkout_candidates.is_empty() {
         return;
     }
     // Filter out heads that already existed.
     // TODO: Filter out *commits* that already existed (so we get updated to an
     // appropriate new non-head)
-    let old_heads = tx.base_repo().view().heads().clone();
+    let old_heads = mut_repo.base_repo().view().heads().clone();
     let new_checkout_candidates: HashSet<_> = new_checkout_candidates
         .difference(&old_heads)
         .cloned()
@@ -278,8 +280,8 @@ fn update_checkout_after_rewrite(ui: &mut Ui, tx: &mut Transaction) {
         );
     }
     let new_checkout = new_checkout_candidates.iter().min().unwrap();
-    let new_commit = tx.store().get_commit(new_checkout).unwrap();
-    tx.check_out(ui.settings(), &new_commit);
+    let new_commit = mut_repo.store().get_commit(new_checkout).unwrap();
+    mut_repo.check_out(ui.settings(), &new_commit);
 }
 
 fn get_app<'a, 'b>() -> App<'a, 'b> {
@@ -1214,7 +1216,7 @@ fn cmd_describe(
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_description(description)
         .write_to_transaction(&mut tx);
-    update_checkout_after_rewrite(ui, &mut tx);
+    update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
         ui,
@@ -1237,7 +1239,7 @@ fn cmd_open(
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_open(true)
         .write_to_transaction(&mut tx);
-    update_checkout_after_rewrite(ui, &mut tx);
+    update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
         ui,
@@ -1269,7 +1271,7 @@ fn cmd_close(
     commit_builder = commit_builder.set_description(description);
     let mut tx = repo.start_transaction(&format!("close commit {}", commit.id().hex()));
     commit_builder.write_to_transaction(&mut tx);
-    update_checkout_after_rewrite(ui, &mut tx);
+    update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
         ui,
@@ -1316,7 +1318,7 @@ fn cmd_prune(
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
         .set_pruned(true)
         .write_to_transaction(&mut tx);
-    update_checkout_after_rewrite(ui, &mut tx);
+    update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
         ui,
@@ -1388,7 +1390,7 @@ fn cmd_squash(
         .set_parents(vec![squashed_commit.id().clone()])
         .set_pruned(true)
         .write_to_transaction(&mut tx);
-    update_checkout_after_rewrite(ui, &mut tx);
+    update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
         ui,
@@ -1470,7 +1472,7 @@ fn cmd_restore(
         ui.write("Created ");
         ui.write_commit_summary(tx.as_repo_ref(), &new_commit);
         ui.write("\n");
-        update_checkout_after_rewrite(ui, &mut tx);
+        update_checkout_after_rewrite(ui, tx.mut_repo());
         tx.commit();
         update_working_copy(
             ui,
@@ -1502,7 +1504,7 @@ fn cmd_edit(
         ui.write("Created ");
         ui.write_commit_summary(tx.as_repo_ref(), &new_commit);
         ui.write("\n");
-        update_checkout_after_rewrite(ui, &mut tx);
+        update_checkout_after_rewrite(ui, tx.mut_repo());
         tx.commit();
         update_working_copy(
             ui,
@@ -1547,7 +1549,7 @@ fn cmd_split(
         ui.write("Second part: ");
         ui.write_commit_summary(tx.as_repo_ref(), &second_commit);
         ui.write("\n");
-        update_checkout_after_rewrite(ui, &mut tx);
+        update_checkout_after_rewrite(ui, tx.mut_repo());
         tx.commit();
         update_working_copy(
             ui,
@@ -1592,7 +1594,7 @@ fn cmd_merge(
         .set_description(description)
         .set_open(false)
         .write_to_transaction(&mut tx);
-    update_checkout_after_rewrite(ui, &mut tx);
+    update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
         ui,
@@ -1618,7 +1620,7 @@ fn cmd_rebase(
     }
     let mut tx = repo.start_transaction(&format!("rebase commit {}", commit_to_rebase.id().hex()));
     rebase_commit(ui.settings(), &mut tx, &commit_to_rebase, &parents);
-    update_checkout_after_rewrite(ui, &mut tx);
+    update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
         ui,
@@ -1647,7 +1649,7 @@ fn cmd_backout(
         commit_to_back_out.id().hex()
     ));
     back_out_commit(ui.settings(), &mut tx, &commit_to_back_out, &parents);
-    update_checkout_after_rewrite(ui, &mut tx);
+    update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
         ui,
@@ -1728,7 +1730,7 @@ fn cmd_evolve<'s>(
     let mut listener = Listener { ui };
     let mut tx = repo.start_transaction("evolve");
     evolve(&user_settings, &mut tx, &mut listener);
-    update_checkout_after_rewrite(ui, &mut tx);
+    update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
         ui,
