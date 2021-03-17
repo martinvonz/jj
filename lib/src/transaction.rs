@@ -19,8 +19,7 @@ use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{OperationId, OperationMetadata};
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
-use crate::settings::UserSettings;
-use crate::store::{CommitId, Timestamp};
+use crate::store::Timestamp;
 use crate::store_wrapper::StoreWrapper;
 use crate::{op_store, store};
 
@@ -63,16 +62,6 @@ impl<'r> Transaction<'r> {
     pub fn write_commit(&mut self, commit: store::Commit) -> Commit {
         let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
         mut_repo.write_commit(commit)
-    }
-
-    pub fn check_out(&mut self, settings: &UserSettings, commit: &Commit) -> Commit {
-        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.check_out(settings, commit)
-    }
-
-    pub fn set_checkout(&mut self, id: CommitId) {
-        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.set_checkout(id);
     }
 
     pub fn add_head(&mut self, head: &Commit) {

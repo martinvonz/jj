@@ -636,7 +636,7 @@ fn cmd_checkout(
     let wc = owned_wc.lock().unwrap();
     wc.commit(ui.settings(), mut_repo);
     let mut tx = repo.start_transaction(&format!("check out commit {}", new_commit.id().hex()));
-    tx.check_out(ui.settings(), &new_commit);
+    tx.mut_repo().check_out(ui.settings(), &new_commit);
     tx.commit();
     let stats = update_working_copy(ui, Arc::get_mut(&mut repo).unwrap(), &wc)?;
     match stats {
@@ -1343,9 +1343,10 @@ fn cmd_new(
         parent.tree().id().clone(),
     );
     let mut tx = repo.start_transaction("new empty commit");
-    let new_commit = commit_builder.write_to_transaction(&mut tx);
-    if tx.mut_repo().view().checkout() == parent.id() {
-        tx.check_out(ui.settings(), &new_commit);
+    let mut_repo = tx.mut_repo();
+    let new_commit = commit_builder.write_to_repo(mut_repo);
+    if mut_repo.view().checkout() == parent.id() {
+        mut_repo.check_out(ui.settings(), &new_commit);
     }
     tx.commit();
     update_working_copy(

@@ -744,10 +744,11 @@ impl WorkingCopy {
         let new_tree_id = self.tree_state().as_mut().unwrap().write_tree().clone();
         if &new_tree_id != current_commit.tree().id() {
             let mut tx = repo.start_transaction("commit working copy");
+            let mut_repo = tx.mut_repo();
             let commit = CommitBuilder::for_rewrite_from(settings, repo.store(), &current_commit)
                 .set_tree(new_tree_id)
-                .write_to_transaction(&mut tx);
-            tx.set_checkout(commit.id().clone());
+                .write_to_repo(mut_repo);
+            mut_repo.set_checkout(commit.id().clone());
             let operation = tx.commit();
             repo.reload_at(&operation);
 
