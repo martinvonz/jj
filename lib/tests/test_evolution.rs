@@ -174,7 +174,7 @@ fn test_new_parent_rewritten(use_git: bool) {
     assert_eq!(
         mut_repo
             .evolution()
-            .new_parent(mut_repo.store(), original.id()),
+            .new_parent(mut_repo.as_repo_ref(), original.id()),
         vec![rewritten.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -197,7 +197,7 @@ fn test_new_parent_cherry_picked(use_git: bool) {
     assert_eq!(
         mut_repo
             .evolution()
-            .new_parent(mut_repo.store(), original.id()),
+            .new_parent(mut_repo.as_repo_ref(), original.id()),
         vec![original.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -224,7 +224,7 @@ fn test_new_parent_is_pruned(use_git: bool) {
     assert_eq!(
         mut_repo
             .evolution()
-            .new_parent(mut_repo.store(), original.id()),
+            .new_parent(mut_repo.as_repo_ref(), original.id()),
         vec![new_parent.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -256,7 +256,7 @@ fn test_new_parent_divergent(use_git: bool) {
     assert_eq!(
         mut_repo
             .evolution()
-            .new_parent(mut_repo.store(), original.id()),
+            .new_parent(mut_repo.as_repo_ref(), original.id()),
         vec![
             rewritten1.id().clone(),
             rewritten2.id().clone(),
@@ -300,7 +300,7 @@ fn test_new_parent_divergent_one_not_pruned(use_git: bool) {
     assert_eq!(
         mut_repo
             .evolution()
-            .new_parent(mut_repo.store(), original.id()),
+            .new_parent(mut_repo.as_repo_ref(), original.id()),
         vec![
             rewritten1.id().clone(),
             parent2.id().clone(),
@@ -346,7 +346,7 @@ fn test_new_parent_divergent_all_pruned(use_git: bool) {
     assert_eq!(
         mut_repo
             .evolution()
-            .new_parent(mut_repo.store(), original.id()),
+            .new_parent(mut_repo.as_repo_ref(), original.id()),
         vec![
             parent1.id().clone(),
             parent2.id().clone(),
@@ -385,7 +385,7 @@ fn test_new_parent_split(use_git: bool) {
     assert_eq!(
         mut_repo
             .evolution()
-            .new_parent(mut_repo.store(), original.id()),
+            .new_parent(mut_repo.as_repo_ref(), original.id()),
         vec![rewritten3.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -422,7 +422,7 @@ fn test_new_parent_split_pruned_descendant(use_git: bool) {
     assert_eq!(
         mut_repo
             .evolution()
-            .new_parent(mut_repo.store(), original.id()),
+            .new_parent(mut_repo.as_repo_ref(), original.id()),
         vec![rewritten2.id().clone()].into_iter().collect()
     );
     tx.discard();
@@ -459,7 +459,7 @@ fn test_new_parent_split_forked(use_git: bool) {
     assert_eq!(
         mut_repo
             .evolution()
-            .new_parent(mut_repo.store(), original.id()),
+            .new_parent(mut_repo.as_repo_ref(), original.id()),
         vec![rewritten2.id().clone(), rewritten3.id().clone()]
             .into_iter()
             .collect()
@@ -498,7 +498,7 @@ fn test_new_parent_split_forked_pruned(use_git: bool) {
     assert_eq!(
         mut_repo
             .evolution()
-            .new_parent(mut_repo.store(), original.id()),
+            .new_parent(mut_repo.as_repo_ref(), original.id()),
         vec![rewritten3.id().clone()].into_iter().collect()
     );
     tx.discard();

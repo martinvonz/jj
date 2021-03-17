@@ -258,7 +258,7 @@ fn update_checkout_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) {
     // TODO: Perhaps this method should be in MutableRepo.
     let new_checkout_candidates = mut_repo
         .evolution()
-        .new_parent(mut_repo.store(), mut_repo.view().checkout());
+        .new_parent(mut_repo.as_repo_ref(), mut_repo.view().checkout());
     if new_checkout_candidates.is_empty() {
         return;
     }

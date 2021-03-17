@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
-use crate::dag_walk::{bfs, closest_common_node, leaves, walk_ancestors};
+use crate::dag_walk::{bfs, closest_common_node, leaves};
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use crate::repo_path::DirRepoPath;
 use crate::rewrite::{merge_commit_trees, rebase_commit};
@@ -228,7 +228,8 @@ impl State {
         }
     }
 
-    pub fn new_parent(&self, store: &StoreWrapper, old_parent_id: &CommitId) -> HashSet<CommitId> {
+    pub fn new_parent(&self, repo: RepoRef, old_parent_id: &CommitId) -> HashSet<CommitId> {
+        let store = repo.store();
         let mut new_parents = HashSet::new();
         if let Some(successor_ids) = self.successors.get(old_parent_id) {
             let old_parent = store.get_commit(old_parent_id).unwrap();
@@ -286,22 +287,20 @@ impl State {
                 );
 
                 for candidate in candidates {
-                    all_candidates.insert(candidate.clone());
+                    all_candidates.insert(candidate.id().clone());
                 }
             }
 
-            // Filter out candidates that are ancestors of or other candidates.
-            let non_heads: Vec<_> = all_candidates
-                .iter()
-                .flat_map(|commit| commit.parents())
+            // Filter out candidates that are ancestors of other candidates.
+            let all_candidates: Vec<CommitId> = repo
+                .index()
+                .heads(all_candidates.iter())
+                .into_iter()
                 .collect();
-            for commit in walk_ancestors(non_heads) {
-                all_candidates.remove(&commit);
-            }
 
             for candidate in all_candidates {
                 // TODO: Make this not recursive
-                for effective_successor in self.new_parent(store, candidate.id()) {
+                for effective_successor in self.new_parent(repo, &candidate) {
                     new_parents.insert(effective_successor);
                 }
             }
@@ -363,10 +362,10 @@ impl EvolutionRef<'_> {
     /// change id as A). Then C is rebased to somewhere else and becomes C'.
     /// We will choose that C' as effective successor even though it has a
     /// different change id and is not a descendant of one that does.
-    pub fn new_parent(&self, store: &StoreWrapper, old_parent_id: &CommitId) -> HashSet<CommitId> {
+    pub fn new_parent(&self, repo: RepoRef, old_parent_id: &CommitId) -> HashSet<CommitId> {
         match self {
-            EvolutionRef::Readonly(evolution) => evolution.new_parent(store, old_parent_id),
-            EvolutionRef::Mutable(evolution) => evolution.new_parent(store, old_parent_id),
+            EvolutionRef::Readonly(evolution) => evolution.new_parent(repo, old_parent_id),
+            EvolutionRef::Mutable(evolution) => evolution.new_parent(repo, old_parent_id),
         }
     }
 }
@@ -421,8 +420,8 @@ impl ReadonlyEvolution {
         self.state.is_divergent(change_id)
     }
 
-    pub fn new_parent(&self, store: &StoreWrapper, old_parent_id: &CommitId) -> HashSet<CommitId> {
-        self.state.new_parent(store, old_parent_id)
+    pub fn new_parent(&self, repo: RepoRef, old_parent_id: &CommitId) -> HashSet<CommitId> {
+        self.state.new_parent(repo, old_parent_id)
     }
 }
 
@@ -453,8 +452,8 @@ impl MutableEvolution {
         self.state.is_divergent(change_id)
     }
 
-    pub fn new_parent(&self, store: &StoreWrapper, old_parent_id: &CommitId) -> HashSet<CommitId> {
-        self.state.new_parent(store, old_parent_id)
+    pub fn new_parent(&self, repo: RepoRef, old_parent_id: &CommitId) -> HashSet<CommitId> {
+        self.state.new_parent(repo, old_parent_id)
     }
 
     pub fn add_commit(&mut self, commit: &Commit) {
@@ -521,7 +520,8 @@ pub fn evolve(
         let mut ambiguous_new_parents = false;
         let evolution = mut_repo.evolution();
         for old_parent in &old_parents {
-            let new_parent_candidates = evolution.new_parent(&store, old_parent.id());
+            let new_parent_candidates =
+                evolution.new_parent(mut_repo.as_repo_ref(), old_parent.id());
             if new_parent_candidates.len() > 1 {
                 ambiguous_new_parents = true;
                 break;
