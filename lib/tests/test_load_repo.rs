@@ -40,7 +40,7 @@ fn test_load_at_operation(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("remove commit");
-    tx.remove_head(&commit);
+    tx.mut_repo().remove_head(&commit);
     tx.commit();
 
     // If we load the repo at head, we should not see the commit since it was

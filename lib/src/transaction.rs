@@ -64,21 +64,6 @@ impl<'r> Transaction<'r> {
         mut_repo.write_commit(commit)
     }
 
-    pub fn add_head(&mut self, head: &Commit) {
-        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.add_head(head)
-    }
-
-    pub fn remove_head(&mut self, head: &Commit) {
-        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.remove_head(head)
-    }
-
-    pub fn set_view(&mut self, data: op_store::View) {
-        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.set_view(data);
-    }
-
     /// Writes the transaction to the operation store and publishes it.
     pub fn commit(self) -> Operation {
         self.write().publish()

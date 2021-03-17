@@ -266,7 +266,7 @@ fn test_index_commits_previous_operations(use_git: bool) {
     Arc::get_mut(&mut repo).unwrap().reload();
 
     let mut tx = repo.start_transaction("test");
-    tx.remove_head(&commit_c);
+    tx.mut_repo().remove_head(&commit_c);
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 

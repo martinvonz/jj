@@ -1409,9 +1409,10 @@ fn cmd_discard(
     let mut_repo = Arc::get_mut(&mut repo).unwrap();
     let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
     let mut tx = repo.start_transaction(&format!("discard commit {}", commit.id().hex()));
-    tx.remove_head(&commit);
+    let mut_repo = tx.mut_repo();
+    mut_repo.remove_head(&commit);
     for parent in commit.parents() {
-        tx.add_head(&parent);
+        mut_repo.add_head(&parent);
     }
     // TODO: also remove descendants
     tx.commit();
@@ -2019,7 +2020,7 @@ fn cmd_op_restore(
     let owned_wc = repo.working_copy().clone();
     let target_op = resolve_single_op(&repo, _cmd_matches.value_of("operation").unwrap())?;
     let mut tx = repo.start_transaction(&format!("restore to operation {}", target_op.id().hex()));
-    tx.set_view(target_op.view().take_store_view());
+    tx.mut_repo().set_view(target_op.view().take_store_view());
     tx.commit();
     update_working_copy(
         ui,
