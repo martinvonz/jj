@@ -1552,7 +1552,7 @@ fn cmd_split(
             .write_to_repo(mut_repo);
         ui.write("First part: ");
         ui.write_commit_summary(mut_repo.as_repo_ref(), &first_commit);
-        ui.write("Second part: ");
+        ui.write("\nSecond part: ");
         ui.write_commit_summary(mut_repo.as_repo_ref(), &second_commit);
         ui.write("\n");
         update_checkout_after_rewrite(ui, mut_repo);
