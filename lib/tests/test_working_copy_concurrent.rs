@@ -72,6 +72,7 @@ fn test_concurrent_checkout(use_git: bool) {
 fn test_concurrent_commit(use_git: bool) {
     // Test that concurrent working copy commits result in a chain of successors
     // instead of divergence.
+    let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo1) = testutils::init_repo(&settings, use_git);
 

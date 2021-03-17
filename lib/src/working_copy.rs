@@ -288,6 +288,9 @@ impl TreeState {
     pub fn write_tree(&mut self) -> &TreeId {
         // We create a temporary git repo with the working copy shared with ours only
         // so we can use libgit2's .gitignore check.
+        // TODO: We should probably have the caller pass in the home directory to the
+        // library crate instead of depending on $HOME directly here (as we do because
+        // git2::Repository::status_should_ignore() reads the .gitignore there).
         // TODO: Do this more cleanly, perhaps by reading .gitignore files ourselves.
         let git_repo_dir = tempfile::tempdir().unwrap();
         let mut git_repo_options = RepositoryInitOptions::new();

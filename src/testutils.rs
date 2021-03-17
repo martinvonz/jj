@@ -15,7 +15,7 @@
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use jujube_lib::testutils::user_settings;
+use jujube_lib::testutils::{new_user_home, user_settings};
 
 use crate::commands;
 use crate::ui::Ui;
@@ -34,6 +34,7 @@ impl CommandRunner {
     }
 
     pub fn run(self, mut args: Vec<&str>) -> CommandOutput {
+        let _home_dir = new_user_home();
         let mut stdout_buf = self.stdout_buf;
         let stdout = Box::new(Cursor::new(&mut stdout_buf));
         let ui = Ui::new(self.cwd, stdout, false, user_settings());

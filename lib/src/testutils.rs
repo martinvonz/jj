@@ -28,6 +28,14 @@ use crate::store_wrapper::StoreWrapper;
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
 
+pub fn new_user_home() -> TempDir {
+    // Set $HOME to some arbitrary place so libgit2 doesn't use ~/.gitignore
+    // of the person running the tests.
+    let home_dir = tempfile::tempdir().unwrap();
+    std::env::set_var("HOME", home_dir.path());
+    home_dir
+}
+
 pub fn user_settings() -> UserSettings {
     let mut config = config::Config::new();
     config.set("user.name", "Test User").unwrap();

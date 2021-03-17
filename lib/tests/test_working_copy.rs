@@ -244,7 +244,7 @@ fn test_checkout_file_transitions(use_git: bool) {
 fn test_commit_racy_timestamps(use_git: bool) {
     // Tests that file modifications are detected even if they happen the same
     // millisecond as the updated working copy state.
-
+    let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
@@ -274,6 +274,7 @@ fn test_commit_racy_timestamps(use_git: bool) {
 fn test_gitignores(use_git: bool) {
     // Tests that .gitignore files are respected.
 
+    let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
