@@ -205,7 +205,7 @@ where
 
 /// Find nodes in the start set that are not reachable from other nodes in the
 /// start set.
-pub fn unreachable<T, ID, II, NI>(
+pub fn heads<T, ID, II, NI>(
     start: II,
     neighbors_fn: &impl Fn(&T) -> NI,
     id_fn: &impl Fn(&T) -> ID,
@@ -300,7 +300,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn topo_order_reverse_linear() {
+    fn test_topo_order_reverse_linear() {
         // This graph:
         //  o C
         //  o B
@@ -322,7 +322,7 @@ mod tests {
     }
 
     #[test]
-    fn topo_order_reverse_merge() {
+    fn test_topo_order_reverse_merge() {
         // This graph:
         //  o F
         //  |\
@@ -352,7 +352,7 @@ mod tests {
     }
 
     #[test]
-    fn topo_order_reverse_multiple_heads() {
+    fn test_topo_order_reverse_multiple_heads() {
         // This graph:
         //  o F
         //  |\
@@ -384,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    fn closest_common_node_tricky() {
+    fn test_closest_common_node_tricky() {
         // Test this case where A is the shortest distance away, but we still want the
         // result to be B because A is an ancestor of B. In other words, we want
         // to minimize the longest distance.
@@ -421,7 +421,7 @@ mod tests {
     }
 
     #[test]
-    fn unreachable_mixed() {
+    fn test_heads_mixed() {
         // Test the uppercase letters are in the start set
         //
         //  D F
@@ -442,7 +442,7 @@ mod tests {
         };
         let expected: HashSet<char> = vec!['D', 'F'].into_iter().collect();
 
-        let actual = unreachable(
+        let actual = heads(
             vec!['A', 'C', 'D', 'F'],
             &|node| neighbors[node].clone(),
             &|node| *node,
@@ -450,7 +450,7 @@ mod tests {
         assert_eq!(actual, expected);
 
         // Check with a different order in the start set
-        let actual = unreachable(
+        let actual = heads(
             vec!['F', 'D', 'C', 'A'],
             &|node| neighbors[node].clone(),
             &|node| *node,
