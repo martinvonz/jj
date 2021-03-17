@@ -22,7 +22,6 @@ use crate::settings::UserSettings;
 use crate::store;
 use crate::store::{ChangeId, CommitId, Signature, Timestamp, TreeId};
 use crate::store_wrapper::StoreWrapper;
-use crate::transaction::Transaction;
 
 #[derive(Debug)]
 pub struct CommitBuilder {
@@ -157,18 +156,9 @@ impl CommitBuilder {
 
     pub fn write_to_new_transaction(self, repo: &ReadonlyRepo, description: &str) -> Commit {
         let mut tx = repo.start_transaction(description);
-        let commit = self.write_to_transaction(&mut tx);
+        let commit = self.write_to_repo(tx.mut_repo());
         tx.commit();
         commit
-    }
-
-    pub fn write_to_transaction(mut self, tx: &mut Transaction) -> Commit {
-        let parents = &mut self.commit.parents;
-        if parents.contains(self.store.root_commit_id()) {
-            assert_eq!(parents.len(), 1);
-            parents.clear();
-        }
-        tx.write_commit(self.commit)
     }
 
     pub fn write_to_repo(mut self, repo: &mut MutableRepo) -> Commit {

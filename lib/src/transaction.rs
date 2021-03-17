@@ -14,14 +14,12 @@
 
 use std::sync::Arc;
 
-use crate::commit::Commit;
 use crate::op_heads_store::OpHeadsStore;
+use crate::op_store;
 use crate::op_store::{OperationId, OperationMetadata};
 use crate::operation::Operation;
-use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
+use crate::repo::{MutableRepo, ReadonlyRepo};
 use crate::store::Timestamp;
-use crate::store_wrapper::StoreWrapper;
-use crate::{op_store, store};
 
 pub struct Transaction<'r> {
     repo: Option<Arc<MutableRepo<'r>>>,
@@ -51,17 +49,8 @@ impl<'r> Transaction<'r> {
         self.parents = parents;
     }
 
-    pub fn as_repo_ref(&self) -> RepoRef {
-        self.repo.as_ref().unwrap().as_repo_ref()
-    }
-
     pub fn mut_repo(&mut self) -> &mut MutableRepo<'r> {
         Arc::get_mut(self.repo.as_mut().unwrap()).unwrap()
-    }
-
-    pub fn write_commit(&mut self, commit: store::Commit) -> Commit {
-        let mut_repo = Arc::get_mut(self.repo.as_mut().unwrap()).unwrap();
-        mut_repo.write_commit(commit)
     }
 
     /// Writes the transaction to the operation store and publishes it.

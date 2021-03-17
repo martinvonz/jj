@@ -1214,7 +1214,7 @@ fn cmd_describe(
     let mut tx = repo.start_transaction(&format!("describe commit {}", commit.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_description(description)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
@@ -1237,7 +1237,7 @@ fn cmd_open(
     let mut tx = repo.start_transaction(&format!("open commit {}", commit.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_open(true)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
@@ -1269,7 +1269,7 @@ fn cmd_close(
     }
     commit_builder = commit_builder.set_description(description);
     let mut tx = repo.start_transaction(&format!("close commit {}", commit.id().hex()));
-    commit_builder.write_to_transaction(&mut tx);
+    commit_builder.write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
@@ -1289,11 +1289,12 @@ fn cmd_duplicate(
     let mut_repo = Arc::get_mut(&mut repo).unwrap();
     let predecessor = resolve_revision_arg(ui, mut_repo, sub_matches)?;
     let mut tx = repo.start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
+    let mut_repo = tx.mut_repo();
     let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
         .generate_new_change_id()
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     ui.write("created: ");
-    ui.write_commit_summary(tx.as_repo_ref(), &new_commit);
+    ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit);
     ui.write("\n");
     tx.commit();
     Ok(())
@@ -1316,7 +1317,7 @@ fn cmd_prune(
     let mut tx = repo.start_transaction(&format!("prune commit {}", predecessor.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
         .set_pruned(true)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(
@@ -1379,18 +1380,19 @@ fn cmd_squash(
         )));
     }
     let mut tx = repo.start_transaction(&format!("squash commit {}", commit.id().hex()));
+    let mut_repo = tx.mut_repo();
     let squashed_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &parent)
         .set_tree(commit.tree().id().clone())
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(mut_repo);
     // Commit the remainder on top of the new commit (always empty in the
     // non-interactive case), so the squashed-in commit becomes obsolete, and so
     // descendants evolve correctly.
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_parents(vec![squashed_commit.id().clone()])
         .set_pruned(true)
-        .write_to_transaction(&mut tx);
-    update_checkout_after_rewrite(ui, tx.mut_repo());
+        .write_to_repo(mut_repo);
+    update_checkout_after_rewrite(ui, mut_repo);
     tx.commit();
     update_working_copy(
         ui,
@@ -1466,14 +1468,15 @@ fn cmd_restore(
             "restore into commit {}",
             destination_commit.id().hex()
         ));
+        let mut_repo = tx.mut_repo();
         let new_commit =
             CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &destination_commit)
                 .set_tree(tree_id)
-                .write_to_transaction(&mut tx);
+                .write_to_repo(mut_repo);
         ui.write("Created ");
-        ui.write_commit_summary(tx.as_repo_ref(), &new_commit);
+        ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit);
         ui.write("\n");
-        update_checkout_after_rewrite(ui, tx.mut_repo());
+        update_checkout_after_rewrite(ui, mut_repo);
         tx.commit();
         update_working_copy(
             ui,
@@ -1499,13 +1502,14 @@ fn cmd_edit(
         ui.write("Nothing changed.\n");
     } else {
         let mut tx = repo.start_transaction(&format!("edit commit {}", commit.id().hex()));
+        let mut_repo = tx.mut_repo();
         let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_tree(tree_id)
-            .write_to_transaction(&mut tx);
+            .write_to_repo(mut_repo);
         ui.write("Created ");
-        ui.write_commit_summary(tx.as_repo_ref(), &new_commit);
+        ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit);
         ui.write("\n");
-        update_checkout_after_rewrite(ui, tx.mut_repo());
+        update_checkout_after_rewrite(ui, mut_repo);
         tx.commit();
         update_working_copy(
             ui,
@@ -1531,26 +1535,27 @@ fn cmd_split(
         ui.write("Nothing changed.\n");
     } else {
         let mut tx = repo.start_transaction(&format!("split commit {}", commit.id().hex()));
+        let mut_repo = tx.mut_repo();
         // TODO: Add a header or footer to the decription where we describe to the user
         // that this is the first commit
         let first_description = edit_description(&repo, commit.description());
         let first_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_tree(tree_id)
             .set_description(first_description)
-            .write_to_transaction(&mut tx);
+            .write_to_repo(mut_repo);
         let second_description = edit_description(&repo, commit.description());
         let second_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_parents(vec![first_commit.id().clone()])
             .set_tree(commit.tree().id().clone())
             .generate_new_change_id()
             .set_description(second_description)
-            .write_to_transaction(&mut tx);
+            .write_to_repo(mut_repo);
         ui.write("First part: ");
-        ui.write_commit_summary(tx.as_repo_ref(), &first_commit);
+        ui.write_commit_summary(mut_repo.as_repo_ref(), &first_commit);
         ui.write("Second part: ");
-        ui.write_commit_summary(tx.as_repo_ref(), &second_commit);
+        ui.write_commit_summary(mut_repo.as_repo_ref(), &second_commit);
         ui.write("\n");
-        update_checkout_after_rewrite(ui, tx.mut_repo());
+        update_checkout_after_rewrite(ui, mut_repo);
         tx.commit();
         update_working_copy(
             ui,
@@ -1594,7 +1599,7 @@ fn cmd_merge(
         .set_parents(parent_ids)
         .set_description(description)
         .set_open(false)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo());
     tx.commit();
     update_working_copy(

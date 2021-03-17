@@ -35,13 +35,13 @@ fn test_heads_fork(use_git: bool) {
 
     let initial = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![repo.store().root_commit_id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     let child1 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![initial.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     let child2 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![initial.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
 
     let wc = repo.working_copy_locked();
     assert_eq!(
@@ -64,16 +64,16 @@ fn test_heads_merge(use_git: bool) {
 
     let initial = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![repo.store().root_commit_id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     let child1 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![initial.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     let child2 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![initial.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     let merge = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![child1.id().clone(), child2.id().clone()])
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
 
     let wc = repo.working_copy_locked();
     assert_eq!(

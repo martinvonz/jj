@@ -82,16 +82,16 @@ fn test_index_commits_standard_cases(use_git: bool) {
     let root_commit = repo.store().root_commit();
     let wc_commit = repo.working_copy_locked().current_commit();
     let mut tx = repo.start_transaction("test");
-    let commit_a = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    let commit_b = child_commit(&settings, &repo, &commit_a).write_to_transaction(&mut tx);
-    let commit_c = child_commit(&settings, &repo, &commit_a).write_to_transaction(&mut tx);
-    let commit_d = child_commit(&settings, &repo, &commit_c).write_to_transaction(&mut tx);
-    let commit_e = child_commit(&settings, &repo, &commit_d).write_to_transaction(&mut tx);
+    let commit_a = child_commit(&settings, &repo, &root_commit).write_to_repo(tx.mut_repo());
+    let commit_b = child_commit(&settings, &repo, &commit_a).write_to_repo(tx.mut_repo());
+    let commit_c = child_commit(&settings, &repo, &commit_a).write_to_repo(tx.mut_repo());
+    let commit_d = child_commit(&settings, &repo, &commit_c).write_to_repo(tx.mut_repo());
+    let commit_e = child_commit(&settings, &repo, &commit_d).write_to_repo(tx.mut_repo());
     let commit_f = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit_b.id().clone(), commit_e.id().clone()])
-        .write_to_transaction(&mut tx);
-    let commit_g = child_commit(&settings, &repo, &commit_f).write_to_transaction(&mut tx);
-    let commit_h = child_commit(&settings, &repo, &commit_e).write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
+    let commit_g = child_commit(&settings, &repo, &commit_f).write_to_repo(tx.mut_repo());
+    let commit_h = child_commit(&settings, &repo, &commit_e).write_to_repo(tx.mut_repo());
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -145,22 +145,22 @@ fn test_index_commits_criss_cross(use_git: bool) {
     // finishes in reasonable time, we know that we don't do a naive traversal.
     let mut tx = repo.start_transaction("test");
     let mut left_commits =
-        vec![child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx)];
+        vec![child_commit(&settings, &repo, &root_commit).write_to_repo(tx.mut_repo())];
     let mut right_commits =
-        vec![child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx)];
+        vec![child_commit(&settings, &repo, &root_commit).write_to_repo(tx.mut_repo())];
     for gen in 1..num_generations {
         let new_left = testutils::create_random_commit(&settings, &repo)
             .set_parents(vec![
                 left_commits[gen - 1].id().clone(),
                 right_commits[gen - 1].id().clone(),
             ])
-            .write_to_transaction(&mut tx);
+            .write_to_repo(tx.mut_repo());
         let new_right = testutils::create_random_commit(&settings, &repo)
             .set_parents(vec![
                 left_commits[gen - 1].id().clone(),
                 right_commits[gen - 1].id().clone(),
             ])
-            .write_to_transaction(&mut tx);
+            .write_to_repo(tx.mut_repo());
         left_commits.push(new_left);
         right_commits.push(new_right);
     }
@@ -259,9 +259,9 @@ fn test_index_commits_previous_operations(use_git: bool) {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
-    let commit_a = child_commit(&settings, &repo, &root_commit).write_to_transaction(&mut tx);
-    let commit_b = child_commit(&settings, &repo, &commit_a).write_to_transaction(&mut tx);
-    let commit_c = child_commit(&settings, &repo, &commit_b).write_to_transaction(&mut tx);
+    let commit_a = child_commit(&settings, &repo, &root_commit).write_to_repo(tx.mut_repo());
+    let commit_b = child_commit(&settings, &repo, &commit_a).write_to_repo(tx.mut_repo());
+    let commit_c = child_commit(&settings, &repo, &commit_b).write_to_repo(tx.mut_repo());
     tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 
@@ -322,8 +322,8 @@ fn test_index_commits_incremental(use_git: bool) {
     assert_eq!(index.num_commits(), 2 + 1);
 
     let mut tx = repo.start_transaction("test");
-    let commit_b = child_commit(&settings, &repo, &commit_a).write_to_transaction(&mut tx);
-    let commit_c = child_commit(&settings, &repo, &commit_b).write_to_transaction(&mut tx);
+    let commit_b = child_commit(&settings, &repo, &commit_a).write_to_repo(tx.mut_repo());
+    let commit_c = child_commit(&settings, &repo, &commit_b).write_to_repo(tx.mut_repo());
     tx.commit();
 
     let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
@@ -419,7 +419,7 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
 fn create_n_commits(settings: &UserSettings, repo: &mut Arc<ReadonlyRepo>, num_commits: i32) {
     let mut tx = repo.start_transaction("test");
     for _ in 0..num_commits {
-        create_random_commit(settings, repo).write_to_transaction(&mut tx);
+        create_random_commit(settings, repo).write_to_repo(tx.mut_repo());
     }
     tx.commit();
     Arc::get_mut(repo).unwrap().reload();

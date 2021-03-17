@@ -35,7 +35,7 @@ fn test_load_at_operation(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("add commit");
-    let commit = testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    let commit = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
     let op = tx.commit();
     Arc::get_mut(&mut repo).unwrap().reload();
 

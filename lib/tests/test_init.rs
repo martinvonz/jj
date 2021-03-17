@@ -27,7 +27,7 @@ fn test_init_local() {
 
     // Just test that we write a commit to the store
     let mut tx = repo.start_transaction("test");
-    testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
     tx.discard();
 }
 
@@ -43,7 +43,7 @@ fn test_init_internal_git() {
 
     // Just test that we write a commit to the store
     let mut tx = repo.start_transaction("test");
-    testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
     tx.discard();
 }
 
@@ -62,6 +62,6 @@ fn test_init_external_git() {
 
     // Just test that we write a commit to the store
     let mut tx = repo.start_transaction("test");
-    testutils::create_random_commit(&settings, &repo).write_to_transaction(&mut tx);
+    testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
     tx.discard();
 }

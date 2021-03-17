@@ -121,7 +121,7 @@ fn test_checkout_parallel(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())
         .set_open(true)
-        .write_to_transaction(&mut tx);
+        .write_to_repo(tx.mut_repo());
     repo.working_copy_locked().check_out(commit).unwrap();
     tx.commit();
 
