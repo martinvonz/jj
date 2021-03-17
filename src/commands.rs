@@ -357,7 +357,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .arg(rev_arg());
     let prune_command = SubCommand::with_name("prune")
         .about("create an empty successor of a commit")
-        .arg(rev_arg());
+        .arg(Arg::with_name("revision").index(1).required(true));
     let new_command = SubCommand::with_name("new")
         .about("create a new, empty commit")
         .arg(rev_arg());
