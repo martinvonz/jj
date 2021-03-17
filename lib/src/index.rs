@@ -654,6 +654,13 @@ impl MutableIndex {
     ) -> Vec<CommitId> {
         CompositeIndex(self).heads(candidates)
     }
+
+    pub fn topo_order<'candidates>(
+        &self,
+        input: impl IntoIterator<Item = &'candidates CommitId>,
+    ) -> Vec<IndexEntry> {
+        CompositeIndex(self).topo_order(input)
+    }
 }
 
 trait IndexSegment {
@@ -932,6 +939,19 @@ impl<'a> CompositeIndex<'a> {
         }
         candidate_positions
     }
+
+    pub fn topo_order<'input>(
+        &self,
+        input: impl IntoIterator<Item = &'input CommitId>,
+    ) -> Vec<IndexEntry<'a>> {
+        let mut entries_by_generation: Vec<_> = input
+            .into_iter()
+            .map(|id| IndexEntryByPosition(self.entry_by_id(id).unwrap()))
+            .collect();
+        entries_by_generation.sort();
+        let entries: Vec<_> = entries_by_generation.into_iter().map(|key| key.0).collect();
+        entries
+    }
 }
 
 pub struct IndexLevelStats {
@@ -947,6 +967,21 @@ pub struct IndexStats {
     pub num_pruned_commits: u32,
     pub num_changes: u32,
     pub levels: Vec<IndexLevelStats>,
+}
+
+#[derive(Eq, PartialEq)]
+struct IndexEntryByPosition<'a>(IndexEntry<'a>);
+
+impl Ord for IndexEntryByPosition<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.pos.cmp(&other.0.pos)
+    }
+}
+
+impl PartialOrd for IndexEntryByPosition<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 #[derive(Eq, PartialEq)]
@@ -1292,6 +1327,10 @@ impl PartialEq for IndexEntry<'_> {
 impl Eq for IndexEntry<'_> {}
 
 impl<'a> IndexEntry<'a> {
+    pub fn position(&self) -> u32 {
+        self.pos
+    }
+
     pub fn generation_number(&self) -> u32 {
         self.source.segment_generation_number(self.local_pos)
     }
@@ -1447,6 +1486,13 @@ impl ReadonlyIndex {
         candidates: impl IntoIterator<Item = &'candidates CommitId>,
     ) -> Vec<CommitId> {
         CompositeIndex(self).heads(candidates)
+    }
+
+    pub fn topo_order<'candidates>(
+        &self,
+        input: impl IntoIterator<Item = &'candidates CommitId>,
+    ) -> Vec<IndexEntry> {
+        CompositeIndex(self).topo_order(input)
     }
 
     fn graph_entry(&self, local_pos: u32) -> CommitGraphEntry {

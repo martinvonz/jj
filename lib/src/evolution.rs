@@ -484,42 +484,23 @@ pub fn evolve(
         evolve_divergent_change(user_settings, &store, mut_repo, listener, &commits);
     }
 
-    // Dom't reuse the state from above, since the divergence-resolution may have
+    // Don't reuse the state from above, since the divergence-resolution may have
     // created new orphans, or resolved existing orphans.
-    let orphans: HashSet<Commit> = mut_repo
-        .evolution()
-        .state
-        .orphan_commits
+    let orphans_topo_order: Vec<_> = mut_repo
+        .index()
+        .topo_order(mut_repo.evolution().state.orphan_commits.iter())
         .iter()
-        .map(|id| store.get_commit(&id).unwrap())
+        .map(|entry| entry.position())
         .collect();
-    let non_heads: HashSet<Commit> = orphans.iter().flat_map(|commit| commit.parents()).collect();
-    let orphan_heads: HashSet<Commit> = orphans.difference(&non_heads).cloned().collect();
-    let mut orphans_topo_order = vec![];
-    for commit in bfs(
-        orphan_heads,
-        Box::new(|commit| commit.id().clone()),
-        Box::new(|commit| {
-            commit
-                .parents()
-                .iter()
-                .filter(|commit| orphans.contains(commit))
-                .cloned()
-                .collect::<Vec<_>>()
-        }),
-    ) {
-        orphans_topo_order.push(commit);
-    }
 
-    while !orphans_topo_order.is_empty() {
-        let orphan = orphans_topo_order.pop().unwrap();
-        let old_parents = orphan.parents();
+    for orphan_pos in orphans_topo_order {
+        let orphan_entry = mut_repo.index().entry_by_pos(orphan_pos);
         let mut new_parents = vec![];
         let mut ambiguous_new_parents = false;
         let evolution = mut_repo.evolution();
-        for old_parent in &old_parents {
+        for old_parent in orphan_entry.parents() {
             let new_parent_candidates =
-                evolution.new_parent(mut_repo.as_repo_ref(), old_parent.id());
+                evolution.new_parent(mut_repo.as_repo_ref(), &old_parent.commit_id());
             if new_parent_candidates.len() > 1 {
                 ambiguous_new_parents = true;
                 break;
@@ -530,6 +511,7 @@ pub fn evolve(
                     .unwrap(),
             );
         }
+        let orphan = store.get_commit(&orphan_entry.commit_id()).unwrap();
         if ambiguous_new_parents {
             listener.orphan_target_ambiguous(mut_repo, &orphan);
         } else {

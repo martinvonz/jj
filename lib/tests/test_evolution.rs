@@ -618,6 +618,43 @@ fn test_evolve_pruned_orphan(use_git: bool) {
 
 #[test_case(false ; "local store")]
 // #[test_case(true ; "git store")]
+fn test_evolve_multiple_orphans(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let root_commit = repo.store().root_commit();
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let initial = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
+    let child = child_commit(&settings, &repo, &initial).write_to_repo(mut_repo);
+    let grandchild = child_commit(&settings, &repo, &child).write_to_repo(mut_repo);
+    let grandchild2 = child_commit(&settings, &repo, &child).write_to_repo(mut_repo);
+
+    let rewritten = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial)
+        .set_description("rewritten".to_string())
+        .write_to_repo(mut_repo);
+
+    let mut listener = RecordingEvolveListener::default();
+    evolve(&settings, mut_repo, &mut listener);
+    assert_eq!(listener.evolved_divergents.len(), 0);
+    assert_eq!(listener.evolved_orphans.len(), 3);
+    assert_eq!(&listener.evolved_orphans[0].0, &child);
+    assert_eq!(&listener.evolved_orphans[0].1.parents(), &vec![rewritten]);
+    assert_eq!(&listener.evolved_orphans[1].0, &grandchild);
+    assert_eq!(
+        &listener.evolved_orphans[1].1.parents(),
+        &vec![listener.evolved_orphans[0].1.clone()]
+    );
+    assert_eq!(&listener.evolved_orphans[2].0, &grandchild2);
+    assert_eq!(
+        &listener.evolved_orphans[2].1.parents(),
+        &vec![listener.evolved_orphans[0].1.clone()]
+    );
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+// #[test_case(true ; "git store")]
 fn test_evolve_divergent(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
