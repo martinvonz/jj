@@ -619,8 +619,8 @@ impl<'r> MutableRepo<'r> {
     fn enforce_view_invariants(&mut self) {
         let view = self.view.store_view_mut();
         // TODO: This is surely terribly slow on large repos, at least in its current
-        // form. We should make it faster (using the index) and avoid calling it in
-        // most cases (avoid adding a head that's already reachable in the view).
+        // form. We should avoid calling it in most cases (avoid adding a head that's
+        // already reachable in the view).
         view.public_head_ids = self
             .index
             .heads(view.public_head_ids.iter())
