@@ -92,37 +92,6 @@ where
     }
 }
 
-pub struct TopoIter<'id_fn, 'neighbors_fn, T, ID, NI> {
-    id_fn: Box<dyn Fn(&T) -> ID + 'id_fn>,
-    neighbors_fn: Box<dyn FnMut(&T) -> NI + 'neighbors_fn>,
-    work: Vec<T>,
-    visited: HashSet<ID>,
-}
-
-impl<T, ID, NI> Iterator for TopoIter<'_, '_, T, ID, NI>
-where
-    ID: Hash + Eq,
-    NI: IntoIterator<Item = T>,
-{
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while !self.work.is_empty() {
-            let c = self.work.pop().unwrap();
-            let id = (self.id_fn)(&c);
-            if self.visited.contains(&id) {
-                continue;
-            }
-            for p in (self.neighbors_fn)(&c) {
-                self.work.push(p);
-            }
-            self.visited.insert(id);
-            return Some(c);
-        }
-        None
-    }
-}
-
 /// Returns neighbors before the node itself.
 pub fn topo_order_reverse<'a, T, ID, II, NI>(
     start: II,
