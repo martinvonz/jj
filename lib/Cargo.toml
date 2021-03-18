@@ -13,7 +13,7 @@ readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-protobuf-codegen-pure = "2.22.0"
+protobuf-codegen-pure = "2.22.1"
 
 [dependencies]
 backoff = "0.2.1"
@@ -27,7 +27,7 @@ dirs = "3.0.1"
 git2 = "0.13.14"
 hex = "0.4.2"
 maplit = "1.0.2"
-protobuf = { version = "2.22.0", features = ["with-bytes"] }
+protobuf = { version = "2.22.1", features = ["with-bytes"] }
 rand = "0.8.0"
 serde_json = "1.0.60"
 tempfile = "3.1.0"
