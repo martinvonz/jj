@@ -171,63 +171,32 @@ struct SyncRegion {
     right: Range<usize>,
 }
 
-fn diff_result_lengths(diff: &diff::Result<&&[u8]>) -> (usize, usize) {
-    match diff {
-        diff::Result::Left(&left) => (left.len(), 0),
-        diff::Result::Both(&left, &right) => (left.len(), right.len()),
-        diff::Result::Right(&right) => (0, right.len()),
-    }
-}
-
-fn unmodified_regions(
-    left_tokens: &[&[u8]],
-    right_tokens: &[&[u8]],
-) -> Vec<(Range<usize>, Range<usize>)> {
-    let diffs = diff_slice(left_tokens, right_tokens);
-    let mut left_pos = 0;
-    let mut right_pos = 0;
-    let mut regions = Vec::new();
-    for diff in diffs {
-        let (left_len, right_len) = diff_result_lengths(&diff);
-        match diff {
-            diff::Result::Both(&left, &right) if left == right => regions.push((
-                left_pos..left_pos + left_len,
-                right_pos..right_pos + right_len,
-            )),
-            _ => {}
-        }
-        left_pos += left_len;
-        right_pos += right_len;
-    }
-    regions
-}
-
 fn find_sync_regions(base: &[u8], left: &[u8], right: &[u8]) -> Vec<SyncRegion> {
-    let base_tokens = tokenize(base);
-    let left_tokens = tokenize(left);
-    let right_tokens = tokenize(right);
+    let base_tokens = crate::diff::find_line_ranges(base);
+    let left_tokens = crate::diff::find_line_ranges(left);
+    let right_tokens = crate::diff::find_line_ranges(right);
 
-    let left_regions = unmodified_regions(&base_tokens, &left_tokens);
-    let right_regions = unmodified_regions(&base_tokens, &right_tokens);
+    let left_regions = crate::diff::unchanged_ranges(base, left, &base_tokens, &left_tokens);
+    let right_regions = crate::diff::unchanged_ranges(base, right, &base_tokens, &right_tokens);
 
     let mut left_it = left_regions.iter().peekable();
     let mut right_it = right_regions.iter().peekable();
 
     let mut regions: Vec<SyncRegion> = vec![];
-    while let (Some((left_base_region, left_region)), Some((right_base_region, right_region))) =
+    while let (Some((left_base_range, left_range)), Some((right_base_range, right_range))) =
         (left_it.peek(), right_it.peek())
     {
-        // TODO: if left_base_region and right_base_region at least intersect, use the
+        // TODO: if left_base_range and right_base_range at least intersect, use the
         // intersection of the two regions.
-        if left_base_region == right_base_region {
+        if left_base_range == right_base_range {
             regions.push(SyncRegion {
-                base: left_base_region.clone(),
-                left: left_region.clone(),
-                right: right_region.clone(),
+                base: left_base_range.clone(),
+                left: left_range.clone(),
+                right: right_range.clone(),
             });
             left_it.next().unwrap();
             right_it.next().unwrap();
-        } else if left_base_region.start < right_base_region.start {
+        } else if left_base_range.start < right_base_range.start {
             left_it.next().unwrap();
         } else {
             right_it.next().unwrap();
@@ -312,19 +281,9 @@ mod tests {
                     right: 0..1
                 },
                 SyncRegion {
-                    base: 1..2,
-                    left: 1..2,
-                    right: 1..2
-                },
-                SyncRegion {
                     base: 2..3,
                     left: 4..5,
                     right: 2..3
-                },
-                SyncRegion {
-                    base: 3..4,
-                    left: 5..6,
-                    right: 3..4
                 },
                 SyncRegion {
                     base: 4..5,

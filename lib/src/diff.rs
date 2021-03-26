@@ -3,8 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Formatter};
 use std::ops::Range;
 
-#[allow(dead_code)]
-fn find_line_ranges(text: &[u8]) -> Vec<Range<usize>> {
+pub fn find_line_ranges(text: &[u8]) -> Vec<Range<usize>> {
     let mut ranges = vec![];
     let mut start = 0;
     loop {
@@ -24,7 +23,7 @@ fn find_line_ranges(text: &[u8]) -> Vec<Range<usize>> {
     ranges
 }
 
-fn find_word_ranges(text: &[u8]) -> Vec<Range<usize>> {
+pub fn find_word_ranges(text: &[u8]) -> Vec<Range<usize>> {
     let mut word_ranges = vec![];
     let mut word_start_pos = 0;
     let mut in_word = false;
@@ -169,7 +168,7 @@ fn find_lcs(input: &[usize]) -> Vec<(usize, usize)> {
 
 /// Finds unchanged ranges among the ones given as arguments. The data between
 /// those ranges is ignored.
-fn unchanged_ranges(
+pub(crate) fn unchanged_ranges(
     left: &[u8],
     right: &[u8],
     left_ranges: &[Range<usize>],
