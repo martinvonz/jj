@@ -346,12 +346,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "diff"
-version = "0.1.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e25ea47919b1560c4e3b7fe0aaab9becf5b84a10325ddf7db0f0ba5e1026499"
-
-[[package]]
 name = "digest"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -556,7 +550,6 @@ dependencies = [
  "clap",
  "config",
  "criterion",
- "diff",
  "dirs",
  "git2",
  "hex",
@@ -585,7 +578,6 @@ dependencies = [
  "bytes",
  "chrono",
  "config",
- "diff",
  "dirs",
  "git2",
  "hex",
