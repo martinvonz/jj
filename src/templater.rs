@@ -127,7 +127,7 @@ pub trait TemplateProperty<C, O> {
     fn extract(&self, context: &C) -> O;
 }
 
-pub struct ConstantTemplateProperty<O: Clone> {
+pub struct ConstantTemplateProperty<O> {
     pub output: O,
 }
 
