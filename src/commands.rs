@@ -134,13 +134,11 @@ fn resolve_single_rev(
     } else if revision_str.starts_with("desc(") && revision_str.ends_with(')') {
         let needle = revision_str[5..revision_str.len() - 1].to_string();
         let mut matches = vec![];
-        let heads: HashSet<Commit> = repo
-            .view()
-            .heads()
+        let head_ids = skip_uninteresting_heads(repo, &repo.view().heads());
+        let heads: Vec<_> = head_ids
             .iter()
-            .map(|commit_id| repo.store().get_commit(commit_id).unwrap())
+            .map(|id| repo.store().get_commit(&id).unwrap())
             .collect();
-        let heads = skip_uninteresting_heads(repo, heads);
         for commit in walk_ancestors(heads) {
             if commit.description().contains(&needle) {
                 matches.push(commit);
@@ -994,23 +992,28 @@ fn graph_log_template(settings: &UserSettings) -> String {
         .unwrap_or_else(|_| String::from(default_template))
 }
 
-fn skip_uninteresting_heads(repo: &ReadonlyRepo, heads: HashSet<Commit>) -> HashSet<Commit> {
+fn skip_uninteresting_heads(repo: &ReadonlyRepo, heads: &HashSet<CommitId>) -> HashSet<CommitId> {
+    let index = repo.index();
     let checkout_id = repo.view().checkout().clone();
     let mut result = HashSet::new();
-    let mut work: Vec<_> = heads.into_iter().collect();
+    let mut work: Vec<_> = heads
+        .iter()
+        .map(|id| index.entry_by_id(id).unwrap())
+        .collect();
     let evolution = repo.evolution();
     while !work.is_empty() {
-        let commit = work.pop().unwrap();
-        if result.contains(&commit) {
+        let index_entry = work.pop().unwrap();
+        let commit_id = index_entry.commit_id();
+        if result.contains(&commit_id) {
             continue;
         }
-        if (!commit.is_pruned() && !evolution.is_obsolete(commit.id()))
-            || commit.id() == &checkout_id
+        if (!index_entry.is_pruned() && !evolution.is_obsolete(&commit_id))
+            || commit_id == checkout_id
         {
-            result.insert(commit);
+            result.insert(commit_id);
         } else {
-            for parent in commit.parents() {
-                work.push(parent);
+            for parent_entry in index_entry.parents() {
+                work.push(parent_entry);
             }
         }
     }
@@ -1050,17 +1053,12 @@ fn cmd_log(
     styler.add_label(String::from("log"));
 
     let store = repo.store();
-    let mut heads: HashSet<_> = repo
-        .view()
-        .heads()
-        .iter()
-        .map(|id| store.get_commit(id).unwrap())
-        .collect();
+    let mut head_ids = repo.view().heads().clone();
     if !sub_matches.is_present("all") {
-        heads = skip_uninteresting_heads(&repo, heads);
+        head_ids = skip_uninteresting_heads(&repo, repo.view().heads());
     };
 
-    let head_ids: Vec<_> = heads.iter().map(|commit| commit.id().clone()).collect();
+    let head_ids: Vec<_> = head_ids.into_iter().collect();
     let index = repo.index();
     let index_entries = index.walk_revs(&head_ids, &[]);
     if use_graph {
