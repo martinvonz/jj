@@ -406,14 +406,14 @@ impl MutableIndex {
         for pos in other_segment.segment_num_parent_commits()..other.num_commits() {
             let entry = other.entry_by_pos(pos);
             let parent_ids: Vec<_> = entry
-                .parent_positions()
+                .parents()
                 .iter()
-                .map(|pos| other.entry_by_pos(*pos).commit_id())
+                .map(|entry| entry.commit_id())
                 .collect();
             let predecessor_ids: Vec<_> = entry
-                .predecessor_positions()
+                .predecessors()
                 .iter()
-                .map(|pos| other.entry_by_pos(*pos).commit_id())
+                .map(|entry| entry.commit_id())
                 .collect();
             self.add_commit_data(
                 entry.commit_id(),
@@ -853,14 +853,14 @@ impl<'a> CompositeIndex<'a> {
             match entry1.cmp(&entry2) {
                 Ordering::Greater => {
                     let entry1 = items1.pop_last().unwrap();
-                    for pos in entry1.0.parent_positions() {
-                        items1.insert(IndexEntryByGeneration(self.entry_by_pos(pos)));
+                    for parent_entry in entry1.0.parents() {
+                        items1.insert(IndexEntryByGeneration(parent_entry));
                     }
                 }
                 Ordering::Less => {
                     let entry2 = items2.pop_last().unwrap();
-                    for pos in entry2.0.parent_positions() {
-                        items2.insert(IndexEntryByGeneration(self.entry_by_pos(pos)));
+                    for parent_entry in entry2.0.parents() {
+                        items2.insert(IndexEntryByGeneration(parent_entry));
                     }
                 }
                 Ordering::Equal => {
@@ -908,8 +908,8 @@ impl<'a> CompositeIndex<'a> {
         for pos in &candidate_positions {
             let entry = self.entry_by_pos(*pos);
             min_generation = min(min_generation, entry.generation_number());
-            for parent_pos in entry.parent_positions() {
-                work.push(IndexEntryByGeneration(self.entry_by_pos(parent_pos)));
+            for parent_entry in entry.parents() {
+                work.push(IndexEntryByGeneration(parent_entry));
             }
         }
 
@@ -926,8 +926,8 @@ impl<'a> CompositeIndex<'a> {
                 break;
             }
             candidate_positions.remove(&item.pos);
-            for parent_pos in item.parent_positions() {
-                work.push(IndexEntryByGeneration(self.entry_by_pos(parent_pos)));
+            for parent_entry in item.parents() {
+                work.push(IndexEntryByGeneration(parent_entry));
             }
         }
         candidate_positions
@@ -1275,6 +1275,15 @@ pub struct IndexEntry<'a> {
     local_pos: u32,
 }
 
+impl Debug for IndexEntry<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IndexEntry")
+            .field("pos", &self.pos)
+            .field("local_pos", &self.local_pos)
+            .finish()
+    }
+}
+
 impl PartialEq for IndexEntry<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.pos == other.pos
@@ -1282,7 +1291,7 @@ impl PartialEq for IndexEntry<'_> {
 }
 impl Eq for IndexEntry<'_> {}
 
-impl IndexEntry<'_> {
+impl<'a> IndexEntry<'a> {
     pub fn generation_number(&self) -> u32 {
         self.source.segment_generation_number(self.local_pos)
     }
@@ -1307,12 +1316,28 @@ impl IndexEntry<'_> {
         self.source.segment_parent_positions(self.local_pos)
     }
 
+    pub fn parents(&self) -> Vec<IndexEntry<'a>> {
+        let composite = CompositeIndex(self.source);
+        self.parent_positions()
+            .into_iter()
+            .map(|pos| composite.entry_by_pos(pos))
+            .collect()
+    }
+
     pub fn num_predecessors(&self) -> u32 {
         self.source.segment_num_predecessors(self.local_pos)
     }
 
     pub fn predecessor_positions(&self) -> Vec<u32> {
         self.source.segment_predecessor_positions(self.local_pos)
+    }
+
+    pub fn predecessors(&self) -> Vec<IndexEntry<'a>> {
+        let composite = CompositeIndex(self.source);
+        self.predecessor_positions()
+            .into_iter()
+            .map(|pos| composite.entry_by_pos(pos))
+            .collect()
     }
 }
 
@@ -1550,8 +1575,10 @@ mod tests {
         assert_eq!(entry.generation_number(), 0);
         assert_eq!(entry.num_parents(), 0);
         assert_eq!(entry.parent_positions(), Vec::<u32>::new());
+        assert_eq!(entry.parents(), Vec::<IndexEntry>::new());
         assert_eq!(entry.num_predecessors(), 0);
         assert_eq!(entry.predecessor_positions(), Vec::<u32>::new());
+        assert_eq!(entry.predecessors(), Vec::<IndexEntry>::new());
     }
 
     #[test]
@@ -1674,6 +1701,8 @@ mod tests {
         assert_eq!(entry_1.generation_number(), 1);
         assert_eq!(entry_1.num_parents(), 1);
         assert_eq!(entry_1.parent_positions(), vec![0]);
+        assert_eq!(entry_1.parents().len(), 1);
+        assert_eq!(entry_1.parents()[0].pos, 0);
         assert_eq!(entry_1.num_predecessors(), 0);
         assert_eq!(entry_1.predecessor_positions(), Vec::<u32>::new());
         assert_eq!(entry_2.pos, 2);
@@ -1693,9 +1722,15 @@ mod tests {
         assert_eq!(entry_4.parent_positions(), vec![1]);
         assert_eq!(entry_4.num_predecessors(), 2);
         assert_eq!(entry_4.predecessor_positions(), vec![2, 3]);
+        assert_eq!(entry_4.predecessors().len(), 2);
+        assert_eq!(entry_4.predecessors()[0].pos, 2);
+        assert_eq!(entry_4.predecessors()[1].pos, 3);
         assert_eq!(entry_5.generation_number(), 3);
         assert_eq!(entry_5.num_parents(), 2);
         assert_eq!(entry_5.parent_positions(), vec![4, 2]);
+        assert_eq!(entry_5.parents().len(), 2);
+        assert_eq!(entry_5.parents()[0].pos, 4);
+        assert_eq!(entry_5.parents()[1].pos, 2);
         assert_eq!(entry_5.num_predecessors(), 0);
         assert_eq!(entry_5.predecessor_positions(), Vec::<u32>::new());
     }

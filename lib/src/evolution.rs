@@ -62,8 +62,7 @@ impl State {
             if entry.is_pruned() {
                 state.pruned_commits.insert(commit_id.clone());
             }
-            for parent_pos in entry.parent_positions() {
-                let parent_entry = index.entry_by_pos(parent_pos);
+            for parent_entry in entry.parents() {
                 let parent_id = parent_entry.commit_id();
                 state
                     .children
@@ -71,8 +70,7 @@ impl State {
                     .or_insert_with(HashSet::new)
                     .insert(commit_id.clone());
             }
-            for predecessor_pos in entry.predecessor_positions() {
-                let predecessor_entry = index.entry_by_pos(predecessor_pos);
+            for predecessor_entry in entry.predecessors() {
                 let predecessor_id = predecessor_entry.commit_id();
                 state
                     .successors
