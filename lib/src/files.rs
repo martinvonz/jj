@@ -245,27 +245,27 @@ mod tests {
         );
 
         assert_eq!(
-            find_sync_regions(b"a b c", b"a x b c", b"a b y c"),
+            find_sync_regions(b"a\nb\nc\n", b"a\nx\nb\nc\n", b"a\nb\ny\nc\n"),
             vec![
                 SyncRegion {
-                    base: 0..1,
-                    left: 0..1,
-                    right: 0..1
+                    base: 0..2,
+                    left: 0..2,
+                    right: 0..2
                 },
                 SyncRegion {
-                    base: 2..3,
-                    left: 4..5,
-                    right: 2..3
+                    base: 2..4,
+                    left: 4..6,
+                    right: 2..4
                 },
                 SyncRegion {
-                    base: 4..5,
-                    left: 6..7,
-                    right: 6..7
+                    base: 4..6,
+                    left: 6..8,
+                    right: 6..8
                 },
                 SyncRegion {
-                    base: 5..5,
-                    left: 7..7,
-                    right: 7..7
+                    base: 6..6,
+                    left: 8..8,
+                    right: 8..8
                 }
             ]
         );
@@ -290,13 +290,13 @@ mod tests {
             MergeResult::Resolved(b"a b".to_vec())
         );
         assert_eq!(
-            merge(b"a", b"a b", b"a c"),
+            merge(b"a\n", b"a\nb\n", b"a\nc\n"),
             MergeResult::Conflict(vec![
-                MergeHunk::Resolved(b"a".to_vec()),
+                MergeHunk::Resolved(b"a\n".to_vec()),
                 MergeHunk::Conflict {
                     base: b"".to_vec(),
-                    left: b" b".to_vec(),
-                    right: b" c".to_vec()
+                    left: b"b\n".to_vec(),
+                    right: b"c\n".to_vec()
                 }
             ])
         );
