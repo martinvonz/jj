@@ -797,15 +797,22 @@ fn cmd_diff(
             TreeValueDiff::Modified(
                 TreeValue::Normal {
                     id: id_left,
-                    executable: false,
+                    executable: left_executable,
                 },
                 TreeValue::Normal {
                     id: id_right,
-                    executable: false,
+                    executable: right_executable,
                 },
-            ) => {
+            ) if left_executable == right_executable => {
                 styler.add_label(String::from("header"));
-                styler.write_str(&format!("modified file {}:\n", path.to_internal_string()));
+                if *left_executable {
+                    styler.write_str(&format!(
+                        "modified executable file {}:\n",
+                        path.to_internal_string()
+                    ));
+                } else {
+                    styler.write_str(&format!("modified file {}:\n", path.to_internal_string()));
+                }
                 styler.remove_label();
 
                 let mut file_reader_left = repo.store().read_file(path, id_left).unwrap();
