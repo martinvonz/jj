@@ -45,6 +45,16 @@ pub fn find_word_ranges(text: &[u8]) -> Vec<Range<usize>> {
     word_ranges
 }
 
+pub fn find_newline_ranges(text: &[u8]) -> Vec<Range<usize>> {
+    let mut ranges = vec![];
+    for (i, b) in text.iter().enumerate() {
+        if *b == b'\n' {
+            ranges.push(i..i + 1);
+        }
+    }
+    ranges
+}
+
 struct Histogram<'a> {
     word_to_positions: HashMap<&'a [u8], Vec<usize>>,
     count_to_words: BTreeMap<usize, Vec<&'a [u8]>>,
@@ -355,6 +365,56 @@ fn compact_ranges(input: &[RangeDiff]) -> Vec<RangeDiff> {
     output
 }
 
+fn refine_changed_ranges<'a>(
+    left: &'a [u8],
+    right: &'a [u8],
+    input: &[RangeDiff],
+    tokenizer: &impl Fn(&[u8]) -> Vec<Range<usize>>,
+) -> Vec<RangeDiff> {
+    let mut output = vec![];
+    for range_diff in input {
+        match range_diff {
+            RangeDiff::Replaced(left_range, right_range) => {
+                let left_slice = &left[left_range.clone()];
+                let right_slice = &right[right_range.clone()];
+                let refined_left_ranges: Vec<Range<usize>> = tokenizer(&left_slice);
+                let refined_right_ranges: Vec<Range<usize>> = tokenizer(&right_slice);
+                let unchanged_refined_ranges = unchanged_ranges(
+                    &left_slice,
+                    &right_slice,
+                    &refined_left_ranges,
+                    &refined_right_ranges,
+                );
+                let all_refined_ranges =
+                    fill_in_range_gaps(left_slice, right_slice, &unchanged_refined_ranges);
+                let compacted_refined_range_diffs = compact_ranges(&all_refined_ranges);
+                for refined_range_diff in compacted_refined_range_diffs {
+                    match refined_range_diff {
+                        RangeDiff::Unchanged(refined_left_range, refined_right_range) => output
+                            .push(RangeDiff::Unchanged(
+                                left_range.start + refined_left_range.start
+                                    ..left_range.start + refined_left_range.end,
+                                right_range.start + refined_right_range.start
+                                    ..right_range.start + refined_right_range.end,
+                            )),
+                        RangeDiff::Replaced(refined_left_range, refined_right_range) => output
+                            .push(RangeDiff::Replaced(
+                                left_range.start + refined_left_range.start
+                                    ..left_range.start + refined_left_range.end,
+                                right_range.start + refined_right_range.start
+                                    ..right_range.start + refined_right_range.end,
+                            )),
+                    }
+                }
+            }
+            range => {
+                output.push(range.clone());
+            }
+        }
+    }
+    output
+}
+
 fn range_diffs_to_slice_diffs<'a>(
     left: &'a [u8],
     right: &'a [u8],
@@ -380,11 +440,8 @@ fn range_diffs_to_slice_diffs<'a>(
 /// Diffs two slices of bytes. The returned diff hunks may be any length (may
 /// span many lines or may be only part of a line). This currently uses
 /// Histogram diff (or maybe something similar; I'm not sure I understood the
-/// algorithm correctly). It runs on the words in the input (not lines) and
-/// ignores non-word characters when trying to find common ranges of text.
-///
-/// TODO: Does it give better results to first diff lines and then diff words
-/// only within modified ranges? Is it faster?
+/// algorithm correctly). It first diffs lines in the input and then refines
+/// the changed ranges at the word level.
 ///
 /// TODO: Diff at even lower level in the non-word ranges?
 pub fn diff<'a>(left: &'a [u8], right: &'a [u8]) -> Vec<SliceDiff<'a>> {
@@ -398,12 +455,11 @@ pub fn diff<'a>(left: &'a [u8], right: &'a [u8]) -> Vec<SliceDiff<'a>> {
         return vec![SliceDiff::Replaced(left, b"")];
     }
 
-    let left_word_ranges = find_word_ranges(left);
-    let right_word_ranges = find_word_ranges(right);
-    let unchanged_ranges = unchanged_ranges(left, right, &left_word_ranges, &right_word_ranges);
-    let all_ranges = fill_in_range_gaps(left, right, &unchanged_ranges);
-    let compacted_ranges = compact_ranges(&all_ranges);
-    range_diffs_to_slice_diffs(left, right, &compacted_ranges)
+    let range_diffs = vec![RangeDiff::Replaced(0..left.len(), 0..right.len())];
+    let range_diffs = refine_changed_ranges(left, right, &range_diffs, &find_line_ranges);
+    let range_diffs = refine_changed_ranges(left, right, &range_diffs, &find_word_ranges);
+    let range_diffs = refine_changed_ranges(left, right, &range_diffs, &find_newline_ranges);
+    range_diffs_to_slice_diffs(left, right, &range_diffs)
 }
 
 #[cfg(test)]
@@ -710,7 +766,8 @@ mod tests {
     }
 
     #[test]
-    fn test_diff_gitgit_http_c() {
+    fn test_diff_gitgit_read_tree_c() {
+        // This is the diff from commit e497ea2a9b in the git.git repo
         assert_eq!(
             diff(
                 br##"/*
@@ -852,26 +909,21 @@ int main(int argc, char **argv)
 }
 "##,
             ),
-            // TODO: It would be better to break before the initial "static" (at the newline)
             // TODO: Move matching whitespace at ends of replaced section out into unchanged section
             vec![
-                SliceDiff::Unchanged(b"/*\n * GIT - The information manager from hell\n *\n * Copyright (C) Linus Torvalds, 2005\n */\n#include \"#cache.h\"\n\nstatic"),
-                SliceDiff::Replaced(b" int unpack(unsigned char *sha1)\n{\n\t", b" "),
-                SliceDiff::Unchanged(b"void"),
-                SliceDiff::Replaced(b" *buffer;\n\t", b" create_directories(const char *path)\n{\n\tint len = strlen(path);\n\tchar *buf = malloc(len + 1);\n\tconst char *slash = path;\n\n\twhile ((slash = strchr(slash+1, \'/\')) != NULL) {\n\t\tlen = slash - path;\n\t\tmemcpy(buf, path, len);\n\t\tbuf[len] = 0;\n\t\tmkdir(buf, 0700);\n\t}\n}\n\nstatic int create_file(const char *path)\n{\n\tint fd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\tif (fd < 0) {\n\t\tif (errno == ENOENT) {\n\t\t\tcreate_directories(path);\n\t\t\tfd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\t\t}\n\t}\n\treturn fd;\n}\n\nstatic int unpack("),
-                SliceDiff::Unchanged(b"unsigned"),
-                SliceDiff::Replaced(b" ", b" char *sha1)\n{\n\tvoid *buffer;\n\tunsigned "),
-                SliceDiff::Unchanged(b"long size;\n\tchar type[20];\n\n\tbuffer = read_sha1_file(sha1, type, &size);\n\tif (!buffer)\n\t\tusage(\"unable to read sha1 file\");\n\tif (strcmp(type, \"tree\"))\n\t\tusage(\"expected a \'tree\' node\");\n\twhile (size) {\n\t\tint len = strlen(buffer)+1;\n\t\tunsigned char *sha1 = buffer + len;\n\t\tchar *path = strchr(buffer, \' \')+1"),
-                SliceDiff::Replaced(b";\n\t\t", b";\n\t\tchar *data;\n\t\t"),
-                SliceDiff::Unchanged(b"unsigned"),
-                SliceDiff::Replaced(b" ", b" long filesize;\n\t\tunsigned "),
-                SliceDiff::Unchanged(b"int mode"),
-                SliceDiff::Replaced(b";\n\t\t", b";\n\t\tint fd;\n\n\t\t"),
-                SliceDiff::Unchanged(b"if (size < len + 20 || sscanf(buffer, \"%o\", &mode) != 1)\n\t\t\tusage(\"corrupt \'tree\' file\");\n\t\tbuffer = sha1 + 20;\n\t\tsize -= len + 20"),
-                SliceDiff::Replaced(b";\n\t\tprintf(\"%o %s (%s)\\n\", ", b";\n\t\tdata = read_sha1_file(sha1, type, &filesize);\n\t\tif (!data || strcmp(type, \"blob\"))\n\t\t\tusage(\"tree file refers to bad file data\");\n\t\tfd = create_file(path);\n\t\tif (fd < 0)\n\t\t\tusage(\"unable to create file\");\n\t\tif (write(fd, data, filesize) != filesize)\n\t\t\tusage(\"unable to write file\");\n\t\tfchmod(fd, "),
-                SliceDiff::Unchanged(b"mode"),
-                SliceDiff::Replaced(b", path, sha1_to_hex(sha1));\n\t}\n\t", b");\n\t\tclose(fd);\n\t\tfree(data);\n\t}\n\t"),
-                SliceDiff::Unchanged(b"return 0;\n}\n\nint main(int argc, char **argv)\n{\n\tint fd;\n\tunsigned char sha1[20];\n\n\tif (argc != 2)\n\t\tusage(\"read-tree <key>\");\n\tif (get_sha1_hex(argv[1], sha1) < 0)\n\t\tusage(\"read-tree <key>\");\n\tsha1_file_directory = getenv(DB_ENVIRONMENT);\n\tif (!sha1_file_directory)\n\t\tsha1_file_directory = DEFAULT_DB_ENVIRONMENT;\n\tif (unpack(sha1) < 0)\n\t\tusage(\"unpack failed\");\n\treturn 0;\n}\n")
+               SliceDiff::Unchanged(b"/*\n * GIT - The information manager from hell\n *\n * Copyright (C) Linus Torvalds, 2005\n */\n#include \"#cache.h\"\n\n"),
+               SliceDiff::Replaced(b"", b"static void create_directories(const char *path)\n{\n\tint len = strlen(path);\n\tchar *buf = malloc(len + 1);\n\tconst char *slash = path;\n\n\twhile ((slash = strchr(slash+1, \'/\')) != NULL) {\n\t\tlen = slash - path;\n\t\tmemcpy(buf, path, len);\n\t\tbuf[len] = 0;\n\t\tmkdir(buf, 0700);\n\t}\n}\n\nstatic int create_file(const char *path)\n{\n\tint fd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\tif (fd < 0) {\n\t\tif (errno == ENOENT) {\n\t\t\tcreate_directories(path);\n\t\t\tfd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\t\t}\n\t}\n\treturn fd;\n}\n\n"),
+               SliceDiff::Unchanged(b"static int unpack(unsigned char *sha1)\n{\n\tvoid *buffer;\n\tunsigned long size;\n\tchar type[20];\n\n\tbuffer = read_sha1_file(sha1, type, &size);\n\tif (!buffer)\n\t\tusage(\"unable to read sha1 file\");\n\tif (strcmp(type, \"tree\"))\n\t\tusage(\"expected a \'tree\' node\");\n\twhile (size) {\n\t\tint len = strlen(buffer)+1;\n\t\tunsigned char *sha1 = buffer + len;\n\t\tchar *path = strchr(buffer, \' \')+1;\n"),
+               SliceDiff::Replaced(b"", b"\t\tchar *data;\n\t\tunsigned long filesize;\n"),
+               SliceDiff::Unchanged(b"\t\tunsigned int mode;\n"),
+               SliceDiff::Replaced(b"", b"\t\tint fd;\n\n"),
+               SliceDiff::Unchanged(b"\t\tif (size < len + 20 || sscanf(buffer, \"%o\", &mode) != 1)\n\t\t\tusage(\"corrupt \'tree\' file\");\n\t\tbuffer = sha1 + 20;\n\t\tsize -= len + 20;\n"),
+               SliceDiff::Replaced(b"\t\tprintf(\"%o %s (%s)\\n\", mode, path, sha1_to_hex(", b"\t\tdata = read_sha1_file("),
+               SliceDiff::Unchanged(b"sha1"),
+               SliceDiff::Replaced(b"));", b", type, &filesize);"),
+               SliceDiff::Unchanged(b"\n"),
+               SliceDiff::Replaced(b"", b"\t\tif (!data || strcmp(type, \"blob\"))\n\t\t\tusage(\"tree file refers to bad file data\");\n\t\tfd = create_file(path);\n\t\tif (fd < 0)\n\t\t\tusage(\"unable to create file\");\n\t\tif (write(fd, data, filesize) != filesize)\n\t\t\tusage(\"unable to write file\");\n\t\tfchmod(fd, mode);\n\t\tclose(fd);\n\t\tfree(data);\n"),
+               SliceDiff::Unchanged(b"\t}\n\treturn 0;\n}\n\nint main(int argc, char **argv)\n{\n\tint fd;\n\tunsigned char sha1[20];\n\n\tif (argc != 2)\n\t\tusage(\"read-tree <key>\");\n\tif (get_sha1_hex(argv[1], sha1) < 0)\n\t\tusage(\"read-tree <key>\");\n\tsha1_file_directory = getenv(DB_ENVIRONMENT);\n\tif (!sha1_file_directory)\n\t\tsha1_file_directory = DEFAULT_DB_ENVIRONMENT;\n\tif (unpack(sha1) < 0)\n\t\tusage(\"unpack failed\");\n\treturn 0;\n}\n")
             ]
         );
     }
