@@ -363,6 +363,10 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .about("move changes from a commit into its parent")
         .arg(rev_arg())
         .arg(Arg::with_name("interactive").long("interactive").short("i"));
+    let unsquash_command = SubCommand::with_name("unsquash")
+        .about("move changes from a commit's parent into the commit")
+        .arg(rev_arg())
+        .arg(Arg::with_name("interactive").long("interactive").short("i"));
     let discard_command = SubCommand::with_name("discard")
         .about("discard a commit (and its descendants)")
         .arg(rev_arg());
@@ -568,6 +572,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .subcommand(prune_command)
         .subcommand(new_command)
         .subcommand(squash_command)
+        .subcommand(unsquash_command)
         .subcommand(discard_command)
         .subcommand(restore_command)
         .subcommand(edit_command)
@@ -1416,6 +1421,61 @@ fn cmd_squash(
     Ok(())
 }
 
+fn cmd_unsquash(
+    ui: &mut Ui,
+    matches: &ArgMatches,
+    sub_matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    let mut repo = get_repo(ui, &matches)?;
+    let owned_wc = repo.working_copy().clone();
+    let mut_repo = Arc::get_mut(&mut repo).unwrap();
+    let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let parents = commit.parents();
+    if parents.len() != 1 {
+        return Err(CommandError::UserError(String::from(
+            "Cannot unsquash merge commits",
+        )));
+    }
+    let parent = &parents[0];
+    if parent.id() == repo.store().root_commit_id() {
+        return Err(CommandError::UserError(String::from(
+            "Cannot unsquash from the root commit",
+        )));
+    }
+    let mut tx = repo.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
+    let mut_repo = tx.mut_repo();
+    let parent_base_tree = merge_commit_trees(repo.as_repo_ref(), &parent.parents());
+    let new_parent_tree_id;
+    if sub_matches.is_present("interactive") {
+        new_parent_tree_id = crate::diff_edit::edit_diff(&parent_base_tree, &parent.tree())?;
+        if &new_parent_tree_id == parent_base_tree.id() {
+            return Err(CommandError::UserError(String::from("No changes selected")));
+        }
+    } else {
+        new_parent_tree_id = parent_base_tree.id().clone();
+    }
+    // Prune the parent if it is now empty (always the case in the non-interactive
+    // case).
+    let prune_parent = &new_parent_tree_id == parent_base_tree.id();
+    let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &parent)
+        .set_tree(new_parent_tree_id)
+        .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
+        .set_pruned(prune_parent)
+        .write_to_repo(mut_repo);
+    // Commit the new child on top of the new parent.
+    CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
+        .set_parents(vec![new_parent.id().clone()])
+        .write_to_repo(mut_repo);
+    update_checkout_after_rewrite(ui, mut_repo);
+    tx.commit();
+    update_working_copy(
+        ui,
+        Arc::get_mut(&mut repo).unwrap(),
+        &owned_wc.lock().unwrap(),
+    )?;
+    Ok(())
+}
+
 fn cmd_discard(
     ui: &mut Ui,
     matches: &ArgMatches,
@@ -2219,6 +2279,8 @@ where
         cmd_new(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("squash") {
         cmd_squash(&mut ui, &matches, &sub_matches)
+    } else if let Some(sub_matches) = matches.subcommand_matches("unsquash") {
+        cmd_unsquash(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("discard") {
         cmd_discard(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("restore") {
