@@ -360,8 +360,9 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .about("create a new, empty commit")
         .arg(rev_arg());
     let squash_command = SubCommand::with_name("squash")
-        .about("squash a commit into its parent")
-        .arg(rev_arg());
+        .about("move changes from a commit into its parent")
+        .arg(rev_arg())
+        .arg(Arg::with_name("interactive").long("interactive").short("i"));
     let discard_command = SubCommand::with_name("discard")
         .about("discard a commit (and its descendants)")
         .arg(rev_arg());
@@ -1384,16 +1385,26 @@ fn cmd_squash(
     }
     let mut tx = repo.start_transaction(&format!("squash commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
-    let squashed_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &parent)
-        .set_tree(commit.tree().id().clone())
+    let new_parent_tree_id;
+    if sub_matches.is_present("interactive") {
+        new_parent_tree_id = crate::diff_edit::edit_diff(&parent.tree(), &commit.tree())?;
+        if &new_parent_tree_id == parent.tree().id() {
+            return Err(CommandError::UserError(String::from("No changes selected")));
+        }
+    } else {
+        new_parent_tree_id = commit.tree().id().clone();
+    }
+    // Prune the child if the parent now has all the content from the child (always
+    // the case in the non-interactive case).
+    let prune_child = &new_parent_tree_id == commit.tree().id();
+    let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &parent)
+        .set_tree(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
         .write_to_repo(mut_repo);
-    // Commit the remainder on top of the new commit (always empty in the
-    // non-interactive case), so the squashed-in commit becomes obsolete, and so
-    // descendants evolve correctly.
+    // Commit the remainder on top of the new parent commit.
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
-        .set_parents(vec![squashed_commit.id().clone()])
-        .set_pruned(true)
+        .set_parents(vec![new_parent.id().clone()])
+        .set_pruned(prune_child)
         .write_to_repo(mut_repo);
     update_checkout_after_rewrite(ui, mut_repo);
     tx.commit();
