@@ -34,19 +34,20 @@ use jujube_lib::dag_walk::{topo_order_reverse, walk_ancestors};
 use jujube_lib::evolution::{evolve, EvolveListener};
 use jujube_lib::files::DiffLine;
 use jujube_lib::git::GitFetchError;
-use jujube_lib::index::{HexPrefix, PrefixResolution};
+use jujube_lib::index::HexPrefix;
 use jujube_lib::op_store::{OpStore, OpStoreError, OperationId};
 use jujube_lib::operation::Operation;
 use jujube_lib::repo::{MutableRepo, ReadonlyRepo, RepoLoadError, RepoLoader};
 use jujube_lib::repo_path::RepoPath;
+use jujube_lib::revset::RevsetError;
 use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujube_lib::settings::UserSettings;
-use jujube_lib::store::{CommitId, StoreError, Timestamp, TreeValue};
+use jujube_lib::store::{CommitId, Timestamp, TreeValue};
 use jujube_lib::store_wrapper::StoreWrapper;
 use jujube_lib::tree::Tree;
 use jujube_lib::trees::Diff;
 use jujube_lib::working_copy::{CheckoutStats, WorkingCopy};
-use jujube_lib::{conflicts, files, git};
+use jujube_lib::{conflicts, files, git, revset};
 use pest::Parser;
 
 use self::chrono::{FixedOffset, TimeZone, Utc};
@@ -93,6 +94,12 @@ impl From<RepoLoadError> for CommandError {
     }
 }
 
+impl From<RevsetError> for CommandError {
+    fn from(err: RevsetError) -> Self {
+        CommandError::UserError(format!("{}", err))
+    }
+}
+
 fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandError> {
     let wc_path_str = matches.value_of("repository").unwrap();
     let wc_path = ui.cwd().join(wc_path_str);
@@ -102,19 +109,6 @@ fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandE
         Ok(loader.load_at(&op)?)
     } else {
         Ok(loader.load_at_head()?)
-    }
-}
-
-fn resolve_commit_id_prefix(
-    repo: &ReadonlyRepo,
-    prefix: &HexPrefix,
-) -> Result<CommitId, CommandError> {
-    match repo.index().resolve_prefix(prefix) {
-        PrefixResolution::NoMatch => Err(CommandError::UserError(String::from("No such commit"))),
-        PrefixResolution::AmbiguousMatch => {
-            Err(CommandError::UserError(String::from("Ambiguous prefix")))
-        }
-        PrefixResolution::SingleMatch(id) => Ok(id),
     }
 }
 
@@ -131,18 +125,19 @@ fn resolve_single_rev(
     repo: &mut ReadonlyRepo,
     revision_str: &str,
 ) -> Result<Commit, CommandError> {
+    // If we're looking up the working copy commit ("@"), make sure that it is up to
+    // date (the lib crate only looks at the checkout in the view).
     if revision_str == "@" {
         let owned_wc = repo.working_copy().clone();
-        let wc = owned_wc.lock().unwrap();
         // TODO: Avoid committing every time this function is called.
-        Ok(wc.commit(ui.settings(), repo))
-    } else if revision_str == "@^" {
+        owned_wc.lock().unwrap().commit(ui.settings(), repo);
+    }
+
+    if revision_str == "@^" {
         let commit = repo.store().get_commit(repo.view().checkout()).unwrap();
         assert!(commit.is_open());
         let parents = commit.parents();
         Ok(parents[0].clone())
-    } else if revision_str == "root" {
-        Ok(repo.store().root_commit())
     } else if revision_str.starts_with("desc(") && revision_str.ends_with(')') {
         let needle = revision_str[5..revision_str.len() - 1].to_string();
         let mut matches = vec![];
@@ -160,21 +155,7 @@ fn resolve_single_rev(
             .pop()
             .ok_or_else(|| CommandError::UserError(String::from("No matching commit")))
     } else {
-        if let Ok(binary_commit_id) = hex::decode(revision_str) {
-            let commit_id = CommitId(binary_commit_id);
-            match repo.store().get_commit(&commit_id) {
-                Ok(commit) => return Ok(commit),
-                Err(StoreError::NotFound) => {} // fall through
-                Err(err) => {
-                    return Err(CommandError::InternalError(format!(
-                        "Failed to read commit: {}",
-                        err
-                    )))
-                }
-            }
-        }
-        let id = resolve_commit_id_prefix(repo, &HexPrefix::new(revision_str.to_owned()))?;
-        Ok(repo.store().get_commit(&id).unwrap())
+        Ok(revset::resolve_symbol(repo.as_repo_ref(), revision_str)?)
     }
 }
 
