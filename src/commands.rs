@@ -697,7 +697,7 @@ fn print_diff(left: &[u8], right: &[u8], styler: &mut dyn Styler) {
                 }
             }
         } else {
-            if context_before {
+            if context_before || context.len() < num_context_lines {
                 for line in &context {
                     print_diff_line(styler, line);
                 }
