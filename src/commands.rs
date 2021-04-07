@@ -687,7 +687,7 @@ fn print_diff(left: &[u8], right: &[u8], styler: &mut dyn Styler) {
     let mut skipped_context = false;
     // Are the lines in `context` to be printed before the next modified line?
     let mut context_before = true;
-    files::diff(left, right, &mut |diff_line| {
+    for diff_line in files::diff(left, right) {
         if diff_line.is_unmodified() {
             context.push_back(diff_line.clone());
             if context.len() > num_context_lines {
@@ -715,11 +715,11 @@ fn print_diff(left: &[u8], right: &[u8], styler: &mut dyn Styler) {
                 }
             }
             context.clear();
-            print_diff_line(styler, diff_line);
+            print_diff_line(styler, &diff_line);
             context_before = false;
             skipped_context = false;
         }
-    });
+    }
     if !context_before {
         for line in &context {
             print_diff_line(styler, line);
