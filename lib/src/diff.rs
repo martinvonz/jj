@@ -740,8 +740,10 @@ mod tests {
         assert_eq!(
             diff(b"a z", b"a S z"),
             vec![
+                // TODO: Should compact these two unchanged ranges
                 SliceDiff::Unchanged(b"a"),
-                SliceDiff::Replaced(b" ", b" S "),
+                SliceDiff::Unchanged(b" "),
+                SliceDiff::Replaced(b"", b"S "),
                 SliceDiff::Unchanged(b"z"),
             ]
         );
@@ -753,9 +755,11 @@ mod tests {
             diff(b"a R R S S z", b"a S S R R z"),
             vec![
                 SliceDiff::Unchanged(b"a"),
-                SliceDiff::Replaced(b" R R ", b" "),
+                SliceDiff::Unchanged(b" "),
+                SliceDiff::Replaced(b"R R ", b""),
                 SliceDiff::Unchanged(b"S S"),
-                SliceDiff::Replaced(b" ", b" R R "),
+                SliceDiff::Unchanged(b" "),
+                SliceDiff::Replaced(b"", b"R R "),
                 SliceDiff::Unchanged(b"z")
             ],
         );
@@ -770,13 +774,21 @@ mod tests {
             ),
             vec![
                 SliceDiff::Unchanged(b"a"),
-                SliceDiff::Replaced(b" q ", b" r r "),
+                SliceDiff::Unchanged(b" "),
+                SliceDiff::Replaced(b"q", b"r"),
+                SliceDiff::Unchanged(b" "),
+                SliceDiff::Replaced(b"", b"r "),
                 SliceDiff::Unchanged(b"x q y"),
-                SliceDiff::Replaced(b" q ", b" "),
+                SliceDiff::Unchanged(b" "),
+                SliceDiff::Replaced(b"q ", b""),
                 SliceDiff::Unchanged(b"z q b"),
-                SliceDiff::Replaced(b" q ", b" "),
+                SliceDiff::Unchanged(b" "),
+                SliceDiff::Replaced(b"q ", b""),
                 SliceDiff::Unchanged(b"y q x"),
-                SliceDiff::Replaced(b" q ", b" r r "),
+                SliceDiff::Unchanged(b" "),
+                SliceDiff::Replaced(b"q", b"r"),
+                SliceDiff::Unchanged(b" "),
+                SliceDiff::Replaced(b"", b"r "),
                 SliceDiff::Unchanged(b"c"),
             ]
         );
@@ -926,7 +938,6 @@ int main(int argc, char **argv)
 }
 "##,
             ),
-            // TODO: Move matching whitespace at ends of replaced section out into unchanged section
             vec![
                SliceDiff::Unchanged(b"/*\n * GIT - The information manager from hell\n *\n * Copyright (C) Linus Torvalds, 2005\n */\n#include \"#cache.h\"\n\n"),
                SliceDiff::Replaced(b"", b"static void create_directories(const char *path)\n{\n\tint len = strlen(path);\n\tchar *buf = malloc(len + 1);\n\tconst char *slash = path;\n\n\twhile ((slash = strchr(slash+1, \'/\')) != NULL) {\n\t\tlen = slash - path;\n\t\tmemcpy(buf, path, len);\n\t\tbuf[len] = 0;\n\t\tmkdir(buf, 0700);\n\t}\n}\n\nstatic int create_file(const char *path)\n{\n\tint fd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\tif (fd < 0) {\n\t\tif (errno == ENOENT) {\n\t\t\tcreate_directories(path);\n\t\t\tfd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\t\t}\n\t}\n\treturn fd;\n}\n\n"),
@@ -935,10 +946,13 @@ int main(int argc, char **argv)
                SliceDiff::Unchanged(b"\t\tunsigned int mode;\n"),
                SliceDiff::Replaced(b"", b"\t\tint fd;\n\n"),
                SliceDiff::Unchanged(b"\t\tif (size < len + 20 || sscanf(buffer, \"%o\", &mode) != 1)\n\t\t\tusage(\"corrupt \'tree\' file\");\n\t\tbuffer = sha1 + 20;\n\t\tsize -= len + 20;\n"),
-               SliceDiff::Replaced(b"\t\tprintf(\"%o %s (%s)\\n\", mode, path, sha1_to_hex(", b"\t\tdata = read_sha1_file("),
+               SliceDiff::Unchanged(b"\t\t"),
+               SliceDiff::Replaced(b"printf(\"%o %s (%s)\\n\", mode, path, sha1_to_hex(", b"data = read_sha1_file("),
                SliceDiff::Unchanged(b"sha1"),
-               SliceDiff::Replaced(b"));", b", type, &filesize);"),
-               SliceDiff::Unchanged(b"\n"),
+               SliceDiff::Replaced(b"", b", type, &filesize"),
+               SliceDiff::Unchanged(b")"),
+               SliceDiff::Replaced(b")", b""),
+               SliceDiff::Unchanged(b";\n"),
                SliceDiff::Replaced(b"", b"\t\tif (!data || strcmp(type, \"blob\"))\n\t\t\tusage(\"tree file refers to bad file data\");\n\t\tfd = create_file(path);\n\t\tif (fd < 0)\n\t\t\tusage(\"unable to create file\");\n\t\tif (write(fd, data, filesize) != filesize)\n\t\t\tusage(\"unable to write file\");\n\t\tfchmod(fd, mode);\n\t\tclose(fd);\n\t\tfree(data);\n"),
                SliceDiff::Unchanged(b"\t}\n\treturn 0;\n}\n\nint main(int argc, char **argv)\n{\n\tint fd;\n\tunsigned char sha1[20];\n\n\tif (argc != 2)\n\t\tusage(\"read-tree <key>\");\n\tif (get_sha1_hex(argv[1], sha1) < 0)\n\t\tusage(\"read-tree <key>\");\n\tsha1_file_directory = getenv(DB_ENVIRONMENT);\n\tif (!sha1_file_directory)\n\t\tsha1_file_directory = DEFAULT_DB_ENVIRONMENT;\n\tif (unpack(sha1) < 0)\n\t\tusage(\"unpack failed\");\n\treturn 0;\n}\n")
             ]
