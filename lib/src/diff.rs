@@ -37,18 +37,21 @@ pub fn find_line_ranges(text: &[u8]) -> Vec<Range<usize>> {
     ranges
 }
 
+fn is_word_byte(b: u8) -> bool {
+    // TODO: Make this configurable (probably higher up in the call stack)
+    matches!(b, b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_')
+}
+
 pub fn find_word_ranges(text: &[u8]) -> Vec<Range<usize>> {
     let mut word_ranges = vec![];
     let mut word_start_pos = 0;
     let mut in_word = false;
     for (i, b) in text.iter().enumerate() {
-        // TODO: Make this configurable (probably higher up in the call stack)
-        let is_word_byte = matches!(*b, b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'_');
-        if in_word && !is_word_byte {
+        if in_word && !is_word_byte(*b) {
             in_word = false;
             word_ranges.push(word_start_pos..i);
             word_start_pos = i;
-        } else if !in_word && is_word_byte {
+        } else if !in_word && is_word_byte(*b) {
             in_word = true;
             word_start_pos = i;
         }
@@ -59,10 +62,10 @@ pub fn find_word_ranges(text: &[u8]) -> Vec<Range<usize>> {
     word_ranges
 }
 
-pub fn find_newline_ranges(text: &[u8]) -> Vec<Range<usize>> {
+pub fn find_nonword_ranges(text: &[u8]) -> Vec<Range<usize>> {
     let mut ranges = vec![];
     for (i, b) in text.iter().enumerate() {
-        if *b == b'\n' {
+        if !is_word_byte(*b) {
             ranges.push(i..i + 1);
         }
     }
@@ -472,7 +475,7 @@ pub fn diff<'a>(left: &'a [u8], right: &'a [u8]) -> Vec<SliceDiff<'a>> {
     let range_diffs = vec![RangeDiff::Replaced(0..left.len(), 0..right.len())];
     let range_diffs = refine_changed_ranges(left, right, &range_diffs, &find_line_ranges);
     let range_diffs = refine_changed_ranges(left, right, &range_diffs, &find_word_ranges);
-    let range_diffs = refine_changed_ranges(left, right, &range_diffs, &find_newline_ranges);
+    let range_diffs = refine_changed_ranges(left, right, &range_diffs, &find_nonword_ranges);
     range_diffs_to_slice_diffs(left, right, &range_diffs)
 }
 
