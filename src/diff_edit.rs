@@ -98,7 +98,7 @@ pub fn edit_diff(left_tree: &Tree, right_tree: &Tree) -> Result<TreeId, DiffEdit
     let store = left_tree.store();
     let mut left_tree_builder = store.tree_builder(store.empty_tree_id().clone());
     let mut right_tree_builder = store.tree_builder(store.empty_tree_id().clone());
-    left_tree.diff(&right_tree, &mut |file_path, diff| {
+    for (file_path, diff) in left_tree.diff(&right_tree) {
         let (left_value, right_value) = diff.as_options();
         let repo_path = file_path.to_repo_path();
         if let Some(value) = left_value {
@@ -107,7 +107,7 @@ pub fn edit_diff(left_tree: &Tree, right_tree: &Tree) -> Result<TreeId, DiffEdit
         if let Some(value) = right_value {
             add_to_tree(store, &mut right_tree_builder, &repo_path, value).unwrap();
         }
-    });
+    }
     let left_partial_tree_id = left_tree_builder.write_tree();
     let right_partial_tree_id = right_tree_builder.write_tree();
     let right_partial_tree = store.get_tree(&DirRepoPath::root(), &right_partial_tree_id)?;

@@ -17,14 +17,13 @@ use std::fmt::{Debug, Error, Formatter};
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::matchers::AlwaysMatcher;
 use crate::repo_path::{
     DirRepoPath, DirRepoPathComponent, FileRepoPath, RepoPath, RepoPathComponent, RepoPathJoin,
 };
 use crate::store;
 use crate::store::{ConflictId, TreeEntriesNonRecursiveIter, TreeEntry, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
-use crate::trees::{recursive_tree_diff, TreeValueDiff};
+use crate::trees::{recursive_tree_diff, Diff, TreeDiffIterator};
 
 #[derive(Clone)]
 pub struct Tree {
@@ -165,19 +164,21 @@ impl Tree {
         }
     }
 
-    pub fn diff(&self, other: &Tree, callback: &mut impl FnMut(&FileRepoPath, TreeValueDiff)) {
-        recursive_tree_diff(self.clone(), other.clone(), &AlwaysMatcher {}, callback);
+    pub fn diff<'a>(&'a self, other: &'a Tree) -> TreeDiffIterator {
+        recursive_tree_diff(self.clone(), other.clone())
     }
 
     pub fn diff_summary(&self, other: &Tree) -> DiffSummary {
         let mut modified = vec![];
         let mut added = vec![];
         let mut removed = vec![];
-        self.diff(other, &mut |file, diff| match diff {
-            TreeValueDiff::Modified(_, _) => modified.push(file.clone()),
-            TreeValueDiff::Added(_) => added.push(file.clone()),
-            TreeValueDiff::Removed(_) => removed.push(file.clone()),
-        });
+        for (file, diff) in self.diff(other) {
+            match diff {
+                Diff::Modified(_, _) => modified.push(file.clone()),
+                Diff::Added(_) => added.push(file.clone()),
+                Diff::Removed(_) => removed.push(file.clone()),
+            }
+        }
         modified.sort();
         added.sort();
         removed.sort();

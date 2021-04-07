@@ -42,7 +42,7 @@ use crate::repo_path::{
 use crate::settings::UserSettings;
 use crate::store::{CommitId, FileId, MillisSinceEpoch, StoreError, SymlinkId, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
-use crate::trees::TreeValueDiff;
+use crate::trees::Diff;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FileType {
@@ -470,14 +470,14 @@ impl TreeState {
             removed_files: 0,
         };
 
-        old_tree.diff(&new_tree, &mut |path, diff| {
+        for (path, diff) in old_tree.diff(&new_tree) {
             let disk_path = self
                 .working_copy_path
                 .join(PathBuf::from(path.to_internal_string()));
 
             // TODO: Check that the file has not changed before overwriting/removing it.
             match diff {
-                TreeValueDiff::Removed(_before) => {
+                Diff::Removed(_before) => {
                     fs::remove_file(&disk_path).ok();
                     let mut parent_dir = disk_path.parent().unwrap();
                     loop {
@@ -489,15 +489,15 @@ impl TreeState {
                     self.file_states.remove(&path);
                     stats.removed_files += 1;
                 }
-                TreeValueDiff::Added(after) => {
+                Diff::Added(after) => {
                     let file_state = match after {
                         TreeValue::Normal { id, executable } => {
-                            self.write_file(&disk_path, path, id, *executable)
+                            self.write_file(&disk_path, &path, &id, executable)
                         }
-                        TreeValue::Symlink(id) => self.write_symlink(&disk_path, path, id),
+                        TreeValue::Symlink(id) => self.write_symlink(&disk_path, &path, &id),
                         TreeValue::GitSubmodule(_id) => {
                             println!("ignoring git submodule at {:?}", path);
-                            return;
+                            continue;
                         }
                         TreeValue::Tree(_id) => {
                             panic!("unexpected tree entry in diff at {:?}", path);
@@ -512,7 +512,7 @@ impl TreeState {
                     self.file_states.insert(path.clone(), file_state);
                     stats.added_files += 1;
                 }
-                TreeValueDiff::Modified(before, after) => {
+                Diff::Modified(before, after) => {
                     fs::remove_file(&disk_path).ok();
                     let file_state = match (before, after) {
                         (
@@ -524,19 +524,19 @@ impl TreeState {
                         ) if id == old_id => {
                             // Optimization for when only the executable bit changed
                             assert_ne!(executable, old_executable);
-                            self.set_executable(&disk_path, *executable);
+                            self.set_executable(&disk_path, executable);
                             let mut file_state = self.file_states.get(&path).unwrap().clone();
-                            file_state.mark_executable(*executable);
+                            file_state.mark_executable(executable);
                             file_state
                         }
                         (_, TreeValue::Normal { id, executable }) => {
-                            self.write_file(&disk_path, path, id, *executable)
+                            self.write_file(&disk_path, &path, &id, executable)
                         }
-                        (_, TreeValue::Symlink(id)) => self.write_symlink(&disk_path, path, id),
+                        (_, TreeValue::Symlink(id)) => self.write_symlink(&disk_path, &path, &id),
                         (_, TreeValue::GitSubmodule(_id)) => {
                             println!("ignoring git submodule at {:?}", path);
-                            self.file_states.remove(path);
-                            return;
+                            self.file_states.remove(&path);
+                            continue;
                         }
                         (_, TreeValue::Tree(_id)) => {
                             panic!("unexpected tree entry in diff at {:?}", path);
@@ -553,7 +553,7 @@ impl TreeState {
                     stats.updated_files += 1;
                 }
             }
-        });
+        }
         self.tree_id = tree_id;
         self.save();
         Ok(stats)
