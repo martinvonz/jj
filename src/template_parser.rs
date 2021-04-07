@@ -336,7 +336,7 @@ fn parse_commit_term<'a, 'r: 'a>(
                             {
                                 let writer = Box::new(&mut buf);
                                 let mut styler = PlainTextStyler::new(writer);
-                                label_template.format(commit, &mut styler);
+                                label_template.format(commit, &mut styler).unwrap();
                             }
                             String::from_utf8(buf).unwrap()
                         };

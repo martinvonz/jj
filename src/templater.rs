@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::borrow::BorrowMut;
+use std::io;
 use std::ops::Add;
 
 use jujube_lib::commit::Commit;
@@ -22,7 +23,7 @@ use jujube_lib::store::{CommitId, Signature};
 use crate::styler::Styler;
 
 pub trait Template<C> {
-    fn format(&self, context: &C, styler: &mut dyn Styler);
+    fn format(&self, context: &C, styler: &mut dyn Styler) -> io::Result<()>;
 }
 
 // TODO: Extract a trait for this type?
@@ -36,15 +37,15 @@ impl<'s, 't: 's, C> TemplateFormatter<'s, 't, C> {
         TemplateFormatter { template, styler }
     }
 
-    pub fn format<'c, 'a: 'c>(&'a mut self, context: &'c C) {
-        self.template.format(context, self.styler.borrow_mut());
+    pub fn format<'c, 'a: 'c>(&'a mut self, context: &'c C) -> io::Result<()> {
+        self.template.format(context, self.styler.borrow_mut())
     }
 }
 
 pub struct LiteralTemplate(pub String);
 
 impl<C> Template<C> for LiteralTemplate {
-    fn format(&self, _context: &C, styler: &mut dyn Styler) {
+    fn format(&self, _context: &C, styler: &mut dyn Styler) -> io::Result<()> {
         styler.write_str(&self.0)
     }
 }
@@ -66,14 +67,15 @@ impl<'a, C> LabelTemplate<'a, C> {
 }
 
 impl<'a, C> Template<C> for LabelTemplate<'a, C> {
-    fn format(&self, context: &C, styler: &mut dyn Styler) {
+    fn format(&self, context: &C, styler: &mut dyn Styler) -> io::Result<()> {
         for label in &self.labels {
-            styler.add_label(label.clone());
+            styler.add_label(label.clone())?;
         }
-        self.content.format(context, styler);
+        self.content.format(context, styler)?;
         for _label in &self.labels {
-            styler.remove_label();
+            styler.remove_label()?;
         }
+        Ok(())
     }
 }
 
@@ -96,19 +98,20 @@ impl<'a, C> DynamicLabelTemplate<'a, C> {
 }
 
 impl<'a, C> Template<C> for DynamicLabelTemplate<'a, C> {
-    fn format(&self, context: &C, styler: &mut dyn Styler) {
+    fn format(&self, context: &C, styler: &mut dyn Styler) -> io::Result<()> {
         let labels = self.label_property.as_ref()(context);
         let labels: Vec<String> = labels
             .split_whitespace()
             .map(|label| label.to_string())
             .collect();
         for label in &labels {
-            styler.add_label(label.clone());
+            styler.add_label(label.clone())?;
         }
-        self.content.format(context, styler);
+        self.content.format(context, styler)?;
         for _label in &labels {
-            styler.remove_label();
+            styler.remove_label()?;
         }
+        Ok(())
     }
 }
 
@@ -116,10 +119,11 @@ impl<'a, C> Template<C> for DynamicLabelTemplate<'a, C> {
 pub struct ListTemplate<'a, C>(pub Vec<Box<dyn Template<C> + 'a>>);
 
 impl<'a, C> Template<C> for ListTemplate<'a, C> {
-    fn format(&self, context: &C, styler: &mut dyn Styler) {
+    fn format(&self, context: &C, styler: &mut dyn Styler) -> io::Result<()> {
         for template in &self.0 {
-            template.format(context, styler)
+            template.format(context, styler)?
         }
+        Ok(())
     }
 }
 
@@ -143,9 +147,9 @@ pub struct StringPropertyTemplate<'a, C> {
 }
 
 impl<'a, C> Template<C> for StringPropertyTemplate<'a, C> {
-    fn format(&self, context: &C, styler: &mut dyn Styler) {
+    fn format(&self, context: &C, styler: &mut dyn Styler) -> io::Result<()> {
         let text = self.property.extract(context);
-        styler.write_str(&text);
+        styler.write_str(&text)
     }
 }
 
@@ -290,12 +294,13 @@ impl<'a, C> ConditionalTemplate<'a, C> {
 }
 
 impl<'a, C> Template<C> for ConditionalTemplate<'a, C> {
-    fn format(&self, context: &C, styler: &mut dyn Styler) {
+    fn format(&self, context: &C, styler: &mut dyn Styler) -> io::Result<()> {
         if self.condition.extract(context) {
-            self.true_template.format(context, styler);
+            self.true_template.format(context, styler)?;
         } else if let Some(false_template) = &self.false_template {
-            false_template.format(context, styler);
+            false_template.format(context, styler)?;
         }
+        Ok(())
     }
 }
 

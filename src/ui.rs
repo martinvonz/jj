@@ -68,22 +68,23 @@ impl<'a> Ui<'a> {
         self.styler.lock().unwrap()
     }
 
-    pub fn write(&mut self, text: &str) {
-        self.styler().write_str(text);
+    pub fn write(&mut self, text: &str) -> io::Result<()> {
+        self.styler().write_str(text)
     }
 
-    pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) {
-        self.styler().write_fmt(fmt).unwrap()
+    pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
+        self.styler().write_fmt(fmt)
     }
 
-    pub fn write_error(&mut self, text: &str) {
+    pub fn write_error(&mut self, text: &str) -> io::Result<()> {
         let mut styler = self.styler();
-        styler.add_label(String::from("error"));
-        styler.write_str(text);
-        styler.remove_label();
+        styler.add_label(String::from("error"))?;
+        styler.write_str(text)?;
+        styler.remove_label()?;
+        Ok(())
     }
 
-    pub fn write_commit_summary(&mut self, repo: RepoRef, commit: &Commit) {
+    pub fn write_commit_summary(&mut self, repo: RepoRef, commit: &Commit) -> io::Result<()> {
         let template_string = self
             .settings
             .config()
@@ -96,6 +97,7 @@ impl<'a> Ui<'a> {
         let template = crate::template_parser::parse_commit_template(repo, &template_string);
         let mut styler = self.styler();
         let mut template_writer = TemplateFormatter::new(template, styler.as_mut());
-        template_writer.format(commit);
+        template_writer.format(commit)?;
+        Ok(())
     }
 }

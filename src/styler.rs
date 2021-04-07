@@ -13,29 +13,30 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::io;
 use std::io::{Error, Read, Write};
 
 use jujube_lib::settings::UserSettings;
 
 // Lets the caller label strings and translates the labels to colors
 pub trait Styler: Write {
-    fn write_bytes(&mut self, data: &[u8]) {
-        self.write_all(data).unwrap()
+    fn write_bytes(&mut self, data: &[u8]) -> io::Result<()> {
+        self.write_all(data)
     }
 
-    fn write_str(&mut self, text: &str) {
-        self.write_all(text.as_bytes()).unwrap()
+    fn write_str(&mut self, text: &str) -> io::Result<()> {
+        self.write_all(text.as_bytes())
     }
 
-    fn write_from_reader(&mut self, reader: &mut dyn Read) {
+    fn write_from_reader(&mut self, reader: &mut dyn Read) -> io::Result<()> {
         let mut buffer = vec![];
         reader.read_to_end(&mut buffer).unwrap();
-        self.write_all(buffer.as_slice()).unwrap()
+        self.write_all(buffer.as_slice())
     }
 
-    fn add_label(&mut self, label: String);
+    fn add_label(&mut self, label: String) -> io::Result<()>;
 
-    fn remove_label(&mut self);
+    fn remove_label(&mut self) -> io::Result<()>;
 }
 
 pub struct PlainTextStyler<'a> {
@@ -59,9 +60,13 @@ impl Write for PlainTextStyler<'_> {
 }
 
 impl Styler for PlainTextStyler<'_> {
-    fn add_label(&mut self, _label: String) {}
+    fn add_label(&mut self, _label: String) -> io::Result<()> {
+        Ok(())
+    }
 
-    fn remove_label(&mut self) {}
+    fn remove_label(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 pub struct ColorStyler<'a> {
@@ -179,21 +184,23 @@ impl Write for ColorStyler<'_> {
 }
 
 impl Styler for ColorStyler<'_> {
-    fn add_label(&mut self, label: String) {
+    fn add_label(&mut self, label: String) -> io::Result<()> {
         self.labels.push(label);
         let new_color = self.current_color();
         if new_color != self.current_color {
-            self.output.write_all(&new_color).unwrap();
+            self.output.write_all(&new_color)?;
         }
         self.current_color = new_color;
+        Ok(())
     }
 
-    fn remove_label(&mut self) {
+    fn remove_label(&mut self) -> io::Result<()> {
         self.labels.pop();
         let new_color = self.current_color();
         if new_color != self.current_color {
-            self.output.write_all(&new_color).unwrap();
+            self.output.write_all(&new_color)?;
         }
         self.current_color = new_color;
+        Ok(())
     }
 }

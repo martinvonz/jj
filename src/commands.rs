@@ -246,9 +246,9 @@ fn update_working_copy(
     if old_commit == new_commit {
         return Ok(None);
     }
-    ui.write("leaving: ");
-    ui.write_commit_summary(repo.as_repo_ref(), &old_commit);
-    ui.write("\n");
+    ui.write("leaving: ")?;
+    ui.write_commit_summary(repo.as_repo_ref(), &old_commit)?;
+    ui.write("\n")?;
     // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
     // warning for most commands (but be an error for the checkout command)
     let stats = wc.check_out(new_commit.clone()).map_err(|err| {
@@ -258,19 +258,19 @@ fn update_working_copy(
             err
         ))
     })?;
-    ui.write("now at: ");
-    ui.write_commit_summary(repo.as_repo_ref(), &new_commit);
-    ui.write("\n");
+    ui.write("now at: ")?;
+    ui.write_commit_summary(repo.as_repo_ref(), &new_commit)?;
+    ui.write("\n")?;
     Ok(Some(stats))
 }
 
-fn update_checkout_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) {
+fn update_checkout_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) -> io::Result<()> {
     // TODO: Perhaps this method should be in MutableRepo.
     let new_checkout_candidates = mut_repo
         .evolution()
         .new_parent(mut_repo.as_repo_ref(), mut_repo.view().checkout());
     if new_checkout_candidates.is_empty() {
-        return;
+        return Ok(());
     }
     // Filter out heads that already existed.
     // TODO: Filter out *commits* that already existed (so we get updated to an
@@ -281,16 +281,17 @@ fn update_checkout_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) {
         .cloned()
         .collect();
     if new_checkout_candidates.is_empty() {
-        return;
+        return Ok(());
     }
     if new_checkout_candidates.len() > 1 {
         ui.write(
             "There are several candidates for updating the checkout to -- picking arbitrarily\n",
-        );
+        )?;
     }
     let new_checkout = new_checkout_candidates.iter().min().unwrap();
     let new_commit = mut_repo.store().get_commit(new_checkout).unwrap();
     mut_repo.check_out(ui.settings(), &new_commit);
+    Ok(())
 }
 
 fn get_app<'a, 'b>() -> App<'a, 'b> {
@@ -636,7 +637,7 @@ fn cmd_init(
         ui,
         "Initialized repo in \"{}\"",
         repo.working_copy_path().display()
-    );
+    )?;
     Ok(())
 }
 
@@ -656,12 +657,12 @@ fn cmd_checkout(
     tx.commit();
     let stats = update_working_copy(ui, Arc::get_mut(&mut repo).unwrap(), &wc)?;
     match stats {
-        None => ui.write("already on that commit\n"),
+        None => ui.write("already on that commit\n")?,
         Some(stats) => writeln!(
             ui,
             "added {} files, modified {} files, removed {} files",
             stats.added_files, stats.updated_files, stats.removed_files
-        ),
+        )?,
     }
     Ok(())
 }
@@ -675,12 +676,12 @@ fn cmd_files(
     let mut_repo = Arc::get_mut(&mut repo).unwrap();
     let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
     for (name, _value) in commit.tree().entries() {
-        writeln!(ui, "{}", name.to_internal_string());
+        writeln!(ui, "{}", name.to_internal_string())?;
     }
     Ok(())
 }
 
-fn print_diff(left: &[u8], right: &[u8], styler: &mut dyn Styler) {
+fn print_diff(left: &[u8], right: &[u8], styler: &mut dyn Styler) -> io::Result<()> {
     let num_context_lines = 3;
     let mut context = VecDeque::new();
     // Have we printed "..." for any skipped context?
@@ -698,69 +699,73 @@ fn print_diff(left: &[u8], right: &[u8], styler: &mut dyn Styler) {
                 }
                 if !context_before {
                     for line in &context {
-                        print_diff_line(styler, line);
+                        print_diff_line(styler, line)?;
                     }
                     context.clear();
                     context_before = true;
                 }
                 if !skipped_context {
-                    styler.write_bytes(b"    ...\n");
+                    styler.write_bytes(b"    ...\n")?;
                     skipped_context = true;
                 }
             }
         } else {
             if context_before || context.len() < num_context_lines {
                 for line in &context {
-                    print_diff_line(styler, line);
+                    print_diff_line(styler, line)?;
                 }
             }
             context.clear();
-            print_diff_line(styler, &diff_line);
+            print_diff_line(styler, &diff_line)?;
             context_before = false;
             skipped_context = false;
         }
     }
     if !context_before {
         for line in &context {
-            print_diff_line(styler, line);
+            print_diff_line(styler, line)?;
         }
     }
+
+    Ok(())
 }
 
-fn print_diff_line(styler: &mut dyn Styler, diff_line: &DiffLine) {
+fn print_diff_line(styler: &mut dyn Styler, diff_line: &DiffLine) -> io::Result<()> {
     if diff_line.has_left_content {
-        styler.add_label(String::from("left"));
-        styler.write_bytes(format!("{:>4}", diff_line.left_line_number).as_bytes());
-        styler.remove_label();
-        styler.write_bytes(b" ");
+        styler.add_label(String::from("left"))?;
+        styler.write_bytes(format!("{:>4}", diff_line.left_line_number).as_bytes())?;
+        styler.remove_label()?;
+        styler.write_bytes(b" ")?;
     } else {
-        styler.write_bytes(b"     ");
+        styler.write_bytes(b"     ")?;
     }
     if diff_line.has_right_content {
-        styler.add_label(String::from("right"));
-        styler.write_bytes(format!("{:>4}", diff_line.right_line_number).as_bytes());
-        styler.remove_label();
-        styler.write_bytes(b": ");
+        styler.add_label(String::from("right"))?;
+        styler.write_bytes(format!("{:>4}", diff_line.right_line_number).as_bytes())?;
+        styler.remove_label()?;
+        styler.write_bytes(b": ")?;
     } else {
-        styler.write_bytes(b"    : ");
+        styler.write_bytes(b"    : ")?;
     }
     for hunk in &diff_line.hunks {
         match hunk {
             files::DiffHunk::Unmodified(data) => {
-                styler.write_bytes(data);
+                styler.write_bytes(data)?;
             }
             files::DiffHunk::Removed(data) => {
-                styler.add_label(String::from("left"));
-                styler.write_bytes(data);
-                styler.remove_label();
+                styler.add_label(String::from("left"))?;
+                styler.write_bytes(data)?;
+                styler.remove_label()?;
             }
             files::DiffHunk::Added(data) => {
-                styler.add_label(String::from("right"));
-                styler.write_bytes(data);
-                styler.remove_label();
+                styler.add_label(String::from("right"))?;
+                styler.write_bytes(data)?;
+                styler.remove_label()?;
             }
         }
     }
+
+    Ok(())
 }
 
 fn cmd_diff(
@@ -795,22 +800,21 @@ fn cmd_diff(
         to_tree = commit.tree()
     }
     if sub_matches.is_present("summary") {
-        show_diff_summary(ui, &from_tree, &to_tree);
+        show_diff_summary(ui, &from_tree, &to_tree)?;
     } else {
         let mut styler = ui.styler();
-        styler.add_label(String::from("diff"));
+        styler.add_label(String::from("diff"))?;
         for (path, diff) in from_tree.diff(&to_tree) {
             match diff {
                 Diff::Added(TreeValue::Normal {
                     id,
                     executable: false,
                 }) => {
-                    styler.add_label(String::from("header"));
-                    styler.write_str(&format!("added file {}:\n", path.to_internal_string()));
-                    styler.remove_label();
-
+                    styler.add_label(String::from("header"))?;
+                    styler.write_str(&format!("added file {}:\n", path.to_internal_string()))?;
+                    styler.remove_label()?;
                     let mut file_reader = repo.store().read_file(&path, &id).unwrap();
-                    styler.write_from_reader(&mut file_reader);
+                    styler.write_from_reader(&mut file_reader)?;
                 }
                 Diff::Modified(
                     TreeValue::Normal {
@@ -822,17 +826,19 @@ fn cmd_diff(
                         executable: right_executable,
                     },
                 ) if left_executable == right_executable => {
-                    styler.add_label(String::from("header"));
+                    styler.add_label(String::from("header"))?;
                     if left_executable {
                         styler.write_str(&format!(
                             "modified executable file {}:\n",
                             path.to_internal_string()
-                        ));
+                        ))?;
                     } else {
-                        styler
-                            .write_str(&format!("modified file {}:\n", path.to_internal_string()));
+                        styler.write_str(&format!(
+                            "modified file {}:\n",
+                            path.to_internal_string()
+                        ))?;
                     }
-                    styler.remove_label();
+                    styler.remove_label()?;
 
                     let mut file_reader_left = repo.store().read_file(&path, &id_left).unwrap();
                     let mut buffer_left = vec![];
@@ -845,7 +851,7 @@ fn cmd_diff(
                         buffer_left.as_slice(),
                         buffer_right.as_slice(),
                         styler.as_mut(),
-                    );
+                    )?;
                 }
                 Diff::Modified(
                     TreeValue::Conflict(id_left),
@@ -854,12 +860,12 @@ fn cmd_diff(
                         executable: false,
                     },
                 ) => {
-                    styler.add_label(String::from("header"));
+                    styler.add_label(String::from("header"))?;
                     styler.write_str(&format!(
                         "resolved conflict in file {}:\n",
                         path.to_internal_string()
-                    ));
-                    styler.remove_label();
+                    ))?;
+                    styler.remove_label()?;
 
                     let conflict_left = repo.store().read_conflict(&id_left).unwrap();
                     let mut buffer_left = vec![];
@@ -877,7 +883,7 @@ fn cmd_diff(
                         buffer_left.as_slice(),
                         buffer_right.as_slice(),
                         styler.as_mut(),
-                    );
+                    )?;
                 }
                 Diff::Modified(
                     TreeValue::Normal {
@@ -886,13 +892,12 @@ fn cmd_diff(
                     },
                     TreeValue::Conflict(id_right),
                 ) => {
-                    styler.add_label(String::from("header"));
+                    styler.add_label(String::from("header"))?;
                     styler.write_str(&format!(
                         "new conflict in file {}:\n",
                         path.to_internal_string()
-                    ));
-                    styler.remove_label();
-
+                    ))?;
+                    styler.remove_label()?;
                     let mut file_reader_left = repo.store().read_file(&path, &id_left).unwrap();
                     let mut buffer_left = vec![];
                     file_reader_left.read_to_end(&mut buffer_left).unwrap();
@@ -909,45 +914,45 @@ fn cmd_diff(
                         buffer_left.as_slice(),
                         buffer_right.as_slice(),
                         styler.as_mut(),
-                    );
+                    )?;
                 }
                 Diff::Removed(TreeValue::Normal {
                     id,
                     executable: false,
                 }) => {
-                    styler.add_label(String::from("header"));
-                    styler.write_str(&format!("removed file {}:\n", path.to_internal_string()));
-                    styler.remove_label();
+                    styler.add_label(String::from("header"))?;
+                    styler.write_str(&format!("removed file {}:\n", path.to_internal_string()))?;
+                    styler.remove_label()?;
 
                     let mut file_reader = repo.store().read_file(&path, &id).unwrap();
-                    styler.write_from_reader(&mut file_reader);
+                    styler.write_from_reader(&mut file_reader)?;
                 }
                 other => {
                     writeln!(
                         styler,
                         "unhandled diff case in path {:?}: {:?}",
                         path, other
-                    )
-                    .unwrap();
+                    )?;
                 }
             }
         }
-        styler.remove_label();
+        styler.remove_label()?;
     }
     Ok(())
 }
 
-fn show_diff_summary(ui: &mut Ui, from: &Tree, to: &Tree) {
+fn show_diff_summary(ui: &mut Ui, from: &Tree, to: &Tree) -> io::Result<()> {
     let summary = from.diff_summary(&to);
     for file in summary.modified {
-        writeln!(ui, "M {}", file.to_internal_string());
+        writeln!(ui, "M {}", file.to_internal_string())?;
     }
     for file in summary.added {
-        writeln!(ui, "A {}", file.to_internal_string());
+        writeln!(ui, "A {}", file.to_internal_string())?;
     }
     for file in summary.removed {
-        writeln!(ui, "R {}", file.to_internal_string());
+        writeln!(ui, "R {}", file.to_internal_string())?;
     }
+    Ok(())
 }
 
 fn cmd_status(
@@ -960,14 +965,14 @@ fn cmd_status(
     let mut_repo = Arc::get_mut(&mut repo).unwrap();
     let wc = owned_wc.lock().unwrap();
     let commit = wc.commit(ui.settings(), mut_repo);
-    ui.write("Working copy : ");
-    ui.write_commit_summary(repo.as_repo_ref(), &commit);
-    ui.write("\n");
-    ui.write("Parent commit: ");
-    ui.write_commit_summary(repo.as_repo_ref(), &commit.parents()[0]);
-    ui.write("\n");
-    ui.write("Diff summary:\n");
-    show_diff_summary(ui, &commit.parents()[0].tree(), &commit.tree());
+    ui.write("Working copy : ")?;
+    ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
+    ui.write("\n")?;
+    ui.write("Parent commit: ")?;
+    ui.write_commit_summary(repo.as_repo_ref(), &commit.parents()[0])?;
+    ui.write("\n")?;
+    ui.write("Diff summary:\n")?;
+    show_diff_summary(ui, &commit.parents()[0].tree(), &commit.tree())?;
     Ok(())
 }
 
@@ -1077,7 +1082,7 @@ fn cmd_log(
 
     let mut styler = ui.styler();
     let mut styler = styler.as_mut();
-    styler.add_label(String::from("log"));
+    styler.add_label(String::from("log"))?;
 
     let store = repo.store();
     let mut head_ids = repo.view().heads().clone();
@@ -1101,7 +1106,7 @@ fn cmd_log(
             {
                 let writer = Box::new(&mut buffer);
                 let mut styler = ColorStyler::new(writer, ui.settings());
-                template.format(&commit, &mut styler);
+                template.format(&commit, &mut styler)?;
             }
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
@@ -1111,7 +1116,7 @@ fn cmd_log(
     } else {
         for index_entry in index_entries {
             let commit = store.get_commit(&index_entry.commit_id()).unwrap();
-            template.format(&commit, styler);
+            template.format(&commit, styler)?;
         }
     }
 
@@ -1144,7 +1149,7 @@ fn cmd_obslog(
 
     let mut styler = ui.styler();
     let mut styler = styler.as_mut();
-    styler.add_label(String::from("log"));
+    styler.add_label(String::from("log"))?;
 
     let commits = topo_order_reverse(
         vec![start_commit],
@@ -1163,7 +1168,7 @@ fn cmd_obslog(
             {
                 let writer = Box::new(&mut buffer);
                 let mut styler = ColorStyler::new(writer, ui.settings());
-                template.format(&commit, &mut styler);
+                template.format(&commit, &mut styler)?;
             }
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
@@ -1172,7 +1177,7 @@ fn cmd_obslog(
         }
     } else {
         for commit in commits {
-            template.format(&commit, styler);
+            template.format(&commit, styler)?;
         }
     }
 
@@ -1238,7 +1243,7 @@ fn cmd_describe(
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_description(description)
         .write_to_repo(tx.mut_repo());
-    update_checkout_after_rewrite(ui, tx.mut_repo());
+    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
     update_working_copy(
         ui,
@@ -1261,7 +1266,7 @@ fn cmd_open(
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_open(true)
         .write_to_repo(tx.mut_repo());
-    update_checkout_after_rewrite(ui, tx.mut_repo());
+    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
     update_working_copy(
         ui,
@@ -1293,7 +1298,7 @@ fn cmd_close(
     commit_builder = commit_builder.set_description(description);
     let mut tx = repo.start_transaction(&format!("close commit {}", commit.id().hex()));
     commit_builder.write_to_repo(tx.mut_repo());
-    update_checkout_after_rewrite(ui, tx.mut_repo());
+    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
     update_working_copy(
         ui,
@@ -1316,9 +1321,9 @@ fn cmd_duplicate(
     let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
         .generate_new_change_id()
         .write_to_repo(mut_repo);
-    ui.write("created: ");
-    ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit);
-    ui.write("\n");
+    ui.write("created: ")?;
+    ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
+    ui.write("\n")?;
     tx.commit();
     Ok(())
 }
@@ -1341,7 +1346,7 @@ fn cmd_prune(
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
         .set_pruned(true)
         .write_to_repo(tx.mut_repo());
-    update_checkout_after_rewrite(ui, tx.mut_repo());
+    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
     update_working_copy(
         ui,
@@ -1425,7 +1430,7 @@ fn cmd_squash(
         .set_parents(vec![new_parent.id().clone()])
         .set_pruned(prune_child)
         .write_to_repo(mut_repo);
-    update_checkout_after_rewrite(ui, mut_repo);
+    update_checkout_after_rewrite(ui, mut_repo)?;
     tx.commit();
     update_working_copy(
         ui,
@@ -1480,7 +1485,7 @@ fn cmd_unsquash(
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_parents(vec![new_parent.id().clone()])
         .write_to_repo(mut_repo);
-    update_checkout_after_rewrite(ui, mut_repo);
+    update_checkout_after_rewrite(ui, mut_repo)?;
     tx.commit();
     update_working_copy(
         ui,
@@ -1550,7 +1555,7 @@ fn cmd_restore(
         tree_id = source_commit.tree().id().clone();
     }
     if &tree_id == destination_commit.tree().id() {
-        ui.write("Nothing changed.\n");
+        ui.write("Nothing changed.\n")?;
     } else {
         let mut tx = repo.start_transaction(&format!(
             "restore into commit {}",
@@ -1561,10 +1566,10 @@ fn cmd_restore(
             CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &destination_commit)
                 .set_tree(tree_id)
                 .write_to_repo(mut_repo);
-        ui.write("Created ");
-        ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit);
-        ui.write("\n");
-        update_checkout_after_rewrite(ui, mut_repo);
+        ui.write("Created ")?;
+        ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
+        ui.write("\n")?;
+        update_checkout_after_rewrite(ui, mut_repo)?;
         tx.commit();
         update_working_copy(
             ui,
@@ -1587,17 +1592,17 @@ fn cmd_edit(
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
     if &tree_id == commit.tree().id() {
-        ui.write("Nothing changed.\n");
+        ui.write("Nothing changed.\n")?;
     } else {
         let mut tx = repo.start_transaction(&format!("edit commit {}", commit.id().hex()));
         let mut_repo = tx.mut_repo();
         let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_tree(tree_id)
             .write_to_repo(mut_repo);
-        ui.write("Created ");
-        ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit);
-        ui.write("\n");
-        update_checkout_after_rewrite(ui, mut_repo);
+        ui.write("Created ")?;
+        ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
+        ui.write("\n")?;
+        update_checkout_after_rewrite(ui, mut_repo)?;
         tx.commit();
         update_working_copy(
             ui,
@@ -1620,7 +1625,7 @@ fn cmd_split(
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
     if &tree_id == commit.tree().id() {
-        ui.write("Nothing changed.\n");
+        ui.write("Nothing changed.\n")?;
     } else {
         let mut tx = repo.start_transaction(&format!("split commit {}", commit.id().hex()));
         let mut_repo = tx.mut_repo();
@@ -1638,12 +1643,12 @@ fn cmd_split(
             .generate_new_change_id()
             .set_description(second_description)
             .write_to_repo(mut_repo);
-        ui.write("First part: ");
-        ui.write_commit_summary(mut_repo.as_repo_ref(), &first_commit);
-        ui.write("\nSecond part: ");
-        ui.write_commit_summary(mut_repo.as_repo_ref(), &second_commit);
-        ui.write("\n");
-        update_checkout_after_rewrite(ui, mut_repo);
+        ui.write("First part: ")?;
+        ui.write_commit_summary(mut_repo.as_repo_ref(), &first_commit)?;
+        ui.write("\nSecond part: ")?;
+        ui.write_commit_summary(mut_repo.as_repo_ref(), &second_commit)?;
+        ui.write("\n")?;
+        update_checkout_after_rewrite(ui, mut_repo)?;
         tx.commit();
         update_working_copy(
             ui,
@@ -1688,7 +1693,7 @@ fn cmd_merge(
         .set_description(description)
         .set_open(false)
         .write_to_repo(tx.mut_repo());
-    update_checkout_after_rewrite(ui, tx.mut_repo());
+    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
     update_working_copy(
         ui,
@@ -1714,7 +1719,7 @@ fn cmd_rebase(
     }
     let mut tx = repo.start_transaction(&format!("rebase commit {}", commit_to_rebase.id().hex()));
     rebase_commit(ui.settings(), tx.mut_repo(), &commit_to_rebase, &parents);
-    update_checkout_after_rewrite(ui, tx.mut_repo());
+    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
     update_working_copy(
         ui,
@@ -1743,7 +1748,7 @@ fn cmd_backout(
         commit_to_back_out.id().hex()
     ));
     back_out_commit(ui.settings(), tx.mut_repo(), &commit_to_back_out, &parents);
-    update_checkout_after_rewrite(ui, tx.mut_repo());
+    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
     update_working_copy(
         ui,
@@ -1766,6 +1771,9 @@ fn cmd_evolve<'s>(
         ui: &'a mut Ui<'s>,
     }
 
+    // TODO: Handle errors that happen in this listener. Should the listener take a
+    // type parameter for the error type? Should the evolve operation be aborted
+    // if the listener returns an error? Maybe rewrite it as an iterator?
     impl<'a, 's> EvolveListener for Listener<'a, 's> {
         fn orphan_evolved(
             &mut self,
@@ -1773,22 +1781,26 @@ fn cmd_evolve<'s>(
             orphan: &Commit,
             new_commit: &Commit,
         ) {
-            self.ui.write("Resolving orphan: ");
+            self.ui.write("Resolving orphan: ").unwrap();
             self.ui
-                .write_commit_summary(mut_repo.as_repo_ref(), &orphan);
-            self.ui.write("\n");
-            self.ui.write("Resolved as: ");
+                .write_commit_summary(mut_repo.as_repo_ref(), &orphan)
+                .unwrap();
+            self.ui.write("\n").unwrap();
+            self.ui.write("Resolved as: ").unwrap();
             self.ui
-                .write_commit_summary(mut_repo.as_repo_ref(), &new_commit);
-            self.ui.write("\n");
+                .write_commit_summary(mut_repo.as_repo_ref(), &new_commit)
+                .unwrap();
+            self.ui.write("\n").unwrap();
         }
 
         fn orphan_target_ambiguous(&mut self, mut_repo: &mut MutableRepo, orphan: &Commit) {
             self.ui
-                .write("Skipping orphan with ambiguous new parents: ");
+                .write("Skipping orphan with ambiguous new parents: ")
+                .unwrap();
             self.ui
-                .write_commit_summary(mut_repo.as_repo_ref(), &orphan);
-            self.ui.write("\n");
+                .write_commit_summary(mut_repo.as_repo_ref(), &orphan)
+                .unwrap();
+            self.ui.write("\n").unwrap();
         }
 
         fn divergent_resolved(
@@ -1797,17 +1809,19 @@ fn cmd_evolve<'s>(
             sources: &[Commit],
             resolved: &Commit,
         ) {
-            self.ui.write("Resolving divergent commits:\n");
+            self.ui.write("Resolving divergent commits:\n").unwrap();
             for source in sources {
-                self.ui.write("  ");
+                self.ui.write("  ").unwrap();
                 self.ui
-                    .write_commit_summary(mut_repo.as_repo_ref(), &source);
-                self.ui.write("\n");
+                    .write_commit_summary(mut_repo.as_repo_ref(), &source)
+                    .unwrap();
+                self.ui.write("\n").unwrap();
             }
-            self.ui.write("Resolved as: ");
+            self.ui.write("Resolved as: ").unwrap();
             self.ui
-                .write_commit_summary(mut_repo.as_repo_ref(), &resolved);
-            self.ui.write("\n");
+                .write_commit_summary(mut_repo.as_repo_ref(), &resolved)
+                .unwrap();
+            self.ui.write("\n").unwrap();
         }
 
         fn divergent_no_common_predecessor(
@@ -1817,15 +1831,18 @@ fn cmd_evolve<'s>(
             commit2: &Commit,
         ) {
             self.ui
-                .write("Skipping divergent commits with no common predecessor:\n");
-            self.ui.write("  ");
+                .write("Skipping divergent commits with no common predecessor:\n")
+                .unwrap();
+            self.ui.write("  ").unwrap();
             self.ui
-                .write_commit_summary(mut_repo.as_repo_ref(), &commit1);
-            self.ui.write("\n");
-            self.ui.write("  ");
+                .write_commit_summary(mut_repo.as_repo_ref(), &commit1)
+                .unwrap();
+            self.ui.write("\n").unwrap();
+            self.ui.write("  ").unwrap();
             self.ui
-                .write_commit_summary(mut_repo.as_repo_ref(), &commit2);
-            self.ui.write("\n");
+                .write_commit_summary(mut_repo.as_repo_ref(), &commit2)
+                .unwrap();
+            self.ui.write("\n").unwrap();
         }
     }
 
@@ -1836,7 +1853,7 @@ fn cmd_evolve<'s>(
     let mut listener = Listener { ui };
     let mut tx = repo.start_transaction("evolve");
     evolve(&user_settings, tx.mut_repo(), &mut listener);
-    update_checkout_after_rewrite(ui, tx.mut_repo());
+    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
     update_working_copy(
         ui,
@@ -1856,18 +1873,18 @@ fn cmd_debug(
         let mut repo = get_repo(ui, &matches)?;
         let mut_repo = Arc::get_mut(&mut repo).unwrap();
         let commit = resolve_revision_arg(ui, mut_repo, resolve_matches)?;
-        writeln!(ui, "{}", commit.id().hex());
+        writeln!(ui, "{}", commit.id().hex())?;
     } else if let Some(_wc_matches) = sub_matches.subcommand_matches("workingcopy") {
         let repo = get_repo(ui, &matches)?;
         let wc = repo.working_copy_locked();
-        writeln!(ui, "Current commit: {:?}", wc.current_commit_id());
-        writeln!(ui, "Current tree: {:?}", wc.current_tree_id());
+        writeln!(ui, "Current commit: {:?}", wc.current_commit_id())?;
+        writeln!(ui, "Current tree: {:?}", wc.current_tree_id())?;
         for (file, state) in wc.file_states().iter() {
             writeln!(
                 ui,
                 "{:?} {:13?} {:10?} {:?}",
                 state.file_type, state.size, state.mtime.0, file
-            );
+            )?;
         }
     } else if let Some(_wc_matches) = sub_matches.subcommand_matches("writeworkingcopy") {
         let mut repo = get_repo(ui, &matches)?;
@@ -1876,41 +1893,41 @@ fn cmd_debug(
         let mut_repo = Arc::get_mut(&mut repo).unwrap();
         let old_commit_id = wc.current_commit_id();
         let new_commit_id = wc.commit(ui.settings(), mut_repo).id().clone();
-        writeln!(ui, "old commit {:?}", old_commit_id);
-        writeln!(ui, "new commit {:?}", new_commit_id);
+        writeln!(ui, "old commit {:?}", old_commit_id)?;
+        writeln!(ui, "new commit {:?}", new_commit_id)?;
     } else if let Some(template_matches) = sub_matches.subcommand_matches("template") {
         let parse = TemplateParser::parse(
             crate::template_parser::Rule::template,
             template_matches.value_of("template").unwrap(),
         );
-        writeln!(ui, "{:?}", parse);
+        writeln!(ui, "{:?}", parse)?;
     } else if let Some(_reindex_matches) = sub_matches.subcommand_matches("index") {
         let repo = get_repo(ui, &matches)?;
         let stats = repo.index().stats();
-        writeln!(ui, "Number of commits: {}", stats.num_commits);
-        writeln!(ui, "Number of merges: {}", stats.num_merges);
-        writeln!(ui, "Max generation number: {}", stats.max_generation_number);
-        writeln!(ui, "Number of heads: {}", stats.num_heads);
-        writeln!(ui, "Number of pruned commits: {}", stats.num_pruned_commits);
-        writeln!(ui, "Number of changes: {}", stats.num_changes);
-        writeln!(ui, "Stats per level:");
+        writeln!(ui, "Number of commits: {}", stats.num_commits)?;
+        writeln!(ui, "Number of merges: {}", stats.num_merges)?;
+        writeln!(ui, "Max generation number: {}", stats.max_generation_number)?;
+        writeln!(ui, "Number of heads: {}", stats.num_heads)?;
+        writeln!(ui, "Number of pruned commits: {}", stats.num_pruned_commits)?;
+        writeln!(ui, "Number of changes: {}", stats.num_changes)?;
+        writeln!(ui, "Stats per level:")?;
         for (i, level) in stats.levels.iter().enumerate() {
-            writeln!(ui, "  Level {}:", i);
-            writeln!(ui, "    Number of commits: {}", level.num_commits);
-            writeln!(ui, "    Name: {}", level.name.as_ref().unwrap());
+            writeln!(ui, "  Level {}:", i)?;
+            writeln!(ui, "    Number of commits: {}", level.num_commits)?;
+            writeln!(ui, "    Name: {}", level.name.as_ref().unwrap())?;
         }
     } else if let Some(_reindex_matches) = sub_matches.subcommand_matches("reindex") {
         let mut repo = get_repo(ui, &matches)?;
         let mut_repo = Arc::get_mut(&mut repo).unwrap();
         let index = mut_repo.reindex();
-        writeln!(ui, "Finished indexing {:?} commits.", index.num_commits());
+        writeln!(ui, "Finished indexing {:?} commits.", index.num_commits())?;
     } else {
         panic!("unhandled command: {:#?}", matches);
     }
     Ok(())
 }
 
-fn run_bench<R, O>(ui: &mut Ui, id: &str, mut routine: R)
+fn run_bench<R, O>(ui: &mut Ui, id: &str, mut routine: R) -> io::Result<()>
 where
     R: (FnMut() -> O) + Copy,
     O: Debug,
@@ -1924,10 +1941,11 @@ where
         "First run took {:?} and produced: {:?}",
         after.duration_since(before),
         result
-    );
+    )?;
     criterion.bench_function(id, |bencher: &mut criterion::Bencher| {
         bencher.iter(routine);
     });
+    Ok(())
 }
 
 fn cmd_bench(
@@ -1946,7 +1964,7 @@ fn cmd_bench(
             repo.index()
                 .common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()])
         };
-        run_bench(ui, "commonancestors", routine);
+        run_bench(ui, "commonancestors", routine)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("isancestor") {
         let mut repo = get_repo(ui, &matches)?;
         let mut_repo = Arc::get_mut(&mut repo).unwrap();
@@ -1959,7 +1977,7 @@ fn cmd_bench(
         )?;
         let index = repo.index();
         let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
-        run_bench(ui, "isancestor", routine);
+        run_bench(ui, "isancestor", routine)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("walkrevs") {
         let mut repo = get_repo(ui, &matches)?;
         let mut_repo = Arc::get_mut(&mut repo).unwrap();
@@ -1976,13 +1994,13 @@ fn cmd_bench(
                 )
                 .count()
         };
-        run_bench(ui, "walkrevs", routine);
+        run_bench(ui, "walkrevs", routine)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("resolveprefix") {
         let repo = get_repo(ui, &matches)?;
         let prefix = HexPrefix::new(command_matches.value_of("prefix").unwrap().to_string());
         let index = repo.index();
         let routine = || index.resolve_prefix(&prefix);
-        run_bench(ui, "resolveprefix", routine);
+        run_bench(ui, "resolveprefix", routine)?;
     } else {
         panic!("unhandled command: {:#?}", matches);
     };
@@ -2011,34 +2029,36 @@ fn cmd_op_log(
     let mut styler = styler.as_mut();
     struct OpTemplate;
     impl Template<Operation> for OpTemplate {
-        fn format(&self, op: &Operation, styler: &mut dyn Styler) {
+        fn format(&self, op: &Operation, styler: &mut dyn Styler) -> io::Result<()> {
             // TODO: why can't this label be applied outside of the template?
-            styler.add_label("op-log".to_string());
+            styler.add_label("op-log".to_string())?;
             // TODO: Make this templated
-            styler.add_label("id".to_string());
+            styler.add_label("id".to_string())?;
             // TODO: support lookup by op-id prefix, so we don't need to print the full hash
             // here
-            styler.write_str(&op.id().hex());
-            styler.remove_label();
-            styler.write_str(" ");
+            styler.write_str(&op.id().hex())?;
+            styler.remove_label()?;
+            styler.write_str(" ")?;
             let metadata = &op.store_operation().metadata;
-            styler.add_label("user".to_string());
-            styler.write_str(&format!("{}@{}", metadata.username, metadata.hostname));
-            styler.remove_label();
-            styler.write_str(" ");
-            styler.add_label("time".to_string());
+            styler.add_label("user".to_string())?;
+            styler.write_str(&format!("{}@{}", metadata.username, metadata.hostname))?;
+            styler.remove_label()?;
+            styler.write_str(" ")?;
+            styler.add_label("time".to_string())?;
             styler.write_str(&format!(
                 "{} - {}",
                 format_timestamp(&metadata.start_time),
                 format_timestamp(&metadata.end_time)
-            ));
-            styler.remove_label();
-            styler.write_str("\n");
-            styler.add_label("description".to_string());
-            styler.write_str(&metadata.description);
-            styler.remove_label();
+            ))?;
+            styler.remove_label()?;
+            styler.write_str("\n")?;
+            styler.add_label("description".to_string())?;
+            styler.write_str(&metadata.description)?;
+            styler.remove_label()?;
 
-            styler.remove_label();
+            styler.remove_label()?;
+
+            Ok(())
         }
     }
     let template = OpTemplate;
@@ -2058,7 +2078,7 @@ fn cmd_op_log(
         {
             let writer = Box::new(&mut buffer);
             let mut styler = ColorStyler::new(writer, ui.settings());
-            template.format(&op, &mut styler);
+            template.format(&op, &mut styler)?;
         }
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
@@ -2187,7 +2207,7 @@ fn cmd_git_clone(
         ui,
         "Fetching into new repo in {:?}",
         repo.working_copy_path()
-    );
+    )?;
     let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();
     let mut tx = repo.start_transaction("fetch from git remote into empty repo");
@@ -2200,7 +2220,7 @@ fn cmd_git_clone(
         }
     })?;
     tx.commit();
-    writeln!(ui, "Done");
+    writeln!(ui, "Done")?;
     Ok(())
 }
 
@@ -2325,12 +2345,14 @@ where
     match result {
         Ok(()) => 0,
         Err(CommandError::UserError(message)) => {
-            ui.write_error(format!("Error: {}\n", message).as_str());
+            ui.write_error(format!("Error: {}\n", message).as_str())
+                .unwrap();
             1
         }
         Err(CommandError::BrokenPipe) => 2,
         Err(CommandError::InternalError(message)) => {
-            ui.write_error(format!("Internal error: {}\n", message).as_str());
+            ui.write_error(format!("Internal error: {}\n", message).as_str())
+                .unwrap();
             255
         }
     }
