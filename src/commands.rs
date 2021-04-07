@@ -60,7 +60,19 @@ use crate::ui::Ui;
 
 enum CommandError {
     UserError(String),
+    BrokenPipe,
     InternalError(String),
+}
+
+impl From<std::io::Error> for CommandError {
+    fn from(err: std::io::Error) -> Self {
+        if err.kind() == std::io::ErrorKind::BrokenPipe {
+            CommandError::BrokenPipe
+        } else {
+            // TODO: Record the error as a chained cause
+            CommandError::InternalError(format!("I/O error: {}", err))
+        }
+    }
 }
 
 impl From<DiffEditError> for CommandError {
@@ -1092,7 +1104,7 @@ fn cmd_log(
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            graph.add_node(commit.id(), &edges, b"o", &buffer).unwrap();
+            graph.add_node(commit.id(), &edges, b"o", &buffer)?;
         }
     } else {
         for index_entry in index_entries {
@@ -1154,7 +1166,7 @@ fn cmd_obslog(
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            graph.add_node(commit.id(), &edges, b"o", &buffer).unwrap();
+            graph.add_node(commit.id(), &edges, b"o", &buffer)?;
         }
     } else {
         for commit in commits {
@@ -2049,7 +2061,7 @@ fn cmd_op_log(
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
         }
-        graph.add_node(op.id(), &edges, b"o", &buffer).unwrap();
+        graph.add_node(op.id(), &edges, b"o", &buffer)?;
     }
 
     Ok(())
@@ -2314,6 +2326,7 @@ where
             ui.write_error(format!("Error: {}\n", message).as_str());
             1
         }
+        Err(CommandError::BrokenPipe) => 2,
         Err(CommandError::InternalError(message)) => {
             ui.write_error(format!("Internal error: {}\n", message).as_str());
             255
