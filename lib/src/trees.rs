@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::cmp::Ordering;
+use std::iter::Peekable;
 
 use crate::files;
 use crate::files::MergeResult;
@@ -20,7 +21,9 @@ use crate::matchers::Matcher;
 use crate::repo_path::{
     DirRepoPath, DirRepoPathComponent, FileRepoPath, FileRepoPathComponent, RepoPathJoin,
 };
-use crate::store::{Conflict, ConflictPart, StoreError, TreeId, TreeValue};
+use crate::store::{
+    Conflict, ConflictPart, StoreError, TreeEntriesNonRecursiveIter, TreeId, TreeValue,
+};
 use crate::store_wrapper::StoreWrapper;
 use crate::tree::Tree;
 
@@ -43,78 +46,82 @@ impl<T> Diff<T> {
 
 pub type TreeValueDiff<'a> = Diff<&'a TreeValue>;
 
-fn diff_entries<'a, E>(
-    tree1: &'a Tree,
-    tree2: &'a Tree,
-    callback: &mut impl FnMut(&'a str, TreeValueDiff<'a>) -> Result<(), E>,
-) -> Result<(), E> {
-    let mut it1 = tree1.entries_non_recursive();
-    let mut it2 = tree2.entries_non_recursive();
-    let mut entry1 = it1.next();
-    let mut entry2 = it2.next();
-    loop {
-        let name: &'a str;
-        let mut value_before: Option<&'a TreeValue> = None;
-        let mut value_after: Option<&'a TreeValue> = None;
-        match (&entry1, &entry2) {
-            (Some(before), Some(after)) => {
-                match before.name().cmp(after.name()) {
-                    Ordering::Less => {
-                        // entry removed
-                        name = before.name();
-                        value_before = Some(before.value());
-                    }
-                    Ordering::Greater => {
-                        // entry added
-                        name = after.name();
-                        value_after = Some(after.value());
-                    }
-                    Ordering::Equal => {
-                        // entry modified
-                        name = before.name();
-                        value_before = Some(before.value());
-                        value_after = Some(after.value());
-                    }
-                }
-            }
-            (Some(before), None) => {
-                // second iterator exhausted
-                name = before.name();
-                value_before = Some(before.value());
-            }
-            (None, Some(after)) => {
-                // first iterator exhausted
-                name = after.name();
-                value_after = Some(after.value());
-            }
-            (None, None) => {
-                // both iterators exhausted
-                break;
-            }
-        }
+struct TreeEntryDiffIterator<'a> {
+    it1: Peekable<TreeEntriesNonRecursiveIter<'a>>,
+    it2: Peekable<TreeEntriesNonRecursiveIter<'a>>,
+}
 
-        match (value_before, value_after) {
-            (Some(before), Some(after)) => {
-                if before != after {
-                    callback(name, TreeValueDiff::Modified(before, after))?;
+impl<'a> TreeEntryDiffIterator<'a> {
+    fn new(tree1: &'a Tree, tree2: &'a Tree) -> Self {
+        let it1 = tree1.entries_non_recursive().peekable();
+        let it2 = tree2.entries_non_recursive().peekable();
+        TreeEntryDiffIterator { it1, it2 }
+    }
+}
+
+impl<'a> Iterator for TreeEntryDiffIterator<'a> {
+    type Item = (String, TreeValueDiff<'a>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let entry1 = self.it1.peek();
+            let entry2 = self.it2.peek();
+            match (&entry1, &entry2) {
+                (Some(before), Some(after)) => {
+                    match before.name().cmp(after.name()) {
+                        Ordering::Less => {
+                            // entry removed
+                            let before = self.it1.next().unwrap();
+                            return Some((
+                                before.name().to_owned(),
+                                TreeValueDiff::Removed(before.value()),
+                            ));
+                        }
+                        Ordering::Greater => {
+                            // entry added
+                            let after = self.it2.next().unwrap();
+                            return Some((
+                                after.name().to_owned(),
+                                TreeValueDiff::Added(after.value()),
+                            ));
+                        }
+                        Ordering::Equal => {
+                            // entry modified or clean
+                            let before = self.it1.next().unwrap();
+                            let after = self.it2.next().unwrap();
+                            if before.value() != after.value() {
+                                return Some((
+                                    before.name().to_owned(),
+                                    TreeValueDiff::Modified(before.value(), after.value()),
+                                ));
+                            }
+                        }
+                    }
                 }
-                entry1 = it1.next();
-                entry2 = it2.next();
-            }
-            (Some(before), None) => {
-                callback(name, TreeValueDiff::Removed(before))?;
-                entry1 = it1.next();
-            }
-            (None, Some(after)) => {
-                callback(name, TreeValueDiff::Added(after))?;
-                entry2 = it2.next();
-            }
-            (None, None) => {
-                panic!("should have been handled above");
+                (Some(_), None) => {
+                    // second iterator exhausted
+                    let before = self.it1.next().unwrap();
+                    return Some((
+                        before.name().to_owned(),
+                        TreeValueDiff::Removed(before.value()),
+                    ));
+                }
+                (None, Some(_)) => {
+                    // first iterator exhausted
+                    let after = self.it2.next().unwrap();
+                    return Some((after.name().to_owned(), TreeValueDiff::Added(after.value())));
+                }
+                (None, None) => {
+                    // both iterators exhausted
+                    return None;
+                }
             }
         }
     }
-    Ok(())
+}
+
+fn diff_entries<'a>(tree1: &'a Tree, tree2: &'a Tree) -> TreeEntryDiffIterator<'a> {
+    TreeEntryDiffIterator::new(tree1, tree2)
 }
 
 pub fn recursive_tree_diff<M>(
@@ -142,11 +149,9 @@ fn internal_recursive_tree_diff<M>(
     // for removing files in the directory.
     let mut late_file_diffs = Vec::new();
     for (dir, tree1, tree2) in &work {
-        diff_entries(tree1, tree2, &mut |name,
-                                         diff: TreeValueDiff|
-         -> Result<(), ()> {
-            let file_path = dir.join(&FileRepoPathComponent::from(name));
-            let subdir = DirRepoPathComponent::from(name);
+        for (name, diff) in diff_entries(tree1, tree2) {
+            let file_path = dir.join(&FileRepoPathComponent::from(name.as_str()));
+            let subdir = DirRepoPathComponent::from(name.as_str());
             let subdir_path = dir.join(&subdir);
             // TODO: simplify this mess
             match diff {
@@ -196,10 +201,8 @@ fn internal_recursive_tree_diff<M>(
                 TreeValueDiff::Removed(_) => {
                     callback(&file_path, diff);
                 }
-            };
-            Ok(())
-        })
-        .unwrap(); // safe because the callback always returns Ok
+            }
+        }
     }
     if !new_work.is_empty() {
         internal_recursive_tree_diff(new_work, _matcher, callback)
@@ -229,10 +232,8 @@ pub fn merge_trees(
     // Start with a tree identical to side 1 and modify based on changes from base
     // to side 2.
     let mut new_tree = side1_tree.data().clone();
-    diff_entries(base_tree, side2_tree, &mut |basename,
-                                              diff|
-     -> Result<(), StoreError> {
-        let maybe_side1 = side1_tree.value(basename);
+    for (basename, diff) in diff_entries(base_tree, side2_tree) {
+        let maybe_side1 = side1_tree.value(basename.as_str());
         let (maybe_base, maybe_side2) = match diff {
             TreeValueDiff::Modified(base, side2) => (Some(base), Some(side2)),
             TreeValueDiff::Added(side2) => (None, Some(side2)),
@@ -241,7 +242,7 @@ pub fn merge_trees(
         if maybe_side1 == maybe_base {
             // side 1 is unchanged: use the value from side 2
             match maybe_side2 {
-                None => new_tree.remove(basename),
+                None => new_tree.remove(basename.as_str()),
                 Some(side2) => new_tree.set(basename.to_owned(), side2.clone()),
             };
         } else if maybe_side1 == maybe_side2 {
@@ -249,15 +250,20 @@ pub fn merge_trees(
             // value
         } else {
             // The two sides changed in different ways
-            let new_value =
-                merge_tree_value(store, dir, basename, maybe_base, maybe_side1, maybe_side2)?;
+            let new_value = merge_tree_value(
+                store,
+                dir,
+                basename.as_str(),
+                maybe_base,
+                maybe_side1,
+                maybe_side2,
+            )?;
             match new_value {
-                None => new_tree.remove(basename),
+                None => new_tree.remove(basename.as_str()),
                 Some(value) => new_tree.set(basename.to_owned(), value),
             }
         }
-        Ok(())
-    })?;
+    }
     store.write_tree(dir, &new_tree)
 }
 
