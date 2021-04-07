@@ -1092,7 +1092,7 @@ fn cmd_log(
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            graph.add_node(commit.id(), &edges, b"o", &buffer);
+            graph.add_node(commit.id(), &edges, b"o", &buffer).unwrap();
         }
     } else {
         for index_entry in index_entries {
@@ -1154,7 +1154,7 @@ fn cmd_obslog(
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            graph.add_node(commit.id(), &edges, b"o", &buffer);
+            graph.add_node(commit.id(), &edges, b"o", &buffer).unwrap();
         }
     } else {
         for commit in commits {
@@ -2049,7 +2049,7 @@ fn cmd_op_log(
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
         }
-        graph.add_node(op.id(), &edges, b"o", &buffer);
+        graph.add_node(op.id(), &edges, b"o", &buffer).unwrap();
     }
 
     Ok(())
