@@ -296,7 +296,7 @@ fn update_checkout_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) -> io:
 
 fn get_app<'a, 'b>() -> App<'a, 'b> {
     let init_command = SubCommand::with_name("init")
-        .about("initialize a repo")
+        .about("Initialize a repo")
         .arg(Arg::with_name("destination").index(1).default_value("."))
         .arg(Arg::with_name("git").long("git"))
         .arg(
@@ -307,13 +307,13 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         );
     let checkout_command = SubCommand::with_name("checkout")
         .alias("co")
-        .about("update the working copy to another commit")
+        .about("Update the working copy to another commit")
         .arg(Arg::with_name("revision").index(1).required(true));
     let files_command = SubCommand::with_name("files")
-        .about("list files")
+        .about("List files")
         .arg(rev_arg());
     let diff_command = SubCommand::with_name("diff")
-        .about("show modified files")
+        .about("Show modified files")
         .arg(
             Arg::with_name("summary")
                 .long("summary")
@@ -330,9 +330,9 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("to").long("to").takes_value(true));
     let status_command = SubCommand::with_name("status")
         .alias("st")
-        .about("show repo status");
+        .about("Show repo status");
     let log_command = SubCommand::with_name("log")
-        .about("show commit history")
+        .about("Show commit history")
         .arg(
             Arg::with_name("template")
                 .long("template")
@@ -342,7 +342,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("all").long("all"))
         .arg(Arg::with_name("no-graph").long("no-graph"));
     let obslog_command = SubCommand::with_name("obslog")
-        .about("show how a commit has evolved")
+        .about("Show how a commit has evolved")
         .arg(rev_arg())
         .arg(
             Arg::with_name("template")
@@ -352,39 +352,39 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         )
         .arg(Arg::with_name("no-graph").long("no-graph"));
     let describe_command = SubCommand::with_name("describe")
-        .about("edit the commit description")
+        .about("Edit the commit description")
         .arg(rev_arg())
         .arg(message_arg())
         .arg(Arg::with_name("stdin").long("stdin"));
     let close_command = SubCommand::with_name("close")
-        .about("mark a commit closed, making new work go into a new commit")
+        .about("Mark a commit closed, making new work go into a new commit")
         .arg(rev_arg())
         .arg(message_arg());
     let open_command = SubCommand::with_name("open")
-        .about("mark a commit open, making new work be added to it")
+        .about("Mark a commit open, making new work be added to it")
         .arg(rev_arg());
     let duplicate_command = SubCommand::with_name("duplicate")
-        .about("create a copy of the commit with a new change id")
+        .about("Create a copy of the commit with a new change id")
         .arg(rev_arg());
     let prune_command = SubCommand::with_name("prune")
-        .about("create an empty successor of a commit")
+        .about("Mark a commit pruned, making descendants evolve onto its parent")
         .arg(Arg::with_name("revision").index(1).default_value("@"));
     let new_command = SubCommand::with_name("new")
-        .about("create a new, empty commit")
+        .about("Create a new, empty commit")
         .arg(rev_arg());
     let squash_command = SubCommand::with_name("squash")
-        .about("move changes from a commit into its parent")
+        .about("Move changes from a commit into its parent")
         .arg(rev_arg())
         .arg(Arg::with_name("interactive").long("interactive").short("i"));
     let unsquash_command = SubCommand::with_name("unsquash")
-        .about("move changes from a commit's parent into the commit")
+        .about("Move changes from a commit's parent into the commit")
         .arg(rev_arg())
         .arg(Arg::with_name("interactive").long("interactive").short("i"));
     let discard_command = SubCommand::with_name("discard")
-        .about("discard a commit (and its descendants)")
+        .about("Discard a commit (and its descendants)")
         .arg(rev_arg());
     let restore_command = SubCommand::with_name("restore")
-        .about("restore paths from another revision")
+        .about("Restore paths from another revision")
         .arg(
             Arg::with_name("source")
                 .long("source")
@@ -402,13 +402,13 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("interactive").long("interactive").short("i"))
         .arg(Arg::with_name("paths").index(1).multiple(true));
     let edit_command = SubCommand::with_name("edit")
-        .about("edit the content changes in a revision")
+        .about("Edit the content changes in a revision")
         .arg(rev_arg());
     let split_command = SubCommand::with_name("split")
-        .about("split a revision in two")
+        .about("Split a revision in two")
         .arg(rev_arg());
     let merge_command = SubCommand::with_name("merge")
-        .about("merge work from multiple branches")
+        .about("Merge work from multiple branches")
         .arg(
             Arg::with_name("revisions")
                 .index(1)
@@ -417,7 +417,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         )
         .arg(message_arg());
     let rebase_command = SubCommand::with_name("rebase")
-        .about("move a commit to a different parent")
+        .about("Move a commit to a different parent")
         .arg(rev_arg())
         .arg(
             Arg::with_name("destination")
@@ -428,7 +428,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .multiple(true),
         );
     let backout_command = SubCommand::with_name("backout")
-        .about("apply the reverse of a commit on top of another commit")
+        .about("Apply the reverse of a commit on top of another commit")
         .arg(rev_arg())
         .arg(
             Arg::with_name("destination")
@@ -439,15 +439,15 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .multiple(true),
         );
     let evolve_command =
-        SubCommand::with_name("evolve").about("resolve problems with the repo's meta-history");
+        SubCommand::with_name("evolve").about("Resolve problems with the repo's meta-history");
     let operation_command = SubCommand::with_name("operation")
         .alias("op")
-        .about("commands for working with the operation log")
+        .about("Commands for working with the operation log")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
-        .subcommand(SubCommand::with_name("log").about("show the operation log"))
+        .subcommand(SubCommand::with_name("log").about("Show the operation log"))
         .subcommand(
             SubCommand::with_name("undo")
-                .about("undo an operation")
+                .about("Undo an operation")
                 .arg(op_arg()),
         )
         .subcommand(
@@ -456,11 +456,11 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .arg(op_arg()),
         );
     let git_command = SubCommand::with_name("git")
-        .about("commands for working with the underlying git repo")
+        .about("Commands for working with the underlying git repo")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("fetch")
-                .about("fetch from a git remote")
+                .about("Fetch from a git remote")
                 .arg(
                     Arg::with_name("remote")
                         .long("remote")
@@ -470,13 +470,13 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         )
         .subcommand(
             SubCommand::with_name("clone")
-                .about("create a new repo backed by a clone of a git repo")
+                .about("Create a new repo backed by a clone of a git repo")
                 .arg(Arg::with_name("source").index(1).required(true))
                 .arg(Arg::with_name("destination").index(2).required(true)),
         )
         .subcommand(
             SubCommand::with_name("push")
-                .about("push a revision to a git remote branch")
+                .about("Push a revision to a git remote branch")
                 .arg(
                     Arg::with_name("revision")
                         .long("revision")
@@ -499,57 +499,57 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         )
         .subcommand(
             SubCommand::with_name("refresh")
-                .about("update repo with changes made in underlying git repo"),
+                .about("Update repo with changes made in underlying git repo"),
         );
     let bench_command = SubCommand::with_name("bench")
-        .about("commands for benchmarking internal operations")
+        .about("Commands for benchmarking internal operations")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("commonancestors")
-                .about("finds the common ancestor(s) of a set of commits")
+                .about("Find the common ancestor(s) of a set of commits")
                 .arg(Arg::with_name("revision1").index(1).required(true))
                 .arg(Arg::with_name("revision2").index(2).required(true)),
         )
         .subcommand(
             SubCommand::with_name("isancestor")
-                .about("checks if the first commit is an ancestor of the second commit")
+                .about("Checks if the first commit is an ancestor of the second commit")
                 .arg(Arg::with_name("ancestor").index(1).required(true))
                 .arg(Arg::with_name("descendant").index(2).required(true)),
         )
         .subcommand(
             SubCommand::with_name("walkrevs")
-                .about("walks revisions that are ancestors of the second argument but not ancestors of the first")
+                .about("Walk revisions that are ancestors of the second argument but not ancestors of the first")
                 .arg(Arg::with_name("unwanted").index(1).required(true))
                 .arg(Arg::with_name("wanted").index(2).required(true)),
         )
         .subcommand(
             SubCommand::with_name("resolveprefix")
-                .about("resolve a commit id prefix")
+                .about("Resolve a commit id prefix")
                 .arg(Arg::with_name("prefix").index(1).required(true)),
         );
     let debug_command = SubCommand::with_name("debug")
-        .about("low-level commands not intended for users")
+        .about("Low-level commands not intended for users")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("resolverev")
-                .about("resolves a revision identifier to its full id")
+                .about("Resolve a revision identifier to its full id")
                 .arg(rev_arg()),
         )
         .subcommand(
             SubCommand::with_name("workingcopy")
-                .about("show information about the working copy state"),
+                .about("Show information about the working copy state"),
         )
         .subcommand(
             SubCommand::with_name("writeworkingcopy")
-                .about("write a tree from the working copy state"),
+                .about("Write a tree from the working copy state"),
         )
         .subcommand(
             SubCommand::with_name("template")
-                .about("parse a template")
+                .about("Parse a template")
                 .arg(Arg::with_name("template").index(1).required(true)),
         )
-        .subcommand(SubCommand::with_name("index").about("show commit index stats"))
-        .subcommand(SubCommand::with_name("reindex").about("rebuild commit index"));
+        .subcommand(SubCommand::with_name("index").about("Show commit index stats"))
+        .subcommand(SubCommand::with_name("reindex").about("Rebuild commit index"));
     App::new("Jujube")
         .global_setting(clap::AppSettings::ColoredHelp)
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
