@@ -132,11 +132,11 @@ impl Debug for SliceDiff<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             SliceDiff::Unchanged(data) => f
-                .debug_tuple("Unchanged")
+                .debug_tuple("SliceDiff::Unchanged")
                 .field(&String::from_utf8_lossy(data))
                 .finish(),
             SliceDiff::Replaced(left, right) => f
-                .debug_tuple("Replaced")
+                .debug_tuple("SliceDiff::Replaced")
                 .field(&String::from_utf8_lossy(left))
                 .field(&String::from_utf8_lossy(right))
                 .finish(),
@@ -205,10 +205,6 @@ pub(crate) fn unchanged_ranges(
         return vec![];
     }
 
-    // TODO: Don't waste time calculating entire histogram. We don't need to keep
-    // data about common entries. If a word has more than N occurrences, we should
-    // just ignore it (and assume that everything changes if we have no less common
-    // words).
     let max_occurrences = 100;
     let mut left_histogram = Histogram::calculate(left, left_ranges, max_occurrences);
     if *left_histogram.count_to_words.first_entry().unwrap().key() > max_occurrences {
@@ -227,6 +223,9 @@ pub(crate) fn unchanged_ranges(
                 uncommon_shared_words.push(left_word);
             }
         }
+    }
+    if uncommon_shared_words.is_empty() {
+        return vec![];
     }
 
     // Let's say our inputs are "a b a b" and "a b c c b a b". We will have found
@@ -274,6 +273,7 @@ pub(crate) fn unchanged_ranges(
     for (_pos, word, occurrence) in &right_positions {
         left_index_by_right_index.push(*left_position_map.get(&(*word, *occurrence)).unwrap());
     }
+
     let lcs = find_lcs(&left_index_by_right_index);
 
     // Produce output ranges, recursing into the modified areas between the elements
@@ -302,6 +302,19 @@ pub(crate) fn unchanged_ranges(
         ));
         previous_left_position = left_position + 1;
         previous_right_position = right_position + 1;
+    }
+    // Also recurse into range at end (after common ranges).
+    let skipped_left_positions = previous_left_position..left_ranges.len();
+    let skipped_right_positions = previous_right_position..right_ranges.len();
+    if !skipped_left_positions.is_empty() || !skipped_right_positions.is_empty() {
+        for unchanged_nested_range in unchanged_ranges(
+            left,
+            right,
+            &left_ranges[skipped_left_positions],
+            &right_ranges[skipped_right_positions],
+        ) {
+            result.push(unchanged_nested_range);
+        }
     }
 
     result
@@ -795,7 +808,31 @@ mod tests {
     }
 
     #[test]
-    fn test_diff_gitgit_read_tree_c() {
+    fn test_diff_real_case_write_fmt() {
+        // This is from src/ui.rs in commit f44d246e3f88 in this repo. It highlights the
+        // need for recursion into the range at the end: after splitting at "Arguments"
+        // and "styler", the region at the end has the unique words "write_fmt"
+        // and "fmt", but we forgot to recurse into that region, so we ended up
+        // saying that "write_fmt(fmt).unwrap()" was replaced by b"write_fmt(fmt)".
+        assert_eq!(diff(
+                b"    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_>) {\n        self.styler().write_fmt(fmt).unwrap()\n",
+                b"    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_>) -> io::Result<()> {\n        self.styler().write_fmt(fmt)\n"
+            ),
+            vec![
+                SliceDiff::Unchanged(b"    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_"),
+                SliceDiff::Unchanged(b">) "),
+                SliceDiff::Replaced(b"", b"-> io::Result<()> "),
+                SliceDiff::Unchanged(b"{\n        "),
+                SliceDiff::Unchanged(b"self.styler().write_fmt(fmt"),
+                SliceDiff::Unchanged(b")"),
+                SliceDiff::Replaced(b".unwrap()", b""),
+                SliceDiff::Unchanged(b"\n")
+            ]
+        );
+    }
+
+    #[test]
+    fn test_diff_real_case_gitgit_read_tree_c() {
         // This is the diff from commit e497ea2a9b in the git.git repo
         assert_eq!(
             diff(
@@ -947,7 +984,9 @@ int main(int argc, char **argv)
                SliceDiff::Replaced(b"", b"\t\tint fd;\n\n"),
                SliceDiff::Unchanged(b"\t\tif (size < len + 20 || sscanf(buffer, \"%o\", &mode) != 1)\n\t\t\tusage(\"corrupt \'tree\' file\");\n\t\tbuffer = sha1 + 20;\n\t\tsize -= len + 20;\n"),
                SliceDiff::Unchanged(b"\t\t"),
-               SliceDiff::Replaced(b"printf(\"%o %s (%s)\\n\", mode, path, sha1_to_hex(", b"data = read_sha1_file("),
+               SliceDiff::Replaced(b"printf", b"data = read_sha1_file"),
+               SliceDiff::Unchanged(b"("),
+               SliceDiff::Replaced(b"\"%o %s (%s)\\n\", mode, path, sha1_to_hex(", b""),
                SliceDiff::Unchanged(b"sha1"),
                SliceDiff::Replaced(b"", b", type, &filesize"),
                SliceDiff::Unchanged(b")"),
