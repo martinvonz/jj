@@ -710,10 +710,8 @@ fn print_diff(left: &[u8], right: &[u8], styler: &mut dyn Styler) -> io::Result<
                 }
             }
         } else {
-            if context_before || context.len() < num_context_lines {
-                for line in &context {
-                    print_diff_line(styler, line)?;
-                }
+            for line in &context {
+                print_diff_line(styler, line)?;
             }
             context.clear();
             print_diff_line(styler, &diff_line)?;
