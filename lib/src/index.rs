@@ -969,7 +969,7 @@ pub struct IndexStats {
     pub levels: Vec<IndexLevelStats>,
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 struct IndexEntryByPosition<'a>(IndexEntry<'a>);
 
 impl Ord for IndexEntryByPosition<'_> {
@@ -984,7 +984,7 @@ impl PartialOrd for IndexEntryByPosition<'_> {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 struct IndexEntryByGeneration<'a>(IndexEntry<'a>);
 
 impl Ord for IndexEntryByGeneration<'_> {
@@ -1002,12 +1002,13 @@ impl PartialOrd for IndexEntryByGeneration<'_> {
     }
 }
 
-#[derive(Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct RevWalkWorkItem<'a> {
     entry: IndexEntryByGeneration<'a>,
     wanted: bool,
 }
 
+#[derive(Clone)]
 pub struct RevWalk<'a> {
     index: CompositeIndex<'a>,
     items: BinaryHeap<RevWalkWorkItem<'a>>,

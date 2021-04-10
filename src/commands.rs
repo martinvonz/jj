@@ -42,7 +42,7 @@ use jujube_lib::repo_path::RepoPath;
 use jujube_lib::revset::RevsetError;
 use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujube_lib::settings::UserSettings;
-use jujube_lib::store::{CommitId, Timestamp, TreeValue};
+use jujube_lib::store::{CommitId, StoreError, Timestamp, TreeValue};
 use jujube_lib::store_wrapper::StoreWrapper;
 use jujube_lib::tree::Tree;
 use jujube_lib::trees::Diff;
@@ -73,6 +73,12 @@ impl From<std::io::Error> for CommandError {
             // TODO: Record the error as a chained cause
             CommandError::InternalError(format!("I/O error: {}", err))
         }
+    }
+}
+
+impl From<StoreError> for CommandError {
+    fn from(err: StoreError) -> Self {
+        CommandError::UserError(format!("Unexpected error from store: {}", err))
     }
 }
 
@@ -127,6 +133,14 @@ fn resolve_single_rev(
 ) -> Result<(Arc<ReadonlyRepo>, Commit), CommandError> {
     // If we're looking up the working copy commit ("@"), make sure that it is up to
     // date (the lib crate only looks at the checkout in the view).
+    // TODO: How do we generally figure out if a revset needs to commit the working
+    // copy? For example, ":@" should ideally not result in a new working copy
+    // commit, but "::@" should. "foo::" is probably also should, since we would
+    // otherwise need to evaluate the revset and see if "foo::" includes the
+    // parent of the current checkout. Other interesting cases include some kind of
+    // reference pointing to the working copy commit. If it's a
+    // type of reference that would get updated when the commit gets rewritten, then
+    // we probably should create a new working copy commit.
     if revision_str == "@" {
         let wc = repo.working_copy();
         // TODO: Avoid committing every time this function is called.
@@ -134,12 +148,7 @@ fn resolve_single_rev(
         repo = reloaded_repo;
     }
 
-    if revision_str == "@^" {
-        let commit = repo.store().get_commit(repo.view().checkout()).unwrap();
-        assert!(commit.is_open());
-        let parents = commit.parents();
-        Ok((repo, parents[0].clone()))
-    } else if revision_str.starts_with("desc(") && revision_str.ends_with(')') {
+    if revision_str.starts_with("desc(") && revision_str.ends_with(')') {
         let needle = revision_str[5..revision_str.len() - 1].to_string();
         let mut matches = vec![];
         let head_ids = skip_uninteresting_heads(repo.as_ref(), &repo.view().heads());
@@ -157,10 +166,26 @@ fn resolve_single_rev(
             Some(commit) => Ok((repo, commit)),
         }
     } else {
-        Ok((
-            repo.clone(),
-            revset::resolve_symbol(repo.as_repo_ref(), revision_str)?,
-        ))
+        let revset_expression = revset::parse(revision_str);
+        let revset = revset::evaluate_expression(repo.as_repo_ref(), &revset_expression)?;
+        let mut iter = revset.iter();
+        match iter.next() {
+            None => Err(CommandError::UserError(format!(
+                "Revset \"{}\" didn't resolve to any revisions",
+                revision_str
+            ))),
+            Some(entry) => {
+                let commit = repo.store().get_commit(&entry.commit_id())?;
+                if iter.next().is_some() {
+                    return Err(CommandError::UserError(format!(
+                        "Revset \"{}\" resolved to more than one revision",
+                        revision_str
+                    )));
+                } else {
+                    Ok((repo.clone(), commit))
+                }
+            }
+        }
     }
 }
 
@@ -376,7 +401,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .long("source")
                 .short("s")
                 .takes_value(true)
-                .default_value("@^"),
+                .default_value(":@"),
         )
         .arg(
             Arg::with_name("destination")
@@ -468,7 +493,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                         .long("revision")
                         .short("r")
                         .takes_value(true)
-                        .default_value("@^"),
+                        .default_value(":@"),
                 )
                 .arg(
                     Arg::with_name("remote")
