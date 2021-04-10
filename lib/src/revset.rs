@@ -49,20 +49,21 @@ pub fn resolve_symbol(repo: RepoRef, symbol: &str) -> Result<Commit, RevsetError
                 Err(err) => return Err(RevsetError::StoreError(err)),
             }
         }
-        let commit_id = resolve_commit_id_prefix(repo, symbol)?;
-        Ok(repo.store().get_commit(&commit_id)?)
-    }
-}
 
-fn resolve_commit_id_prefix(repo: RepoRef, symbol: &str) -> Result<CommitId, RevsetError> {
-    match repo
-        .index()
-        .resolve_prefix(&HexPrefix::new(symbol.to_owned()))
-    {
-        PrefixResolution::NoMatch => Err(RevsetError::NoSuchRevision(symbol.to_owned())),
-        PrefixResolution::AmbiguousMatch => {
-            Err(RevsetError::AmbiguousCommitIdPrefix(symbol.to_owned()))
+        if let Some(prefix) = HexPrefix::new(symbol.to_string()) {
+            match repo.index().resolve_prefix(&prefix) {
+                PrefixResolution::NoMatch => {
+                    return Err(RevsetError::NoSuchRevision(symbol.to_owned()))
+                }
+                PrefixResolution::AmbiguousMatch => {
+                    return Err(RevsetError::AmbiguousCommitIdPrefix(symbol.to_owned()))
+                }
+                PrefixResolution::SingleMatch(commit_id) => {
+                    return Ok(repo.store().get_commit(&commit_id)?)
+                }
+            }
         }
-        PrefixResolution::SingleMatch(id) => Ok(id),
+
+        Err(RevsetError::NoSuchRevision(symbol.to_owned()))
     }
 }

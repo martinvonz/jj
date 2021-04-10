@@ -1976,7 +1976,8 @@ fn cmd_bench(
         run_bench(ui, "walkrevs", routine)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("resolveprefix") {
         let repo = get_repo(ui, &matches)?;
-        let prefix = HexPrefix::new(command_matches.value_of("prefix").unwrap().to_string());
+        let prefix =
+            HexPrefix::new(command_matches.value_of("prefix").unwrap().to_string()).unwrap();
         let index = repo.index();
         let routine = || index.resolve_prefix(&prefix);
         run_bench(ui, "resolveprefix", routine)?;

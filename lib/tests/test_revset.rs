@@ -105,6 +105,12 @@ fn test_resolve_symbol_commit_id() {
         Err(RevsetError::NoSuchRevision("040".to_string()))
     );
 
+    // Test non-hex string
+    assert_eq!(
+        resolve_symbol(repo_ref, "foo"),
+        Err(RevsetError::NoSuchRevision("foo".to_string()))
+    );
+
     tx.discard();
 }
 
