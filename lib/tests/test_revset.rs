@@ -139,3 +139,86 @@ fn test_resolve_symbol_checkout(use_git: bool) {
 
     tx.discard();
 }
+
+#[test]
+fn test_resolve_symbol_git_refs() {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, true);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    // Create some commits and refs to work with and so the repo is not empty
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit4 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit5 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    mut_repo.insert_git_ref("refs/heads/branch1".to_string(), commit1.id().clone());
+    mut_repo.insert_git_ref("refs/heads/branch2".to_string(), commit2.id().clone());
+    mut_repo.insert_git_ref("refs/tags/tag1".to_string(), commit2.id().clone());
+    mut_repo.insert_git_ref(
+        "refs/tags/remotes/origin/branch1".to_string(),
+        commit3.id().clone(),
+    );
+
+    // Non-existent ref
+    assert_eq!(
+        resolve_symbol(mut_repo.as_repo_ref(), "non-existent"),
+        Err(RevsetError::NoSuchRevision("non-existent".to_string()))
+    );
+
+    // Full ref
+    mut_repo.insert_git_ref("refs/heads/branch".to_string(), commit4.id().clone());
+    assert_eq!(
+        resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/branch").unwrap(),
+        commit4
+    );
+
+    // Qualified with only heads/
+    mut_repo.insert_git_ref("refs/heads/branch".to_string(), commit5.id().clone());
+    mut_repo.insert_git_ref("refs/tags/branch".to_string(), commit4.id().clone());
+    assert_eq!(
+        resolve_symbol(mut_repo.as_repo_ref(), "heads/branch").unwrap(),
+        commit5
+    );
+
+    // Unqualified branch name
+    mut_repo.insert_git_ref("refs/heads/branch".to_string(), commit3.id().clone());
+    mut_repo.insert_git_ref("refs/tags/branch".to_string(), commit4.id().clone());
+    assert_eq!(
+        resolve_symbol(mut_repo.as_repo_ref(), "branch").unwrap(),
+        commit3
+    );
+
+    // Unqualified tag name
+    mut_repo.insert_git_ref("refs/tags/tag".to_string(), commit4.id().clone());
+    assert_eq!(
+        resolve_symbol(mut_repo.as_repo_ref(), "tag").unwrap(),
+        commit4
+    );
+
+    // Unqualified remote-tracking branch name
+    mut_repo.insert_git_ref(
+        "refs/remotes/origin/remote-branch".to_string(),
+        commit2.id().clone(),
+    );
+    assert_eq!(
+        resolve_symbol(mut_repo.as_repo_ref(), "origin/remote-branch").unwrap(),
+        commit2
+    );
+
+    // Cannot shadow checkout ("@") or root symbols
+    mut_repo.insert_git_ref("@".to_string(), commit2.id().clone());
+    mut_repo.insert_git_ref("root".to_string(), commit3.id().clone());
+    assert_eq!(
+        resolve_symbol(mut_repo.as_repo_ref(), "@").unwrap().id(),
+        mut_repo.view().checkout()
+    );
+    assert_eq!(
+        resolve_symbol(mut_repo.as_repo_ref(), "root").unwrap(),
+        mut_repo.store().root_commit()
+    );
+
+    tx.discard();
+}

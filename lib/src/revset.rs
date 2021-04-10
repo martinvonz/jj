@@ -34,12 +34,20 @@ pub enum RevsetError {
 // matching commits. Depending on how we decide to handle divergent git refs and
 // similar, we may also want those to resolve to multiple commits.
 pub fn resolve_symbol(repo: RepoRef, symbol: &str) -> Result<Commit, RevsetError> {
-    // TODO: Support git refs and change ids.
+    // TODO: Support change ids.
     if symbol == "@" {
         Ok(repo.store().get_commit(repo.view().checkout())?)
     } else if symbol == "root" {
         Ok(repo.store().root_commit())
     } else {
+        // Try to resolve as a git ref
+        let view = repo.view();
+        for git_ref_prefix in &["", "refs/", "refs/heads/", "refs/tags/", "refs/remotes/"] {
+            if let Some(commit_id) = view.git_refs().get(&(git_ref_prefix.to_string() + symbol)) {
+                return Ok(repo.store().get_commit(&commit_id)?);
+            }
+        }
+
         // Try to resolve as a commit id. First check if it's a full commit id.
         if let Ok(binary_commit_id) = hex::decode(symbol) {
             let commit_id = CommitId(binary_commit_id);
