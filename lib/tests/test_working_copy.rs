@@ -16,6 +16,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+use std::sync::Arc;
 
 use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::repo::ReadonlyRepo;
@@ -73,7 +74,7 @@ fn test_checkout_file_transitions(use_git: bool) {
 
     fn write_path(
         settings: &UserSettings,
-        repo: &ReadonlyRepo,
+        repo: &Arc<ReadonlyRepo>,
         tree_builder: &mut TreeBuilder,
         kind: Kind,
         path: &str,

@@ -21,16 +21,16 @@ use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo};
 use crate::store::Timestamp;
 
-pub struct Transaction<'r> {
-    repo: Option<Arc<MutableRepo<'r>>>,
+pub struct Transaction {
+    repo: Option<Arc<MutableRepo>>,
     parents: Vec<OperationId>,
     description: String,
     start_time: Timestamp,
     closed: bool,
 }
 
-impl<'r> Transaction<'r> {
-    pub fn new(mut_repo: Arc<MutableRepo<'r>>, description: &str) -> Transaction<'r> {
+impl Transaction {
+    pub fn new(mut_repo: Arc<MutableRepo>, description: &str) -> Transaction {
         let parents = vec![mut_repo.base_repo().op_id().clone()];
         Transaction {
             repo: Some(mut_repo),
@@ -41,7 +41,7 @@ impl<'r> Transaction<'r> {
         }
     }
 
-    pub fn base_repo(&self) -> &'r ReadonlyRepo {
+    pub fn base_repo(&self) -> &ReadonlyRepo {
         self.repo.as_ref().unwrap().base_repo()
     }
 
@@ -49,7 +49,7 @@ impl<'r> Transaction<'r> {
         self.parents = parents;
     }
 
-    pub fn mut_repo(&mut self) -> &mut MutableRepo<'r> {
+    pub fn mut_repo(&mut self) -> &mut MutableRepo {
         Arc::get_mut(self.repo.as_mut().unwrap()).unwrap()
     }
 
@@ -63,7 +63,7 @@ impl<'r> Transaction<'r> {
     /// operation will not be seen when loading the repo at head.
     pub fn write(mut self) -> UnpublishedOperation {
         let mut_repo = Arc::try_unwrap(self.repo.take().unwrap()).ok().unwrap();
-        let base_repo = mut_repo.base_repo();
+        let base_repo = mut_repo.base_repo().clone();
         let (mut_index, mut_view) = mut_repo.consume();
         let index = base_repo.index_store().write_index(mut_index).unwrap();
 
@@ -97,7 +97,7 @@ impl<'r> Transaction<'r> {
     }
 }
 
-impl Drop for Transaction<'_> {
+impl Drop for Transaction {
     fn drop(&mut self) {
         if !std::thread::panicking() {
             debug_assert!(self.closed, "Transaction was dropped without being closed.");

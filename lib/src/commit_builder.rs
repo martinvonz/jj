@@ -154,7 +154,7 @@ impl CommitBuilder {
         self
     }
 
-    pub fn write_to_new_transaction(self, repo: &ReadonlyRepo, description: &str) -> Commit {
+    pub fn write_to_new_transaction(self, repo: &Arc<ReadonlyRepo>, description: &str) -> Commit {
         let mut tx = repo.start_transaction(description);
         let commit = self.write_to_repo(tx.mut_repo());
         tx.commit();

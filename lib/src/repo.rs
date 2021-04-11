@@ -64,20 +64,20 @@ pub type RepoResult<T> = Result<T, RepoError>;
 // TODO: Should we implement From<&ReadonlyRepo> and From<&MutableRepo> for
 // RepoRef?
 #[derive(Clone, Copy)]
-pub enum RepoRef<'a, 'r: 'a> {
+pub enum RepoRef<'a> {
     Readonly(&'a ReadonlyRepo),
-    Mutable(&'a MutableRepo<'r>),
+    Mutable(&'a MutableRepo),
 }
 
-impl<'a, 'r> RepoRef<'a, 'r> {
-    pub fn store(&self) -> &'a Arc<StoreWrapper> {
+impl<'a> RepoRef<'a> {
+    pub fn store(&self) -> &Arc<StoreWrapper> {
         match self {
             RepoRef::Readonly(repo) => repo.store(),
             RepoRef::Mutable(repo) => repo.store(),
         }
     }
 
-    pub fn op_store(&self) -> &'a Arc<dyn OpStore> {
+    pub fn op_store(&self) -> &Arc<dyn OpStore> {
         match self {
             RepoRef::Readonly(repo) => repo.op_store(),
             RepoRef::Mutable(repo) => repo.op_store(),
@@ -346,9 +346,14 @@ impl ReadonlyRepo {
         &self.settings
     }
 
-    pub fn start_transaction(&self, description: &str) -> Transaction {
+    pub fn start_transaction(self: &Arc<ReadonlyRepo>, description: &str) -> Transaction {
         let locked_evolution = self.evolution.lock().unwrap();
-        let mut_repo = MutableRepo::new(self, self.index(), &self.view, locked_evolution.as_ref());
+        let mut_repo = MutableRepo::new(
+            self.clone(),
+            self.index(),
+            &self.view,
+            locked_evolution.as_ref(),
+        );
         Transaction::new(mut_repo, description)
     }
 
@@ -469,20 +474,20 @@ impl RepoLoader {
     }
 }
 
-pub struct MutableRepo<'r> {
-    base_repo: &'r ReadonlyRepo,
+pub struct MutableRepo {
+    base_repo: Arc<ReadonlyRepo>,
     index: MutableIndex,
     view: MutableView,
     evolution: Mutex<Option<MutableEvolution>>,
 }
 
-impl<'r> MutableRepo<'r> {
+impl MutableRepo {
     pub fn new(
-        base_repo: &'r ReadonlyRepo,
+        base_repo: Arc<ReadonlyRepo>,
         index: Arc<ReadonlyIndex>,
         view: &ReadonlyView,
         evolution: Option<&Arc<ReadonlyEvolution>>,
-    ) -> Arc<MutableRepo<'r>> {
+    ) -> Arc<MutableRepo> {
         let mut_view = view.start_modification();
         let mut_index = MutableIndex::incremental(index);
         let mut_evolution = evolution.map(|evolution| evolution.start_modification());
@@ -498,8 +503,8 @@ impl<'r> MutableRepo<'r> {
         RepoRef::Mutable(&self)
     }
 
-    pub fn base_repo(&self) -> &'r ReadonlyRepo {
-        self.base_repo
+    pub fn base_repo(&self) -> &Arc<ReadonlyRepo> {
+        &self.base_repo
     }
 
     pub fn store(&self) -> &Arc<StoreWrapper> {

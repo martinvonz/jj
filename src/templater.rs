@@ -206,21 +206,21 @@ impl TemplateProperty<Commit, bool> for PrunedProperty {
     }
 }
 
-pub struct CurrentCheckoutProperty<'a, 'r> {
-    pub repo: RepoRef<'a, 'r>,
+pub struct CurrentCheckoutProperty<'a> {
+    pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<Commit, bool> for CurrentCheckoutProperty<'_, '_> {
+impl TemplateProperty<Commit, bool> for CurrentCheckoutProperty<'_> {
     fn extract(&self, context: &Commit) -> bool {
         context.id() == self.repo.view().checkout()
     }
 }
 
-pub struct GitRefsProperty<'a, 'r> {
-    pub repo: RepoRef<'a, 'r>,
+pub struct GitRefsProperty<'a> {
+    pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<Commit, String> for GitRefsProperty<'_, '_> {
+impl TemplateProperty<Commit, String> for GitRefsProperty<'_> {
     fn extract(&self, context: &Commit) -> String {
         let refs: Vec<_> = self
             .repo
@@ -234,31 +234,31 @@ impl TemplateProperty<Commit, String> for GitRefsProperty<'_, '_> {
     }
 }
 
-pub struct ObsoleteProperty<'a, 'r> {
-    pub repo: RepoRef<'a, 'r>,
+pub struct ObsoleteProperty<'a> {
+    pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<Commit, bool> for ObsoleteProperty<'_, '_> {
+impl TemplateProperty<Commit, bool> for ObsoleteProperty<'_> {
     fn extract(&self, context: &Commit) -> bool {
         self.repo.evolution().is_obsolete(context.id())
     }
 }
 
-pub struct OrphanProperty<'a, 'r> {
-    pub repo: RepoRef<'a, 'r>,
+pub struct OrphanProperty<'a> {
+    pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<Commit, bool> for OrphanProperty<'_, '_> {
+impl TemplateProperty<Commit, bool> for OrphanProperty<'_> {
     fn extract(&self, context: &Commit) -> bool {
         self.repo.evolution().is_orphan(context.id())
     }
 }
 
-pub struct DivergentProperty<'a, 'r> {
-    pub repo: RepoRef<'a, 'r>,
+pub struct DivergentProperty<'a> {
+    pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<Commit, bool> for DivergentProperty<'_, '_> {
+impl TemplateProperty<Commit, bool> for DivergentProperty<'_> {
     fn extract(&self, context: &Commit) -> bool {
         self.repo.evolution().is_divergent(context.change_id())
     }
