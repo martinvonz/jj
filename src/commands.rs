@@ -128,9 +128,9 @@ fn resolve_single_rev(
     // If we're looking up the working copy commit ("@"), make sure that it is up to
     // date (the lib crate only looks at the checkout in the view).
     if revision_str == "@" {
-        let owned_wc = repo.working_copy().clone();
+        let wc = repo.working_copy();
         // TODO: Avoid committing every time this function is called.
-        let (reloaded_repo, _) = owned_wc.lock().unwrap().commit(ui.settings(), repo.clone());
+        let (reloaded_repo, _) = wc.lock().unwrap().commit(ui.settings(), repo.clone());
         repo = reloaded_repo;
     }
 
@@ -633,14 +633,14 @@ fn cmd_checkout(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let (repo, new_commit) = resolve_revision_arg(ui, repo, sub_matches)?;
-    let wc = owned_wc.lock().unwrap();
-    let (repo, _) = wc.commit(ui.settings(), repo);
+    let wc = repo.working_copy();
+    let locked_wc = wc.lock().unwrap();
+    let (repo, _) = locked_wc.commit(ui.settings(), repo.clone());
     let mut tx = repo.start_transaction(&format!("check out commit {}", new_commit.id().hex()));
     tx.mut_repo().check_out(ui.settings(), &new_commit);
     tx.commit();
-    let stats = update_working_copy(ui, &repo, &wc)?;
+    let stats = update_working_copy(ui, &repo, &locked_wc)?;
     match stats {
         None => ui.write("already on that commit\n")?,
         Some(stats) => writeln!(
@@ -943,9 +943,8 @@ fn cmd_status(
     _sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
-    let wc = owned_wc.lock().unwrap();
-    let (repo, commit) = wc.commit(ui.settings(), repo);
+    let wc = repo.working_copy().clone();
+    let (repo, commit) = wc.lock().unwrap().commit(ui.settings(), repo);
     ui.write("Working copy : ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
     ui.write("\n")?;
@@ -1039,13 +1038,13 @@ fn cmd_log(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
 
     let use_graph = !sub_matches.is_present("no-graph");
     if use_graph {
         // Commit so the latest working copy is reflected in the view's checkout and
         // visible heads
-        let (reloaded_repo, _wc_commit) = owned_wc.lock().unwrap().commit(ui.settings(), repo);
+        let wc = repo.working_copy();
+        let (reloaded_repo, _wc_commit) = wc.lock().unwrap().commit(ui.settings(), repo.clone());
         repo = reloaded_repo;
     }
 
@@ -1207,7 +1206,6 @@ fn cmd_describe(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let description;
     if sub_matches.is_present("stdin") {
@@ -1225,7 +1223,7 @@ fn cmd_describe(
         .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+    update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
 
@@ -1235,7 +1233,6 @@ fn cmd_open(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let mut tx = repo.start_transaction(&format!("open commit {}", commit.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
@@ -1243,7 +1240,7 @@ fn cmd_open(
         .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+    update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
 
@@ -1253,7 +1250,6 @@ fn cmd_close(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let mut commit_builder =
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit).set_open(false);
@@ -1270,7 +1266,7 @@ fn cmd_close(
     commit_builder.write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+    update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
 
@@ -1299,7 +1295,6 @@ fn cmd_prune(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let (repo, predecessor) = resolve_revision_arg(ui, repo, sub_matches)?;
     if predecessor.id() == repo.store().root_commit_id() {
         return Err(CommandError::UserError(String::from(
@@ -1312,7 +1307,7 @@ fn cmd_prune(
         .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+    update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
 
@@ -1322,7 +1317,6 @@ fn cmd_new(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let (repo, parent) = resolve_revision_arg(ui, repo, sub_matches)?;
     let commit_builder = CommitBuilder::for_open_commit(
         ui.settings(),
@@ -1337,7 +1331,7 @@ fn cmd_new(
         mut_repo.check_out(ui.settings(), &new_commit);
     }
     tx.commit();
-    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+    update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
 
@@ -1347,7 +1341,6 @@ fn cmd_squash(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let parents = commit.parents();
     if parents.len() != 1 {
@@ -1386,7 +1379,7 @@ fn cmd_squash(
         .write_to_repo(mut_repo);
     update_checkout_after_rewrite(ui, mut_repo)?;
     tx.commit();
-    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+    update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
 
@@ -1396,7 +1389,6 @@ fn cmd_unsquash(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let parents = commit.parents();
     if parents.len() != 1 {
@@ -1436,7 +1428,7 @@ fn cmd_unsquash(
         .write_to_repo(mut_repo);
     update_checkout_after_rewrite(ui, mut_repo)?;
     tx.commit();
-    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+    update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
 
@@ -1465,7 +1457,6 @@ fn cmd_restore(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let (repo, source_commit) =
         resolve_single_rev(ui, repo, sub_matches.value_of("source").unwrap())?;
     let (repo, destination_commit) =
@@ -1515,7 +1506,7 @@ fn cmd_restore(
         ui.write("\n")?;
         update_checkout_after_rewrite(ui, mut_repo)?;
         tx.commit();
-        update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+        update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     }
     Ok(())
 }
@@ -1526,7 +1517,6 @@ fn cmd_edit(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
@@ -1543,7 +1533,7 @@ fn cmd_edit(
         ui.write("\n")?;
         update_checkout_after_rewrite(ui, mut_repo)?;
         tx.commit();
-        update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+        update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     }
     Ok(())
 }
@@ -1554,7 +1544,6 @@ fn cmd_split(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
@@ -1584,7 +1573,7 @@ fn cmd_split(
         ui.write("\n")?;
         update_checkout_after_rewrite(ui, mut_repo)?;
         tx.commit();
-        update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+        update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     }
     Ok(())
 }
@@ -1595,7 +1584,6 @@ fn cmd_merge(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let revision_args = sub_matches.values_of("revisions").unwrap();
     if revision_args.len() < 2 {
         return Err(CommandError::UserError(String::from(
@@ -1625,7 +1613,7 @@ fn cmd_merge(
         .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+    update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
 
     Ok(())
 }
@@ -1636,7 +1624,6 @@ fn cmd_rebase(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let (mut repo, commit_to_rebase) = resolve_revision_arg(ui, repo, sub_matches)?;
     let mut parents = vec![];
     for revision_str in sub_matches.values_of("destination").unwrap() {
@@ -1648,7 +1635,7 @@ fn cmd_rebase(
     rebase_commit(ui.settings(), tx.mut_repo(), &commit_to_rebase, &parents);
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+    update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
 
     Ok(())
 }
@@ -1659,7 +1646,6 @@ fn cmd_backout(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let (mut repo, commit_to_back_out) = resolve_revision_arg(ui, repo, sub_matches)?;
     let mut parents = vec![];
     for revision_str in sub_matches.values_of("destination").unwrap() {
@@ -1674,7 +1660,7 @@ fn cmd_backout(
     back_out_commit(ui.settings(), tx.mut_repo(), &commit_to_back_out, &parents);
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+    update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
 
     Ok(())
 }
@@ -1685,7 +1671,6 @@ fn cmd_evolve<'s>(
     _sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
 
     struct Listener<'a, 's> {
         ui: &'a mut Ui<'s>,
@@ -1775,7 +1760,7 @@ fn cmd_evolve<'s>(
     evolve(&user_settings, tx.mut_repo(), &mut listener);
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+    update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
 
     Ok(())
 }
@@ -1803,10 +1788,10 @@ fn cmd_debug(
         }
     } else if let Some(_wc_matches) = sub_matches.subcommand_matches("writeworkingcopy") {
         let repo = get_repo(ui, &matches)?;
-        let owned_wc = repo.working_copy().clone();
-        let wc = owned_wc.lock().unwrap();
-        let old_commit_id = wc.current_commit_id();
-        let (_repo, new_commit) = wc.commit(ui.settings(), repo);
+        let wc = repo.working_copy();
+        let locked_wc = wc.lock().unwrap();
+        let old_commit_id = locked_wc.current_commit_id();
+        let (_repo, new_commit) = locked_wc.commit(ui.settings(), repo.clone());
         let new_commit_id = new_commit.id().clone();
         writeln!(ui, "old commit {:?}", old_commit_id)?;
         writeln!(ui, "new commit {:?}", new_commit_id)?;
@@ -2006,7 +1991,6 @@ fn cmd_op_undo(
     _cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let bad_op = resolve_single_op(&repo, _cmd_matches.value_of("operation").unwrap())?;
     let parent_ops = bad_op.parents();
     if parent_ops.len() > 1 {
@@ -2025,7 +2009,7 @@ fn cmd_op_undo(
     let parent_repo = repo.loader().load_at(&parent_ops[0])?;
     tx.mut_repo().merge(&bad_repo, &parent_repo);
     tx.commit();
-    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+    update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
 
     Ok(())
 }
@@ -2036,12 +2020,11 @@ fn cmd_op_restore(
     _cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let owned_wc = repo.working_copy().clone();
     let target_op = resolve_single_op(&repo, _cmd_matches.value_of("operation").unwrap())?;
     let mut tx = repo.start_transaction(&format!("restore to operation {}", target_op.id().hex()));
     tx.mut_repo().set_view(target_op.view().take_store_view());
     tx.commit();
-    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
+    update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
 
     Ok(())
 }
