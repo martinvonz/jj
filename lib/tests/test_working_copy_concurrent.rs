@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::collections::HashSet;
-use std::sync::Arc;
 use std::thread;
 
 use jujube_lib::commit_builder::CommitBuilder;
@@ -74,25 +73,25 @@ fn test_concurrent_commit(use_git: bool) {
     // instead of divergence.
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo1) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo1) = testutils::init_repo(&settings, use_git);
 
     let owned_wc1 = repo1.working_copy().clone();
     let wc1 = owned_wc1.lock().unwrap();
     let commit1 = wc1.current_commit();
 
     // Commit from another process (simulated by another repo instance)
-    let mut repo2 = ReadonlyRepo::load(&settings, repo1.working_copy_path().clone()).unwrap();
+    let repo2 = ReadonlyRepo::load(&settings, repo1.working_copy_path().clone()).unwrap();
     testutils::write_working_copy_file(&repo2, &FileRepoPath::from("file2"), "contents2");
     let owned_wc2 = repo2.working_copy().clone();
     let wc2 = owned_wc2.lock().unwrap();
-    let commit2 = wc2.commit(&settings, Arc::get_mut(&mut repo2).unwrap());
+    let commit2 = wc2.commit(&settings, repo2).1;
 
     assert_eq!(commit2.predecessors(), vec![commit1]);
 
     // Creating another commit  (via the first repo instance)  should result in a
     // successor of the commit created from the other process.
     testutils::write_working_copy_file(&repo1, &FileRepoPath::from("file3"), "contents3");
-    let commit3 = wc1.commit(&settings, Arc::get_mut(&mut repo1).unwrap());
+    let commit3 = wc1.commit(&settings, repo1).1;
     assert_eq!(commit3.predecessors(), vec![commit2]);
 }
 
@@ -133,7 +132,7 @@ fn test_checkout_parallel(use_git: bool) {
         let settings = settings.clone();
         let working_copy_path = repo.working_copy_path().clone();
         let handle = thread::spawn(move || {
-            let mut repo = ReadonlyRepo::load(&settings, working_copy_path).unwrap();
+            let repo = ReadonlyRepo::load(&settings, working_copy_path).unwrap();
             let owned_wc = repo.working_copy().clone();
             let wc = owned_wc.lock().unwrap();
             let commit = repo.store().get_commit(&commit_id).unwrap();
@@ -145,7 +144,7 @@ fn test_checkout_parallel(use_git: bool) {
             // different commit than the one we just checked out, but since
             // commit() should take the same lock as check_out(), commit()
             // should never produce a different tree (resulting in a different commit).
-            let commit_after = wc.commit(&settings, Arc::get_mut(&mut repo).unwrap());
+            let commit_after = wc.commit(&settings, repo).1;
             assert!(commit_ids_set.contains(commit_after.id()));
         });
         threads.push(handle);

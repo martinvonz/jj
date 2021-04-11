@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::path::Path;
-use std::sync::Arc;
 
 use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::repo::RepoRef;
@@ -55,7 +54,7 @@ fn test_consecutive_operations(use_git: bool) {
     // Test that consecutive operations result in a single op-head on disk after
     // each operation
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let op_heads_dir = repo.repo_path().join("op_heads");
     let op_id0 = repo.op_id().clone();
@@ -67,7 +66,7 @@ fn test_consecutive_operations(use_git: bool) {
     assert_ne!(op_id1, op_id0);
     assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
 
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     let mut tx2 = repo.start_transaction("transaction 2");
     testutils::create_random_commit(&settings, &repo).write_to_repo(tx2.mut_repo());
     let op_id2 = tx2.commit().id().clone();
@@ -77,7 +76,7 @@ fn test_consecutive_operations(use_git: bool) {
 
     // Reloading the repo makes no difference (there are no conflicting operations
     // to resolve).
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let _repo = repo.reload().unwrap();
     assert_eq!(list_dir(&op_heads_dir), vec![op_id2.hex()]);
 }
 
@@ -87,7 +86,7 @@ fn test_concurrent_operations(use_git: bool) {
     // Test that consecutive operations result in multiple op-heads on disk until
     // the repo has been reloaded (which currently happens right away).
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let op_heads_dir = repo.repo_path().join("op_heads");
     let op_id0 = repo.op_id().clone();
@@ -113,7 +112,7 @@ fn test_concurrent_operations(use_git: bool) {
     assert_eq!(actual_heads_on_disk, expected_heads_on_disk);
 
     // Reloading the repo causes the operations to be merged
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     let merged_op_id = repo.op_id().clone();
     assert_ne!(merged_op_id, op_id0);
     assert_ne!(merged_op_id, op_id1);
@@ -131,13 +130,13 @@ fn assert_heads(repo: RepoRef, expected: Vec<&CommitId>) {
 fn test_isolation(use_git: bool) {
     // Test that two concurrent transactions don't see each other's changes.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let wc_id = repo.working_copy_locked().current_commit_id();
     let initial = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write_to_new_transaction(&repo, "test");
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx1 = repo.start_transaction("transaction 1");
     let mut_repo1 = tx1.mut_repo();
@@ -185,7 +184,7 @@ fn test_isolation(use_git: bool) {
     tx2.commit();
     assert_heads(repo.as_repo_ref(), vec![&wc_id, initial.id()]);
     // After reload, the base repo sees both rewrites.
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     assert_heads(
         repo.as_repo_ref(),
         vec![&wc_id, initial.id(), rewrite1.id(), rewrite2.id()],

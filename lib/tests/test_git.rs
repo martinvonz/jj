@@ -126,7 +126,7 @@ fn test_import_refs_reimport() {
     delete_git_ref(&git_repo, "refs/heads/feature2");
     let commit5 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
 
-    Arc::get_mut(&mut repo).unwrap().reload();
+    repo = repo.reload().unwrap();
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     jujube_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
@@ -203,7 +203,7 @@ fn test_import_refs_merge() {
     let mut tx = repo.start_transaction("initial import");
     jujube_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    repo = repo.reload().unwrap();
 
     // One of the concurrent operations:
     git_ref(&git_repo, "refs/heads/sideways-unchanged", commit4.id());
@@ -230,7 +230,7 @@ fn test_import_refs_merge() {
     tx2.commit();
 
     // Reload the repo, causing the operations to be merged.
-    Arc::get_mut(&mut repo).unwrap().reload();
+    repo = repo.reload().unwrap();
 
     let view = repo.view();
     let git_refs = view.git_refs();
@@ -367,11 +367,11 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let initial_commit_id = commit_id(&initial_git_commit);
     git2::Repository::clone(&source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let mut jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, clone_repo_dir);
+    let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, clone_repo_dir);
     let new_commit = testutils::create_random_commit(&settings, &jj_repo)
         .set_parents(vec![initial_commit_id])
         .write_to_new_transaction(&jj_repo, "test");
-    Arc::get_mut(&mut jj_repo).unwrap().reload();
+    let jj_repo = jj_repo.reload().unwrap();
     PushTestSetup {
         source_repo_dir,
         jj_repo,
@@ -414,7 +414,7 @@ fn test_push_commit_not_fast_forward() {
     let mut setup = set_up_push_repos(&settings, &temp_dir);
     let new_commit = testutils::create_random_commit(&settings, &setup.jj_repo)
         .write_to_new_transaction(&setup.jj_repo, "test");
-    Arc::get_mut(&mut setup.jj_repo).unwrap().reload();
+    setup.jj_repo = setup.jj_repo.reload().unwrap();
     let result = git::push_commit(
         &setup.jj_repo.store().git_repo().unwrap(),
         &new_commit,

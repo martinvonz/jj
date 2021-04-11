@@ -16,7 +16,6 @@ use std::fs::OpenOptions;
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
-use std::sync::Arc;
 
 use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::repo::ReadonlyRepo;
@@ -31,13 +30,13 @@ use test_case::test_case;
 #[test_case(true ; "git store")]
 fn test_root(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let owned_wc = repo.working_copy().clone();
     let wc = owned_wc.lock().unwrap();
     assert_eq!(&wc.current_commit_id(), repo.view().checkout());
     assert_ne!(&wc.current_commit_id(), repo.store().root_commit_id());
-    let wc_commit = wc.commit(&settings, Arc::get_mut(&mut repo).unwrap());
+    let (repo, wc_commit) = wc.commit(&settings, repo);
     assert_eq!(wc_commit.id(), repo.view().checkout());
     assert_eq!(wc_commit.tree().id(), repo.store().empty_tree_id());
     assert_eq!(wc_commit.store_commit().parents, vec![]);
@@ -175,11 +174,12 @@ fn test_checkout_file_transitions(use_git: bool) {
     let owned_wc = repo.working_copy().clone();
     let wc = owned_wc.lock().unwrap();
     wc.check_out(left_commit).unwrap();
-    wc.commit(&settings, Arc::get_mut(&mut repo).unwrap());
+    repo = wc.commit(&settings, repo).0;
     wc.check_out(right_commit.clone()).unwrap();
 
     // Check that the working copy is clean.
-    let after_commit = wc.commit(&settings, Arc::get_mut(&mut repo).unwrap());
+    let (reloaded_repo, after_commit) = wc.commit(&settings, repo);
+    repo = reloaded_repo;
     let diff_summary = right_commit.tree().diff_summary(&after_commit.tree());
     assert_eq!(diff_summary.modified, vec![]);
     assert_eq!(diff_summary.added, vec![]);
@@ -262,7 +262,8 @@ fn test_commit_racy_timestamps(use_git: bool) {
             file.write_all(format!("contents {}", i).as_bytes())
                 .unwrap();
         }
-        let commit = wc.commit(&settings, Arc::get_mut(&mut repo).unwrap());
+        let (reloaded_repo, commit) = wc.commit(&settings, repo);
+        repo = reloaded_repo;
         let new_tree_id = commit.tree().id().clone();
         assert_ne!(new_tree_id, previous_tree_id);
         previous_tree_id = new_tree_id;
@@ -276,7 +277,7 @@ fn test_gitignores(use_git: bool) {
 
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let gitignore_path = FileRepoPath::from(".gitignore");
     let added_path = FileRepoPath::from("added");
@@ -293,10 +294,7 @@ fn test_gitignores(use_git: bool) {
     testutils::write_working_copy_file(&repo, &subdir_modified_path, "1");
 
     let wc = repo.working_copy().clone();
-    let commit1 = wc
-        .lock()
-        .unwrap()
-        .commit(&settings, Arc::get_mut(&mut repo).unwrap());
+    let (repo, commit1) = wc.lock().unwrap().commit(&settings, repo);
     let files1: Vec<_> = commit1
         .tree()
         .entries()
@@ -325,10 +323,7 @@ fn test_gitignores(use_git: bool) {
     testutils::write_working_copy_file(&repo, &subdir_ignored_path, "2");
 
     let wc = repo.working_copy().clone();
-    let commit2 = wc
-        .lock()
-        .unwrap()
-        .commit(&settings, Arc::get_mut(&mut repo).unwrap());
+    let (_repo, commit2) = wc.lock().unwrap().commit(&settings, repo);
     let files2: Vec<_> = commit2
         .tree()
         .entries()

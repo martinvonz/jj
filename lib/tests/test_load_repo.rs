@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use jujube_lib::repo::{ReadonlyRepo, RepoLoadError, RepoLoader};
 use jujube_lib::testutils;
 use test_case::test_case;
@@ -37,7 +35,7 @@ fn test_load_at_operation(use_git: bool) {
     let mut tx = repo.start_transaction("add commit");
     let commit = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
     let op = tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("remove commit");
     tx.mut_repo().remove_head(&commit);

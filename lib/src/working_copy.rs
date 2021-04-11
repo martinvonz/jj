@@ -718,7 +718,11 @@ impl WorkingCopy {
         Ok(stats)
     }
 
-    pub fn commit(&self, settings: &UserSettings, repo: &mut ReadonlyRepo) -> Commit {
+    pub fn commit(
+        &self,
+        settings: &UserSettings,
+        mut repo: Arc<ReadonlyRepo>,
+    ) -> (Arc<ReadonlyRepo>, Commit) {
         let lock_path = self.state_path.join("working_copy.lock");
         let _lock = FileLock::lock(lock_path);
 
@@ -735,7 +739,7 @@ impl WorkingCopy {
                 // Reload the repo so the new commit is visible in the index and view
                 // TODO: This is not enough. The new commit is not necessarily still in the
                 // view when we reload.
-                repo.reload();
+                repo = repo.reload().unwrap();
             }
             _ => {}
         }
@@ -750,12 +754,13 @@ impl WorkingCopy {
                 .write_to_repo(mut_repo);
             mut_repo.set_checkout(commit.id().clone());
             let operation = tx.commit();
-            repo.reload_at(&operation);
+            repo = repo.reload_at(&operation).unwrap();
 
             self.commit_id.replace(Some(commit.id().clone()));
             self.commit.replace(Some(commit));
             self.save();
         }
-        self.commit.borrow().as_ref().unwrap().clone()
+        let commit = self.commit.borrow().as_ref().unwrap().clone();
+        (repo, commit)
     }
 }

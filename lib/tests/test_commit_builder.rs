@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::repo_path::FileRepoPath;
 use jujube_lib::settings::UserSettings;
@@ -64,7 +62,7 @@ fn test_initial(use_git: bool) {
 #[test_case(true ; "git store")]
 fn test_rewrite(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store().clone();
 
     let root_file_path = FileRepoPath::from("file");
@@ -81,7 +79,7 @@ fn test_rewrite(use_git: bool) {
         CommitBuilder::for_new_commit(&settings, &store, initial_tree.id().clone())
             .set_parents(vec![store.root_commit_id().clone()])
             .write_to_new_transaction(&repo, "test");
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let rewritten_tree = testutils::create_tree(
         &repo,

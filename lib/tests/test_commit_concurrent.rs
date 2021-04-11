@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
 use std::thread;
 
 use jujube_lib::repo::ReadonlyRepo;
@@ -44,7 +43,7 @@ fn test_commit_parallel(use_git: bool) {
     // transactions from it. It then reloads the repo. That should merge all the
     // operations and all commits should be visible.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut threads = vec![];
     for _ in 0..100 {
@@ -59,7 +58,7 @@ fn test_commit_parallel(use_git: bool) {
     for thread in threads {
         thread.join().ok().unwrap();
     }
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     // One commit per thread plus the commit from the initial checkout on top of the
     // root commit
     assert_eq!(repo.view().heads().len(), 101);

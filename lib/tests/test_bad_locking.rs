@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::path::Path;
-use std::sync::Arc;
 
 use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::testutils;
@@ -141,12 +140,12 @@ fn test_bad_locking_interrupted(use_git: bool) {
     // that's a descendant of the other is resolved without creating a new
     // operation.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let initial = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write_to_new_transaction(&repo, "test");
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     // Simulate a crash that resulted in the old op-head left in place. We simulate
     // it somewhat hackily by copying the .jj/op_heads/ directory before the

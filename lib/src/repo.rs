@@ -352,23 +352,12 @@ impl ReadonlyRepo {
         Transaction::new(mut_repo, description)
     }
 
-    pub fn reload(&mut self) {
-        let repo_loader = self.loader();
-        let operation = self
-            .op_heads_store
-            .get_single_op_head(&repo_loader)
-            .unwrap();
-        self.op_id = operation.id().clone();
-        self.view = ReadonlyView::new(operation.view().take_store_view());
-        self.index.lock().unwrap().take();
-        self.evolution.lock().unwrap().take();
+    pub fn reload(&self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
+        self.loader().load_at_head()
     }
 
-    pub fn reload_at(&mut self, operation: &Operation) {
-        self.op_id = operation.id().clone();
-        self.view = ReadonlyView::new(operation.view().take_store_view());
-        self.index.lock().unwrap().take();
-        self.evolution.lock().unwrap().take();
+    pub fn reload_at(&self, operation: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
+        self.loader().load_at(operation)
     }
 }
 

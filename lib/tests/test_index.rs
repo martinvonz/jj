@@ -93,7 +93,7 @@ fn test_index_commits_standard_cases(use_git: bool) {
     let commit_g = child_commit(&settings, &repo, &commit_f).write_to_repo(tx.mut_repo());
     let commit_h = child_commit(&settings, &repo, &commit_e).write_to_repo(tx.mut_repo());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    repo = repo.reload().unwrap();
 
     let index = repo.index();
     // There should be the root commit and the working copy commit, plus
@@ -165,7 +165,7 @@ fn test_index_commits_criss_cross(use_git: bool) {
         right_commits.push(new_right);
     }
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    repo = repo.reload().unwrap();
 
     let index = repo.index();
     // There should the root commit and the working copy commit, plus 2 for each
@@ -263,12 +263,12 @@ fn test_index_commits_previous_operations(use_git: bool) {
     let commit_b = child_commit(&settings, &repo, &commit_a).write_to_repo(tx.mut_repo());
     let commit_c = child_commit(&settings, &repo, &commit_b).write_to_repo(tx.mut_repo());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     tx.mut_repo().remove_head(&commit_c);
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    repo = repo.reload().unwrap();
 
     // Delete index from disk
     let index_operations_dir = repo
@@ -314,7 +314,7 @@ fn test_index_commits_incremental(use_git: bool) {
     let root_commit = repo.store().root_commit();
     let commit_a =
         child_commit(&settings, &repo, &root_commit).write_to_new_transaction(&repo, "test");
-    Arc::get_mut(&mut repo).unwrap().reload();
+    repo = repo.reload().unwrap();
 
     let index = repo.index();
     // There should be the root commit and the working copy commit, plus
@@ -361,7 +361,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     let root_commit = repo.store().root_commit();
     let commit_a =
         child_commit(&settings, &repo, &root_commit).write_to_new_transaction(&repo, "test");
-    Arc::get_mut(&mut repo).unwrap().reload();
+    repo = repo.reload().unwrap();
 
     let index = repo.index();
     // There should be the root commit and the working copy commit, plus
@@ -405,7 +405,7 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
     let root_commit = repo.store().root_commit();
     let commit_a =
         child_commit(&settings, &repo, &root_commit).write_to_new_transaction(&repo, "test");
-    Arc::get_mut(&mut repo).unwrap().reload();
+    repo = repo.reload().unwrap();
 
     assert!(repo.index().has_id(commit_a.id()));
     assert_eq!(repo.index().num_commits(), 2 + 1);
@@ -416,13 +416,18 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
     tx.discard();
 }
 
-fn create_n_commits(settings: &UserSettings, repo: &mut Arc<ReadonlyRepo>, num_commits: i32) {
+#[must_use]
+fn create_n_commits(
+    settings: &UserSettings,
+    repo: &Arc<ReadonlyRepo>,
+    num_commits: i32,
+) -> Arc<ReadonlyRepo> {
     let mut tx = repo.start_transaction("test");
     for _ in 0..num_commits {
         create_random_commit(settings, repo).write_to_repo(tx.mut_repo());
     }
     tx.commit();
-    Arc::get_mut(repo).unwrap().reload();
+    repo.reload().unwrap()
 }
 
 fn commits_by_level(repo: &ReadonlyRepo) -> Vec<u32> {
@@ -440,44 +445,44 @@ fn test_index_commits_incremental_squashed(use_git: bool) {
     let settings = testutils::user_settings();
 
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
-    create_n_commits(&settings, &mut repo, 1);
+    repo = create_n_commits(&settings, &repo, 1);
     assert_eq!(commits_by_level(&repo), vec![2, 1]);
-    create_n_commits(&settings, &mut repo, 1);
+    repo = create_n_commits(&settings, &repo, 1);
     assert_eq!(commits_by_level(&repo), vec![4]);
 
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
-    create_n_commits(&settings, &mut repo, 2);
+    repo = create_n_commits(&settings, &repo, 2);
     assert_eq!(commits_by_level(&repo), vec![4]);
 
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
-    create_n_commits(&settings, &mut repo, 100);
+    repo = create_n_commits(&settings, &repo, 100);
     assert_eq!(commits_by_level(&repo), vec![102]);
 
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
-    create_n_commits(&settings, &mut repo, 2);
-    create_n_commits(&settings, &mut repo, 4);
-    create_n_commits(&settings, &mut repo, 8);
-    create_n_commits(&settings, &mut repo, 16);
-    create_n_commits(&settings, &mut repo, 32);
+    repo = create_n_commits(&settings, &repo, 2);
+    repo = create_n_commits(&settings, &repo, 4);
+    repo = create_n_commits(&settings, &repo, 8);
+    repo = create_n_commits(&settings, &repo, 16);
+    repo = create_n_commits(&settings, &repo, 32);
     assert_eq!(commits_by_level(&repo), vec![64]);
 
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
-    create_n_commits(&settings, &mut repo, 32);
-    create_n_commits(&settings, &mut repo, 16);
-    create_n_commits(&settings, &mut repo, 8);
-    create_n_commits(&settings, &mut repo, 4);
-    create_n_commits(&settings, &mut repo, 2);
+    repo = create_n_commits(&settings, &repo, 32);
+    repo = create_n_commits(&settings, &repo, 16);
+    repo = create_n_commits(&settings, &repo, 8);
+    repo = create_n_commits(&settings, &repo, 4);
+    repo = create_n_commits(&settings, &repo, 2);
     assert_eq!(commits_by_level(&repo), vec![34, 16, 8, 4, 2]);
 
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
-    create_n_commits(&settings, &mut repo, 10);
-    create_n_commits(&settings, &mut repo, 10);
-    create_n_commits(&settings, &mut repo, 10);
-    create_n_commits(&settings, &mut repo, 10);
-    create_n_commits(&settings, &mut repo, 10);
-    create_n_commits(&settings, &mut repo, 10);
-    create_n_commits(&settings, &mut repo, 10);
-    create_n_commits(&settings, &mut repo, 10);
-    create_n_commits(&settings, &mut repo, 10);
+    repo = create_n_commits(&settings, &repo, 10);
+    repo = create_n_commits(&settings, &repo, 10);
+    repo = create_n_commits(&settings, &repo, 10);
+    repo = create_n_commits(&settings, &repo, 10);
+    repo = create_n_commits(&settings, &repo, 10);
+    repo = create_n_commits(&settings, &repo, 10);
+    repo = create_n_commits(&settings, &repo, 10);
+    repo = create_n_commits(&settings, &repo, 10);
+    repo = create_n_commits(&settings, &repo, 10);
     assert_eq!(commits_by_level(&repo), vec![72, 20]);
 }

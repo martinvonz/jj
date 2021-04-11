@@ -29,20 +29,20 @@ use test_case::test_case;
 fn test_checkout_open(use_git: bool) {
     // Test that MutableRepo::check_out() uses the requested commit if it's open
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
     let requested_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(tx.mut_repo());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
     assert_eq!(actual_checkout.id(), requested_checkout.id());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     assert_eq!(repo.view().checkout(), actual_checkout.id());
 }
 
@@ -52,14 +52,14 @@ fn test_checkout_closed(use_git: bool) {
     // Test that MutableRepo::check_out() creates a child if the requested commit is
     // closed
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
     let requested_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(false)
         .write_to_repo(tx.mut_repo());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
@@ -67,7 +67,7 @@ fn test_checkout_closed(use_git: bool) {
     assert_eq!(actual_checkout.parents().len(), 1);
     assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     assert_eq!(repo.view().checkout(), actual_checkout.id());
 }
 
@@ -77,7 +77,7 @@ fn test_checkout_open_with_conflict(use_git: bool) {
     // Test that MutableRepo::check_out() creates a child if the requested
     // commit is open and has conflicts
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store();
 
     let file_path = FileRepoPath::from("file");
@@ -93,7 +93,7 @@ fn test_checkout_open_with_conflict(use_git: bool) {
         .set_open(true)
         .write_to_repo(tx.mut_repo());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
@@ -108,7 +108,7 @@ fn test_checkout_open_with_conflict(use_git: bool) {
     assert_eq!(actual_checkout.parents().len(), 1);
     assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     assert_eq!(repo.view().checkout(), actual_checkout.id());
 }
 
@@ -118,7 +118,7 @@ fn test_checkout_closed_with_conflict(use_git: bool) {
     // Test that MutableRepo::check_out() creates a child if the requested commit is
     // closed and has conflicts
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store();
 
     let file_path = FileRepoPath::from("file");
@@ -134,7 +134,7 @@ fn test_checkout_closed_with_conflict(use_git: bool) {
         .set_open(false)
         .write_to_repo(tx.mut_repo());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
@@ -149,7 +149,7 @@ fn test_checkout_closed_with_conflict(use_git: bool) {
     assert_eq!(actual_checkout.parents().len(), 1);
     assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     assert_eq!(repo.view().checkout(), actual_checkout.id());
 }
 
@@ -188,7 +188,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     // Test that MutableRepo::check_out() does not usually prune the previous
     // commit.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -197,7 +197,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
         .write_to_repo(mut_repo);
     mut_repo.check_out(&settings, &old_checkout);
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -215,7 +215,7 @@ fn test_checkout_previous_empty(use_git: bool) {
     // Test that MutableRepo::check_out() prunes the previous commit if it was
     // empty.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -228,7 +228,7 @@ fn test_checkout_previous_empty(use_git: bool) {
     .write_to_repo(mut_repo);
     mut_repo.check_out(&settings, &old_checkout);
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -246,7 +246,7 @@ fn test_checkout_previous_empty_and_obsolete(use_git: bool) {
     // Test that MutableRepo::check_out() does not unnecessarily prune the previous
     // commit if it was empty but already obsolete.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -261,7 +261,7 @@ fn test_checkout_previous_empty_and_obsolete(use_git: bool) {
         .write_to_repo(mut_repo);
     mut_repo.check_out(&settings, &old_checkout);
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -281,7 +281,7 @@ fn test_checkout_previous_empty_and_pruned(use_git: bool) {
     // Test that MutableRepo::check_out() does not unnecessarily prune the previous
     // commit if it was empty but already obsolete.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -291,7 +291,7 @@ fn test_checkout_previous_empty_and_pruned(use_git: bool) {
         .write_to_repo(mut_repo);
     mut_repo.check_out(&settings, &old_checkout);
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -312,7 +312,7 @@ fn test_add_head_success(use_git: bool) {
     // Test that MutableRepo::add_head() adds the head, and that it's still there
     // after commit. It should also be indexed.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     // Create a commit outside of the repo by using a temporary transaction. Then
     // add that as a head.
@@ -332,7 +332,7 @@ fn test_add_head_success(use_git: bool) {
     assert!(mut_repo.view().heads().contains(new_commit.id()));
     assert!(mut_repo.index().has_id(new_commit.id()));
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     assert!(repo.view().heads().contains(new_commit.id()));
     assert!(repo.index().has_id(new_commit.id()));
     let index_stats = repo.index().stats();
@@ -347,7 +347,7 @@ fn test_add_head_ancestor(use_git: bool) {
     // Test that MutableRepo::add_head() does not add a head if it's an ancestor of
     // an existing head.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
     let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
@@ -358,7 +358,7 @@ fn test_add_head_ancestor(use_git: bool) {
         .set_parents(vec![commit2.id().clone()])
         .write_to_repo(tx.mut_repo());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let index_stats = repo.index().stats();
     assert_eq!(index_stats.num_heads, 2);
@@ -381,12 +381,12 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     // Test that MutableRepo::add_head() can be used for adding a head that is not
     // an immediate child of a current head.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
     let initial = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     // Create some commit outside of the repo by using a temporary transaction. Then
     // add one of them as a head.
@@ -432,7 +432,7 @@ fn test_remove_head(use_git: bool) {
     // for commits no longer visible in that case so we don't have to reindex e.g.
     // when the user does `jj op undo`.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
     let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
@@ -443,7 +443,7 @@ fn test_remove_head(use_git: bool) {
         .set_parents(vec![commit2.id().clone()])
         .write_to_repo(tx.mut_repo());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -458,7 +458,7 @@ fn test_remove_head(use_git: bool) {
     assert!(mut_repo.index().has_id(commit3.id()));
     tx.commit();
 
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     let heads = repo.view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
@@ -474,7 +474,7 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     // Test that MutableRepo::remove_head() does not leave the view with a git ref
     // pointing to a commit that's not reachable by any head.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -487,7 +487,7 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
         .write_to_repo(mut_repo);
     mut_repo.insert_git_ref("refs/heads/main".to_string(), commit1.id().clone());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -500,7 +500,7 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     assert!(heads.contains(commit1.id()));
     tx.commit();
 
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     let heads = repo.view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
@@ -513,12 +513,12 @@ fn test_add_public_head(use_git: bool) {
     // Test that MutableRepo::add_public_head() adds the head, and that it's still
     // there after commit.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
     let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -526,7 +526,7 @@ fn test_add_public_head(use_git: bool) {
     mut_repo.add_public_head(&commit1);
     assert!(mut_repo.view().public_heads().contains(commit1.id()));
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     assert!(repo.view().public_heads().contains(commit1.id()));
 }
 
@@ -536,7 +536,7 @@ fn test_add_public_head_ancestor(use_git: bool) {
     // Test that MutableRepo::add_public_head() does not add a public head if it's
     // an ancestor of an existing public head.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -546,7 +546,7 @@ fn test_add_public_head_ancestor(use_git: bool) {
         .write_to_repo(mut_repo);
     mut_repo.add_public_head(&commit2);
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -554,7 +554,7 @@ fn test_add_public_head_ancestor(use_git: bool) {
     mut_repo.add_public_head(&commit1);
     assert!(!mut_repo.view().public_heads().contains(commit1.id()));
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     assert!(!repo.view().public_heads().contains(commit1.id()));
 }
 
@@ -564,14 +564,14 @@ fn test_remove_public_head(use_git: bool) {
     // Test that MutableRepo::remove_public_head() removes the head, and that it's
     // still removed after commit.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     mut_repo.add_public_head(&commit1);
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -579,6 +579,6 @@ fn test_remove_public_head(use_git: bool) {
     mut_repo.remove_public_head(&commit1);
     assert!(!mut_repo.view().public_heads().contains(commit1.id()));
     tx.commit();
-    Arc::get_mut(&mut repo).unwrap().reload();
+    let repo = repo.reload().unwrap();
     assert!(!repo.view().public_heads().contains(commit1.id()));
 }

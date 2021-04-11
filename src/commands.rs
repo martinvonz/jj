@@ -114,34 +114,35 @@ fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandE
 
 fn resolve_revision_arg(
     ui: &Ui,
-    repo: &mut ReadonlyRepo,
+    repo: Arc<ReadonlyRepo>,
     matches: &ArgMatches,
-) -> Result<Commit, CommandError> {
+) -> Result<(Arc<ReadonlyRepo>, Commit), CommandError> {
     resolve_single_rev(ui, repo, matches.value_of("revision").unwrap())
 }
 
 fn resolve_single_rev(
     ui: &Ui,
-    repo: &mut ReadonlyRepo,
+    mut repo: Arc<ReadonlyRepo>,
     revision_str: &str,
-) -> Result<Commit, CommandError> {
+) -> Result<(Arc<ReadonlyRepo>, Commit), CommandError> {
     // If we're looking up the working copy commit ("@"), make sure that it is up to
     // date (the lib crate only looks at the checkout in the view).
     if revision_str == "@" {
         let owned_wc = repo.working_copy().clone();
         // TODO: Avoid committing every time this function is called.
-        owned_wc.lock().unwrap().commit(ui.settings(), repo);
+        let (reloaded_repo, _) = owned_wc.lock().unwrap().commit(ui.settings(), repo.clone());
+        repo = reloaded_repo;
     }
 
     if revision_str == "@^" {
         let commit = repo.store().get_commit(repo.view().checkout()).unwrap();
         assert!(commit.is_open());
         let parents = commit.parents();
-        Ok(parents[0].clone())
+        Ok((repo, parents[0].clone()))
     } else if revision_str.starts_with("desc(") && revision_str.ends_with(')') {
         let needle = revision_str[5..revision_str.len() - 1].to_string();
         let mut matches = vec![];
-        let head_ids = skip_uninteresting_heads(repo, &repo.view().heads());
+        let head_ids = skip_uninteresting_heads(repo.as_ref(), &repo.view().heads());
         let heads: Vec<_> = head_ids
             .iter()
             .map(|id| repo.store().get_commit(&id).unwrap())
@@ -151,11 +152,15 @@ fn resolve_single_rev(
                 matches.push(commit);
             }
         }
-        matches
-            .pop()
-            .ok_or_else(|| CommandError::UserError(String::from("No matching commit")))
+        match matches.pop() {
+            None => Err(CommandError::UserError(String::from("No matching commit"))),
+            Some(commit) => Ok((repo, commit)),
+        }
     } else {
-        Ok(revset::resolve_symbol(repo.as_repo_ref(), revision_str)?)
+        Ok((
+            repo.clone(),
+            revset::resolve_symbol(repo.as_repo_ref(), revision_str)?,
+        ))
     }
 }
 
@@ -218,10 +223,10 @@ fn resolve_single_op_from_store(
 
 fn update_working_copy(
     ui: &mut Ui,
-    repo: &mut ReadonlyRepo,
+    repo: &Arc<ReadonlyRepo>,
     wc: &WorkingCopy,
 ) -> Result<Option<CheckoutStats>, CommandError> {
-    repo.reload();
+    let repo = repo.reload()?;
     let old_commit = wc.current_commit();
     let new_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
     if old_commit == new_commit {
@@ -627,16 +632,15 @@ fn cmd_checkout(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let new_commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let (repo, new_commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let wc = owned_wc.lock().unwrap();
-    wc.commit(ui.settings(), mut_repo);
+    let (repo, _) = wc.commit(ui.settings(), repo);
     let mut tx = repo.start_transaction(&format!("check out commit {}", new_commit.id().hex()));
     tx.mut_repo().check_out(ui.settings(), &new_commit);
     tx.commit();
-    let stats = update_working_copy(ui, Arc::get_mut(&mut repo).unwrap(), &wc)?;
+    let stats = update_working_copy(ui, &repo, &wc)?;
     match stats {
         None => ui.write("already on that commit\n")?,
         Some(stats) => writeln!(
@@ -653,9 +657,8 @@ fn cmd_files(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let repo = get_repo(ui, &matches)?;
+    let (_repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     for (name, _value) in commit.tree().entries() {
         writeln!(ui, "{}", name.to_internal_string())?;
     }
@@ -760,20 +763,20 @@ fn cmd_diff(
         )));
     }
     let mut repo = get_repo(ui, &matches)?;
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
     let from_tree;
     let to_tree;
     if sub_matches.is_present("from") || sub_matches.is_present("to") {
-        from_tree =
-            resolve_single_rev(ui, mut_repo, sub_matches.value_of("from").unwrap_or("@"))?.tree();
-        to_tree =
-            resolve_single_rev(ui, mut_repo, sub_matches.value_of("to").unwrap_or("@"))?.tree();
+        let (reoaded_repo, from) =
+            resolve_single_rev(ui, repo, sub_matches.value_of("from").unwrap_or("@"))?;
+        from_tree = from.tree();
+        let (reloaded_repo, to) =
+            resolve_single_rev(ui, reoaded_repo, sub_matches.value_of("to").unwrap_or("@"))?;
+        repo = reloaded_repo;
+        to_tree = to.tree();
     } else {
-        let commit = resolve_single_rev(
-            ui,
-            mut_repo,
-            sub_matches.value_of("revision").unwrap_or("@"),
-        )?;
+        let (reloaded_repo, commit) =
+            resolve_single_rev(ui, repo, sub_matches.value_of("revision").unwrap_or("@"))?;
+        repo = reloaded_repo;
         let parents = commit.parents();
         from_tree = merge_commit_trees(repo.as_repo_ref(), &parents);
         to_tree = commit.tree()
@@ -939,11 +942,10 @@ fn cmd_status(
     matches: &ArgMatches,
     _sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
     let wc = owned_wc.lock().unwrap();
-    let commit = wc.commit(ui.settings(), mut_repo);
+    let (repo, commit) = wc.commit(ui.settings(), repo);
     ui.write("Working copy : ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
     ui.write("\n")?;
@@ -1038,12 +1040,13 @@ fn cmd_log(
 ) -> Result<(), CommandError> {
     let mut repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
 
     let use_graph = !sub_matches.is_present("no-graph");
     if use_graph {
-        // Commit so the latest working copy is reflected in the visible heads
-        owned_wc.lock().unwrap().commit(ui.settings(), mut_repo);
+        // Commit so the latest working copy is reflected in the view's checkout and
+        // visible heads
+        let (reloaded_repo, _wc_commit) = owned_wc.lock().unwrap().commit(ui.settings(), repo);
+        repo = reloaded_repo;
     }
 
     let template_string = match sub_matches.value_of("template") {
@@ -1107,11 +1110,10 @@ fn cmd_obslog(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
 
     let use_graph = !sub_matches.is_present("no-graph");
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let start_commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let (repo, start_commit) = resolve_revision_arg(ui, repo, sub_matches)?;
 
     let template_string = match sub_matches.value_of("template") {
         Some(value) => value.to_string(),
@@ -1204,10 +1206,9 @@ fn cmd_describe(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let description;
     if sub_matches.is_present("stdin") {
         let mut buffer = String::new();
@@ -1224,11 +1225,7 @@ fn cmd_describe(
         .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(
-        ui,
-        Arc::get_mut(&mut repo).unwrap(),
-        &owned_wc.lock().unwrap(),
-    )?;
+    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
     Ok(())
 }
 
@@ -1237,21 +1234,16 @@ fn cmd_open(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let mut tx = repo.start_transaction(&format!("open commit {}", commit.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_open(true)
         .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(
-        ui,
-        Arc::get_mut(&mut repo).unwrap(),
-        &owned_wc.lock().unwrap(),
-    )?;
+    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
     Ok(())
 }
 
@@ -1260,10 +1252,9 @@ fn cmd_close(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let mut commit_builder =
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit).set_open(false);
     let description;
@@ -1279,11 +1270,7 @@ fn cmd_close(
     commit_builder.write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(
-        ui,
-        Arc::get_mut(&mut repo).unwrap(),
-        &owned_wc.lock().unwrap(),
-    )?;
+    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
     Ok(())
 }
 
@@ -1292,9 +1279,8 @@ fn cmd_duplicate(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let predecessor = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let repo = get_repo(ui, &matches)?;
+    let (repo, predecessor) = resolve_revision_arg(ui, repo, sub_matches)?;
     let mut tx = repo.start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
     let mut_repo = tx.mut_repo();
     let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
@@ -1312,10 +1298,9 @@ fn cmd_prune(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let predecessor = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let (repo, predecessor) = resolve_revision_arg(ui, repo, sub_matches)?;
     if predecessor.id() == repo.store().root_commit_id() {
         return Err(CommandError::UserError(String::from(
             "Cannot prune the root commit",
@@ -1327,11 +1312,7 @@ fn cmd_prune(
         .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(
-        ui,
-        Arc::get_mut(&mut repo).unwrap(),
-        &owned_wc.lock().unwrap(),
-    )?;
+    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
     Ok(())
 }
 
@@ -1340,10 +1321,9 @@ fn cmd_new(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let parent = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let (repo, parent) = resolve_revision_arg(ui, repo, sub_matches)?;
     let commit_builder = CommitBuilder::for_open_commit(
         ui.settings(),
         repo.store(),
@@ -1357,11 +1337,7 @@ fn cmd_new(
         mut_repo.check_out(ui.settings(), &new_commit);
     }
     tx.commit();
-    update_working_copy(
-        ui,
-        Arc::get_mut(&mut repo).unwrap(),
-        &owned_wc.lock().unwrap(),
-    )?;
+    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
     Ok(())
 }
 
@@ -1370,10 +1346,9 @@ fn cmd_squash(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let parents = commit.parents();
     if parents.len() != 1 {
         return Err(CommandError::UserError(String::from(
@@ -1411,11 +1386,7 @@ fn cmd_squash(
         .write_to_repo(mut_repo);
     update_checkout_after_rewrite(ui, mut_repo)?;
     tx.commit();
-    update_working_copy(
-        ui,
-        Arc::get_mut(&mut repo).unwrap(),
-        &owned_wc.lock().unwrap(),
-    )?;
+    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
     Ok(())
 }
 
@@ -1424,10 +1395,9 @@ fn cmd_unsquash(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let parents = commit.parents();
     if parents.len() != 1 {
         return Err(CommandError::UserError(String::from(
@@ -1466,11 +1436,7 @@ fn cmd_unsquash(
         .write_to_repo(mut_repo);
     update_checkout_after_rewrite(ui, mut_repo)?;
     tx.commit();
-    update_working_copy(
-        ui,
-        Arc::get_mut(&mut repo).unwrap(),
-        &owned_wc.lock().unwrap(),
-    )?;
+    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
     Ok(())
 }
 
@@ -1479,9 +1445,8 @@ fn cmd_discard(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let repo = get_repo(ui, &matches)?;
+    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let mut tx = repo.start_transaction(&format!("discard commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
     mut_repo.remove_head(&commit);
@@ -1499,12 +1464,12 @@ fn cmd_restore(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let source_commit = resolve_single_rev(ui, mut_repo, sub_matches.value_of("source").unwrap())?;
-    let destination_commit =
-        resolve_single_rev(ui, mut_repo, sub_matches.value_of("destination").unwrap())?;
+    let (repo, source_commit) =
+        resolve_single_rev(ui, repo, sub_matches.value_of("source").unwrap())?;
+    let (repo, destination_commit) =
+        resolve_single_rev(ui, repo, sub_matches.value_of("destination").unwrap())?;
     let tree_id;
     if sub_matches.is_present("interactive") {
         if sub_matches.is_present("paths") {
@@ -1550,11 +1515,7 @@ fn cmd_restore(
         ui.write("\n")?;
         update_checkout_after_rewrite(ui, mut_repo)?;
         tx.commit();
-        update_working_copy(
-            ui,
-            Arc::get_mut(&mut repo).unwrap(),
-            &owned_wc.lock().unwrap(),
-        )?;
+        update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
     }
     Ok(())
 }
@@ -1564,10 +1525,9 @@ fn cmd_edit(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
     if &tree_id == commit.tree().id() {
@@ -1583,11 +1543,7 @@ fn cmd_edit(
         ui.write("\n")?;
         update_checkout_after_rewrite(ui, mut_repo)?;
         tx.commit();
-        update_working_copy(
-            ui,
-            Arc::get_mut(&mut repo).unwrap(),
-            &owned_wc.lock().unwrap(),
-        )?;
+        update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
     }
     Ok(())
 }
@@ -1597,10 +1553,9 @@ fn cmd_split(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let commit = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
     if &tree_id == commit.tree().id() {
@@ -1629,11 +1584,7 @@ fn cmd_split(
         ui.write("\n")?;
         update_checkout_after_rewrite(ui, mut_repo)?;
         tx.commit();
-        update_working_copy(
-            ui,
-            Arc::get_mut(&mut repo).unwrap(),
-            &owned_wc.lock().unwrap(),
-        )?;
+        update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
     }
     Ok(())
 }
@@ -1645,7 +1596,6 @@ fn cmd_merge(
 ) -> Result<(), CommandError> {
     let mut repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
     let revision_args = sub_matches.values_of("revisions").unwrap();
     if revision_args.len() < 2 {
         return Err(CommandError::UserError(String::from(
@@ -1655,7 +1605,8 @@ fn cmd_merge(
     let mut commits = vec![];
     let mut parent_ids = vec![];
     for revision_arg in revision_args {
-        let commit = resolve_single_rev(ui, mut_repo, revision_arg)?;
+        let (reloaded_repo, commit) = resolve_single_rev(ui, repo, revision_arg)?;
+        repo = reloaded_repo;
         parent_ids.push(commit.id().clone());
         commits.push(commit);
     }
@@ -1674,11 +1625,7 @@ fn cmd_merge(
         .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(
-        ui,
-        Arc::get_mut(&mut repo).unwrap(),
-        &owned_wc.lock().unwrap(),
-    )?;
+    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
 
     Ok(())
 }
@@ -1688,23 +1635,20 @@ fn cmd_rebase(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let commit_to_rebase = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let (mut repo, commit_to_rebase) = resolve_revision_arg(ui, repo, sub_matches)?;
     let mut parents = vec![];
     for revision_str in sub_matches.values_of("destination").unwrap() {
-        parents.push(resolve_single_rev(ui, mut_repo, revision_str)?);
+        let (reloaded_repo, destination) = resolve_single_rev(ui, repo, revision_str)?;
+        repo = reloaded_repo;
+        parents.push(destination);
     }
     let mut tx = repo.start_transaction(&format!("rebase commit {}", commit_to_rebase.id().hex()));
     rebase_commit(ui.settings(), tx.mut_repo(), &commit_to_rebase, &parents);
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(
-        ui,
-        Arc::get_mut(&mut repo).unwrap(),
-        &owned_wc.lock().unwrap(),
-    )?;
+    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
 
     Ok(())
 }
@@ -1714,13 +1658,14 @@ fn cmd_backout(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let commit_to_back_out = resolve_revision_arg(ui, mut_repo, sub_matches)?;
+    let (mut repo, commit_to_back_out) = resolve_revision_arg(ui, repo, sub_matches)?;
     let mut parents = vec![];
     for revision_str in sub_matches.values_of("destination").unwrap() {
-        parents.push(resolve_single_rev(ui, mut_repo, revision_str)?);
+        let (reloaded_repo, destination) = resolve_single_rev(ui, repo, revision_str)?;
+        repo = reloaded_repo;
+        parents.push(destination);
     }
     let mut tx = repo.start_transaction(&format!(
         "back out commit {}",
@@ -1729,11 +1674,7 @@ fn cmd_backout(
     back_out_commit(ui.settings(), tx.mut_repo(), &commit_to_back_out, &parents);
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(
-        ui,
-        Arc::get_mut(&mut repo).unwrap(),
-        &owned_wc.lock().unwrap(),
-    )?;
+    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
 
     Ok(())
 }
@@ -1743,7 +1684,7 @@ fn cmd_evolve<'s>(
     matches: &ArgMatches,
     _sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
 
     struct Listener<'a, 's> {
@@ -1834,11 +1775,7 @@ fn cmd_evolve<'s>(
     evolve(&user_settings, tx.mut_repo(), &mut listener);
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
     tx.commit();
-    update_working_copy(
-        ui,
-        Arc::get_mut(&mut repo).unwrap(),
-        &owned_wc.lock().unwrap(),
-    )?;
+    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
 
     Ok(())
 }
@@ -1849,9 +1786,8 @@ fn cmd_debug(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     if let Some(resolve_matches) = sub_matches.subcommand_matches("resolverev") {
-        let mut repo = get_repo(ui, &matches)?;
-        let mut_repo = Arc::get_mut(&mut repo).unwrap();
-        let commit = resolve_revision_arg(ui, mut_repo, resolve_matches)?;
+        let repo = get_repo(ui, &matches)?;
+        let (_repo, commit) = resolve_revision_arg(ui, repo, resolve_matches)?;
         writeln!(ui, "{}", commit.id().hex())?;
     } else if let Some(_wc_matches) = sub_matches.subcommand_matches("workingcopy") {
         let repo = get_repo(ui, &matches)?;
@@ -1866,12 +1802,12 @@ fn cmd_debug(
             )?;
         }
     } else if let Some(_wc_matches) = sub_matches.subcommand_matches("writeworkingcopy") {
-        let mut repo = get_repo(ui, &matches)?;
+        let repo = get_repo(ui, &matches)?;
         let owned_wc = repo.working_copy().clone();
         let wc = owned_wc.lock().unwrap();
-        let mut_repo = Arc::get_mut(&mut repo).unwrap();
         let old_commit_id = wc.current_commit_id();
-        let new_commit_id = wc.commit(ui.settings(), mut_repo).id().clone();
+        let (_repo, new_commit) = wc.commit(ui.settings(), repo);
+        let new_commit_id = new_commit.id().clone();
         writeln!(ui, "old commit {:?}", old_commit_id)?;
         writeln!(ui, "new commit {:?}", new_commit_id)?;
     } else if let Some(template_matches) = sub_matches.subcommand_matches("template") {
@@ -1933,37 +1869,31 @@ fn cmd_bench(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     if let Some(command_matches) = sub_matches.subcommand_matches("commonancestors") {
-        let mut repo = get_repo(ui, &matches)?;
-        let mut_repo = Arc::get_mut(&mut repo).unwrap();
-        let commit1 =
-            resolve_single_rev(ui, mut_repo, command_matches.value_of("revision1").unwrap())?;
-        let commit2 =
-            resolve_single_rev(ui, mut_repo, command_matches.value_of("revision2").unwrap())?;
+        let repo = get_repo(ui, &matches)?;
+        let (repo, commit1) =
+            resolve_single_rev(ui, repo, command_matches.value_of("revision1").unwrap())?;
+        let (repo, commit2) =
+            resolve_single_rev(ui, repo, command_matches.value_of("revision2").unwrap())?;
         let routine = || {
             repo.index()
                 .common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()])
         };
         run_bench(ui, "commonancestors", routine)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("isancestor") {
-        let mut repo = get_repo(ui, &matches)?;
-        let mut_repo = Arc::get_mut(&mut repo).unwrap();
-        let ancestor_commit =
-            resolve_single_rev(ui, mut_repo, command_matches.value_of("ancestor").unwrap())?;
-        let descendant_commit = resolve_single_rev(
-            ui,
-            mut_repo,
-            command_matches.value_of("descendant").unwrap(),
-        )?;
+        let repo = get_repo(ui, &matches)?;
+        let (repo, ancestor_commit) =
+            resolve_single_rev(ui, repo, command_matches.value_of("ancestor").unwrap())?;
+        let (repo, descendant_commit) =
+            resolve_single_rev(ui, repo, command_matches.value_of("descendant").unwrap())?;
         let index = repo.index();
         let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
         run_bench(ui, "isancestor", routine)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("walkrevs") {
-        let mut repo = get_repo(ui, &matches)?;
-        let mut_repo = Arc::get_mut(&mut repo).unwrap();
-        let unwanted_commit =
-            resolve_single_rev(ui, mut_repo, command_matches.value_of("unwanted").unwrap())?;
-        let wanted_commit =
-            resolve_single_rev(ui, mut_repo, command_matches.value_of("wanted").unwrap())?;
+        let repo = get_repo(ui, &matches)?;
+        let (repo, unwanted_commit) =
+            resolve_single_rev(ui, repo, command_matches.value_of("unwanted").unwrap())?;
+        let (repo, wanted_commit) =
+            resolve_single_rev(ui, repo, command_matches.value_of("wanted").unwrap())?;
         let index = repo.index();
         let routine = || {
             index
@@ -2075,7 +2005,7 @@ fn cmd_op_undo(
     _op_matches: &ArgMatches,
     _cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
     let bad_op = resolve_single_op(&repo, _cmd_matches.value_of("operation").unwrap())?;
     let parent_ops = bad_op.parents();
@@ -2095,11 +2025,7 @@ fn cmd_op_undo(
     let parent_repo = repo.loader().load_at(&parent_ops[0])?;
     tx.mut_repo().merge(&bad_repo, &parent_repo);
     tx.commit();
-    update_working_copy(
-        ui,
-        Arc::get_mut(&mut repo).unwrap(),
-        &owned_wc.lock().unwrap(),
-    )?;
+    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
 
     Ok(())
 }
@@ -2109,17 +2035,13 @@ fn cmd_op_restore(
     _op_matches: &ArgMatches,
     _cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let owned_wc = repo.working_copy().clone();
     let target_op = resolve_single_op(&repo, _cmd_matches.value_of("operation").unwrap())?;
     let mut tx = repo.start_transaction(&format!("restore to operation {}", target_op.id().hex()));
     tx.mut_repo().set_view(target_op.view().take_store_view());
     tx.commit();
-    update_working_copy(
-        ui,
-        Arc::get_mut(&mut repo).unwrap(),
-        &owned_wc.lock().unwrap(),
-    )?;
+    update_working_copy(ui, &repo, &owned_wc.lock().unwrap())?;
 
     Ok(())
 }
@@ -2210,10 +2132,9 @@ fn cmd_git_push(
     _git_matches: &ArgMatches,
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo = get_repo(ui, &matches)?;
+    let repo = get_repo(ui, &matches)?;
     let git_repo = get_git_repo(repo.store())?;
-    let mut_repo = Arc::get_mut(&mut repo).unwrap();
-    let commit = resolve_revision_arg(ui, mut_repo, cmd_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui, repo, cmd_matches)?;
     let remote_name = cmd_matches.value_of("remote").unwrap();
     let branch_name = cmd_matches.value_of("branch").unwrap();
     git::push_commit(&git_repo, &commit, remote_name, branch_name)
