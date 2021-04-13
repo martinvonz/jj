@@ -33,12 +33,12 @@ use crate::store::{ChangeId, CommitId};
 
 #[derive(Clone)]
 pub enum IndexRef<'a> {
-    Readonly(Arc<ReadonlyIndex>),
+    Readonly(&'a ReadonlyIndex),
     Mutable(&'a MutableIndex),
 }
 
-impl From<Arc<ReadonlyIndex>> for IndexRef<'_> {
-    fn from(index: Arc<ReadonlyIndex>) -> Self {
+impl<'a> From<&'a ReadonlyIndex> for IndexRef<'a> {
+    fn from(index: &'a ReadonlyIndex) -> Self {
         IndexRef::Readonly(index)
     }
 }
@@ -78,14 +78,14 @@ impl<'a> IndexRef<'a> {
         }
     }
 
-    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry> {
+    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
         match self {
             IndexRef::Readonly(index) => index.entry_by_id(commit_id),
             IndexRef::Mutable(index) => index.entry_by_id(commit_id),
         }
     }
 
-    pub fn entry_by_pos(&self, pos: u32) -> IndexEntry {
+    pub fn entry_by_pos(&self, pos: u32) -> IndexEntry<'a> {
         match self {
             IndexRef::Readonly(index) => index.entry_by_pos(pos),
             IndexRef::Mutable(index) => index.entry_by_pos(pos),
@@ -113,7 +113,7 @@ impl<'a> IndexRef<'a> {
         }
     }
 
-    pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk {
+    pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk<'a> {
         match self {
             IndexRef::Readonly(index) => index.walk_revs(wanted, unwanted),
             IndexRef::Mutable(index) => index.walk_revs(wanted, unwanted),
@@ -772,7 +772,7 @@ impl<'a> CompositeIndex<'a> {
             self.0
                 .segment_parent_file()
                 .as_ref()
-                .and_then(|file| IndexRef::Readonly(file.clone()).commit_id_to_pos(commit_id))
+                .and_then(|file| IndexRef::Readonly(file).commit_id_to_pos(commit_id))
         })
     }
 
@@ -1564,8 +1564,10 @@ mod tests {
     fn index_empty(on_disk: bool) {
         let temp_dir = tempfile::tempdir().unwrap();
         let index = MutableIndex::full(3);
+        let mut _saved_index = None;
         let index = if on_disk {
-            IndexRef::Readonly(index.save_in(temp_dir.path().to_owned()).unwrap())
+            _saved_index = Some(index.save_in(temp_dir.path().to_owned()).unwrap());
+            IndexRef::Readonly(_saved_index.as_ref().unwrap())
         } else {
             IndexRef::Mutable(&index)
         };
@@ -1593,8 +1595,10 @@ mod tests {
         let id_0 = CommitId::from_hex("000000");
         let change_id0 = new_change_id();
         index.add_commit_data(id_0.clone(), change_id0.clone(), false, vec![], vec![]);
+        let mut _saved_index = None;
         let index = if on_disk {
-            IndexRef::Readonly(index.save_in(temp_dir.path().to_owned()).unwrap())
+            _saved_index = Some(index.save_in(temp_dir.path().to_owned()).unwrap());
+            IndexRef::Readonly(_saved_index.as_ref().unwrap())
         } else {
             IndexRef::Mutable(&index)
         };
@@ -1715,8 +1719,10 @@ mod tests {
             vec![id_4.clone(), id_2.clone()],
             vec![],
         );
+        let mut _saved_index = None;
         let index = if on_disk {
-            IndexRef::Readonly(index.save_in(temp_dir.path().to_owned()).unwrap())
+            _saved_index = Some(index.save_in(temp_dir.path().to_owned()).unwrap());
+            IndexRef::Readonly(_saved_index.as_ref().unwrap())
         } else {
             IndexRef::Mutable(&index)
         };
@@ -1839,8 +1845,10 @@ mod tests {
             vec![id_1, id_2, id_3, id_4, id_5],
             vec![],
         );
+        let mut _saved_index = None;
         let index = if on_disk {
-            IndexRef::Readonly(index.save_in(temp_dir.path().to_owned()).unwrap())
+            _saved_index = Some(index.save_in(temp_dir.path().to_owned()).unwrap());
+            IndexRef::Readonly(_saved_index.as_ref().unwrap())
         } else {
             IndexRef::Mutable(&index)
         };

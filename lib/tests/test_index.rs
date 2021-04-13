@@ -50,11 +50,14 @@ fn test_index_commits_empty_repo(use_git: bool) {
 
     // Check the generation numbers of the root and the working copy
     assert_eq!(
-        generation_number(index.clone(), repo.store().root_commit_id()),
+        generation_number(index.as_ref(), repo.store().root_commit_id()),
         0
     );
     assert_eq!(
-        generation_number(index, &repo.working_copy_locked().current_commit_id()),
+        generation_number(
+            index.as_ref(),
+            &repo.working_copy_locked().current_commit_id()
+        ),
         1
     );
 }
@@ -105,16 +108,16 @@ fn test_index_commits_standard_cases(use_git: bool) {
     assert_eq!(stats.num_merges, 1);
     assert_eq!(stats.max_generation_number, 6);
 
-    assert_eq!(generation_number(index.clone(), root_commit.id()), 0);
-    assert_eq!(generation_number(index.clone(), wc_commit.id()), 1);
-    assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
-    assert_eq!(generation_number(index.clone(), commit_b.id()), 2);
-    assert_eq!(generation_number(index.clone(), commit_c.id()), 2);
-    assert_eq!(generation_number(index.clone(), commit_d.id()), 3);
-    assert_eq!(generation_number(index.clone(), commit_e.id()), 4);
-    assert_eq!(generation_number(index.clone(), commit_f.id()), 5);
-    assert_eq!(generation_number(index.clone(), commit_g.id()), 6);
-    assert_eq!(generation_number(index.clone(), commit_h.id()), 5);
+    assert_eq!(generation_number(index.as_ref(), root_commit.id()), 0);
+    assert_eq!(generation_number(index.as_ref(), wc_commit.id()), 1);
+    assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
+    assert_eq!(generation_number(index.as_ref(), commit_b.id()), 2);
+    assert_eq!(generation_number(index.as_ref(), commit_c.id()), 2);
+    assert_eq!(generation_number(index.as_ref(), commit_d.id()), 3);
+    assert_eq!(generation_number(index.as_ref(), commit_e.id()), 4);
+    assert_eq!(generation_number(index.as_ref(), commit_f.id()), 5);
+    assert_eq!(generation_number(index.as_ref(), commit_g.id()), 6);
+    assert_eq!(generation_number(index.as_ref(), commit_h.id()), 5);
 
     assert!(index.is_ancestor(root_commit.id(), commit_a.id()));
     assert!(!index.is_ancestor(commit_a.id(), root_commit.id()));
@@ -181,11 +184,11 @@ fn test_index_commits_criss_cross(use_git: bool) {
     // Check generation numbers
     for gen in 0..num_generations {
         assert_eq!(
-            generation_number(index.clone(), left_commits[gen].id()),
+            generation_number(index.as_ref(), left_commits[gen].id()),
             (gen as u32) + 1
         );
         assert_eq!(
-            generation_number(index.clone(), right_commits[gen].id()),
+            generation_number(index.as_ref(), right_commits[gen].id()),
             (gen as u32) + 1
         );
     }
@@ -291,9 +294,9 @@ fn test_index_commits_previous_operations(use_git: bool) {
     assert_eq!(stats.num_merges, 0);
     assert_eq!(stats.max_generation_number, 3);
 
-    assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
-    assert_eq!(generation_number(index.clone(), commit_b.id()), 2);
-    assert_eq!(generation_number(index, commit_c.id()), 3);
+    assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
+    assert_eq!(generation_number(index.as_ref(), commit_b.id()), 2);
+    assert_eq!(generation_number(index.as_ref(), commit_c.id()), 3);
 }
 
 #[test_case(false ; "local store")]
@@ -339,10 +342,10 @@ fn test_index_commits_incremental(use_git: bool) {
     assert_eq!(stats.levels.len(), 1);
     assert_eq!(stats.levels[0].num_commits, 5);
 
-    assert_eq!(generation_number(index.clone(), root_commit.id()), 0);
-    assert_eq!(generation_number(index.clone(), commit_a.id()), 1);
-    assert_eq!(generation_number(index.clone(), commit_b.id()), 2);
-    assert_eq!(generation_number(index, commit_c.id()), 3);
+    assert_eq!(generation_number(index.as_ref(), root_commit.id()), 0);
+    assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
+    assert_eq!(generation_number(index.as_ref(), commit_b.id()), 2);
+    assert_eq!(generation_number(index.as_ref(), commit_c.id()), 3);
 }
 
 #[test_case(false ; "local store")]
@@ -385,8 +388,8 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     assert_eq!(stats.levels[1].num_commits, 1);
     assert_ne!(stats.levels[1].name, stats.levels[0].name);
 
-    assert_eq!(generation_number(index.clone(), root_commit.id()), 0);
-    assert_eq!(generation_number(index, commit_a.id()), 1);
+    assert_eq!(generation_number(index.as_ref(), root_commit.id()), 0);
+    assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
 }
 
 #[test_case(false ; "local store")]
