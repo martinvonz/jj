@@ -356,7 +356,13 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .short("T")
                 .takes_value(true),
         )
-        .arg(Arg::with_name("all").long("all"))
+        .arg(
+            Arg::with_name("revisions")
+                .long("revisions")
+                .short("r")
+                .takes_value(true)
+                .default_value("*:non_obsolete_heads()"),
+        )
         .arg(Arg::with_name("no-graph").long("no-graph"));
     let obslog_command = SubCommand::with_name("obslog")
         .about("Show how a commit has evolved")
@@ -1094,11 +1100,7 @@ fn cmd_log(
     styler.add_label(String::from("log"))?;
 
     let store = repo.store();
-    let revision_str = if sub_matches.is_present("all") {
-        "*:all_heads()"
-    } else {
-        "*:non_obsolete_heads()"
-    };
+    let revision_str = sub_matches.value_of("revisions").unwrap();
     let revset_expression = revset::parse(revision_str)?;
     let revset = revset::evaluate_expression(repo.as_repo_ref(), &revset_expression)?;
     if use_graph {
@@ -1107,6 +1109,7 @@ fn cmd_log(
             let commit = store.get_commit(&index_entry.commit_id()).unwrap();
             let mut edges = vec![];
             for parent in commit.parents() {
+                // TODO: Use the right kind of edge here.
                 edges.push(Edge::direct(parent.id().clone()));
             }
             let mut buffer = vec![];
