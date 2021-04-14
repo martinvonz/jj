@@ -39,7 +39,7 @@ use jujube_lib::op_store::{OpStore, OpStoreError, OperationId};
 use jujube_lib::operation::Operation;
 use jujube_lib::repo::{MutableRepo, ReadonlyRepo, RepoLoadError, RepoLoader};
 use jujube_lib::repo_path::RepoPath;
-use jujube_lib::revset::RevsetError;
+use jujube_lib::revset::{RevsetError, RevsetParseError};
 use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujube_lib::settings::UserSettings;
 use jujube_lib::store::{CommitId, StoreError, Timestamp, TreeValue};
@@ -97,6 +97,12 @@ impl From<git2::Error> for CommandError {
 impl From<RepoLoadError> for CommandError {
     fn from(err: RepoLoadError) -> Self {
         CommandError::UserError(format!("Failed to load repo: {}", err))
+    }
+}
+
+impl From<RevsetParseError> for CommandError {
+    fn from(err: RevsetParseError) -> Self {
+        CommandError::UserError(format!("Failed to parse revset: {}", err))
     }
 }
 
@@ -166,7 +172,7 @@ fn resolve_single_rev(
             Some(commit) => Ok((repo, commit)),
         }
     } else {
-        let revset_expression = revset::parse(revision_str);
+        let revset_expression = revset::parse(revision_str)?;
         let revset = revset::evaluate_expression(repo.as_repo_ref(), &revset_expression)?;
         let mut iter = revset.iter();
         match iter.next() {

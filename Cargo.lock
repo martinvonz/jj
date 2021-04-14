@@ -582,6 +582,8 @@ dependencies = [
  "git2",
  "hex",
  "maplit",
+ "pest",
+ "pest_derive",
  "protobuf",
  "protobuf-codegen-pure",
  "rand 0.8.0",

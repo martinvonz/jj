@@ -14,6 +14,10 @@
 
 #![feature(get_mut_unchecked)]
 #![feature(map_first_last)]
+#![deny(unused_must_use)]
+
+#[macro_use]
+extern crate pest_derive;
 
 #[cfg(test)]
 #[macro_use]

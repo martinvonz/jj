@@ -14,6 +14,8 @@
 
 use std::cmp::Reverse;
 
+use pest::iterators::Pairs;
+use pest::Parser;
 use thiserror::Error;
 
 use crate::commit::Commit;
@@ -78,6 +80,16 @@ pub fn resolve_symbol(repo: RepoRef, symbol: &str) -> Result<Commit, RevsetError
     }
 }
 
+#[derive(Parser)]
+#[grammar = "revset.pest"]
+pub struct RevsetParser;
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum RevsetParseError {
+    #[error("{0}")]
+    RevsetParseError(String),
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum RevsetExpression {
     Symbol(String),
@@ -85,16 +97,43 @@ pub enum RevsetExpression {
     Ancestors(Box<RevsetExpression>),
 }
 
-pub fn parse(revset_str: &str) -> RevsetExpression {
-    // TODO: Parse using a parser generator (probably pest since we already use that
-    // for templates)
-    if let Some(remainder) = revset_str.strip_prefix("*:") {
-        RevsetExpression::Ancestors(Box::new(parse(remainder)))
-    } else if let Some(remainder) = revset_str.strip_prefix(":") {
-        RevsetExpression::Parents(Box::new(parse(remainder)))
-    } else {
-        RevsetExpression::Symbol(revset_str.to_owned())
+fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, RevsetParseError> {
+    let first = pairs.next().unwrap();
+    match first.as_rule() {
+        Rule::symbol => {
+            Ok(RevsetExpression::Symbol(first.as_str().to_owned()))
+        }
+        Rule::parents => {
+            let expression = pairs.next().unwrap();
+            Ok(RevsetExpression::Parents(Box::new(parse_expression_rule(
+                expression.into_inner(),
+            )?)))
+        }
+        Rule::ancestors => {
+            let expression = pairs.next().unwrap();
+            Ok(RevsetExpression::Ancestors(Box::new(
+                parse_expression_rule(expression.into_inner())?,
+            )))
+        }
+        _ => {
+            panic!("unexpected revset parse rule: {:?}", first);
+        }
     }
+}
+
+pub fn parse(revset_str: &str) -> Result<RevsetExpression, RevsetParseError> {
+    let mut pairs: Pairs<Rule> = RevsetParser::parse(Rule::expression, revset_str).unwrap();
+    let first = pairs.next().unwrap();
+    assert!(pairs.next().is_none());
+    if first.as_span().end() != revset_str.len() {
+        return Err(RevsetParseError::RevsetParseError(format!(
+            "Failed to parse revset {} past position {}",
+            revset_str,
+            first.as_span().end()
+        )));
+    }
+
+    parse_expression_rule(first.into_inner())
 }
 
 pub trait Revset<'repo> {

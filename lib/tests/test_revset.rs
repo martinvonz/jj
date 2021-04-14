@@ -228,20 +228,27 @@ fn test_resolve_symbol_git_refs() {
 
 #[test]
 fn test_parse_revset() {
-    assert_eq!(parse("@"), RevsetExpression::Symbol("@".to_string()));
-    assert_eq!(parse("foo"), RevsetExpression::Symbol("foo".to_string()));
+    assert_eq!(parse("@"), Ok(RevsetExpression::Symbol("@".to_string())));
+    assert_eq!(
+        parse("foo"),
+        Ok(RevsetExpression::Symbol("foo".to_string()))
+    );
     assert_eq!(
         parse(":@"),
-        RevsetExpression::Parents(Box::new(RevsetExpression::Symbol("@".to_string())))
+        Ok(RevsetExpression::Parents(Box::new(
+            RevsetExpression::Symbol("@".to_string())
+        )))
     );
     assert_eq!(
         parse("*:@"),
-        RevsetExpression::Ancestors(Box::new(RevsetExpression::Symbol("@".to_string())))
+        Ok(RevsetExpression::Ancestors(Box::new(
+            RevsetExpression::Symbol("@".to_string())
+        )))
     );
 }
 
 fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
-    let expression = parse(revset_str);
+    let expression = parse(revset_str).unwrap();
     evaluate_expression(repo, &expression)
         .unwrap()
         .iter()
