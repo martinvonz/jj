@@ -2118,6 +2118,11 @@ fn cmd_git_push(
     let repo = get_repo(ui, &matches)?;
     let git_repo = get_git_repo(repo.store())?;
     let (repo, commit) = resolve_revision_arg(ui, repo, cmd_matches)?;
+    if commit.is_open() {
+        return Err(CommandError::UserError(
+            "Won't push open commit".to_string(),
+        ));
+    }
     let remote_name = cmd_matches.value_of("remote").unwrap();
     let branch_name = cmd_matches.value_of("branch").unwrap();
     git::push_commit(&git_repo, &commit, remote_name, branch_name)
