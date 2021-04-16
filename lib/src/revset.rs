@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::cmp::Reverse;
+use std::collections::HashSet;
 
 use pest::iterators::Pairs;
 use pest::Parser;
@@ -100,6 +101,7 @@ pub enum RevsetExpression {
     Parents(Box<RevsetExpression>),
     Ancestors(Box<RevsetExpression>),
     AllHeads,
+    NonObsoleteHeads(Box<RevsetExpression>),
 }
 
 fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, RevsetParseError> {
@@ -172,6 +174,25 @@ fn parse_function_expression(
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
                     message: "Expected 0 arguments".to_string(),
+                })
+            }
+        }
+        "non_obsolete_heads" => {
+            if arg_count == 0 {
+                Ok(RevsetExpression::NonObsoleteHeads(Box::new(
+                    RevsetExpression::AllHeads,
+                )))
+            } else if arg_count == 1 {
+                Ok(RevsetExpression::NonObsoleteHeads(Box::new(
+                    parse_function_argument_to_expression(
+                        &name,
+                        argument_pairs.next().unwrap().into_inner(),
+                    )?,
+                )))
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 0 or 1 argument".to_string(),
                 })
             }
         }
@@ -290,5 +311,41 @@ pub fn evaluate_expression<'repo>(
             index_entries.sort_by_key(|b| Reverse(b.position()));
             Ok(Box::new(EagerRevset { index_entries }))
         }
+        RevsetExpression::NonObsoleteHeads(base_expression) => {
+            let base_set = evaluate_expression(repo, base_expression.as_ref())?;
+            Ok(non_obsolete_heads(repo, base_set))
+        }
     }
+}
+
+fn non_obsolete_heads<'repo>(
+    repo: RepoRef<'repo>,
+    heads: Box<dyn Revset<'repo> + 'repo>,
+) -> Box<dyn Revset<'repo> + 'repo> {
+    let mut commit_ids = HashSet::new();
+    let mut work: Vec<_> = heads.iter().collect();
+    let evolution = repo.evolution();
+    while !work.is_empty() {
+        let index_entry = work.pop().unwrap();
+        let commit_id = index_entry.commit_id();
+        if commit_ids.contains(&commit_id) {
+            continue;
+        }
+        if !index_entry.is_pruned() && !evolution.is_obsolete(&commit_id) {
+            commit_ids.insert(commit_id);
+        } else {
+            for parent_entry in index_entry.parents() {
+                work.push(parent_entry);
+            }
+        }
+    }
+    let index = repo.index();
+    let commit_ids = index.heads(&commit_ids);
+    let mut index_entries: Vec<_> = commit_ids
+        .iter()
+        .map(|id| index.entry_by_id(id).unwrap())
+        .collect();
+    index_entries.sort_by_key(|b| Reverse(b.position()));
+    index_entries.sort_by_key(|b| Reverse(b.position()));
+    Box::new(EagerRevset { index_entries })
 }

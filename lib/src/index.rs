@@ -18,6 +18,7 @@ use std::cmp::{max, min, Ordering};
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs::File;
+use std::hash::{Hash, Hasher};
 use std::io;
 use std::io::{Cursor, Read, Write};
 use std::ops::Bound;
@@ -1326,6 +1327,12 @@ impl PartialEq for IndexEntry<'_> {
     }
 }
 impl Eq for IndexEntry<'_> {}
+
+impl Hash for IndexEntry<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.pos.hash(state)
+    }
+}
 
 impl<'a> IndexEntry<'a> {
     pub fn position(&self) -> u32 {
