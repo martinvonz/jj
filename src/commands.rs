@@ -1037,7 +1037,6 @@ fn graph_log_template(settings: &UserSettings) -> String {
 
 fn skip_uninteresting_heads(repo: &ReadonlyRepo, heads: &HashSet<CommitId>) -> HashSet<CommitId> {
     let index = repo.index();
-    let checkout_id = repo.view().checkout().clone();
     let mut result = HashSet::new();
     let mut work: Vec<_> = heads
         .iter()
@@ -1050,9 +1049,7 @@ fn skip_uninteresting_heads(repo: &ReadonlyRepo, heads: &HashSet<CommitId>) -> H
         if result.contains(&commit_id) {
             continue;
         }
-        if (!index_entry.is_pruned() && !evolution.is_obsolete(&commit_id))
-            || commit_id == checkout_id
-        {
+        if !index_entry.is_pruned() && !evolution.is_obsolete(&commit_id) {
             result.insert(commit_id);
         } else {
             for parent_entry in index_entry.parents() {
