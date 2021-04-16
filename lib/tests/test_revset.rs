@@ -15,7 +15,7 @@
 use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::repo::RepoRef;
 use jujube_lib::revset::{
-    evaluate_expression, parse, resolve_symbol, RevsetError, RevsetExpression,
+    evaluate_expression, parse, resolve_symbol, RevsetError, RevsetExpression, RevsetParseError,
 };
 use jujube_lib::store::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jujube_lib::testutils;
@@ -244,6 +244,42 @@ fn test_parse_revset() {
         Ok(RevsetExpression::Ancestors(Box::new(
             RevsetExpression::Symbol("@".to_string())
         )))
+    );
+}
+
+#[test]
+fn test_parse_revset_function() {
+    assert_eq!(
+        parse("parents(@)"),
+        Ok(RevsetExpression::Parents(Box::new(
+            RevsetExpression::Symbol("@".to_string())
+        )))
+    );
+    assert_eq!(
+        parse("parents(\"@\")"),
+        Err(RevsetParseError::InvalidFunctionArguments {
+            name: "parents".to_string(),
+            message: "Expected function argument of type expression, found: \"@\"".to_string()
+        })
+    );
+    assert_eq!(
+        parse("ancestors(parents(@))"),
+        Ok(RevsetExpression::Ancestors(Box::new(
+            RevsetExpression::Parents(Box::new(RevsetExpression::Symbol("@".to_string())))
+        )))
+    );
+    assert_eq!(
+        parse("parents(@"),
+        Err(RevsetParseError::SyntaxError(
+            "Failed to parse revset \"parents(@\" past position 7".to_string()
+        ))
+    );
+    assert_eq!(
+        parse("parents(@,@)"),
+        Err(RevsetParseError::InvalidFunctionArguments {
+            name: "parents".to_string(),
+            message: "Expected 1 argument".to_string()
+        })
     );
 }
 

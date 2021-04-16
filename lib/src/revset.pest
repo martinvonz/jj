@@ -13,12 +13,31 @@
 // limitations under the License.
 
 symbol = @{ (ASCII_ALPHANUMERIC | "@" | "/" | ".")+ }
+literal_string = { "\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
 
 parents = { ":" }
 ancestors = { "*:" }
 
+function_name = @{ ASCII_ALPHANUMERIC+ }
+// The grammar accepts a string literal or an expression for function
+// arguments. We then decide when walking the parse tree if we
+// should interpret the string value of the literal string or the expression
+// as a string or an expression, or maybe as an integer. For example,
+// parents(foo) might interpret "foo" as an expression, while limit(*:foo,5)
+// might interpret its second argument as an integer. Also, parents("foo")
+// might be disallowed, just as description(heads()) might be.
+function_argument = {
+  literal_string
+  | expression
+}
+function_arguments = {
+  (function_argument ~ ",")* ~ function_argument
+  | ""
+}
+
 expression = {
   parents ~ expression
   | ancestors ~ expression
+  | function_name ~ "(" ~ function_arguments ~ ")"
   | symbol
 }

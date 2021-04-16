@@ -87,7 +87,11 @@ pub struct RevsetParser;
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum RevsetParseError {
     #[error("{0}")]
-    RevsetParseError(String),
+    SyntaxError(String),
+    #[error("Revset function \"{0}\" doesn't exist")]
+    NoSuchFunction(String),
+    #[error("Invalid arguments to revset function \"{name}\": {message}")]
+    InvalidFunctionArguments { name: String, message: String },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -100,9 +104,7 @@ pub enum RevsetExpression {
 fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, RevsetParseError> {
     let first = pairs.next().unwrap();
     match first.as_rule() {
-        Rule::symbol => {
-            Ok(RevsetExpression::Symbol(first.as_str().to_owned()))
-        }
+        Rule::symbol => Ok(RevsetExpression::Symbol(first.as_str().to_owned())),
         Rule::parents => {
             let expression = pairs.next().unwrap();
             Ok(RevsetExpression::Parents(Box::new(parse_expression_rule(
@@ -115,9 +117,74 @@ fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, Rev
                 parse_expression_rule(expression.into_inner())?,
             )))
         }
-        _ => {
-            panic!("unexpected revset parse rule: {:?}", first);
+        Rule::function_name => {
+            let name = first.as_str().to_owned();
+            let argument_pairs = pairs.next().unwrap().into_inner();
+            parse_function_expression(name, argument_pairs)
         }
+        _ => {
+            panic!("unxpected revset parse rule: {:?}", first.as_str());
+        }
+    }
+}
+
+fn parse_function_expression(
+    name: String,
+    mut argument_pairs: Pairs<Rule>,
+) -> Result<RevsetExpression, RevsetParseError> {
+    let arg_count = argument_pairs.clone().count();
+    match name.as_str() {
+        "parents" => {
+            if arg_count == 1 {
+                Ok(RevsetExpression::Parents(Box::new(
+                    parse_function_argument_to_expression(
+                        &name,
+                        argument_pairs.next().unwrap().into_inner(),
+                    )?,
+                )))
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 1 argument".to_string(),
+                })
+            }
+        }
+        "ancestors" => {
+            if arg_count == 1 {
+                Ok(RevsetExpression::Ancestors(Box::new(
+                    parse_function_argument_to_expression(
+                        &name,
+                        argument_pairs.next().unwrap().into_inner(),
+                    )?,
+                )))
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 1 argument".to_string(),
+                })
+            }
+        }
+        _ => Err(RevsetParseError::NoSuchFunction(name)),
+    }
+}
+
+fn parse_function_argument_to_expression(
+    name: &str,
+    mut pairs: Pairs<Rule>,
+) -> Result<RevsetExpression, RevsetParseError> {
+    // Make a clone of the pairs for error messages
+    let pairs_clone = pairs.clone();
+    let first = pairs.next().unwrap();
+    assert!(pairs.next().is_none());
+    match first.as_rule() {
+        Rule::expression => Ok(parse_expression_rule(first.into_inner())?),
+        _ => Err(RevsetParseError::InvalidFunctionArguments {
+            name: name.to_string(),
+            message: format!(
+                "Expected function argument of type expression, found: {}",
+                pairs_clone.as_str()
+            ),
+        }),
     }
 }
 
@@ -126,8 +193,8 @@ pub fn parse(revset_str: &str) -> Result<RevsetExpression, RevsetParseError> {
     let first = pairs.next().unwrap();
     assert!(pairs.next().is_none());
     if first.as_span().end() != revset_str.len() {
-        return Err(RevsetParseError::RevsetParseError(format!(
-            "Failed to parse revset {} past position {}",
+        return Err(RevsetParseError::SyntaxError(format!(
+            "Failed to parse revset \"{}\" past position {}",
             revset_str,
             first.as_span().end()
         )));
