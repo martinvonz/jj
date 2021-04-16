@@ -99,6 +99,7 @@ pub enum RevsetExpression {
     Symbol(String),
     Parents(Box<RevsetExpression>),
     Ancestors(Box<RevsetExpression>),
+    AllHeads,
 }
 
 fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, RevsetParseError> {
@@ -161,6 +162,16 @@ fn parse_function_expression(
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
                     message: "Expected 1 argument".to_string(),
+                })
+            }
+        }
+        "all_heads" => {
+            if arg_count == 0 {
+                Ok(RevsetExpression::AllHeads)
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 0 arguments".to_string(),
                 })
             }
         }
@@ -268,6 +279,16 @@ pub fn evaluate_expression<'repo>(
             let base_ids: Vec<_> = base_set.iter().map(|entry| entry.commit_id()).collect();
             let walk = repo.index().walk_revs(&base_ids, &[]);
             Ok(Box::new(RevWalkRevset { walk }))
+        }
+        RevsetExpression::AllHeads => {
+            let index = repo.index();
+            let heads = repo.view().heads();
+            let mut index_entries: Vec<_> = heads
+                .iter()
+                .map(|id| index.entry_by_id(id).unwrap())
+                .collect();
+            index_entries.sort_by_key(|b| Reverse(b.position()));
+            Ok(Box::new(EagerRevset { index_entries }))
         }
     }
 }

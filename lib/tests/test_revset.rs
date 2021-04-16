@@ -399,3 +399,26 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
 
     tx.discard();
 }
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_evaluate_expression_all_heads(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let wc_commit = repo.working_copy_locked().current_commit();
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_repo(mut_repo);
+
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "all_heads()"),
+        vec![commit2.id().clone(), wc_commit.id().clone()]
+    );
+
+    tx.discard();
+}

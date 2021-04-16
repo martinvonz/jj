@@ -18,7 +18,7 @@ literal_string = { "\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
 parents = { ":" }
 ancestors = { "*:" }
 
-function_name = @{ ASCII_ALPHANUMERIC+ }
+function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }
 // The grammar accepts a string literal or an expression for function
 // arguments. We then decide when walking the parse tree if we
 // should interpret the string value of the literal string or the expression
