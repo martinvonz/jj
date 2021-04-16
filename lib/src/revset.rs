@@ -102,6 +102,10 @@ pub enum RevsetExpression {
     Ancestors(Box<RevsetExpression>),
     AllHeads,
     NonObsoleteHeads(Box<RevsetExpression>),
+    Description {
+        needle: String,
+        base_expression: Box<RevsetExpression>,
+    },
 }
 
 fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, RevsetParseError> {
@@ -196,6 +200,32 @@ fn parse_function_expression(
                 })
             }
         }
+        "description" => {
+            if !(1..=2).contains(&arg_count) {
+                return Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 1 or 2 arguments".to_string(),
+                });
+            }
+            let needle = parse_function_argument_to_string(
+                &name,
+                argument_pairs.next().unwrap().into_inner(),
+            )?;
+            let base_expression = if arg_count == 1 {
+                RevsetExpression::Ancestors(Box::new(RevsetExpression::NonObsoleteHeads(Box::new(
+                    RevsetExpression::AllHeads,
+                ))))
+            } else {
+                parse_function_argument_to_expression(
+                    &name,
+                    argument_pairs.next().unwrap().into_inner(),
+                )?
+            };
+            Ok(RevsetExpression::Description {
+                needle,
+                base_expression: Box::new(base_expression),
+            })
+        }
         _ => Err(RevsetParseError::NoSuchFunction(name)),
     }
 }
@@ -218,6 +248,42 @@ fn parse_function_argument_to_expression(
             ),
         }),
     }
+}
+
+fn parse_function_argument_to_string(
+    name: &str,
+    mut pairs: Pairs<Rule>,
+) -> Result<String, RevsetParseError> {
+    // Make a clone of the pairs for error messages
+    let pairs_clone = pairs.clone();
+    let first = pairs.next().unwrap();
+    assert!(pairs.next().is_none());
+    match first.as_rule() {
+        Rule::literal_string => {
+            return Ok(first
+                .as_str()
+                .strip_prefix('"')
+                .unwrap()
+                .strip_suffix('"')
+                .unwrap()
+                .to_owned())
+        }
+        Rule::expression => {
+            let mut expression_pairs = first.into_inner();
+            let first = expression_pairs.next().unwrap();
+            if first.as_rule() == Rule::symbol {
+                return Ok(first.as_str().to_owned());
+            }
+        }
+        _ => {}
+    }
+    Err(RevsetParseError::InvalidFunctionArguments {
+        name: name.to_string(),
+        message: format!(
+            "Expected function argument of type string, found: {}",
+            pairs_clone.as_str()
+        ),
+    })
 }
 
 pub fn parse(revset_str: &str) -> Result<RevsetExpression, RevsetParseError> {
@@ -314,6 +380,28 @@ pub fn evaluate_expression<'repo>(
         RevsetExpression::NonObsoleteHeads(base_expression) => {
             let base_set = evaluate_expression(repo, base_expression.as_ref())?;
             Ok(non_obsolete_heads(repo, base_set))
+        }
+        RevsetExpression::Description {
+            needle,
+            base_expression,
+        } => {
+            // TODO: Definitely make this lazy. We should have a common way of defining
+            // revsets that simply filter a base revset.
+            let base_set = evaluate_expression(repo, base_expression.as_ref())?;
+            let mut commit_ids = vec![];
+            for entry in base_set.iter() {
+                let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
+                if commit.description().contains(needle.as_str()) {
+                    commit_ids.push(entry.commit_id());
+                }
+            }
+            let index = repo.index();
+            let mut index_entries: Vec<_> = commit_ids
+                .iter()
+                .map(|id| index.entry_by_id(id).unwrap())
+                .collect();
+            index_entries.sort_by_key(|b| Reverse(b.position()));
+            Ok(Box::new(EagerRevset { index_entries }))
         }
     }
 }
