@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cmp::Reverse;
+use std::cmp::{Ordering, Reverse};
 use std::collections::HashSet;
+use std::iter::Peekable;
 
 use pest::iterators::Pairs;
 use pest::Parser;
@@ -106,12 +107,13 @@ pub enum RevsetExpression {
         needle: String,
         base_expression: Box<RevsetExpression>,
     },
+    Difference(Box<RevsetExpression>, Box<RevsetExpression>),
 }
 
 fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, RevsetParseError> {
     let first = pairs.next().unwrap();
     match first.as_rule() {
-        Rule::prefix_expression => parse_prefix_expression_rule(first.into_inner()),
+        Rule::infix_expression => parse_infix_expression_rule(first.into_inner()),
         _ => {
             panic!(
                 "unxpected revset parse rule {:?} in: {:?}",
@@ -120,6 +122,28 @@ fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, Rev
             );
         }
     }
+}
+
+fn parse_infix_expression_rule(
+    mut pairs: Pairs<Rule>,
+) -> Result<RevsetExpression, RevsetParseError> {
+    let mut expression1 = parse_prefix_expression_rule(pairs.next().unwrap().into_inner())?;
+    while let Some(operator) = pairs.next() {
+        let expression2 = parse_prefix_expression_rule(pairs.next().unwrap().into_inner())?;
+        match operator.as_rule() {
+            Rule::difference => {
+                expression1 =
+                    RevsetExpression::Difference(Box::new(expression1), Box::new(expression2))
+            }
+            _ => {
+                panic!(
+                    "unxpected revset infix operator rule {:?}",
+                    operator.as_rule()
+                );
+            }
+        }
+    }
+    Ok(expression1)
 }
 
 fn parse_prefix_expression_rule(
@@ -294,12 +318,15 @@ fn parse_function_argument_to_string(
         }
         Rule::expression => {
             let first = first.into_inner().next().unwrap();
-            if first.as_rule() == Rule::prefix_expression {
+            if first.as_rule() == Rule::infix_expression {
                 let first = first.into_inner().next().unwrap();
-                if first.as_rule() == Rule::primary {
+                if first.as_rule() == Rule::prefix_expression {
                     let first = first.into_inner().next().unwrap();
-                    if first.as_rule() == Rule::symbol {
-                        return Ok(first.as_str().to_owned());
+                    if first.as_rule() == Rule::primary {
+                        let first = first.into_inner().next().unwrap();
+                        if first.as_rule() == Rule::symbol {
+                            return Ok(first.as_str().to_owned());
+                        }
                     }
                 }
             }
@@ -331,6 +358,7 @@ pub fn parse(revset_str: &str) -> Result<RevsetExpression, RevsetParseError> {
 }
 
 pub trait Revset<'repo> {
+    // All revsets currently iterate in order of descending index position
     fn iter<'revset>(&'revset self) -> Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>;
 }
 
@@ -368,10 +396,60 @@ impl<'repo> Iterator for RevWalkRevsetIterator<'repo> {
     }
 }
 
-pub fn evaluate_expression<'repo>(
+struct DifferenceRevset<'revset, 'repo: 'revset> {
+    // The minuend (what to subtract from)
+    set1: Box<dyn Revset<'repo> + 'revset>,
+    // The subtrahend (what to subtract)
+    set2: Box<dyn Revset<'repo> + 'revset>,
+}
+
+impl<'repo> Revset<'repo> for DifferenceRevset<'_, 'repo> {
+    fn iter<'revset>(&'revset self) -> Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset> {
+        Box::new(DifferenceRevsetIterator {
+            iter1: self.set1.iter().peekable(),
+            iter2: self.set2.iter().peekable(),
+        })
+    }
+}
+
+struct DifferenceRevsetIterator<'revset, 'repo> {
+    iter1: Peekable<Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>>,
+    iter2: Peekable<Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>>,
+}
+
+impl<'revset, 'repo> Iterator for DifferenceRevsetIterator<'revset, 'repo> {
+    type Item = IndexEntry<'repo>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match (self.iter1.peek(), self.iter2.peek()) {
+                (None, _) => {
+                    return None;
+                }
+                (_, None) => {
+                    return self.iter1.next();
+                }
+                (Some(entry1), Some(entry2)) => match entry1.position().cmp(&entry2.position()) {
+                    Ordering::Less => {
+                        self.iter2.next();
+                    }
+                    Ordering::Equal => {
+                        self.iter2.next();
+                        self.iter1.next();
+                    }
+                    Ordering::Greater => {
+                        return self.iter1.next();
+                    }
+                },
+            }
+        }
+    }
+}
+
+pub fn evaluate_expression<'revset, 'repo: 'revset>(
     repo: RepoRef<'repo>,
     expression: &RevsetExpression,
-) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
+) -> Result<Box<dyn Revset<'repo> + 'revset>, RevsetError> {
     match expression {
         RevsetExpression::Symbol(symbol) => {
             let commit_id = resolve_symbol(repo, &symbol)?.id().clone();
@@ -432,13 +510,18 @@ pub fn evaluate_expression<'repo>(
             index_entries.sort_by_key(|b| Reverse(b.position()));
             Ok(Box::new(EagerRevset { index_entries }))
         }
+        RevsetExpression::Difference(expression1, expression2) => {
+            let set1 = evaluate_expression(repo, expression1.as_ref())?;
+            let set2 = evaluate_expression(repo, expression2.as_ref())?;
+            Ok(Box::new(DifferenceRevset { set1, set2 }))
+        }
     }
 }
 
-fn non_obsolete_heads<'repo>(
+fn non_obsolete_heads<'revset, 'repo: 'revset>(
     repo: RepoRef<'repo>,
     heads: Box<dyn Revset<'repo> + 'repo>,
-) -> Box<dyn Revset<'repo> + 'repo> {
+) -> Box<dyn Revset<'repo> + 'revset> {
     let mut commit_ids = HashSet::new();
     let mut work: Vec<_> = heads.iter().collect();
     let evolution = repo.evolution();

@@ -19,6 +19,9 @@ parents = { ":" }
 ancestors = { "*:" }
 prefix_operator = _{ parents | ancestors }
 
+difference = { "-" }
+infix_operator = _{ difference }
+
 function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }
 // The grammar accepts a string literal or an expression for function
 // arguments. We then decide when walking the parse tree if we
@@ -36,7 +39,6 @@ function_arguments = {
   | ""
 }
 
-
 primary = {
   function_name ~ "(" ~ function_arguments ~ ")"
   | "(" ~ expression ~ ")"
@@ -45,6 +47,10 @@ primary = {
 
 prefix_expression = { prefix_operator* ~ primary }
 
+infix_expression = {
+  prefix_expression ~ (infix_operator ~ prefix_expression)*
+}
+
 expression = {
-  prefix_expression
+  infix_expression
 }
