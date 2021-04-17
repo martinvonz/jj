@@ -1094,17 +1094,16 @@ fn cmd_log(
     styler.add_label(String::from("log"))?;
 
     let store = repo.store();
-    let mut head_ids = repo.view().heads().clone();
-    if !sub_matches.is_present("all") {
-        head_ids = skip_uninteresting_heads(&repo, repo.view().heads());
+    let revision_str = if sub_matches.is_present("all") {
+        "*:all_heads()"
+    } else {
+        "*:non_obsolete_heads()"
     };
-
-    let head_ids: Vec<_> = head_ids.into_iter().collect();
-    let index = repo.index();
-    let index_entries = index.walk_revs(&head_ids, &[]);
+    let revset_expression = revset::parse(revision_str)?;
+    let revset = revset::evaluate_expression(repo.as_repo_ref(), &revset_expression)?;
     if use_graph {
         let mut graph = AsciiGraphDrawer::new(&mut styler);
-        for index_entry in index_entries {
+        for index_entry in revset.iter() {
             let commit = store.get_commit(&index_entry.commit_id()).unwrap();
             let mut edges = vec![];
             for parent in commit.parents() {
@@ -1123,7 +1122,7 @@ fn cmd_log(
             graph.add_node(commit.id(), &edges, b"o", &buffer)?;
         }
     } else {
-        for index_entry in index_entries {
+        for index_entry in revset.iter() {
             let commit = store.get_commit(&index_entry.commit_id()).unwrap();
             template.format(&commit, styler)?;
         }
