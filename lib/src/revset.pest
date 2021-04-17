@@ -17,6 +17,7 @@ literal_string = { "\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
 
 parents = { ":" }
 ancestors = { "*:" }
+prefix_operator = _{ parents | ancestors }
 
 function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }
 // The grammar accepts a string literal or an expression for function
@@ -35,14 +36,15 @@ function_arguments = {
   | ""
 }
 
+
 primary = {
-  symbol
+  function_name ~ "(" ~ function_arguments ~ ")"
   | "(" ~ expression ~ ")"
+  | symbol
 }
 
+prefix_expression = { prefix_operator* ~ primary }
+
 expression = {
-  parents ~ expression
-  | ancestors ~ expression
-  | function_name ~ "(" ~ function_arguments ~ ")"
-  | primary
+  prefix_expression
 }
