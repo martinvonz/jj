@@ -17,31 +17,6 @@ use std::hash::Hash;
 use std::iter::Iterator;
 
 use crate::commit::Commit;
-use crate::store::CommitId;
-
-pub struct AncestorsIter {
-    bfs_iter: BfsIter<'static, 'static, Commit, CommitId, Vec<Commit>>,
-}
-
-impl Iterator for AncestorsIter {
-    type Item = Commit;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.bfs_iter.next()
-    }
-}
-
-pub fn walk_ancestors<II>(start: II) -> AncestorsIter
-where
-    II: IntoIterator<Item = Commit>,
-{
-    let bfs_iter = bfs(
-        start,
-        Box::new(|commit| commit.id().clone()),
-        Box::new(|commit| commit.parents()),
-    );
-    AncestorsIter { bfs_iter }
-}
 
 pub struct BfsIter<'id_fn, 'neighbors_fn, T, ID, NI> {
     id_fn: Box<dyn Fn(&T) -> ID + 'id_fn>,

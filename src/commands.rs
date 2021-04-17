@@ -30,7 +30,7 @@ use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 use criterion::Criterion;
 use jujube_lib::commit::Commit;
 use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::dag_walk::{topo_order_reverse, walk_ancestors};
+use jujube_lib::dag_walk::topo_order_reverse;
 use jujube_lib::evolution::{evolve, EvolveListener};
 use jujube_lib::files::DiffLine;
 use jujube_lib::git::GitFetchError;
@@ -42,7 +42,7 @@ use jujube_lib::repo_path::RepoPath;
 use jujube_lib::revset::{RevsetError, RevsetParseError};
 use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujube_lib::settings::UserSettings;
-use jujube_lib::store::{CommitId, StoreError, Timestamp, TreeValue};
+use jujube_lib::store::{StoreError, Timestamp, TreeValue};
 use jujube_lib::store_wrapper::StoreWrapper;
 use jujube_lib::tree::Tree;
 use jujube_lib::trees::Diff;
@@ -154,42 +154,23 @@ fn resolve_single_rev(
         repo = reloaded_repo;
     }
 
-    if revision_str.starts_with("desc(") && revision_str.ends_with(')') {
-        let needle = revision_str[5..revision_str.len() - 1].to_string();
-        let mut matches = vec![];
-        let head_ids = skip_uninteresting_heads(repo.as_ref(), &repo.view().heads());
-        let heads: Vec<_> = head_ids
-            .iter()
-            .map(|id| repo.store().get_commit(&id).unwrap())
-            .collect();
-        for commit in walk_ancestors(heads) {
-            if commit.description().contains(&needle) {
-                matches.push(commit);
-            }
-        }
-        match matches.pop() {
-            None => Err(CommandError::UserError(String::from("No matching commit"))),
-            Some(commit) => Ok((repo, commit)),
-        }
-    } else {
-        let revset_expression = revset::parse(revision_str)?;
-        let revset = revset::evaluate_expression(repo.as_repo_ref(), &revset_expression)?;
-        let mut iter = revset.iter();
-        match iter.next() {
-            None => Err(CommandError::UserError(format!(
-                "Revset \"{}\" didn't resolve to any revisions",
-                revision_str
-            ))),
-            Some(entry) => {
-                let commit = repo.store().get_commit(&entry.commit_id())?;
-                if iter.next().is_some() {
-                    return Err(CommandError::UserError(format!(
-                        "Revset \"{}\" resolved to more than one revision",
-                        revision_str
-                    )));
-                } else {
-                    Ok((repo.clone(), commit))
-                }
+    let revset_expression = revset::parse(revision_str)?;
+    let revset = revset::evaluate_expression(repo.as_repo_ref(), &revset_expression)?;
+    let mut iter = revset.iter();
+    match iter.next() {
+        None => Err(CommandError::UserError(format!(
+            "Revset \"{}\" didn't resolve to any revisions",
+            revision_str
+        ))),
+        Some(entry) => {
+            let commit = repo.store().get_commit(&entry.commit_id())?;
+            if iter.next().is_some() {
+                return Err(CommandError::UserError(format!(
+                    "Revset \"{}\" resolved to more than one revision",
+                    revision_str
+                )));
+            } else {
+                Ok((repo.clone(), commit))
             }
         }
     }
@@ -1039,31 +1020,6 @@ fn graph_log_template(settings: &UserSettings) -> String {
         .config()
         .get_str("template.log.graph")
         .unwrap_or_else(|_| String::from(default_template))
-}
-
-fn skip_uninteresting_heads(repo: &ReadonlyRepo, heads: &HashSet<CommitId>) -> HashSet<CommitId> {
-    let index = repo.index();
-    let mut result = HashSet::new();
-    let mut work: Vec<_> = heads
-        .iter()
-        .map(|id| index.entry_by_id(id).unwrap())
-        .collect();
-    let evolution = repo.evolution();
-    while !work.is_empty() {
-        let index_entry = work.pop().unwrap();
-        let commit_id = index_entry.commit_id();
-        if result.contains(&commit_id) {
-            continue;
-        }
-        if !index_entry.is_pruned() && !evolution.is_obsolete(&commit_id) {
-            result.insert(commit_id);
-        } else {
-            for parent_entry in index_entry.parents() {
-                work.push(parent_entry);
-            }
-        }
-    }
-    result
 }
 
 fn cmd_log(
