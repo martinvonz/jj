@@ -107,6 +107,7 @@ pub enum RevsetExpression {
         needle: String,
         base_expression: Box<RevsetExpression>,
     },
+    Union(Box<RevsetExpression>, Box<RevsetExpression>),
     Difference(Box<RevsetExpression>, Box<RevsetExpression>),
 }
 
@@ -131,6 +132,9 @@ fn parse_infix_expression_rule(
     while let Some(operator) = pairs.next() {
         let expression2 = parse_prefix_expression_rule(pairs.next().unwrap().into_inner())?;
         match operator.as_rule() {
+            Rule::union => {
+                expression1 = RevsetExpression::Union(Box::new(expression1), Box::new(expression2))
+            }
             Rule::difference => {
                 expression1 =
                     RevsetExpression::Difference(Box::new(expression1), Box::new(expression2))
@@ -398,6 +402,44 @@ impl<'repo> Iterator for RevWalkRevsetIterator<'repo> {
     }
 }
 
+struct UnionRevset<'revset, 'repo: 'revset> {
+    set1: Box<dyn Revset<'repo> + 'revset>,
+    set2: Box<dyn Revset<'repo> + 'revset>,
+}
+
+impl<'repo> Revset<'repo> for UnionRevset<'_, 'repo> {
+    fn iter<'revset>(&'revset self) -> Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset> {
+        Box::new(UnionRevsetIterator {
+            iter1: self.set1.iter().peekable(),
+            iter2: self.set2.iter().peekable(),
+        })
+    }
+}
+
+struct UnionRevsetIterator<'revset, 'repo> {
+    iter1: Peekable<Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>>,
+    iter2: Peekable<Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>>,
+}
+
+impl<'revset, 'repo> Iterator for UnionRevsetIterator<'revset, 'repo> {
+    type Item = IndexEntry<'repo>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match (self.iter1.peek(), self.iter2.peek()) {
+            (None, _) => self.iter2.next(),
+            (_, None) => self.iter1.next(),
+            (Some(entry1), Some(entry2)) => match entry1.position().cmp(&entry2.position()) {
+                Ordering::Less => self.iter2.next(),
+                Ordering::Equal => {
+                    self.iter1.next();
+                    self.iter2.next()
+                }
+                Ordering::Greater => self.iter1.next(),
+            },
+        }
+    }
+}
+
 struct DifferenceRevset<'revset, 'repo: 'revset> {
     // The minuend (what to subtract from)
     set1: Box<dyn Revset<'repo> + 'revset>,
@@ -511,6 +553,11 @@ pub fn evaluate_expression<'revset, 'repo: 'revset>(
                 .collect();
             index_entries.sort_by_key(|b| Reverse(b.position()));
             Ok(Box::new(EagerRevset { index_entries }))
+        }
+        RevsetExpression::Union(expression1, expression2) => {
+            let set1 = evaluate_expression(repo, expression1.as_ref())?;
+            let set2 = evaluate_expression(repo, expression2.as_ref())?;
+            Ok(Box::new(UnionRevset { set1, set2 }))
         }
         RevsetExpression::Difference(expression1, expression2) => {
             let set1 = evaluate_expression(repo, expression1.as_ref())?;

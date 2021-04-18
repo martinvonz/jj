@@ -394,6 +394,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
+    let root_commit = repo.store().root_commit();
     let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     let commit2 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit1.id().clone()])
@@ -401,6 +402,9 @@ fn test_evaluate_expression_parents(use_git: bool) {
     let commit3 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     let commit4 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit2.id().clone(), commit3.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit5 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit2.id().clone()])
         .write_to_repo(mut_repo);
 
     // The root commit has no parents
@@ -416,7 +420,34 @@ fn test_evaluate_expression_parents(use_git: bool) {
     // Can find parents of a merge commit
     assert_eq!(
         resolve_commit_ids(mut_repo.as_repo_ref(), &format!(":{}", commit4.id().hex())),
-        vec![commit3.id().clone(), commit2.id().clone(),]
+        vec![commit3.id().clone(), commit2.id().clone()]
+    );
+
+    // Parents of all commits in input are returned
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!(":({} | {})", commit2.id().hex(), commit3.id().hex())
+        ),
+        vec![commit1.id().clone(), root_commit.id().clone()]
+    );
+
+    // Parents already in input set are returned
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!(":*:{}", commit2.id().hex())
+        ),
+        vec![commit1.id().clone(), root_commit.id().clone()]
+    );
+
+    // Parents shared among commits in input are not repeated
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!(":({} | {})", commit4.id().hex(), commit5.id().hex())
+        ),
+        vec![commit3.id().clone(), commit2.id().clone()]
     );
 
     tx.discard();
@@ -577,6 +608,88 @@ fn test_evaluate_expression_description(use_git: bool) {
             "description(\"commit 2\",all_heads())"
         ),
         vec![]
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_evaluate_expression_union(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let root_commit = repo.store().root_commit();
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit2.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit4 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit3.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit5 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit2.id().clone()])
+        .write_to_repo(mut_repo);
+
+    // Union between ancestors
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("*:{} | *:{}", commit4.id().hex(), commit5.id().hex())
+        ),
+        vec![
+            commit5.id().clone(),
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+            root_commit.id().clone()
+        ]
+    );
+
+    // Unioning can add back commits removed by difference
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!(
+                "(*:{} - *:{}) | *:{}",
+                commit4.id().hex(),
+                commit2.id().hex(),
+                commit5.id().hex()
+            )
+        ),
+        vec![
+            commit5.id().clone(),
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+            root_commit.id().clone(),
+        ]
+    );
+
+    // Unioning of disjoint sets
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!(
+                "(*:{} - *:{}) | {}",
+                commit4.id().hex(),
+                commit2.id().hex(),
+                commit5.id().hex(),
+            )
+        ),
+        vec![
+            commit5.id().clone(),
+            commit4.id().clone(),
+            commit3.id().clone()
+        ]
     );
 
     tx.discard();

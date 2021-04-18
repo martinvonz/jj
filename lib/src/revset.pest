@@ -20,8 +20,9 @@ parents = { ":" }
 ancestors = { "*:" }
 prefix_operator = _{ parents | ancestors }
 
+union = { "|" }
 difference = { "-" }
-infix_operator = _{ difference }
+infix_operator = _{ union| difference }
 
 function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }
 // The grammar accepts a string literal or an expression for function
