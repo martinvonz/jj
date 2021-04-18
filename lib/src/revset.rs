@@ -111,7 +111,7 @@ pub enum RevsetExpression {
 fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, RevsetParseError> {
     let first = pairs.next().unwrap();
     match first.as_rule() {
-        Rule::symbol => Ok(RevsetExpression::Symbol(first.as_str().to_owned())),
+        Rule::primary => parse_primary_rule(first.into_inner()),
         Rule::parents => {
             let expression = pairs.next().unwrap();
             Ok(RevsetExpression::Parents(Box::new(parse_expression_rule(
@@ -129,6 +129,17 @@ fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, Rev
             let argument_pairs = pairs.next().unwrap().into_inner();
             parse_function_expression(name, argument_pairs)
         }
+        _ => {
+            panic!("unxpected revset parse rule: {:?}", first.as_str());
+        }
+    }
+}
+
+fn parse_primary_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, RevsetParseError> {
+    let first = pairs.next().unwrap();
+    match first.as_rule() {
+        Rule::symbol => Ok(RevsetExpression::Symbol(first.as_str().to_owned())),
+        Rule::expression => parse_expression_rule(first.into_inner()),
         _ => {
             panic!("unxpected revset parse rule: {:?}", first.as_str());
         }
@@ -269,10 +280,12 @@ fn parse_function_argument_to_string(
                 .to_owned())
         }
         Rule::expression => {
-            let mut expression_pairs = first.into_inner();
-            let first = expression_pairs.next().unwrap();
-            if first.as_rule() == Rule::symbol {
-                return Ok(first.as_str().to_owned());
+            let first = first.into_inner().next().unwrap();
+            if first.as_rule() == Rule::primary {
+                let first = first.into_inner().next().unwrap();
+                if first.as_rule() == Rule::symbol {
+                    return Ok(first.as_str().to_owned());
+                }
             }
         }
         _ => {}

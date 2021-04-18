@@ -35,9 +35,14 @@ function_arguments = {
   | ""
 }
 
+primary = {
+  symbol
+  | "(" ~ expression ~ ")"
+}
+
 expression = {
   parents ~ expression
   | ancestors ~ expression
   | function_name ~ "(" ~ function_arguments ~ ")"
-  | symbol
+  | primary
 }

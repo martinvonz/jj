@@ -234,7 +234,17 @@ fn test_parse_revset() {
         Ok(RevsetExpression::Symbol("foo".to_string()))
     );
     assert_eq!(
+        parse("(foo)"),
+        Ok(RevsetExpression::Symbol("foo".to_string()))
+    );
+    assert_eq!(
         parse(":@"),
+        Ok(RevsetExpression::Parents(Box::new(
+            RevsetExpression::Symbol("@".to_string())
+        )))
+    );
+    assert_eq!(
+        parse(":(@)"),
         Ok(RevsetExpression::Parents(Box::new(
             RevsetExpression::Symbol("@".to_string())
         )))
@@ -251,6 +261,12 @@ fn test_parse_revset() {
 fn test_parse_revset_function() {
     assert_eq!(
         parse("parents(@)"),
+        Ok(RevsetExpression::Parents(Box::new(
+            RevsetExpression::Symbol("@".to_string())
+        )))
+    );
+    assert_eq!(
+        parse("parents((@))"),
         Ok(RevsetExpression::Parents(Box::new(
             RevsetExpression::Symbol("@".to_string())
         )))
@@ -293,6 +309,20 @@ fn test_parse_revset_function() {
         Err(RevsetParseError::InvalidFunctionArguments {
             name: "description".to_string(),
             message: "Expected function argument of type string, found: foo()".to_string()
+        })
+    );
+    assert_eq!(
+        parse("description((foo),bar)"),
+        Err(RevsetParseError::InvalidFunctionArguments {
+            name: "description".to_string(),
+            message: "Expected function argument of type string, found: (foo)".to_string()
+        })
+    );
+    assert_eq!(
+        parse("description(\"(foo)\",bar)"),
+        Ok(RevsetExpression::Description {
+            needle: "(foo)".to_string(),
+            base_expression: Box::new(RevsetExpression::Symbol("bar".to_string()))
         })
     );
 }
