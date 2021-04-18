@@ -343,6 +343,8 @@ fn parse_function_argument_to_string(
 }
 
 pub fn parse(revset_str: &str) -> Result<RevsetExpression, RevsetParseError> {
+    // TODO: Return a better error message when parsing fails (such as when the user
+    // puts whitespace between a prefix operator and the operand)
     let mut pairs: Pairs<Rule> = RevsetParser::parse(Rule::expression, revset_str).unwrap();
     let first = pairs.next().unwrap();
     assert!(pairs.next().is_none());

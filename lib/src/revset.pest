@@ -14,6 +14,7 @@
 
 symbol = @{ (ASCII_ALPHANUMERIC | "@" | "/" | ".")+ }
 literal_string = { "\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
+whitespace = _{ " " }
 
 parents = { ":" }
 ancestors = { "*:" }
@@ -35,8 +36,8 @@ function_argument = {
   | expression
 }
 function_arguments = {
-  (function_argument ~ ",")* ~ function_argument
-  | ""
+  (whitespace* ~ function_argument ~ whitespace* ~ ",")* ~ whitespace* ~ function_argument ~ whitespace*
+  | whitespace*
 }
 
 primary = {
@@ -48,9 +49,9 @@ primary = {
 prefix_expression = { prefix_operator* ~ primary }
 
 infix_expression = {
-  prefix_expression ~ (infix_operator ~ prefix_expression)*
+  whitespace* ~ prefix_expression ~ whitespace* ~ (infix_operator ~ whitespace* ~ prefix_expression ~ whitespace*)*
 }
 
 expression = {
-  infix_expression
+  whitespace* ~ infix_expression ~ whitespace*
 }

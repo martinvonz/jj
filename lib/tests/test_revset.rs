@@ -255,6 +255,27 @@ fn test_parse_revset() {
             RevsetExpression::Symbol("@".to_string())
         )))
     );
+    assert_eq!(
+        parse(" *:@ "),
+        Ok(RevsetExpression::Ancestors(Box::new(
+            RevsetExpression::Symbol("@".to_string())
+        )))
+    );
+    assert_eq!(
+        parse("   description(  arg1 ,   arg2 ) -    parents(   arg1  )  - all_heads(  )  "),
+        Ok(RevsetExpression::Difference(
+            Box::new(RevsetExpression::Difference(
+                Box::new(RevsetExpression::Description {
+                    needle: "arg1".to_string(),
+                    base_expression: Box::new(RevsetExpression::Symbol("arg2".to_string()))
+                }),
+                Box::new(RevsetExpression::Parents(Box::new(
+                    RevsetExpression::Symbol("arg1".to_string())
+                )))
+            )),
+            Box::new(RevsetExpression::AllHeads)
+        ))
+    );
 }
 
 #[test]
@@ -589,21 +610,21 @@ fn test_evaluate_expression_difference(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("*:{}-*:{}", commit4.id().hex(), commit5.id().hex())
+            &format!("*:{} - *:{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![commit4.id().clone(), commit3.id().clone()]
     );
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("*:{}-*:{}", commit5.id().hex(), commit4.id().hex())
+            &format!("*:{} - *:{}", commit5.id().hex(), commit4.id().hex())
         ),
         vec![commit5.id().clone()]
     );
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("*:{}-*:{}", commit4.id().hex(), commit2.id().hex())
+            &format!("*:{} - *:{}", commit4.id().hex(), commit2.id().hex())
         ),
         vec![commit4.id().clone(), commit3.id().clone()]
     );
@@ -613,7 +634,7 @@ fn test_evaluate_expression_difference(use_git: bool) {
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
             &format!(
-                "*:{}-{}-{}",
+                "*:{} - {} - {}",
                 commit4.id().hex(),
                 commit2.id().hex(),
                 commit3.id().hex()
@@ -631,7 +652,7 @@ fn test_evaluate_expression_difference(use_git: bool) {
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
             &format!(
-                "(*:{}-*:{})-(*:{}-*:{})",
+                "(*:{} - *:{}) - (*:{} - *:{})",
                 commit4.id().hex(),
                 commit1.id().hex(),
                 commit3.id().hex(),
