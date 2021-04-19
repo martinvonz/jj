@@ -21,8 +21,9 @@ ancestors = { "*:" }
 prefix_operator = _{ parents | ancestors }
 
 union = { "|" }
+intersection = { "&" }
 difference = { "-" }
-infix_operator = _{ union| difference }
+infix_operator = _{ union| intersection | difference }
 
 function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }
 // The grammar accepts a string literal or an expression for function

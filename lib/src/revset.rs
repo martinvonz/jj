@@ -108,6 +108,7 @@ pub enum RevsetExpression {
         base_expression: Box<RevsetExpression>,
     },
     Union(Box<RevsetExpression>, Box<RevsetExpression>),
+    Intersection(Box<RevsetExpression>, Box<RevsetExpression>),
     Difference(Box<RevsetExpression>, Box<RevsetExpression>),
 }
 
@@ -134,6 +135,10 @@ fn parse_infix_expression_rule(
         match operator.as_rule() {
             Rule::union => {
                 expression1 = RevsetExpression::Union(Box::new(expression1), Box::new(expression2))
+            }
+            Rule::intersection => {
+                expression1 =
+                    RevsetExpression::Intersection(Box::new(expression1), Box::new(expression2))
             }
             Rule::difference => {
                 expression1 =
@@ -440,6 +445,54 @@ impl<'revset, 'repo> Iterator for UnionRevsetIterator<'revset, 'repo> {
     }
 }
 
+struct IntersectionRevset<'revset, 'repo: 'revset> {
+    set1: Box<dyn Revset<'repo> + 'revset>,
+    set2: Box<dyn Revset<'repo> + 'revset>,
+}
+
+impl<'repo> Revset<'repo> for IntersectionRevset<'_, 'repo> {
+    fn iter<'revset>(&'revset self) -> Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset> {
+        Box::new(IntersectionRevsetIterator {
+            iter1: self.set1.iter().peekable(),
+            iter2: self.set2.iter().peekable(),
+        })
+    }
+}
+
+struct IntersectionRevsetIterator<'revset, 'repo> {
+    iter1: Peekable<Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>>,
+    iter2: Peekable<Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>>,
+}
+
+impl<'revset, 'repo> Iterator for IntersectionRevsetIterator<'revset, 'repo> {
+    type Item = IndexEntry<'repo>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match (self.iter1.peek(), self.iter2.peek()) {
+                (None, _) => {
+                    return None;
+                }
+                (_, None) => {
+                    return None;
+                }
+                (Some(entry1), Some(entry2)) => match entry1.position().cmp(&entry2.position()) {
+                    Ordering::Less => {
+                        self.iter2.next();
+                    }
+                    Ordering::Equal => {
+                        self.iter1.next();
+                        return self.iter2.next();
+                    }
+                    Ordering::Greater => {
+                        self.iter1.next();
+                    }
+                },
+            }
+        }
+    }
+}
+
 struct DifferenceRevset<'revset, 'repo: 'revset> {
     // The minuend (what to subtract from)
     set1: Box<dyn Revset<'repo> + 'revset>,
@@ -558,6 +611,11 @@ pub fn evaluate_expression<'revset, 'repo: 'revset>(
             let set1 = evaluate_expression(repo, expression1.as_ref())?;
             let set2 = evaluate_expression(repo, expression2.as_ref())?;
             Ok(Box::new(UnionRevset { set1, set2 }))
+        }
+        RevsetExpression::Intersection(expression1, expression2) => {
+            let set1 = evaluate_expression(repo, expression1.as_ref())?;
+            let set2 = evaluate_expression(repo, expression2.as_ref())?;
+            Ok(Box::new(IntersectionRevset { set1, set2 }))
         }
         RevsetExpression::Difference(expression1, expression2) => {
             let set1 = evaluate_expression(repo, expression1.as_ref())?;

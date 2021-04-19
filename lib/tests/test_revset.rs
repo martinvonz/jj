@@ -697,6 +697,55 @@ fn test_evaluate_expression_union(use_git: bool) {
 
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
+fn test_evaluate_expression_intersection(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let root_commit = repo.store().root_commit();
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit2.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit4 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit3.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit5 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit2.id().clone()])
+        .write_to_repo(mut_repo);
+
+    // Intersection between ancestors
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("*:{} & *:{}", commit4.id().hex(), commit5.id().hex())
+        ),
+        vec![
+            commit2.id().clone(),
+            commit1.id().clone(),
+            root_commit.id().clone()
+        ]
+    );
+
+    // Intersection of disjoint sets
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("{} & {}", commit4.id().hex(), commit2.id().hex())
+        ),
+        vec![]
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
 fn test_evaluate_expression_difference(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
