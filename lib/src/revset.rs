@@ -102,6 +102,7 @@ pub enum RevsetExpression {
     Parents(Box<RevsetExpression>),
     Ancestors(Box<RevsetExpression>),
     AllHeads,
+    PublicHeads,
     NonObsoleteHeads(Box<RevsetExpression>),
     Description {
         needle: String,
@@ -254,6 +255,16 @@ fn parse_function_expression(
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
                     message: "Expected 0 or 1 argument".to_string(),
+                })
+            }
+        }
+        "public_heads" => {
+            if arg_count == 0 {
+                Ok(RevsetExpression::PublicHeads)
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 0 arguments".to_string(),
                 })
             }
         }
@@ -584,6 +595,16 @@ pub fn evaluate_expression<'revset, 'repo: 'revset>(
         RevsetExpression::NonObsoleteHeads(base_expression) => {
             let base_set = evaluate_expression(repo, base_expression.as_ref())?;
             Ok(non_obsolete_heads(repo, base_set))
+        }
+        RevsetExpression::PublicHeads => {
+            let index = repo.index();
+            let heads = repo.view().public_heads();
+            let mut index_entries: Vec<_> = heads
+                .iter()
+                .map(|id| index.entry_by_id(id).unwrap())
+                .collect();
+            index_entries.sort_by_key(|b| Reverse(b.position()));
+            Ok(Box::new(EagerRevset { index_entries }))
         }
         RevsetExpression::Description {
             needle,

@@ -521,6 +521,40 @@ fn test_evaluate_expression_all_heads(use_git: bool) {
 
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
+fn test_evaluate_expression_public_heads(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+
+    // Can get public heads with root commit as only public head
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "public_heads()"),
+        // TODO: This should include the root commit
+        vec![]
+    );
+    // Can get public heads with a single public head
+    mut_repo.add_public_head(&commit1);
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "public_heads()"),
+        vec![commit1.id().clone()]
+    );
+    // Can get public heads with multiple public head
+    mut_repo.add_public_head(&commit2);
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "public_heads()"),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
 fn test_evaluate_expression_obsolete(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
