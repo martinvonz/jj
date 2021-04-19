@@ -215,8 +215,12 @@ impl ReadonlyRepo {
 
         let op_heads_dir = repo_path.join("op_heads");
         std::fs::create_dir(&op_heads_dir).unwrap();
-        let (op_heads_store, init_op_id, root_view) =
-            OpHeadsStore::init(op_heads_dir, &op_store, checkout_commit.id().clone());
+        let mut root_view = op_store::View::new(checkout_commit.id().clone());
+        root_view.head_ids.insert(checkout_commit.id().clone());
+        root_view
+            .public_head_ids
+            .insert(store.root_commit_id().clone());
+        let (op_heads_store, init_op_id) = OpHeadsStore::init(op_heads_dir, &op_store, &root_view);
         let op_heads_store = Arc::new(op_heads_store);
 
         fs::create_dir(repo_path.join("index")).unwrap();

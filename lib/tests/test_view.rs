@@ -24,6 +24,10 @@ fn test_heads_empty(use_git: bool) {
 
     let wc = repo.working_copy_locked();
     assert_eq!(*repo.view().heads(), hashset! {wc.current_commit_id()});
+    assert_eq!(
+        *repo.view().public_heads(),
+        hashset! {repo.store().root_commit_id().clone()}
+    );
 }
 
 #[test_case(false ; "local store")]

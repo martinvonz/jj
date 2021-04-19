@@ -22,7 +22,7 @@ use crate::lock::FileLock;
 use crate::op_store::{OpStore, OperationId, OperationMetadata};
 use crate::operation::Operation;
 use crate::repo::RepoLoader;
-use crate::store::{CommitId, Timestamp};
+use crate::store::Timestamp;
 use crate::transaction::UnpublishedOperation;
 use crate::{dag_walk, op_store};
 
@@ -43,10 +43,8 @@ impl OpHeadsStore {
     pub fn init(
         dir: PathBuf,
         op_store: &Arc<dyn OpStore>,
-        checkout: CommitId,
-    ) -> (Self, OperationId, op_store::View) {
-        let mut root_view = op_store::View::new(checkout.clone());
-        root_view.head_ids.insert(checkout);
+        root_view: &op_store::View,
+    ) -> (Self, OperationId) {
         let root_view_id = op_store.write_view(&root_view).unwrap();
         let operation_metadata =
             OperationMetadata::new("initialize repo".to_string(), Timestamp::now());
@@ -59,7 +57,7 @@ impl OpHeadsStore {
 
         let op_heads_store = OpHeadsStore { dir };
         op_heads_store.add_op_head(&init_operation_id);
-        (op_heads_store, init_operation_id, root_view)
+        (op_heads_store, init_operation_id)
     }
 
     pub fn load(dir: PathBuf) -> OpHeadsStore {

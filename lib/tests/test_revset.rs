@@ -528,14 +528,14 @@ fn test_evaluate_expression_public_heads(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
+    let root_commit = repo.store().root_commit();
     let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     let commit2 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
 
     // Can get public heads with root commit as only public head
     assert_eq!(
         resolve_commit_ids(mut_repo.as_repo_ref(), "public_heads()"),
-        // TODO: This should include the root commit
-        vec![]
+        vec![root_commit.id().clone()]
     );
     // Can get public heads with a single public head
     mut_repo.add_public_head(&commit1);
