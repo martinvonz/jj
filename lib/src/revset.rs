@@ -677,3 +677,130 @@ fn non_obsolete_heads<'revset, 'repo: 'revset>(
     index_entries.sort_by_key(|b| Reverse(b.position()));
     Box::new(EagerRevset { index_entries })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_revset() {
+        assert_eq!(parse("@"), Ok(RevsetExpression::Symbol("@".to_string())));
+        assert_eq!(
+            parse("foo"),
+            Ok(RevsetExpression::Symbol("foo".to_string()))
+        );
+        assert_eq!(
+            parse("(foo)"),
+            Ok(RevsetExpression::Symbol("foo".to_string()))
+        );
+        assert_eq!(
+            parse(":@"),
+            Ok(RevsetExpression::Parents(Box::new(
+                RevsetExpression::Symbol("@".to_string())
+            )))
+        );
+        assert_eq!(
+            parse(":(@)"),
+            Ok(RevsetExpression::Parents(Box::new(
+                RevsetExpression::Symbol("@".to_string())
+            )))
+        );
+        assert_eq!(
+            parse("*:@"),
+            Ok(RevsetExpression::Ancestors(Box::new(
+                RevsetExpression::Symbol("@".to_string())
+            )))
+        );
+        assert_eq!(
+            parse(" *:@ "),
+            Ok(RevsetExpression::Ancestors(Box::new(
+                RevsetExpression::Symbol("@".to_string())
+            )))
+        );
+        assert_eq!(
+            parse("   description(  arg1 ,   arg2 ) -    parents(   arg1  )  - all_heads(  )  "),
+            Ok(RevsetExpression::Difference(
+                Box::new(RevsetExpression::Difference(
+                    Box::new(RevsetExpression::Description {
+                        needle: "arg1".to_string(),
+                        base_expression: Box::new(RevsetExpression::Symbol("arg2".to_string()))
+                    }),
+                    Box::new(RevsetExpression::Parents(Box::new(
+                        RevsetExpression::Symbol("arg1".to_string())
+                    )))
+                )),
+                Box::new(RevsetExpression::AllHeads)
+            ))
+        );
+    }
+
+    #[test]
+    fn test_parse_revset_function() {
+        assert_eq!(
+            parse("parents(@)"),
+            Ok(RevsetExpression::Parents(Box::new(
+                RevsetExpression::Symbol("@".to_string())
+            )))
+        );
+        assert_eq!(
+            parse("parents((@))"),
+            Ok(RevsetExpression::Parents(Box::new(
+                RevsetExpression::Symbol("@".to_string())
+            )))
+        );
+        assert_eq!(
+            parse("parents(\"@\")"),
+            Err(RevsetParseError::InvalidFunctionArguments {
+                name: "parents".to_string(),
+                message: "Expected function argument of type expression, found: \"@\"".to_string()
+            })
+        );
+        assert_eq!(
+            parse("ancestors(parents(@))"),
+            Ok(RevsetExpression::Ancestors(Box::new(
+                RevsetExpression::Parents(Box::new(RevsetExpression::Symbol("@".to_string())))
+            )))
+        );
+        assert_eq!(
+            parse("parents(@"),
+            Err(RevsetParseError::SyntaxError(
+                "Failed to parse revset \"parents(@\" past position 7".to_string()
+            ))
+        );
+        assert_eq!(
+            parse("parents(@,@)"),
+            Err(RevsetParseError::InvalidFunctionArguments {
+                name: "parents".to_string(),
+                message: "Expected 1 argument".to_string()
+            })
+        );
+        assert_eq!(
+            parse("description(foo,bar)"),
+            Ok(RevsetExpression::Description {
+                needle: "foo".to_string(),
+                base_expression: Box::new(RevsetExpression::Symbol("bar".to_string()))
+            })
+        );
+        assert_eq!(
+            parse("description(foo(),bar)"),
+            Err(RevsetParseError::InvalidFunctionArguments {
+                name: "description".to_string(),
+                message: "Expected function argument of type string, found: foo()".to_string()
+            })
+        );
+        assert_eq!(
+            parse("description((foo),bar)"),
+            Err(RevsetParseError::InvalidFunctionArguments {
+                name: "description".to_string(),
+                message: "Expected function argument of type string, found: (foo)".to_string()
+            })
+        );
+        assert_eq!(
+            parse("description(\"(foo)\",bar)"),
+            Ok(RevsetExpression::Description {
+                needle: "(foo)".to_string(),
+                base_expression: Box::new(RevsetExpression::Symbol("bar".to_string()))
+            })
+        );
+    }
+}
