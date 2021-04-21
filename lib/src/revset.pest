@@ -16,14 +16,14 @@ symbol = @{ (ASCII_ALPHANUMERIC | "@" | "/" | ".")+ }
 literal_string = { "\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
 whitespace = _{ " " }
 
-parents = { ":" }
-ancestors = { "*:" }
-prefix_operator = _{ parents | ancestors }
+parents_op = { ":" }
+ancestors_op = { "*:" }
+prefix_op = _{ parents_op | ancestors_op }
 
-union = { "|" }
-intersection = { "&" }
-difference = { "-" }
-infix_operator = _{ union| intersection | difference }
+union_op = { "|" }
+intersection_op = { "&" }
+difference_op = { "-" }
+infix_op = _{ union_op | intersection_op | difference_op }
 
 function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }
 // The grammar accepts a string literal or an expression for function
@@ -48,10 +48,10 @@ primary = {
   | symbol
 }
 
-prefix_expression = { prefix_operator* ~ primary }
+prefix_expression = { prefix_op* ~ primary }
 
 infix_expression = {
-  whitespace* ~ prefix_expression ~ whitespace* ~ (infix_operator ~ whitespace* ~ prefix_expression ~ whitespace*)*
+  whitespace* ~ prefix_expression ~ whitespace* ~ (infix_op ~ whitespace* ~ prefix_expression ~ whitespace*)*
 }
 
 expression = {

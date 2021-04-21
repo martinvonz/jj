@@ -136,14 +136,14 @@ fn parse_infix_expression_rule(
     while let Some(operator) = pairs.next() {
         let expression2 = parse_prefix_expression_rule(pairs.next().unwrap().into_inner())?;
         match operator.as_rule() {
-            Rule::union => {
+            Rule::union_op => {
                 expression1 = RevsetExpression::Union(Box::new(expression1), Box::new(expression2))
             }
-            Rule::intersection => {
+            Rule::intersection_op => {
                 expression1 =
                     RevsetExpression::Intersection(Box::new(expression1), Box::new(expression2))
             }
-            Rule::difference => {
+            Rule::difference_op => {
                 expression1 =
                     RevsetExpression::Difference(Box::new(expression1), Box::new(expression2))
             }
@@ -164,10 +164,10 @@ fn parse_prefix_expression_rule(
     let first = pairs.next().unwrap();
     match first.as_rule() {
         Rule::primary => parse_primary_rule(first.into_inner()),
-        Rule::parents => Ok(RevsetExpression::Parents(Box::new(
+        Rule::parents_op => Ok(RevsetExpression::Parents(Box::new(
             parse_prefix_expression_rule(pairs)?,
         ))),
-        Rule::ancestors => Ok(RevsetExpression::Ancestors(Box::new(
+        Rule::ancestors_op => Ok(RevsetExpression::Ancestors(Box::new(
             parse_prefix_expression_rule(pairs)?,
         ))),
         _ => {
