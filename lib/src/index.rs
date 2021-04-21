@@ -1009,7 +1009,7 @@ impl PartialOrd for IndexEntryByGeneration<'_> {
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct RevWalkWorkItem<'a> {
-    entry: IndexEntryByGeneration<'a>,
+    entry: IndexEntryByPosition<'a>,
     wanted: bool,
 }
 
@@ -1036,7 +1036,7 @@ impl<'a> RevWalk<'a> {
             return;
         }
         self.items.push(RevWalkWorkItem {
-            entry: IndexEntryByGeneration(self.index.entry_by_pos(pos)),
+            entry: IndexEntryByPosition(self.index.entry_by_pos(pos)),
             wanted: true,
         });
     }
@@ -1046,7 +1046,7 @@ impl<'a> RevWalk<'a> {
             return;
         }
         self.items.push(RevWalkWorkItem {
-            entry: IndexEntryByGeneration(self.index.entry_by_pos(pos)),
+            entry: IndexEntryByPosition(self.index.entry_by_pos(pos)),
             wanted: false,
         });
     }
