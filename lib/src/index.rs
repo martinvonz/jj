@@ -268,6 +268,10 @@ impl HexPrefix {
         }
     }
 
+    pub fn hex(&self) -> &str {
+        self.0.as_str()
+    }
+
     pub fn bytes_prefixes(&self) -> (CommitId, CommitId) {
         if self.0.len() % 2 == 0 {
             let bytes = hex::decode(&self.0).unwrap();

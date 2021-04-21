@@ -1841,30 +1841,38 @@ fn cmd_bench(
 ) -> Result<(), CommandError> {
     if let Some(command_matches) = sub_matches.subcommand_matches("commonancestors") {
         let repo = get_repo(ui, &matches)?;
-        let (repo, commit1) =
-            resolve_single_rev(ui, repo, command_matches.value_of("revision1").unwrap())?;
-        let (repo, commit2) =
-            resolve_single_rev(ui, repo, command_matches.value_of("revision2").unwrap())?;
+        let revision1_str = command_matches.value_of("revision1").unwrap();
+        let (repo, commit1) = resolve_single_rev(ui, repo, revision1_str)?;
+        let revision2_str = command_matches.value_of("revision2").unwrap();
+        let (repo, commit2) = resolve_single_rev(ui, repo, revision2_str)?;
         let routine = || {
             repo.index()
                 .common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()])
         };
-        run_bench(ui, "commonancestors", routine)?;
+        run_bench(
+            ui,
+            &format!("commonancestors-{}-{}", revision1_str, revision2_str),
+            routine,
+        )?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("isancestor") {
         let repo = get_repo(ui, &matches)?;
-        let (repo, ancestor_commit) =
-            resolve_single_rev(ui, repo, command_matches.value_of("ancestor").unwrap())?;
-        let (repo, descendant_commit) =
-            resolve_single_rev(ui, repo, command_matches.value_of("descendant").unwrap())?;
+        let ancestor_str = command_matches.value_of("ancestor").unwrap();
+        let (repo, ancestor_commit) = resolve_single_rev(ui, repo, ancestor_str)?;
+        let descendants_str = command_matches.value_of("descendant").unwrap();
+        let (repo, descendant_commit) = resolve_single_rev(ui, repo, descendants_str)?;
         let index = repo.index();
         let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
-        run_bench(ui, "isancestor", routine)?;
+        run_bench(
+            ui,
+            &format!("isancestor-{}-{}", ancestor_str, descendants_str),
+            routine,
+        )?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("walkrevs") {
         let repo = get_repo(ui, &matches)?;
-        let (repo, unwanted_commit) =
-            resolve_single_rev(ui, repo, command_matches.value_of("unwanted").unwrap())?;
-        let (repo, wanted_commit) =
-            resolve_single_rev(ui, repo, command_matches.value_of("wanted").unwrap())?;
+        let unwanted_str = command_matches.value_of("unwanted").unwrap();
+        let (repo, unwanted_commit) = resolve_single_rev(ui, repo, unwanted_str)?;
+        let wanted_str = command_matches.value_of("wanted");
+        let (repo, wanted_commit) = resolve_single_rev(ui, repo, wanted_str.unwrap())?;
         let index = repo.index();
         let routine = || {
             index
@@ -1874,14 +1882,18 @@ fn cmd_bench(
                 )
                 .count()
         };
-        run_bench(ui, "walkrevs", routine)?;
+        run_bench(
+            ui,
+            &format!("walkrevs-{}-{}", unwanted_str, wanted_str.unwrap()),
+            routine,
+        )?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("resolveprefix") {
         let repo = get_repo(ui, &matches)?;
         let prefix =
             HexPrefix::new(command_matches.value_of("prefix").unwrap().to_string()).unwrap();
         let index = repo.index();
         let routine = || index.resolve_prefix(&prefix);
-        run_bench(ui, "resolveprefix", routine)?;
+        run_bench(ui, &format!("resolveprefix-{}", prefix.hex()), routine)?;
     } else {
         panic!("unhandled command: {:#?}", matches);
     };
