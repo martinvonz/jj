@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![feature(assert_matches)]
 #![feature(get_mut_unchecked)]
 #![feature(map_first_last)]
 #![deny(unused_must_use)]

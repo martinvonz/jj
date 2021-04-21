@@ -89,7 +89,9 @@ pub struct RevsetParser;
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum RevsetParseError {
     #[error("{0}")]
-    SyntaxError(String),
+    SyntaxError(#[from] pest::error::Error<Rule>),
+    #[error("{0}")]
+    IncompleteParse(String),
     #[error("Revset function \"{0}\" doesn't exist")]
     NoSuchFunction(String),
     #[error("Invalid arguments to revset function \"{name}\": {message}")]
@@ -363,13 +365,11 @@ fn parse_function_argument_to_string(
 }
 
 pub fn parse(revset_str: &str) -> Result<RevsetExpression, RevsetParseError> {
-    // TODO: Return a better error message when parsing fails (such as when the user
-    // puts whitespace between a prefix operator and the operand)
-    let mut pairs: Pairs<Rule> = RevsetParser::parse(Rule::expression, revset_str).unwrap();
+    let mut pairs = RevsetParser::parse(Rule::expression, revset_str)?;
     let first = pairs.next().unwrap();
     assert!(pairs.next().is_none());
     if first.as_span().end() != revset_str.len() {
-        return Err(RevsetParseError::SyntaxError(format!(
+        return Err(RevsetParseError::IncompleteParse(format!(
             "Failed to parse revset \"{}\" past position {}",
             revset_str,
             first.as_span().end()
@@ -684,39 +684,75 @@ mod tests {
 
     #[test]
     fn test_parse_revset() {
+        // Parse a single symbol (specifically the "checkout" symbol)
         assert_eq!(parse("@"), Ok(RevsetExpression::Symbol("@".to_string())));
+        // Parse a single symbol
         assert_eq!(
             parse("foo"),
             Ok(RevsetExpression::Symbol("foo".to_string()))
         );
+        // Parse a parenthesized symbol
         assert_eq!(
             parse("(foo)"),
             Ok(RevsetExpression::Symbol("foo".to_string()))
         );
+        // Parse the "parents" operator
         assert_eq!(
             parse(":@"),
             Ok(RevsetExpression::Parents(Box::new(
                 RevsetExpression::Symbol("@".to_string())
             )))
         );
-        assert_eq!(
-            parse(":(@)"),
-            Ok(RevsetExpression::Parents(Box::new(
-                RevsetExpression::Symbol("@".to_string())
-            )))
-        );
+        // Parse the "ancestors" operator
         assert_eq!(
             parse("*:@"),
             Ok(RevsetExpression::Ancestors(Box::new(
                 RevsetExpression::Symbol("@".to_string())
             )))
         );
+        // Parse the "intersection" operator
+        assert_eq!(
+            parse("foo & bar"),
+            Ok(RevsetExpression::Intersection(
+                Box::new(RevsetExpression::Symbol("foo".to_string())),
+                Box::new(RevsetExpression::Symbol("bar".to_string()))
+            ))
+        );
+        // Parse the "union" operator
+        assert_eq!(
+            parse("foo | bar"),
+            Ok(RevsetExpression::Union(
+                Box::new(RevsetExpression::Symbol("foo".to_string())),
+                Box::new(RevsetExpression::Symbol("bar".to_string()))
+            ))
+        );
+        // Parse the "difference" operator
+        assert_eq!(
+            parse("foo - bar"),
+            Ok(RevsetExpression::Difference(
+                Box::new(RevsetExpression::Symbol("foo".to_string())),
+                Box::new(RevsetExpression::Symbol("bar".to_string()))
+            ))
+        );
+        // Parentheses are allowed after prefix operators
+        assert_eq!(
+            parse(":(@)"),
+            Ok(RevsetExpression::Parents(Box::new(
+                RevsetExpression::Symbol("@".to_string())
+            )))
+        );
+        // Space is allowed around expressions
         assert_eq!(
             parse(" *:@ "),
             Ok(RevsetExpression::Ancestors(Box::new(
                 RevsetExpression::Symbol("@".to_string())
             )))
         );
+        // Space is not allowed around prefix operators
+        assert_matches!(parse(" *: @ "), Err(RevsetParseError::SyntaxError(_)));
+        // Incomplete parse
+        assert_matches!(parse("foo | :"), Err(RevsetParseError::IncompleteParse(_)));
+        // Space is allowed around infix operators and function arguments
         assert_eq!(
             parse("   description(  arg1 ,   arg2 ) -    parents(   arg1  )  - all_heads(  )  "),
             Ok(RevsetExpression::Difference(
@@ -763,7 +799,7 @@ mod tests {
         );
         assert_eq!(
             parse("parents(@"),
-            Err(RevsetParseError::SyntaxError(
+            Err(RevsetParseError::IncompleteParse(
                 "Failed to parse revset \"parents(@\" past position 7".to_string()
             ))
         );
