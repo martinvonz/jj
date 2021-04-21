@@ -20,6 +20,10 @@ parents_op = { ":" }
 ancestors_op = { "*:" }
 prefix_op = _{ parents_op | ancestors_op }
 
+children_op = { ":" }
+descendants_op = { ":*" }
+postfix_op = _{ descendants_op | children_op }
+
 union_op = { "|" }
 intersection_op = { "&" }
 difference_op = { "-" }
@@ -50,8 +54,10 @@ primary = {
 
 prefix_expression = { prefix_op* ~ primary }
 
+postfix_expression = { prefix_expression ~ postfix_op* }
+
 infix_expression = {
-  whitespace* ~ prefix_expression ~ whitespace* ~ (infix_op ~ whitespace* ~ prefix_expression ~ whitespace*)*
+  whitespace* ~ postfix_expression ~ whitespace* ~ (infix_op ~ whitespace* ~ postfix_expression ~ whitespace*)*
 }
 
 expression = {

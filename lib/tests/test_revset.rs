@@ -331,6 +331,73 @@ fn test_evaluate_expression_parents(use_git: bool) {
 
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
+fn test_evaluate_expression_children(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let wc_commit = repo.working_copy_locked().current_commit();
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone()])
+        .set_predecessors(vec![commit2.id().clone()])
+        .set_change_id(commit2.change_id().clone())
+        .write_to_repo(mut_repo);
+    let commit4 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit3.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit5 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit6 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit4.id().clone(), commit5.id().clone()])
+        .write_to_repo(mut_repo);
+
+    // Can find children of the root commit
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "root:"),
+        vec![commit1.id().clone(), wc_commit.id().clone()]
+    );
+
+    // Children do not include hidden commits (commit2)
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), &format!("{}:", commit1.id().hex())),
+        vec![commit5.id().clone(), commit3.id().clone()]
+    );
+
+    // Children of all commits in input are returned, including those already in the
+    // input set
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("({} | {}):", commit1.id().hex(), commit3.id().hex())
+        ),
+        vec![
+            commit5.id().clone(),
+            commit4.id().clone(),
+            commit3.id().clone()
+        ]
+    );
+
+    // Children shared among commits in input are not repeated
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("({} | {}):", commit4.id().hex(), commit5.id().hex())
+        ),
+        vec![commit6.id().clone()]
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
 fn test_evaluate_expression_ancestors(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -366,6 +433,64 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
             commit2.id().clone(),
             commit1.id().clone(),
             root_commit.id().clone(),
+        ]
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_evaluate_expression_descendants(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let root_commit = repo.store().root_commit();
+    let wc_commit = repo.working_copy_locked().current_commit();
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone()])
+        .set_predecessors(vec![commit2.id().clone()])
+        .set_change_id(commit2.change_id().clone())
+        .write_to_repo(mut_repo);
+    let commit4 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit3.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit5 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit6 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit4.id().clone(), commit5.id().clone()])
+        .write_to_repo(mut_repo);
+
+    // The descendants of the root commit is all the non-hidden commits in the repo
+    // (commit2 is excluded)
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "root:*"),
+        vec![
+            commit6.id().clone(),
+            commit5.id().clone(),
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit1.id().clone(),
+            wc_commit.id().clone(),
+            root_commit.id().clone(),
+        ]
+    );
+
+    // Can find ancestors of a specific commit
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), &format!("{}:*", commit3.id().hex())),
+        vec![
+            commit6.id().clone(),
+            commit4.id().clone(),
+            commit3.id().clone(),
         ]
     );
 

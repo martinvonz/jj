@@ -102,7 +102,15 @@ pub enum RevsetParseError {
 pub enum RevsetExpression {
     Symbol(String),
     Parents(Box<RevsetExpression>),
+    Children {
+        base_expression: Box<RevsetExpression>,
+        candidates: Box<RevsetExpression>,
+    },
     Ancestors(Box<RevsetExpression>),
+    Descendants {
+        base_expression: Box<RevsetExpression>,
+        candidates: Box<RevsetExpression>,
+    },
     AllHeads,
     PublicHeads,
     NonObsoleteHeads(Box<RevsetExpression>),
@@ -113,6 +121,14 @@ pub enum RevsetExpression {
     Union(Box<RevsetExpression>, Box<RevsetExpression>),
     Intersection(Box<RevsetExpression>, Box<RevsetExpression>),
     Difference(Box<RevsetExpression>, Box<RevsetExpression>),
+}
+
+impl RevsetExpression {
+    fn non_obsolete_commits() -> Box<RevsetExpression> {
+        Box::new(RevsetExpression::Ancestors(Box::new(
+            RevsetExpression::NonObsoleteHeads(Box::new(RevsetExpression::AllHeads)),
+        )))
+    }
 }
 
 fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, RevsetParseError> {
@@ -132,9 +148,9 @@ fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, Rev
 fn parse_infix_expression_rule(
     mut pairs: Pairs<Rule>,
 ) -> Result<RevsetExpression, RevsetParseError> {
-    let mut expression1 = parse_prefix_expression_rule(pairs.next().unwrap().into_inner())?;
+    let mut expression1 = parse_postfix_expression_rule(pairs.next().unwrap().into_inner())?;
     while let Some(operator) = pairs.next() {
-        let expression2 = parse_prefix_expression_rule(pairs.next().unwrap().into_inner())?;
+        let expression2 = parse_postfix_expression_rule(pairs.next().unwrap().into_inner())?;
         match operator.as_rule() {
             Rule::union_op => {
                 expression1 = RevsetExpression::Union(Box::new(expression1), Box::new(expression2))
@@ -156,6 +172,35 @@ fn parse_infix_expression_rule(
         }
     }
     Ok(expression1)
+}
+
+fn parse_postfix_expression_rule(
+    mut pairs: Pairs<Rule>,
+) -> Result<RevsetExpression, RevsetParseError> {
+    let mut expression = parse_prefix_expression_rule(pairs.next().unwrap().into_inner())?;
+    for operator in pairs {
+        match operator.as_rule() {
+            Rule::children_op => {
+                expression = RevsetExpression::Children {
+                    base_expression: Box::new(expression),
+                    candidates: RevsetExpression::non_obsolete_commits(),
+                };
+            }
+            Rule::descendants_op => {
+                expression = RevsetExpression::Descendants {
+                    base_expression: Box::new(expression),
+                    candidates: RevsetExpression::non_obsolete_commits(),
+                };
+            }
+            _ => {
+                panic!(
+                    "unxpected revset postfix operator rule {:?}",
+                    operator.as_rule()
+                );
+            }
+        }
+    }
+    Ok(expression)
 }
 
 fn parse_prefix_expression_rule(
@@ -216,6 +261,23 @@ fn parse_function_expression(
                 })
             }
         }
+        "children" => {
+            if arg_count == 1 {
+                let expression = parse_function_argument_to_expression(
+                    &name,
+                    argument_pairs.next().unwrap().into_inner(),
+                )?;
+                Ok(RevsetExpression::Children {
+                    base_expression: Box::new(expression),
+                    candidates: RevsetExpression::non_obsolete_commits(),
+                })
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 1 argument".to_string(),
+                })
+            }
+        }
         "ancestors" => {
             if arg_count == 1 {
                 Ok(RevsetExpression::Ancestors(Box::new(
@@ -224,6 +286,23 @@ fn parse_function_expression(
                         argument_pairs.next().unwrap().into_inner(),
                     )?,
                 )))
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 1 argument".to_string(),
+                })
+            }
+        }
+        "descendants" => {
+            if arg_count == 1 {
+                let expression = parse_function_argument_to_expression(
+                    &name,
+                    argument_pairs.next().unwrap().into_inner(),
+                )?;
+                Ok(RevsetExpression::Descendants {
+                    base_expression: Box::new(expression),
+                    candidates: RevsetExpression::non_obsolete_commits(),
+                })
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -342,12 +421,15 @@ fn parse_function_argument_to_string(
             let first = first.into_inner().next().unwrap();
             if first.as_rule() == Rule::infix_expression {
                 let first = first.into_inner().next().unwrap();
-                if first.as_rule() == Rule::prefix_expression {
+                if first.as_rule() == Rule::postfix_expression {
                     let first = first.into_inner().next().unwrap();
-                    if first.as_rule() == Rule::primary {
+                    if first.as_rule() == Rule::prefix_expression {
                         let first = first.into_inner().next().unwrap();
-                        if first.as_rule() == Rule::symbol {
-                            return Ok(first.as_str().to_owned());
+                        if first.as_rule() == Rule::primary {
+                            let first = first.into_inner().next().unwrap();
+                            if first.as_rule() == Rule::symbol {
+                                return Ok(first.as_str().to_owned());
+                            }
                         }
                     }
                 }
@@ -415,6 +497,50 @@ impl<'repo> Iterator for RevWalkRevsetIterator<'repo> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.walk.next()
+    }
+}
+
+struct ChildrenRevset<'revset, 'repo: 'revset> {
+    // The revisions we want to find children for
+    base_set: Box<dyn Revset<'repo> + 'revset>,
+    // Consider only candidates from this set
+    candidate_set: Box<dyn Revset<'repo> + 'revset>,
+}
+
+impl<'repo> Revset<'repo> for ChildrenRevset<'_, 'repo> {
+    fn iter<'revset>(&'revset self) -> Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset> {
+        let parents = self
+            .base_set
+            .iter()
+            .map(|parent| parent.position())
+            .collect();
+
+        Box::new(ChildrenRevsetIterator {
+            candidate_iter: self.candidate_set.iter(),
+            parents,
+        })
+    }
+}
+
+struct ChildrenRevsetIterator<'revset, 'repo> {
+    candidate_iter: Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>,
+    parents: HashSet<u32>,
+}
+
+impl<'repo> Iterator for ChildrenRevsetIterator<'_, 'repo> {
+    type Item = IndexEntry<'repo>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(candidate) = self.candidate_iter.next() {
+            if candidate
+                .parent_positions()
+                .iter()
+                .any(|parent_pos| self.parents.contains(parent_pos))
+            {
+                return Some(candidate);
+            }
+        }
+        None
     }
 }
 
@@ -576,11 +702,47 @@ pub fn evaluate_expression<'revset, 'repo: 'revset>(
                 index_entries: parent_entries,
             }))
         }
+        RevsetExpression::Children {
+            base_expression,
+            candidates,
+        } => {
+            let base_set = evaluate_expression(repo, base_expression.as_ref())?;
+            let candidate_set = evaluate_expression(repo, candidates.as_ref())?;
+            Ok(Box::new(ChildrenRevset {
+                base_set,
+                candidate_set,
+            }))
+        }
         RevsetExpression::Ancestors(base_expression) => {
             let base_set = evaluate_expression(repo, base_expression.as_ref())?;
             let base_ids: Vec<_> = base_set.iter().map(|entry| entry.commit_id()).collect();
             let walk = repo.index().walk_revs(&base_ids, &[]);
             Ok(Box::new(RevWalkRevset { walk }))
+        }
+        RevsetExpression::Descendants {
+            base_expression,
+            candidates,
+        } => {
+            let base_set = evaluate_expression(repo, base_expression.as_ref())?;
+            let candidate_set = evaluate_expression(repo, candidates.as_ref())?;
+            let mut reachable: HashSet<_> = base_set.iter().map(|entry| entry.position()).collect();
+            let mut result = vec![];
+            let candidates: Vec<_> = candidate_set.iter().collect();
+            for candidate in candidates.into_iter().rev() {
+                if reachable.contains(&candidate.position())
+                    || candidate
+                        .parent_positions()
+                        .iter()
+                        .any(|parent_pos| reachable.contains(parent_pos))
+                {
+                    reachable.insert(candidate.position());
+                    result.push(candidate);
+                }
+            }
+            result.reverse();
+            Ok(Box::new(EagerRevset {
+                index_entries: result,
+            }))
         }
         RevsetExpression::AllHeads => {
             let index = repo.index();
@@ -703,12 +865,28 @@ mod tests {
                 RevsetExpression::Symbol("@".to_string())
             )))
         );
+        // Parse the "children" operator
+        assert_eq!(
+            parse("@:"),
+            Ok(RevsetExpression::Children {
+                base_expression: Box::new(RevsetExpression::Symbol("@".to_string())),
+                candidates: RevsetExpression::non_obsolete_commits(),
+            })
+        );
         // Parse the "ancestors" operator
         assert_eq!(
             parse("*:@"),
             Ok(RevsetExpression::Ancestors(Box::new(
                 RevsetExpression::Symbol("@".to_string())
             )))
+        );
+        // Parse the "descendants" operator
+        assert_eq!(
+            parse("@:*"),
+            Ok(RevsetExpression::Descendants {
+                base_expression: Box::new(RevsetExpression::Symbol("@".to_string())),
+                candidates: RevsetExpression::non_obsolete_commits(),
+            })
         );
         // Parse the "intersection" operator
         assert_eq!(
@@ -767,6 +945,71 @@ mod tests {
                 )),
                 Box::new(RevsetExpression::AllHeads)
             ))
+        );
+    }
+
+    #[test]
+    fn test_parse_revset_operator_combinations() {
+        // Parse repeated "parents" operator
+        assert_eq!(
+            parse(":::foo"),
+            Ok(RevsetExpression::Parents(Box::new(
+                RevsetExpression::Parents(Box::new(RevsetExpression::Parents(Box::new(
+                    RevsetExpression::Symbol("foo".to_string())
+                ))))
+            )))
+        );
+        // Parse repeated "children" operator
+        assert_eq!(
+            parse("foo:::"),
+            Ok(RevsetExpression::Children {
+                base_expression: Box::new(RevsetExpression::Children {
+                    base_expression: Box::new(RevsetExpression::Children {
+                        base_expression: Box::new(RevsetExpression::Symbol("foo".to_string())),
+                        candidates: RevsetExpression::non_obsolete_commits(),
+                    }),
+                    candidates: RevsetExpression::non_obsolete_commits(),
+                }),
+                candidates: RevsetExpression::non_obsolete_commits()
+            })
+        );
+        // Parse combinations of prefix and postfix operators. They all currently have
+        // the same precedence, so "*:foo:" means "(*:foo):" and not "*:(foo:)".
+        assert_eq!(
+            parse(":foo:"),
+            Ok(RevsetExpression::Children {
+                base_expression: Box::new(RevsetExpression::Parents(Box::new(
+                    RevsetExpression::Symbol("foo".to_string())
+                ))),
+                candidates: RevsetExpression::non_obsolete_commits(),
+            })
+        );
+        assert_eq!(
+            parse("*:foo:*"),
+            Ok(RevsetExpression::Descendants {
+                base_expression: Box::new(RevsetExpression::Ancestors(Box::new(
+                    RevsetExpression::Symbol("foo".to_string())
+                ))),
+                candidates: RevsetExpression::non_obsolete_commits(),
+            })
+        );
+        assert_eq!(
+            parse(":foo:*"),
+            Ok(RevsetExpression::Descendants {
+                base_expression: Box::new(RevsetExpression::Parents(Box::new(
+                    RevsetExpression::Symbol("foo".to_string())
+                ))),
+                candidates: RevsetExpression::non_obsolete_commits(),
+            })
+        );
+        assert_eq!(
+            parse("*:foo:"),
+            Ok(RevsetExpression::Children {
+                base_expression: Box::new(RevsetExpression::Ancestors(Box::new(
+                    RevsetExpression::Symbol("foo".to_string())
+                ))),
+                candidates: RevsetExpression::non_obsolete_commits(),
+            })
         );
     }
 
