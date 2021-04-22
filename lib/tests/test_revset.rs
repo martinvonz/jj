@@ -312,7 +312,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!(":*:{}", commit2.id().hex())
+            &format!(":,,{}", commit2.id().hex())
         ),
         vec![commit1.id().clone(), root_commit.id().clone()]
     );
@@ -419,14 +419,14 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
 
     // The ancestors of the root commit is just the root commit itself
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "*:root"),
+        resolve_commit_ids(mut_repo.as_repo_ref(), ",,root"),
         vec![root_commit.id().clone()]
     );
 
     // Can find ancestors of a specific commit. Commits reachable via multiple paths
     // are not repeated.
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), &format!("*:{}", commit4.id().hex())),
+        resolve_commit_ids(mut_repo.as_repo_ref(), &format!(",,{}", commit4.id().hex())),
         vec![
             commit4.id().clone(),
             commit3.id().clone(),
@@ -472,7 +472,7 @@ fn test_evaluate_expression_descendants(use_git: bool) {
     // The descendants of the root commit is all the non-hidden commits in the repo
     // (commit2 is excluded)
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "root:*"),
+        resolve_commit_ids(mut_repo.as_repo_ref(), "root,,"),
         vec![
             commit6.id().clone(),
             commit5.id().clone(),
@@ -486,7 +486,14 @@ fn test_evaluate_expression_descendants(use_git: bool) {
 
     // Can find ancestors of a specific commit
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), &format!("{}:*", commit3.id().hex())),
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!(
+                "{},,\
+        ",
+                commit3.id().hex()
+            )
+        ),
         vec![
             commit6.id().clone(),
             commit4.id().clone(),
@@ -676,7 +683,7 @@ fn test_evaluate_expression_union(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("*:{} | *:{}", commit4.id().hex(), commit5.id().hex())
+            &format!(",,{} | ,,{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![
             commit5.id().clone(),
@@ -693,7 +700,7 @@ fn test_evaluate_expression_union(use_git: bool) {
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
             &format!(
-                "(*:{} - *:{}) | *:{}",
+                "(,,{} - ,,{}) | ,,{}",
                 commit4.id().hex(),
                 commit2.id().hex(),
                 commit5.id().hex()
@@ -714,7 +721,7 @@ fn test_evaluate_expression_union(use_git: bool) {
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
             &format!(
-                "(*:{} - *:{}) | {}",
+                "(,,{} - ,,{}) | {}",
                 commit4.id().hex(),
                 commit2.id().hex(),
                 commit5.id().hex(),
@@ -758,7 +765,7 @@ fn test_evaluate_expression_intersection(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("*:{} & *:{}", commit4.id().hex(), commit5.id().hex())
+            &format!(",,{} & ,,{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![
             commit2.id().clone(),
@@ -807,21 +814,21 @@ fn test_evaluate_expression_difference(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("*:{} - *:{}", commit4.id().hex(), commit5.id().hex())
+            &format!(",,{} - ,,{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![commit4.id().clone(), commit3.id().clone()]
     );
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("*:{} - *:{}", commit5.id().hex(), commit4.id().hex())
+            &format!(",,{} - ,,{}", commit5.id().hex(), commit4.id().hex())
         ),
         vec![commit5.id().clone()]
     );
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("*:{} - *:{}", commit4.id().hex(), commit2.id().hex())
+            &format!(",,{} - ,,{}", commit4.id().hex(), commit2.id().hex())
         ),
         vec![commit4.id().clone(), commit3.id().clone()]
     );
@@ -831,7 +838,7 @@ fn test_evaluate_expression_difference(use_git: bool) {
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
             &format!(
-                "*:{} - {} - {}",
+                ",,{} - {} - {}",
                 commit4.id().hex(),
                 commit2.id().hex(),
                 commit3.id().hex()
@@ -849,7 +856,7 @@ fn test_evaluate_expression_difference(use_git: bool) {
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
             &format!(
-                "(*:{} - *:{}) - (*:{} - *:{})",
+                "(,,{} - ,,{}) - (,,{} - ,,{})",
                 commit4.id().hex(),
                 commit1.id().hex(),
                 commit3.id().hex(),

@@ -342,7 +342,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .long("revisions")
                 .short("r")
                 .takes_value(true)
-                .default_value("*:non_obsolete_heads()"),
+                .default_value(",,non_obsolete_heads()"),
         )
         .arg(Arg::with_name("no-graph").long("no-graph"));
     let obslog_command = SubCommand::with_name("obslog")

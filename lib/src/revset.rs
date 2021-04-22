@@ -835,14 +835,14 @@ mod tests {
         );
         // Parse the "ancestors" operator
         assert_eq!(
-            parse("*:@"),
+            parse(",,@"),
             Ok(RevsetExpression::Ancestors(Box::new(
                 RevsetExpression::Symbol("@".to_string())
             )))
         );
         // Parse the "descendants" operator
         assert_eq!(
-            parse("@:*"),
+            parse("@,,"),
             Ok(RevsetExpression::Descendants {
                 base_expression: Box::new(RevsetExpression::Symbol("@".to_string())),
                 candidates: RevsetExpression::non_obsolete_commits(),
@@ -881,13 +881,13 @@ mod tests {
         );
         // Space is allowed around expressions
         assert_eq!(
-            parse(" *:@ "),
+            parse(" ,,@ "),
             Ok(RevsetExpression::Ancestors(Box::new(
                 RevsetExpression::Symbol("@".to_string())
             )))
         );
         // Space is not allowed around prefix operators
-        assert_matches!(parse(" *: @ "), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse(" ,, @ "), Err(RevsetParseError::SyntaxError(_)));
         // Incomplete parse
         assert_matches!(parse("foo | :"), Err(RevsetParseError::IncompleteParse(_)));
         // Space is allowed around infix operators and function arguments
@@ -934,7 +934,7 @@ mod tests {
             })
         );
         // Parse combinations of prefix and postfix operators. They all currently have
-        // the same precedence, so "*:foo:" means "(*:foo):" and not "*:(foo:)".
+        // the same precedence, so ",,foo:" means "(,,foo):" and not ",,(foo:)".
         assert_eq!(
             parse(":foo:"),
             Ok(RevsetExpression::Children {
@@ -945,7 +945,7 @@ mod tests {
             })
         );
         assert_eq!(
-            parse("*:foo:*"),
+            parse(",,foo,,"),
             Ok(RevsetExpression::Descendants {
                 base_expression: Box::new(RevsetExpression::Ancestors(Box::new(
                     RevsetExpression::Symbol("foo".to_string())
@@ -954,7 +954,7 @@ mod tests {
             })
         );
         assert_eq!(
-            parse(":foo:*"),
+            parse(":foo,,"),
             Ok(RevsetExpression::Descendants {
                 base_expression: Box::new(RevsetExpression::Parents(Box::new(
                     RevsetExpression::Symbol("foo".to_string())
@@ -963,7 +963,7 @@ mod tests {
             })
         );
         assert_eq!(
-            parse("*:foo:"),
+            parse(",,foo:"),
             Ok(RevsetExpression::Children {
                 base_expression: Box::new(RevsetExpression::Ancestors(Box::new(
                     RevsetExpression::Symbol("foo".to_string())

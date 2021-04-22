@@ -21,12 +21,12 @@ literal_string = { "\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
 whitespace = _{ " " }
 
 parents_op = { ":" }
-ancestors_op = { "*:" }
+ancestors_op = { ",," }
 prefix_op = _{ parents_op | ancestors_op }
 
 children_op = { ":" }
-descendants_op = { ":*" }
-postfix_op = _{ descendants_op | children_op }
+descendants_op = { ",," }
+postfix_op = _{ children_op | descendants_op }
 
 union_op = { "|" }
 intersection_op = { "&" }
