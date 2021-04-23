@@ -205,6 +205,14 @@ fn parse_range_expression_rule(
                     heads: RevsetExpression::non_obsolete_heads(),
                 };
             }
+            Rule::dag_range_op => {
+                let heads_expression =
+                    parse_children_expression_rule(pairs.next().unwrap().into_inner())?;
+                expression = RevsetExpression::DagRange {
+                    roots: Rc::new(expression),
+                    heads: Rc::new(heads_expression),
+                };
+            }
             _ => {
                 panic!("unxpected revset range operator rule {:?}", next.as_rule());
             }
@@ -874,6 +882,14 @@ mod tests {
                 heads: RevsetExpression::non_obsolete_heads(),
             })
         );
+        // Parse the "dag range" operator
+        assert_eq!(
+            parse("foo,,bar"),
+            Ok(RevsetExpression::DagRange {
+                roots: Rc::new(RevsetExpression::Symbol("foo".to_string())),
+                heads: Rc::new(RevsetExpression::Symbol("bar".to_string())),
+            })
+        );
         // Parse the "intersection" operator
         assert_eq!(
             parse("foo & bar"),
@@ -959,10 +975,13 @@ mod tests {
                 heads: RevsetExpression::non_obsolete_heads()
             })
         );
-        // Parse repeated "ancestors"/"descendants" operators
+        // Parse repeated "ancestors"/"descendants"/"dag range" operators
         assert_matches!(parse(",,foo,,"), Err(RevsetParseError::SyntaxError(_)));
         assert_matches!(parse(",,,,foo"), Err(RevsetParseError::SyntaxError(_)));
         assert_matches!(parse("foo,,,,"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo,,,,bar"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse(",,foo,,bar"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo,,bar,,"), Err(RevsetParseError::SyntaxError(_)));
         // Parse combinations of "parents"/"children" operators and the range operators.
         // The former bind more strongly.
         assert_eq!(

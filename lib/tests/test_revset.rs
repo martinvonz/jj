@@ -441,6 +441,89 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
 
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
+fn test_evaluate_expression_dag_range(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let root_commit = repo.store().root_commit();
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit2.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit4 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit5 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit3.id().clone(), commit4.id().clone()])
+        .write_to_repo(mut_repo);
+
+    // Can get DAG range of just the root commit
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "root,,root"),
+        vec![root_commit.id().clone(),]
+    );
+
+    // Linear range
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("{},,{}", root_commit.id().hex(), commit2.id().hex())
+        ),
+        vec![
+            commit2.id().clone(),
+            commit1.id().clone(),
+            root_commit.id().clone(),
+        ]
+    );
+
+    // Empty range
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("{},,{}", commit2.id().hex(), commit4.id().hex())
+        ),
+        vec![]
+    );
+
+    // Including a merge
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("{},,{}", commit1.id().hex(), commit5.id().hex())
+        ),
+        vec![
+            commit5.id().clone(),
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+        ]
+    );
+
+    // Including a merge, but only ancestors only from one side
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("{},,{}", commit2.id().hex(), commit5.id().hex())
+        ),
+        vec![
+            commit5.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+        ]
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
 fn test_evaluate_expression_descendants(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
