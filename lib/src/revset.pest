@@ -34,19 +34,8 @@ difference_op = { "-" }
 infix_op = _{ union_op | intersection_op | difference_op }
 
 function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }
-// The grammar accepts a string literal or an expression for function
-// arguments. We then decide when walking the parse tree if we
-// should interpret the string value of the literal string or the expression
-// as a string or an expression, or maybe as an integer. For example,
-// parents(foo) might interpret "foo" as an expression, while limit(*:foo,5)
-// might interpret its second argument as an integer. Also, parents("foo")
-// might be disallowed, just as description(heads()) might be.
-function_argument = {
-  literal_string
-  | expression
-}
 function_arguments = {
-  (whitespace* ~ function_argument ~ whitespace* ~ ",")* ~ whitespace* ~ function_argument ~ whitespace*
+  (whitespace* ~ expression ~ whitespace* ~ ",")* ~ whitespace* ~ expression ~ whitespace*
   | whitespace*
 }
 

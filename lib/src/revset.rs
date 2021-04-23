@@ -269,12 +269,9 @@ fn parse_function_expression(
     match name.as_str() {
         "parents" => {
             if arg_count == 1 {
-                Ok(RevsetExpression::Parents(Box::new(
-                    parse_function_argument_to_expression(
-                        &name,
-                        argument_pairs.next().unwrap().into_inner(),
-                    )?,
-                )))
+                Ok(RevsetExpression::Parents(Box::new(parse_expression_rule(
+                    argument_pairs.next().unwrap().into_inner(),
+                )?)))
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -284,10 +281,8 @@ fn parse_function_expression(
         }
         "children" => {
             if arg_count == 1 {
-                let expression = parse_function_argument_to_expression(
-                    &name,
-                    argument_pairs.next().unwrap().into_inner(),
-                )?;
+                let expression =
+                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
                 Ok(RevsetExpression::Children {
                     base_expression: Box::new(expression),
                     candidates: RevsetExpression::non_obsolete_commits(),
@@ -302,10 +297,7 @@ fn parse_function_expression(
         "ancestors" => {
             if arg_count == 1 {
                 Ok(RevsetExpression::Ancestors(Box::new(
-                    parse_function_argument_to_expression(
-                        &name,
-                        argument_pairs.next().unwrap().into_inner(),
-                    )?,
+                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?,
                 )))
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
@@ -316,10 +308,8 @@ fn parse_function_expression(
         }
         "descendants" => {
             if arg_count == 1 {
-                let expression = parse_function_argument_to_expression(
-                    &name,
-                    argument_pairs.next().unwrap().into_inner(),
-                )?;
+                let expression =
+                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
                 Ok(RevsetExpression::Descendants {
                     base_expression: Box::new(expression),
                     candidates: RevsetExpression::non_obsolete_commits(),
@@ -348,10 +338,7 @@ fn parse_function_expression(
                 )))
             } else if arg_count == 1 {
                 Ok(RevsetExpression::NonObsoleteHeads(Box::new(
-                    parse_function_argument_to_expression(
-                        &name,
-                        argument_pairs.next().unwrap().into_inner(),
-                    )?,
+                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?,
                 )))
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
@@ -386,10 +373,7 @@ fn parse_function_expression(
                     RevsetExpression::AllHeads,
                 ))))
             } else {
-                parse_function_argument_to_expression(
-                    &name,
-                    argument_pairs.next().unwrap().into_inner(),
-                )?
+                parse_expression_rule(argument_pairs.next().unwrap().into_inner())?
             };
             Ok(RevsetExpression::Description {
                 needle,
@@ -400,71 +384,21 @@ fn parse_function_expression(
     }
 }
 
-fn parse_function_argument_to_expression(
+fn parse_function_argument_to_string(
     name: &str,
-    mut pairs: Pairs<Rule>,
-) -> Result<RevsetExpression, RevsetParseError> {
-    // Make a clone of the pairs for error messages
-    let pairs_clone = pairs.clone();
-    let first = pairs.next().unwrap();
-    assert!(pairs.next().is_none());
-    match first.as_rule() {
-        Rule::expression => Ok(parse_expression_rule(first.into_inner())?),
+    pairs: Pairs<Rule>,
+) -> Result<String, RevsetParseError> {
+    let expression = parse_expression_rule(pairs.clone())?;
+    match expression {
+        RevsetExpression::Symbol(symbol) => Ok(symbol),
         _ => Err(RevsetParseError::InvalidFunctionArguments {
             name: name.to_string(),
             message: format!(
-                "Expected function argument of type expression, found: {}",
-                pairs_clone.as_str()
+                "Expected function argument of type string, found: {}",
+                pairs.as_str()
             ),
         }),
     }
-}
-
-fn parse_function_argument_to_string(
-    name: &str,
-    mut pairs: Pairs<Rule>,
-) -> Result<String, RevsetParseError> {
-    // Make a clone of the pairs for error messages
-    let pairs_clone = pairs.clone();
-    let first = pairs.next().unwrap();
-    assert!(pairs.next().is_none());
-    match first.as_rule() {
-        Rule::literal_string => {
-            return Ok(first
-                .as_str()
-                .strip_prefix('"')
-                .unwrap()
-                .strip_suffix('"')
-                .unwrap()
-                .to_owned());
-        }
-        Rule::expression => {
-            let first = first.into_inner().next().unwrap();
-            if first.as_rule() == Rule::infix_expression {
-                let first = first.into_inner().next().unwrap();
-                if first.as_rule() == Rule::postfix_expression {
-                    let first = first.into_inner().next().unwrap();
-                    if first.as_rule() == Rule::prefix_expression {
-                        let first = first.into_inner().next().unwrap();
-                        if first.as_rule() == Rule::primary {
-                            let first = first.into_inner().next().unwrap();
-                            if first.as_rule() == Rule::symbol {
-                                return Ok(first.as_str().to_owned());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        _ => {}
-    }
-    Err(RevsetParseError::InvalidFunctionArguments {
-        name: name.to_string(),
-        message: format!(
-            "Expected function argument of type string, found: {}",
-            pairs_clone.as_str()
-        ),
-    })
 }
 
 pub fn parse(revset_str: &str) -> Result<RevsetExpression, RevsetParseError> {
@@ -1055,10 +989,9 @@ mod tests {
         );
         assert_eq!(
             parse("parents(\"@\")"),
-            Err(RevsetParseError::InvalidFunctionArguments {
-                name: "parents".to_string(),
-                message: "Expected function argument of type expression, found: \"@\"".to_string()
-            })
+            Ok(RevsetExpression::Parents(Box::new(
+                RevsetExpression::Symbol("@".to_string())
+            )))
         );
         assert_eq!(
             parse("ancestors(parents(@))"),
@@ -1087,17 +1020,18 @@ mod tests {
             })
         );
         assert_eq!(
-            parse("description(foo(),bar)"),
+            parse("description(all_heads(),bar)"),
             Err(RevsetParseError::InvalidFunctionArguments {
                 name: "description".to_string(),
-                message: "Expected function argument of type string, found: foo()".to_string()
+                message: "Expected function argument of type string, found: all_heads()"
+                    .to_string()
             })
         );
         assert_eq!(
             parse("description((foo),bar)"),
-            Err(RevsetParseError::InvalidFunctionArguments {
-                name: "description".to_string(),
-                message: "Expected function argument of type string, found: (foo)".to_string()
+            Ok(RevsetExpression::Description {
+                needle: "foo".to_string(),
+                base_expression: Box::new(RevsetExpression::Symbol("bar".to_string()))
             })
         );
         assert_eq!(
