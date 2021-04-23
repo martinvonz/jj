@@ -233,9 +233,30 @@ fn parse_primary_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, Revset
             let argument_pairs = pairs.next().unwrap().into_inner();
             parse_function_expression(name, argument_pairs)
         }
-        Rule::symbol => Ok(RevsetExpression::Symbol(first.as_str().to_owned())),
+        Rule::symbol => parse_symbol_rule(first.into_inner()),
         _ => {
             panic!("unxpected revset parse rule: {:?}", first.as_str());
+        }
+    }
+}
+
+fn parse_symbol_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, RevsetParseError> {
+    let first = pairs.next().unwrap();
+    match first.as_rule() {
+        Rule::identifier => Ok(RevsetExpression::Symbol(first.as_str().to_owned())),
+        Rule::literal_string => {
+            return Ok(RevsetExpression::Symbol(
+                first
+                    .as_str()
+                    .strip_prefix('"')
+                    .unwrap()
+                    .strip_suffix('"')
+                    .unwrap()
+                    .to_owned(),
+            ));
+        }
+        _ => {
+            panic!("unxpected symbol parse rule: {:?}", first.as_str());
         }
     }
 }
@@ -856,6 +877,11 @@ mod tests {
         // Parse a parenthesized symbol
         assert_eq!(
             parse("(foo)"),
+            Ok(RevsetExpression::Symbol("foo".to_string()))
+        );
+        // Parse a quoted symbol
+        assert_eq!(
+            parse("\"foo\""),
             Ok(RevsetExpression::Symbol("foo".to_string()))
         );
         // Parse the "parents" operator

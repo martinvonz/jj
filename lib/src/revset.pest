@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-symbol = @{ (ASCII_ALPHANUMERIC | "@" | "/" | ".")+ }
+identifier = @{ (ASCII_ALPHANUMERIC | "@" | "/" | ".")+ } 
+symbol = {
+  identifier
+  | literal_string
+}
 literal_string = { "\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
 whitespace = _{ " " }
 
