@@ -373,10 +373,20 @@ mod tests {
             ])
         );
         // One side changes a line and adds a block after. The other side just adds the
-        // same block. This currently behaves as one would reasonably hope, but
-        // it's likely that it will change if when we fix
-        // https://github.com/martinvonz/jj/issues/761. Git and Mercurial both duplicate
-        // the block in the result.
+        // same block. You might expect the last block would be deduplicated. However,
+        // the changes in the first side can be parsed as follows:
+        // ```
+        //  a {
+        // -    p
+        // +    q
+        // +}
+        // +
+        // +b {
+        // +    x
+        //  }
+        // ```
+        // Therefore, the first side modifies the block `a { .. }`, and the second side
+        // adds `b { .. }`. Git and Mercurial both duplicate the block in the result.
         assert_eq!(
             merge(
                 &[b"\
@@ -409,6 +419,10 @@ b {
                 b"\
 a {
     q
+}
+
+b {
+    x
 }
 
 b {
