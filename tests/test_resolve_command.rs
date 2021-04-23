@@ -98,13 +98,14 @@ fn test_resolution() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
     Resolved conflict in file:
-       1    1: <<<<<<<resolution
+       1     : <<<<<<<
        2     : %%%%%%%
        3     : -base
        4     : +a
        5     : +++++++
        6     : b
        7     : >>>>>>>
+            1: resolution
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -142,13 +143,14 @@ fn test_resolution() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
     Resolved conflict in file:
-       1    1: <<<<<<<resolution
+       1     : <<<<<<<
        2     : %%%%%%%
        3     : -base
        4     : +a
        5     : +++++++
        6     : b
        7     : >>>>>>>
+            1: resolution
     "###);
 
     // Check that if merge tool leaves conflict markers in output file and
@@ -644,11 +646,12 @@ fn test_multiple_conflicts() {
     Resolved conflict in another_file:
        1     : <<<<<<<
        2     : %%%%%%%
-       3    1: -secondresolution baseanother_file
+       3     : -second base
        4     : +second a
        5     : +++++++
        6     : second b
        7     : >>>>>>>
+            1: resolution another_file
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -682,11 +685,12 @@ fn test_multiple_conflicts() {
     Resolved conflict in another_file:
        1     : <<<<<<<
        2     : %%%%%%%
-       3    1: first resolution for auto-secondchosen basefile
+       3    1: first resolution for auto-second base
        4     : +second a
        5     : +++++++
        6     : second b
        7     : >>>>>>>
+            1: chosen file
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -704,19 +708,21 @@ fn test_multiple_conflicts() {
     Resolved conflict in another_file:
        1     : <<<<<<<
        2     : %%%%%%%
-       3    1: first resolution for auto-secondchosen basefile
+       3    1: first resolution for auto-second base
        4     : +second a
        5     : +++++++
        6     : second b
        7     : >>>>>>>
+            1: chosen file
     Resolved conflict in this_file_has_a_very_long_name_to_test_padding:
        1     : <<<<<<<
        2     : %%%%%%%
-       3    1: second resolution for auto-firstchosen basefile
+       3    1: second resolution for auto-first base
        4     : +first a
        5     : +++++++
        6     : first b
        7     : >>>>>>>
+            1: chosen file
     "###);
 
     insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve", "--list"]), 

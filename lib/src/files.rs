@@ -383,9 +383,8 @@ mod tests {
             ])
         );
         // One side changes a line and adds a block after. The other side just adds the
-        // same block. This currently behaves as one would reasonably hope, but
-        // it's likely that it will change if when we fix
-        // https://github.com/martinvonz/jj/issues/761. Git and Mercurial both duplicate
+        // same block. This currently results in a conflict, but  it's likely that it
+        // will change if when we fix https://github.com/martinvonz/jj/issues/761. Git and Mercurial both duplicate
         // the block in the result.
         assert_eq!(
             merge(
@@ -415,17 +414,16 @@ b {
 "
                 ],
             ),
-            MergeResult::Resolved(hunk(
-                b"\
-a {
-    q
-}
-
-b {
-    x
-}
-"
-            ))
+            MergeResult::Conflict(vec![
+                Conflict::resolved(hunk(b"a {\n")),
+                Conflict::new(
+                    vec![hunk(b"    p\n}\n")],
+                    vec![
+                        hunk(b"    q\n}\n\nb {\n    x\n}\n"),
+                        hunk(b"    p\n}\n\nb {\n    x\n}\n"),
+                    ]
+                )
+            ])
         );
     }
 }

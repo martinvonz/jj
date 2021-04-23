@@ -193,29 +193,18 @@ pub(crate) fn unchanged_ranges(
     // the LCS.
     let mut uncommon_shared_words = vec![];
     while !left_histogram.count_to_words.is_empty() && uncommon_shared_words.is_empty() {
-        let left_words = left_histogram
-            .count_to_words
-            .first_entry()
-            .map(|x| x.remove())
-            .unwrap();
+        let (left_count, left_words) = left_histogram.count_to_words.pop_first().unwrap();
         for left_word in left_words {
-            if right_histogram.word_to_positions.contains_key(left_word) {
-                uncommon_shared_words.push(left_word);
+            if let Some(right_positions) = right_histogram.word_to_positions.get(left_word) {
+                if right_positions.len() == left_count {
+                    uncommon_shared_words.push(left_word);
+                }
             }
         }
     }
     if uncommon_shared_words.is_empty() {
         return vec![];
     }
-
-    // Let's say our inputs are "a b a b" and "a b c c b a b". We will have found
-    // the least common words to be "a" and "b". We now assume that each
-    // occurrence of each word lines up in the left and right input. We do that
-    // by numbering the shared occurrences, effectively instead comparing "a1 b1
-    // a2 b2" and "a1 b1 c c b2 a2 b". We then walk the common words in the
-    // right input in order (["a1", "b1", "b2", "a2"]), and record the index of
-    // that word in the left input ([0,1,3,2]). We then find the LCS and split
-    // points based on that ([0,1,3] or [0,1,2] are both valid).
 
     // [(index into left_ranges, word, occurrence #)]
     let mut left_positions = vec![];
@@ -229,8 +218,8 @@ pub(crate) fn unchanged_ranges(
             .word_to_positions
             .get_mut(uncommon_shared_word)
             .unwrap();
-        let shared_count = min(left_occurrences.len(), right_occurrences.len());
-        for occurrence in 0..shared_count {
+        assert_eq!(left_occurrences.len(), right_occurrences.len());
+        for occurrence in 0..left_occurrences.len() {
             left_positions.push((
                 left_occurrences[occurrence],
                 uncommon_shared_word,
@@ -771,6 +760,8 @@ mod tests {
 
     #[test]
     fn test_unchanged_ranges_non_unique_removed() {
+        // We used to consider the first two "a" in the first input to match the two
+        // "a"s in the second input. We no longer do.
         assert_eq!(
             unchanged_ranges(
                 b"a a a a",
@@ -778,12 +769,14 @@ mod tests {
                 &[0..1, 2..3, 4..5, 6..7],
                 &[0..1, 2..3, 4..5, 6..7],
             ),
-            vec![(0..1, 0..1), (2..3, 4..5)]
+            vec![]
         );
     }
 
     #[test]
     fn test_unchanged_ranges_non_unique_added() {
+        // We used to consider the first two "a" in the first input to match the two
+        // "a"s in the second input. We no longer do.
         assert_eq!(
             unchanged_ranges(
                 b"a b a c",
@@ -791,7 +784,7 @@ mod tests {
                 &[0..1, 2..3, 4..5, 6..7],
                 &[0..1, 2..3, 4..5, 6..7],
             ),
-            vec![(0..1, 0..1), (4..5, 2..3)]
+            vec![]
         );
     }
 
@@ -918,8 +911,8 @@ mod tests {
         assert_eq!(
             diff.hunks().collect_vec(),
             vec![
-                DiffHunk::Matching(b"a "),
-                DiffHunk::Different(vec![b"b ", b"X ", b""]),
+                DiffHunk::Matching(b"a"),
+                DiffHunk::Different(vec![b" b ", b" X ", b" "]),
                 DiffHunk::Matching(b"c"),
                 DiffHunk::Different(vec![b"", b"", b" X"]),
             ]
@@ -956,8 +949,8 @@ mod tests {
         assert_eq!(
             diff(b"a z", b"a S z"),
             vec![
-                DiffHunk::Matching(b"a "),
-                DiffHunk::Different(vec![b"", b"S "]),
+                DiffHunk::Matching(b"a"),
+                DiffHunk::Different(vec![b" ", b" S "]),
                 DiffHunk::Matching(b"z"),
             ]
         );
@@ -968,10 +961,10 @@ mod tests {
         assert_eq!(
             diff(b"a R R S S z", b"a S S R R z"),
             vec![
-                DiffHunk::Matching(b"a "),
-                DiffHunk::Different(vec![b"R R ", b""]),
-                DiffHunk::Matching(b"S S "),
-                DiffHunk::Different(vec![b"", b"R R "]),
+                DiffHunk::Matching(b"a"),
+                DiffHunk::Different(vec![b" R R ", b" "]),
+                DiffHunk::Matching(b"S S"),
+                DiffHunk::Different(vec![b" ", b" R R "]),
                 DiffHunk::Matching(b"z")
             ],
         );
@@ -985,18 +978,14 @@ mod tests {
                 b"a r r x q y z q b y q x r r c",
             ),
             vec![
-                DiffHunk::Matching(b"a "),
-                DiffHunk::Different(vec![b"q", b"r"]),
-                DiffHunk::Matching(b" "),
-                DiffHunk::Different(vec![b"", b"r "]),
-                DiffHunk::Matching(b"x q y "),
-                DiffHunk::Different(vec![b"q ", b""]),
-                DiffHunk::Matching(b"z q b "),
-                DiffHunk::Different(vec![b"q ", b""]),
-                DiffHunk::Matching(b"y q x "),
-                DiffHunk::Different(vec![b"q", b"r"]),
-                DiffHunk::Matching(b" "),
-                DiffHunk::Different(vec![b"", b"r "]),
+                DiffHunk::Matching(b"a"),
+                DiffHunk::Different(vec![b" q ", b" r r "]),
+                DiffHunk::Matching(b"x q y"),
+                DiffHunk::Different(vec![b" q ", b" "]),
+                DiffHunk::Matching(b"z q b"),
+                DiffHunk::Different(vec![b" q ", b" "]),
+                DiffHunk::Matching(b"y q x"),
+                DiffHunk::Different(vec![b" q ", b" r r "]),
                 DiffHunk::Matching(b"c"),
             ]
         );
@@ -1014,10 +1003,10 @@ mod tests {
                 b"    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_>) -> io::Result<()> {\n        self.styler().write_fmt(fmt)\n"
             ),
             vec![
-                DiffHunk::Matching(b"    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_>) "),
-                DiffHunk::Different(vec![b"", b"-> io::Result<()> "]),
-                DiffHunk::Matching(b"{\n        self.styler().write_fmt(fmt)"),
-                DiffHunk::Different(vec![b".unwrap()", b""]),
+                DiffHunk::Matching(b"    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_"),
+                DiffHunk::Different(vec![b">) ", b">) -> io::Result<()> "]),
+                DiffHunk::Matching(b"{\n        self.styler().write_fmt(fmt"),
+                DiffHunk::Different(vec![b").unwrap()", b")"]),
                 DiffHunk::Matching(b"\n")
             ]
         );
@@ -1168,22 +1157,16 @@ int main(int argc, char **argv)
 "##,
             ),
             vec![
-               DiffHunk::Matching(b"/*\n * GIT - The information manager from hell\n *\n * Copyright (C) Linus Torvalds, 2005\n */\n#include \"#cache.h\"\n\n"),
-               DiffHunk::Different(vec![b"", b"static void create_directories(const char *path)\n{\n\tint len = strlen(path);\n\tchar *buf = malloc(len + 1);\n\tconst char *slash = path;\n\n\twhile ((slash = strchr(slash+1, \'/\')) != NULL) {\n\t\tlen = slash - path;\n\t\tmemcpy(buf, path, len);\n\t\tbuf[len] = 0;\n\t\tmkdir(buf, 0700);\n\t}\n}\n\nstatic int create_file(const char *path)\n{\n\tint fd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\tif (fd < 0) {\n\t\tif (errno == ENOENT) {\n\t\t\tcreate_directories(path);\n\t\t\tfd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\t\t}\n\t}\n\treturn fd;\n}\n\n"]),
+               DiffHunk::Matching(b"/*\n * GIT - The information manager from hell\n *\n * Copyright (C) Linus Torvalds, 2005\n */\n#include \"#cache.h\"\n"),
+               DiffHunk::Different(vec![b"\n", b"\nstatic void create_directories(const char *path)\n{\n\tint len = strlen(path);\n\tchar *buf = malloc(len + 1);\n\tconst char *slash = path;\n\n\twhile ((slash = strchr(slash+1, \'/\')) != NULL) {\n\t\tlen = slash - path;\n\t\tmemcpy(buf, path, len);\n\t\tbuf[len] = 0;\n\t\tmkdir(buf, 0700);\n\t}\n}\n\nstatic int create_file(const char *path)\n{\n\tint fd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\tif (fd < 0) {\n\t\tif (errno == ENOENT) {\n\t\t\tcreate_directories(path);\n\t\t\tfd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\t\t}\n\t}\n\treturn fd;\n}\n\n"]),
                DiffHunk::Matching(b"static int unpack(unsigned char *sha1)\n{\n\tvoid *buffer;\n\tunsigned long size;\n\tchar type[20];\n\n\tbuffer = read_sha1_file(sha1, type, &size);\n\tif (!buffer)\n\t\tusage(\"unable to read sha1 file\");\n\tif (strcmp(type, \"tree\"))\n\t\tusage(\"expected a \'tree\' node\");\n\twhile (size) {\n\t\tint len = strlen(buffer)+1;\n\t\tunsigned char *sha1 = buffer + len;\n\t\tchar *path = strchr(buffer, \' \')+1;\n"),
                DiffHunk::Different(vec![b"", b"\t\tchar *data;\n\t\tunsigned long filesize;\n"]),
                DiffHunk::Matching(b"\t\tunsigned int mode;\n"),
                DiffHunk::Different(vec![b"", b"\t\tint fd;\n\n"]),
                DiffHunk::Matching(b"\t\tif (size < len + 20 || sscanf(buffer, \"%o\", &mode) != 1)\n\t\t\tusage(\"corrupt \'tree\' file\");\n\t\tbuffer = sha1 + 20;\n\t\tsize -= len + 20;\n\t\t"),
-               DiffHunk::Different(vec![b"printf", b"data = read_sha1_file"]),
-               DiffHunk::Matching(b"("),
-               DiffHunk::Different(vec![b"\"%o %s (%s)\\n\", mode, path, sha1_to_hex(", b""]),
+               DiffHunk::Different(vec![b"printf(\"%o %s (%s)\\n\", mode, path, sha1_to_hex(", b"data = read_sha1_file("]),
                DiffHunk::Matching(b"sha1"),
-               DiffHunk::Different(vec![b"", b", type, &filesize"]),
-               DiffHunk::Matching(b")"),
-               DiffHunk::Different(vec![b")", b""]),
-               DiffHunk::Matching(b";\n"),
-               DiffHunk::Different(vec![b"", b"\t\tif (!data || strcmp(type, \"blob\"))\n\t\t\tusage(\"tree file refers to bad file data\");\n\t\tfd = create_file(path);\n\t\tif (fd < 0)\n\t\t\tusage(\"unable to create file\");\n\t\tif (write(fd, data, filesize) != filesize)\n\t\t\tusage(\"unable to write file\");\n\t\tfchmod(fd, mode);\n\t\tclose(fd);\n\t\tfree(data);\n"]),
+               DiffHunk::Different(vec![b"));\n", b", type, &filesize);\n\t\tif (!data || strcmp(type, \"blob\"))\n\t\t\tusage(\"tree file refers to bad file data\");\n\t\tfd = create_file(path);\n\t\tif (fd < 0)\n\t\t\tusage(\"unable to create file\");\n\t\tif (write(fd, data, filesize) != filesize)\n\t\t\tusage(\"unable to write file\");\n\t\tfchmod(fd, mode);\n\t\tclose(fd);\n\t\tfree(data);\n"]),
                DiffHunk::Matching(b"\t}\n\treturn 0;\n}\n\nint main(int argc, char **argv)\n{\n\tint fd;\n\tunsigned char sha1[20];\n\n\tif (argc != 2)\n\t\tusage(\"read-tree <key>\");\n\tif (get_sha1_hex(argv[1], sha1) < 0)\n\t\tusage(\"read-tree <key>\");\n\tsha1_file_directory = getenv(DB_ENVIRONMENT);\n\tif (!sha1_file_directory)\n\t\tsha1_file_directory = DEFAULT_DB_ENVIRONMENT;\n\tif (unpack(sha1) < 0)\n\t\tusage(\"unpack failed\");\n\treturn 0;\n}\n")
             ]
         );

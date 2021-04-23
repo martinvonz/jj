@@ -61,12 +61,13 @@ fn test_obslog_with_or_without_diff() {
     @  rlvkpnrzqnoo test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad36073
     │  my description
     │  Resolved conflict in file1:
-    │     1    1: <<<<<<<resolved
+    │     1     : <<<<<<<
     │     2     : %%%%%%%
     │     3     :  foo
     │     4     : +bar
     │     5     : +++++++
     │     6     : >>>>>>>
+    │          1: resolved
     ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
     │  my description
     ◉  rlvkpnrzqnoo hidden test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
