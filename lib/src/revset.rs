@@ -116,7 +116,7 @@ pub enum RevsetExpression {
     NonObsoleteHeads(Box<RevsetExpression>),
     Description {
         needle: String,
-        base_expression: Box<RevsetExpression>,
+        candidates: Box<RevsetExpression>,
     },
     Union(Box<RevsetExpression>, Box<RevsetExpression>),
     Intersection(Box<RevsetExpression>, Box<RevsetExpression>),
@@ -368,17 +368,14 @@ fn parse_function_expression(
                 &name,
                 argument_pairs.next().unwrap().into_inner(),
             )?;
-            let base_expression = if arg_count == 1 {
-                RevsetExpression::Ancestors(Box::new(RevsetExpression::NonObsoleteHeads(Box::new(
-                    RevsetExpression::AllHeads,
-                ))))
+            let candidates = if arg_count == 1 {
+                RevsetExpression::non_obsolete_commits()
             } else {
-                parse_expression_rule(argument_pairs.next().unwrap().into_inner())?
+                Box::new(parse_expression_rule(
+                    argument_pairs.next().unwrap().into_inner(),
+                )?)
             };
-            Ok(RevsetExpression::Description {
-                needle,
-                base_expression: Box::new(base_expression),
-            })
+            Ok(RevsetExpression::Description { needle, candidates })
         }
         _ => Err(RevsetParseError::NoSuchFunction(name)),
     }
@@ -725,7 +722,7 @@ pub fn evaluate_expression<'revset, 'repo: 'revset>(
         }
         RevsetExpression::Description {
             needle,
-            base_expression,
+            candidates: base_expression,
         } => {
             // TODO: Definitely make this lazy. We should have a common way of defining
             // revsets that simply filter a base revset.
@@ -897,7 +894,7 @@ mod tests {
                 Box::new(RevsetExpression::Difference(
                     Box::new(RevsetExpression::Description {
                         needle: "arg1".to_string(),
-                        base_expression: Box::new(RevsetExpression::Symbol("arg2".to_string()))
+                        candidates: Box::new(RevsetExpression::Symbol("arg2".to_string()))
                     }),
                     Box::new(RevsetExpression::Parents(Box::new(
                         RevsetExpression::Symbol("arg1".to_string())
@@ -1016,7 +1013,7 @@ mod tests {
             parse("description(foo,bar)"),
             Ok(RevsetExpression::Description {
                 needle: "foo".to_string(),
-                base_expression: Box::new(RevsetExpression::Symbol("bar".to_string()))
+                candidates: Box::new(RevsetExpression::Symbol("bar".to_string()))
             })
         );
         assert_eq!(
@@ -1031,14 +1028,14 @@ mod tests {
             parse("description((foo),bar)"),
             Ok(RevsetExpression::Description {
                 needle: "foo".to_string(),
-                base_expression: Box::new(RevsetExpression::Symbol("bar".to_string()))
+                candidates: Box::new(RevsetExpression::Symbol("bar".to_string()))
             })
         );
         assert_eq!(
             parse("description(\"(foo)\",bar)"),
             Ok(RevsetExpression::Description {
                 needle: "(foo)".to_string(),
-                base_expression: Box::new(RevsetExpression::Symbol("bar".to_string()))
+                candidates: Box::new(RevsetExpression::Symbol("bar".to_string()))
             })
         );
     }
