@@ -153,9 +153,9 @@ fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, Rev
 fn parse_infix_expression_rule(
     mut pairs: Pairs<Rule>,
 ) -> Result<RevsetExpression, RevsetParseError> {
-    let mut expression1 = parse_postfix_expression_rule(pairs.next().unwrap().into_inner())?;
+    let mut expression1 = parse_range_expression_rule(pairs.next().unwrap().into_inner())?;
     while let Some(operator) = pairs.next() {
-        let expression2 = parse_postfix_expression_rule(pairs.next().unwrap().into_inner())?;
+        let expression2 = parse_range_expression_rule(pairs.next().unwrap().into_inner())?;
         match operator.as_rule() {
             Rule::union_op => {
                 expression1 = RevsetExpression::Union(Rc::new(expression1), Rc::new(expression2))
@@ -179,10 +179,44 @@ fn parse_infix_expression_rule(
     Ok(expression1)
 }
 
-fn parse_postfix_expression_rule(
+fn parse_range_expression_rule(
     mut pairs: Pairs<Rule>,
 ) -> Result<RevsetExpression, RevsetParseError> {
-    let mut expression = parse_prefix_expression_rule(pairs.next().unwrap().into_inner())?;
+    let first = pairs.next().unwrap();
+    match first.as_rule() {
+        Rule::ancestors_op => {
+            return Ok(RevsetExpression::Ancestors(Rc::new(
+                parse_children_expression_rule(pairs.next().unwrap().into_inner())?,
+            )));
+        }
+        Rule::children_expression => {
+            // Fall through
+        }
+        _ => {
+            panic!("unxpected revset range operator rule {:?}", first.as_rule());
+        }
+    }
+    let mut expression = parse_children_expression_rule(first.into_inner())?;
+    if let Some(next) = pairs.next() {
+        match next.as_rule() {
+            Rule::descendants_op => {
+                expression = RevsetExpression::DagRange {
+                    roots: Rc::new(expression),
+                    heads: RevsetExpression::non_obsolete_heads(),
+                };
+            }
+            _ => {
+                panic!("unxpected revset range operator rule {:?}", next.as_rule());
+            }
+        }
+    }
+    Ok(expression)
+}
+
+fn parse_children_expression_rule(
+    mut pairs: Pairs<Rule>,
+) -> Result<RevsetExpression, RevsetParseError> {
+    let mut expression = parse_parents_expression_rule(pairs.next().unwrap().into_inner())?;
     for operator in pairs {
         match operator.as_rule() {
             Rule::children_op => {
@@ -191,15 +225,9 @@ fn parse_postfix_expression_rule(
                     heads: RevsetExpression::non_obsolete_heads(),
                 };
             }
-            Rule::descendants_op => {
-                expression = RevsetExpression::DagRange {
-                    roots: Rc::new(expression),
-                    heads: RevsetExpression::non_obsolete_heads(),
-                };
-            }
             _ => {
                 panic!(
-                    "unxpected revset postfix operator rule {:?}",
+                    "unxpected revset children operator rule {:?}",
                     operator.as_rule()
                 );
             }
@@ -208,21 +236,18 @@ fn parse_postfix_expression_rule(
     Ok(expression)
 }
 
-fn parse_prefix_expression_rule(
+fn parse_parents_expression_rule(
     mut pairs: Pairs<Rule>,
 ) -> Result<RevsetExpression, RevsetParseError> {
     let first = pairs.next().unwrap();
     match first.as_rule() {
         Rule::primary => parse_primary_rule(first.into_inner()),
         Rule::parents_op => Ok(RevsetExpression::Parents(Rc::new(
-            parse_prefix_expression_rule(pairs)?,
-        ))),
-        Rule::ancestors_op => Ok(RevsetExpression::Ancestors(Rc::new(
-            parse_prefix_expression_rule(pairs)?,
+            parse_parents_expression_rule(pairs)?,
         ))),
         _ => {
             panic!(
-                "unxpected revset prefix operator rule {:?}",
+                "unxpected revset parents operator rule {:?}",
                 first.as_rule()
             );
         }
@@ -934,21 +959,16 @@ mod tests {
                 heads: RevsetExpression::non_obsolete_heads()
             })
         );
-        // Parse combinations of prefix and postfix operators. They all currently have
-        // the same precedence, so ",,foo:" means "(,,foo):" and not ",,(foo:)".
+        // Parse repeated "ancestors"/"descendants" operators
+        assert_matches!(parse(",,foo,,"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse(",,,,foo"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo,,,,"), Err(RevsetParseError::SyntaxError(_)));
+        // Parse combinations of "parents"/"children" operators and the range operators.
+        // The former bind more strongly.
         assert_eq!(
             parse(":foo:"),
             Ok(RevsetExpression::Children {
                 roots: Rc::new(RevsetExpression::Parents(Rc::new(
-                    RevsetExpression::Symbol("foo".to_string())
-                ))),
-                heads: RevsetExpression::non_obsolete_heads(),
-            })
-        );
-        assert_eq!(
-            parse(",,foo,,"),
-            Ok(RevsetExpression::DagRange {
-                roots: Rc::new(RevsetExpression::Ancestors(Rc::new(
                     RevsetExpression::Symbol("foo".to_string())
                 ))),
                 heads: RevsetExpression::non_obsolete_heads(),
@@ -965,12 +985,12 @@ mod tests {
         );
         assert_eq!(
             parse(",,foo:"),
-            Ok(RevsetExpression::Children {
-                roots: Rc::new(RevsetExpression::Ancestors(Rc::new(
-                    RevsetExpression::Symbol("foo".to_string())
-                ))),
-                heads: RevsetExpression::non_obsolete_heads(),
-            })
+            Ok(RevsetExpression::Ancestors(Rc::new(
+                RevsetExpression::Children {
+                    roots: Rc::new(RevsetExpression::Symbol("foo".to_string())),
+                    heads: RevsetExpression::non_obsolete_heads()
+                }
+            ),))
         );
     }
 

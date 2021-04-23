@@ -312,7 +312,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!(":,,{}", commit2.id().hex())
+            &format!(":({} | {})", commit1.id().hex(), commit2.id().hex())
         ),
         vec![commit1.id().clone(), root_commit.id().clone()]
     );

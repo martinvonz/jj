@@ -20,13 +20,13 @@ symbol = {
 literal_string = { "\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
 whitespace = _{ " " }
 
+// We could use the same rule name for the shared operators if we can
+// think of a good name.
 parents_op = { ":" }
-ancestors_op = { ",," }
-prefix_op = _{ parents_op | ancestors_op }
-
 children_op = { ":" }
+
+ancestors_op = { ",," }
 descendants_op = { ",," }
-postfix_op = _{ children_op | descendants_op }
 
 union_op = { "|" }
 intersection_op = { "&" }
@@ -45,12 +45,18 @@ primary = {
   | symbol
 }
 
-prefix_expression = { prefix_op* ~ primary }
+parents_expression = { parents_op* ~ primary }
 
-postfix_expression = { prefix_expression ~ postfix_op* }
+children_expression = { parents_expression ~ children_op* }
+
+range_expression = {
+  ancestors_op ~ children_expression
+  | children_expression ~ descendants_op
+  | children_expression
+}
 
 infix_expression = {
-  whitespace* ~ postfix_expression ~ whitespace* ~ (infix_op ~ whitespace* ~ postfix_expression ~ whitespace*)*
+  whitespace* ~ range_expression ~ whitespace* ~ (infix_op ~ whitespace* ~ range_expression ~ whitespace*)*
 }
 
 expression = {
