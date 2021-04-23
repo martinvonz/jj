@@ -91,8 +91,6 @@ pub struct RevsetParser;
 pub enum RevsetParseError {
     #[error("{0}")]
     SyntaxError(#[from] pest::error::Error<Rule>),
-    #[error("{0}")]
-    IncompleteParse(String),
     #[error("Revset function \"{0}\" doesn't exist")]
     NoSuchFunction(String),
     #[error("Invalid arguments to revset function \"{name}\": {message}")]
@@ -410,11 +408,14 @@ pub fn parse(revset_str: &str) -> Result<RevsetExpression, RevsetParseError> {
     let first = pairs.next().unwrap();
     assert!(pairs.next().is_none());
     if first.as_span().end() != revset_str.len() {
-        return Err(RevsetParseError::IncompleteParse(format!(
-            "Failed to parse revset \"{}\" past position {}",
-            revset_str,
-            first.as_span().end()
-        )));
+        let pos = pest::Position::new(revset_str, first.as_span().end()).unwrap();
+        let err = pest::error::Error::new_from_pos(
+            pest::error::ErrorVariant::CustomError {
+                message: "Incomplete parse".to_string(),
+            },
+            pos,
+        );
+        return Err(RevsetParseError::SyntaxError(err));
     }
 
     parse_expression_rule(first.into_inner())
@@ -889,7 +890,7 @@ mod tests {
         // Space is not allowed around prefix operators
         assert_matches!(parse(" ,, @ "), Err(RevsetParseError::SyntaxError(_)));
         // Incomplete parse
-        assert_matches!(parse("foo | :"), Err(RevsetParseError::IncompleteParse(_)));
+        assert_matches!(parse("foo | :"), Err(RevsetParseError::SyntaxError(_)));
         // Space is allowed around infix operators and function arguments
         assert_eq!(
             parse("   description(  arg1 ,   arg2 ) -    parents(   arg1  )  - all_heads(  )  "),
@@ -999,12 +1000,7 @@ mod tests {
                 RevsetExpression::Parents(Rc::new(RevsetExpression::Symbol("@".to_string())))
             )))
         );
-        assert_eq!(
-            parse("parents(@"),
-            Err(RevsetParseError::IncompleteParse(
-                "Failed to parse revset \"parents(@\" past position 7".to_string()
-            ))
-        );
+        assert_matches!(parse("parents(@"), Err(RevsetParseError::SyntaxError(_)));
         assert_eq!(
             parse("parents(@,@)"),
             Err(RevsetParseError::InvalidFunctionArguments {
