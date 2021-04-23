@@ -28,6 +28,7 @@ children_op = { ":" }
 ancestors_op = { ",," }
 descendants_op = { ",," }
 dag_range_op = { ",," }
+range_op = { ",,," }
 
 union_op = { "|" }
 intersection_op = { "&" }
@@ -52,6 +53,7 @@ children_expression = { parents_expression ~ children_op* }
 
 range_expression = {
   children_expression ~ dag_range_op ~ children_expression
+  | children_expression ~ range_op ~ children_expression
   | ancestors_op ~ children_expression
   | children_expression ~ descendants_op
   | children_expression

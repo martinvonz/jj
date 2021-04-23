@@ -441,6 +441,76 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
 
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
+fn test_evaluate_expression_range(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit2.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit4 = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit1.id().clone(), commit3.id().clone()])
+        .write_to_repo(mut_repo);
+
+    // The range from the root to the root is empty (because the left side of the
+    // range is exclusive)
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "root,,,root"),
+        vec![]
+    );
+
+    // Linear range
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("{},,,{}", commit1.id().hex(), commit3.id().hex())
+        ),
+        vec![commit3.id().clone(), commit2.id().clone()]
+    );
+
+    // Empty range (descendant first)
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("{},,,{}", commit3.id().hex(), commit1.id().hex())
+        ),
+        vec![]
+    );
+
+    // Range including a merge
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("{},,,{}", commit1.id().hex(), commit4.id().hex())
+        ),
+        vec![
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone()
+        ]
+    );
+
+    // Sibling commits
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("{},,,{}", commit2.id().hex(), commit3.id().hex())
+        ),
+        vec![commit3.id().clone()]
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
 fn test_evaluate_expression_dag_range(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);

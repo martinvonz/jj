@@ -99,6 +99,7 @@ pub enum RevsetParseError {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RevsetExpression {
+    None,
     Symbol(String),
     Parents(Rc<RevsetExpression>),
     Children {
@@ -106,6 +107,12 @@ pub enum RevsetExpression {
         heads: Rc<RevsetExpression>,
     },
     Ancestors(Rc<RevsetExpression>),
+    // Commits that are ancestors of "heads" but not ancestors of "roots"
+    Range {
+        roots: Rc<RevsetExpression>,
+        heads: Rc<RevsetExpression>,
+    },
+    // Commits that are descendants of "roots" and ancestors of "heads"
     DagRange {
         roots: Rc<RevsetExpression>,
         heads: Rc<RevsetExpression>,
@@ -211,6 +218,14 @@ fn parse_range_expression_rule(
                 expression = RevsetExpression::DagRange {
                     roots: Rc::new(expression),
                     heads: Rc::new(heads_expression),
+                };
+            }
+            Rule::range_op => {
+                let expression2 =
+                    parse_children_expression_rule(pairs.next().unwrap().into_inner())?;
+                expression = RevsetExpression::Range {
+                    roots: Rc::new(expression),
+                    heads: Rc::new(expression2),
                 };
             }
             _ => {
@@ -678,6 +693,9 @@ pub fn evaluate_expression<'revset, 'repo: 'revset>(
     expression: &RevsetExpression,
 ) -> Result<Box<dyn Revset<'repo> + 'revset>, RevsetError> {
     match expression {
+        RevsetExpression::None => Ok(Box::new(EagerRevset {
+            index_entries: vec![],
+        })),
         RevsetExpression::Symbol(symbol) => {
             let commit_id = resolve_symbol(repo, &symbol)?.id().clone();
             Ok(Box::new(EagerRevset {
@@ -704,10 +722,19 @@ pub fn evaluate_expression<'revset, 'repo: 'revset>(
                 candidate_set,
             }))
         }
-        RevsetExpression::Ancestors(base_expression) => {
-            let base_set = evaluate_expression(repo, base_expression.as_ref())?;
-            let base_ids: Vec<_> = base_set.iter().map(|entry| entry.commit_id()).collect();
-            let walk = repo.index().walk_revs(&base_ids, &[]);
+        RevsetExpression::Ancestors(base_expression) => evaluate_expression(
+            repo,
+            &RevsetExpression::Range {
+                roots: Rc::new(RevsetExpression::None),
+                heads: base_expression.clone(),
+            },
+        ),
+        RevsetExpression::Range { roots, heads } => {
+            let root_set = evaluate_expression(repo, roots.as_ref())?;
+            let root_ids: Vec<_> = root_set.iter().map(|entry| entry.commit_id()).collect();
+            let head_set = evaluate_expression(repo, heads.as_ref())?;
+            let head_ids: Vec<_> = head_set.iter().map(|entry| entry.commit_id()).collect();
+            let walk = repo.index().walk_revs(&head_ids, &root_ids);
             Ok(Box::new(RevWalkRevset { walk }))
         }
         RevsetExpression::DagRange { roots, heads } => {
