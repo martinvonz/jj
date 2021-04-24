@@ -77,13 +77,13 @@ pub fn materialize_conflict(
                                         file.write_all(&contents).unwrap();
                                     }
                                     files::MergeHunk::Conflict { base, left, right } => {
-                                        file.write_all(b"<<<<<<<").unwrap();
+                                        file.write_all(b"<<<<<<<\n").unwrap();
                                         file.write_all(&left).unwrap();
-                                        file.write_all(b"|||||||").unwrap();
+                                        file.write_all(b"|||||||\n").unwrap();
                                         file.write_all(&base).unwrap();
-                                        file.write_all(b"=======").unwrap();
+                                        file.write_all(b"=======\n").unwrap();
                                         file.write_all(&right).unwrap();
-                                        file.write_all(b">>>>>>>").unwrap();
+                                        file.write_all(b">>>>>>>\n").unwrap();
                                     }
                                 }
                             }
