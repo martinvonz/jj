@@ -45,6 +45,7 @@ pub mod protos;
 pub mod repo;
 pub mod repo_path;
 pub mod revset;
+pub mod revset_graph_iterator;
 pub mod rewrite;
 pub mod settings;
 pub mod simple_op_store;

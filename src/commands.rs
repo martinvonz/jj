@@ -40,6 +40,7 @@ use jujube_lib::operation::Operation;
 use jujube_lib::repo::{MutableRepo, ReadonlyRepo, RepoLoadError, RepoLoader};
 use jujube_lib::repo_path::RepoPath;
 use jujube_lib::revset::{RevsetError, RevsetParseError};
+use jujube_lib::revset_graph_iterator::RevsetGraphEdgeType;
 use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujube_lib::settings::UserSettings;
 use jujube_lib::store::{StoreError, Timestamp, TreeValue};
@@ -1061,11 +1062,29 @@ fn cmd_log(
     let revset = revset::evaluate_expression(repo.as_repo_ref(), &revset_expression)?;
     if use_graph {
         let mut graph = AsciiGraphDrawer::new(&mut styler);
-        for index_entry in revset.iter() {
-            let mut edges = vec![];
-            for parent_position in index_entry.parent_positions() {
-                // TODO: Use the right kind of edge here.
-                edges.push(Edge::direct(parent_position));
+        for (index_entry, edges) in revset.iter().graph() {
+            let mut graphlog_edges = vec![];
+            // TODO: Should we update RevsetGraphIterator to yield this flag instead of all
+            // the missing edges since we don't care about where they point here
+            // anyway?
+            let mut has_missing = false;
+            for edge in edges {
+                match edge.edge_type {
+                    RevsetGraphEdgeType::Missing => {
+                        has_missing = true;
+                    }
+                    RevsetGraphEdgeType::Direct => graphlog_edges.push(Edge::Present {
+                        direct: true,
+                        target: edge.target,
+                    }),
+                    RevsetGraphEdgeType::Indirect => graphlog_edges.push(Edge::Present {
+                        direct: false,
+                        target: edge.target,
+                    }),
+                }
+            }
+            if has_missing {
+                graphlog_edges.push(Edge::Missing);
             }
             let mut buffer = vec![];
             // TODO: only use color if requested
@@ -1078,7 +1097,7 @@ fn cmd_log(
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            graph.add_node(&index_entry.position(), &edges, b"o", &buffer)?;
+            graph.add_node(&index_entry.position(), &graphlog_edges, b"o", &buffer)?;
         }
     } else {
         for index_entry in revset.iter() {

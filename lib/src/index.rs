@@ -35,6 +35,10 @@ use crate::store::{ChangeId, CommitId};
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct IndexPosition(u32);
 
+impl IndexPosition {
+    pub const MAX: Self = IndexPosition(u32::MAX);
+}
+
 #[derive(Clone)]
 pub enum IndexRef<'a> {
     Readonly(&'a ReadonlyIndex),
@@ -987,7 +991,7 @@ pub struct IndexStats {
 }
 
 #[derive(Clone, Eq, PartialEq)]
-struct IndexEntryByPosition<'a>(IndexEntry<'a>);
+pub struct IndexEntryByPosition<'a>(IndexEntry<'a>);
 
 impl Ord for IndexEntryByPosition<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -1333,6 +1337,7 @@ impl Debug for IndexEntry<'_> {
         f.debug_struct("IndexEntry")
             .field("pos", &self.pos)
             .field("local_pos", &self.local_pos)
+            .field("commit_id", &self.commit_id().hex())
             .finish()
     }
 }

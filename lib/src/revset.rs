@@ -24,6 +24,7 @@ use thiserror::Error;
 use crate::commit::Commit;
 use crate::index::{HexPrefix, IndexEntry, IndexPosition, PrefixResolution, RevWalk};
 use crate::repo::RepoRef;
+use crate::revset_graph_iterator::RevsetGraphIterator;
 use crate::store::{CommitId, StoreError};
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -493,6 +494,10 @@ impl<'revset, 'repo> RevsetIterator<'revset, 'repo> {
     fn new(inner: Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>) -> Self {
         Self { inner }
     }
+
+    pub fn graph(self) -> RevsetGraphIterator<'revset, 'repo> {
+        RevsetGraphIterator::new(self)
+    }
 }
 
 impl<'repo> Iterator for RevsetIterator<'_, 'repo> {
@@ -891,6 +896,19 @@ fn non_obsolete_heads<'revset, 'repo: 'revset>(
     let mut index_entries: Vec<_> = commit_ids
         .iter()
         .map(|id| index.entry_by_id(id).unwrap())
+        .collect();
+    index_entries.sort_by_key(|b| Reverse(b.position()));
+    Box::new(EagerRevset { index_entries })
+}
+
+pub fn revset_for_commits<'revset, 'repo: 'revset>(
+    repo: RepoRef<'repo>,
+    commits: &[&Commit],
+) -> Box<dyn Revset<'repo> + 'revset> {
+    let index = repo.index();
+    let mut index_entries: Vec<_> = commits
+        .iter()
+        .map(|commit| index.entry_by_id(commit.id()).unwrap())
         .collect();
     index_entries.sort_by_key(|b| Reverse(b.position()));
     Box::new(EagerRevset { index_entries })
