@@ -152,8 +152,13 @@ where
         // Close any edges to missing nodes.
         for (i, edge) in edges.iter().enumerate().rev() {
             if *edge == Edge::Missing {
-                self.close_edge(edge_index + i, pad_to_index)?;
+                self.close_missing_edge(edge_index + i, pad_to_index)?;
             }
+        }
+        // If this was the last node in a chain, add a "/" for any edges to the right of
+        // it.
+        if edges.is_empty() && edge_index < self.edges.len() {
+            self.close_edge(edge_index, pad_to_index)?;
         }
 
         // Merge new edges that share the same target.
@@ -271,12 +276,27 @@ where
         Ok(())
     }
 
-    fn close_edge(&mut self, source: usize, pad_to_index: usize) -> io::Result<()> {
+    fn close_missing_edge(&mut self, source: usize, pad_to_index: usize) -> io::Result<()> {
         self.edges.remove(source);
         for i in 0..source {
             AsciiGraphDrawer::straight_edge(&mut self.writer, &self.edges[i])?;
         }
         self.writer.write_all(b"~")?;
+        for _ in source..self.edges.len() {
+            self.writer.write_all(b"/ ")?;
+        }
+        self.writer.write_all(b" ")?;
+        for _ in self.edges.len() + 1..pad_to_index {
+            self.writer.write_all(b"  ")?;
+        }
+        self.maybe_write_pending_text()
+    }
+
+    fn close_edge(&mut self, source: usize, pad_to_index: usize) -> io::Result<()> {
+        for i in 0..source {
+            AsciiGraphDrawer::straight_edge(&mut self.writer, &self.edges[i])?;
+        }
+        self.writer.write_all(b" ")?;
         for _ in source..self.edges.len() {
             self.writer.write_all(b"/ ")?;
         }
@@ -463,6 +483,54 @@ mod tests {
             | o node 3
             o | node 2
             ~/  
+            o node 1
+            "}
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn left_chain_ends_with_no_missing_edge() -> io::Result<()> {
+        let mut buffer = vec![];
+        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        graph.add_node(&4, &[Edge::direct(2)], b"o", b"node 4")?;
+        graph.add_node(&3, &[Edge::direct(1)], b"o", b"node 3")?;
+        graph.add_node(&2, &[], b"o", b"node 2")?;
+        graph.add_node(&1, &[], b"o", b"node 1")?;
+
+        println!("{}", String::from_utf8_lossy(&buffer));
+        assert_eq!(
+            String::from_utf8_lossy(&buffer),
+            indoc! {r"
+            o node 4
+            | o node 3
+            o | node 2
+             /  
+            o node 1
+            "}
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn right_chain_ends() -> io::Result<()> {
+        let mut buffer = vec![];
+        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        graph.add_node(&4, &[Edge::direct(1)], b"o", b"node 4")?;
+        graph.add_node(&3, &[Edge::direct(2)], b"o", b"node 3")?;
+        graph.add_node(&2, &[Edge::missing()], b"o", b"node 2")?;
+        graph.add_node(&1, &[], b"o", b"node 1")?;
+
+        println!("{}", String::from_utf8_lossy(&buffer));
+        assert_eq!(
+            String::from_utf8_lossy(&buffer),
+            indoc! {r"
+            o node 4
+            | o node 3
+            | o node 2
+            | ~ 
             o node 1
             "}
         );
