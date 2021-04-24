@@ -1062,23 +1062,23 @@ fn cmd_log(
     if use_graph {
         let mut graph = AsciiGraphDrawer::new(&mut styler);
         for index_entry in revset.iter() {
-            let commit = store.get_commit(&index_entry.commit_id()).unwrap();
             let mut edges = vec![];
-            for parent in commit.parents() {
+            for parent_position in index_entry.parent_positions() {
                 // TODO: Use the right kind of edge here.
-                edges.push(Edge::direct(parent.id().clone()));
+                edges.push(Edge::direct(parent_position));
             }
             let mut buffer = vec![];
             // TODO: only use color if requested
             {
                 let writer = Box::new(&mut buffer);
                 let mut styler = ColorStyler::new(writer, ui.settings());
+                let commit = store.get_commit(&index_entry.commit_id()).unwrap();
                 template.format(&commit, &mut styler)?;
             }
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            graph.add_node(commit.id(), &edges, b"o", &buffer)?;
+            graph.add_node(&index_entry.position(), &edges, b"o", &buffer)?;
         }
     } else {
         for index_entry in revset.iter() {
