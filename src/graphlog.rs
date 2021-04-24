@@ -183,6 +183,9 @@ where
             for edge in self.edges.iter() {
                 AsciiGraphDrawer::straight_edge(&mut self.writer, &edge)?;
             }
+            for _ in self.edges.len()..pad_to_index {
+                self.writer.write_all(b"  ")?;
+            }
             self.maybe_write_pending_text()?;
         }
 
@@ -531,6 +534,35 @@ mod tests {
             | o node 3
             | o node 2
             | ~ 
+            o node 1
+            "}
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn right_chain_ends_long_description() -> io::Result<()> {
+        let mut buffer = vec![];
+        let mut graph = AsciiGraphDrawer::new(&mut buffer);
+        graph.add_node(&3, &[Edge::direct(1)], b"o", b"node 3")?;
+        graph.add_node(
+            &2,
+            &[Edge::missing()],
+            b"o",
+            b"node 2\nwith\nlong\ndescription",
+        )?;
+        graph.add_node(&1, &[], b"o", b"node 1")?;
+
+        println!("{}", String::from_utf8_lossy(&buffer));
+        assert_eq!(
+            String::from_utf8_lossy(&buffer),
+            indoc! {r"
+            o node 3
+            | o node 2
+            | ~ with
+            |   long
+            |   description
             o node 1
             "}
         );
