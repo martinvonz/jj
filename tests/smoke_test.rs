@@ -91,7 +91,7 @@ fn smoke_test() {
     assert_eq!(output.status, 0);
     let stdout_string = output.stdout_string();
     let output_regex =
-        Regex::new("^leaving: [[:xdigit:]]+ \nnow at: [[:xdigit:]]+ add some files\n$").unwrap();
+        Regex::new("^Leaving: [[:xdigit:]]+ \nNow at: [[:xdigit:]]+ add some files\n$").unwrap();
     assert!(
         output_regex.is_match(&stdout_string),
         "output was: {}",
@@ -103,7 +103,7 @@ fn smoke_test() {
     assert_eq!(output.status, 0);
     let stdout_string = output.stdout_string();
     let output_regex =
-        Regex::new("^leaving: [[:xdigit:]]+ add some files\nnow at: [[:xdigit:]]+ \n$").unwrap();
+        Regex::new("^Leaving: [[:xdigit:]]+ add some files\nNow at: [[:xdigit:]]+ \n$").unwrap();
     assert!(
         output_regex.is_match(&stdout_string),
         "output was: {}",

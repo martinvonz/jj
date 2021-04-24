@@ -244,7 +244,7 @@ fn update_working_copy(
     if old_commit == new_commit {
         return Ok(None);
     }
-    ui.write("leaving: ")?;
+    ui.write("Leaving: ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &old_commit)?;
     ui.write("\n")?;
     // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
@@ -256,7 +256,7 @@ fn update_working_copy(
             err
         ))
     })?;
-    ui.write("now at: ")?;
+    ui.write("Now at: ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &new_commit)?;
     ui.write("\n")?;
     Ok(Some(stats))
@@ -660,7 +660,7 @@ fn cmd_checkout(
     tx.commit();
     let stats = update_working_copy(ui, &repo, &locked_wc)?;
     match stats {
-        None => ui.write("already on that commit\n")?,
+        None => ui.write("Already on that commit\n")?,
         Some(stats) => writeln!(
             ui,
             "added {} files, modified {} files, removed {} files",
@@ -1268,7 +1268,7 @@ fn cmd_duplicate(
     let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
         .generate_new_change_id()
         .write_to_repo(mut_repo);
-    ui.write("created: ")?;
+    ui.write("Created: ")?;
     ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
     ui.write("\n")?;
     tx.commit();
