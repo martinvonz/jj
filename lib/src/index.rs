@@ -32,6 +32,9 @@ use tempfile::NamedTempFile;
 use crate::commit::Commit;
 use crate::store::{ChangeId, CommitId};
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
+pub struct IndexPosition(u32);
+
 #[derive(Clone)]
 pub enum IndexRef<'a> {
     Readonly(&'a ReadonlyIndex),
@@ -65,7 +68,7 @@ impl<'a> IndexRef<'a> {
         }
     }
 
-    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
+    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         match self {
             IndexRef::Readonly(index) => index.commit_id_to_pos(commit_id),
             IndexRef::Mutable(index) => index.commit_id_to_pos(commit_id),
@@ -86,7 +89,7 @@ impl<'a> IndexRef<'a> {
         }
     }
 
-    pub fn entry_by_pos(&self, pos: u32) -> IndexEntry<'a> {
+    pub fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry<'a> {
         match self {
             IndexRef::Readonly(index) => index.entry_by_pos(pos),
             IndexRef::Mutable(index) => index.entry_by_pos(pos),
@@ -156,8 +159,8 @@ impl CommitGraphEntry<'_> {
         (&self.data[8..]).read_u32::<LittleEndian>().unwrap()
     }
 
-    fn parent1_pos(&self) -> u32 {
-        (&self.data[12..]).read_u32::<LittleEndian>().unwrap()
+    fn parent1_pos(&self) -> IndexPosition {
+        IndexPosition((&self.data[12..]).read_u32::<LittleEndian>().unwrap())
     }
 
     fn parent2_overflow_pos(&self) -> u32 {
@@ -168,8 +171,8 @@ impl CommitGraphEntry<'_> {
         (&self.data[20..]).read_u32::<LittleEndian>().unwrap()
     }
 
-    fn predecessor1_pos(&self) -> u32 {
-        (&self.data[24..]).read_u32::<LittleEndian>().unwrap()
+    fn predecessor1_pos(&self) -> IndexPosition {
+        IndexPosition((&self.data[24..]).read_u32::<LittleEndian>().unwrap())
     }
 
     fn predecessor2_overflow_pos(&self) -> u32 {
@@ -205,10 +208,12 @@ impl CommitLookupEntry<'_> {
         CommitId(self.data[0..self.hash_length].to_vec())
     }
 
-    fn pos(&self) -> u32 {
-        (&self.data[self.hash_length..self.hash_length + 4])
-            .read_u32::<LittleEndian>()
-            .unwrap()
+    fn pos(&self) -> IndexPosition {
+        IndexPosition(
+            (&self.data[self.hash_length..self.hash_length + 4])
+                .read_u32::<LittleEndian>()
+                .unwrap(),
+        )
     }
 }
 
@@ -315,8 +320,8 @@ struct MutableGraphEntry {
     change_id: ChangeId,
     is_pruned: bool,
     generation_number: u32,
-    parent_positions: Vec<u32>,
-    predecessor_positions: Vec<u32>,
+    parent_positions: Vec<IndexPosition>,
+    predecessor_positions: Vec<IndexPosition>,
 }
 
 pub struct MutableIndex {
@@ -324,7 +329,7 @@ pub struct MutableIndex {
     num_parent_commits: u32,
     hash_length: usize,
     graph: Vec<MutableGraphEntry>,
-    lookup: BTreeMap<CommitId, u32>,
+    lookup: BTreeMap<CommitId, IndexPosition>,
 }
 
 impl MutableIndex {
@@ -401,7 +406,7 @@ impl MutableIndex {
         }
         self.lookup.insert(
             entry.commit_id.clone(),
-            self.graph.len() as u32 + self.num_parent_commits,
+            IndexPosition(self.graph.len() as u32 + self.num_parent_commits),
         );
         self.graph.push(entry);
     }
@@ -409,7 +414,7 @@ impl MutableIndex {
     fn add_commits_from(&mut self, other_segment: &dyn IndexSegment) {
         let other = CompositeIndex(other_segment);
         for pos in other_segment.segment_num_parent_commits()..other.num_commits() {
-            let entry = other.entry_by_pos(pos);
+            let entry = other.entry_by_pos(IndexPosition(pos));
             let parent_ids: Vec<_> = entry
                 .parents()
                 .iter()
@@ -495,7 +500,7 @@ impl MutableIndex {
 
             buf.write_u32::<LittleEndian>(entry.parent_positions.len() as u32)
                 .unwrap();
-            let mut parent1_pos = 0;
+            let mut parent1_pos = IndexPosition(0);
             let parent_overflow_pos = parent_overflow.len() as u32;
             for (i, parent_pos) in entry.parent_positions.iter().enumerate() {
                 if i == 0 {
@@ -504,12 +509,12 @@ impl MutableIndex {
                     parent_overflow.push(*parent_pos);
                 }
             }
-            buf.write_u32::<LittleEndian>(parent1_pos).unwrap();
+            buf.write_u32::<LittleEndian>(parent1_pos.0).unwrap();
             buf.write_u32::<LittleEndian>(parent_overflow_pos).unwrap();
 
             buf.write_u32::<LittleEndian>(entry.predecessor_positions.len() as u32)
                 .unwrap();
-            let mut predecessor1_pos = 0;
+            let mut predecessor1_pos = IndexPosition(0);
             let predecessor_overflow_pos = predecessor_overflow.len() as u32;
             for (i, predecessor_pos) in entry.predecessor_positions.iter().enumerate() {
                 if i == 0 {
@@ -518,7 +523,7 @@ impl MutableIndex {
                     predecessor_overflow.push(*predecessor_pos);
                 }
             }
-            buf.write_u32::<LittleEndian>(predecessor1_pos).unwrap();
+            buf.write_u32::<LittleEndian>(predecessor1_pos.0).unwrap();
             buf.write_u32::<LittleEndian>(predecessor_overflow_pos)
                 .unwrap();
 
@@ -531,7 +536,7 @@ impl MutableIndex {
 
         for (commit_id, pos) in self.lookup {
             buf.write_all(commit_id.0.as_slice()).unwrap();
-            buf.write_u32::<LittleEndian>(pos).unwrap();
+            buf.write_u32::<LittleEndian>(pos.0).unwrap();
         }
 
         buf[parent_overflow_offset..parent_overflow_offset + 4]
@@ -539,14 +544,14 @@ impl MutableIndex {
             .write_u32::<LittleEndian>(parent_overflow.len() as u32)
             .unwrap();
         for parent_pos in parent_overflow {
-            buf.write_u32::<LittleEndian>(parent_pos).unwrap();
+            buf.write_u32::<LittleEndian>(parent_pos.0).unwrap();
         }
         buf[predecessor_overflow_offset..predecessor_overflow_offset + 4]
             .as_mut()
             .write_u32::<LittleEndian>(predecessor_overflow.len() as u32)
             .unwrap();
         for predecessor_pos in predecessor_overflow {
-            buf.write_u32::<LittleEndian>(predecessor_pos).unwrap();
+            buf.write_u32::<LittleEndian>(predecessor_pos.0).unwrap();
         }
 
         buf
@@ -621,7 +626,7 @@ impl MutableIndex {
         CompositeIndex(self).stats()
     }
 
-    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
+    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         CompositeIndex(self).commit_id_to_pos(commit_id)
     }
 
@@ -633,7 +638,7 @@ impl MutableIndex {
         CompositeIndex(self).entry_by_id(commit_id)
     }
 
-    pub fn entry_by_pos(&self, pos: u32) -> IndexEntry {
+    pub fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry {
         CompositeIndex(self).entry_by_pos(pos)
     }
 
@@ -677,7 +682,7 @@ trait IndexSegment {
 
     fn segment_name(&self) -> Option<String>;
 
-    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32>;
+    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition>;
 
     fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution;
 
@@ -691,13 +696,13 @@ trait IndexSegment {
 
     fn segment_num_parents(&self, local_pos: u32) -> u32;
 
-    fn segment_parent_positions(&self, local_pos: u32) -> Vec<u32>;
+    fn segment_parent_positions(&self, local_pos: u32) -> Vec<IndexPosition>;
 
     fn segment_num_predecessors(&self, local_pos: u32) -> u32;
 
-    fn segment_predecessor_positions(&self, local_pos: u32) -> Vec<u32>;
+    fn segment_predecessor_positions(&self, local_pos: u32) -> Vec<IndexPosition>;
 
-    fn segment_entry_by_pos(&self, pos: u32, local_pos: u32) -> IndexEntry;
+    fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry;
 }
 
 #[derive(Clone)]
@@ -716,13 +721,13 @@ impl<'a> CompositeIndex<'a> {
         let mut change_ids = HashSet::new();
         let mut num_pruned_commits = 0;
         for pos in 0..num_commits {
-            let entry = self.entry_by_pos(pos);
+            let entry = self.entry_by_pos(IndexPosition(pos));
             max_generation_number = max(max_generation_number, entry.generation_number());
             if entry.num_parents() > 1 {
                 num_merges += 1;
             }
             for parent_pos in entry.parent_positions() {
-                is_head[parent_pos as usize] = false;
+                is_head[parent_pos.0 as usize] = false;
             }
             if entry.is_pruned() {
                 num_pruned_commits += 1;
@@ -757,10 +762,10 @@ impl<'a> CompositeIndex<'a> {
         }
     }
 
-    fn entry_by_pos(&self, pos: u32) -> IndexEntry<'a> {
+    fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry<'a> {
         let num_parent_commits = self.0.segment_num_parent_commits();
-        if pos >= num_parent_commits {
-            self.0.segment_entry_by_pos(pos, pos - num_parent_commits)
+        if pos.0 >= num_parent_commits {
+            self.0.segment_entry_by_pos(pos, pos.0 - num_parent_commits)
         } else {
             let parent_file: &ReadonlyIndex =
                 self.0.segment_parent_file().as_ref().unwrap().as_ref();
@@ -771,7 +776,7 @@ impl<'a> CompositeIndex<'a> {
         }
     }
 
-    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
+    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         let local_match = self.0.segment_commit_id_to_pos(commit_id);
         local_match.or_else(|| {
             self.0
@@ -812,7 +817,7 @@ impl<'a> CompositeIndex<'a> {
         self.is_ancestor_pos(ancestor_pos, descendant_pos)
     }
 
-    fn is_ancestor_pos(&self, ancestor_pos: u32, descendant_pos: u32) -> bool {
+    fn is_ancestor_pos(&self, ancestor_pos: IndexPosition, descendant_pos: IndexPosition) -> bool {
         let ancestor_generation = self.entry_by_pos(ancestor_pos).generation_number();
         let mut work = vec![descendant_pos];
         let mut visited = HashSet::new();
@@ -848,7 +853,11 @@ impl<'a> CompositeIndex<'a> {
             .collect()
     }
 
-    fn common_ancestors_pos(&self, set1: &[u32], set2: &[u32]) -> BTreeSet<u32> {
+    fn common_ancestors_pos(
+        &self,
+        set1: &[IndexPosition],
+        set2: &[IndexPosition],
+    ) -> BTreeSet<IndexPosition> {
         let mut items1: BTreeSet<_> = set1
             .iter()
             .map(|pos| IndexEntryByGeneration(self.entry_by_pos(*pos)))
@@ -911,7 +920,10 @@ impl<'a> CompositeIndex<'a> {
             .collect()
     }
 
-    fn heads_pos(&self, mut candidate_positions: BTreeSet<u32>) -> BTreeSet<u32> {
+    fn heads_pos(
+        &self,
+        mut candidate_positions: BTreeSet<IndexPosition>,
+    ) -> BTreeSet<IndexPosition> {
         // Add all parents of the candidates to the work queue. The parents and their
         // ancestors are not heads.
         // Also find the smallest generation number among the candidates.
@@ -1017,8 +1029,8 @@ struct RevWalkWorkItem<'a> {
 pub struct RevWalk<'a> {
     index: CompositeIndex<'a>,
     items: BinaryHeap<RevWalkWorkItem<'a>>,
-    wanted_boundary_set: HashSet<u32>,
-    unwanted_boundary_set: HashSet<u32>,
+    wanted_boundary_set: HashSet<IndexPosition>,
+    unwanted_boundary_set: HashSet<IndexPosition>,
 }
 
 impl<'a> RevWalk<'a> {
@@ -1031,7 +1043,7 @@ impl<'a> RevWalk<'a> {
         }
     }
 
-    fn add_wanted(&mut self, pos: u32) {
+    fn add_wanted(&mut self, pos: IndexPosition) {
         if !self.wanted_boundary_set.insert(pos) {
             return;
         }
@@ -1041,7 +1053,7 @@ impl<'a> RevWalk<'a> {
         });
     }
 
-    fn add_unwanted(&mut self, pos: u32) {
+    fn add_unwanted(&mut self, pos: IndexPosition) {
         if !self.unwanted_boundary_set.insert(pos) {
             return;
         }
@@ -1095,7 +1107,7 @@ impl IndexSegment for ReadonlyIndex {
         Some(self.name.clone())
     }
 
-    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
+    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         if self.num_local_commits == 0 {
             // Avoid overflow when subtracting 1 below
             return None;
@@ -1129,7 +1141,7 @@ impl IndexSegment for ReadonlyIndex {
             None => PrefixResolution::NoMatch,
             Some(lookup_pos) => {
                 let mut first_match = None;
-                for i in lookup_pos..self.num_local_commits as u32 {
+                for i in lookup_pos.0..self.num_local_commits as u32 {
                     let entry = self.lookup_entry(i);
                     let id = entry.commit_id();
                     if !id.0.starts_with(&bytes_prefix.0) {
@@ -1171,7 +1183,7 @@ impl IndexSegment for ReadonlyIndex {
         self.graph_entry(local_pos).num_parents()
     }
 
-    fn segment_parent_positions(&self, local_pos: u32) -> Vec<u32> {
+    fn segment_parent_positions(&self, local_pos: u32) -> Vec<IndexPosition> {
         let graph_entry = self.graph_entry(local_pos);
         let mut parent_entries = vec![];
         if graph_entry.num_parents() >= 1 {
@@ -1191,7 +1203,7 @@ impl IndexSegment for ReadonlyIndex {
         self.graph_entry(local_pos).num_predecessors()
     }
 
-    fn segment_predecessor_positions(&self, local_pos: u32) -> Vec<u32> {
+    fn segment_predecessor_positions(&self, local_pos: u32) -> Vec<IndexPosition> {
         let graph_entry = self.graph_entry(local_pos);
         let mut predecessor_entries = vec![];
         if graph_entry.num_predecessors() >= 1 {
@@ -1207,7 +1219,7 @@ impl IndexSegment for ReadonlyIndex {
         predecessor_entries
     }
 
-    fn segment_entry_by_pos(&self, pos: u32, local_pos: u32) -> IndexEntry {
+    fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry {
         IndexEntry {
             source: self,
             local_pos,
@@ -1233,7 +1245,7 @@ impl IndexSegment for MutableIndex {
         None
     }
 
-    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
+    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         self.lookup.get(commit_id).cloned()
     }
 
@@ -1287,7 +1299,7 @@ impl IndexSegment for MutableIndex {
         self.graph[local_pos as usize].parent_positions.len() as u32
     }
 
-    fn segment_parent_positions(&self, local_pos: u32) -> Vec<u32> {
+    fn segment_parent_positions(&self, local_pos: u32) -> Vec<IndexPosition> {
         self.graph[local_pos as usize].parent_positions.clone()
     }
 
@@ -1295,11 +1307,11 @@ impl IndexSegment for MutableIndex {
         self.graph[local_pos as usize].predecessor_positions.len() as u32
     }
 
-    fn segment_predecessor_positions(&self, local_pos: u32) -> Vec<u32> {
+    fn segment_predecessor_positions(&self, local_pos: u32) -> Vec<IndexPosition> {
         self.graph[local_pos as usize].predecessor_positions.clone()
     }
 
-    fn segment_entry_by_pos(&self, pos: u32, local_pos: u32) -> IndexEntry {
+    fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry {
         IndexEntry {
             source: self,
             local_pos,
@@ -1311,7 +1323,7 @@ impl IndexSegment for MutableIndex {
 #[derive(Clone)]
 pub struct IndexEntry<'a> {
     source: &'a dyn IndexSegment,
-    pos: u32,
+    pos: IndexPosition,
     // Position within the source segment
     local_pos: u32,
 }
@@ -1339,7 +1351,7 @@ impl Hash for IndexEntry<'_> {
 }
 
 impl<'a> IndexEntry<'a> {
-    pub fn position(&self) -> u32 {
+    pub fn position(&self) -> IndexPosition {
         self.pos
     }
 
@@ -1363,7 +1375,7 @@ impl<'a> IndexEntry<'a> {
         self.source.segment_num_parents(self.local_pos)
     }
 
-    pub fn parent_positions(&self) -> Vec<u32> {
+    pub fn parent_positions(&self) -> Vec<IndexPosition> {
         self.source.segment_parent_positions(self.local_pos)
     }
 
@@ -1379,7 +1391,7 @@ impl<'a> IndexEntry<'a> {
         self.source.segment_num_predecessors(self.local_pos)
     }
 
-    pub fn predecessor_positions(&self) -> Vec<u32> {
+    pub fn predecessor_positions(&self) -> Vec<IndexPosition> {
         self.source.segment_predecessor_positions(self.local_pos)
     }
 
@@ -1461,7 +1473,7 @@ impl ReadonlyIndex {
         CompositeIndex(self).stats()
     }
 
-    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<u32> {
+    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         CompositeIndex(self).commit_id_to_pos(commit_id)
     }
 
@@ -1473,7 +1485,7 @@ impl ReadonlyIndex {
         CompositeIndex(self).entry_by_id(commit_id)
     }
 
-    pub fn entry_by_pos(&self, pos: u32) -> IndexEntry {
+    pub fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry {
         CompositeIndex(self).entry_by_pos(pos)
     }
 
@@ -1523,21 +1535,25 @@ impl ReadonlyIndex {
         }
     }
 
-    fn overflow_parent(&self, overflow_pos: u32) -> u32 {
+    fn overflow_parent(&self, overflow_pos: u32) -> IndexPosition {
         let offset = (overflow_pos as usize) * 4;
-        (&self.overflow_parent[offset..offset + 4])
-            .read_u32::<LittleEndian>()
-            .unwrap()
+        IndexPosition(
+            (&self.overflow_parent[offset..offset + 4])
+                .read_u32::<LittleEndian>()
+                .unwrap(),
+        )
     }
 
-    fn overflow_predecessor(&self, overflow_pos: u32) -> u32 {
+    fn overflow_predecessor(&self, overflow_pos: u32) -> IndexPosition {
         let offset = (overflow_pos as usize) * 4;
-        (&self.overflow_predecessor[offset..offset + 4])
-            .read_u32::<LittleEndian>()
-            .unwrap()
+        IndexPosition(
+            (&self.overflow_predecessor[offset..offset + 4])
+                .read_u32::<LittleEndian>()
+                .unwrap(),
+        )
     }
 
-    fn commit_id_byte_prefix_to_pos(&self, prefix: &CommitId) -> Option<u32> {
+    fn commit_id_byte_prefix_to_pos(&self, prefix: &CommitId) -> Option<IndexPosition> {
         if self.num_local_commits == 0 {
             // Avoid overflow when subtracting 1 below
             return None;
@@ -1553,7 +1569,7 @@ impl ReadonlyIndex {
             let entry_commit_id = entry.commit_id();
             let entry_prefix = &entry_commit_id.0[0..prefix_len];
             if high == low {
-                return Some(mid);
+                return Some(IndexPosition(mid));
             }
             if entry_prefix < prefix.0.as_slice() {
                 low = mid + 1;
@@ -1625,21 +1641,21 @@ mod tests {
         assert_eq!(stats.num_pruned_commits, 0);
         assert_eq!(index.num_commits(), 1);
         // Can find only the root commit
-        assert_eq!(index.commit_id_to_pos(&id_0), Some(0));
+        assert_eq!(index.commit_id_to_pos(&id_0), Some(IndexPosition(0)));
         assert_eq!(index.commit_id_to_pos(&CommitId::from_hex("aaaaaa")), None);
         assert_eq!(index.commit_id_to_pos(&CommitId::from_hex("ffffff")), None);
         // Check properties of root entry
         let entry = index.entry_by_id(&id_0).unwrap();
-        assert_eq!(entry.pos, 0);
+        assert_eq!(entry.pos, IndexPosition(0));
         assert_eq!(entry.commit_id(), id_0);
         assert_eq!(entry.change_id(), change_id0);
         assert!(!entry.is_pruned());
         assert_eq!(entry.generation_number(), 0);
         assert_eq!(entry.num_parents(), 0);
-        assert_eq!(entry.parent_positions(), Vec::<u32>::new());
+        assert_eq!(entry.parent_positions(), Vec::<IndexPosition>::new());
         assert_eq!(entry.parents(), Vec::<IndexEntry>::new());
         assert_eq!(entry.num_predecessors(), 0);
-        assert_eq!(entry.predecessor_positions(), Vec::<u32>::new());
+        assert_eq!(entry.predecessor_positions(), Vec::<IndexPosition>::new());
         assert_eq!(entry.predecessors(), Vec::<IndexEntry>::new());
     }
 
@@ -1756,47 +1772,53 @@ mod tests {
         let entry_4 = index.entry_by_id(&id_4).unwrap();
         let entry_5 = index.entry_by_id(&id_5).unwrap();
         // Check properties of some entries
-        assert_eq!(entry_0.pos, 0);
+        assert_eq!(entry_0.pos, IndexPosition(0));
         assert_eq!(entry_0.commit_id(), id_0);
-        assert_eq!(entry_1.pos, 1);
+        assert_eq!(entry_1.pos, IndexPosition(1));
         assert_eq!(entry_1.commit_id(), id_1);
         assert_eq!(entry_1.change_id(), change_id1);
         assert!(!entry_1.is_pruned());
         assert_eq!(entry_1.generation_number(), 1);
         assert_eq!(entry_1.num_parents(), 1);
-        assert_eq!(entry_1.parent_positions(), vec![0]);
+        assert_eq!(entry_1.parent_positions(), vec![IndexPosition(0)]);
         assert_eq!(entry_1.parents().len(), 1);
-        assert_eq!(entry_1.parents()[0].pos, 0);
+        assert_eq!(entry_1.parents()[0].pos, IndexPosition(0));
         assert_eq!(entry_1.num_predecessors(), 0);
-        assert_eq!(entry_1.predecessor_positions(), Vec::<u32>::new());
-        assert_eq!(entry_2.pos, 2);
+        assert_eq!(entry_1.predecessor_positions(), Vec::<IndexPosition>::new());
+        assert_eq!(entry_2.pos, IndexPosition(2));
         assert_eq!(entry_2.commit_id(), id_2);
         assert_eq!(entry_2.change_id(), change_id2);
         assert!(!entry_2.is_pruned());
         assert_eq!(entry_2.generation_number(), 1);
         assert_eq!(entry_2.num_parents(), 1);
-        assert_eq!(entry_2.parent_positions(), vec![0]);
+        assert_eq!(entry_2.parent_positions(), vec![IndexPosition(0)]);
         assert_eq!(entry_3.change_id(), change_id3);
         assert_eq!(entry_3.generation_number(), 2);
-        assert_eq!(entry_3.parent_positions(), vec![2]);
+        assert_eq!(entry_3.parent_positions(), vec![IndexPosition(2)]);
         assert!(entry_3.is_pruned());
-        assert_eq!(entry_4.pos, 4);
+        assert_eq!(entry_4.pos, IndexPosition(4));
         assert_eq!(entry_4.generation_number(), 2);
         assert_eq!(entry_4.num_parents(), 1);
-        assert_eq!(entry_4.parent_positions(), vec![1]);
+        assert_eq!(entry_4.parent_positions(), vec![IndexPosition(1)]);
         assert_eq!(entry_4.num_predecessors(), 2);
-        assert_eq!(entry_4.predecessor_positions(), vec![2, 3]);
+        assert_eq!(
+            entry_4.predecessor_positions(),
+            vec![IndexPosition(2), IndexPosition(3)]
+        );
         assert_eq!(entry_4.predecessors().len(), 2);
-        assert_eq!(entry_4.predecessors()[0].pos, 2);
-        assert_eq!(entry_4.predecessors()[1].pos, 3);
+        assert_eq!(entry_4.predecessors()[0].pos, IndexPosition(2));
+        assert_eq!(entry_4.predecessors()[1].pos, IndexPosition(3));
         assert_eq!(entry_5.generation_number(), 3);
         assert_eq!(entry_5.num_parents(), 2);
-        assert_eq!(entry_5.parent_positions(), vec![4, 2]);
+        assert_eq!(
+            entry_5.parent_positions(),
+            vec![IndexPosition(4), IndexPosition(2)]
+        );
         assert_eq!(entry_5.parents().len(), 2);
-        assert_eq!(entry_5.parents()[0].pos, 4);
-        assert_eq!(entry_5.parents()[1].pos, 2);
+        assert_eq!(entry_5.parents()[0].pos, IndexPosition(4));
+        assert_eq!(entry_5.parents()[1].pos, IndexPosition(2));
         assert_eq!(entry_5.num_predecessors(), 0);
-        assert_eq!(entry_5.predecessor_positions(), Vec::<u32>::new());
+        assert_eq!(entry_5.predecessor_positions(), Vec::<IndexPosition>::new());
     }
 
     #[test_case(false; "in memory")]
@@ -1876,7 +1898,16 @@ mod tests {
         let entry_6 = index.entry_by_id(&id_6).unwrap();
         assert_eq!(entry_6.commit_id(), id_6.clone());
         assert_eq!(entry_6.num_parents(), 5);
-        assert_eq!(entry_6.parent_positions(), vec![1, 2, 3, 4, 5]);
+        assert_eq!(
+            entry_6.parent_positions(),
+            vec![
+                IndexPosition(1),
+                IndexPosition(2),
+                IndexPosition(3),
+                IndexPosition(4),
+                IndexPosition(5)
+            ]
+        );
         assert_eq!(entry_6.generation_number(), 2);
     }
 

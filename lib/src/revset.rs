@@ -22,7 +22,7 @@ use pest::Parser;
 use thiserror::Error;
 
 use crate::commit::Commit;
-use crate::index::{HexPrefix, IndexEntry, PrefixResolution, RevWalk};
+use crate::index::{HexPrefix, IndexEntry, IndexPosition, PrefixResolution, RevWalk};
 use crate::repo::RepoRef;
 use crate::store::{CommitId, StoreError};
 
@@ -532,7 +532,7 @@ impl<'repo> Revset<'repo> for ChildrenRevset<'_, 'repo> {
 
 struct ChildrenRevsetIterator<'revset, 'repo> {
     candidate_iter: Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>,
-    roots: HashSet<u32>,
+    roots: HashSet<IndexPosition>,
 }
 
 impl<'repo> Iterator for ChildrenRevsetIterator<'_, 'repo> {
