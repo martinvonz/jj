@@ -119,6 +119,7 @@ pub enum RevsetExpression {
     },
     AllHeads,
     PublicHeads,
+    GitRefs,
     NonObsoleteHeads(Rc<RevsetExpression>),
     Description {
         needle: String,
@@ -403,6 +404,16 @@ fn parse_function_expression(
         "public_heads" => {
             if arg_count == 0 {
                 Ok(RevsetExpression::PublicHeads)
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 0 arguments".to_string(),
+                })
+            }
+        }
+        "git_refs" => {
+            if arg_count == 0 {
+                Ok(RevsetExpression::GitRefs)
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -726,7 +737,7 @@ pub fn evaluate_expression<'revset, 'repo: 'revset>(
             let mut parent_entries: Vec<_> =
                 base_set.iter().flat_map(|entry| entry.parents()).collect();
             parent_entries.sort_by_key(|b| Reverse(b.position()));
-            parent_entries.dedup_by_key(|entry| entry.position());
+            parent_entries.dedup();
             Ok(Box::new(EagerRevset {
                 index_entries: parent_entries,
             }))
@@ -802,6 +813,18 @@ pub fn evaluate_expression<'revset, 'repo: 'revset>(
             index_entries.sort_by_key(|b| Reverse(b.position()));
             Ok(Box::new(EagerRevset { index_entries }))
         }
+        RevsetExpression::GitRefs => {
+            let index = repo.index();
+            let mut index_entries: Vec<_> = repo
+                .view()
+                .git_refs()
+                .values()
+                .map(|id| index.entry_by_id(id).unwrap())
+                .collect();
+            index_entries.sort_by_key(|b| Reverse(b.position()));
+            index_entries.dedup();
+            Ok(Box::new(EagerRevset { index_entries }))
+        }
         RevsetExpression::Description {
             needle,
             candidates: base_expression,
@@ -869,7 +892,6 @@ fn non_obsolete_heads<'revset, 'repo: 'revset>(
         .iter()
         .map(|id| index.entry_by_id(id).unwrap())
         .collect();
-    index_entries.sort_by_key(|b| Reverse(b.position()));
     index_entries.sort_by_key(|b| Reverse(b.position()));
     Box::new(EagerRevset { index_entries })
 }

@@ -716,6 +716,41 @@ fn test_evaluate_expression_public_heads(use_git: bool) {
 
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
+fn test_evaluate_expression_git_refs(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+
+    // Can get git refs when there are none
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "git_refs()"),
+        vec![]
+    );
+    // Can get a mix of git refs
+    mut_repo.insert_git_ref("refs/heads/branch1".to_string(), commit1.id().clone());
+    mut_repo.insert_git_ref("refs/tags/tag1".to_string(), commit2.id().clone());
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "git_refs()"),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    // Two refs pointing to the same commit does not result in a duplicate in the
+    // revset
+    mut_repo.insert_git_ref("refs/tags/tag2".to_string(), commit2.id().clone());
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "git_refs()"),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
 fn test_evaluate_expression_obsolete(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
