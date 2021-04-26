@@ -14,6 +14,7 @@
 
 extern crate pest;
 
+use chrono::{FixedOffset, TimeZone, Utc};
 use jujube_lib::commit::Commit;
 use jujube_lib::repo::RepoRef;
 use jujube_lib::store::{CommitId, Signature};
@@ -90,6 +91,20 @@ struct SignatureEmail;
 impl TemplateProperty<Signature, String> for SignatureEmail {
     fn extract(&self, context: &Signature) -> String {
         context.email.clone()
+    }
+}
+
+struct SignatureTimestamp;
+
+impl TemplateProperty<Signature, String> for SignatureTimestamp {
+    fn extract(&self, context: &Signature) -> String {
+        let utc = Utc
+            .timestamp(
+                context.timestamp.timestamp.0 as i64 / 1000,
+                (context.timestamp.timestamp.0 % 1000) as u32 * 1000000,
+            )
+            .with_timezone(&FixedOffset::east(context.timestamp.tz_offset * 60));
+        utc.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string()
     }
 }
 
@@ -177,6 +192,7 @@ fn parse_signature_method<'a>(method: Pair<Rule>) -> Property<'a, Signature> {
         //       `author % (name "<" email ">")`)?
         "name" => Property::String(Box::new(SignatureName)),
         "email" => Property::String(Box::new(SignatureEmail)),
+        "timestamp" => Property::String(Box::new(SignatureTimestamp)),
         name => panic!("no such commit id method: {}", name),
     };
     let chain_method = inner.last().unwrap();
