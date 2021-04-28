@@ -471,7 +471,25 @@ pub fn parse(revset_str: &str) -> Result<RevsetExpression, RevsetParseError> {
 
 pub trait Revset<'repo> {
     // All revsets currently iterate in order of descending index position
-    fn iter<'revset>(&'revset self) -> Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>;
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo>;
+}
+
+pub struct RevsetIterator<'revset, 'repo: 'revset> {
+    inner: Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>,
+}
+
+impl<'revset, 'repo> RevsetIterator<'revset, 'repo> {
+    fn new(inner: Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>) -> Self {
+        Self { inner }
+    }
+}
+
+impl<'repo> Iterator for RevsetIterator<'_, 'repo> {
+    type Item = IndexEntry<'repo>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
 }
 
 struct EagerRevset<'repo> {
@@ -479,8 +497,8 @@ struct EagerRevset<'repo> {
 }
 
 impl<'repo> Revset<'repo> for EagerRevset<'repo> {
-    fn iter<'revset>(&'revset self) -> Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset> {
-        Box::new(self.index_entries.iter().cloned())
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
+        RevsetIterator::new(Box::new(self.index_entries.iter().cloned()))
     }
 }
 
@@ -489,10 +507,10 @@ struct RevWalkRevset<'repo> {
 }
 
 impl<'repo> Revset<'repo> for RevWalkRevset<'repo> {
-    fn iter<'revset>(&'revset self) -> Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset> {
-        Box::new(RevWalkRevsetIterator {
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
+        RevsetIterator::new(Box::new(RevWalkRevsetIterator {
             walk: self.walk.clone(),
-        })
+        }))
     }
 }
 
@@ -516,22 +534,22 @@ struct ChildrenRevset<'revset, 'repo: 'revset> {
 }
 
 impl<'repo> Revset<'repo> for ChildrenRevset<'_, 'repo> {
-    fn iter<'revset>(&'revset self) -> Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset> {
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
         let roots = self
             .root_set
             .iter()
             .map(|parent| parent.position())
             .collect();
 
-        Box::new(ChildrenRevsetIterator {
+        RevsetIterator::new(Box::new(ChildrenRevsetIterator {
             candidate_iter: self.candidate_set.iter(),
             roots,
-        })
+        }))
     }
 }
 
 struct ChildrenRevsetIterator<'revset, 'repo> {
-    candidate_iter: Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>,
+    candidate_iter: RevsetIterator<'revset, 'repo>,
     roots: HashSet<IndexPosition>,
 }
 
@@ -558,17 +576,17 @@ struct UnionRevset<'revset, 'repo: 'revset> {
 }
 
 impl<'repo> Revset<'repo> for UnionRevset<'_, 'repo> {
-    fn iter<'revset>(&'revset self) -> Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset> {
-        Box::new(UnionRevsetIterator {
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
+        RevsetIterator::new(Box::new(UnionRevsetIterator {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
-        })
+        }))
     }
 }
 
 struct UnionRevsetIterator<'revset, 'repo> {
-    iter1: Peekable<Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>>,
-    iter2: Peekable<Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>>,
+    iter1: Peekable<RevsetIterator<'revset, 'repo>>,
+    iter2: Peekable<RevsetIterator<'revset, 'repo>>,
 }
 
 impl<'revset, 'repo> Iterator for UnionRevsetIterator<'revset, 'repo> {
@@ -596,17 +614,17 @@ struct IntersectionRevset<'revset, 'repo: 'revset> {
 }
 
 impl<'repo> Revset<'repo> for IntersectionRevset<'_, 'repo> {
-    fn iter<'revset>(&'revset self) -> Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset> {
-        Box::new(IntersectionRevsetIterator {
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
+        RevsetIterator::new(Box::new(IntersectionRevsetIterator {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
-        })
+        }))
     }
 }
 
 struct IntersectionRevsetIterator<'revset, 'repo> {
-    iter1: Peekable<Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>>,
-    iter2: Peekable<Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>>,
+    iter1: Peekable<RevsetIterator<'revset, 'repo>>,
+    iter2: Peekable<RevsetIterator<'revset, 'repo>>,
 }
 
 impl<'revset, 'repo> Iterator for IntersectionRevsetIterator<'revset, 'repo> {
@@ -646,17 +664,17 @@ struct DifferenceRevset<'revset, 'repo: 'revset> {
 }
 
 impl<'repo> Revset<'repo> for DifferenceRevset<'_, 'repo> {
-    fn iter<'revset>(&'revset self) -> Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset> {
-        Box::new(DifferenceRevsetIterator {
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
+        RevsetIterator::new(Box::new(DifferenceRevsetIterator {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
-        })
+        }))
     }
 }
 
 struct DifferenceRevsetIterator<'revset, 'repo> {
-    iter1: Peekable<Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>>,
-    iter2: Peekable<Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>>,
+    iter1: Peekable<RevsetIterator<'revset, 'repo>>,
+    iter2: Peekable<RevsetIterator<'revset, 'repo>>,
 }
 
 impl<'revset, 'repo> Iterator for DifferenceRevsetIterator<'revset, 'repo> {
