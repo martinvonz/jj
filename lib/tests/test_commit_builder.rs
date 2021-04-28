@@ -42,7 +42,7 @@ fn test_initial(use_git: bool) {
 
     assert_eq!(commit.parents(), vec![store.root_commit()]);
     assert_eq!(commit.predecessors(), vec![]);
-    assert_eq!(commit.is_open(), false);
+    assert!(!commit.is_open());
     assert_eq!(commit.description(), "");
     assert_eq!(commit.author().name, settings.user_name());
     assert_eq!(commit.author().email, settings.user_email());
@@ -104,7 +104,7 @@ fn test_rewrite(use_git: bool) {
         rewritten_commit.predecessors(),
         vec![initial_commit.clone()]
     );
-    assert_eq!(rewritten_commit.is_open(), false);
+    assert!(!rewritten_commit.is_open());
     assert_eq!(rewritten_commit.author().name, settings.user_name());
     assert_eq!(rewritten_commit.author().email, settings.user_email());
     assert_eq!(

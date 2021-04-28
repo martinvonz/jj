@@ -543,8 +543,8 @@ mod tests {
         assert_eq!(commit.parents, vec![]);
         assert_eq!(commit.predecessors, vec![]);
         assert_eq!(commit.root_tree.0.as_slice(), root_tree_id.as_bytes());
-        assert_eq!(commit.is_open, false);
-        assert_eq!(commit.is_pruned, false);
+        assert!(!commit.is_open);
+        assert!(!commit.is_pruned);
         assert_eq!(commit.description, "git commit message");
         assert_eq!(commit.author.name, "git author");
         assert_eq!(commit.author.email, "git.author@example.com");

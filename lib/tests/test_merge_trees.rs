@@ -76,7 +76,7 @@ fn test_same_type(use_git: bool) {
     // Check that we have exactly the paths we expect in the merged tree
     let names: Vec<&str> = merged_tree
         .entries_non_recursive()
-        .map(|entry| entry.name().as_ref())
+        .map(|entry| entry.name())
         .collect();
     assert_eq!(
         names,

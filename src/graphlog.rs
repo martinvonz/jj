@@ -242,7 +242,6 @@ where
             for _ in self.edges.len() + 1..pad_to_index {
                 self.writer.write_all(b"  ")?;
             }
-            self.maybe_write_pending_text()?;
         } else {
             // If we're merging more than one step to the left, we need two rows:
             // | |_|_|/
@@ -273,8 +272,8 @@ where
             for _ in self.edges.len()..pad_to_index {
                 self.writer.write_all(b"  ")?;
             }
-            self.maybe_write_pending_text()?;
         }
+        self.maybe_write_pending_text()?;
 
         Ok(())
     }

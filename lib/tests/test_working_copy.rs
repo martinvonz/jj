@@ -43,7 +43,7 @@ fn test_root(use_git: bool) {
     assert_eq!(wc_commit.store_commit().parents, vec![]);
     assert_eq!(wc_commit.predecessors(), vec![]);
     assert_eq!(wc_commit.description(), "");
-    assert_eq!(wc_commit.is_open(), true);
+    assert!(wc_commit.is_open());
     assert_eq!(wc_commit.author().name, settings.user_name());
     assert_eq!(wc_commit.author().email, settings.user_email());
     assert_eq!(wc_commit.committer().name, settings.user_name());
@@ -191,12 +191,12 @@ fn test_checkout_file_transitions(use_git: bool) {
         let maybe_metadata = wc_path.symlink_metadata();
         match right_kind {
             Kind::Missing => {
-                assert_eq!(maybe_metadata.is_ok(), false, "{:?} should not exist", path);
+                assert!(!maybe_metadata.is_ok(), "{:?} should not exist", path);
             }
             Kind::Normal => {
-                assert_eq!(maybe_metadata.is_ok(), true, "{:?} should exist", path);
+                assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
                 let metadata = maybe_metadata.unwrap();
-                assert_eq!(metadata.is_file(), true, "{:?} should be a file", path);
+                assert!(metadata.is_file(), "{:?} should be a file", path);
                 #[cfg(unix)]
                 assert_eq!(
                     metadata.permissions().mode() & 0o111,
@@ -206,9 +206,9 @@ fn test_checkout_file_transitions(use_git: bool) {
                 );
             }
             Kind::Executable => {
-                assert_eq!(maybe_metadata.is_ok(), true, "{:?} should exist", path);
+                assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
                 let metadata = maybe_metadata.unwrap();
-                assert_eq!(metadata.is_file(), true, "{:?} should be a file", path);
+                assert!(metadata.is_file(), "{:?} should be a file", path);
                 #[cfg(unix)]
                 assert_ne!(
                     metadata.permissions().mode() & 0o111,
@@ -218,23 +218,22 @@ fn test_checkout_file_transitions(use_git: bool) {
                 );
             }
             Kind::Symlink => {
-                assert_eq!(maybe_metadata.is_ok(), true, "{:?} should exist", path);
+                assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
                 let metadata = maybe_metadata.unwrap();
-                assert_eq!(
+                assert!(
                     metadata.file_type().is_symlink(),
-                    true,
                     "{:?} should be a symlink",
                     path
                 );
             }
             Kind::Tree => {
-                assert_eq!(maybe_metadata.is_ok(), true, "{:?} should exist", path);
+                assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
                 let metadata = maybe_metadata.unwrap();
-                assert_eq!(metadata.is_dir(), true, "{:?} should be a directory", path);
+                assert!(metadata.is_dir(), "{:?} should be a directory", path);
             }
             Kind::GitSubmodule => {
                 // Not supported for now
-                assert_eq!(maybe_metadata.is_ok(), false, "{:?} should not exist", path);
+                assert!(!maybe_metadata.is_ok(), "{:?} should not exist", path);
             }
         };
     }

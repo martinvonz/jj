@@ -1633,7 +1633,7 @@ mod tests {
         assert_eq!(entry.pos, 0);
         assert_eq!(entry.commit_id(), id_0);
         assert_eq!(entry.change_id(), change_id0);
-        assert_eq!(entry.is_pruned(), false);
+        assert!(!entry.is_pruned());
         assert_eq!(entry.generation_number(), 0);
         assert_eq!(entry.num_parents(), 0);
         assert_eq!(entry.parent_positions(), Vec::<u32>::new());
@@ -1761,7 +1761,7 @@ mod tests {
         assert_eq!(entry_1.pos, 1);
         assert_eq!(entry_1.commit_id(), id_1);
         assert_eq!(entry_1.change_id(), change_id1);
-        assert_eq!(entry_1.is_pruned(), false);
+        assert!(!entry_1.is_pruned());
         assert_eq!(entry_1.generation_number(), 1);
         assert_eq!(entry_1.num_parents(), 1);
         assert_eq!(entry_1.parent_positions(), vec![0]);
@@ -1772,14 +1772,14 @@ mod tests {
         assert_eq!(entry_2.pos, 2);
         assert_eq!(entry_2.commit_id(), id_2);
         assert_eq!(entry_2.change_id(), change_id2);
-        assert_eq!(entry_2.is_pruned(), false);
+        assert!(!entry_2.is_pruned());
         assert_eq!(entry_2.generation_number(), 1);
         assert_eq!(entry_2.num_parents(), 1);
         assert_eq!(entry_2.parent_positions(), vec![0]);
         assert_eq!(entry_3.change_id(), change_id3);
         assert_eq!(entry_3.generation_number(), 2);
         assert_eq!(entry_3.parent_positions(), vec![2]);
-        assert_eq!(entry_3.is_pruned(), true);
+        assert!(entry_3.is_pruned());
         assert_eq!(entry_4.pos, 4);
         assert_eq!(entry_4.generation_number(), 2);
         assert_eq!(entry_4.num_parents(), 1);

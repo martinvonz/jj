@@ -346,12 +346,12 @@ mod tests {
 
     #[test]
     fn is_root() {
-        assert_eq!(RepoPath::root().is_root(), true);
-        assert_eq!(RepoPath::from("").is_root(), true);
-        assert_eq!(RepoPath::from("foo").is_root(), false);
-        assert_eq!(DirRepoPath::root().is_root(), true);
-        assert_eq!(DirRepoPath::from("").is_root(), true);
-        assert_eq!(DirRepoPath::from("foo/").is_root(), false);
+        assert!(RepoPath::root().is_root());
+        assert!(RepoPath::from("").is_root());
+        assert!(!RepoPath::from("foo").is_root());
+        assert!(DirRepoPath::root().is_root());
+        assert!(DirRepoPath::from("").is_root());
+        assert!(!DirRepoPath::from("foo/").is_root());
     }
 
     #[test]
@@ -375,35 +375,17 @@ mod tests {
 
     #[test]
     fn order() {
-        assert_eq!(DirRepoPath::root() < DirRepoPath::from("dir/"), true);
-        assert_eq!(DirRepoPath::from("dir/") < DirRepoPath::from("dirx/"), true);
+        assert!(DirRepoPath::root() < DirRepoPath::from("dir/"));
+        assert!(DirRepoPath::from("dir/") < DirRepoPath::from("dirx/"));
         // '#' < '/'
-        assert_eq!(DirRepoPath::from("dir/") < DirRepoPath::from("dir#/"), true);
-        assert_eq!(
-            DirRepoPath::from("dir/") < DirRepoPath::from("dir/sub/"),
-            true
-        );
+        assert!(DirRepoPath::from("dir/") < DirRepoPath::from("dir#/"));
+        assert!(DirRepoPath::from("dir/") < DirRepoPath::from("dir/sub/"));
 
-        assert_eq!(
-            FileRepoPath::from("abc") < FileRepoPath::from("dir/file"),
-            true
-        );
-        assert_eq!(
-            FileRepoPath::from("dir") < FileRepoPath::from("dir/file"),
-            true
-        );
-        assert_eq!(
-            FileRepoPath::from("dis") < FileRepoPath::from("dir/file"),
-            true
-        );
-        assert_eq!(
-            FileRepoPath::from("xyz") < FileRepoPath::from("dir/file"),
-            true
-        );
-        assert_eq!(
-            FileRepoPath::from("dir1/xyz") < FileRepoPath::from("dir2/abc"),
-            true
-        );
+        assert!(FileRepoPath::from("abc") < FileRepoPath::from("dir/file"));
+        assert!(FileRepoPath::from("dir") < FileRepoPath::from("dir/file"));
+        assert!(FileRepoPath::from("dis") < FileRepoPath::from("dir/file"));
+        assert!(FileRepoPath::from("xyz") < FileRepoPath::from("dir/file"));
+        assert!(FileRepoPath::from("dir1/xyz") < FileRepoPath::from("dir2/abc"));
     }
 
     #[test]

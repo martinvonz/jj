@@ -191,8 +191,8 @@ mod tests {
     #[test]
     fn filesmatcher_empty() {
         let m = FilesMatcher::new(HashSet::new());
-        assert_eq!(m.matches(&FileRepoPath::from("file")), false);
-        assert_eq!(m.matches(&FileRepoPath::from("dir/file")), false);
+        assert!(!m.matches(&FileRepoPath::from("file")));
+        assert!(!m.matches(&FileRepoPath::from("dir/file")));
         assert_eq!(
             m.visit(&DirRepoPath::root()),
             Visit {
