@@ -160,26 +160,33 @@ fn find_lcs(input: &[usize]) -> Vec<(usize, usize)> {
     }
 
     let mut chain = vec![(0, 0, 0); input.len()];
-    let mut longest = 0;
-    let mut longest_right_pos = 0;
+    let mut global_longest = 0;
+    let mut global_longest_right_pos = 0;
     for (right_pos, &left_pos) in input.iter().enumerate() {
-        chain[right_pos] = (1, left_pos, usize::MAX);
+        let mut longest_from_here = 1;
+        let mut previous_right_pos = usize::MAX;
         for i in (0..right_pos).rev() {
             let (previous_len, previous_left_pos, _) = chain[i];
             if previous_left_pos < left_pos {
                 let len = previous_len + 1;
-                chain[right_pos] = (len, left_pos, i);
-                if len > longest {
-                    longest = len;
-                    longest_right_pos = right_pos;
+                if len > longest_from_here {
+                    longest_from_here = len;
+                    previous_right_pos = i;
+                    if len > global_longest {
+                        global_longest = len;
+                        global_longest_right_pos = right_pos;
+                        // If this is the longest chain globally so far, we cannot find a
+                        // longer one by using a previous value, so break early.
+                        break;
+                    }
                 }
-                break;
             }
         }
+        chain[right_pos] = (longest_from_here, left_pos, previous_right_pos);
     }
 
     let mut result = vec![];
-    let mut right_pos = longest_right_pos;
+    let mut right_pos = global_longest_right_pos;
     loop {
         let (_, left_pos, previous_right_pos) = chain[right_pos];
         result.push((left_pos, right_pos));
@@ -575,6 +582,14 @@ mod tests {
         assert_eq!(
             find_lcs(&[0, 1, 4, 2, 3, 5, 6]),
             vec![(0, 0), (1, 1), (2, 3), (3, 4), (5, 5), (6, 6)]
+        );
+    }
+
+    #[test]
+    fn test_find_lcs_element_moved_later() {
+        assert_eq!(
+            find_lcs(&[0, 1, 3, 4, 2, 5, 6]),
+            vec![(0, 0), (1, 1), (3, 2), (4, 3), (5, 5), (6, 6)]
         );
     }
 
