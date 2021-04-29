@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cmp::max;
 use std::thread;
 
 use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::{dag_walk, testutils};
 use test_case::test_case;
 
-fn count_non_merge_operations(repo: &ReadonlyRepo) -> u32 {
+fn count_non_merge_operations(repo: &ReadonlyRepo) -> usize {
     let op_store = repo.op_store();
     let op_id = repo.op_id().clone();
     let mut num_ops = 0;
@@ -45,8 +46,9 @@ fn test_commit_parallel(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
+    let num_threads = max(num_cpus::get(), 4);
     let mut threads = vec![];
-    for _ in 0..100 {
+    for _ in 0..num_threads {
         let settings = settings.clone();
         let repo = repo.clone();
         let handle = thread::spawn(move || {
@@ -61,11 +63,11 @@ fn test_commit_parallel(use_git: bool) {
     let repo = repo.reload().unwrap();
     // One commit per thread plus the commit from the initial checkout on top of the
     // root commit
-    assert_eq!(repo.view().heads().len(), 101);
+    assert_eq!(repo.view().heads().len(), num_threads + 1);
 
     // One operation for initializing the repo (containing the root id and the
     // initial working copy commit).
-    assert_eq!(count_non_merge_operations(&repo), 101);
+    assert_eq!(count_non_merge_operations(&repo), num_threads + 1);
 }
 
 #[cfg(unix)]
@@ -77,8 +79,9 @@ fn test_commit_parallel_instances(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
+    let num_threads = max(num_cpus::get(), 4);
     let mut threads = vec![];
-    for _ in 0..100 {
+    for _ in 0..num_threads {
         let settings = settings.clone();
         let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
         let handle = thread::spawn(move || {
@@ -93,9 +96,9 @@ fn test_commit_parallel_instances(use_git: bool) {
     // One commit per thread plus the commit from the initial checkout on top of the
     // root commit
     let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
-    assert_eq!(repo.view().heads().len(), 101);
+    assert_eq!(repo.view().heads().len(), num_threads + 1);
 
     // One operation for initializing the repo (containing the root id and the
     // initial working copy commit).
-    assert_eq!(count_non_merge_operations(&repo), 101);
+    assert_eq!(count_non_merge_operations(&repo), num_threads + 1);
 }

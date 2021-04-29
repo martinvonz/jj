@@ -582,6 +582,7 @@ dependencies = [
  "git2",
  "hex",
  "maplit",
+ "num_cpus",
  "pest",
  "pest_derive",
  "protobuf",

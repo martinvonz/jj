@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cmp::max;
 use std::collections::HashSet;
 use std::thread;
 
@@ -104,8 +105,9 @@ fn test_checkout_parallel(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store();
 
+    let num_threads = max(num_cpus::get(), 4);
     let mut commit_ids = vec![];
-    for i in 0..100 {
+    for i in 0..num_threads {
         let path = FileRepoPath::from(format!("file{}", i).as_str());
         let tree = testutils::create_tree(&repo, &[(&path, "contents")]);
         let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())

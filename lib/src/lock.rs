@@ -65,6 +65,7 @@ impl Drop for FileLock {
 
 #[cfg(test)]
 mod tests {
+    use std::cmp::max;
     use std::{env, thread};
 
     use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -94,8 +95,9 @@ mod tests {
             .open(data_path.clone())
             .unwrap();
         data_file.write_u32::<LittleEndian>(0).unwrap();
+        let num_threads = max(num_cpus::get(), 4);
         let mut threads = vec![];
-        for _ in 0..100 {
+        for _ in 0..num_threads {
             let data_path = data_path.clone();
             let lock_path = lock_path.clone();
             let handle = thread::spawn(move || {
@@ -116,6 +118,6 @@ mod tests {
         }
         let mut data_file = OpenOptions::new().read(true).open(data_path).unwrap();
         let value = data_file.read_u32::<LittleEndian>().unwrap();
-        assert_eq!(value, 100);
+        assert_eq!(value, num_threads as u32);
     }
 }
