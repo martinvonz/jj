@@ -19,6 +19,7 @@ use jujube_lib::repo_path::FileRepoPath;
 use jujube_lib::store::{Conflict, ConflictId, ConflictPart, TreeValue};
 use jujube_lib::store_wrapper::StoreWrapper;
 use jujube_lib::testutils;
+use jujube_lib::testutils::CommitGraphBuilder;
 use test_case::test_case;
 
 // TODO Many of the tests here are not run with Git because they end up creating
@@ -350,13 +351,10 @@ fn test_add_head_ancestor(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
-    let commit2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(tx.mut_repo());
-    let _commit3 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(tx.mut_repo());
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let _commit3 = graph_builder.commit_with_parents(&[&commit2]);
     tx.commit();
     let repo = repo.reload().unwrap();
 
@@ -435,13 +433,10 @@ fn test_remove_head(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
-    let commit2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(tx.mut_repo());
-    let commit3 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(tx.mut_repo());
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
     tx.commit();
     let repo = repo.reload().unwrap();
 
@@ -477,15 +472,12 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
-    mut_repo.insert_git_ref("refs/heads/main".to_string(), commit1.id().clone());
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    tx.mut_repo()
+        .insert_git_ref("refs/heads/main".to_string(), commit1.id().clone());
     tx.commit();
     let repo = repo.reload().unwrap();
 
@@ -539,12 +531,10 @@ fn test_add_public_head_ancestor(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    mut_repo.add_public_head(&commit2);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    tx.mut_repo().add_public_head(&commit2);
     tx.commit();
     let repo = repo.reload().unwrap();
 

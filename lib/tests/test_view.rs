@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use jujube_lib::testutils;
+use jujube_lib::testutils::CommitGraphBuilder;
 use maplit::hashset;
 use test_case::test_case;
 
@@ -37,15 +38,10 @@ fn test_heads_fork(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let mut tx = repo.start_transaction("test");
 
-    let initial = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![repo.store().root_commit_id().clone()])
-        .write_to_repo(tx.mut_repo());
-    let child1 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![initial.id().clone()])
-        .write_to_repo(tx.mut_repo());
-    let child2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![initial.id().clone()])
-        .write_to_repo(tx.mut_repo());
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let initial = graph_builder.initial_commit();
+    let child1 = graph_builder.commit_with_parents(&[&initial]);
+    let child2 = graph_builder.commit_with_parents(&[&initial]);
 
     let wc = repo.working_copy_locked();
     assert_eq!(
@@ -66,18 +62,11 @@ fn test_heads_merge(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let mut tx = repo.start_transaction("test");
 
-    let initial = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![repo.store().root_commit_id().clone()])
-        .write_to_repo(tx.mut_repo());
-    let child1 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![initial.id().clone()])
-        .write_to_repo(tx.mut_repo());
-    let child2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![initial.id().clone()])
-        .write_to_repo(tx.mut_repo());
-    let merge = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![child1.id().clone(), child2.id().clone()])
-        .write_to_repo(tx.mut_repo());
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let initial = graph_builder.initial_commit();
+    let child1 = graph_builder.commit_with_parents(&[&initial]);
+    let child2 = graph_builder.commit_with_parents(&[&initial]);
+    let merge = graph_builder.commit_with_parents(&[&child1, &child2]);
 
     let wc = repo.working_copy_locked();
     assert_eq!(

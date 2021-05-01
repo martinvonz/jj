@@ -21,7 +21,7 @@ use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::settings::UserSettings;
 use jujube_lib::store::CommitId;
 use jujube_lib::testutils;
-use jujube_lib::testutils::create_random_commit;
+use jujube_lib::testutils::{create_random_commit, CommitGraphBuilder};
 use test_case::test_case;
 
 #[must_use]
@@ -85,16 +85,15 @@ fn test_index_commits_standard_cases(use_git: bool) {
     let root_commit = repo.store().root_commit();
     let wc_commit = repo.working_copy_locked().current_commit();
     let mut tx = repo.start_transaction("test");
-    let commit_a = child_commit(&settings, &repo, &root_commit).write_to_repo(tx.mut_repo());
-    let commit_b = child_commit(&settings, &repo, &commit_a).write_to_repo(tx.mut_repo());
-    let commit_c = child_commit(&settings, &repo, &commit_a).write_to_repo(tx.mut_repo());
-    let commit_d = child_commit(&settings, &repo, &commit_c).write_to_repo(tx.mut_repo());
-    let commit_e = child_commit(&settings, &repo, &commit_d).write_to_repo(tx.mut_repo());
-    let commit_f = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit_b.id().clone(), commit_e.id().clone()])
-        .write_to_repo(tx.mut_repo());
-    let commit_g = child_commit(&settings, &repo, &commit_f).write_to_repo(tx.mut_repo());
-    let commit_h = child_commit(&settings, &repo, &commit_e).write_to_repo(tx.mut_repo());
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_d = graph_builder.commit_with_parents(&[&commit_c]);
+    let commit_e = graph_builder.commit_with_parents(&[&commit_d]);
+    let commit_f = graph_builder.commit_with_parents(&[&commit_b, &commit_e]);
+    let commit_g = graph_builder.commit_with_parents(&[&commit_f]);
+    let commit_h = graph_builder.commit_with_parents(&[&commit_e]);
     tx.commit();
     repo = repo.reload().unwrap();
 
@@ -141,29 +140,19 @@ fn test_index_commits_criss_cross(use_git: bool) {
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
 
     let num_generations = 50;
-    let root_commit = repo.store().root_commit();
 
     // Create a long chain of criss-crossed merges. If they were traversed without
     // keeping track of visited nodes, it would be 2^50 visits, so if this test
     // finishes in reasonable time, we know that we don't do a naive traversal.
     let mut tx = repo.start_transaction("test");
-    let mut left_commits =
-        vec![child_commit(&settings, &repo, &root_commit).write_to_repo(tx.mut_repo())];
-    let mut right_commits =
-        vec![child_commit(&settings, &repo, &root_commit).write_to_repo(tx.mut_repo())];
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let mut left_commits = vec![graph_builder.initial_commit()];
+    let mut right_commits = vec![graph_builder.initial_commit()];
     for gen in 1..num_generations {
-        let new_left = testutils::create_random_commit(&settings, &repo)
-            .set_parents(vec![
-                left_commits[gen - 1].id().clone(),
-                right_commits[gen - 1].id().clone(),
-            ])
-            .write_to_repo(tx.mut_repo());
-        let new_right = testutils::create_random_commit(&settings, &repo)
-            .set_parents(vec![
-                left_commits[gen - 1].id().clone(),
-                right_commits[gen - 1].id().clone(),
-            ])
-            .write_to_repo(tx.mut_repo());
+        let new_left =
+            graph_builder.commit_with_parents(&[&left_commits[gen - 1], &right_commits[gen - 1]]);
+        let new_right =
+            graph_builder.commit_with_parents(&[&left_commits[gen - 1], &right_commits[gen - 1]]);
         left_commits.push(new_left);
         right_commits.push(new_right);
     }
@@ -260,11 +249,11 @@ fn test_index_commits_previous_operations(use_git: bool) {
     // |/
     // o root
 
-    let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
-    let commit_a = child_commit(&settings, &repo, &root_commit).write_to_repo(tx.mut_repo());
-    let commit_b = child_commit(&settings, &repo, &commit_a).write_to_repo(tx.mut_repo());
-    let commit_c = child_commit(&settings, &repo, &commit_b).write_to_repo(tx.mut_repo());
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
     tx.commit();
     repo = repo.reload().unwrap();
 

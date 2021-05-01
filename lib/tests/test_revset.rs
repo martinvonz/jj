@@ -17,6 +17,7 @@ use jujube_lib::repo::RepoRef;
 use jujube_lib::revset::{evaluate_expression, parse, resolve_symbol, RevsetError};
 use jujube_lib::store::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jujube_lib::testutils;
+use jujube_lib::testutils::CommitGraphBuilder;
 use test_case::test_case;
 
 #[test_case(false ; "local store")]
@@ -267,21 +268,15 @@ fn test_evaluate_expression_parents(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
+    let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-
-    let root_commit = repo.store().root_commit();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone(), commit3.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit5 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.initial_commit();
+    let commit4 = graph_builder.commit_with_parents(&[&commit2, &commit3]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit2]);
 
     // The root commit has no parents
     assert_eq!(resolve_commit_ids(mut_repo.as_repo_ref(), ":root"), vec![]);
@@ -402,20 +397,14 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
+    let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-
-    let root_commit = repo.store().root_commit();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone(), commit3.id().clone()])
-        .write_to_repo(mut_repo);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit1, &commit3]);
 
     // The ancestors of the root commit is just the root commit itself
     assert_eq!(
@@ -447,17 +436,11 @@ fn test_evaluate_expression_range(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone(), commit3.id().clone()])
-        .write_to_repo(mut_repo);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit1, &commit3]);
 
     // The range from the root to the root is empty (because the left side of the
     // range is exclusive)
@@ -515,23 +498,15 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
+    let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-
-    let root_commit = repo.store().root_commit();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit5 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit3.id().clone(), commit4.id().clone()])
-        .write_to_repo(mut_repo);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit3, &commit4]);
 
     // Can get DAG range of just the root commit
     assert_eq!(
@@ -665,12 +640,10 @@ fn test_evaluate_expression_all_heads(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-
     let wc_commit = repo.working_copy_locked().current_commit();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
 
     assert_eq!(
         resolve_commit_ids(mut_repo.as_repo_ref(), "all_heads()"),
@@ -686,12 +659,12 @@ fn test_evaluate_expression_public_heads(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
+    let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-
-    let root_commit = repo.store().root_commit();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.initial_commit();
 
     // Can get public heads with root commit as only public head
     assert_eq!(
@@ -849,23 +822,15 @@ fn test_evaluate_expression_union(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
+    let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-
-    let root_commit = repo.store().root_commit();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit3.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit5 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit3]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit2]);
 
     // Union between ancestors
     assert_eq!(
@@ -931,23 +896,15 @@ fn test_evaluate_expression_intersection(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
+    let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-
-    let root_commit = repo.store().root_commit();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit3.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit5 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit3]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit2]);
 
     // Intersection between ancestors
     assert_eq!(
@@ -980,23 +937,15 @@ fn test_evaluate_expression_difference(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
+    let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-
-    let root_commit = repo.store().root_commit();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit3.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit5 = testutils::create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit3]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit2]);
 
     // Difference between ancestors
     assert_eq!(

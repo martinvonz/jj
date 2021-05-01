@@ -19,8 +19,9 @@ use std::sync::Arc;
 
 use tempfile::TempDir;
 
+use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
-use crate::repo::ReadonlyRepo;
+use crate::repo::{MutableRepo, ReadonlyRepo};
 use crate::repo_path::{DirRepoPath, FileRepoPath};
 use crate::settings::UserSettings;
 use crate::store::{FileId, TreeId, TreeValue};
@@ -128,4 +129,30 @@ pub fn write_working_copy_file(repo: &ReadonlyRepo, path: &FileRepoPath, content
         .open(repo.working_copy_path().join(path.to_internal_string()))
         .unwrap();
     file.write_all(contents.as_bytes()).unwrap();
+}
+
+pub struct CommitGraphBuilder<'settings, 'repo> {
+    settings: &'settings UserSettings,
+    mut_repo: &'repo mut MutableRepo,
+}
+
+impl<'settings, 'repo> CommitGraphBuilder<'settings, 'repo> {
+    pub fn new(
+        settings: &'settings UserSettings,
+        mut_repo: &'repo mut MutableRepo,
+    ) -> CommitGraphBuilder<'settings, 'repo> {
+        CommitGraphBuilder { settings, mut_repo }
+    }
+
+    pub fn initial_commit(&mut self) -> Commit {
+        create_random_commit(self.settings, self.mut_repo.base_repo().as_ref())
+            .write_to_repo(self.mut_repo)
+    }
+
+    pub fn commit_with_parents(&mut self, parents: &[&Commit]) -> Commit {
+        let parent_ids: Vec<_> = parents.iter().map(|commit| commit.id().clone()).collect();
+        create_random_commit(self.settings, self.mut_repo.base_repo().as_ref())
+            .set_parents(parent_ids)
+            .write_to_repo(self.mut_repo)
+    }
 }
