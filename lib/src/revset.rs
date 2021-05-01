@@ -15,6 +15,7 @@
 use std::cmp::{Ordering, Reverse};
 use std::collections::HashSet;
 use std::iter::Peekable;
+use std::ops::Range;
 use std::rc::Rc;
 
 use pest::iterators::Pairs;
@@ -122,6 +123,10 @@ pub enum RevsetExpression {
     PublicHeads,
     GitRefs,
     NonObsoleteHeads(Rc<RevsetExpression>),
+    ParentCount {
+        candidates: Rc<RevsetExpression>,
+        parent_count_range: Range<u32>,
+    },
     Description {
         needle: String,
         candidates: Rc<RevsetExpression>,
@@ -422,6 +427,25 @@ fn parse_function_expression(
                 })
             }
         }
+        "merges" => {
+            if arg_count > 1 {
+                return Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 0 or 1 arguments".to_string(),
+                });
+            }
+            let candidates = if arg_count == 0 {
+                RevsetExpression::non_obsolete_commits()
+            } else {
+                Rc::new(parse_expression_rule(
+                    argument_pairs.next().unwrap().into_inner(),
+                )?)
+            };
+            Ok(RevsetExpression::ParentCount {
+                candidates,
+                parent_count_range: 2..u32::MAX,
+            })
+        }
         "description" => {
             if !(1..=2).contains(&arg_count) {
                 return Err(RevsetParseError::InvalidFunctionArguments {
@@ -580,6 +604,39 @@ impl<'repo> Iterator for ChildrenRevsetIterator<'_, 'repo> {
                 .any(|parent_pos| self.roots.contains(parent_pos))
             {
                 return Some(candidate);
+            }
+        }
+        None
+    }
+}
+
+// TODO: Generalize this to be take a predicate to apply to an &IndexEntry.
+struct ParentCountRevset<'revset, 'repo: 'revset> {
+    candidates: Box<dyn Revset<'repo> + 'revset>,
+    parent_count_range: Range<u32>,
+}
+
+impl<'repo> Revset<'repo> for ParentCountRevset<'_, 'repo> {
+    fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
+        RevsetIterator::new(Box::new(ParentCountRevsetIterator {
+            iter: self.candidates.iter(),
+            parent_count_range: self.parent_count_range.clone(),
+        }))
+    }
+}
+
+struct ParentCountRevsetIterator<'revset, 'repo> {
+    iter: RevsetIterator<'revset, 'repo>,
+    parent_count_range: Range<u32>,
+}
+
+impl<'revset, 'repo> Iterator for ParentCountRevsetIterator<'revset, 'repo> {
+    type Item = IndexEntry<'repo>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(next) = self.iter.next() {
+            if self.parent_count_range.contains(&next.num_parents()) {
+                return Some(next);
             }
         }
         None
@@ -807,6 +864,16 @@ pub fn evaluate_expression<'revset, 'repo: 'revset>(
         RevsetExpression::NonObsoleteHeads(base_expression) => {
             let base_set = evaluate_expression(repo, base_expression.as_ref())?;
             Ok(non_obsolete_heads(repo, base_set))
+        }
+        RevsetExpression::ParentCount {
+            candidates,
+            parent_count_range,
+        } => {
+            let candidates = evaluate_expression(repo, candidates.as_ref())?;
+            Ok(Box::new(ParentCountRevset {
+                candidates,
+                parent_count_range: parent_count_range.clone(),
+            }))
         }
         RevsetExpression::PublicHeads => {
             let index = repo.index();

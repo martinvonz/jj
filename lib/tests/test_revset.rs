@@ -771,6 +771,38 @@ fn test_evaluate_expression_obsolete(use_git: bool) {
 
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
+fn test_evaluate_expression_merges(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.initial_commit();
+    let commit3 = graph_builder.initial_commit();
+    let commit4 = graph_builder.commit_with_parents(&[&commit1, &commit2]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit1, &commit2, &commit3]);
+
+    // Finds all merges by default
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "merges()"),
+        vec![commit5.id().clone(), commit4.id().clone(),]
+    );
+    // Searches only among candidates if specified
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("merges(,,{})", commit5.id().hex())
+        ),
+        vec![commit5.id().clone()]
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
 fn test_evaluate_expression_description(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -804,7 +836,7 @@ fn test_evaluate_expression_description(use_git: bool) {
         resolve_commit_ids(mut_repo.as_repo_ref(), "description(\"commit 2\")"),
         vec![commit2.id().clone()]
     );
-    // Searches only in given base set if specified
+    // Searches only among candidates if specified
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
