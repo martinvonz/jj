@@ -2185,12 +2185,52 @@ fn cmd_git(
     Ok(())
 }
 
+fn resolve_alias(ui: &mut Ui, args: Vec<String>) -> Vec<String> {
+    if args.len() >= 2 {
+        let command_name = args[1].clone();
+        if let Ok(alias_definition) = ui
+            .settings()
+            .config()
+            .get_array(&format!("alias.{}", command_name))
+        {
+            let mut resolved_args = vec![args[0].clone()];
+            for arg in alias_definition {
+                match arg.into_str() {
+                    Ok(string_arg) => resolved_args.push(string_arg),
+                    Err(err) => {
+                        ui.write_error(&format!(
+                            "Warning: Ignoring bad alias definition: {:?}\n",
+                            err
+                        ))
+                        .unwrap();
+                        return args;
+                    }
+                }
+            }
+            resolved_args.extend_from_slice(&args[2..]);
+            return resolved_args;
+        }
+    }
+    args
+}
+
 pub fn dispatch<I, T>(mut ui: Ui, args: I) -> i32
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    let matches = get_app().get_matches_from(args);
+    let mut string_args: Vec<String> = vec![];
+    for arg in args {
+        let os_string_arg = arg.clone().into();
+        if let Some(string_arg) = os_string_arg.to_str() {
+            string_args.push(string_arg.to_owned());
+        } else {
+            ui.write_error("Error: Non-utf8 argument\n").unwrap();
+            return 1;
+        }
+    }
+    let string_args = resolve_alias(&mut ui, string_args);
+    let matches = get_app().get_matches_from(string_args);
     let result = if let Some(sub_matches) = matches.subcommand_matches("init") {
         cmd_init(&mut ui, &matches, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("checkout") {
@@ -2251,13 +2291,12 @@ where
     match result {
         Ok(()) => 0,
         Err(CommandError::UserError(message)) => {
-            ui.write_error(format!("Error: {}\n", message).as_str())
-                .unwrap();
+            ui.write_error(&format!("Error: {}\n", message)).unwrap();
             1
         }
         Err(CommandError::BrokenPipe) => 2,
         Err(CommandError::InternalError(message)) => {
-            ui.write_error(format!("Internal error: {}\n", message).as_str())
+            ui.write_error(&format!("Internal error: {}\n", message))
                 .unwrap();
             255
         }
