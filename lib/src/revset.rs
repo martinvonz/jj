@@ -612,7 +612,7 @@ impl<'repo> Iterator for ChildrenRevsetIterator<'_, 'repo> {
 
 struct FilterRevset<'revset, 'repo: 'revset> {
     candidates: Box<dyn Revset<'repo> + 'revset>,
-    predicate: Box<dyn Fn(&IndexEntry<'repo>) -> bool>,
+    predicate: Box<dyn Fn(&IndexEntry<'repo>) -> bool + 'repo>,
 }
 
 impl<'repo> Revset<'repo> for FilterRevset<'_, 'repo> {
@@ -897,27 +897,20 @@ pub fn evaluate_expression<'revset, 'repo: 'revset>(
             index_entries.dedup();
             Ok(Box::new(EagerRevset { index_entries }))
         }
-        RevsetExpression::Description {
-            needle,
-            candidates: base_expression,
-        } => {
-            // TODO: Definitely make this lazy. We should have a common way of defining
-            // revsets that simply filter a base revset.
-            let base_set = evaluate_expression(repo, base_expression.as_ref())?;
-            let mut commit_ids = vec![];
-            for entry in base_set.iter() {
-                let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
-                if commit.description().contains(needle.as_str()) {
-                    commit_ids.push(entry.commit_id());
-                }
-            }
-            let index = repo.index();
-            let mut index_entries: Vec<_> = commit_ids
-                .iter()
-                .map(|id| index.entry_by_id(id).unwrap())
-                .collect();
-            index_entries.sort_by_key(|b| Reverse(b.position()));
-            Ok(Box::new(EagerRevset { index_entries }))
+        RevsetExpression::Description { needle, candidates } => {
+            let candidates = evaluate_expression(repo, candidates.as_ref())?;
+            let repo = repo;
+            let needle = needle.clone();
+            Ok(Box::new(FilterRevset {
+                candidates,
+                predicate: Box::new(move |entry| {
+                    repo.store()
+                        .get_commit(&entry.commit_id())
+                        .unwrap()
+                        .description()
+                        .contains(needle.as_str())
+                }),
+            }))
         }
         RevsetExpression::Union(expression1, expression2) => {
             let set1 = evaluate_expression(repo, expression1.as_ref())?;
