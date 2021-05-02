@@ -610,32 +610,31 @@ impl<'repo> Iterator for ChildrenRevsetIterator<'_, 'repo> {
     }
 }
 
-// TODO: Generalize this to be take a predicate to apply to an &IndexEntry.
-struct ParentCountRevset<'revset, 'repo: 'revset> {
+struct FilterRevset<'revset, 'repo: 'revset> {
     candidates: Box<dyn Revset<'repo> + 'revset>,
-    parent_count_range: Range<u32>,
+    predicate: Box<dyn Fn(&IndexEntry<'repo>) -> bool>,
 }
 
-impl<'repo> Revset<'repo> for ParentCountRevset<'_, 'repo> {
+impl<'repo> Revset<'repo> for FilterRevset<'_, 'repo> {
     fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
-        RevsetIterator::new(Box::new(ParentCountRevsetIterator {
+        RevsetIterator::new(Box::new(FilterRevsetIterator {
             iter: self.candidates.iter(),
-            parent_count_range: self.parent_count_range.clone(),
+            predicate: self.predicate.as_ref(),
         }))
     }
 }
 
-struct ParentCountRevsetIterator<'revset, 'repo> {
+struct FilterRevsetIterator<'revset, 'repo> {
     iter: RevsetIterator<'revset, 'repo>,
-    parent_count_range: Range<u32>,
+    predicate: &'revset dyn Fn(&IndexEntry<'repo>) -> bool,
 }
 
-impl<'revset, 'repo> Iterator for ParentCountRevsetIterator<'revset, 'repo> {
+impl<'revset, 'repo> Iterator for FilterRevsetIterator<'revset, 'repo> {
     type Item = IndexEntry<'repo>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(next) = self.iter.next() {
-            if self.parent_count_range.contains(&next.num_parents()) {
+            if (self.predicate)(&next) {
                 return Some(next);
             }
         }
@@ -870,9 +869,10 @@ pub fn evaluate_expression<'revset, 'repo: 'revset>(
             parent_count_range,
         } => {
             let candidates = evaluate_expression(repo, candidates.as_ref())?;
-            Ok(Box::new(ParentCountRevset {
+            let parent_count_range = parent_count_range.clone();
+            Ok(Box::new(FilterRevset {
                 candidates,
-                parent_count_range: parent_count_range.clone(),
+                predicate: Box::new(move |entry| parent_count_range.contains(&entry.num_parents())),
             }))
         }
         RevsetExpression::PublicHeads => {
