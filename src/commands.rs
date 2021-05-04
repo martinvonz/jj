@@ -126,15 +126,15 @@ fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandE
 }
 
 fn resolve_revision_arg(
-    ui: &Ui,
+    settings: &UserSettings,
     repo: Arc<ReadonlyRepo>,
     matches: &ArgMatches,
 ) -> Result<(Arc<ReadonlyRepo>, Commit), CommandError> {
-    resolve_single_rev(ui, repo, matches.value_of("revision").unwrap())
+    resolve_single_rev(settings, repo, matches.value_of("revision").unwrap())
 }
 
 fn resolve_single_rev(
-    ui: &Ui,
+    settings: &UserSettings,
     mut repo: Arc<ReadonlyRepo>,
     revision_str: &str,
 ) -> Result<(Arc<ReadonlyRepo>, Commit), CommandError> {
@@ -151,7 +151,7 @@ fn resolve_single_rev(
     if revision_str == "@" {
         let wc = repo.working_copy();
         // TODO: Avoid committing every time this function is called.
-        let (reloaded_repo, _) = wc.lock().unwrap().commit(ui.settings(), repo.clone());
+        let (reloaded_repo, _) = wc.lock().unwrap().commit(settings, repo.clone());
         repo = reloaded_repo;
     }
 
@@ -651,7 +651,7 @@ fn cmd_checkout(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (repo, new_commit) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (repo, new_commit) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     let wc = repo.working_copy();
     let locked_wc = wc.lock().unwrap();
     let (repo, _) = locked_wc.commit(ui.settings(), repo.clone());
@@ -676,7 +676,7 @@ fn cmd_files(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (_repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (_repo, commit) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     for (name, _value) in commit.tree().entries() {
         writeln!(ui, "{}", name.to_internal_string())?;
     }
@@ -784,16 +784,25 @@ fn cmd_diff(
     let from_tree;
     let to_tree;
     if sub_matches.is_present("from") || sub_matches.is_present("to") {
-        let (reoaded_repo, from) =
-            resolve_single_rev(ui, repo, sub_matches.value_of("from").unwrap_or("@"))?;
+        let (reoaded_repo, from) = resolve_single_rev(
+            ui.settings(),
+            repo,
+            sub_matches.value_of("from").unwrap_or("@"),
+        )?;
         from_tree = from.tree();
-        let (reloaded_repo, to) =
-            resolve_single_rev(ui, reoaded_repo, sub_matches.value_of("to").unwrap_or("@"))?;
+        let (reloaded_repo, to) = resolve_single_rev(
+            ui.settings(),
+            reoaded_repo,
+            sub_matches.value_of("to").unwrap_or("@"),
+        )?;
         repo = reloaded_repo;
         to_tree = to.tree();
     } else {
-        let (reloaded_repo, commit) =
-            resolve_single_rev(ui, repo, sub_matches.value_of("revision").unwrap_or("@"))?;
+        let (reloaded_repo, commit) = resolve_single_rev(
+            ui.settings(),
+            repo,
+            sub_matches.value_of("revision").unwrap_or("@"),
+        )?;
         repo = reloaded_repo;
         let parents = commit.parents();
         from_tree = merge_commit_trees(repo.as_repo_ref(), &parents);
@@ -1116,7 +1125,7 @@ fn cmd_obslog(
     let repo = get_repo(ui, &matches)?;
 
     let use_graph = !sub_matches.is_present("no-graph");
-    let (repo, start_commit) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (repo, start_commit) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
 
     let template_string = match sub_matches.value_of("template") {
         Some(value) => value.to_string(),
@@ -1210,7 +1219,7 @@ fn cmd_describe(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     let description;
     if sub_matches.is_present("stdin") {
         let mut buffer = String::new();
@@ -1237,7 +1246,7 @@ fn cmd_open(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     let mut tx = repo.start_transaction(&format!("open commit {}", commit.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_open(true)
@@ -1254,7 +1263,7 @@ fn cmd_close(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     let mut commit_builder =
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit).set_open(false);
     let description;
@@ -1280,7 +1289,7 @@ fn cmd_duplicate(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (repo, predecessor) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (repo, predecessor) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     let mut tx = repo.start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
     let mut_repo = tx.mut_repo();
     let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
@@ -1299,7 +1308,7 @@ fn cmd_prune(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (repo, predecessor) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (repo, predecessor) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     if predecessor.id() == repo.store().root_commit_id() {
         return Err(CommandError::UserError(String::from(
             "Cannot prune the root commit",
@@ -1321,7 +1330,7 @@ fn cmd_new(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (repo, parent) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (repo, parent) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     let commit_builder = CommitBuilder::for_open_commit(
         ui.settings(),
         repo.store(),
@@ -1345,7 +1354,7 @@ fn cmd_squash(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     let parents = commit.parents();
     if parents.len() != 1 {
         return Err(CommandError::UserError(String::from(
@@ -1393,7 +1402,7 @@ fn cmd_unsquash(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     let parents = commit.parents();
     if parents.len() != 1 {
         return Err(CommandError::UserError(String::from(
@@ -1442,7 +1451,7 @@ fn cmd_discard(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     let mut tx = repo.start_transaction(&format!("discard commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
     mut_repo.remove_head(&commit);
@@ -1462,9 +1471,12 @@ fn cmd_restore(
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
     let (repo, source_commit) =
-        resolve_single_rev(ui, repo, sub_matches.value_of("source").unwrap())?;
-    let (repo, destination_commit) =
-        resolve_single_rev(ui, repo, sub_matches.value_of("destination").unwrap())?;
+        resolve_single_rev(ui.settings(), repo, sub_matches.value_of("source").unwrap())?;
+    let (repo, destination_commit) = resolve_single_rev(
+        ui.settings(),
+        repo,
+        sub_matches.value_of("destination").unwrap(),
+    )?;
     let tree_id;
     if sub_matches.is_present("interactive") {
         if sub_matches.is_present("paths") {
@@ -1521,7 +1533,7 @@ fn cmd_edit(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
     if &tree_id == commit.tree().id() {
@@ -1548,7 +1560,7 @@ fn cmd_split(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (repo, commit) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
     if &tree_id == commit.tree().id() {
@@ -1597,7 +1609,7 @@ fn cmd_merge(
     let mut commits = vec![];
     let mut parent_ids = vec![];
     for revision_arg in revision_args {
-        let (reloaded_repo, commit) = resolve_single_rev(ui, repo, revision_arg)?;
+        let (reloaded_repo, commit) = resolve_single_rev(ui.settings(), repo, revision_arg)?;
         repo = reloaded_repo;
         parent_ids.push(commit.id().clone());
         commits.push(commit);
@@ -1628,10 +1640,10 @@ fn cmd_rebase(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (mut repo, commit_to_rebase) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (mut repo, commit_to_rebase) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     let mut parents = vec![];
     for revision_str in sub_matches.values_of("destination").unwrap() {
-        let (reloaded_repo, destination) = resolve_single_rev(ui, repo, revision_str)?;
+        let (reloaded_repo, destination) = resolve_single_rev(ui.settings(), repo, revision_str)?;
         repo = reloaded_repo;
         parents.push(destination);
     }
@@ -1650,10 +1662,10 @@ fn cmd_backout(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let (mut repo, commit_to_back_out) = resolve_revision_arg(ui, repo, sub_matches)?;
+    let (mut repo, commit_to_back_out) = resolve_revision_arg(ui.settings(), repo, sub_matches)?;
     let mut parents = vec![];
     for revision_str in sub_matches.values_of("destination").unwrap() {
-        let (reloaded_repo, destination) = resolve_single_rev(ui, repo, revision_str)?;
+        let (reloaded_repo, destination) = resolve_single_rev(ui.settings(), repo, revision_str)?;
         repo = reloaded_repo;
         parents.push(destination);
     }
@@ -1776,7 +1788,7 @@ fn cmd_debug(
 ) -> Result<(), CommandError> {
     if let Some(resolve_matches) = sub_matches.subcommand_matches("resolverev") {
         let repo = get_repo(ui, &matches)?;
-        let (_repo, commit) = resolve_revision_arg(ui, repo, resolve_matches)?;
+        let (_repo, commit) = resolve_revision_arg(ui.settings(), repo, resolve_matches)?;
         writeln!(ui, "{}", commit.id().hex())?;
     } else if let Some(_wc_matches) = sub_matches.subcommand_matches("workingcopy") {
         let repo = get_repo(ui, &matches)?;
@@ -1851,9 +1863,9 @@ fn cmd_bench(
     if let Some(command_matches) = sub_matches.subcommand_matches("commonancestors") {
         let repo = get_repo(ui, &matches)?;
         let revision1_str = command_matches.value_of("revision1").unwrap();
-        let (repo, commit1) = resolve_single_rev(ui, repo, revision1_str)?;
+        let (repo, commit1) = resolve_single_rev(ui.settings(), repo, revision1_str)?;
         let revision2_str = command_matches.value_of("revision2").unwrap();
-        let (repo, commit2) = resolve_single_rev(ui, repo, revision2_str)?;
+        let (repo, commit2) = resolve_single_rev(ui.settings(), repo, revision2_str)?;
         let routine = || {
             repo.index()
                 .common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()])
@@ -1866,9 +1878,9 @@ fn cmd_bench(
     } else if let Some(command_matches) = sub_matches.subcommand_matches("isancestor") {
         let repo = get_repo(ui, &matches)?;
         let ancestor_str = command_matches.value_of("ancestor").unwrap();
-        let (repo, ancestor_commit) = resolve_single_rev(ui, repo, ancestor_str)?;
+        let (repo, ancestor_commit) = resolve_single_rev(ui.settings(), repo, ancestor_str)?;
         let descendants_str = command_matches.value_of("descendant").unwrap();
-        let (repo, descendant_commit) = resolve_single_rev(ui, repo, descendants_str)?;
+        let (repo, descendant_commit) = resolve_single_rev(ui.settings(), repo, descendants_str)?;
         let index = repo.index();
         let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
         run_bench(
@@ -1879,9 +1891,9 @@ fn cmd_bench(
     } else if let Some(command_matches) = sub_matches.subcommand_matches("walkrevs") {
         let repo = get_repo(ui, &matches)?;
         let unwanted_str = command_matches.value_of("unwanted").unwrap();
-        let (repo, unwanted_commit) = resolve_single_rev(ui, repo, unwanted_str)?;
+        let (repo, unwanted_commit) = resolve_single_rev(ui.settings(), repo, unwanted_str)?;
         let wanted_str = command_matches.value_of("wanted");
-        let (repo, wanted_commit) = resolve_single_rev(ui, repo, wanted_str.unwrap())?;
+        let (repo, wanted_commit) = resolve_single_rev(ui.settings(), repo, wanted_str.unwrap())?;
         let index = repo.index();
         let routine = || {
             index
@@ -2124,7 +2136,7 @@ fn cmd_git_push(
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
     let git_repo = get_git_repo(repo.store())?;
-    let (repo, commit) = resolve_revision_arg(ui, repo, cmd_matches)?;
+    let (repo, commit) = resolve_revision_arg(ui.settings(), repo, cmd_matches)?;
     if commit.is_open() {
         return Err(CommandError::UserError(
             "Won't push open commit".to_string(),
