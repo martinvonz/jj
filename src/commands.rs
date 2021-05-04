@@ -1790,15 +1790,6 @@ fn cmd_debug(
                 state.file_type, state.size, state.mtime.0, file
             )?;
         }
-    } else if let Some(_wc_matches) = sub_matches.subcommand_matches("writeworkingcopy") {
-        let repo = get_repo(ui, &matches)?;
-        let wc = repo.working_copy();
-        let locked_wc = wc.lock().unwrap();
-        let old_commit_id = locked_wc.current_commit_id();
-        let (_repo, new_commit) = locked_wc.commit(ui.settings(), repo.clone());
-        let new_commit_id = new_commit.id().clone();
-        writeln!(ui, "old commit {:?}", old_commit_id)?;
-        writeln!(ui, "new commit {:?}", new_commit_id)?;
     } else if let Some(template_matches) = sub_matches.subcommand_matches("template") {
         let parse = TemplateParser::parse(
             crate::template_parser::Rule::template,
