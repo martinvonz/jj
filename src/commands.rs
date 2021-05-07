@@ -203,7 +203,7 @@ fn op_arg<'a, 'b>() -> Arg<'a, 'b> {
 
 fn resolve_single_op(repo: &ReadonlyRepo, op_str: &str) -> Result<Operation, CommandError> {
     if op_str == "@" {
-        Ok(repo.op())
+        Ok(repo.operation().clone())
     } else {
         resolve_single_op_from_store(&repo.op_store(), op_str)
     }
@@ -1936,7 +1936,7 @@ fn cmd_op_log(
     _cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo = get_repo(ui, &matches)?;
-    let head_op = repo.op();
+    let head_op = repo.operation().clone();
     let mut styler = ui.styler();
     let mut styler = styler.as_mut();
     struct OpTemplate;

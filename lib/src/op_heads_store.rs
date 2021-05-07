@@ -44,7 +44,7 @@ impl OpHeadsStore {
         dir: PathBuf,
         op_store: &Arc<dyn OpStore>,
         root_view: &op_store::View,
-    ) -> (Self, OperationId) {
+    ) -> (Self, Operation) {
         let root_view_id = op_store.write_view(&root_view).unwrap();
         let operation_metadata =
             OperationMetadata::new("initialize repo".to_string(), Timestamp::now());
@@ -54,10 +54,11 @@ impl OpHeadsStore {
             metadata: operation_metadata,
         };
         let init_operation_id = op_store.write_operation(&init_operation).unwrap();
+        let init_operation = Operation::new(op_store.clone(), init_operation_id, init_operation);
 
         let op_heads_store = OpHeadsStore { dir };
-        op_heads_store.add_op_head(&init_operation_id);
-        (op_heads_store, init_operation_id)
+        op_heads_store.add_op_head(&init_operation.id());
+        (op_heads_store, init_operation)
     }
 
     pub fn load(dir: PathBuf) -> OpHeadsStore {

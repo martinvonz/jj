@@ -112,7 +112,7 @@ pub struct ReadonlyRepo {
     store: Arc<StoreWrapper>,
     op_store: Arc<dyn OpStore>,
     op_heads_store: Arc<OpHeadsStore>,
-    op_id: OperationId,
+    operation: Operation,
     settings: RepoSettings,
     index_store: Arc<IndexStore>,
     index: Mutex<Option<Arc<ReadonlyIndex>>>,
@@ -220,7 +220,7 @@ impl ReadonlyRepo {
         root_view
             .public_head_ids
             .insert(store.root_commit_id().clone());
-        let (op_heads_store, init_op_id) = OpHeadsStore::init(op_heads_dir, &op_store, &root_view);
+        let (op_heads_store, init_op) = OpHeadsStore::init(op_heads_dir, &op_store, &root_view);
         let op_heads_store = Arc::new(op_heads_store);
 
         fs::create_dir(repo_path.join("index")).unwrap();
@@ -234,7 +234,7 @@ impl ReadonlyRepo {
             store,
             op_store,
             op_heads_store,
-            op_id: init_op_id,
+            operation: init_op,
             settings: repo_settings,
             index_store,
             index: Mutex::new(None),
@@ -282,12 +282,11 @@ impl ReadonlyRepo {
     }
 
     pub fn op_id(&self) -> &OperationId {
-        &self.op_id
+        self.operation.id()
     }
 
-    pub fn op(&self) -> Operation {
-        let store_op = self.op_store.read_operation(&self.op_id).unwrap();
-        Operation::new(self.op_store.clone(), self.op_id.clone(), store_op)
+    pub fn operation(&self) -> &Operation {
+        &self.operation
     }
 
     pub fn view(&self) -> &ReadonlyView {
@@ -305,10 +304,10 @@ impl ReadonlyRepo {
     pub fn index(&self) -> &Arc<ReadonlyIndex> {
         let mut locked_index = self.index.lock().unwrap();
         if locked_index.is_none() {
-            let op_id = self.op_id.clone();
-            let op = self.op_store.read_operation(&op_id).unwrap();
-            let op = Operation::new(self.op_store.clone(), op_id, op);
-            locked_index.replace(self.index_store.get_index_at_op(&op, self.store.as_ref()));
+            locked_index.replace(
+                self.index_store
+                    .get_index_at_op(&self.operation, self.store.as_ref()),
+            );
         }
         let index: &Arc<ReadonlyIndex> = locked_index.as_ref().unwrap();
         // Extend lifetime from that of mutex lock to that of self. Safe since we never
@@ -447,17 +446,17 @@ impl RepoLoader {
     pub fn load_at_head(&self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
         let op = self.op_heads_store.get_single_op_head(&self).unwrap();
         let view = ReadonlyView::new(op.view().take_store_view());
-        self._finish_load(op.id().clone(), view)
+        self._finish_load(op, view)
     }
 
     pub fn load_at(&self, op: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
         let view = ReadonlyView::new(op.view().take_store_view());
-        self._finish_load(op.id().clone(), view)
+        self._finish_load(op.clone(), view)
     }
 
     fn _finish_load(
         &self,
-        op_id: OperationId,
+        operation: Operation,
         view: ReadonlyView,
     ) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
         let working_copy = WorkingCopy::load(
@@ -471,7 +470,7 @@ impl RepoLoader {
             store: self.store.clone(),
             op_store: self.op_store.clone(),
             op_heads_store: self.op_heads_store.clone(),
-            op_id,
+            operation,
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
             index: Mutex::new(None),
