@@ -158,7 +158,7 @@ fn test_bad_locking_interrupted(use_git: bool) {
     testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![initial.id().clone()])
         .write_to_repo(tx.mut_repo());
-    let op_id = tx.commit().id().clone();
+    let op_id = tx.commit().operation().id().clone();
 
     copy_directory(&backup_path, &op_heads_dir);
     // Reload the repo and check that only the new head is present.

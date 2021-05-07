@@ -12,14 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use crate::op_heads_store::OpHeadsStore;
+use crate::evolution::ReadonlyEvolution;
+use crate::index::ReadonlyIndex;
 use crate::op_store;
 use crate::op_store::{OperationId, OperationMetadata};
 use crate::operation::Operation;
-use crate::repo::{MutableRepo, ReadonlyRepo};
+use crate::repo::{MutableRepo, ReadonlyRepo, RepoLoader};
 use crate::store::Timestamp;
+use crate::view::ReadonlyView;
+use crate::working_copy::WorkingCopy;
 
 pub struct Transaction {
     repo: Option<Arc<MutableRepo>>,
@@ -54,7 +57,7 @@ impl Transaction {
     }
 
     /// Writes the transaction to the operation store and publishes it.
-    pub fn commit(self) -> Operation {
+    pub fn commit(self) -> Arc<ReadonlyRepo> {
         self.write().publish()
     }
 
@@ -64,13 +67,13 @@ impl Transaction {
     pub fn write(mut self) -> UnpublishedOperation {
         let mut_repo = Arc::try_unwrap(self.repo.take().unwrap()).ok().unwrap();
         let base_repo = mut_repo.base_repo().clone();
-        let (mut_index, mut_view) = mut_repo.consume();
+        let (mut_index, mut_view, maybe_mut_evolution) = mut_repo.consume();
+        let maybe_evolution =
+            maybe_mut_evolution.map(|mut_evolution| Arc::new(mut_evolution.freeze()));
         let index = base_repo.index_store().write_index(mut_index).unwrap();
 
-        let view_id = base_repo
-            .op_store()
-            .write_view(mut_view.store_view())
-            .unwrap();
+        let view = mut_view.freeze();
+        let view_id = base_repo.op_store().write_view(view.store_view()).unwrap();
         let operation_metadata =
             OperationMetadata::new(self.description.clone(), self.start_time.clone());
         let store_operation = op_store::Operation {
@@ -89,7 +92,14 @@ impl Transaction {
             .associate_file_with_operation(&index, operation.id())
             .unwrap();
         self.closed = true;
-        UnpublishedOperation::new(base_repo.op_heads_store().clone(), operation)
+        UnpublishedOperation::new(
+            base_repo.loader(),
+            operation,
+            view,
+            base_repo.working_copy().clone(),
+            index,
+            maybe_evolution,
+        )
     }
 
     pub fn discard(mut self) {
@@ -105,35 +115,74 @@ impl Drop for Transaction {
     }
 }
 
+struct NewRepoData {
+    operation: Operation,
+    view: ReadonlyView,
+    working_copy: Arc<Mutex<WorkingCopy>>,
+    index: Arc<ReadonlyIndex>,
+    evolution: Option<Arc<ReadonlyEvolution>>,
+}
+
 pub struct UnpublishedOperation {
-    op_heads_store: Arc<OpHeadsStore>,
-    operation: Option<Operation>,
+    repo_loader: RepoLoader,
+    data: Option<NewRepoData>,
     closed: bool,
 }
 
 impl UnpublishedOperation {
-    fn new(op_heads_store: Arc<OpHeadsStore>, operation: Operation) -> Self {
+    fn new(
+        repo_loader: RepoLoader,
+        operation: Operation,
+        view: ReadonlyView,
+        working_copy: Arc<Mutex<WorkingCopy>>,
+        index: Arc<ReadonlyIndex>,
+        evolution: Option<Arc<ReadonlyEvolution>>,
+    ) -> Self {
+        let data = Some(NewRepoData {
+            operation,
+            view,
+            working_copy,
+            index,
+            evolution,
+        });
         UnpublishedOperation {
-            op_heads_store,
-            operation: Some(operation),
+            repo_loader,
+            data,
             closed: false,
         }
     }
 
     pub fn operation(&self) -> &Operation {
-        self.operation.as_ref().unwrap()
+        &self.data.as_ref().unwrap().operation
     }
 
-    pub fn publish(mut self) -> Operation {
-        let operation = self.operation.take().unwrap();
-        self.op_heads_store.update_op_heads(&operation);
+    pub fn publish(mut self) -> Arc<ReadonlyRepo> {
+        let data = self.data.take().unwrap();
+        self.repo_loader
+            .op_heads_store()
+            .update_op_heads(&data.operation);
+        let repo = self.repo_loader.create_from(
+            data.operation,
+            data.view,
+            data.working_copy,
+            data.index,
+            data.evolution,
+        );
         self.closed = true;
-        operation
+        repo
     }
 
-    pub fn leave_unpublished(mut self) -> Operation {
+    pub fn leave_unpublished(mut self) -> Arc<ReadonlyRepo> {
+        let data = self.data.take().unwrap();
+        let repo = self.repo_loader.create_from(
+            data.operation,
+            data.view,
+            data.working_copy,
+            data.index,
+            data.evolution,
+        );
         self.closed = true;
-        self.operation.take().unwrap()
+        repo
     }
 }
 

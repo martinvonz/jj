@@ -443,6 +443,10 @@ impl RepoLoader {
         &self.op_store
     }
 
+    pub fn op_heads_store(&self) -> &Arc<OpHeadsStore> {
+        &self.op_heads_store
+    }
+
     pub fn load_at_head(&self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
         let op = self.op_heads_store.get_single_op_head(&self).unwrap();
         let view = ReadonlyView::new(op.view().take_store_view());
@@ -452,6 +456,31 @@ impl RepoLoader {
     pub fn load_at(&self, op: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
         let view = ReadonlyView::new(op.view().take_store_view());
         self._finish_load(op.clone(), view)
+    }
+
+    pub fn create_from(
+        &self,
+        operation: Operation,
+        view: ReadonlyView,
+        working_copy: Arc<Mutex<WorkingCopy>>,
+        index: Arc<ReadonlyIndex>,
+        evolution: Option<Arc<ReadonlyEvolution>>,
+    ) -> Arc<ReadonlyRepo> {
+        let repo = ReadonlyRepo {
+            repo_path: self.repo_path.clone(),
+            wc_path: self.wc_path.clone(),
+            store: self.store.clone(),
+            op_store: self.op_store.clone(),
+            op_heads_store: self.op_heads_store.clone(),
+            operation,
+            settings: self.repo_settings.clone(),
+            index_store: self.index_store.clone(),
+            index: Mutex::new(Some(index)),
+            working_copy,
+            view,
+            evolution: Mutex::new(evolution),
+        };
+        Arc::new(repo)
     }
 
     fn _finish_load(
@@ -531,8 +560,8 @@ impl MutableRepo {
         &self.view
     }
 
-    pub fn consume(self) -> (MutableIndex, MutableView) {
-        (self.index, self.view)
+    pub fn consume(self) -> (MutableIndex, MutableView, Option<MutableEvolution>) {
+        (self.index, self.view, self.evolution.lock().unwrap().take())
     }
 
     pub fn evolution(&self) -> &MutableEvolution {

@@ -155,11 +155,13 @@ impl OpHeadsStore {
             return Ok(op_heads.pop().unwrap());
         }
 
-        let merge_operation = merge_op_heads(repo_loader, op_heads)?.leave_unpublished();
+        let merged_repo = merge_op_heads(repo_loader, op_heads)?.leave_unpublished();
+        let merge_operation = merged_repo.operation().clone();
         self.add_op_head(merge_operation.id());
         for old_op_head_id in merge_operation.parent_ids() {
             self.remove_op_head(old_op_head_id);
         }
+        // TODO: Change the return type include the repo if we have it (as we do here)
         Ok(merge_operation)
     }
 

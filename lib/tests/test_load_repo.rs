@@ -34,7 +34,7 @@ fn test_load_at_operation(use_git: bool) {
 
     let mut tx = repo.start_transaction("add commit");
     let commit = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
-    let op = tx.commit();
+    let op = tx.commit().operation().clone();
     repo = repo.reload().unwrap();
 
     let mut tx = repo.start_transaction("remove commit");

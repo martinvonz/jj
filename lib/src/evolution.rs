@@ -457,6 +457,10 @@ impl MutableEvolution {
     pub fn add_commit(&mut self, commit: &Commit) {
         self.state.add_commit(commit);
     }
+
+    pub fn freeze(self) -> ReadonlyEvolution {
+        ReadonlyEvolution { state: self.state }
+    }
 }
 
 pub fn evolve(

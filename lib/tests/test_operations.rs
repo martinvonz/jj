@@ -62,14 +62,14 @@ fn test_consecutive_operations(use_git: bool) {
 
     let mut tx1 = repo.start_transaction("transaction 1");
     testutils::create_random_commit(&settings, &repo).write_to_repo(tx1.mut_repo());
-    let op_id1 = tx1.commit().id().clone();
+    let op_id1 = tx1.commit().operation().id().clone();
     assert_ne!(op_id1, op_id0);
     assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
 
     let repo = repo.reload().unwrap();
     let mut tx2 = repo.start_transaction("transaction 2");
     testutils::create_random_commit(&settings, &repo).write_to_repo(tx2.mut_repo());
-    let op_id2 = tx2.commit().id().clone();
+    let op_id2 = tx2.commit().operation().id().clone();
     assert_ne!(op_id2, op_id0);
     assert_ne!(op_id2, op_id1);
     assert_eq!(list_dir(&op_heads_dir), vec![op_id2.hex()]);
@@ -94,7 +94,7 @@ fn test_concurrent_operations(use_git: bool) {
 
     let mut tx1 = repo.start_transaction("transaction 1");
     testutils::create_random_commit(&settings, &repo).write_to_repo(tx1.mut_repo());
-    let op_id1 = tx1.commit().id().clone();
+    let op_id1 = tx1.commit().operation().id().clone();
     assert_ne!(op_id1, op_id0);
     assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
 
@@ -102,7 +102,7 @@ fn test_concurrent_operations(use_git: bool) {
     // since they were run in parallel.
     let mut tx2 = repo.start_transaction("transaction 2");
     testutils::create_random_commit(&settings, &repo).write_to_repo(tx2.mut_repo());
-    let op_id2 = tx2.commit().id().clone();
+    let op_id2 = tx2.commit().operation().id().clone();
     assert_ne!(op_id2, op_id0);
     assert_ne!(op_id2, op_id1);
     let mut actual_heads_on_disk = list_dir(&op_heads_dir);

@@ -224,4 +224,8 @@ impl MutableView {
     pub fn store_view_mut(&mut self) -> &mut op_store::View {
         &mut self.data
     }
+
+    pub fn freeze(self) -> ReadonlyView {
+        ReadonlyView { data: self.data }
+    }
 }

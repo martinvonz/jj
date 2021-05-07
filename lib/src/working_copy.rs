@@ -753,8 +753,7 @@ impl WorkingCopy {
                 .set_tree(new_tree_id)
                 .write_to_repo(mut_repo);
             mut_repo.set_checkout(commit.id().clone());
-            let operation = tx.commit();
-            repo = repo.reload_at(&operation).unwrap();
+            repo = tx.commit();
 
             self.commit_id.replace(Some(commit.id().clone()));
             self.commit.replace(Some(commit));
