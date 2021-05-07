@@ -239,7 +239,6 @@ fn update_working_copy(
     repo: &Arc<ReadonlyRepo>,
     wc: &WorkingCopy,
 ) -> Result<Option<CheckoutStats>, CommandError> {
-    let repo = repo.reload()?;
     let old_commit = wc.current_commit();
     let new_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
     if old_commit == new_commit {
@@ -658,7 +657,7 @@ fn cmd_checkout(
     let (repo, _) = locked_wc.commit(ui.settings(), repo.clone());
     let mut tx = repo.start_transaction(&format!("check out commit {}", new_commit.id().hex()));
     tx.mut_repo().check_out(ui.settings(), &new_commit);
-    tx.commit();
+    let repo = tx.commit();
     let stats = update_working_copy(ui, &repo, &locked_wc)?;
     match stats {
         None => ui.write("Already on that commit\n")?,
@@ -1227,7 +1226,7 @@ fn cmd_describe(
         .set_description(description)
         .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
-    tx.commit();
+    let repo = tx.commit();
     update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
@@ -1244,7 +1243,7 @@ fn cmd_open(
         .set_open(true)
         .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
-    tx.commit();
+    let repo = tx.commit();
     update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
@@ -1270,7 +1269,7 @@ fn cmd_close(
     let mut tx = repo.start_transaction(&format!("close commit {}", commit.id().hex()));
     commit_builder.write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
-    tx.commit();
+    let repo = tx.commit();
     update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
@@ -1311,7 +1310,7 @@ fn cmd_prune(
         .set_pruned(true)
         .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
-    tx.commit();
+    let repo = tx.commit();
     update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
@@ -1335,7 +1334,7 @@ fn cmd_new(
     if mut_repo.view().checkout() == parent.id() {
         mut_repo.check_out(ui.settings(), &new_commit);
     }
-    tx.commit();
+    let repo = tx.commit();
     update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
@@ -1383,7 +1382,7 @@ fn cmd_squash(
         .set_pruned(prune_child)
         .write_to_repo(mut_repo);
     update_checkout_after_rewrite(ui, mut_repo)?;
-    tx.commit();
+    let repo = tx.commit();
     update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
@@ -1432,7 +1431,7 @@ fn cmd_unsquash(
         .set_parents(vec![new_parent.id().clone()])
         .write_to_repo(mut_repo);
     update_checkout_after_rewrite(ui, mut_repo)?;
-    tx.commit();
+    let repo = tx.commit();
     update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     Ok(())
 }
@@ -1510,7 +1509,7 @@ fn cmd_restore(
         ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
         ui.write("\n")?;
         update_checkout_after_rewrite(ui, mut_repo)?;
-        tx.commit();
+        let repo = tx.commit();
         update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     }
     Ok(())
@@ -1537,7 +1536,7 @@ fn cmd_edit(
         ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
         ui.write("\n")?;
         update_checkout_after_rewrite(ui, mut_repo)?;
-        tx.commit();
+        let repo = tx.commit();
         update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     }
     Ok(())
@@ -1577,7 +1576,7 @@ fn cmd_split(
         ui.write_commit_summary(mut_repo.as_repo_ref(), &second_commit)?;
         ui.write("\n")?;
         update_checkout_after_rewrite(ui, mut_repo)?;
-        tx.commit();
+        let repo = tx.commit();
         update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
     }
     Ok(())
@@ -1617,7 +1616,7 @@ fn cmd_merge(
         .set_open(false)
         .write_to_repo(tx.mut_repo());
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
-    tx.commit();
+    let repo = tx.commit();
     update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
 
     Ok(())
@@ -1639,7 +1638,7 @@ fn cmd_rebase(
     let mut tx = repo.start_transaction(&format!("rebase commit {}", commit_to_rebase.id().hex()));
     rebase_commit(ui.settings(), tx.mut_repo(), &commit_to_rebase, &parents);
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
-    tx.commit();
+    let repo = tx.commit();
     update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
 
     Ok(())
@@ -1664,7 +1663,7 @@ fn cmd_backout(
     ));
     back_out_commit(ui.settings(), tx.mut_repo(), &commit_to_back_out, &parents);
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
-    tx.commit();
+    let repo = tx.commit();
     update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
 
     Ok(())
@@ -1764,7 +1763,7 @@ fn cmd_evolve<'s>(
     let mut tx = repo.start_transaction("evolve");
     evolve(&user_settings, tx.mut_repo(), &mut listener);
     update_checkout_after_rewrite(ui, tx.mut_repo())?;
-    tx.commit();
+    let repo = tx.commit();
     update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
 
     Ok(())
@@ -2025,7 +2024,7 @@ fn cmd_op_undo(
     let bad_repo = repo.loader().load_at(&bad_op)?;
     let parent_repo = repo.loader().load_at(&parent_ops[0])?;
     tx.mut_repo().merge(&bad_repo, &parent_repo);
-    tx.commit();
+    let repo = tx.commit();
     update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
 
     Ok(())
@@ -2040,7 +2039,7 @@ fn cmd_op_restore(
     let target_op = resolve_single_op(&repo, _cmd_matches.value_of("operation").unwrap())?;
     let mut tx = repo.start_transaction(&format!("restore to operation {}", target_op.id().hex()));
     tx.mut_repo().set_view(target_op.view().take_store_view());
-    tx.commit();
+    let repo = tx.commit();
     update_working_copy(ui, &repo, &repo.working_copy().lock().unwrap())?;
 
     Ok(())
