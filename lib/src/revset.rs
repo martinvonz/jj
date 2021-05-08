@@ -827,6 +827,9 @@ pub fn evaluate_expression<'revset, 'repo: 'revset>(
             let walk = repo.index().walk_revs(&head_ids, &root_ids);
             Ok(Box::new(RevWalkRevset { walk }))
         }
+        // Clippy doesn't seem to understand that we collect the iterator in order to iterate in
+        // reverse
+        #[allow(clippy::needless_collect)]
         RevsetExpression::DagRange { roots, heads } => {
             let root_set = evaluate_expression(repo, roots.as_ref())?;
             let candidate_set =
