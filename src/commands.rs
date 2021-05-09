@@ -131,6 +131,9 @@ fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandE
 struct RepoCommand {
     settings: UserSettings,
     repo: Arc<ReadonlyRepo>,
+    // Whether the checkout should be updated to an appropriate successor when the transaction
+    // finishes. This should generally be true for commands that rewrite commits.
+    auto_update_checkout: bool,
 }
 
 impl RepoCommand {
@@ -139,7 +142,13 @@ impl RepoCommand {
         Ok(RepoCommand {
             settings: ui.settings().clone(),
             repo,
+            auto_update_checkout: true,
         })
+    }
+
+    fn auto_update_checkout(mut self, value: bool) -> Self {
+        self.auto_update_checkout = value;
+        self
     }
 
     fn repo(&self) -> &Arc<ReadonlyRepo> {
@@ -203,8 +212,11 @@ impl RepoCommand {
     fn finish_transaction(
         &mut self,
         ui: &mut Ui,
-        tx: Transaction,
+        mut tx: Transaction,
     ) -> Result<Option<CheckoutStats>, CommandError> {
+        if self.auto_update_checkout {
+            update_checkout_after_rewrite(ui, tx.mut_repo())?;
+        }
         self.repo = tx.commit();
         update_working_copy(ui, &self.repo, &self.repo.working_copy_locked())
     }
@@ -683,7 +695,7 @@ fn cmd_checkout(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = RepoCommand::new(ui, matches)?;
+    let mut repo_command = RepoCommand::new(ui, matches)?.auto_update_checkout(false);
     let new_commit = repo_command.resolve_revision_arg(sub_matches)?;
     repo_command.commit_working_copy();
     let repo = repo_command.repo();
@@ -1255,7 +1267,6 @@ fn cmd_describe(
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_description(description)
         .write_to_repo(tx.mut_repo());
-    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -1272,7 +1283,6 @@ fn cmd_open(
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_open(true)
         .write_to_repo(tx.mut_repo());
-    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -1298,7 +1308,6 @@ fn cmd_close(
     commit_builder = commit_builder.set_description(description);
     let mut tx = repo.start_transaction(&format!("close commit {}", commit.id().hex()));
     commit_builder.write_to_repo(tx.mut_repo());
-    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -1340,7 +1349,6 @@ fn cmd_prune(
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
         .set_pruned(true)
         .write_to_repo(tx.mut_repo());
-    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -1350,7 +1358,7 @@ fn cmd_new(
     matches: &ArgMatches,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = RepoCommand::new(ui, matches)?;
+    let mut repo_command = RepoCommand::new(ui, matches)?.auto_update_checkout(false);
     let parent = repo_command.resolve_revision_arg(sub_matches)?;
     let repo = repo_command.repo();
     let commit_builder = CommitBuilder::for_open_commit(
@@ -1412,7 +1420,6 @@ fn cmd_squash(
         .set_parents(vec![new_parent.id().clone()])
         .set_pruned(prune_child)
         .write_to_repo(mut_repo);
-    update_checkout_after_rewrite(ui, mut_repo)?;
     repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -1461,7 +1468,6 @@ fn cmd_unsquash(
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_parents(vec![new_parent.id().clone()])
         .write_to_repo(mut_repo);
-    update_checkout_after_rewrite(ui, mut_repo)?;
     repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -1539,7 +1545,6 @@ fn cmd_restore(
         ui.write("Created ")?;
         ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
         ui.write("\n")?;
-        update_checkout_after_rewrite(ui, mut_repo)?;
         repo_command.finish_transaction(ui, tx)?;
     }
     Ok(())
@@ -1566,7 +1571,6 @@ fn cmd_edit(
         ui.write("Created ")?;
         ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
         ui.write("\n")?;
-        update_checkout_after_rewrite(ui, mut_repo)?;
         repo_command.finish_transaction(ui, tx)?;
     }
     Ok(())
@@ -1606,7 +1610,6 @@ fn cmd_split(
         ui.write("\nSecond part: ")?;
         ui.write_commit_summary(mut_repo.as_repo_ref(), &second_commit)?;
         ui.write("\n")?;
-        update_checkout_after_rewrite(ui, mut_repo)?;
         repo_command.finish_transaction(ui, tx)?;
     }
     Ok(())
@@ -1645,7 +1648,6 @@ fn cmd_merge(
         .set_description(description)
         .set_open(false)
         .write_to_repo(tx.mut_repo());
-    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     repo_command.finish_transaction(ui, tx)?;
 
     Ok(())
@@ -1666,7 +1668,6 @@ fn cmd_rebase(
     let repo = repo_command.repo();
     let mut tx = repo.start_transaction(&format!("rebase commit {}", commit_to_rebase.id().hex()));
     rebase_commit(ui.settings(), tx.mut_repo(), &commit_to_rebase, &parents);
-    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     repo_command.finish_transaction(ui, tx)?;
 
     Ok(())
@@ -1690,7 +1691,6 @@ fn cmd_backout(
         commit_to_back_out.id().hex()
     ));
     back_out_commit(ui.settings(), tx.mut_repo(), &commit_to_back_out, &parents);
-    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     repo_command.finish_transaction(ui, tx)?;
 
     Ok(())
@@ -1790,7 +1790,6 @@ fn cmd_evolve<'s>(
     let repo = repo_command.repo();
     let mut tx = repo.start_transaction("evolve");
     evolve(&user_settings, tx.mut_repo(), &mut listener);
-    update_checkout_after_rewrite(ui, tx.mut_repo())?;
     repo_command.finish_transaction(ui, tx)?;
 
     Ok(())
@@ -2023,7 +2022,7 @@ fn cmd_op_undo(
     _op_matches: &ArgMatches,
     _cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = RepoCommand::new(ui, matches)?;
+    let mut repo_command = RepoCommand::new(ui, matches)?.auto_update_checkout(false);
     let repo = repo_command.repo();
     let bad_op = resolve_single_op(&repo, _cmd_matches.value_of("operation").unwrap())?;
     let parent_ops = bad_op.parents();
@@ -2052,7 +2051,7 @@ fn cmd_op_restore(
     _op_matches: &ArgMatches,
     _cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = RepoCommand::new(ui, matches)?;
+    let mut repo_command = RepoCommand::new(ui, matches)?.auto_update_checkout(false);
     let repo = repo_command.repo();
     let target_op = resolve_single_op(&repo, _cmd_matches.value_of("operation").unwrap())?;
     let mut tx = repo.start_transaction(&format!("restore to operation {}", target_op.id().hex()));
