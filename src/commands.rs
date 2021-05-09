@@ -131,6 +131,7 @@ fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandE
 struct RepoCommand {
     settings: UserSettings,
     repo: Arc<ReadonlyRepo>,
+    working_copy_committed: bool,
     // Whether the checkout should be updated to an appropriate successor when the transaction
     // finishes. This should generally be true for commands that rewrite commits.
     auto_update_checkout: bool,
@@ -142,6 +143,7 @@ impl RepoCommand {
         Ok(RepoCommand {
             settings: ui.settings().clone(),
             repo,
+            working_copy_committed: false,
             auto_update_checkout: true,
         })
     }
@@ -173,8 +175,8 @@ impl RepoCommand {
         // reference pointing to the working copy commit. If it's a
         // type of reference that would get updated when the commit gets rewritten, then
         // we probably should create a new working copy commit.
-        if revision_str == "@" {
-            // TODO: Avoid committing every time this function is called.
+        if revision_str == "@" && !self.working_copy_committed {
+            self.working_copy_committed = true;
             self.commit_working_copy();
         }
 
