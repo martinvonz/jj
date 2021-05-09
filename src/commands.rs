@@ -127,12 +127,16 @@ fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandE
 }
 
 struct CommandHelper<'args> {
+    string_args: Vec<String>,
     root_matches: ArgMatches<'args>,
 }
 
 impl<'args> CommandHelper<'args> {
-    fn new(root_matches: ArgMatches<'args>) -> Self {
-        Self { root_matches }
+    fn new(string_args: Vec<String>, root_matches: ArgMatches<'args>) -> Self {
+        Self {
+            string_args,
+            root_matches,
+        }
     }
 
     fn root_matches(&self) -> &ArgMatches {
@@ -140,13 +144,14 @@ impl<'args> CommandHelper<'args> {
     }
 
     fn repo_helper(&self, ui: &Ui) -> Result<RepoCommandHelper, CommandError> {
-        RepoCommandHelper::new(ui, &self.root_matches)
+        RepoCommandHelper::new(ui, self.string_args.clone(), &self.root_matches)
     }
 }
 
 // Provides utilities for writing a command that works on a repo (like most
 // commands do).
 struct RepoCommandHelper {
+    string_args: Vec<String>,
     settings: UserSettings,
     repo: Arc<ReadonlyRepo>,
     working_copy_committed: bool,
@@ -156,9 +161,14 @@ struct RepoCommandHelper {
 }
 
 impl RepoCommandHelper {
-    fn new(ui: &Ui, root_matches: &ArgMatches) -> Result<Self, CommandError> {
+    fn new(
+        ui: &Ui,
+        string_args: Vec<String>,
+        root_matches: &ArgMatches,
+    ) -> Result<Self, CommandError> {
         let repo = get_repo(ui, &root_matches)?;
         Ok(RepoCommandHelper {
+            string_args,
             settings: ui.settings().clone(),
             repo,
             working_copy_committed: false,
@@ -231,6 +241,35 @@ impl RepoCommandHelper {
             .commit(&self.settings, self.repo.clone());
         self.repo = reloaded_repo;
         commit
+    }
+
+    fn start_transaction(&self, description: &str) -> Transaction {
+        let mut tx = self.repo.start_transaction(description);
+        // TODO: Either do better shell-escaping here or store the values in some list
+        // type (which we currently don't have).
+        let shell_escape = |arg: &String| {
+            if arg.as_bytes().iter().all(|b| {
+                matches!(b,
+                    b'A'..=b'Z'
+                    | b'a'..=b'z'
+                    | b'0'..=b'9'
+                    | b','
+                    | b'-'
+                    | b'.'
+                    | b'/'
+                    | b':'
+                    | b'@'
+                    | b'_'
+                )
+            }) {
+                arg.clone()
+            } else {
+                format!("'{}'", arg.replace("'", "\\'"))
+            }
+        };
+        let quoted_strings: Vec<_> = self.string_args.iter().map(shell_escape).collect();
+        tx.set_tag("args".to_string(), quoted_strings.join(" "));
+        tx
     }
 
     fn finish_transaction(
@@ -722,8 +761,8 @@ fn cmd_checkout(
     let mut repo_command = command.repo_helper(ui)?.auto_update_checkout(false);
     let new_commit = repo_command.resolve_revision_arg(sub_matches)?;
     repo_command.commit_working_copy();
-    let repo = repo_command.repo();
-    let mut tx = repo.start_transaction(&format!("check out commit {}", new_commit.id().hex()));
+    let mut tx =
+        repo_command.start_transaction(&format!("check out commit {}", new_commit.id().hex()));
     tx.mut_repo().check_out(ui.settings(), &new_commit);
     let stats = repo_command.finish_transaction(ui, tx)?;
     match stats {
@@ -1287,7 +1326,7 @@ fn cmd_describe(
     } else {
         description = edit_description(&repo, commit.description());
     }
-    let mut tx = repo.start_transaction(&format!("describe commit {}", commit.id().hex()));
+    let mut tx = repo_command.start_transaction(&format!("describe commit {}", commit.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_description(description)
         .write_to_repo(tx.mut_repo());
@@ -1303,7 +1342,7 @@ fn cmd_open(
     let mut repo_command = command.repo_helper(ui)?;
     let commit = repo_command.resolve_revision_arg(sub_matches)?;
     let repo = repo_command.repo();
-    let mut tx = repo.start_transaction(&format!("open commit {}", commit.id().hex()));
+    let mut tx = repo_command.start_transaction(&format!("open commit {}", commit.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_open(true)
         .write_to_repo(tx.mut_repo());
@@ -1330,7 +1369,7 @@ fn cmd_close(
         description = commit.description().to_string();
     }
     commit_builder = commit_builder.set_description(description);
-    let mut tx = repo.start_transaction(&format!("close commit {}", commit.id().hex()));
+    let mut tx = repo_command.start_transaction(&format!("close commit {}", commit.id().hex()));
     commit_builder.write_to_repo(tx.mut_repo());
     repo_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -1344,7 +1383,8 @@ fn cmd_duplicate(
     let mut repo_command = command.repo_helper(ui)?;
     let predecessor = repo_command.resolve_revision_arg(sub_matches)?;
     let repo = repo_command.repo();
-    let mut tx = repo.start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
+    let mut tx =
+        repo_command.start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
     let mut_repo = tx.mut_repo();
     let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
         .generate_new_change_id()
@@ -1369,7 +1409,8 @@ fn cmd_prune(
             "Cannot prune the root commit",
         )));
     }
-    let mut tx = repo.start_transaction(&format!("prune commit {}", predecessor.id().hex()));
+    let mut tx =
+        repo_command.start_transaction(&format!("prune commit {}", predecessor.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
         .set_pruned(true)
         .write_to_repo(tx.mut_repo());
@@ -1391,7 +1432,7 @@ fn cmd_new(
         parent.id().clone(),
         parent.tree().id().clone(),
     );
-    let mut tx = repo.start_transaction("new empty commit");
+    let mut tx = repo_command.start_transaction("new empty commit");
     let mut_repo = tx.mut_repo();
     let new_commit = commit_builder.write_to_repo(mut_repo);
     if mut_repo.view().checkout() == parent.id() {
@@ -1421,7 +1462,7 @@ fn cmd_squash(
             "Cannot squash into the root commit",
         )));
     }
-    let mut tx = repo.start_transaction(&format!("squash commit {}", commit.id().hex()));
+    let mut tx = repo_command.start_transaction(&format!("squash commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
     let new_parent_tree_id;
     if sub_matches.is_present("interactive") {
@@ -1468,7 +1509,7 @@ fn cmd_unsquash(
             "Cannot unsquash from the root commit",
         )));
     }
-    let mut tx = repo.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
+    let mut tx = repo_command.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
     let parent_base_tree = merge_commit_trees(repo.as_repo_ref(), &parent.parents());
     let new_parent_tree_id;
@@ -1503,8 +1544,7 @@ fn cmd_discard(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let commit = repo_command.resolve_revision_arg(sub_matches)?;
-    let repo = repo_command.repo();
-    let mut tx = repo.start_transaction(&format!("discard commit {}", commit.id().hex()));
+    let mut tx = repo_command.start_transaction(&format!("discard commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
     mut_repo.remove_head(&commit);
     for parent in commit.parents() {
@@ -1557,7 +1597,7 @@ fn cmd_restore(
     if &tree_id == destination_commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {
-        let mut tx = repo.start_transaction(&format!(
+        let mut tx = repo_command.start_transaction(&format!(
             "restore into commit {}",
             destination_commit.id().hex()
         ));
@@ -1587,7 +1627,7 @@ fn cmd_edit(
     if &tree_id == commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {
-        let mut tx = repo.start_transaction(&format!("edit commit {}", commit.id().hex()));
+        let mut tx = repo_command.start_transaction(&format!("edit commit {}", commit.id().hex()));
         let mut_repo = tx.mut_repo();
         let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_tree(tree_id)
@@ -1613,7 +1653,7 @@ fn cmd_split(
     if &tree_id == commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {
-        let mut tx = repo.start_transaction(&format!("split commit {}", commit.id().hex()));
+        let mut tx = repo_command.start_transaction(&format!("split commit {}", commit.id().hex()));
         let mut_repo = tx.mut_repo();
         // TODO: Add a header or footer to the decription where we describe to the user
         // that this is the first commit
@@ -1666,7 +1706,7 @@ fn cmd_merge(
         description = edit_description(&repo, "");
     }
     let merged_tree = merge_commit_trees(repo.as_repo_ref(), &commits);
-    let mut tx = repo.start_transaction("merge commits");
+    let mut tx = repo_command.start_transaction("merge commits");
     CommitBuilder::for_new_commit(ui.settings(), repo.store(), merged_tree.id().clone())
         .set_parents(parent_ids)
         .set_description(description)
@@ -1689,8 +1729,8 @@ fn cmd_rebase(
         let destination = repo_command.resolve_single_rev(revision_str)?;
         parents.push(destination);
     }
-    let repo = repo_command.repo();
-    let mut tx = repo.start_transaction(&format!("rebase commit {}", commit_to_rebase.id().hex()));
+    let mut tx =
+        repo_command.start_transaction(&format!("rebase commit {}", commit_to_rebase.id().hex()));
     rebase_commit(ui.settings(), tx.mut_repo(), &commit_to_rebase, &parents);
     repo_command.finish_transaction(ui, tx)?;
 
@@ -1709,8 +1749,7 @@ fn cmd_backout(
         let destination = repo_command.resolve_single_rev(revision_str)?;
         parents.push(destination);
     }
-    let repo = repo_command.repo();
-    let mut tx = repo.start_transaction(&format!(
+    let mut tx = repo_command.start_transaction(&format!(
         "back out commit {}",
         commit_to_back_out.id().hex()
     ));
@@ -1811,8 +1850,7 @@ fn cmd_evolve<'s>(
     // have only one Ui instance we write to across threads?
     let user_settings = ui.settings().clone();
     let mut listener = Listener { ui };
-    let repo = repo_command.repo();
-    let mut tx = repo.start_transaction("evolve");
+    let mut tx = repo_command.start_transaction("evolve");
     evolve(&user_settings, tx.mut_repo(), &mut listener);
     repo_command.finish_transaction(ui, tx)?;
 
@@ -2006,7 +2044,9 @@ fn cmd_op_log(
             styler.add_label("description".to_string())?;
             styler.write_str(&metadata.description)?;
             styler.remove_label()?;
-
+            for (key, value) in &metadata.tags {
+                styler.write_str(&format!("\n{}: {}", key, value))?;
+            }
             styler.remove_label()?;
 
             Ok(())
@@ -2061,7 +2101,7 @@ fn cmd_op_undo(
         ));
     }
 
-    let mut tx = repo.start_transaction(&format!("undo operation {}", bad_op.id().hex()));
+    let mut tx = repo_command.start_transaction(&format!("undo operation {}", bad_op.id().hex()));
     let bad_repo = repo.loader().load_at(&bad_op)?;
     let parent_repo = repo.loader().load_at(&parent_ops[0])?;
     tx.mut_repo().merge(&bad_repo, &parent_repo);
@@ -2078,7 +2118,8 @@ fn cmd_op_restore(
     let mut repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
     let target_op = resolve_single_op(&repo, _cmd_matches.value_of("operation").unwrap())?;
-    let mut tx = repo.start_transaction(&format!("restore to operation {}", target_op.id().hex()));
+    let mut tx =
+        repo_command.start_transaction(&format!("restore to operation {}", target_op.id().hex()));
     tx.mut_repo().set_view(target_op.view().take_store_view());
     repo_command.finish_transaction(ui, tx)?;
 
@@ -2121,7 +2162,7 @@ fn cmd_git_fetch(
     let repo = repo_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     let remote_name = cmd_matches.value_of("remote").unwrap();
-    let mut tx = repo.start_transaction(&format!("fetch from git remote {}", remote_name));
+    let mut tx = repo_command.start_transaction(&format!("fetch from git remote {}", remote_name));
     git::fetch(tx.mut_repo(), &git_repo, remote_name)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
     tx.commit();
@@ -2185,7 +2226,7 @@ fn cmd_git_push(
     let branch_name = cmd_matches.value_of("branch").unwrap();
     git::push_commit(&git_repo, &commit, remote_name, branch_name)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
-    let mut tx = repo.start_transaction("import git refs");
+    let mut tx = repo_command.start_transaction("import git refs");
     git::import_refs(tx.mut_repo(), &git_repo)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
     tx.commit();
@@ -2201,7 +2242,7 @@ fn cmd_git_refresh(
     let repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
     let git_repo = get_git_repo(repo.store())?;
-    let mut tx = repo.start_transaction("import git refs");
+    let mut tx = repo_command.start_transaction("import git refs");
     git::import_refs(tx.mut_repo(), &git_repo)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
     tx.commit();
@@ -2272,8 +2313,8 @@ where
         }
     }
     let string_args = resolve_alias(&mut ui, string_args);
-    let matches = get_app().get_matches_from(string_args);
-    let command_helper = CommandHelper::new(matches.clone());
+    let matches = get_app().get_matches_from(&string_args);
+    let command_helper = CommandHelper::new(string_args, matches.clone());
     let result = if let Some(sub_matches) = command_helper.root_matches.subcommand_matches("init") {
         cmd_init(&mut ui, &command_helper, &sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("checkout") {

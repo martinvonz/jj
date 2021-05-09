@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::evolution::ReadonlyEvolution;
@@ -29,6 +30,7 @@ pub struct Transaction {
     parents: Vec<OperationId>,
     description: String,
     start_time: Timestamp,
+    tags: HashMap<String, String>,
     closed: bool,
 }
 
@@ -40,6 +42,7 @@ impl Transaction {
             parents,
             description: description.to_owned(),
             start_time: Timestamp::now(),
+            tags: Default::default(),
             closed: false,
         }
     }
@@ -50,6 +53,10 @@ impl Transaction {
 
     pub fn set_parents(&mut self, parents: Vec<OperationId>) {
         self.parents = parents;
+    }
+
+    pub fn set_tag(&mut self, key: String, value: String) {
+        self.tags.insert(key, value);
     }
 
     pub fn mut_repo(&mut self) -> &mut MutableRepo {
@@ -74,8 +81,9 @@ impl Transaction {
 
         let view = mut_view.freeze();
         let view_id = base_repo.op_store().write_view(view.store_view()).unwrap();
-        let operation_metadata =
+        let mut operation_metadata =
             OperationMetadata::new(self.description.clone(), self.start_time.clone());
+        operation_metadata.tags = self.tags.clone();
         let store_operation = op_store::Operation {
             view_id,
             parents: self.parents.clone(),

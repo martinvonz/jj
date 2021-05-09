@@ -47,4 +47,5 @@ message OperationMetadata {
   string description = 3;
   string hostname = 4;
   string username = 5;
+  map<string, string> tags = 6;
 }

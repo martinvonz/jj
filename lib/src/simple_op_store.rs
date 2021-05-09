@@ -149,6 +149,7 @@ fn operation_metadata_to_proto(
     proto.set_description(metadata.description.clone());
     proto.set_hostname(metadata.hostname.clone());
     proto.set_username(metadata.username.clone());
+    proto.set_tags(metadata.tags.clone());
     proto
 }
 
@@ -160,12 +161,14 @@ fn operation_metadata_from_proto(
     let description = proto.get_description().to_owned();
     let hostname = proto.get_hostname().to_owned();
     let username = proto.get_username().to_owned();
+    let tags = proto.get_tags().clone();
     OperationMetadata {
         start_time,
         end_time,
         description,
         hostname,
         username,
+        tags,
     }
 }
 

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
 
 use crate::store::{CommitId, Timestamp};
@@ -101,6 +101,7 @@ pub struct OperationMetadata {
     pub description: String,
     pub hostname: String,
     pub username: String,
+    pub tags: HashMap<String, String>,
 }
 
 impl OperationMetadata {
@@ -114,6 +115,7 @@ impl OperationMetadata {
             description,
             hostname,
             username,
+            tags: Default::default(),
         }
     }
 }
