@@ -17,6 +17,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::convert::TryInto;
 use std::fs;
 use std::fs::{File, OpenOptions};
+use std::io::Read;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
 #[cfg(unix)]
@@ -27,13 +28,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
-use git2::{Repository, RepositoryInitOptions};
 use protobuf::Message;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
+use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::repo::ReadonlyRepo;
 use crate::repo_path::{
@@ -282,6 +283,25 @@ impl TreeState {
         self.store.write_symlink(path, str_target).unwrap()
     }
 
+    fn try_chain_gitignore(
+        base: &Arc<GitIgnoreFile>,
+        prefix: &str,
+        file: PathBuf,
+    ) -> Arc<GitIgnoreFile> {
+        if file.is_file() {
+            let mut file = File::open(file).unwrap();
+            let mut buf = Vec::new();
+            file.read_to_end(&mut buf).unwrap();
+            if let Ok(chained) = base.chain(prefix, &buf) {
+                chained
+            } else {
+                base.clone()
+            }
+        } else {
+            base.clone()
+        }
+    }
+
     // Look for changes to the working copy. If there are any changes, create
     // a new tree from it and return it, and also update the dirstate on disk.
     // TODO: respect ignores
@@ -289,33 +309,30 @@ impl TreeState {
         // We create a temporary git repo with the working copy shared with ours only
         // so we can use libgit2's .gitignore check.
         // TODO: We should probably have the caller pass in the home directory to the
-        // library crate instead of depending on $HOME directly here (as we do because
-        // git2::Repository::status_should_ignore() reads the .gitignore there).
-        // TODO: Do this more cleanly, perhaps by reading .gitignore files ourselves.
-        let git_repo_dir = tempfile::tempdir().unwrap();
-        let mut git_repo_options = RepositoryInitOptions::new();
-        git_repo_options.workdir_path(&self.working_copy_path);
-        // Repository::init_opts creates a ".git" file in the working copy,
-        // which is undesired. On Windows it's worse because that ".git" makes
-        // the next Repository::init_opts fail with "Permission Denied".
-        // Automatically remove it.
-        let _cleanup_dot_git = {
-            struct Cleanup(PathBuf);
-            impl Drop for Cleanup {
-                fn drop(&mut self) {
-                    let _ = fs::remove_file(&self.0);
-                }
-            }
-            Cleanup(self.working_copy_path.join(".git"))
-        };
-        let git_repo = Repository::init_opts(git_repo_dir.path(), &git_repo_options).unwrap();
+        // library crate instead of depending on $HOME directly here. We should also
+        // have the caller (within the library crate) chain that the
+        // .jj/git/info/exclude file if we're inside a git-backed repo.
+        let home_dir = std::env::var("HOME");
+        let home_dir_path = PathBuf::from(home_dir.unwrap());
+        let mut git_ignore = GitIgnoreFile::empty();
+        git_ignore =
+            TreeState::try_chain_gitignore(&git_ignore, "", home_dir_path.join(".gitignore"));
 
-        let mut work = vec![(DirRepoPath::root(), self.working_copy_path.clone())];
+        let mut work = vec![(
+            DirRepoPath::root(),
+            self.working_copy_path.clone(),
+            git_ignore,
+        )];
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
         let mut deleted_files: HashSet<&FileRepoPath> = self.file_states.keys().collect();
         let mut modified_files = BTreeMap::new();
         while !work.is_empty() {
-            let (dir, disk_dir) = work.pop().unwrap();
+            let (dir, disk_dir, git_ignore) = work.pop().unwrap();
+            let git_ignore = TreeState::try_chain_gitignore(
+                &git_ignore,
+                &dir.to_internal_string(),
+                disk_dir.join(".gitignore"),
+            );
             for maybe_entry in disk_dir.read_dir().unwrap() {
                 let entry = maybe_entry.unwrap();
                 let file_type = entry.file_type().unwrap();
@@ -327,7 +344,7 @@ impl TreeState {
                 if file_type.is_dir() {
                     let subdir = dir.join(&DirRepoPathComponent::from(name));
                     let disk_subdir = disk_dir.join(file_name);
-                    work.push((subdir, disk_subdir));
+                    work.push((subdir, disk_subdir, git_ignore.clone()));
                 } else {
                     let file = dir.join(&FileRepoPathComponent::from(name));
                     let disk_file = disk_dir.join(file_name);
@@ -338,7 +355,7 @@ impl TreeState {
                     match self.file_states.get(&file) {
                         None => {
                             // untracked
-                            if git_repo.status_should_ignore(&disk_file).unwrap() {
+                            if git_ignore.matches_file(&file.to_internal_string()) {
                                 continue;
                             }
                             clean = false;
