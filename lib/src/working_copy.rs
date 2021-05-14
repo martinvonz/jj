@@ -312,11 +312,12 @@ impl TreeState {
         // library crate instead of depending on $HOME directly here. We should also
         // have the caller (within the library crate) chain that the
         // .jj/git/info/exclude file if we're inside a git-backed repo.
-        let home_dir = std::env::var("HOME");
-        let home_dir_path = PathBuf::from(home_dir.unwrap());
         let mut git_ignore = GitIgnoreFile::empty();
-        git_ignore =
-            TreeState::try_chain_gitignore(&git_ignore, "", home_dir_path.join(".gitignore"));
+        if let Ok(home_dir) = std::env::var("HOME") {
+            let home_dir_path = PathBuf::from(home_dir);
+            git_ignore =
+                TreeState::try_chain_gitignore(&git_ignore, "", home_dir_path.join(".gitignore"));
+        }
 
         let mut work = vec![(
             DirRepoPath::root(),
