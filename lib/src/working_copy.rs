@@ -343,8 +343,10 @@ impl TreeState {
                 }
                 if file_type.is_dir() {
                     let subdir = dir.join(&DirRepoPathComponent::from(name));
-                    let disk_subdir = disk_dir.join(file_name);
-                    work.push((subdir, disk_subdir, git_ignore.clone()));
+                    if !git_ignore.matches_all_files_in(&subdir.to_internal_string()) {
+                        let disk_subdir = disk_dir.join(file_name);
+                        work.push((subdir, disk_subdir, git_ignore.clone()));
+                    }
                 } else {
                     let file = dir.join(&FileRepoPathComponent::from(name));
                     let disk_file = disk_dir.join(file_name);

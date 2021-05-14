@@ -146,7 +146,7 @@ impl GitIgnoreLine {
         Ok(Some(GitIgnoreLine { is_negative, regex }))
     }
 
-    fn matches_file(&self, path: &str) -> bool {
+    fn matches(&self, path: &str) -> bool {
         self.regex.is_match(path)
     }
 }
@@ -196,8 +196,28 @@ impl GitIgnoreFile {
     pub fn matches_file(&self, path: &str) -> bool {
         // Later lines take precedence, so check them in reverse
         for line in self.all_lines_reversed() {
-            if line.matches_file(path) {
+            if line.matches(path) {
                 return !line.is_negative;
+            }
+        }
+        false
+    }
+
+    pub fn matches_all_files_in(&self, dir: &str) -> bool {
+        // Later lines take precedence, so check them in reverse
+        assert!(dir.is_empty() || dir.ends_with('/'));
+        for line in self.all_lines_reversed() {
+            // Let's say there's a "/target/" pattern and then a "!interesting" pattern
+            // after it, then we can't say for sure that all files in target/ match.
+            // TODO: This can be smarter. For example, if there's a pattern "/foo/" followed
+            // by "!/bar/", then we can answer "true" for "foo/". A more complex
+            // case is if a pattern "/foo/" is followed "!/foo/bar/", then we
+            // can say "false" for "foo/" and "true" for "foo/baz/".
+            if line.is_negative {
+                return false;
+            }
+            if line.matches(dir) {
+                return true;
             }
         }
         false
@@ -212,6 +232,11 @@ mod tests {
     fn matches_file(input: &[u8], path: &str) -> bool {
         let file = GitIgnoreFile::empty().chain("", input).ok().unwrap();
         file.matches_file(path)
+    }
+
+    fn matches_all_files_in(input: &[u8], path: &str) -> bool {
+        let file = GitIgnoreFile::empty().chain("", input).ok().unwrap();
+        file.matches_all_files_in(path)
     }
 
     #[test]
@@ -409,5 +434,15 @@ mod tests {
         assert!(file2.matches_file("foo/baz"));
         assert!(file3.matches_file("foo/bar/baz"));
         assert!(!file3.matches_file("foo/bar/qux"));
+    }
+
+    #[test]
+    fn test_gitignore_match_dir() {
+        assert!(matches_all_files_in(b"foo\n", "foo/"));
+        assert!(matches_all_files_in(b"foo\nbar\n", "foo/"));
+        assert!(matches_all_files_in(b"!foo\nbar\n", "bar/"));
+        assert!(!matches_all_files_in(b"foo\n!bar\n", "foo/"));
+        // This one could return true, but it doesn't currently
+        assert!(!matches_all_files_in(b"foo\n!/bar\n", "foo/"));
     }
 }
