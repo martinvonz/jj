@@ -18,6 +18,7 @@ use std::sync::Arc;
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::{bfs, closest_common_node, leaves};
+use crate::index::IndexPosition;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use crate::repo_path::DirRepoPath;
 use crate::rewrite::{merge_commit_trees, rebase_commit};
@@ -372,11 +373,6 @@ pub struct ReadonlyEvolution {
     state: State,
 }
 
-pub trait EvolveListener {
-    fn orphan_evolved(&mut self, mut_repo: &mut MutableRepo, orphan: &Commit, new_commit: &Commit);
-    fn orphan_target_ambiguous(&mut self, mut_repo: &mut MutableRepo, orphan: &Commit);
-}
-
 impl ReadonlyEvolution {
     pub fn new(repo: &ReadonlyRepo) -> ReadonlyEvolution {
         ReadonlyEvolution {
@@ -497,45 +493,62 @@ pub enum DivergenceResolution {
     },
 }
 
-pub fn evolve(
-    user_settings: &UserSettings,
-    mut_repo: &mut MutableRepo,
-    listener: &mut dyn EvolveListener,
-) {
-    let orphans_topo_order: Vec<_> = mut_repo
-        .index()
-        .topo_order(mut_repo.evolution().state.orphan_commits.iter())
-        .iter()
-        .map(|entry| entry.position())
-        .collect();
+pub struct OrphanResolver<'settings> {
+    user_settings: &'settings UserSettings,
+    remaining_orphans: Vec<IndexPosition>,
+}
 
-    let store = mut_repo.store().clone();
-    for orphan_pos in orphans_topo_order {
-        let orphan_entry = mut_repo.index().entry_by_pos(orphan_pos);
-        let mut new_parents = vec![];
-        let mut ambiguous_new_parents = false;
-        let evolution = mut_repo.evolution();
-        for old_parent in orphan_entry.parents() {
-            let new_parent_candidates =
-                evolution.new_parent(mut_repo.as_repo_ref(), &old_parent.commit_id());
-            if new_parent_candidates.len() > 1 {
-                ambiguous_new_parents = true;
-                break;
-            }
-            new_parents.push(
-                store
-                    .get_commit(new_parent_candidates.iter().next().unwrap())
-                    .unwrap(),
-            );
-        }
-        let orphan = store.get_commit(&orphan_entry.commit_id()).unwrap();
-        if ambiguous_new_parents {
-            listener.orphan_target_ambiguous(mut_repo, &orphan);
-        } else {
-            let new_commit = rebase_commit(user_settings, mut_repo, &orphan, &new_parents);
-            listener.orphan_evolved(mut_repo, &orphan, &new_commit);
+impl<'settings> OrphanResolver<'settings> {
+    pub fn new(user_settings: &'settings UserSettings, mut_repo: &MutableRepo) -> Self {
+        let mut orphans_topo_order: Vec<_> = mut_repo
+            .index()
+            .topo_order(mut_repo.evolution().state.orphan_commits.iter())
+            .iter()
+            .map(|entry| entry.position())
+            .collect();
+        // Reverse so we can pop then efficiently later
+        orphans_topo_order.reverse();
+        OrphanResolver {
+            user_settings,
+            remaining_orphans: orphans_topo_order,
         }
     }
+
+    pub fn resolve_next(&mut self, mut_repo: &mut MutableRepo) -> Option<OrphanResolution> {
+        self.remaining_orphans.pop().map(|orphan_pos| {
+            let store = mut_repo.store();
+            let orphan_entry = mut_repo.index().entry_by_pos(orphan_pos);
+            let mut new_parents = vec![];
+            let mut ambiguous_new_parents = false;
+            let evolution = mut_repo.evolution();
+            for old_parent in orphan_entry.parents() {
+                let new_parent_candidates =
+                    evolution.new_parent(mut_repo.as_repo_ref(), &old_parent.commit_id());
+                if new_parent_candidates.len() > 1 {
+                    ambiguous_new_parents = true;
+                    break;
+                }
+                new_parents.push(
+                    store
+                        .get_commit(new_parent_candidates.iter().next().unwrap())
+                        .unwrap(),
+                );
+            }
+            let orphan = store.get_commit(&orphan_entry.commit_id()).unwrap();
+            if ambiguous_new_parents {
+                OrphanResolution::AmbiguousTarget { orphan }
+            } else {
+                let new_commit = rebase_commit(self.user_settings, mut_repo, &orphan, &new_parents);
+                OrphanResolution::Resolved { orphan, new_commit }
+            }
+        })
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+pub enum OrphanResolution {
+    Resolved { orphan: Commit, new_commit: Commit },
+    AmbiguousTarget { orphan: Commit },
 }
 
 fn evolve_divergent_change(

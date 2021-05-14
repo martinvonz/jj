@@ -16,8 +16,10 @@
 
 use jujube_lib::commit::Commit;
 use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::evolution::{evolve, DivergenceResolution, DivergenceResolver, EvolveListener};
-use jujube_lib::repo::{MutableRepo, ReadonlyRepo};
+use jujube_lib::evolution::{
+    DivergenceResolution, DivergenceResolver, OrphanResolution, OrphanResolver,
+};
+use jujube_lib::repo::ReadonlyRepo;
 use jujube_lib::repo_path::FileRepoPath;
 use jujube_lib::settings::UserSettings;
 use jujube_lib::testutils;
@@ -506,35 +508,6 @@ fn test_new_parent_split_forked_pruned(use_git: bool) {
     tx.discard();
 }
 
-struct RecordingEvolveListener {
-    evolved_orphans: Vec<(Commit, Commit)>,
-}
-
-impl Default for RecordingEvolveListener {
-    fn default() -> Self {
-        RecordingEvolveListener {
-            evolved_orphans: Default::default(),
-        }
-    }
-}
-
-impl EvolveListener for RecordingEvolveListener {
-    fn orphan_evolved(
-        &mut self,
-        _mut_repo: &mut MutableRepo,
-        orphan: &Commit,
-        new_commit: &Commit,
-    ) {
-        self.evolved_orphans
-            .push((orphan.clone(), new_commit.clone()));
-    }
-
-    fn orphan_target_ambiguous(&mut self, _mut_repo: &mut MutableRepo, _orphan: &Commit) {
-        // TODO: Record this too and add tests
-        panic!("unexpected call to orphan_target_ambiguous");
-    }
-}
-
 #[test_case(false ; "local store")]
 // #[test_case(true ; "git store")]
 fn test_evolve_orphan(use_git: bool) {
@@ -552,16 +525,29 @@ fn test_evolve_orphan(use_git: bool) {
         .set_description("rewritten".to_string())
         .write_to_repo(mut_repo);
 
-    let mut listener = RecordingEvolveListener::default();
-    evolve(&settings, mut_repo, &mut listener);
-    assert_eq!(listener.evolved_orphans.len(), 2);
-    assert_eq!(&listener.evolved_orphans[0].0, &child);
-    assert_eq!(&listener.evolved_orphans[0].1.parents(), &vec![rewritten]);
-    assert_eq!(&listener.evolved_orphans[1].0, &grandchild);
-    assert_eq!(
-        &listener.evolved_orphans[1].1.parents(),
-        &vec![listener.evolved_orphans[0].1.clone()]
-    );
+    let mut resolver = OrphanResolver::new(&settings, mut_repo);
+    let resolution1 = resolver.resolve_next(mut_repo);
+    assert_matches!(resolution1, Some(OrphanResolution::Resolved { .. }));
+    let resolution2 = resolver.resolve_next(mut_repo);
+    assert_matches!(resolution2, Some(OrphanResolution::Resolved { .. }));
+    assert_eq!(resolver.resolve_next(mut_repo), None);
+    if let Some(OrphanResolution::Resolved {
+        orphan: orphan1,
+        new_commit: new_commit1,
+    }) = resolution1
+    {
+        assert_eq!(orphan1, child);
+        assert_eq!(new_commit1.parents(), vec![rewritten]);
+        if let Some(OrphanResolution::Resolved {
+            orphan: orphan2,
+            new_commit: new_commit2,
+        }) = resolution2
+        {
+            assert_eq!(orphan2, grandchild);
+            assert_eq!(new_commit2.parents(), vec![new_commit1.clone()]);
+        }
+    }
+
     tx.discard();
 }
 
@@ -586,10 +572,17 @@ fn test_evolve_pruned_orphan(use_git: bool) {
         .set_description("rewritten".to_string())
         .write_to_repo(mut_repo);
 
-    let mut listener = RecordingEvolveListener::default();
-    evolve(&settings, mut_repo, &mut listener);
-    assert_eq!(listener.evolved_orphans.len(), 1);
-    assert_eq!(listener.evolved_orphans[0].0.id(), child.id());
+    let mut resolver = OrphanResolver::new(&settings, mut_repo);
+    let resolution = resolver.resolve_next(mut_repo);
+    assert_matches!(resolution, Some(OrphanResolution::Resolved { .. }));
+    assert_eq!(resolver.resolve_next(mut_repo), None);
+    if let Some(OrphanResolution::Resolved {
+        orphan,
+        new_commit: _,
+    }) = resolution
+    {
+        assert_eq!(orphan, child);
+    }
 
     tx.discard();
 }
@@ -612,21 +605,39 @@ fn test_evolve_multiple_orphans(use_git: bool) {
         .set_description("rewritten".to_string())
         .write_to_repo(mut_repo);
 
-    let mut listener = RecordingEvolveListener::default();
-    evolve(&settings, mut_repo, &mut listener);
-    assert_eq!(listener.evolved_orphans.len(), 3);
-    assert_eq!(&listener.evolved_orphans[0].0, &child);
-    assert_eq!(&listener.evolved_orphans[0].1.parents(), &vec![rewritten]);
-    assert_eq!(&listener.evolved_orphans[1].0, &grandchild);
-    assert_eq!(
-        &listener.evolved_orphans[1].1.parents(),
-        &vec![listener.evolved_orphans[0].1.clone()]
-    );
-    assert_eq!(&listener.evolved_orphans[2].0, &grandchild2);
-    assert_eq!(
-        &listener.evolved_orphans[2].1.parents(),
-        &vec![listener.evolved_orphans[0].1.clone()]
-    );
+    let mut resolver = OrphanResolver::new(&settings, mut_repo);
+    let resolution1 = resolver.resolve_next(mut_repo);
+    assert_matches!(resolution1, Some(OrphanResolution::Resolved { .. }));
+    let resolution2 = resolver.resolve_next(mut_repo);
+    assert_matches!(resolution2, Some(OrphanResolution::Resolved { .. }));
+    let resolution3 = resolver.resolve_next(mut_repo);
+    assert_matches!(resolution3, Some(OrphanResolution::Resolved { .. }));
+    assert_eq!(resolver.resolve_next(mut_repo), None);
+    if let Some(OrphanResolution::Resolved {
+        orphan: orphan1,
+        new_commit: new_commit1,
+    }) = resolution1
+    {
+        assert_eq!(orphan1, child);
+        assert_eq!(new_commit1.parents(), vec![rewritten]);
+        if let Some(OrphanResolution::Resolved {
+            orphan: orphan2,
+            new_commit: new_commit2,
+        }) = resolution2
+        {
+            assert_eq!(orphan2, grandchild);
+            assert_eq!(new_commit2.parents(), vec![new_commit1.clone()]);
+            if let Some(OrphanResolution::Resolved {
+                orphan: orphan3,
+                new_commit: new_commit3,
+            }) = resolution3
+            {
+                assert_eq!(orphan3, grandchild2);
+                assert_eq!(new_commit3.parents(), vec![new_commit1.clone()]);
+            }
+        }
+    }
+
     tx.discard();
 }
 

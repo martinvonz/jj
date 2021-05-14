@@ -31,7 +31,9 @@ use criterion::Criterion;
 use jujube_lib::commit::Commit;
 use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::dag_walk::topo_order_reverse;
-use jujube_lib::evolution::{evolve, DivergenceResolution, DivergenceResolver, EvolveListener};
+use jujube_lib::evolution::{
+    DivergenceResolution, DivergenceResolver, OrphanResolution, OrphanResolver,
+};
 use jujube_lib::files::DiffLine;
 use jujube_lib::git::GitFetchError;
 use jujube_lib::index::HexPrefix;
@@ -1801,44 +1803,25 @@ fn cmd_evolve<'s>(
         }
     }
 
-    struct Listener<'a, 's> {
-        ui: &'a mut Ui<'s>,
-    }
-
-    // TODO: Handle errors that happen in this listener. Should the listener take a
-    // type parameter for the error type? Should the evolve operation be aborted
-    // if the listener returns an error? Maybe rewrite it as an iterator?
-    impl<'a, 's> EvolveListener for Listener<'a, 's> {
-        fn orphan_evolved(
-            &mut self,
-            mut_repo: &mut MutableRepo,
-            orphan: &Commit,
-            new_commit: &Commit,
-        ) {
-            self.ui.write("Resolving orphan: ").unwrap();
-            self.ui
-                .write_commit_summary(mut_repo.as_repo_ref(), &orphan)
-                .unwrap();
-            self.ui.write("\n").unwrap();
-            self.ui.write("Resolved as: ").unwrap();
-            self.ui
-                .write_commit_summary(mut_repo.as_repo_ref(), &new_commit)
-                .unwrap();
-            self.ui.write("\n").unwrap();
-        }
-
-        fn orphan_target_ambiguous(&mut self, mut_repo: &mut MutableRepo, orphan: &Commit) {
-            self.ui
-                .write("Skipping orphan with ambiguous new parents: ")
-                .unwrap();
-            self.ui
-                .write_commit_summary(mut_repo.as_repo_ref(), &orphan)
-                .unwrap();
-            self.ui.write("\n").unwrap();
+    let mut orphan_resolver = OrphanResolver::new(&user_settings, mut_repo);
+    while let Some(resolution) = orphan_resolver.resolve_next(mut_repo) {
+        match resolution {
+            OrphanResolution::Resolved { orphan, new_commit } => {
+                ui.write("Resolving orphan: ")?;
+                ui.write_commit_summary(mut_repo.as_repo_ref(), &orphan)?;
+                ui.write("\n")?;
+                ui.write("Resolved as: ")?;
+                ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
+                ui.write("\n")?;
+            }
+            OrphanResolution::AmbiguousTarget { orphan } => {
+                ui.write("Skipping orphan with ambiguous new parents: ")?;
+                ui.write_commit_summary(mut_repo.as_repo_ref(), &orphan)?;
+                ui.write("\n")?;
+            }
         }
     }
-    let mut listener = Listener { ui };
-    evolve(&user_settings, tx.mut_repo(), &mut listener);
+
     repo_command.finish_transaction(ui, tx)?;
 
     Ok(())
