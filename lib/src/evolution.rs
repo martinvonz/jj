@@ -463,6 +463,17 @@ impl MutableEvolution {
     }
 }
 
+enum DivergenceResolution {
+    Resolved {
+        divergents: Vec<Commit>,
+        resolved: Commit,
+    },
+    NoCommonPredecessor {
+        commit1: Commit,
+        commit2: Commit,
+    },
+}
+
 pub fn evolve(
     user_settings: &UserSettings,
     mut_repo: &mut MutableRepo,
@@ -485,7 +496,13 @@ pub fn evolve(
             .iter()
             .map(|id| store.get_commit(&id).unwrap())
             .collect();
-        evolve_divergent_change(user_settings, &store, mut_repo, listener, &commits);
+        match evolve_divergent_change(user_settings, &store, mut_repo, &commits) {
+            DivergenceResolution::Resolved {
+                divergents,
+                resolved,
+            } => listener.divergent_resolved(mut_repo, &divergents, &resolved),
+            DivergenceResolution::NoCommonPredecessor { .. } => {}
+        }
     }
 
     // Don't reuse the state from above, since the divergence-resolution may have
@@ -529,16 +546,15 @@ fn evolve_divergent_change(
     user_settings: &UserSettings,
     store: &Arc<StoreWrapper>,
     mut_repo: &mut MutableRepo,
-    listener: &mut dyn EvolveListener,
     commits: &HashSet<Commit>,
-) {
+) -> DivergenceResolution {
     // Resolve divergence pair-wise, starting with the two oldest commits.
     let mut commits: Vec<Commit> = commits.iter().cloned().collect();
     commits.sort_by(|a: &Commit, b: &Commit| a.committer().timestamp.cmp(&b.committer().timestamp));
     commits.reverse();
 
-    // Create a copy to pass to the listener
-    let sources = commits.clone();
+    // Create a copy to include in the response
+    let divergents = commits.clone();
 
     while commits.len() > 1 {
         let commit2 = commits.pop().unwrap();
@@ -552,8 +568,7 @@ fn evolve_divergent_change(
         );
         match common_predecessor {
             None => {
-                listener.divergent_no_common_predecessor(mut_repo, &commit1, &commit2);
-                return;
+                return DivergenceResolution::NoCommonPredecessor { commit1, commit2 };
             }
             Some(common_predecessor) => {
                 let resolved_commit = evolve_two_divergent_commits(
@@ -570,7 +585,10 @@ fn evolve_divergent_change(
     }
 
     let resolved = commits.pop().unwrap();
-    listener.divergent_resolved(mut_repo, &sources, &resolved);
+    DivergenceResolution::Resolved {
+        divergents,
+        resolved,
+    }
 }
 
 fn evolve_two_divergent_commits(
