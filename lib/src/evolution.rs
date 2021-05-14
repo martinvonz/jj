@@ -375,18 +375,6 @@ pub struct ReadonlyEvolution {
 pub trait EvolveListener {
     fn orphan_evolved(&mut self, mut_repo: &mut MutableRepo, orphan: &Commit, new_commit: &Commit);
     fn orphan_target_ambiguous(&mut self, mut_repo: &mut MutableRepo, orphan: &Commit);
-    fn divergent_resolved(
-        &mut self,
-        mut_repo: &mut MutableRepo,
-        divergents: &[Commit],
-        resolved: &Commit,
-    );
-    fn divergent_no_common_predecessor(
-        &mut self,
-        mut_repo: &mut MutableRepo,
-        commit1: &Commit,
-        commit2: &Commit,
-    );
 }
 
 impl ReadonlyEvolution {
@@ -463,7 +451,42 @@ impl MutableEvolution {
     }
 }
 
-enum DivergenceResolution {
+pub struct DivergenceResolver<'settings> {
+    user_settings: &'settings UserSettings,
+    remaining_changes: Vec<HashSet<CommitId>>,
+}
+
+impl<'settings> DivergenceResolver<'settings> {
+    pub fn new(user_settings: &'settings UserSettings, mut_repo: &MutableRepo) -> Self {
+        // TODO: Put them in some defined order
+        let divergent_changes: Vec<_> = mut_repo
+            .evolution()
+            .state
+            .non_obsoletes_by_changeid
+            .values()
+            .filter(|non_obsoletes| non_obsoletes.len() > 1)
+            .cloned()
+            .collect();
+        DivergenceResolver {
+            user_settings,
+            remaining_changes: divergent_changes,
+        }
+    }
+
+    pub fn resolve_next(&mut self, mut_repo: &mut MutableRepo) -> Option<DivergenceResolution> {
+        self.remaining_changes.pop().map(|commit_ids| {
+            let store = mut_repo.store().clone();
+            let commits = commit_ids
+                .iter()
+                .map(|id| store.get_commit(&id).unwrap())
+                .collect();
+            evolve_divergent_change(self.user_settings, &store, mut_repo, &commits)
+        })
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+pub enum DivergenceResolution {
     Resolved {
         divergents: Vec<Commit>,
         resolved: Commit,
@@ -479,34 +502,6 @@ pub fn evolve(
     mut_repo: &mut MutableRepo,
     listener: &mut dyn EvolveListener,
 ) {
-    let store = mut_repo.store().clone();
-
-    // Resolving divergence can creates new orphans but not vice versa, so resolve
-    // divergence first.
-    let divergent_changes: Vec<_> = mut_repo
-        .evolution()
-        .state
-        .non_obsoletes_by_changeid
-        .values()
-        .filter(|non_obsoletes| non_obsoletes.len() > 1)
-        .cloned()
-        .collect();
-    for commit_ids in divergent_changes {
-        let commits: HashSet<Commit> = commit_ids
-            .iter()
-            .map(|id| store.get_commit(&id).unwrap())
-            .collect();
-        match evolve_divergent_change(user_settings, &store, mut_repo, &commits) {
-            DivergenceResolution::Resolved {
-                divergents,
-                resolved,
-            } => listener.divergent_resolved(mut_repo, &divergents, &resolved),
-            DivergenceResolution::NoCommonPredecessor { .. } => {}
-        }
-    }
-
-    // Don't reuse the state from above, since the divergence-resolution may have
-    // created new orphans, or resolved existing orphans.
     let orphans_topo_order: Vec<_> = mut_repo
         .index()
         .topo_order(mut_repo.evolution().state.orphan_commits.iter())
@@ -514,6 +509,7 @@ pub fn evolve(
         .map(|entry| entry.position())
         .collect();
 
+    let store = mut_repo.store().clone();
     for orphan_pos in orphans_topo_order {
         let orphan_entry = mut_repo.index().entry_by_pos(orphan_pos);
         let mut new_parents = vec![];

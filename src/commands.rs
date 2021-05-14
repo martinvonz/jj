@@ -31,7 +31,7 @@ use criterion::Criterion;
 use jujube_lib::commit::Commit;
 use jujube_lib::commit_builder::CommitBuilder;
 use jujube_lib::dag_walk::topo_order_reverse;
-use jujube_lib::evolution::{evolve, EvolveListener};
+use jujube_lib::evolution::{evolve, DivergenceResolution, DivergenceResolver, EvolveListener};
 use jujube_lib::files::DiffLine;
 use jujube_lib::git::GitFetchError;
 use jujube_lib::index::HexPrefix;
@@ -1766,6 +1766,41 @@ fn cmd_evolve<'s>(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
 
+    // TODO: This clone is unnecessary. Maybe ui.write() etc should not require a
+    // mutable borrow? But the mutable borrow might be useful for making sure we
+    // have only one Ui instance we write to across threads?
+    let user_settings = ui.settings().clone();
+    let mut tx = repo_command.start_transaction("evolve");
+    let mut_repo = tx.mut_repo();
+    let mut divergence_resolver = DivergenceResolver::new(&user_settings, mut_repo);
+    while let Some(resolution) = divergence_resolver.resolve_next(mut_repo) {
+        match resolution {
+            DivergenceResolution::Resolved {
+                divergents,
+                resolved,
+            } => {
+                ui.write("Resolving divergent commits:\n").unwrap();
+                for source in divergents {
+                    ui.write("  ")?;
+                    ui.write_commit_summary(mut_repo.as_repo_ref(), &source)?;
+                    ui.write("\n")?;
+                }
+                ui.write("Resolved as: ")?;
+                ui.write_commit_summary(mut_repo.as_repo_ref(), &resolved)?;
+                ui.write("\n")?;
+            }
+            DivergenceResolution::NoCommonPredecessor { commit1, commit2 } => {
+                ui.write("Skipping divergent commits with no common predecessor:\n")?;
+                ui.write("  ")?;
+                ui.write_commit_summary(mut_repo.as_repo_ref(), &commit1)?;
+                ui.write("\n")?;
+                ui.write("  ")?;
+                ui.write_commit_summary(mut_repo.as_repo_ref(), &commit2)?;
+                ui.write("\n")?;
+            }
+        }
+    }
+
     struct Listener<'a, 's> {
         ui: &'a mut Ui<'s>,
     }
@@ -1801,56 +1836,8 @@ fn cmd_evolve<'s>(
                 .unwrap();
             self.ui.write("\n").unwrap();
         }
-
-        fn divergent_resolved(
-            &mut self,
-            mut_repo: &mut MutableRepo,
-            sources: &[Commit],
-            resolved: &Commit,
-        ) {
-            self.ui.write("Resolving divergent commits:\n").unwrap();
-            for source in sources {
-                self.ui.write("  ").unwrap();
-                self.ui
-                    .write_commit_summary(mut_repo.as_repo_ref(), &source)
-                    .unwrap();
-                self.ui.write("\n").unwrap();
-            }
-            self.ui.write("Resolved as: ").unwrap();
-            self.ui
-                .write_commit_summary(mut_repo.as_repo_ref(), &resolved)
-                .unwrap();
-            self.ui.write("\n").unwrap();
-        }
-
-        fn divergent_no_common_predecessor(
-            &mut self,
-            mut_repo: &mut MutableRepo,
-            commit1: &Commit,
-            commit2: &Commit,
-        ) {
-            self.ui
-                .write("Skipping divergent commits with no common predecessor:\n")
-                .unwrap();
-            self.ui.write("  ").unwrap();
-            self.ui
-                .write_commit_summary(mut_repo.as_repo_ref(), &commit1)
-                .unwrap();
-            self.ui.write("\n").unwrap();
-            self.ui.write("  ").unwrap();
-            self.ui
-                .write_commit_summary(mut_repo.as_repo_ref(), &commit2)
-                .unwrap();
-            self.ui.write("\n").unwrap();
-        }
     }
-
-    // TODO: This clone is unnecessary. Maybe ui.write() etc should not require a
-    // mutable borrow? But the mutable borrow might be useful for making sure we
-    // have only one Ui instance we write to across threads?
-    let user_settings = ui.settings().clone();
     let mut listener = Listener { ui };
-    let mut tx = repo_command.start_transaction("evolve");
     evolve(&user_settings, tx.mut_repo(), &mut listener);
     repo_command.finish_transaction(ui, tx)?;
 

@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![feature(assert_matches)]
+
 use jujube_lib::commit::Commit;
 use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::evolution::{evolve, EvolveListener};
+use jujube_lib::evolution::{evolve, DivergenceResolution, DivergenceResolver, EvolveListener};
 use jujube_lib::repo::{MutableRepo, ReadonlyRepo};
 use jujube_lib::repo_path::FileRepoPath;
 use jujube_lib::settings::UserSettings;
@@ -506,14 +508,12 @@ fn test_new_parent_split_forked_pruned(use_git: bool) {
 
 struct RecordingEvolveListener {
     evolved_orphans: Vec<(Commit, Commit)>,
-    evolved_divergents: Vec<(Vec<Commit>, Commit)>,
 }
 
 impl Default for RecordingEvolveListener {
     fn default() -> Self {
         RecordingEvolveListener {
             evolved_orphans: Default::default(),
-            evolved_divergents: Default::default(),
         }
     }
 }
@@ -532,26 +532,6 @@ impl EvolveListener for RecordingEvolveListener {
     fn orphan_target_ambiguous(&mut self, _mut_repo: &mut MutableRepo, _orphan: &Commit) {
         // TODO: Record this too and add tests
         panic!("unexpected call to orphan_target_ambiguous");
-    }
-
-    fn divergent_resolved(
-        &mut self,
-        _mut_repo: &mut MutableRepo,
-        sources: &[Commit],
-        resolved: &Commit,
-    ) {
-        self.evolved_divergents
-            .push((sources.to_vec(), resolved.clone()));
-    }
-
-    fn divergent_no_common_predecessor(
-        &mut self,
-        _mut_repo: &mut MutableRepo,
-        _commit1: &Commit,
-        _commit2: &Commit,
-    ) {
-        // TODO: Record this too and add tests
-        panic!("unexpected call to divergent_no_common_predecessor");
     }
 }
 
@@ -574,7 +554,6 @@ fn test_evolve_orphan(use_git: bool) {
 
     let mut listener = RecordingEvolveListener::default();
     evolve(&settings, mut_repo, &mut listener);
-    assert_eq!(listener.evolved_divergents.len(), 0);
     assert_eq!(listener.evolved_orphans.len(), 2);
     assert_eq!(&listener.evolved_orphans[0].0, &child);
     assert_eq!(&listener.evolved_orphans[0].1.parents(), &vec![rewritten]);
@@ -609,7 +588,6 @@ fn test_evolve_pruned_orphan(use_git: bool) {
 
     let mut listener = RecordingEvolveListener::default();
     evolve(&settings, mut_repo, &mut listener);
-    assert_eq!(listener.evolved_divergents.len(), 0);
     assert_eq!(listener.evolved_orphans.len(), 1);
     assert_eq!(listener.evolved_orphans[0].0.id(), child.id());
 
@@ -636,7 +614,6 @@ fn test_evolve_multiple_orphans(use_git: bool) {
 
     let mut listener = RecordingEvolveListener::default();
     evolve(&settings, mut_repo, &mut listener);
-    assert_eq!(listener.evolved_divergents.len(), 0);
     assert_eq!(listener.evolved_orphans.len(), 3);
     assert_eq!(&listener.evolved_orphans[0].0, &child);
     assert_eq!(&listener.evolved_orphans[0].1.parents(), &vec![rewritten]);
@@ -721,24 +698,26 @@ fn test_evolve_divergent(use_git: bool) {
         .set_committer(later_time)
         .write_to_repo(mut_repo);
 
-    let mut listener = RecordingEvolveListener::default();
-    evolve(&settings, mut_repo, &mut listener);
-    assert_eq!(listener.evolved_orphans.len(), 0);
-    assert_eq!(listener.evolved_divergents.len(), 1);
-    assert_eq!(
-        listener.evolved_divergents[0].0,
-        &[commit6.clone(), commit4.clone()]
-    );
-    let resolved = listener.evolved_divergents[0].1.clone();
-    assert_eq!(resolved.predecessors(), &[commit6, commit4]);
+    let mut resolver = DivergenceResolver::new(&settings, mut_repo);
+    let resolution = resolver.resolve_next(mut_repo);
+    assert_eq!(resolver.resolve_next(mut_repo), None);
+    assert_matches!(resolution, Some(DivergenceResolution::Resolved { .. }));
+    if let Some(DivergenceResolution::Resolved {
+        divergents,
+        resolved,
+    }) = resolution
+    {
+        assert_eq!(divergents, vec![commit6.clone(), commit4.clone()]);
+        assert_eq!(resolved.predecessors(), &[commit6, commit4]);
 
-    let tree = resolved.tree();
-    let entries: Vec<_> = tree.entries().collect();
-    assert_eq!(entries.len(), 4);
-    assert_eq!(tree.value("A").unwrap(), tree5.value("A").unwrap());
-    assert_eq!(tree.value("X").unwrap(), tree2.value("X").unwrap());
-    assert_eq!(tree.value("Y").unwrap(), tree4.value("Y").unwrap());
-    assert_eq!(tree.value("Z").unwrap(), tree6.value("Z").unwrap());
+        let tree = resolved.tree();
+        let entries: Vec<_> = tree.entries().collect();
+        assert_eq!(entries.len(), 4);
+        assert_eq!(tree.value("A").unwrap(), tree5.value("A").unwrap());
+        assert_eq!(tree.value("X").unwrap(), tree2.value("X").unwrap());
+        assert_eq!(tree.value("Y").unwrap(), tree4.value("Y").unwrap());
+        assert_eq!(tree.value("Z").unwrap(), tree6.value("Z").unwrap());
+    }
 
     tx.discard();
 }
