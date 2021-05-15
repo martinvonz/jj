@@ -1310,13 +1310,12 @@ fn cmd_obslog(
 }
 
 fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
-    // TODO: Where should this file live? The current location prevents two
-    // concurrent `jj describe` calls.
-    let description_file_path = repo.repo_path().join("description");
+    let random: u32 = rand::random();
+    let description_file_path = repo.repo_path().join(format!("description-{}", random));
     {
         let mut description_file = OpenOptions::new()
             .write(true)
-            .create(true)
+            .create_new(true)
             .truncate(true)
             .open(&description_file_path)
             .unwrap_or_else(|_| panic!("failed to open {:?} for write", &description_file_path));
@@ -1342,7 +1341,11 @@ fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
         .unwrap_or_else(|_| panic!("failed to open {:?} for read", &description_file_path));
     let mut buf = vec![];
     description_file.read_to_end(&mut buf).unwrap();
-    String::from_utf8(buf).unwrap()
+    let description = String::from_utf8(buf).unwrap();
+    // Delete the file only if everything went well.
+    // TODO: Tell the user the name of the file we left behind.
+    std::fs::remove_file(description_file_path).ok();
+    description
 }
 
 fn cmd_describe(
