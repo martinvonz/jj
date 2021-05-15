@@ -542,7 +542,7 @@ dependencies = [
 
 [[package]]
 name = "jujutsu"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "blake2",
  "bytes",
@@ -570,7 +570,7 @@ dependencies = [
 
 [[package]]
 name = "jujutsu-lib"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "backoff",
  "blake2",
