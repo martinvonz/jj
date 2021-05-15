@@ -157,6 +157,9 @@ struct RepoCommandHelper {
     settings: UserSettings,
     repo: Arc<ReadonlyRepo>,
     working_copy_committed: bool,
+    // Whether to evolve orphans when the transaction
+    // finishes. This should generally be true for commands that rewrite commits.
+    evolve_orphans: bool,
     // Whether the checkout should be updated to an appropriate successor when the transaction
     // finishes. This should generally be true for commands that rewrite commits.
     auto_update_checkout: bool,
@@ -174,8 +177,14 @@ impl RepoCommandHelper {
             settings: ui.settings().clone(),
             repo,
             working_copy_committed: false,
+            evolve_orphans: true,
             auto_update_checkout: true,
         })
+    }
+
+    fn evolve_orphans(mut self, value: bool) -> Self {
+        self.evolve_orphans = value;
+        self
     }
 
     fn auto_update_checkout(mut self, value: bool) -> Self {
@@ -279,8 +288,34 @@ impl RepoCommandHelper {
         ui: &mut Ui,
         mut tx: Transaction,
     ) -> Result<Option<CheckoutStats>, CommandError> {
+        let mut_repo = tx.mut_repo();
+        if self.evolve_orphans {
+            let mut orphan_resolver = OrphanResolver::new(ui.settings(), mut_repo);
+            let mut num_resolved = 0;
+            let mut num_failed = 0;
+            while let Some(resolution) = orphan_resolver.resolve_next(mut_repo) {
+                match resolution {
+                    OrphanResolution::Resolved { .. } => {
+                        num_resolved += 1;
+                    }
+                    _ => {
+                        num_failed += 1;
+                    }
+                }
+            }
+            if num_resolved > 0 {
+                writeln!(ui, "Rebased {} descendant commits", num_resolved)?;
+            }
+            if num_failed > 0 {
+                writeln!(
+                    ui,
+                    "Failed to rebase {} descendant commits (run `jj evolve`)",
+                    num_failed
+                )?;
+            }
+        }
         if self.auto_update_checkout {
-            update_checkout_after_rewrite(ui, tx.mut_repo())?;
+            update_checkout_after_rewrite(ui, mut_repo)?;
         }
         self.repo = tx.commit();
         update_working_copy(ui, &self.repo, &self.repo.working_copy_locked())
@@ -1766,7 +1801,7 @@ fn cmd_evolve<'s>(
     command: &CommandHelper,
     _sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
+    let mut repo_command = command.repo_helper(ui)?.evolve_orphans(false);
 
     // TODO: This clone is unnecessary. Maybe ui.write() etc should not require a
     // mutable borrow? But the mutable borrow might be useful for making sure we
