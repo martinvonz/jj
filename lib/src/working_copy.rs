@@ -18,6 +18,7 @@ use std::convert::TryInto;
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Read;
+use std::ops::Bound;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
 #[cfg(unix)]
@@ -344,10 +345,28 @@ impl TreeState {
                 }
                 if file_type.is_dir() {
                     let subdir = dir.join(&DirRepoPathComponent::from(name));
-                    if !git_ignore.matches_all_files_in(&subdir.to_internal_string()) {
-                        let disk_subdir = disk_dir.join(file_name);
-                        work.push((subdir, disk_subdir, git_ignore.clone()));
+                    if git_ignore.matches_all_files_in(&subdir.to_internal_string()) {
+                        // If the whole directory is ignored, skip it unless we're already tracking
+                        // some file in it. TODO: This is pretty ugly... Also, we should
+                        // optimize it to check exactly the already-tracked files (we know that
+                        // we won't have to consider new files in the directory).
+                        let first_file_in_dir = dir.join(&FileRepoPathComponent::from("\0"));
+                        if let Some((maybe_subdir_file, _)) = self
+                            .file_states
+                            .range((Bound::Included(&first_file_in_dir), Bound::Unbounded))
+                            .next()
+                        {
+                            if !maybe_subdir_file
+                                .dir()
+                                .components()
+                                .starts_with(dir.components())
+                            {
+                                continue;
+                            }
+                        }
                     }
+                    let disk_subdir = disk_dir.join(file_name);
+                    work.push((subdir, disk_subdir, git_ignore.clone()));
                 } else {
                     let file = dir.join(&FileRepoPathComponent::from(name));
                     let disk_file = disk_dir.join(file_name);

@@ -386,3 +386,43 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     let (_repo, new_commit) = repo.working_copy_locked().commit(&settings, repo.clone());
     assert!(new_commit.tree().entry("modified").is_some());
 }
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
+    // Tests that a .gitignore'd directory that already has a tracked file in it
+    // does not get removed when committing the working directory.
+
+    let _home_dir = testutils::new_user_home();
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    // Add a .gitignore file saying to ignore the directory "ignored/"
+    let gitignore_path = FileRepoPath::from(".gitignore");
+    testutils::write_working_copy_file(&repo, &gitignore_path, "/ignored/\n");
+    let file_path = FileRepoPath::from("ignored/file");
+
+    // Create a commit that adds a file in the ignored directory
+    let mut tx = repo.start_transaction("test");
+    let mut tree_builder = repo
+        .store()
+        .tree_builder(repo.store().empty_tree_id().clone());
+    testutils::write_normal_file(&mut tree_builder, &file_path, "contents");
+    let tree_id = tree_builder.write_tree();
+    let commit = CommitBuilder::for_new_commit(&settings, repo.store(), tree_id)
+        .set_open(true)
+        .set_description("add ignored file".to_string())
+        .write_to_repo(tx.mut_repo());
+    let repo = tx.commit();
+
+    // Check out the commit with the file in ignored/
+    repo.working_copy_locked().check_out(commit).unwrap();
+
+    // Check that the file is still in the commit created by committing the working
+    // copy (that it didn't get removed because the directory is ignored)
+    let (_repo, new_commit) = repo.working_copy_locked().commit(&settings, repo.clone());
+    assert!(new_commit
+        .tree()
+        .path_value(&file_path.to_repo_path())
+        .is_some());
+}
