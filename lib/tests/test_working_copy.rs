@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::OpenOptions;
-use std::io::Write;
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Write};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
@@ -338,4 +338,51 @@ fn test_gitignores(use_git: bool) {
             modified_path.to_repo_path()
         ]
     );
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
+    // Tests that a .gitignore'd file gets overwritten if check out a commit where
+    // the file is tracked.
+
+    let _home_dir = testutils::new_user_home();
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    // Write an ignored file called "modified" to disk
+    let gitignore_path = FileRepoPath::from(".gitignore");
+    testutils::write_working_copy_file(&repo, &gitignore_path, "modified\n");
+    let modified_path = FileRepoPath::from("modified");
+    testutils::write_working_copy_file(&repo, &modified_path, "garbage");
+
+    // Create a commit that adds the same file but with different contents
+    let mut tx = repo.start_transaction("test");
+    let mut tree_builder = repo
+        .store()
+        .tree_builder(repo.store().empty_tree_id().clone());
+    testutils::write_normal_file(&mut tree_builder, &modified_path, "contents");
+    let tree_id = tree_builder.write_tree();
+    let commit = CommitBuilder::for_new_commit(&settings, repo.store(), tree_id)
+        .set_open(true)
+        .set_description("add file".to_string())
+        .write_to_repo(tx.mut_repo());
+    let repo = tx.commit();
+
+    // Now check out the commit that adds the file "modified" with contents
+    // "contents". The exiting contents ("garbage") should be replaced in the
+    // working copy.
+    repo.working_copy_locked().check_out(commit).unwrap();
+
+    // Check that the new contents are in the working copy
+    let path = repo.working_copy_path().join("modified");
+    assert!(path.is_file());
+    let mut file = File::open(path).unwrap();
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf).unwrap();
+    assert_eq!(buf, b"contents");
+
+    // Check that the file is in the commit created by committing the working copy
+    let (_repo, new_commit) = repo.working_copy_locked().commit(&settings, repo.clone());
+    assert!(new_commit.tree().entry("modified").is_some());
 }

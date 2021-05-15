@@ -420,12 +420,14 @@ impl TreeState {
         executable: bool,
     ) -> FileState {
         create_parent_dirs(disk_path);
+        // TODO: Check that we're not overwriting an un-ignored file here (which might
+        // be created by a concurrent process).
         let mut file = OpenOptions::new()
             .write(true)
-            .create_new(true)
+            .create(true)
             .truncate(true)
             .open(disk_path)
-            .unwrap_or_else(|_| panic!("failed to open {:?} for write", &disk_path));
+            .unwrap_or_else(|err| panic!("failed to open {:?} for write: {:?}", &disk_path, err));
         let mut contents = self.store.read_file(path, id).unwrap();
         std::io::copy(&mut contents, &mut file).unwrap();
         self.set_executable(disk_path, executable);
