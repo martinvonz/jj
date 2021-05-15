@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::fmt::{Debug, Error, Formatter};
+use std::path::{Path, PathBuf};
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct RepoPathComponent {
@@ -284,6 +285,14 @@ impl FileRepoPath {
             },
         }
     }
+
+    pub fn to_fs_path(&self, base: &Path) -> PathBuf {
+        let mut result = base.to_owned();
+        for dir in self.dir.components() {
+            result = result.join(&dir.value);
+        }
+        result.join(&self.basename.value)
+    }
 }
 
 impl From<&str> for FileRepoPath {
@@ -345,7 +354,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn is_root() {
+    fn test_is_root() {
         assert!(RepoPath::root().is_root());
         assert!(RepoPath::from("").is_root());
         assert!(!RepoPath::from("foo").is_root());
@@ -355,7 +364,7 @@ mod tests {
     }
 
     #[test]
-    fn value() {
+    fn test_value() {
         assert_eq!(RepoPath::root().to_internal_string(), "");
         assert_eq!(RepoPath::from("dir").to_internal_string(), "dir");
         assert_eq!(RepoPath::from("file").to_internal_string(), "file");
@@ -374,7 +383,7 @@ mod tests {
     }
 
     #[test]
-    fn order() {
+    fn test_order() {
         assert!(DirRepoPath::root() < DirRepoPath::from("dir/"));
         assert!(DirRepoPath::from("dir/") < DirRepoPath::from("dirx/"));
         // '#' < '/'
@@ -389,7 +398,7 @@ mod tests {
     }
 
     #[test]
-    fn join() {
+    fn test_join() {
         let root = DirRepoPath::root();
         let dir_component = DirRepoPathComponent::from("dir");
         let subdir_component = DirRepoPathComponent::from("subdir");
@@ -407,7 +416,7 @@ mod tests {
     }
 
     #[test]
-    fn parent() {
+    fn test_parent() {
         let root = DirRepoPath::root();
         let dir_component = DirRepoPathComponent::from("dir");
         let subdir_component = DirRepoPathComponent::from("subdir");
@@ -421,7 +430,7 @@ mod tests {
     }
 
     #[test]
-    fn split_dir() {
+    fn test_split_dir() {
         let root = DirRepoPath::root();
         let dir_component = DirRepoPathComponent::from("dir");
         let subdir_component = DirRepoPathComponent::from("subdir");
@@ -435,7 +444,7 @@ mod tests {
     }
 
     #[test]
-    fn split_file() {
+    fn test_split_file() {
         let root = DirRepoPath::root();
         let dir_component = DirRepoPathComponent::from("dir");
         let file_component = FileRepoPathComponent::from("file");
@@ -450,7 +459,7 @@ mod tests {
     }
 
     #[test]
-    fn dir() {
+    fn test_dir() {
         let root = DirRepoPath::root();
         let dir_component = DirRepoPathComponent::from("dir");
         let file_component = FileRepoPathComponent::from("file");
@@ -462,7 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn components() {
+    fn test_components() {
         assert_eq!(DirRepoPath::root().components(), &vec![]);
         assert_eq!(
             DirRepoPath::from("dir/").components(),
@@ -478,7 +487,23 @@ mod tests {
     }
 
     #[test]
-    fn convert() {
+    fn test_to_fs_path() {
+        assert_eq!(
+            FileRepoPath::from("file").to_fs_path(&Path::new("base/dir")),
+            Path::new("base/dir/file")
+        );
+        assert_eq!(
+            FileRepoPath::from("some/deep/dir/file").to_fs_path(&Path::new("base/dir")),
+            Path::new("base/dir/some/deep/dir/file")
+        );
+        assert_eq!(
+            FileRepoPath::from("dir/file").to_fs_path(&Path::new("")),
+            Path::new("dir/file")
+        );
+    }
+
+    #[test]
+    fn test_convert() {
         assert_eq!(RepoPath::root().to_dir_repo_path(), DirRepoPath::root());
         assert_eq!(
             RepoPath::from("dir").to_dir_repo_path(),

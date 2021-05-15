@@ -512,9 +512,7 @@ impl TreeState {
         };
 
         for (path, diff) in old_tree.diff(&new_tree) {
-            let disk_path = self
-                .working_copy_path
-                .join(PathBuf::from(path.to_internal_string()));
+            let disk_path = path.to_fs_path(&self.working_copy_path);
 
             // TODO: Check that the file has not changed before overwriting/removing it.
             match diff {
