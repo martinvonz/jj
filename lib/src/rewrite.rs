@@ -31,11 +31,13 @@ pub fn merge_commit_trees(repo: RepoRef, commits: &[Commit]) -> Tree {
         let mut new_tree = commits[0].tree();
         let commit_ids: Vec<_> = commits.iter().map(|commit| commit.id().clone()).collect();
         for (i, other_commit) in commits.iter().enumerate().skip(1) {
-            let ancestors = index.common_ancestors(&commit_ids[0..i], &[commit_ids[i].clone()]);
-            // TODO: Do recursive merge here instead of using just the first ancestor.
-            let ancestor = store.get_commit(&ancestors[0]).unwrap();
-            let new_tree_id =
-                merge_trees(&new_tree, &ancestor.tree(), &other_commit.tree()).unwrap();
+            let ancestor_ids = index.common_ancestors(&commit_ids[0..i], &[commit_ids[i].clone()]);
+            let ancestors: Vec<_> = ancestor_ids
+                .iter()
+                .map(|id| store.get_commit(id).unwrap())
+                .collect();
+            let ancestor_tree = merge_commit_trees(repo, &ancestors);
+            let new_tree_id = merge_trees(&new_tree, &ancestor_tree, &other_commit.tree()).unwrap();
             new_tree = store.get_tree(&DirRepoPath::root(), &new_tree_id).unwrap();
         }
         new_tree
