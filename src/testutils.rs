@@ -15,7 +15,7 @@
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use jujube_lib::testutils::{new_user_home, user_settings};
+use jujutsu_lib::testutils::{new_user_home, user_settings};
 
 use crate::commands;
 use crate::ui::Ui;

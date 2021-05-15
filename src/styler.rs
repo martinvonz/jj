@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::io;
 use std::io::{Error, Read, Write};
 
-use jujube_lib::settings::UserSettings;
+use jujutsu_lib::settings::UserSettings;
 
 // Lets the caller label strings and translates the labels to colors
 pub trait Styler: Write {

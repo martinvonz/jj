@@ -14,8 +14,8 @@
 
 use std::path::Path;
 
-use jujube_lib::repo::ReadonlyRepo;
-use jujube_lib::testutils;
+use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::testutils;
 use tempfile::TempDir;
 use test_case::test_case;
 

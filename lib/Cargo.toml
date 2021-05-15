@@ -1,13 +1,13 @@
 [package]
-name = "jujube-lib"
+name = "jujutsu-lib"
 version = "0.1.1"
 authors = ["Martin von Zweigbergk <martinvonz@google.com>"]
 edition = "2018"
 license = "Apache-2.0"
-description = "Library for Jujube (an experimental VCS)"
+description = "Library for Jujutsu (an experimental VCS)"
 homepage = "https://github.com/martinvonz/jj"
 repository = "https://github.com/martinvonz/jj"
-documentation = "https://docs.rs/jujube"
+documentation = "https://docs.rs/jujutsu"
 readme = "../README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

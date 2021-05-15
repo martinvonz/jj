@@ -14,15 +14,15 @@
 
 #![feature(assert_matches)]
 
-use jujube_lib::commit::Commit;
-use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::evolution::{
+use jujutsu_lib::commit::Commit;
+use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::evolution::{
     DivergenceResolution, DivergenceResolver, OrphanResolution, OrphanResolver,
 };
-use jujube_lib::repo::ReadonlyRepo;
-use jujube_lib::repo_path::FileRepoPath;
-use jujube_lib::settings::UserSettings;
-use jujube_lib::testutils;
+use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::repo_path::FileRepoPath;
+use jujutsu_lib::settings::UserSettings;
+use jujutsu_lib::testutils;
 use test_case::test_case;
 
 #[must_use]

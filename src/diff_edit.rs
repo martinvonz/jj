@@ -16,13 +16,13 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
-use jujube_lib::repo_path::{DirRepoPath, RepoPath};
-use jujube_lib::store::{StoreError, TreeId, TreeValue};
-use jujube_lib::store_wrapper::StoreWrapper;
-use jujube_lib::tree::Tree;
-use jujube_lib::tree_builder::TreeBuilder;
-use jujube_lib::trees::merge_trees;
-use jujube_lib::working_copy::{CheckoutError, TreeState};
+use jujutsu_lib::repo_path::{DirRepoPath, RepoPath};
+use jujutsu_lib::store::{StoreError, TreeId, TreeValue};
+use jujutsu_lib::store_wrapper::StoreWrapper;
+use jujutsu_lib::tree::Tree;
+use jujutsu_lib::tree_builder::TreeBuilder;
+use jujutsu_lib::trees::merge_trees;
+use jujutsu_lib::working_copy::{CheckoutError, TreeState};
 use tempfile::tempdir;
 use thiserror::Error;
 
@@ -58,7 +58,7 @@ fn add_to_tree(
         TreeValue::Conflict(conflict_id) => {
             let conflict = store.read_conflict(conflict_id)?;
             let materialized_value =
-                jujube_lib::conflicts::conflict_to_materialized_value(store, repo_path, &conflict);
+                jujutsu_lib::conflicts::conflict_to_materialized_value(store, repo_path, &conflict);
             tree_builder.set(repo_path.clone(), materialized_value);
         }
         _ => {

@@ -28,30 +28,30 @@ use std::{fs, io};
 
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 use criterion::Criterion;
-use jujube_lib::commit::Commit;
-use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::dag_walk::topo_order_reverse;
-use jujube_lib::evolution::{
+use jujutsu_lib::commit::Commit;
+use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::dag_walk::topo_order_reverse;
+use jujutsu_lib::evolution::{
     DivergenceResolution, DivergenceResolver, OrphanResolution, OrphanResolver,
 };
-use jujube_lib::files::DiffLine;
-use jujube_lib::git::GitFetchError;
-use jujube_lib::index::HexPrefix;
-use jujube_lib::op_store::{OpStore, OpStoreError, OperationId};
-use jujube_lib::operation::Operation;
-use jujube_lib::repo::{MutableRepo, ReadonlyRepo, RepoLoadError, RepoLoader};
-use jujube_lib::repo_path::RepoPath;
-use jujube_lib::revset::{RevsetError, RevsetParseError};
-use jujube_lib::revset_graph_iterator::RevsetGraphEdgeType;
-use jujube_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
-use jujube_lib::settings::UserSettings;
-use jujube_lib::store::{StoreError, Timestamp, TreeValue};
-use jujube_lib::store_wrapper::StoreWrapper;
-use jujube_lib::transaction::Transaction;
-use jujube_lib::tree::Tree;
-use jujube_lib::trees::Diff;
-use jujube_lib::working_copy::{CheckoutStats, WorkingCopy};
-use jujube_lib::{conflicts, files, git, revset};
+use jujutsu_lib::files::DiffLine;
+use jujutsu_lib::git::GitFetchError;
+use jujutsu_lib::index::HexPrefix;
+use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId};
+use jujutsu_lib::operation::Operation;
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoLoadError, RepoLoader};
+use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::revset::{RevsetError, RevsetParseError};
+use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
+use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
+use jujutsu_lib::settings::UserSettings;
+use jujutsu_lib::store::{StoreError, Timestamp, TreeValue};
+use jujutsu_lib::store_wrapper::StoreWrapper;
+use jujutsu_lib::transaction::Transaction;
+use jujutsu_lib::tree::Tree;
+use jujutsu_lib::trees::Diff;
+use jujutsu_lib::working_copy::{CheckoutStats, WorkingCopy};
+use jujutsu_lib::{conflicts, files, git, revset};
 use pest::Parser;
 
 use self::chrono::{FixedOffset, TimeZone, Utc};
@@ -699,7 +699,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         )
         .subcommand(SubCommand::with_name("index").about("Show commit index stats"))
         .subcommand(SubCommand::with_name("reindex").about("Rebuild commit index"));
-    App::new("Jujube")
+    App::new("Jujutsu")
         .global_setting(clap::AppSettings::ColoredHelp)
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .version(crate_version!())

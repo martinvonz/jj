@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujube::testutils;
+use jujutsu::testutils;
 
 #[test]
 fn test_init_git_internal() {

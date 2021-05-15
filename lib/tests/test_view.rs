@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujube_lib::testutils;
-use jujube_lib::testutils::CommitGraphBuilder;
+use jujutsu_lib::testutils;
+use jujutsu_lib::testutils::CommitGraphBuilder;
 use maplit::hashset;
 use test_case::test_case;
 

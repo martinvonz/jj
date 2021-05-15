@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujube::commands::dispatch;
-use jujube::ui::Ui;
-use jujube_lib::settings::UserSettings;
+use jujutsu::commands::dispatch;
+use jujutsu::ui::Ui;
+use jujutsu_lib::settings::UserSettings;
 
 fn main() {
     // TODO: We need to do some argument parsing here, at least for things like

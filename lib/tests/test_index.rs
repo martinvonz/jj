@@ -14,14 +14,14 @@
 
 use std::sync::Arc;
 
-use jujube_lib::commit::Commit;
-use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::index::IndexRef;
-use jujube_lib::repo::ReadonlyRepo;
-use jujube_lib::settings::UserSettings;
-use jujube_lib::store::CommitId;
-use jujube_lib::testutils;
-use jujube_lib::testutils::{create_random_commit, CommitGraphBuilder};
+use jujutsu_lib::commit::Commit;
+use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::index::IndexRef;
+use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::settings::UserSettings;
+use jujutsu_lib::store::CommitId;
+use jujutsu_lib::testutils;
+use jujutsu_lib::testutils::{create_random_commit, CommitGraphBuilder};
 use test_case::test_case;
 
 #[must_use]

@@ -2,7 +2,7 @@
 
 extern crate test;
 
-use jujube_lib::diff;
+use jujutsu_lib::diff;
 use test::Bencher;
 
 fn unchanged_lines(count: usize) -> (String, String) {

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujube_lib::repo_path::FileRepoPath;
-use jujube_lib::testutils;
-use jujube_lib::tree::DiffSummary;
+use jujutsu_lib::repo_path::FileRepoPath;
+use jujutsu_lib::testutils;
+use jujutsu_lib::tree::DiffSummary;
 use test_case::test_case;
 
 #[test_case(false ; "local store")]

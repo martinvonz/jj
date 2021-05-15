@@ -14,10 +14,10 @@
 
 use std::path::Path;
 
-use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::repo::RepoRef;
-use jujube_lib::store::CommitId;
-use jujube_lib::testutils;
+use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::repo::RepoRef;
+use jujutsu_lib::store::CommitId;
+use jujutsu_lib::testutils;
 use test_case::test_case;
 
 fn list_dir(dir: &Path) -> Vec<String> {

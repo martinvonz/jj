@@ -15,8 +15,8 @@
 use std::cmp::max;
 use std::thread;
 
-use jujube_lib::repo::ReadonlyRepo;
-use jujube_lib::{dag_walk, testutils};
+use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::{dag_walk, testutils};
 use test_case::test_case;
 
 fn count_non_merge_operations(repo: &ReadonlyRepo) -> usize {

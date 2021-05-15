@@ -1,4 +1,4 @@
-# Jujube
+# Jujutsu
 
 
 ## Disclaimer
@@ -20,8 +20,9 @@ blobs. However, the blobs are actually split into three types: normal files,
 symlinks (Unicode paths), and conflicts (more about that later).
 
 The command-line tool is called `jj` for now because it's easy to type and easy
-to replace (rare in English). The project is called "Jujube" (a fruit) because
-that's the first word I could think of that matched "jj".
+to replace (rare in English). The project is called "Jujutsu" because it matches
+"jj" (I initially called it "Jujube", but changed since jujutsu is more
+well-known).
 
 
 ## Features
@@ -34,7 +35,7 @@ readers who are already familiar with other VCSs.
 The tool currently has two backends. One is called "local store" and is very
 simple and inefficient. The other backend uses a Git repo as storage. The
 commits are stored as regular Git commits. Commits can be read from and written
-to an existing Git repo. This makes it possible to create a Jujube repo and use
+to an existing Git repo. This makes it possible to create a Jujutsu repo and use
 it as an alternative interface for a Git repo (it will be backed by the Git repo
 just like additional Git worktrees are).
 
@@ -58,7 +59,7 @@ running.
 
 ### Supports Evolution
 
-Jujube copies the Evolution feature from Mercurial. It keeps track of when a
+Jujutsu copies the Evolution feature from Mercurial. It keeps track of when a
 commit gets rewritten. A commit has a list of predecessors in addition to the
 usual list of parents. This lets the tool figure out where to rebase descendant
 commits to when a commit has been rewritten (amended, rebased, etc.). See
@@ -123,14 +124,14 @@ yet.)
 
 The criss-cross merge case becomes simpler. In Git, the virtual ancestor may
 have conflicts and you may get nested conflict markers in the working copy. In
-Jujube, the result is a merge with multiple parts, which may even get simplified
+Jujutsu, the result is a merge with multiple parts, which may even get simplified
 to not be recursive.
 
 The in-tree conflicts make it natural and easy to define the contents of a merge
 commit to be the difference compared to the merged parents (the so-called "evil"
-part of the merge), so that's what Jujube does. Rebasing merge commits therefore
-works as you would expect (Git and Mercurial both handle rebasing of merge
-commits poorly). It's even possible to change the number of parents while
+part of the merge), so that's what Jujutsu does. Rebasing merge commits
+therefore works as you would expect (Git and Mercurial both handle rebasing of
+merge commits poorly). It's even possible to change the number of parents while
 rebasing, so if A is non-merge commit, you can make it a merge commit with `jj
 rebase -r A -d B -d C`. `jj diff -r <commit>` will show you the diff compared to
 the merged parents.

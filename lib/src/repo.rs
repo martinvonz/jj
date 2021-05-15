@@ -133,7 +133,7 @@ impl Debug for ReadonlyRepo {
 
 #[derive(Error, Debug, PartialEq)]
 pub enum RepoLoadError {
-    #[error("There is no Jujube repo in {0}")]
+    #[error("There is no Jujutsu repo in {0}")]
     NoRepoHere(PathBuf),
 }
 

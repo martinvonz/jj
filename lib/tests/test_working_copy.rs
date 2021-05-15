@@ -18,13 +18,13 @@ use std::io::{Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
 
-use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::repo::ReadonlyRepo;
-use jujube_lib::repo_path::{FileRepoPath, RepoPath};
-use jujube_lib::settings::UserSettings;
-use jujube_lib::store::TreeValue;
-use jujube_lib::testutils;
-use jujube_lib::tree_builder::TreeBuilder;
+use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::repo_path::{FileRepoPath, RepoPath};
+use jujutsu_lib::settings::UserSettings;
+use jujutsu_lib::store::TreeValue;
+use jujutsu_lib::testutils;
+use jujutsu_lib::tree_builder::TreeBuilder;
 use test_case::test_case;
 
 #[test_case(false ; "local store")]

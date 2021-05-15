@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::repo::RepoRef;
-use jujube_lib::revset::{evaluate_expression, parse, resolve_symbol, RevsetError};
-use jujube_lib::store::{CommitId, MillisSinceEpoch, Signature, Timestamp};
-use jujube_lib::testutils;
-use jujube_lib::testutils::CommitGraphBuilder;
+use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::repo::RepoRef;
+use jujutsu_lib::revset::{evaluate_expression, parse, resolve_symbol, RevsetError};
+use jujutsu_lib::store::{CommitId, MillisSinceEpoch, Signature, Timestamp};
+use jujutsu_lib::testutils;
+use jujutsu_lib::testutils::CommitGraphBuilder;
 use test_case::test_case;
 
 #[test_case(false ; "local store")]

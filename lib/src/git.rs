@@ -24,7 +24,7 @@ pub enum GitImportError {
     InternalGitError(#[from] git2::Error),
 }
 
-// Reflect changes made in the underlying Git repo in the Jujube repo.
+// Reflect changes made in the underlying Git repo in the Jujutsu repo.
 pub fn import_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,

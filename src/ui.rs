@@ -17,9 +17,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 use std::{fmt, io};
 
-use jujube_lib::commit::Commit;
-use jujube_lib::repo::RepoRef;
-use jujube_lib::settings::UserSettings;
+use jujutsu_lib::commit::Commit;
+use jujutsu_lib::repo::RepoRef;
+use jujutsu_lib::settings::UserSettings;
 
 use crate::styler::{ColorStyler, PlainTextStyler, Styler};
 use crate::templater::TemplateFormatter;

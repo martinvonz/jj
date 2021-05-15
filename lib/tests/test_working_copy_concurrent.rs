@@ -16,12 +16,12 @@ use std::cmp::max;
 use std::collections::HashSet;
 use std::thread;
 
-use jujube_lib::commit_builder::CommitBuilder;
-use jujube_lib::repo::ReadonlyRepo;
-use jujube_lib::repo_path::FileRepoPath;
-use jujube_lib::store::CommitId;
-use jujube_lib::testutils;
-use jujube_lib::working_copy::CheckoutError;
+use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::repo_path::FileRepoPath;
+use jujutsu_lib::store::CommitId;
+use jujutsu_lib::testutils;
+use jujutsu_lib::working_copy::CheckoutError;
 use test_case::test_case;
 
 #[test_case(false ; "local store")]

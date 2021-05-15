@@ -17,12 +17,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use git2::Oid;
-use jujube_lib::commit::Commit;
-use jujube_lib::git::{GitFetchError, GitPushError};
-use jujube_lib::repo::ReadonlyRepo;
-use jujube_lib::settings::UserSettings;
-use jujube_lib::store::CommitId;
-use jujube_lib::{git, testutils};
+use jujutsu_lib::commit::Commit;
+use jujutsu_lib::git::{GitFetchError, GitPushError};
+use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::settings::UserSettings;
+use jujutsu_lib::store::CommitId;
+use jujutsu_lib::{git, testutils};
 use maplit::hashset;
 use tempfile::TempDir;
 
@@ -69,7 +69,7 @@ fn test_import_refs() {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     let heads_before: HashSet<_> = repo.view().heads().clone();
-    jujube_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
+    jujutsu_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
     let view = mut_repo.view();
     let expected_heads: HashSet<_> = heads_before
         .union(&hashset!(
@@ -118,7 +118,7 @@ fn test_import_refs_reimport() {
 
     let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
-    jujube_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
+    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
     tx.commit();
 
     // Delete feature1 and rewrite feature2
@@ -129,7 +129,7 @@ fn test_import_refs_reimport() {
     repo = repo.reload().unwrap();
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    jujube_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
+    jujutsu_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
 
     let view = mut_repo.view();
     // TODO: commit3 and commit4 should probably be removed
@@ -201,7 +201,7 @@ fn test_import_refs_merge() {
     git_ref(&git_repo, "refs/heads/forward-remove", commit1.id());
     git_ref(&git_repo, "refs/heads/remove-forward", commit1.id());
     let mut tx = repo.start_transaction("initial import");
-    jujube_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
+    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
     tx.commit();
     repo = repo.reload().unwrap();
 
@@ -214,7 +214,7 @@ fn test_import_refs_merge() {
     delete_git_ref(&git_repo, "refs/heads/remove-forward");
     git_ref(&git_repo, "refs/heads/add-add", commit3.id());
     let mut tx1 = repo.start_transaction("concurrent import 1");
-    jujube_lib::git::import_refs(tx1.mut_repo(), &git_repo).unwrap_or_default();
+    jujutsu_lib::git::import_refs(tx1.mut_repo(), &git_repo).unwrap_or_default();
     tx1.commit();
 
     // The other concurrent operation:
@@ -226,7 +226,7 @@ fn test_import_refs_merge() {
     git_ref(&git_repo, "refs/heads/remove-forward", commit2.id());
     git_ref(&git_repo, "refs/heads/add-add", commit4.id());
     let mut tx2 = repo.start_transaction("concurrent import 2");
-    jujube_lib::git::import_refs(tx2.mut_repo(), &git_repo).unwrap_or_default();
+    jujutsu_lib::git::import_refs(tx2.mut_repo(), &git_repo).unwrap_or_default();
     tx2.commit();
 
     // Reload the repo, causing the operations to be merged.
@@ -283,7 +283,7 @@ fn test_import_refs_empty_git_repo() {
     let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    jujube_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
+    jujutsu_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
     assert_eq!(*mut_repo.view().heads(), heads_before);
     assert_eq!(mut_repo.view().git_refs().len(), 0);
     tx.discard();

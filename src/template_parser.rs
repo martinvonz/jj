@@ -15,9 +15,9 @@
 extern crate pest;
 
 use chrono::{FixedOffset, TimeZone, Utc};
-use jujube_lib::commit::Commit;
-use jujube_lib::repo::RepoRef;
-use jujube_lib::store::{CommitId, Signature};
+use jujutsu_lib::commit::Commit;
+use jujutsu_lib::repo::RepoRef;
+use jujutsu_lib::store::{CommitId, Signature};
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 
