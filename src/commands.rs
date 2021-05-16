@@ -1320,6 +1320,9 @@ fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
             .open(&description_file_path)
             .unwrap_or_else(|_| panic!("failed to open {:?} for write", &description_file_path));
         description_file.write_all(description.as_bytes()).unwrap();
+        description_file
+            .write_all(b"\nJJ: Lines starting with \"JJ: \" (like this one) will be removed.\n")
+            .unwrap();
     }
 
     let editor = std::env::var("EDITOR").unwrap_or_else(|_| "pico".to_string());
@@ -1345,7 +1348,11 @@ fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
     // Delete the file only if everything went well.
     // TODO: Tell the user the name of the file we left behind.
     std::fs::remove_file(description_file_path).ok();
-    description
+    let lines: Vec<_> = description
+        .split_inclusive('\n')
+        .filter(|line| !line.starts_with("JJ: "))
+        .collect();
+    lines.join("")
 }
 
 fn cmd_describe(
@@ -1404,7 +1411,7 @@ fn cmd_close(
     if sub_matches.is_present("message") {
         description = sub_matches.value_of("message").unwrap().to_string();
     } else if commit.description().is_empty() {
-        description = edit_description(&repo, "");
+        description = edit_description(&repo, "\n\nJJ: Enter commit description.\n");
     } else {
         description = commit.description().to_string();
     }
@@ -1695,14 +1702,20 @@ fn cmd_split(
     } else {
         let mut tx = repo_command.start_transaction(&format!("split commit {}", commit.id().hex()));
         let mut_repo = tx.mut_repo();
-        // TODO: Add a header or footer to the decription where we describe to the user
-        // that this is the first commit
-        let first_description = edit_description(&repo, commit.description());
+        let first_description = edit_description(
+            &repo,
+            &("JJ: Enter commit description for the first part.\n".to_string()
+                + commit.description()),
+        );
         let first_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_tree(tree_id)
             .set_description(first_description)
             .write_to_repo(mut_repo);
-        let second_description = edit_description(&repo, commit.description());
+        let second_description = edit_description(
+            &repo,
+            &("JJ: Enter commit description for the second part.\n".to_string()
+                + commit.description()),
+        );
         let second_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_parents(vec![first_commit.id().clone()])
             .set_tree(commit.tree().id().clone())
@@ -1743,7 +1756,10 @@ fn cmd_merge(
     if sub_matches.is_present("message") {
         description = sub_matches.value_of("message").unwrap().to_string();
     } else {
-        description = edit_description(&repo, "");
+        description = edit_description(
+            &repo,
+            "\n\nJJ: Enter commit description for the merge commit.\n",
+        );
     }
     let merged_tree = merge_commit_trees(repo.as_repo_ref(), &commits);
     let mut tx = repo_command.start_transaction("merge commits");
