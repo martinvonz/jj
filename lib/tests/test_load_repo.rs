@@ -28,6 +28,21 @@ fn test_load_bad_path() {
 
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
+fn test_load_from_subdir(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let subdir = repo.working_copy_path().join("dir").join("subdir");
+    std::fs::create_dir_all(subdir.clone()).unwrap();
+    let same_repo = ReadonlyRepo::load(&settings, subdir);
+    assert!(same_repo.is_ok());
+    let same_repo = same_repo.unwrap();
+    assert_eq!(same_repo.repo_path(), repo.repo_path());
+    assert_eq!(same_repo.working_copy_path(), repo.working_copy_path());
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
 fn test_load_at_operation(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);

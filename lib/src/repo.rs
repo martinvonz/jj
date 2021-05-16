@@ -17,7 +17,7 @@ use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use thiserror::Error;
@@ -384,16 +384,27 @@ pub struct RepoLoader {
     index_store: Arc<IndexStore>,
 }
 
+fn find_repo_dir(mut wc_dir: &Path) -> Option<PathBuf> {
+    loop {
+        let repo_path = wc_dir.join(".jj");
+        if repo_path.is_dir() {
+            return Some(repo_path);
+        }
+        if let Some(wc_dir_parent) = wc_dir.parent() {
+            wc_dir = wc_dir_parent;
+        } else {
+            return None;
+        }
+    }
+}
+
 impl RepoLoader {
     pub fn init(
         user_settings: &UserSettings,
         wc_path: PathBuf,
     ) -> Result<RepoLoader, RepoLoadError> {
-        let repo_path = wc_path.join(".jj");
-        // TODO: Check if ancestor directory has a .jj/
-        if !repo_path.is_dir() {
-            return Err(RepoLoadError::NoRepoHere(wc_path));
-        }
+        let repo_path = find_repo_dir(&wc_path).ok_or(RepoLoadError::NoRepoHere(wc_path))?;
+        let wc_path = repo_path.parent().unwrap().to_owned();
         let store = StoreWrapper::load_store(&repo_path);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
