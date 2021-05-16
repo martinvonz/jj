@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fs::File;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
@@ -92,7 +94,11 @@ fn set_readonly_recursively(path: &Path) {
     std::fs::set_permissions(path, perms).unwrap();
 }
 
-pub fn edit_diff(left_tree: &Tree, right_tree: &Tree) -> Result<TreeId, DiffEditError> {
+pub fn edit_diff(
+    left_tree: &Tree,
+    right_tree: &Tree,
+    instructions: &str,
+) -> Result<TreeId, DiffEditError> {
     // First create partial Trees of only the subset of the left and right trees
     // that affect files changed between them.
     let store = left_tree.store();
@@ -131,6 +137,14 @@ pub fn edit_diff(left_tree: &Tree, right_tree: &Tree) -> Result<TreeId, DiffEdit
         right_state_dir,
         right_partial_tree_id,
     )?;
+    let instructions_path = right_wc_dir.join("JJ-INSTRUCTIONS");
+    // In the unlikely event that the file already exists, then the user will simply
+    // not get any instructions.
+    let add_instructions = !instructions.is_empty() && !instructions_path.exists();
+    if add_instructions {
+        let mut file = File::create(&instructions_path).unwrap();
+        file.write_all(instructions.as_bytes()).unwrap();
+    }
 
     // Start a diff editor on the two directories.
     let exit_status = Command::new("meld")
@@ -140,6 +154,9 @@ pub fn edit_diff(left_tree: &Tree, right_tree: &Tree) -> Result<TreeId, DiffEdit
         .expect("failed to run diff editor");
     if !exit_status.success() {
         return Err(DiffEditError::DifftoolAborted);
+    }
+    if add_instructions {
+        std::fs::remove_file(instructions_path).ok();
     }
 
     // Create a Tree based on the initial right tree, applying the changes made to

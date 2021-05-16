@@ -749,6 +749,11 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .subcommand(debug_command)
 }
 
+fn short_commit_description(commit: &Commit) -> String {
+    let first_line = commit.description().split('\n').next().unwrap();
+    format!("{} ({})", &commit.id().hex()[0..12], first_line)
+}
+
 fn cmd_init(
     ui: &mut Ui,
     _command: &CommandHelper,
@@ -1517,7 +1522,22 @@ fn cmd_squash(
     let mut_repo = tx.mut_repo();
     let new_parent_tree_id;
     if sub_matches.is_present("interactive") {
-        new_parent_tree_id = crate::diff_edit::edit_diff(&parent.tree(), &commit.tree())?;
+        let instructions = format!(
+            "You are moving changes from: {}\n\
+            into its parent: {}\n\n\
+            
+            The left side of the diff shows the contents of the parent commit. The\n\
+            right side initially shows the contents of the commit you're moving\n\
+            changes from.\n\n\
+            
+            Adjust the right side until the diff shows the changes you want to move\n\
+            to the destination. If you don't make any changes, then all the changes\n\
+            from the source will be moved into the parent.\n",
+            short_commit_description(&commit),
+            short_commit_description(&parent)
+        );
+        new_parent_tree_id =
+            crate::diff_edit::edit_diff(&parent.tree(), &commit.tree(), &instructions)?;
         if &new_parent_tree_id == parent.tree().id() {
             return Err(CommandError::UserError(String::from("No changes selected")));
         }
@@ -1565,7 +1585,21 @@ fn cmd_unsquash(
     let parent_base_tree = merge_commit_trees(repo.as_repo_ref(), &parent.parents());
     let new_parent_tree_id;
     if sub_matches.is_present("interactive") {
-        new_parent_tree_id = crate::diff_edit::edit_diff(&parent_base_tree, &parent.tree())?;
+        let instructions = format!(
+            "You are moving changes from: {}\n\
+            into its child: {}\n\n\
+    
+            The diff initially shows the parent commit's changes.\n\n\
+            
+            Adjust the right side until it shows the contents you want to keep in\n\
+            the parent commit. The changes you edited out will be moved into the\n\
+            child commit. If you don't make any changes, then the operation will be\n\
+            aborted.\n",
+            short_commit_description(&parent),
+            short_commit_description(&commit)
+        );
+        new_parent_tree_id =
+            crate::diff_edit::edit_diff(&parent_base_tree, &parent.tree(), &instructions)?;
         if &new_parent_tree_id == parent_base_tree.id() {
             return Err(CommandError::UserError(String::from("No changes selected")));
         }
@@ -1624,7 +1658,24 @@ fn cmd_restore(
                 "restore with --interactive and path is not yet supported".to_string(),
             ));
         }
-        tree_id = crate::diff_edit::edit_diff(&source_commit.tree(), &destination_commit.tree())?;
+        let instructions = format!(
+            "You are restoring state from: {}\n\
+            into: {}\n\n\
+    
+            The left side of the diff shows the contents of the commit you're\n\
+            restoring from. The right side initially shows the contents of the\n\
+            commit you're restoring into.\n\n\
+            
+            Adjust the right side until it has the changes you wanted from the left\n\
+            side. If you don't make any changes, then the operation will be aborted.\n",
+            short_commit_description(&source_commit),
+            short_commit_description(&destination_commit)
+        );
+        tree_id = crate::diff_edit::edit_diff(
+            &source_commit.tree(),
+            &destination_commit.tree(),
+            &instructions,
+        )?;
     } else if sub_matches.is_present("paths") {
         let paths = sub_matches.values_of("paths").unwrap();
         let mut tree_builder = repo
@@ -1674,7 +1725,16 @@ fn cmd_edit(
     let commit = repo_command.resolve_revision_arg(sub_matches)?;
     let repo = repo_command.repo();
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
-    let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
+    let instructions = format!(
+        "You are editing changes in: {}\n\n\
+        
+        The diff initially shows the commit's changes.\n\n\
+        
+        Adjust the right side until it shows the contents you want. If you\n\
+        don't make any changes, then the operation will be aborted.\n",
+        short_commit_description(&commit)
+    );
+    let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree(), &instructions)?;
     if &tree_id == commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {
@@ -1700,7 +1760,17 @@ fn cmd_split(
     let commit = repo_command.resolve_revision_arg(sub_matches)?;
     let repo = repo_command.repo();
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
-    let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree())?;
+    let instructions = format!(
+        "You are splitting a commit in two: {}\n\n\
+        
+        The diff initially shows the changes in the commit you're splitting.\n\n\
+        
+        Adjust the right side until it shows the contents you want for the first\n\
+        commit. The remainder will be in the second commit. If you don't make\n\
+        any changes, then the operation will be aborted.\n",
+        short_commit_description(&commit)
+    );
+    let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree(), &instructions)?;
     if &tree_id == commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {
