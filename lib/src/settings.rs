@@ -55,13 +55,15 @@ impl UserSettings {
     }
 
     pub fn user_name(&self) -> String {
-        self.config.get_str("user.name").expect("no user.name set")
+        self.config
+            .get_str("user.name")
+            .unwrap_or_else(|_| "<no name configured>".to_string())
     }
 
     pub fn user_email(&self) -> String {
         self.config
             .get_str("user.email")
-            .expect("no user.email set")
+            .unwrap_or_else(|_| "<no email configured>".to_string())
     }
 
     pub fn config(&self) -> &config::Config {

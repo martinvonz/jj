@@ -825,7 +825,11 @@ fn cmd_files(
     let mut repo_command = command.repo_helper(ui)?;
     let commit = repo_command.resolve_revision_arg(sub_matches)?;
     for (name, _value) in commit.tree().entries() {
-        writeln!(ui, "{}", &ui.format_file_path(repo_command.repo().working_copy_path(), &name))?;
+        writeln!(
+            ui,
+            "{}",
+            &ui.format_file_path(repo_command.repo().working_copy_path(), &name)
+        )?;
     }
     Ok(())
 }
