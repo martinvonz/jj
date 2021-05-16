@@ -127,6 +127,14 @@ impl RepoPath {
         }
     }
 
+    pub fn to_fs_path(&self, base: &Path) -> PathBuf {
+        let mut result = base.to_owned();
+        for dir in self.dir.components() {
+            result = result.join(&dir.value);
+        }
+        result.join(&self.basename.value)
+    }
+
     pub fn is_root(&self) -> bool {
         self.dir.is_root() && self.basename.value.is_empty()
     }
@@ -287,11 +295,7 @@ impl FileRepoPath {
     }
 
     pub fn to_fs_path(&self, base: &Path) -> PathBuf {
-        let mut result = base.to_owned();
-        for dir in self.dir.components() {
-            result = result.join(&dir.value);
-        }
-        result.join(&self.basename.value)
+        self.to_repo_path().to_fs_path(base)
     }
 }
 

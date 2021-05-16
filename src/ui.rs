@@ -19,6 +19,7 @@ use std::{fmt, io};
 
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::repo::RepoRef;
+use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
 
 use crate::styler::{ColorStyler, PlainTextStyler, Styler};
@@ -99,5 +100,27 @@ impl<'a> Ui<'a> {
         let mut template_writer = TemplateFormatter::new(template, styler.as_mut());
         template_writer.format(commit)?;
         Ok(())
+    }
+
+    pub fn format_file_path(&self, wc_path: &Path, file: &RepoPath) -> String {
+        relative_path(&self.cwd, &file.to_fs_path(wc_path))
+            .to_str()
+            .unwrap()
+            .to_owned()
+    }
+}
+
+fn relative_path(mut from: &Path, to: &Path) -> PathBuf {
+    let mut result = PathBuf::from("");
+    loop {
+        if let Ok(suffix) = to.strip_prefix(from) {
+            return result.join(suffix);
+        }
+        if let Some(parent) = from.parent() {
+            result = result.join("..");
+            from = parent;
+        } else {
+            return to.to_owned();
+        }
     }
 }

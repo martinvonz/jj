@@ -21,6 +21,7 @@ use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
+use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
 use std::time::Instant;
@@ -824,7 +825,7 @@ fn cmd_files(
     let mut repo_command = command.repo_helper(ui)?;
     let commit = repo_command.resolve_revision_arg(sub_matches)?;
     for (name, _value) in commit.tree().entries() {
-        writeln!(ui, "{}", name.to_internal_string())?;
+        ui.write(&ui.format_file_path(repo_command.repo().working_copy_path(), &name))?;
     }
     Ok(())
 }
@@ -943,7 +944,7 @@ fn cmd_diff(
     }
     let repo = repo_command.repo();
     if sub_matches.is_present("summary") {
-        show_diff_summary(ui, &from_tree, &to_tree)?;
+        show_diff_summary(ui, repo.working_copy_path(), &from_tree, &to_tree)?;
     } else {
         let mut styler = ui.styler();
         styler.add_label(String::from("diff"))?;
@@ -1084,16 +1085,28 @@ fn cmd_diff(
     Ok(())
 }
 
-fn show_diff_summary(ui: &mut Ui, from: &Tree, to: &Tree) -> io::Result<()> {
+fn show_diff_summary(ui: &mut Ui, wc_path: &Path, from: &Tree, to: &Tree) -> io::Result<()> {
     let summary = from.diff_summary(&to);
     for file in summary.modified {
-        writeln!(ui, "M {}", file.to_internal_string())?;
+        writeln!(
+            ui,
+            "M {}",
+            ui.format_file_path(wc_path, &file.to_repo_path())
+        )?;
     }
     for file in summary.added {
-        writeln!(ui, "A {}", file.to_internal_string())?;
+        writeln!(
+            ui,
+            "A {}",
+            ui.format_file_path(wc_path, &file.to_repo_path())
+        )?;
     }
     for file in summary.removed {
-        writeln!(ui, "R {}", file.to_internal_string())?;
+        writeln!(
+            ui,
+            "R {}",
+            ui.format_file_path(wc_path, &file.to_repo_path())
+        )?;
     }
     Ok(())
 }
@@ -1113,7 +1126,12 @@ fn cmd_status(
     ui.write_commit_summary(repo.as_repo_ref(), &commit.parents()[0])?;
     ui.write("\n")?;
     ui.write("Diff summary:\n")?;
-    show_diff_summary(ui, &commit.parents()[0].tree(), &commit.tree())?;
+    show_diff_summary(
+        ui,
+        repo.working_copy_path(),
+        &commit.parents()[0].tree(),
+        &commit.tree(),
+    )?;
     Ok(())
 }
 
