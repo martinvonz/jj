@@ -535,16 +535,14 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
     let restore_command = SubCommand::with_name("restore")
         .about("Restore paths from another revision")
         .arg(
-            Arg::with_name("source")
-                .long("source")
-                .short("s")
+            Arg::with_name("from")
+                .long("from")
                 .takes_value(true)
                 .default_value(":@"),
         )
         .arg(
-            Arg::with_name("destination")
-                .long("destination")
-                .short("d")
+            Arg::with_name("to")
+                .long("to")
                 .takes_value(true)
                 .default_value("@"),
         )
@@ -1647,9 +1645,8 @@ fn cmd_restore(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let source_commit = repo_command.resolve_single_rev(sub_matches.value_of("source").unwrap())?;
-    let destination_commit =
-        repo_command.resolve_single_rev(sub_matches.value_of("destination").unwrap())?;
+    let from_commit = repo_command.resolve_single_rev(sub_matches.value_of("from").unwrap())?;
+    let to_commit = repo_command.resolve_single_rev(sub_matches.value_of("to").unwrap())?;
     let repo = repo_command.repo();
     let tree_id;
     if sub_matches.is_present("interactive") {
@@ -1668,22 +1665,17 @@ fn cmd_restore(
             
             Adjust the right side until it has the changes you wanted from the left\n\
             side. If you don't make any changes, then the operation will be aborted.\n",
-            short_commit_description(&source_commit),
-            short_commit_description(&destination_commit)
+            short_commit_description(&from_commit),
+            short_commit_description(&to_commit)
         );
-        tree_id = crate::diff_edit::edit_diff(
-            &source_commit.tree(),
-            &destination_commit.tree(),
-            &instructions,
-        )?;
+        tree_id =
+            crate::diff_edit::edit_diff(&from_commit.tree(), &to_commit.tree(), &instructions)?;
     } else if sub_matches.is_present("paths") {
         let paths = sub_matches.values_of("paths").unwrap();
-        let mut tree_builder = repo
-            .store()
-            .tree_builder(destination_commit.tree().id().clone());
+        let mut tree_builder = repo.store().tree_builder(to_commit.tree().id().clone());
         for path in paths {
             let repo_path = RepoPath::from(path);
-            match source_commit.tree().path_value(&repo_path) {
+            match from_commit.tree().path_value(&repo_path) {
                 Some(value) => {
                     tree_builder.set(repo_path, value);
                 }
@@ -1694,20 +1686,17 @@ fn cmd_restore(
         }
         tree_id = tree_builder.write_tree();
     } else {
-        tree_id = source_commit.tree().id().clone();
+        tree_id = from_commit.tree().id().clone();
     }
-    if &tree_id == destination_commit.tree().id() {
+    if &tree_id == to_commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {
-        let mut tx = repo_command.start_transaction(&format!(
-            "restore into commit {}",
-            destination_commit.id().hex()
-        ));
+        let mut tx = repo_command
+            .start_transaction(&format!("restore into commit {}", to_commit.id().hex()));
         let mut_repo = tx.mut_repo();
-        let new_commit =
-            CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &destination_commit)
-                .set_tree(tree_id)
-                .write_to_repo(mut_repo);
+        let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &to_commit)
+            .set_tree(tree_id)
+            .write_to_repo(mut_repo);
         ui.write("Created ")?;
         ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
         ui.write("\n")?;
