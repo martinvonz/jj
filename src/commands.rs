@@ -953,13 +953,14 @@ fn cmd_diff(
         let mut styler = ui.styler();
         styler.add_label(String::from("diff"))?;
         for (path, diff) in from_tree.diff(&to_tree) {
+            let ui_path = ui.format_file_path(repo.working_copy_path(), &path.to_repo_path());
             match diff {
                 Diff::Added(TreeValue::Normal {
                     id,
                     executable: false,
                 }) => {
                     styler.add_label(String::from("header"))?;
-                    styler.write_str(&format!("added file {}:\n", path.to_internal_string()))?;
+                    styler.write_str(&format!("added file {}:\n", ui_path))?;
                     styler.remove_label()?;
                     let mut file_reader = repo.store().read_file(&path, &id).unwrap();
                     styler.write_from_reader(&mut file_reader)?;
@@ -976,15 +977,9 @@ fn cmd_diff(
                 ) if left_executable == right_executable => {
                     styler.add_label(String::from("header"))?;
                     if left_executable {
-                        styler.write_str(&format!(
-                            "modified executable file {}:\n",
-                            path.to_internal_string()
-                        ))?;
+                        styler.write_str(&format!("modified executable file {}:\n", ui_path))?;
                     } else {
-                        styler.write_str(&format!(
-                            "modified file {}:\n",
-                            path.to_internal_string()
-                        ))?;
+                        styler.write_str(&format!("modified file {}:\n", ui_path))?;
                     }
                     styler.remove_label()?;
 
@@ -1009,10 +1004,7 @@ fn cmd_diff(
                     },
                 ) => {
                     styler.add_label(String::from("header"))?;
-                    styler.write_str(&format!(
-                        "resolved conflict in file {}:\n",
-                        path.to_internal_string()
-                    ))?;
+                    styler.write_str(&format!("resolved conflict in file {}:\n", ui_path))?;
                     styler.remove_label()?;
 
                     let conflict_left = repo.store().read_conflict(&id_left).unwrap();
@@ -1041,10 +1033,7 @@ fn cmd_diff(
                     TreeValue::Conflict(id_right),
                 ) => {
                     styler.add_label(String::from("header"))?;
-                    styler.write_str(&format!(
-                        "new conflict in file {}:\n",
-                        path.to_internal_string()
-                    ))?;
+                    styler.write_str(&format!("new conflict in file {}:\n", ui_path))?;
                     styler.remove_label()?;
                     let mut file_reader_left = repo.store().read_file(&path, &id_left).unwrap();
                     let mut buffer_left = vec![];
@@ -1069,7 +1058,7 @@ fn cmd_diff(
                     executable: false,
                 }) => {
                     styler.add_label(String::from("header"))?;
-                    styler.write_str(&format!("removed file {}:\n", path.to_internal_string()))?;
+                    styler.write_str(&format!("removed file {}:\n", ui_path))?;
                     styler.remove_label()?;
 
                     let mut file_reader = repo.store().read_file(&path, &id).unwrap();
