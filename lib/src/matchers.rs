@@ -159,33 +159,35 @@ mod tests {
     #[test]
     fn dirs_empty() {
         let dirs = Dirs::new();
-        assert_eq!(dirs.get_dirs(&DirRepoPath::root()), &HashSet::new());
+        assert_eq!(dirs.get_dirs(&DirRepoPath::root()), &hashset! {});
     }
 
     #[test]
     fn dirs_root() {
         let mut dirs = Dirs::new();
         dirs.add_dir(DirRepoPath::root());
-        assert_eq!(dirs.get_dirs(&DirRepoPath::root()), &HashSet::new());
+        assert_eq!(dirs.get_dirs(&DirRepoPath::root()), &hashset! {});
     }
 
     #[test]
     fn dirs_dir() {
         let mut dirs = Dirs::new();
         dirs.add_dir(DirRepoPath::from("dir/"));
-        let mut expected_root_dirs = HashSet::new();
-        expected_root_dirs.insert(DirRepoPathComponent::from("dir"));
-        assert_eq!(dirs.get_dirs(&DirRepoPath::root()), &expected_root_dirs);
+        assert_eq!(
+            dirs.get_dirs(&DirRepoPath::root()),
+            &hashset! {DirRepoPathComponent::from("dir")}
+        );
     }
 
     #[test]
     fn dirs_file() {
         let mut dirs = Dirs::new();
         dirs.add_file(&FileRepoPath::from("dir/file"));
-        let mut expected_root_dirs = HashSet::new();
-        expected_root_dirs.insert(DirRepoPathComponent::from("dir"));
-        assert_eq!(dirs.get_dirs(&DirRepoPath::root()), &expected_root_dirs);
-        assert_eq!(dirs.get_files(&DirRepoPath::root()), &HashSet::new());
+        assert_eq!(
+            dirs.get_dirs(&DirRepoPath::root()),
+            &hashset! {DirRepoPathComponent::from("dir")}
+        );
+        assert_eq!(dirs.get_files(&DirRepoPath::root()), &hashset! {});
     }
 
     #[test]
@@ -204,24 +206,43 @@ mod tests {
 
     #[test]
     fn filesmatcher_nonempty() {
-        let mut files = HashSet::new();
-        files.insert(FileRepoPath::from("dir1/subdir1/file1"));
-        files.insert(FileRepoPath::from("dir1/subdir1/file2"));
-        files.insert(FileRepoPath::from("dir1/subdir2/file3"));
-        files.insert(FileRepoPath::from("file4"));
-        let m = FilesMatcher::new(files);
+        let m = FilesMatcher::new(hashset! {
+            FileRepoPath::from("dir1/subdir1/file1"),
+            FileRepoPath::from("dir1/subdir1/file2"),
+            FileRepoPath::from("dir1/subdir2/file3"),
+            FileRepoPath::from("file4"),
+        });
 
-        let expected_root_files = vec![FileRepoPathComponent::from("file4")]
-            .into_iter()
-            .collect();
-        let expected_root_dirs = vec![DirRepoPathComponent::from("dir1")]
-            .into_iter()
-            .collect();
         assert_eq!(
             m.visit(&DirRepoPath::root()),
             Visit {
-                dirs: VisitDirs::Set(&expected_root_dirs),
-                files: VisitFiles::Set(&expected_root_files),
+                dirs: VisitDirs::Set(&hashset! {DirRepoPathComponent::from("dir1")}),
+                files: VisitFiles::Set(&hashset! {FileRepoPathComponent::from("file4")}),
+            }
+        );
+        assert_eq!(
+            m.visit(&DirRepoPath::from("dir1/")),
+            Visit {
+                dirs: VisitDirs::Set(
+                    &hashset! {DirRepoPathComponent::from("subdir1"), DirRepoPathComponent::from("subdir2")}
+                ),
+                files: VisitFiles::Set(&hashset! {}),
+            }
+        );
+        assert_eq!(
+            m.visit(&DirRepoPath::from("dir1/subdir1/")),
+            Visit {
+                dirs: VisitDirs::Set(&hashset! {}),
+                files: VisitFiles::Set(
+                    &hashset! {FileRepoPathComponent::from("file1"), FileRepoPathComponent::from("file2")}
+                ),
+            }
+        );
+        assert_eq!(
+            m.visit(&DirRepoPath::from("dir1/subdir2/")),
+            Visit {
+                dirs: VisitDirs::Set(&hashset! {}),
+                files: VisitFiles::Set(&hashset! {FileRepoPathComponent::from("file3")}),
             }
         );
     }
