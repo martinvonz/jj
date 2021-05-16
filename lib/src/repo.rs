@@ -16,8 +16,8 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::fs::File;
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::io::Write;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use thiserror::Error;
@@ -394,7 +394,7 @@ impl RepoLoader {
         if !repo_path.is_dir() {
             return Err(RepoLoadError::NoRepoHere(wc_path));
         }
-        let store = RepoLoader::load_store(&repo_path);
+        let store = StoreWrapper::load_store(&repo_path);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
         let op_heads_store = Arc::new(OpHeadsStore::load(repo_path.join("op_heads")));
@@ -408,27 +408,6 @@ impl RepoLoader {
             op_heads_store,
             index_store,
         })
-    }
-
-    // TODO: This probably belongs in StoreWrapper (once that type has a better
-    // name)
-    fn load_store(repo_path: &Path) -> Arc<StoreWrapper> {
-        let store_path = repo_path.join("store");
-        let store: Box<dyn Store>;
-        if store_path.is_dir() {
-            store = Box::new(LocalStore::load(store_path));
-        } else {
-            let mut store_file = File::open(store_path).unwrap();
-            let mut buf = Vec::new();
-            store_file.read_to_end(&mut buf).unwrap();
-            let contents = String::from_utf8(buf).unwrap();
-            assert!(contents.starts_with("git: "));
-            let git_store_path_str = contents[5..].to_string();
-            let git_store_path =
-                fs::canonicalize(repo_path.join(PathBuf::from(git_store_path_str))).unwrap();
-            store = Box::new(GitStore::load(&git_store_path));
-        }
-        StoreWrapper::new(store)
     }
 
     pub fn store(&self) -> &Arc<StoreWrapper> {
