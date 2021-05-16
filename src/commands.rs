@@ -1348,10 +1348,14 @@ fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
     // Delete the file only if everything went well.
     // TODO: Tell the user the name of the file we left behind.
     std::fs::remove_file(description_file_path).ok();
-    let lines: Vec<_> = description
+    let mut lines: Vec<_> = description
         .split_inclusive('\n')
         .filter(|line| !line.starts_with("JJ: "))
         .collect();
+    // Remove trailing blank lines
+    while matches!(lines.last(), Some(&"\n") | Some(&"\r\n")) {
+        lines.pop().unwrap();
+    }
     lines.join("")
 }
 
