@@ -42,9 +42,9 @@ pub trait Matcher {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-pub struct AlwaysMatcher;
+pub struct EverythingMatcher;
 
-impl Matcher for AlwaysMatcher {
+impl Matcher for EverythingMatcher {
     fn matches(&self, _file: &FileRepoPath) -> bool {
         true
     }
