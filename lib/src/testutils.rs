@@ -126,7 +126,7 @@ pub fn write_working_copy_file(repo: &ReadonlyRepo, path: &FileRepoPath, content
         .write(true)
         .create(true)
         .truncate(true)
-        .open(repo.working_copy_path().join(path.to_internal_string()))
+        .open(path.to_fs_path(repo.working_copy_path()))
         .unwrap();
     file.write_all(contents.as_bytes()).unwrap();
 }
