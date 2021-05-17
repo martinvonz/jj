@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn dirs_dir() {
         let mut dirs = Dirs::new();
-        dirs.add_dir(DirRepoPath::from("dir/"));
+        dirs.add_dir(DirRepoPath::from_internal_dir_string("dir/"));
         assert_eq!(
             dirs.get_dirs(&DirRepoPath::root()),
             &hashset! {DirRepoPathComponent::from("dir")}
@@ -182,7 +182,7 @@ mod tests {
     #[test]
     fn dirs_file() {
         let mut dirs = Dirs::new();
-        dirs.add_file(&RepoPath::from("dir/file"));
+        dirs.add_file(&RepoPath::from_internal_string("dir/file"));
         assert_eq!(
             dirs.get_dirs(&DirRepoPath::root()),
             &hashset! {DirRepoPathComponent::from("dir")}
@@ -193,8 +193,8 @@ mod tests {
     #[test]
     fn filesmatcher_empty() {
         let m = FilesMatcher::new(HashSet::new());
-        assert!(!m.matches(&RepoPath::from("file")));
-        assert!(!m.matches(&RepoPath::from("dir/file")));
+        assert!(!m.matches(&RepoPath::from_internal_string("file")));
+        assert!(!m.matches(&RepoPath::from_internal_string("dir/file")));
         assert_eq!(
             m.visit(&DirRepoPath::root()),
             Visit {
@@ -207,10 +207,10 @@ mod tests {
     #[test]
     fn filesmatcher_nonempty() {
         let m = FilesMatcher::new(hashset! {
-            RepoPath::from("dir1/subdir1/file1"),
-            RepoPath::from("dir1/subdir1/file2"),
-            RepoPath::from("dir1/subdir2/file3"),
-            RepoPath::from("file4"),
+            RepoPath::from_internal_string("dir1/subdir1/file1"),
+            RepoPath::from_internal_string("dir1/subdir1/file2"),
+            RepoPath::from_internal_string("dir1/subdir2/file3"),
+            RepoPath::from_internal_string("file4"),
         });
 
         assert_eq!(
@@ -221,7 +221,7 @@ mod tests {
             }
         );
         assert_eq!(
-            m.visit(&DirRepoPath::from("dir1/")),
+            m.visit(&DirRepoPath::from_internal_dir_string("dir1/")),
             Visit {
                 dirs: VisitDirs::Set(
                     &hashset! {DirRepoPathComponent::from("subdir1"), DirRepoPathComponent::from("subdir2")}
@@ -230,7 +230,7 @@ mod tests {
             }
         );
         assert_eq!(
-            m.visit(&DirRepoPath::from("dir1/subdir1/")),
+            m.visit(&DirRepoPath::from_internal_dir_string("dir1/subdir1/")),
             Visit {
                 dirs: VisitDirs::Set(&hashset! {}),
                 files: VisitFiles::Set(
@@ -239,7 +239,7 @@ mod tests {
             }
         );
         assert_eq!(
-            m.visit(&DirRepoPath::from("dir1/subdir2/")),
+            m.visit(&DirRepoPath::from_internal_dir_string("dir1/subdir2/")),
             Visit {
                 dirs: VisitDirs::Set(&hashset! {}),
                 files: VisitFiles::Set(&hashset! {RepoPathComponent::from("file3")}),

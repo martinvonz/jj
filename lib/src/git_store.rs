@@ -391,7 +391,10 @@ impl Store for GitStore {
     }
 
     fn read_conflict(&self, id: &ConflictId) -> StoreResult<Conflict> {
-        let mut file = self.read_file(&RepoPath::from("unused"), &FileId(id.0.clone()))?;
+        let mut file = self.read_file(
+            &RepoPath::from_internal_string("unused"),
+            &FileId(id.0.clone()),
+        )?;
         let mut data = String::new();
         file.read_to_string(&mut data)?;
         let json: serde_json::Value = serde_json::from_str(&data).unwrap();
@@ -578,7 +581,7 @@ mod tests {
 
         let dir_tree = store
             .read_tree(
-                &DirRepoPath::from("dir/"),
+                &DirRepoPath::from_internal_dir_string("dir/"),
                 &TreeId(dir_tree_id.as_bytes().to_vec()),
             )
             .unwrap();

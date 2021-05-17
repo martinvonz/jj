@@ -668,10 +668,10 @@ fn test_evolve_divergent(use_git: bool) {
     // commit 6 has a later commit time than commit 4). It should have files C,
     // X, Y, Z.
 
-    let path_a = RepoPath::from("A");
-    let path_x = RepoPath::from("X");
-    let path_y = RepoPath::from("Y");
-    let path_z = RepoPath::from("Z");
+    let path_a = RepoPath::from_internal_string("A");
+    let path_x = RepoPath::from_internal_string("X");
+    let path_y = RepoPath::from_internal_string("Y");
+    let path_z = RepoPath::from_internal_string("Z");
     let tree1 = testutils::create_tree(&repo, &[(&path_a, "A")]);
     let tree2 = testutils::create_tree(&repo, &[(&path_a, "A"), (&path_x, "X")]);
     let tree3 = testutils::create_tree(&repo, &[(&path_a, "B")]);

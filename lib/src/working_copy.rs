@@ -121,7 +121,7 @@ fn file_states_from_proto(
 ) -> BTreeMap<RepoPath, FileState> {
     let mut file_states = BTreeMap::new();
     for (path_str, proto_file_state) in &proto.file_states {
-        let path = RepoPath::from(path_str.as_str());
+        let path = RepoPath::from_internal_string(path_str.as_str());
         file_states.insert(path, file_state_from_proto(&proto_file_state));
     }
     file_states

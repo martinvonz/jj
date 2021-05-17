@@ -108,7 +108,7 @@ pub fn create_random_tree(repo: &ReadonlyRepo) -> TreeId {
         .store()
         .tree_builder(repo.store().empty_tree_id().clone());
     let number = rand::random::<u32>();
-    let path = RepoPath::from(format!("file{}", number).as_str());
+    let path = RepoPath::from_internal_string(format!("file{}", number).as_str());
     write_normal_file(&mut tree_builder, &path, "contents");
     tree_builder.write_tree()
 }

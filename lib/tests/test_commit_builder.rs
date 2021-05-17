@@ -26,8 +26,8 @@ fn test_initial(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store();
 
-    let root_file_path = RepoPath::from("file");
-    let dir_file_path = RepoPath::from("dir/file");
+    let root_file_path = RepoPath::from_internal_string("file");
+    let dir_file_path = RepoPath::from_internal_string("dir/file");
     let tree = testutils::create_tree(
         &repo,
         &[
@@ -65,8 +65,8 @@ fn test_rewrite(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store().clone();
 
-    let root_file_path = RepoPath::from("file");
-    let dir_file_path = RepoPath::from("dir/file");
+    let root_file_path = RepoPath::from_internal_string("file");
+    let dir_file_path = RepoPath::from_internal_string("dir/file");
     let initial_tree = testutils::create_tree(
         &repo,
         &[

@@ -85,16 +85,22 @@ fn test_checkout_file_transitions(use_git: bool) {
                 return;
             }
             Kind::Normal => {
-                let id =
-                    testutils::write_file(store, &RepoPath::from(path), "normal file contents");
+                let id = testutils::write_file(
+                    store,
+                    &RepoPath::from_internal_string(path),
+                    "normal file contents",
+                );
                 TreeValue::Normal {
                     id,
                     executable: false,
                 }
             }
             Kind::Executable => {
-                let id =
-                    testutils::write_file(store, &RepoPath::from(path), "executable file contents");
+                let id = testutils::write_file(
+                    store,
+                    &RepoPath::from_internal_string(path),
+                    "executable file contents",
+                );
                 TreeValue::Normal {
                     id,
                     executable: true,
@@ -102,7 +108,7 @@ fn test_checkout_file_transitions(use_git: bool) {
             }
             Kind::Symlink => {
                 let id = store
-                    .write_symlink(&RepoPath::from(path), "target")
+                    .write_symlink(&RepoPath::from_internal_string(path), "target")
                     .unwrap();
                 TreeValue::Symlink(id)
             }
@@ -127,7 +133,7 @@ fn test_checkout_file_transitions(use_git: bool) {
                 TreeValue::GitSubmodule(id)
             }
         };
-        tree_builder.set(RepoPath::from(path), value);
+        tree_builder.set(RepoPath::from_internal_string(path), value);
     }
 
     let mut kinds = vec![
@@ -276,13 +282,13 @@ fn test_gitignores(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    let gitignore_path = RepoPath::from(".gitignore");
-    let added_path = RepoPath::from("added");
-    let modified_path = RepoPath::from("modified");
-    let removed_path = RepoPath::from("removed");
-    let ignored_path = RepoPath::from("ignored");
-    let subdir_modified_path = RepoPath::from("dir/modified");
-    let subdir_ignored_path = RepoPath::from("dir/ignored");
+    let gitignore_path = RepoPath::from_internal_string(".gitignore");
+    let added_path = RepoPath::from_internal_string("added");
+    let modified_path = RepoPath::from_internal_string("modified");
+    let removed_path = RepoPath::from_internal_string("removed");
+    let ignored_path = RepoPath::from_internal_string("ignored");
+    let subdir_modified_path = RepoPath::from_internal_string("dir/modified");
+    let subdir_ignored_path = RepoPath::from_internal_string("dir/ignored");
 
     testutils::write_working_copy_file(&repo, &gitignore_path, "ignored\n");
     testutils::write_working_copy_file(&repo, &modified_path, "1");
@@ -344,9 +350,9 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     // Write an ignored file called "modified" to disk
-    let gitignore_path = RepoPath::from(".gitignore");
+    let gitignore_path = RepoPath::from_internal_string(".gitignore");
     testutils::write_working_copy_file(&repo, &gitignore_path, "modified\n");
-    let modified_path = RepoPath::from("modified");
+    let modified_path = RepoPath::from_internal_string("modified");
     testutils::write_working_copy_file(&repo, &modified_path, "garbage");
 
     // Create a commit that adds the same file but with different contents
@@ -391,9 +397,9 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     // Add a .gitignore file saying to ignore the directory "ignored/"
-    let gitignore_path = RepoPath::from(".gitignore");
+    let gitignore_path = RepoPath::from_internal_string(".gitignore");
     testutils::write_working_copy_file(&repo, &gitignore_path, "/ignored/\n");
-    let file_path = RepoPath::from("ignored/file");
+    let file_path = RepoPath::from_internal_string("ignored/file");
 
     // Create a commit that adds a file in the ignored directory
     let mut tx = repo.start_transaction("test");

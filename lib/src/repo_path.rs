@@ -82,6 +82,20 @@ impl RepoPath {
         RepoPath { dir, basename }
     }
 
+    pub fn from_internal_string(value: &str) -> Self {
+        assert!(!value.ends_with('/'));
+        match value.rfind('/') {
+            None => RepoPath {
+                dir: DirRepoPath::root(),
+                basename: RepoPathComponent::from(value),
+            },
+            Some(i) => RepoPath {
+                dir: DirRepoPath::from_internal_dir_string(&value[..=i]),
+                basename: RepoPathComponent::from(&value[i + 1..]),
+            },
+        }
+    }
+
     /// The full string form used internally, not for presenting to users (where
     /// we may want to use the platform's separator).
     pub fn to_internal_file_string(&self) -> String {
@@ -127,22 +141,6 @@ impl RepoPath {
     }
 }
 
-impl From<&str> for RepoPath {
-    fn from(value: &str) -> Self {
-        assert!(!value.ends_with('/'));
-        match value.rfind('/') {
-            None => RepoPath {
-                dir: DirRepoPath::root(),
-                basename: RepoPathComponent::from(value),
-            },
-            Some(i) => RepoPath {
-                dir: DirRepoPath::from(&value[..=i]),
-                basename: RepoPathComponent::from(&value[i + 1..]),
-            },
-        }
-    }
-}
-
 // Includes a trailing slash
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DirRepoPath {
@@ -162,6 +160,22 @@ impl DirRepoPath {
 
     pub fn is_root(&self) -> bool {
         return self.components().is_empty();
+    }
+
+    pub fn from_internal_dir_string(value: &str) -> Self {
+        assert!(value.is_empty() || value.ends_with('/'));
+        let mut parts: Vec<&str> = value.split('/').collect();
+        // remove the trailing empty string
+        parts.pop();
+
+        DirRepoPath {
+            value: parts
+                .iter()
+                .map(|x| DirRepoPathComponent {
+                    value: x.to_string(),
+                })
+                .collect(),
+        }
     }
 
     /// The full string form used internally, not for presenting to users (where
@@ -211,24 +225,6 @@ impl DirRepoPath {
     }
 }
 
-impl From<&str> for DirRepoPath {
-    fn from(value: &str) -> Self {
-        assert!(value.is_empty() || value.ends_with('/'));
-        let mut parts: Vec<&str> = value.split('/').collect();
-        // remove the trailing empty string
-        parts.pop();
-
-        DirRepoPath {
-            value: parts
-                .iter()
-                .map(|x| DirRepoPathComponent {
-                    value: x.to_string(),
-                })
-                .collect(),
-        }
-    }
-}
-
 pub trait RepoPathJoin<T> {
     type Result;
 
@@ -263,43 +259,63 @@ mod tests {
     #[test]
     fn test_is_root() {
         assert!(RepoPath::root().is_root());
-        assert!(RepoPath::from("").is_root());
-        assert!(!RepoPath::from("foo").is_root());
+        assert!(RepoPath::from_internal_string("").is_root());
+        assert!(!RepoPath::from_internal_string("foo").is_root());
         assert!(DirRepoPath::root().is_root());
-        assert!(DirRepoPath::from("").is_root());
-        assert!(!DirRepoPath::from("foo/").is_root());
+        assert!(DirRepoPath::from_internal_dir_string("").is_root());
+        assert!(!DirRepoPath::from_internal_dir_string("foo/").is_root());
     }
 
     #[test]
-    fn test_value() {
+    fn test_to_internal_string() {
         assert_eq!(RepoPath::root().to_internal_file_string(), "");
-        assert_eq!(RepoPath::from("dir").to_internal_file_string(), "dir");
-        assert_eq!(RepoPath::from("file").to_internal_file_string(), "file");
         assert_eq!(
-            RepoPath::from("dir/file").to_internal_file_string(),
+            RepoPath::from_internal_string("dir").to_internal_file_string(),
+            "dir"
+        );
+        assert_eq!(
+            RepoPath::from_internal_string("file").to_internal_file_string(),
+            "file"
+        );
+        assert_eq!(
+            RepoPath::from_internal_string("dir/file").to_internal_file_string(),
             "dir/file"
         );
         assert_eq!(DirRepoPath::root().to_internal_dir_string(), "");
-        assert_eq!(DirRepoPath::from("dir/").to_internal_dir_string(), "dir/");
         assert_eq!(
-            DirRepoPath::from("dir/subdir/").to_internal_dir_string(),
+            DirRepoPath::from_internal_dir_string("dir/").to_internal_dir_string(),
+            "dir/"
+        );
+        assert_eq!(
+            DirRepoPath::from_internal_dir_string("dir/subdir/").to_internal_dir_string(),
             "dir/subdir/"
         );
     }
 
     #[test]
     fn test_order() {
-        assert!(DirRepoPath::root() < DirRepoPath::from("dir/"));
-        assert!(DirRepoPath::from("dir/") < DirRepoPath::from("dirx/"));
+        assert!(DirRepoPath::root() < DirRepoPath::from_internal_dir_string("dir/"));
+        assert!(
+            DirRepoPath::from_internal_dir_string("dir/")
+                < DirRepoPath::from_internal_dir_string("dirx/")
+        );
         // '#' < '/'
-        assert!(DirRepoPath::from("dir/") < DirRepoPath::from("dir#/"));
-        assert!(DirRepoPath::from("dir/") < DirRepoPath::from("dir/sub/"));
+        assert!(
+            DirRepoPath::from_internal_dir_string("dir/")
+                < DirRepoPath::from_internal_dir_string("dir#/")
+        );
+        assert!(
+            DirRepoPath::from_internal_dir_string("dir/")
+                < DirRepoPath::from_internal_dir_string("dir/sub/")
+        );
 
-        assert!(RepoPath::from("abc") < RepoPath::from("dir/file"));
-        assert!(RepoPath::from("dir") < RepoPath::from("dir/file"));
-        assert!(RepoPath::from("dis") < RepoPath::from("dir/file"));
-        assert!(RepoPath::from("xyz") < RepoPath::from("dir/file"));
-        assert!(RepoPath::from("dir1/xyz") < RepoPath::from("dir2/abc"));
+        assert!(RepoPath::from_internal_string("abc") < RepoPath::from_internal_string("dir/file"));
+        assert!(RepoPath::from_internal_string("dir") < RepoPath::from_internal_string("dir/file"));
+        assert!(RepoPath::from_internal_string("dis") < RepoPath::from_internal_string("dir/file"));
+        assert!(RepoPath::from_internal_string("xyz") < RepoPath::from_internal_string("dir/file"));
+        assert!(
+            RepoPath::from_internal_string("dir1/xyz") < RepoPath::from_internal_string("dir2/abc")
+        );
     }
 
     #[test]
@@ -308,15 +324,21 @@ mod tests {
         let dir_component = DirRepoPathComponent::from("dir");
         let subdir_component = DirRepoPathComponent::from("subdir");
         let file_component = RepoPathComponent::from("file");
-        assert_eq!(root.join(&file_component), RepoPath::from("file"));
+        assert_eq!(
+            root.join(&file_component),
+            RepoPath::from_internal_string("file")
+        );
         let dir = root.join(&dir_component);
-        assert_eq!(dir, DirRepoPath::from("dir/"));
-        assert_eq!(dir.join(&file_component), RepoPath::from("dir/file"));
+        assert_eq!(dir, DirRepoPath::from_internal_dir_string("dir/"));
+        assert_eq!(
+            dir.join(&file_component),
+            RepoPath::from_internal_string("dir/file")
+        );
         let subdir = dir.join(&subdir_component);
-        assert_eq!(subdir, DirRepoPath::from("dir/subdir/"));
+        assert_eq!(subdir, DirRepoPath::from_internal_dir_string("dir/subdir/"));
         assert_eq!(
             subdir.join(&file_component),
-            RepoPath::from("dir/subdir/file")
+            RepoPath::from_internal_string("dir/subdir/file")
         );
     }
 
@@ -382,11 +404,11 @@ mod tests {
     fn test_components() {
         assert_eq!(DirRepoPath::root().components(), &vec![]);
         assert_eq!(
-            DirRepoPath::from("dir/").components(),
+            DirRepoPath::from_internal_dir_string("dir/").components(),
             &vec![DirRepoPathComponent::from("dir")]
         );
         assert_eq!(
-            DirRepoPath::from("dir/subdir/").components(),
+            DirRepoPath::from_internal_dir_string("dir/subdir/").components(),
             &vec![
                 DirRepoPathComponent::from("dir"),
                 DirRepoPathComponent::from("subdir")
@@ -397,20 +419,23 @@ mod tests {
     #[test]
     fn test_to_fs_path() {
         assert_eq!(
-            RepoPath::from("").to_fs_path(&Path::new("base/dir")),
+            RepoPath::from_internal_string("").to_fs_path(&Path::new("base/dir")),
             Path::new("base/dir")
         );
-        assert_eq!(RepoPath::from("").to_fs_path(&Path::new("")), Path::new(""));
         assert_eq!(
-            RepoPath::from("file").to_fs_path(&Path::new("base/dir")),
+            RepoPath::from_internal_string("").to_fs_path(&Path::new("")),
+            Path::new("")
+        );
+        assert_eq!(
+            RepoPath::from_internal_string("file").to_fs_path(&Path::new("base/dir")),
             Path::new("base/dir/file")
         );
         assert_eq!(
-            RepoPath::from("some/deep/dir/file").to_fs_path(&Path::new("base/dir")),
+            RepoPath::from_internal_string("some/deep/dir/file").to_fs_path(&Path::new("base/dir")),
             Path::new("base/dir/some/deep/dir/file")
         );
         assert_eq!(
-            RepoPath::from("dir/file").to_fs_path(&Path::new("")),
+            RepoPath::from_internal_string("dir/file").to_fs_path(&Path::new("")),
             Path::new("dir/file")
         );
     }
@@ -419,12 +444,12 @@ mod tests {
     fn test_convert() {
         assert_eq!(RepoPath::root().to_dir_repo_path(), DirRepoPath::root());
         assert_eq!(
-            RepoPath::from("dir").to_dir_repo_path(),
-            DirRepoPath::from("dir/")
+            RepoPath::from_internal_string("dir").to_dir_repo_path(),
+            DirRepoPath::from_internal_dir_string("dir/")
         );
         assert_eq!(
-            RepoPath::from("dir/subdir").to_dir_repo_path(),
-            DirRepoPath::from("dir/subdir/")
+            RepoPath::from_internal_string("dir/subdir").to_dir_repo_path(),
+            DirRepoPath::from_internal_dir_string("dir/subdir/")
         );
     }
 }

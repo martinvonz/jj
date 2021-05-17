@@ -77,7 +77,7 @@ fn test_checkout_open_with_conflict(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store();
 
-    let file_path = RepoPath::from("file");
+    let file_path = RepoPath::from_internal_string("file");
     let conflict_id = write_conflict(store, &file_path);
     let mut tree_builder = repo
         .store()
@@ -116,7 +116,7 @@ fn test_checkout_closed_with_conflict(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store();
 
-    let file_path = RepoPath::from("file");
+    let file_path = RepoPath::from_internal_string("file");
     let conflict_id = write_conflict(store, &file_path);
     let mut tree_builder = repo
         .store()

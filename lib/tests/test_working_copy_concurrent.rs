@@ -82,7 +82,11 @@ fn test_concurrent_commit(use_git: bool) {
 
     // Commit from another process (simulated by another repo instance)
     let repo2 = ReadonlyRepo::load(&settings, repo1.working_copy_path().clone()).unwrap();
-    testutils::write_working_copy_file(&repo2, &RepoPath::from("file2"), "contents2");
+    testutils::write_working_copy_file(
+        &repo2,
+        &RepoPath::from_internal_string("file2"),
+        "contents2",
+    );
     let owned_wc2 = repo2.working_copy().clone();
     let wc2 = owned_wc2.lock().unwrap();
     let commit2 = wc2.commit(&settings, repo2).1;
@@ -91,7 +95,11 @@ fn test_concurrent_commit(use_git: bool) {
 
     // Creating another commit  (via the first repo instance)  should result in a
     // successor of the commit created from the other process.
-    testutils::write_working_copy_file(&repo1, &RepoPath::from("file3"), "contents3");
+    testutils::write_working_copy_file(
+        &repo1,
+        &RepoPath::from_internal_string("file3"),
+        "contents3",
+    );
     let commit3 = wc1.commit(&settings, repo1).1;
     assert_eq!(commit3.predecessors(), vec![commit2]);
 }
@@ -108,7 +116,7 @@ fn test_checkout_parallel(use_git: bool) {
     let num_threads = max(num_cpus::get(), 4);
     let mut commit_ids = vec![];
     for i in 0..num_threads {
-        let path = RepoPath::from(format!("file{}", i).as_str());
+        let path = RepoPath::from_internal_string(format!("file{}", i).as_str());
         let tree = testutils::create_tree(&repo, &[(&path, "contents")]);
         let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())
             .set_open(true)
@@ -118,7 +126,10 @@ fn test_checkout_parallel(use_git: bool) {
 
     // Create another commit just so we can test the update stats reliably from the
     // first update
-    let tree = testutils::create_tree(&repo, &[(&RepoPath::from("other file"), "contents")]);
+    let tree = testutils::create_tree(
+        &repo,
+        &[(&RepoPath::from_internal_string("other file"), "contents")],
+    );
     let mut tx = repo.start_transaction("test");
     let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())
         .set_open(true)

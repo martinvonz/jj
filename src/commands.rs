@@ -1690,7 +1690,7 @@ fn cmd_restore(
         let paths = sub_matches.values_of("paths").unwrap();
         let mut tree_builder = repo.store().tree_builder(to_commit.tree().id().clone());
         for path in paths {
-            let repo_path = RepoPath::from(path);
+            let repo_path = RepoPath::from_internal_string(path);
             match from_commit.tree().path_value(&repo_path) {
                 Some(value) => {
                     tree_builder.set(repo_path, value);
