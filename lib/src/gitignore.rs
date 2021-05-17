@@ -53,6 +53,7 @@ impl GitIgnoreLine {
     }
 
     fn parse(prefix: &str, input: &str) -> Result<Option<GitIgnoreLine>, GitIgnoreParseError> {
+        assert!(prefix.is_empty() || prefix.ends_with('/'));
         if input.starts_with('#') {
             return Ok(None);
         }
