@@ -72,6 +72,10 @@ impl RepoPath {
         }
     }
 
+    pub fn from_components(components: Vec<RepoPathComponent>) -> Self {
+        RepoPath { components }
+    }
+
     /// The full string form used internally, not for presenting to users (where
     /// we may want to use the platform's separator). This format includes a
     /// trailing slash, unless this path represents the root directory. That

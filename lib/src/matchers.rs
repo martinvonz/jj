@@ -14,7 +14,7 @@
 
 #![allow(dead_code)]
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
@@ -22,6 +22,15 @@ use crate::repo_path::{RepoPath, RepoPathComponent};
 pub struct Visit {
     dirs: VisitDirs,
     files: VisitFiles,
+}
+
+impl Visit {
+    pub fn all() -> Self {
+        Self {
+            dirs: VisitDirs::All,
+            files: VisitFiles::All,
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -88,6 +97,52 @@ impl Matcher for FilesMatcher {
     }
 }
 
+pub struct PrefixMatcher {
+    prefixes: BTreeSet<RepoPath>,
+    dirs: Dirs,
+}
+
+impl PrefixMatcher {
+    pub fn new(prefixes: &[RepoPath]) -> Self {
+        let prefixes = prefixes.iter().cloned().collect();
+        let mut dirs = Dirs::new();
+        for prefix in &prefixes {
+            dirs.add_dir(prefix);
+            if !prefix.is_root() {
+                dirs.add_file(prefix);
+            }
+        }
+        PrefixMatcher { prefixes, dirs }
+    }
+}
+
+impl Matcher for PrefixMatcher {
+    fn matches(&self, file: &RepoPath) -> bool {
+        let components = file.components();
+        // TODO: Make Dirs a trie instead, so this can just walk that trie.
+        for i in 0..components.len() + 1 {
+            let prefix = RepoPath::from_components(components[0..i].to_vec());
+            if self.prefixes.contains(&prefix) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn visit(&self, dir: &RepoPath) -> Visit {
+        if self.matches(dir) {
+            Visit::all()
+        } else {
+            let dirs = self.dirs.get_dirs(dir);
+            let files = self.dirs.get_files(dir);
+            Visit {
+                dirs: VisitDirs::Set(dirs),
+                files: VisitFiles::Set(files),
+            }
+        }
+    }
+}
+
 /// Keeps track of which subdirectories and files of each directory need to be
 /// visited.
 #[derive(PartialEq, Eq, Debug)]
@@ -104,7 +159,8 @@ impl Dirs {
         }
     }
 
-    fn add_dir(&mut self, mut dir: RepoPath) {
+    fn add_dir(&mut self, dir: &RepoPath) {
+        let mut dir = dir.clone();
         let mut maybe_child = None;
         loop {
             let was_present = self.dirs.contains_key(&dir);
@@ -129,7 +185,7 @@ impl Dirs {
         let (dir, basename) = file
             .split()
             .unwrap_or_else(|| panic!("got empty filename: {:?}", file));
-        self.add_dir(dir.clone());
+        self.add_dir(&dir);
         self.files.entry(dir).or_default().insert(basename.clone());
     }
 
@@ -148,22 +204,22 @@ mod tests {
     use crate::repo_path::{RepoPath, RepoPathComponent};
 
     #[test]
-    fn dirs_empty() {
+    fn test_dirs_empty() {
         let dirs = Dirs::new();
         assert_eq!(dirs.get_dirs(&RepoPath::root()), hashset! {});
     }
 
     #[test]
-    fn dirs_root() {
+    fn test_dirs_root() {
         let mut dirs = Dirs::new();
-        dirs.add_dir(RepoPath::root());
+        dirs.add_dir(&RepoPath::root());
         assert_eq!(dirs.get_dirs(&RepoPath::root()), hashset! {});
     }
 
     #[test]
-    fn dirs_dir() {
+    fn test_dirs_dir() {
         let mut dirs = Dirs::new();
-        dirs.add_dir(RepoPath::from_internal_string("dir"));
+        dirs.add_dir(&RepoPath::from_internal_string("dir"));
         assert_eq!(
             dirs.get_dirs(&RepoPath::root()),
             hashset! {RepoPathComponent::from("dir")}
@@ -171,7 +227,7 @@ mod tests {
     }
 
     #[test]
-    fn dirs_file() {
+    fn test_dirs_file() {
         let mut dirs = Dirs::new();
         dirs.add_file(&RepoPath::from_internal_string("dir/file"));
         assert_eq!(
@@ -182,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    fn filesmatcher_empty() {
+    fn test_filesmatcher_empty() {
         let m = FilesMatcher::new(hashset! {});
         assert!(!m.matches(&RepoPath::from_internal_string("file")));
         assert!(!m.matches(&RepoPath::from_internal_string("dir/file")));
@@ -196,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    fn filesmatcher_nonempty() {
+    fn test_filesmatcher_nonempty() {
         let m = FilesMatcher::new(hashset! {
             RepoPath::from_internal_string("dir1/subdir1/file1"),
             RepoPath::from_internal_string("dir1/subdir1/file2"),
@@ -234,6 +290,145 @@ mod tests {
             Visit {
                 dirs: VisitDirs::Set(hashset! {}),
                 files: VisitFiles::Set(hashset! {RepoPathComponent::from("file3")}),
+            }
+        );
+    }
+
+    #[test]
+    fn test_prefixmatcher_empty() {
+        let m = PrefixMatcher::new(&[]);
+        assert!(!m.matches(&RepoPath::from_internal_string("file")));
+        assert!(!m.matches(&RepoPath::from_internal_string("dir/file")));
+        assert_eq!(
+            m.visit(&RepoPath::root()),
+            Visit {
+                dirs: VisitDirs::Set(hashset! {}),
+                files: VisitFiles::Set(hashset! {}),
+            }
+        );
+    }
+
+    #[test]
+    fn test_prefixmatcher_root() {
+        let m = PrefixMatcher::new(&[RepoPath::root()]);
+        // Matches all files
+        assert!(m.matches(&RepoPath::from_internal_string("file")));
+        assert!(m.matches(&RepoPath::from_internal_string("dir/file")));
+        // Visits all directories
+        assert_eq!(
+            m.visit(&RepoPath::root()),
+            Visit {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All,
+            }
+        );
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("foo/bar")),
+            Visit {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All,
+            }
+        );
+    }
+
+    #[test]
+    fn test_prefixmatcher_single_prefix() {
+        let m = PrefixMatcher::new(&[RepoPath::from_internal_string("foo/bar")]);
+
+        // Parts of the prefix should not match
+        assert!(!m.matches(&RepoPath::from_internal_string("foo")));
+        assert!(!m.matches(&RepoPath::from_internal_string("bar")));
+        // A file matching the prefix exactly should match
+        assert!(m.matches(&RepoPath::from_internal_string("foo/bar")));
+        // Files in subdirectories should match
+        assert!(m.matches(&RepoPath::from_internal_string("foo/bar/baz")));
+        assert!(m.matches(&RepoPath::from_internal_string("foo/bar/baz/qux")));
+        // Sibling files should not match
+        assert!(!m.matches(&RepoPath::from_internal_string("foo/foo")));
+        // An unrooted "foo/bar" should not match
+        assert!(!m.matches(&RepoPath::from_internal_string("bar/foo/bar")));
+
+        // The matcher should only visit directory foo/ in the root (file "foo"
+        // shouldn't be visited)
+        assert_eq!(
+            m.visit(&RepoPath::root()),
+            Visit {
+                dirs: VisitDirs::Set(hashset! {RepoPathComponent::from("foo")}),
+                files: VisitFiles::Set(hashset! {}),
+            }
+        );
+        // Inside parent directory "foo/", both subdirectory "bar" and file "bar" may
+        // match
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("foo")),
+            Visit {
+                dirs: VisitDirs::Set(hashset! {RepoPathComponent::from("bar")}),
+                files: VisitFiles::Set(hashset! {RepoPathComponent::from("bar")}),
+            }
+        );
+        // Inside a directory that matches the prefix, everything may match (in does in
+        // fact match, as tested by m.matches() earlier)
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("foo/bar")),
+            Visit {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All,
+            }
+        );
+        // Same thing in subdirectories of the prefix
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("foo/bar/baz")),
+            Visit {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All,
+            }
+        );
+        // Nothing in directories that are siblings of the prefix can match, so don't
+        // visit
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("bar")),
+            Visit {
+                dirs: VisitDirs::Set(hashset! {}),
+                files: VisitFiles::Set(hashset! {}),
+            }
+        );
+    }
+
+    #[test]
+    fn test_prefixmatcher_nested_prefixes() {
+        let m = PrefixMatcher::new(&[
+            RepoPath::from_internal_string("foo"),
+            RepoPath::from_internal_string("foo/bar/baz"),
+        ]);
+
+        assert!(m.matches(&RepoPath::from_internal_string("foo")));
+        assert!(!m.matches(&RepoPath::from_internal_string("bar")));
+        assert!(m.matches(&RepoPath::from_internal_string("foo/bar")));
+        // Matches because the the "foo" pattern matches
+        assert!(m.matches(&RepoPath::from_internal_string("foo/baz/foo")));
+
+        assert_eq!(
+            m.visit(&RepoPath::root()),
+            Visit {
+                dirs: VisitDirs::Set(hashset! {RepoPathComponent::from("foo")}),
+                files: VisitFiles::Set(hashset! {RepoPathComponent::from("foo")}),
+            }
+        );
+        // Inside a directory that matches the prefix, everything may match (in does in
+        // fact match, as tested by m.matches() earlier)
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("foo")),
+            Visit {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All,
+            }
+        );
+        // Same thing in subdirectories of the prefix
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("foo/bar/baz")),
+            Visit {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All,
             }
         );
     }
