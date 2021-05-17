@@ -64,7 +64,7 @@ pub struct RepoPath {
 
 impl Debug for RepoPath {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.write_fmt(format_args!("{:?}", &self.to_internal_string()))
+        f.write_fmt(format_args!("{:?}", &self.to_internal_file_string()))
     }
 }
 
@@ -84,8 +84,8 @@ impl RepoPath {
 
     /// The full string form used internally, not for presenting to users (where
     /// we may want to use the platform's separator).
-    pub fn to_internal_string(&self) -> String {
-        self.dir.to_internal_string() + self.basename.value()
+    pub fn to_internal_file_string(&self) -> String {
+        self.dir.to_internal_dir_string() + self.basename.value()
     }
 
     pub fn to_dir_repo_path(&self) -> DirRepoPath {
@@ -151,7 +151,7 @@ pub struct DirRepoPath {
 
 impl Debug for DirRepoPath {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.write_fmt(format_args!("{:?}", &self.to_internal_string()))
+        f.write_fmt(format_args!("{:?}", &self.to_internal_dir_string()))
     }
 }
 
@@ -166,7 +166,7 @@ impl DirRepoPath {
 
     /// The full string form used internally, not for presenting to users (where
     /// we may want to use the platform's separator).
-    pub fn to_internal_string(&self) -> String {
+    pub fn to_internal_dir_string(&self) -> String {
         let mut result = String::new();
         for component in &self.value {
             result.push_str(component.value());
@@ -272,14 +272,17 @@ mod tests {
 
     #[test]
     fn test_value() {
-        assert_eq!(RepoPath::root().to_internal_string(), "");
-        assert_eq!(RepoPath::from("dir").to_internal_string(), "dir");
-        assert_eq!(RepoPath::from("file").to_internal_string(), "file");
-        assert_eq!(RepoPath::from("dir/file").to_internal_string(), "dir/file");
-        assert_eq!(DirRepoPath::root().to_internal_string(), "");
-        assert_eq!(DirRepoPath::from("dir/").to_internal_string(), "dir/");
+        assert_eq!(RepoPath::root().to_internal_file_string(), "");
+        assert_eq!(RepoPath::from("dir").to_internal_file_string(), "dir");
+        assert_eq!(RepoPath::from("file").to_internal_file_string(), "file");
         assert_eq!(
-            DirRepoPath::from("dir/subdir/").to_internal_string(),
+            RepoPath::from("dir/file").to_internal_file_string(),
+            "dir/file"
+        );
+        assert_eq!(DirRepoPath::root().to_internal_dir_string(), "");
+        assert_eq!(DirRepoPath::from("dir/").to_internal_dir_string(), "dir/");
+        assert_eq!(
+            DirRepoPath::from("dir/subdir/").to_internal_dir_string(),
             "dir/subdir/"
         );
     }

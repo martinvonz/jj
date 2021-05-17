@@ -229,9 +229,10 @@ impl TreeState {
         let mut proto = crate::protos::working_copy::TreeState::new();
         proto.tree_id = self.tree_id.0.clone();
         for (file, file_state) in &self.file_states {
-            proto
-                .file_states
-                .insert(file.to_internal_string(), file_state_to_proto(file_state));
+            proto.file_states.insert(
+                file.to_internal_file_string(),
+                file_state_to_proto(file_state),
+            );
         }
 
         let mut temp_file = NamedTempFile::new_in(&self.state_path).unwrap();
@@ -332,7 +333,7 @@ impl TreeState {
             let (dir, disk_dir, git_ignore) = work.pop().unwrap();
             let git_ignore = TreeState::try_chain_gitignore(
                 &git_ignore,
-                &dir.to_internal_string(),
+                &dir.to_internal_dir_string(),
                 disk_dir.join(".gitignore"),
             );
             for maybe_entry in disk_dir.read_dir().unwrap() {
@@ -345,7 +346,7 @@ impl TreeState {
                 }
                 if file_type.is_dir() {
                     let subdir = dir.join(&DirRepoPathComponent::from(name));
-                    if git_ignore.matches_all_files_in(&subdir.to_internal_string()) {
+                    if git_ignore.matches_all_files_in(&subdir.to_internal_dir_string()) {
                         // If the whole directory is ignored, skip it unless we're already tracking
                         // some file in it. TODO: This is pretty ugly... Also, we should
                         // optimize it to check exactly the already-tracked files (we know that
@@ -378,7 +379,7 @@ impl TreeState {
                     match self.file_states.get(&file) {
                         None => {
                             // untracked
-                            if git_ignore.matches_file(&file.to_internal_string()) {
+                            if git_ignore.matches_file(&file.to_internal_file_string()) {
                                 continue;
                             }
                             clean = false;
