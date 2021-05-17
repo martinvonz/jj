@@ -134,10 +134,7 @@ impl Dirs {
             .split()
             .unwrap_or_else(|| panic!("got empty filename: {:?}", file));
         self.add_dir(dir.clone());
-        self.files
-            .entry(dir.clone())
-            .or_default()
-            .insert(basename.clone());
+        self.files.entry(dir).or_default().insert(basename.clone());
     }
 
     fn get_dirs(&self, dir: &DirRepoPath) -> &HashSet<DirRepoPathComponent> {

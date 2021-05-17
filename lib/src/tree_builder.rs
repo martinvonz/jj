@@ -65,7 +65,7 @@ impl TreeBuilder {
         // Update entries in parent trees for file overrides
         for (path, file_override) in self.overrides {
             if let Some((dir, basename)) = path.split() {
-                let tree = trees_to_write.get_mut(dir).unwrap();
+                let tree = trees_to_write.get_mut(&dir).unwrap();
                 match file_override {
                     Override::Replace(value) => {
                         tree.set(basename.value().to_string(), value);

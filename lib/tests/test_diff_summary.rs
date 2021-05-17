@@ -132,11 +132,11 @@ fn test_sorting(use_git: bool) {
             modified: vec![a_path.clone(), f_a_path.clone(), f_f_a_path.clone()],
             added: vec![
                 b_path.clone(),
-                n_path.clone(),
-                z_path.clone(),
                 f_b_path.clone(),
                 f_f_b_path.clone(),
+                n_path.clone(),
                 s_b_path.clone(),
+                z_path.clone(),
             ],
             removed: vec![]
         }
@@ -146,7 +146,7 @@ fn test_sorting(use_git: bool) {
         DiffSummary {
             modified: vec![a_path, f_a_path, f_f_a_path],
             added: vec![],
-            removed: vec![b_path, n_path, z_path, f_b_path, f_f_b_path, s_b_path,]
+            removed: vec![b_path, f_b_path, f_f_b_path, n_path, s_b_path, z_path]
         }
     );
 }

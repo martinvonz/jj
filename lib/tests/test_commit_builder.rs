@@ -52,7 +52,7 @@ fn test_initial(use_git: bool) {
         store.root_commit().tree().diff_summary(&commit.tree()),
         DiffSummary {
             modified: vec![],
-            added: vec![root_file_path, dir_file_path],
+            added: vec![dir_file_path, root_file_path],
             removed: vec![]
         }
     );
@@ -122,7 +122,7 @@ fn test_rewrite(use_git: bool) {
             .diff_summary(&rewritten_commit.tree()),
         DiffSummary {
             modified: vec![],
-            added: vec![root_file_path, dir_file_path.clone()],
+            added: vec![dir_file_path.clone(), root_file_path],
             removed: vec![]
         }
     );
