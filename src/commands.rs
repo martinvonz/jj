@@ -970,7 +970,7 @@ fn cmd_diff(
         let mut styler = ui.styler();
         styler.add_label(String::from("diff"))?;
         for (path, diff) in from_tree.diff(&to_tree) {
-            let ui_path = ui.format_file_path(repo.working_copy_path(), &path.to_repo_path());
+            let ui_path = ui.format_file_path(repo.working_copy_path(), &path);
             match diff {
                 Diff::Added(TreeValue::Normal {
                     id,
@@ -1028,7 +1028,7 @@ fn cmd_diff(
                     let mut buffer_left = vec![];
                     conflicts::materialize_conflict(
                         repo.store(),
-                        &path.to_repo_path(),
+                        &path,
                         &conflict_left,
                         &mut buffer_left,
                     );
@@ -1059,7 +1059,7 @@ fn cmd_diff(
                     let mut buffer_right = vec![];
                     conflicts::materialize_conflict(
                         repo.store(),
-                        &path.to_repo_path(),
+                        &path,
                         &conflict_right,
                         &mut buffer_right,
                     );
@@ -1098,25 +1098,13 @@ fn cmd_diff(
 fn show_diff_summary(ui: &mut Ui, wc_path: &Path, from: &Tree, to: &Tree) -> io::Result<()> {
     let summary = from.diff_summary(&to);
     for file in summary.modified {
-        writeln!(
-            ui,
-            "M {}",
-            ui.format_file_path(wc_path, &file.to_repo_path())
-        )?;
+        writeln!(ui, "M {}", ui.format_file_path(wc_path, &file))?;
     }
     for file in summary.added {
-        writeln!(
-            ui,
-            "A {}",
-            ui.format_file_path(wc_path, &file.to_repo_path())
-        )?;
+        writeln!(ui, "A {}", ui.format_file_path(wc_path, &file))?;
     }
     for file in summary.removed {
-        writeln!(
-            ui,
-            "R {}",
-            ui.format_file_path(wc_path, &file.to_repo_path())
-        )?;
+        writeln!(ui, "R {}", ui.format_file_path(wc_path, &file))?;
     }
     Ok(())
 }

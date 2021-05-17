@@ -22,7 +22,7 @@ use tempfile::TempDir;
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::repo::{MutableRepo, ReadonlyRepo};
-use crate::repo_path::{DirRepoPath, FileRepoPath};
+use crate::repo_path::{DirRepoPath, RepoPath};
 use crate::settings::UserSettings;
 use crate::store::{FileId, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
@@ -61,14 +61,14 @@ pub fn init_repo(settings: &UserSettings, use_git: bool) -> (TempDir, Arc<Readon
     (temp_dir, repo)
 }
 
-pub fn write_file(store: &StoreWrapper, path: &FileRepoPath, contents: &str) -> FileId {
+pub fn write_file(store: &StoreWrapper, path: &RepoPath, contents: &str) -> FileId {
     store.write_file(path, &mut contents.as_bytes()).unwrap()
 }
 
-pub fn write_normal_file(tree_builder: &mut TreeBuilder, path: &FileRepoPath, contents: &str) {
+pub fn write_normal_file(tree_builder: &mut TreeBuilder, path: &RepoPath, contents: &str) {
     let id = write_file(tree_builder.repo(), path, contents);
     tree_builder.set(
-        path.to_repo_path(),
+        path.clone(),
         TreeValue::Normal {
             id,
             executable: false,
@@ -76,10 +76,10 @@ pub fn write_normal_file(tree_builder: &mut TreeBuilder, path: &FileRepoPath, co
     );
 }
 
-pub fn write_executable_file(tree_builder: &mut TreeBuilder, path: &FileRepoPath, contents: &str) {
+pub fn write_executable_file(tree_builder: &mut TreeBuilder, path: &RepoPath, contents: &str) {
     let id = write_file(tree_builder.repo(), path, contents);
     tree_builder.set(
-        path.to_repo_path(),
+        path.clone(),
         TreeValue::Normal {
             id,
             executable: true,
@@ -87,12 +87,12 @@ pub fn write_executable_file(tree_builder: &mut TreeBuilder, path: &FileRepoPath
     );
 }
 
-pub fn write_symlink(tree_builder: &mut TreeBuilder, path: &FileRepoPath, target: &str) {
+pub fn write_symlink(tree_builder: &mut TreeBuilder, path: &RepoPath, target: &str) {
     let id = tree_builder.repo().write_symlink(path, target).unwrap();
-    tree_builder.set(path.to_repo_path(), TreeValue::Symlink(id));
+    tree_builder.set(path.clone(), TreeValue::Symlink(id));
 }
 
-pub fn create_tree(repo: &ReadonlyRepo, path_contents: &[(&FileRepoPath, &str)]) -> Tree {
+pub fn create_tree(repo: &ReadonlyRepo, path_contents: &[(&RepoPath, &str)]) -> Tree {
     let store = repo.store();
     let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
     for (path, contents) in path_contents {
@@ -108,7 +108,7 @@ pub fn create_random_tree(repo: &ReadonlyRepo) -> TreeId {
         .store()
         .tree_builder(repo.store().empty_tree_id().clone());
     let number = rand::random::<u32>();
-    let path = FileRepoPath::from(format!("file{}", number).as_str());
+    let path = RepoPath::from(format!("file{}", number).as_str());
     write_normal_file(&mut tree_builder, &path, "contents");
     tree_builder.write_tree()
 }
@@ -121,7 +121,7 @@ pub fn create_random_commit(settings: &UserSettings, repo: &ReadonlyRepo) -> Com
         .set_description(format!("random commit {}", number))
 }
 
-pub fn write_working_copy_file(repo: &ReadonlyRepo, path: &FileRepoPath, contents: &str) {
+pub fn write_working_copy_file(repo: &ReadonlyRepo, path: &RepoPath, contents: &str) {
     let mut file = OpenOptions::new()
         .write(true)
         .create(true)

@@ -106,12 +106,11 @@ pub fn edit_diff(
     let mut right_tree_builder = store.tree_builder(store.empty_tree_id().clone());
     for (file_path, diff) in left_tree.diff(&right_tree) {
         let (left_value, right_value) = diff.as_options();
-        let repo_path = file_path.to_repo_path();
         if let Some(value) = left_value {
-            add_to_tree(store, &mut left_tree_builder, &repo_path, value).unwrap();
+            add_to_tree(store, &mut left_tree_builder, &file_path, value).unwrap();
         }
         if let Some(value) = right_value {
-            add_to_tree(store, &mut right_tree_builder, &repo_path, value).unwrap();
+            add_to_tree(store, &mut right_tree_builder, &file_path, value).unwrap();
         }
     }
     let left_partial_tree_id = left_tree_builder.write_tree();

@@ -21,7 +21,7 @@ use std::vec::Vec;
 
 use thiserror::Error;
 
-use crate::repo_path::{DirRepoPath, FileRepoPath};
+use crate::repo_path::{DirRepoPath, RepoPath};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct CommitId(pub Vec<u8>);
@@ -334,13 +334,13 @@ pub trait Store: Send + Sync + Debug {
 
     fn git_repo(&self) -> Option<git2::Repository>;
 
-    fn read_file(&self, path: &FileRepoPath, id: &FileId) -> StoreResult<Box<dyn Read>>;
+    fn read_file(&self, path: &RepoPath, id: &FileId) -> StoreResult<Box<dyn Read>>;
 
-    fn write_file(&self, path: &FileRepoPath, contents: &mut dyn Read) -> StoreResult<FileId>;
+    fn write_file(&self, path: &RepoPath, contents: &mut dyn Read) -> StoreResult<FileId>;
 
-    fn read_symlink(&self, path: &FileRepoPath, id: &SymlinkId) -> StoreResult<String>;
+    fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> StoreResult<String>;
 
-    fn write_symlink(&self, path: &FileRepoPath, target: &str) -> StoreResult<SymlinkId>;
+    fn write_symlink(&self, path: &RepoPath, target: &str) -> StoreResult<SymlinkId>;
 
     fn empty_tree_id(&self) -> &TreeId;
 

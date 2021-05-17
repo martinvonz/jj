@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo::ReadonlyRepo;
-use jujutsu_lib::repo_path::{FileRepoPath, RepoPath};
+use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::TreeValue;
 use jujutsu_lib::testutils;
@@ -86,18 +86,15 @@ fn test_checkout_file_transitions(use_git: bool) {
             }
             Kind::Normal => {
                 let id =
-                    testutils::write_file(store, &FileRepoPath::from(path), "normal file contents");
+                    testutils::write_file(store, &RepoPath::from(path), "normal file contents");
                 TreeValue::Normal {
                     id,
                     executable: false,
                 }
             }
             Kind::Executable => {
-                let id = testutils::write_file(
-                    store,
-                    &FileRepoPath::from(path),
-                    "executable file contents",
-                );
+                let id =
+                    testutils::write_file(store, &RepoPath::from(path), "executable file contents");
                 TreeValue::Normal {
                     id,
                     executable: true,
@@ -105,7 +102,7 @@ fn test_checkout_file_transitions(use_git: bool) {
             }
             Kind::Symlink => {
                 let id = store
-                    .write_symlink(&FileRepoPath::from(path), "target")
+                    .write_symlink(&RepoPath::from(path), "target")
                     .unwrap();
                 TreeValue::Symlink(id)
             }
@@ -279,13 +276,13 @@ fn test_gitignores(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    let gitignore_path = FileRepoPath::from(".gitignore");
-    let added_path = FileRepoPath::from("added");
-    let modified_path = FileRepoPath::from("modified");
-    let removed_path = FileRepoPath::from("removed");
-    let ignored_path = FileRepoPath::from("ignored");
-    let subdir_modified_path = FileRepoPath::from("dir/modified");
-    let subdir_ignored_path = FileRepoPath::from("dir/ignored");
+    let gitignore_path = RepoPath::from(".gitignore");
+    let added_path = RepoPath::from("added");
+    let modified_path = RepoPath::from("modified");
+    let removed_path = RepoPath::from("removed");
+    let ignored_path = RepoPath::from("ignored");
+    let subdir_modified_path = RepoPath::from("dir/modified");
+    let subdir_ignored_path = RepoPath::from("dir/ignored");
 
     testutils::write_working_copy_file(&repo, &gitignore_path, "ignored\n");
     testutils::write_working_copy_file(&repo, &modified_path, "1");
@@ -303,10 +300,10 @@ fn test_gitignores(use_git: bool) {
     assert_eq!(
         files1,
         vec![
-            gitignore_path.to_repo_path(),
-            subdir_modified_path.to_repo_path(),
-            modified_path.to_repo_path(),
-            removed_path.to_repo_path()
+            gitignore_path.clone(),
+            subdir_modified_path.clone(),
+            modified_path.clone(),
+            removed_path.clone(),
         ]
     );
 
@@ -328,10 +325,10 @@ fn test_gitignores(use_git: bool) {
     assert_eq!(
         files2,
         vec![
-            gitignore_path.to_repo_path(),
-            added_path.to_repo_path(),
-            subdir_modified_path.to_repo_path(),
-            modified_path.to_repo_path()
+            gitignore_path.clone(),
+            added_path.clone(),
+            subdir_modified_path.clone(),
+            modified_path.clone(),
         ]
     );
 }
@@ -347,9 +344,9 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     // Write an ignored file called "modified" to disk
-    let gitignore_path = FileRepoPath::from(".gitignore");
+    let gitignore_path = RepoPath::from(".gitignore");
     testutils::write_working_copy_file(&repo, &gitignore_path, "modified\n");
-    let modified_path = FileRepoPath::from("modified");
+    let modified_path = RepoPath::from("modified");
     testutils::write_working_copy_file(&repo, &modified_path, "garbage");
 
     // Create a commit that adds the same file but with different contents
@@ -394,9 +391,9 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     // Add a .gitignore file saying to ignore the directory "ignored/"
-    let gitignore_path = FileRepoPath::from(".gitignore");
+    let gitignore_path = RepoPath::from(".gitignore");
     testutils::write_working_copy_file(&repo, &gitignore_path, "/ignored/\n");
-    let file_path = FileRepoPath::from("ignored/file");
+    let file_path = RepoPath::from("ignored/file");
 
     // Create a commit that adds a file in the ignored directory
     let mut tx = repo.start_transaction("test");
@@ -417,8 +414,5 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     // Check that the file is still in the commit created by committing the working
     // copy (that it didn't get removed because the directory is ignored)
     let (_repo, new_commit) = repo.working_copy_locked().commit(&settings, repo.clone());
-    assert!(new_commit
-        .tree()
-        .path_value(&file_path.to_repo_path())
-        .is_some());
+    assert!(new_commit.tree().path_value(&file_path).is_some());
 }

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::repo_path::FileRepoPath;
+use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
 use jujutsu_lib::tree::DiffSummary;
@@ -26,8 +26,8 @@ fn test_initial(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store();
 
-    let root_file_path = FileRepoPath::from("file");
-    let dir_file_path = FileRepoPath::from("dir/file");
+    let root_file_path = RepoPath::from("file");
+    let dir_file_path = RepoPath::from("dir/file");
     let tree = testutils::create_tree(
         &repo,
         &[
@@ -65,8 +65,8 @@ fn test_rewrite(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store().clone();
 
-    let root_file_path = FileRepoPath::from("file");
-    let dir_file_path = FileRepoPath::from("dir/file");
+    let root_file_path = RepoPath::from("file");
+    let dir_file_path = RepoPath::from("dir/file");
     let initial_tree = testutils::create_tree(
         &repo,
         &[

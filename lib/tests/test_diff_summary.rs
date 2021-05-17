@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::repo_path::FileRepoPath;
+use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::testutils;
 use jujutsu_lib::tree::DiffSummary;
 use test_case::test_case;
@@ -23,10 +23,10 @@ fn test_types(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    let clean_path = FileRepoPath::from("clean");
-    let modified_path = FileRepoPath::from("modified");
-    let added_path = FileRepoPath::from("added");
-    let removed_path = FileRepoPath::from("removed");
+    let clean_path = RepoPath::from("clean");
+    let modified_path = RepoPath::from("modified");
+    let added_path = RepoPath::from("added");
+    let removed_path = RepoPath::from("removed");
 
     let tree1 = testutils::create_tree(
         &repo,
@@ -62,8 +62,8 @@ fn test_tree_file_transition(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    let dir_file_path = FileRepoPath::from("dir/file");
-    let dir_path = FileRepoPath::from("dir");
+    let dir_file_path = RepoPath::from("dir/file");
+    let dir_path = RepoPath::from("dir");
 
     let tree1 = testutils::create_tree(&repo, &[(&dir_file_path, "contents")]);
     let tree2 = testutils::create_tree(&repo, &[(&dir_path, "contents")]);
@@ -92,15 +92,15 @@ fn test_sorting(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    let a_path = FileRepoPath::from("a");
-    let b_path = FileRepoPath::from("b");
-    let f_a_path = FileRepoPath::from("f/a");
-    let f_b_path = FileRepoPath::from("f/b");
-    let f_f_a_path = FileRepoPath::from("f/f/a");
-    let f_f_b_path = FileRepoPath::from("f/f/b");
-    let n_path = FileRepoPath::from("n");
-    let s_b_path = FileRepoPath::from("s/b");
-    let z_path = FileRepoPath::from("z");
+    let a_path = RepoPath::from("a");
+    let b_path = RepoPath::from("b");
+    let f_a_path = RepoPath::from("f/a");
+    let f_b_path = RepoPath::from("f/b");
+    let f_f_a_path = RepoPath::from("f/f/a");
+    let f_f_b_path = RepoPath::from("f/f/b");
+    let n_path = RepoPath::from("n");
+    let s_b_path = RepoPath::from("s/b");
+    let z_path = RepoPath::from("z");
 
     let tree1 = testutils::create_tree(
         &repo,

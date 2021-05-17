@@ -20,7 +20,7 @@ use jujutsu_lib::evolution::{
     DivergenceResolution, DivergenceResolver, OrphanResolution, OrphanResolver,
 };
 use jujutsu_lib::repo::ReadonlyRepo;
-use jujutsu_lib::repo_path::FileRepoPath;
+use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
 use test_case::test_case;
@@ -668,10 +668,10 @@ fn test_evolve_divergent(use_git: bool) {
     // commit 6 has a later commit time than commit 4). It should have files C,
     // X, Y, Z.
 
-    let path_a = FileRepoPath::from("A");
-    let path_x = FileRepoPath::from("X");
-    let path_y = FileRepoPath::from("Y");
-    let path_z = FileRepoPath::from("Z");
+    let path_a = RepoPath::from("A");
+    let path_x = RepoPath::from("X");
+    let path_y = RepoPath::from("Y");
+    let path_z = RepoPath::from("Z");
     let tree1 = testutils::create_tree(&repo, &[(&path_a, "A")]);
     let tree2 = testutils::create_tree(&repo, &[(&path_a, "A"), (&path_x, "X")]);
     let tree3 = testutils::create_tree(&repo, &[(&path_a, "B")]);

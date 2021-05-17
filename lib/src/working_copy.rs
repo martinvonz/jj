@@ -39,7 +39,7 @@ use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::repo::ReadonlyRepo;
 use crate::repo_path::{
-    DirRepoPath, DirRepoPathComponent, FileRepoPath, FileRepoPathComponent, RepoPathJoin,
+    DirRepoPath, DirRepoPathComponent, RepoPath, RepoPathComponent, RepoPathJoin,
 };
 use crate::settings::UserSettings;
 use crate::store::{CommitId, FileId, MillisSinceEpoch, StoreError, SymlinkId, TreeId, TreeValue};
@@ -86,7 +86,7 @@ pub struct TreeState {
     working_copy_path: PathBuf,
     state_path: PathBuf,
     tree_id: TreeId,
-    file_states: BTreeMap<FileRepoPath, FileState>,
+    file_states: BTreeMap<RepoPath, FileState>,
     read_time: MillisSinceEpoch,
 }
 
@@ -118,10 +118,10 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
 
 fn file_states_from_proto(
     proto: &crate::protos::working_copy::TreeState,
-) -> BTreeMap<FileRepoPath, FileState> {
+) -> BTreeMap<RepoPath, FileState> {
     let mut file_states = BTreeMap::new();
     for (path_str, proto_file_state) in &proto.file_states {
-        let path = FileRepoPath::from(path_str.as_str());
+        let path = RepoPath::from(path_str.as_str());
         file_states.insert(path, file_state_from_proto(&proto_file_state));
     }
     file_states
@@ -160,7 +160,7 @@ impl TreeState {
         &self.tree_id
     }
 
-    pub fn file_states(&self) -> &BTreeMap<FileRepoPath, FileState> {
+    pub fn file_states(&self) -> &BTreeMap<RepoPath, FileState> {
         &self.file_states
     }
 
@@ -273,12 +273,12 @@ impl TreeState {
         })
     }
 
-    fn write_file_to_store(&self, path: &FileRepoPath, disk_path: &Path) -> FileId {
+    fn write_file_to_store(&self, path: &RepoPath, disk_path: &Path) -> FileId {
         let file = File::open(disk_path).unwrap();
         self.store.write_file(path, &mut Box::new(file)).unwrap()
     }
 
-    fn write_symlink_to_store(&self, path: &FileRepoPath, disk_path: &Path) -> SymlinkId {
+    fn write_symlink_to_store(&self, path: &RepoPath, disk_path: &Path) -> SymlinkId {
         let target = disk_path.read_link().unwrap();
         let str_target = target.to_str().unwrap();
         self.store.write_symlink(path, str_target).unwrap()
@@ -326,7 +326,7 @@ impl TreeState {
             git_ignore,
         )];
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
-        let mut deleted_files: HashSet<&FileRepoPath> = self.file_states.keys().collect();
+        let mut deleted_files: HashSet<&RepoPath> = self.file_states.keys().collect();
         let mut modified_files = BTreeMap::new();
         while !work.is_empty() {
             let (dir, disk_dir, git_ignore) = work.pop().unwrap();
@@ -350,7 +350,7 @@ impl TreeState {
                         // some file in it. TODO: This is pretty ugly... Also, we should
                         // optimize it to check exactly the already-tracked files (we know that
                         // we won't have to consider new files in the directory).
-                        let first_file_in_dir = dir.join(&FileRepoPathComponent::from("\0"));
+                        let first_file_in_dir = dir.join(&RepoPathComponent::from("\0"));
                         if let Some((maybe_subdir_file, _)) = self
                             .file_states
                             .range((Bound::Included(&first_file_in_dir), Bound::Unbounded))
@@ -358,6 +358,7 @@ impl TreeState {
                         {
                             if !maybe_subdir_file
                                 .dir()
+                                .unwrap()
                                 .components()
                                 .starts_with(dir.components())
                             {
@@ -368,7 +369,7 @@ impl TreeState {
                     let disk_subdir = disk_dir.join(file_name);
                     work.push((subdir, disk_subdir, git_ignore.clone()));
                 } else {
-                    let file = dir.join(&FileRepoPathComponent::from(name));
+                    let file = dir.join(&RepoPathComponent::from(name));
                     let disk_file = disk_dir.join(file_name);
                     deleted_files.remove(&file);
                     let new_file_state = self.file_state(&entry.path()).unwrap();
@@ -410,18 +411,18 @@ impl TreeState {
                                 TreeValue::Symlink(id)
                             }
                         };
-                        tree_builder.set(file.to_repo_path(), file_value);
+                        tree_builder.set(file.clone(), file_value);
                         modified_files.insert(file, new_file_state);
                     }
                 }
             }
         }
 
-        let deleted_files: Vec<FileRepoPath> = deleted_files.iter().cloned().cloned().collect();
+        let deleted_files: Vec<RepoPath> = deleted_files.iter().cloned().cloned().collect();
 
         for file in &deleted_files {
             self.file_states.remove(file);
-            tree_builder.remove(file.to_repo_path());
+            tree_builder.remove(file.clone());
         }
         for (file, file_state) in modified_files {
             self.file_states.insert(file, file_state);
@@ -434,7 +435,7 @@ impl TreeState {
     fn write_file(
         &self,
         disk_path: &Path,
-        path: &FileRepoPath,
+        path: &RepoPath,
         id: &FileId,
         executable: bool,
     ) -> FileState {
@@ -462,7 +463,7 @@ impl TreeState {
         file_state
     }
 
-    fn write_symlink(&self, disk_path: &Path, path: &FileRepoPath, id: &SymlinkId) -> FileState {
+    fn write_symlink(&self, disk_path: &Path, path: &RepoPath, id: &SymlinkId) -> FileState {
         create_parent_dirs(disk_path);
         #[cfg(windows)]
         {
@@ -710,7 +711,7 @@ impl WorkingCopy {
             .clone()
     }
 
-    pub fn file_states(&self) -> BTreeMap<FileRepoPath, FileState> {
+    pub fn file_states(&self) -> BTreeMap<RepoPath, FileState> {
         self.tree_state().as_ref().unwrap().file_states().clone()
     }
 

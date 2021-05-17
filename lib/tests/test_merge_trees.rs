@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::repo_path::{DirRepoPath, FileRepoPath, RepoPath};
+use jujutsu_lib::repo_path::{DirRepoPath, RepoPath};
 use jujutsu_lib::store::{ConflictPart, TreeValue};
 use jujutsu_lib::tree::Tree;
 use jujutsu_lib::{testutils, trees};
@@ -52,11 +52,7 @@ fn test_same_type(use_git: bool) {
         for path in &files {
             let contents = &path[index..index + 1];
             if contents != "_" {
-                testutils::write_normal_file(
-                    &mut tree_builder,
-                    &FileRepoPath::from(*path),
-                    contents,
-                );
+                testutils::write_normal_file(&mut tree_builder, &RepoPath::from(*path), contents);
             }
         }
         let tree_id = tree_builder.write_tree();
@@ -186,7 +182,7 @@ fn test_subtrees(use_git: bool) {
         for path in paths {
             testutils::write_normal_file(
                 &mut tree_builder,
-                &FileRepoPath::from(path),
+                &RepoPath::from(path),
                 &format!("contents of {:?}", path),
             );
         }
@@ -244,7 +240,7 @@ fn test_subtree_becomes_empty(use_git: bool) {
         for path in paths {
             testutils::write_normal_file(
                 &mut tree_builder,
-                &FileRepoPath::from(path),
+                &RepoPath::from(path),
                 &format!("contents of {:?}", path),
             );
         }
@@ -278,17 +274,17 @@ fn test_types(use_git: bool) {
     let mut side2_tree_builder = store.tree_builder(store.empty_tree_id().clone());
     testutils::write_normal_file(
         &mut base_tree_builder,
-        &FileRepoPath::from("normal_executable_symlink"),
+        &RepoPath::from("normal_executable_symlink"),
         "contents",
     );
     testutils::write_executable_file(
         &mut side1_tree_builder,
-        &FileRepoPath::from("normal_executable_symlink"),
+        &RepoPath::from("normal_executable_symlink"),
         "contents",
     );
     testutils::write_symlink(
         &mut side2_tree_builder,
-        &FileRepoPath::from("normal_executable_symlink"),
+        &RepoPath::from("normal_executable_symlink"),
         "contents",
     );
     let tree_id = store.empty_tree_id().clone();
@@ -298,12 +294,12 @@ fn test_types(use_git: bool) {
     );
     testutils::write_normal_file(
         &mut side1_tree_builder,
-        &FileRepoPath::from("tree_normal_symlink"),
+        &RepoPath::from("tree_normal_symlink"),
         "contents",
     );
     testutils::write_symlink(
         &mut side2_tree_builder,
-        &FileRepoPath::from("tree_normal_symlink"),
+        &RepoPath::from("tree_normal_symlink"),
         "contents",
     );
     let base_tree_id = base_tree_builder.write_tree();
@@ -389,7 +385,7 @@ fn test_simplify_conflict(use_git: bool) {
     let store = repo.store();
 
     let write_tree = |contents: &str| -> Tree {
-        testutils::create_tree(&repo, &[(&FileRepoPath::from("file"), contents)])
+        testutils::create_tree(&repo, &[(&RepoPath::from("file"), contents)])
     };
 
     let base_tree = write_tree("base contents");

@@ -15,7 +15,7 @@
 use std::sync::Arc;
 
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::repo_path::FileRepoPath;
+use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::{Conflict, ConflictId, ConflictPart, TreeValue};
 use jujutsu_lib::store_wrapper::StoreWrapper;
 use jujutsu_lib::testutils;
@@ -77,12 +77,12 @@ fn test_checkout_open_with_conflict(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store();
 
-    let file_path = FileRepoPath::from("file");
+    let file_path = RepoPath::from("file");
     let conflict_id = write_conflict(store, &file_path);
     let mut tree_builder = repo
         .store()
         .tree_builder(repo.store().empty_tree_id().clone());
-    tree_builder.set(file_path.to_repo_path(), TreeValue::Conflict(conflict_id));
+    tree_builder.set(file_path.clone(), TreeValue::Conflict(conflict_id));
     let tree_id = tree_builder.write_tree();
 
     let mut tx = repo.start_transaction("test");
@@ -93,7 +93,7 @@ fn test_checkout_open_with_conflict(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
-    let file_value = actual_checkout.tree().path_value(&file_path.to_repo_path());
+    let file_value = actual_checkout.tree().path_value(&file_path);
     match file_value {
         Some(TreeValue::Normal {
             id: _,
@@ -116,12 +116,12 @@ fn test_checkout_closed_with_conflict(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store();
 
-    let file_path = FileRepoPath::from("file");
+    let file_path = RepoPath::from("file");
     let conflict_id = write_conflict(store, &file_path);
     let mut tree_builder = repo
         .store()
         .tree_builder(repo.store().empty_tree_id().clone());
-    tree_builder.set(file_path.to_repo_path(), TreeValue::Conflict(conflict_id));
+    tree_builder.set(file_path.clone(), TreeValue::Conflict(conflict_id));
     let tree_id = tree_builder.write_tree();
 
     let mut tx = repo.start_transaction("test");
@@ -132,7 +132,7 @@ fn test_checkout_closed_with_conflict(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
-    let file_value = actual_checkout.tree().path_value(&file_path.to_repo_path());
+    let file_value = actual_checkout.tree().path_value(&file_path);
     match file_value {
         Some(TreeValue::Normal {
             id: _,
@@ -146,7 +146,7 @@ fn test_checkout_closed_with_conflict(use_git: bool) {
     assert_eq!(repo.view().checkout(), actual_checkout.id());
 }
 
-fn write_conflict(store: &Arc<StoreWrapper>, file_path: &FileRepoPath) -> ConflictId {
+fn write_conflict(store: &Arc<StoreWrapper>, file_path: &RepoPath) -> ConflictId {
     let file_id1 = testutils::write_file(store, &file_path, "a\n");
     let file_id2 = testutils::write_file(store, &file_path, "b\n");
     let file_id3 = testutils::write_file(store, &file_path, "c\n");

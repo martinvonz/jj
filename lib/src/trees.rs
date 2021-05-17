@@ -19,7 +19,7 @@ use std::pin::Pin;
 use crate::files;
 use crate::files::MergeResult;
 use crate::repo_path::{
-    DirRepoPath, DirRepoPathComponent, FileRepoPath, FileRepoPathComponent, RepoPathJoin,
+    DirRepoPath, DirRepoPathComponent, RepoPath, RepoPathComponent, RepoPathJoin,
 };
 use crate::store::{
     Conflict, ConflictPart, StoreError, TreeEntriesNonRecursiveIter, TreeId, TreeValue,
@@ -137,7 +137,7 @@ pub struct TreeDiffIterator {
     // This is used for making sure that when a directory gets replaced by a file, we
     // yield the value for the addition of the file after we yield the values
     // for removing files in the directory.
-    added_file: Option<(FileRepoPath, TreeValue)>,
+    added_file: Option<(RepoPath, TreeValue)>,
     // Iterator over the diffs of a subdirectory, if we're currently visiting one.
     subdir_iterator: Option<Box<TreeDiffIterator>>,
 }
@@ -161,7 +161,7 @@ impl TreeDiffIterator {
 }
 
 impl Iterator for TreeDiffIterator {
-    type Item = (FileRepoPath, Diff<TreeValue>);
+    type Item = (RepoPath, Diff<TreeValue>);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -178,7 +178,7 @@ impl Iterator for TreeDiffIterator {
 
             // Note: whenever we say "file" below, it may also be a symlink or a conflict.
             if let Some((name, diff)) = self.entry_iterator.next() {
-                let file_path = self.dir.join(&FileRepoPathComponent::from(name.as_str()));
+                let file_path = self.dir.join(&RepoPathComponent::from(name.as_str()));
                 let subdir = DirRepoPathComponent::from(name.as_str());
                 let subdir_path = self.dir.join(&subdir);
                 // TODO: simplify this mess
@@ -351,7 +351,7 @@ fn merge_tree_value(
                         *side1_executable
                     };
 
-                    let filename = dir.join(&FileRepoPathComponent::from(basename));
+                    let filename = dir.join(&RepoPathComponent::from(basename));
                     let mut base_content = vec![];
                     store
                         .read_file(&filename, &base_id)?

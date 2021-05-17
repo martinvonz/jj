@@ -16,7 +16,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::repo_path::{DirRepoPath, DirRepoPathComponent, FileRepoPath, FileRepoPathComponent};
+use crate::repo_path::{DirRepoPath, DirRepoPathComponent, RepoPath, RepoPathComponent};
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Visit<'a> {
@@ -33,11 +33,11 @@ pub enum VisitDirs<'a> {
 #[derive(PartialEq, Eq, Debug)]
 pub enum VisitFiles<'a> {
     All,
-    Set(&'a HashSet<FileRepoPathComponent>),
+    Set(&'a HashSet<RepoPathComponent>),
 }
 
 pub trait Matcher {
-    fn matches(&self, file: &FileRepoPath) -> bool;
+    fn matches(&self, file: &RepoPath) -> bool;
     fn visit(&self, dir: &DirRepoPath) -> Visit;
 }
 
@@ -45,7 +45,7 @@ pub trait Matcher {
 pub struct EverythingMatcher;
 
 impl Matcher for EverythingMatcher {
-    fn matches(&self, _file: &FileRepoPath) -> bool {
+    fn matches(&self, _file: &RepoPath) -> bool {
         true
     }
 
@@ -59,12 +59,12 @@ impl Matcher for EverythingMatcher {
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct FilesMatcher {
-    files: HashSet<FileRepoPath>,
+    files: HashSet<RepoPath>,
     dirs: Dirs,
 }
 
 impl FilesMatcher {
-    fn new(files: HashSet<FileRepoPath>) -> Self {
+    fn new(files: HashSet<RepoPath>) -> Self {
         let mut dirs = Dirs::new();
         for f in &files {
             dirs.add_file(f);
@@ -74,7 +74,7 @@ impl FilesMatcher {
 }
 
 impl Matcher for FilesMatcher {
-    fn matches(&self, file: &FileRepoPath) -> bool {
+    fn matches(&self, file: &RepoPath) -> bool {
         self.files.contains(file)
     }
 
@@ -93,9 +93,9 @@ impl Matcher for FilesMatcher {
 #[derive(PartialEq, Eq, Debug)]
 struct Dirs {
     dirs: HashMap<DirRepoPath, HashSet<DirRepoPathComponent>>,
-    files: HashMap<DirRepoPath, HashSet<FileRepoPathComponent>>,
+    files: HashMap<DirRepoPath, HashSet<RepoPathComponent>>,
     empty_dirs: HashSet<DirRepoPathComponent>,
-    empty_files: HashSet<FileRepoPathComponent>,
+    empty_files: HashSet<RepoPathComponent>,
 }
 
 impl Dirs {
@@ -129,8 +129,10 @@ impl Dirs {
         }
     }
 
-    fn add_file(&mut self, file: &FileRepoPath) {
-        let (dir, basename) = file.split();
+    fn add_file(&mut self, file: &RepoPath) {
+        let (dir, basename) = file
+            .split()
+            .unwrap_or_else(|| panic!("got empty filename: {:?}", file));
         self.add_dir(dir.clone());
         self.files
             .entry(dir.clone())
@@ -142,7 +144,7 @@ impl Dirs {
         self.dirs.get(&dir).unwrap_or(&self.empty_dirs)
     }
 
-    fn get_files(&self, dir: &DirRepoPath) -> &HashSet<FileRepoPathComponent> {
+    fn get_files(&self, dir: &DirRepoPath) -> &HashSet<RepoPathComponent> {
         self.files.get(&dir).unwrap_or(&self.empty_files)
     }
 }
@@ -152,9 +154,7 @@ mod tests {
     use std::collections::HashSet;
 
     use super::*;
-    use crate::repo_path::{
-        DirRepoPath, DirRepoPathComponent, FileRepoPath, FileRepoPathComponent,
-    };
+    use crate::repo_path::{DirRepoPath, DirRepoPathComponent, RepoPath, RepoPathComponent};
 
     #[test]
     fn dirs_empty() {
@@ -182,7 +182,7 @@ mod tests {
     #[test]
     fn dirs_file() {
         let mut dirs = Dirs::new();
-        dirs.add_file(&FileRepoPath::from("dir/file"));
+        dirs.add_file(&RepoPath::from("dir/file"));
         assert_eq!(
             dirs.get_dirs(&DirRepoPath::root()),
             &hashset! {DirRepoPathComponent::from("dir")}
@@ -193,8 +193,8 @@ mod tests {
     #[test]
     fn filesmatcher_empty() {
         let m = FilesMatcher::new(HashSet::new());
-        assert!(!m.matches(&FileRepoPath::from("file")));
-        assert!(!m.matches(&FileRepoPath::from("dir/file")));
+        assert!(!m.matches(&RepoPath::from("file")));
+        assert!(!m.matches(&RepoPath::from("dir/file")));
         assert_eq!(
             m.visit(&DirRepoPath::root()),
             Visit {
@@ -207,17 +207,17 @@ mod tests {
     #[test]
     fn filesmatcher_nonempty() {
         let m = FilesMatcher::new(hashset! {
-            FileRepoPath::from("dir1/subdir1/file1"),
-            FileRepoPath::from("dir1/subdir1/file2"),
-            FileRepoPath::from("dir1/subdir2/file3"),
-            FileRepoPath::from("file4"),
+            RepoPath::from("dir1/subdir1/file1"),
+            RepoPath::from("dir1/subdir1/file2"),
+            RepoPath::from("dir1/subdir2/file3"),
+            RepoPath::from("file4"),
         });
 
         assert_eq!(
             m.visit(&DirRepoPath::root()),
             Visit {
                 dirs: VisitDirs::Set(&hashset! {DirRepoPathComponent::from("dir1")}),
-                files: VisitFiles::Set(&hashset! {FileRepoPathComponent::from("file4")}),
+                files: VisitFiles::Set(&hashset! {RepoPathComponent::from("file4")}),
             }
         );
         assert_eq!(
@@ -234,7 +234,7 @@ mod tests {
             Visit {
                 dirs: VisitDirs::Set(&hashset! {}),
                 files: VisitFiles::Set(
-                    &hashset! {FileRepoPathComponent::from("file1"), FileRepoPathComponent::from("file2")}
+                    &hashset! {RepoPathComponent::from("file1"), RepoPathComponent::from("file2")}
                 ),
             }
         );
@@ -242,7 +242,7 @@ mod tests {
             m.visit(&DirRepoPath::from("dir1/subdir2/")),
             Visit {
                 dirs: VisitDirs::Set(&hashset! {}),
-                files: VisitFiles::Set(&hashset! {FileRepoPathComponent::from("file3")}),
+                files: VisitFiles::Set(&hashset! {RepoPathComponent::from("file3")}),
             }
         );
     }

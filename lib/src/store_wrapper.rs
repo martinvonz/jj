@@ -21,7 +21,7 @@ use std::sync::{Arc, RwLock, Weak};
 use crate::commit::Commit;
 use crate::git_store::GitStore;
 use crate::local_store::LocalStore;
-use crate::repo_path::{DirRepoPath, FileRepoPath};
+use crate::repo_path::{DirRepoPath, RepoPath};
 use crate::store;
 use crate::store::{
     ChangeId, CommitId, Conflict, ConflictId, FileId, MillisSinceEpoch, Signature, Store,
@@ -197,19 +197,19 @@ impl StoreWrapper {
         self.store.write_tree(path, contents)
     }
 
-    pub fn read_file(&self, path: &FileRepoPath, id: &FileId) -> StoreResult<Box<dyn Read>> {
+    pub fn read_file(&self, path: &RepoPath, id: &FileId) -> StoreResult<Box<dyn Read>> {
         self.store.read_file(path, id)
     }
 
-    pub fn write_file(&self, path: &FileRepoPath, contents: &mut dyn Read) -> StoreResult<FileId> {
+    pub fn write_file(&self, path: &RepoPath, contents: &mut dyn Read) -> StoreResult<FileId> {
         self.store.write_file(path, contents)
     }
 
-    pub fn read_symlink(&self, path: &FileRepoPath, id: &SymlinkId) -> StoreResult<String> {
+    pub fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> StoreResult<String> {
         self.store.read_symlink(path, id)
     }
 
-    pub fn write_symlink(&self, path: &FileRepoPath, contents: &str) -> StoreResult<SymlinkId> {
+    pub fn write_symlink(&self, path: &RepoPath, contents: &str) -> StoreResult<SymlinkId> {
         self.store.write_symlink(path, contents)
     }
 

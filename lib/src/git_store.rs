@@ -24,7 +24,7 @@ use git2::Oid;
 use protobuf::Message;
 use uuid::Uuid;
 
-use crate::repo_path::{DirRepoPath, FileRepoPath};
+use crate::repo_path::{DirRepoPath, RepoPath};
 use crate::store::{
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictPart, FileId, MillisSinceEpoch,
     Signature, Store, StoreError, StoreResult, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
@@ -176,7 +176,7 @@ impl Store for GitStore {
         Some(git2::Repository::open(&path).unwrap())
     }
 
-    fn read_file(&self, _path: &FileRepoPath, id: &FileId) -> StoreResult<Box<dyn Read>> {
+    fn read_file(&self, _path: &RepoPath, id: &FileId) -> StoreResult<Box<dyn Read>> {
         if id.0.len() != self.hash_length() {
             return Err(StoreError::NotFound);
         }
@@ -188,7 +188,7 @@ impl Store for GitStore {
         Ok(Box::new(Cursor::new(content)))
     }
 
-    fn write_file(&self, _path: &FileRepoPath, contents: &mut dyn Read) -> StoreResult<FileId> {
+    fn write_file(&self, _path: &RepoPath, contents: &mut dyn Read) -> StoreResult<FileId> {
         let mut bytes = Vec::new();
         contents.read_to_end(&mut bytes).unwrap();
         let locked_repo = self.repo.lock().unwrap();
@@ -196,7 +196,7 @@ impl Store for GitStore {
         Ok(FileId(oid.as_bytes().to_vec()))
     }
 
-    fn read_symlink(&self, _path: &FileRepoPath, id: &SymlinkId) -> Result<String, StoreError> {
+    fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, StoreError> {
         if id.0.len() != self.hash_length() {
             return Err(StoreError::NotFound);
         }
@@ -208,7 +208,7 @@ impl Store for GitStore {
         Ok(target)
     }
 
-    fn write_symlink(&self, _path: &FileRepoPath, target: &str) -> Result<SymlinkId, StoreError> {
+    fn write_symlink(&self, _path: &RepoPath, target: &str) -> Result<SymlinkId, StoreError> {
         let locked_repo = self.repo.lock().unwrap();
         let oid = locked_repo.blob(target.as_bytes()).unwrap();
         Ok(SymlinkId(oid.as_bytes().to_vec()))
@@ -391,7 +391,7 @@ impl Store for GitStore {
     }
 
     fn read_conflict(&self, id: &ConflictId) -> StoreResult<Conflict> {
-        let mut file = self.read_file(&FileRepoPath::from("unused"), &FileId(id.0.clone()))?;
+        let mut file = self.read_file(&RepoPath::from("unused"), &FileId(id.0.clone()))?;
         let mut data = String::new();
         file.read_to_string(&mut data)?;
         let json: serde_json::Value = serde_json::from_str(&data).unwrap();

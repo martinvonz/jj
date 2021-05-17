@@ -22,7 +22,7 @@ use blake2::{Blake2b, Digest};
 use protobuf::{Message, ProtobufError};
 use tempfile::{NamedTempFile, PersistError};
 
-use crate::repo_path::{DirRepoPath, FileRepoPath};
+use crate::repo_path::{DirRepoPath, RepoPath};
 use crate::store::{
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictPart, FileId, MillisSinceEpoch,
     Signature, Store, StoreError, StoreResult, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
@@ -113,13 +113,13 @@ impl Store for LocalStore {
         None
     }
 
-    fn read_file(&self, _path: &FileRepoPath, id: &FileId) -> StoreResult<Box<dyn Read>> {
+    fn read_file(&self, _path: &RepoPath, id: &FileId) -> StoreResult<Box<dyn Read>> {
         let path = self.file_path(&id);
         let file = File::open(path).map_err(not_found_to_store_error)?;
         Ok(Box::new(zstd::Decoder::new(file)?))
     }
 
-    fn write_file(&self, _path: &FileRepoPath, contents: &mut dyn Read) -> StoreResult<FileId> {
+    fn write_file(&self, _path: &RepoPath, contents: &mut dyn Read) -> StoreResult<FileId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
         let mut encoder = zstd::Encoder::new(temp_file.as_file(), 0)?;
         let mut hasher = Blake2b::new();
@@ -144,7 +144,7 @@ impl Store for LocalStore {
         Ok(id)
     }
 
-    fn read_symlink(&self, _path: &FileRepoPath, id: &SymlinkId) -> Result<String, StoreError> {
+    fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, StoreError> {
         let path = self.symlink_path(&id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
         let mut target = String::new();
@@ -152,7 +152,7 @@ impl Store for LocalStore {
         Ok(target)
     }
 
-    fn write_symlink(&self, _path: &FileRepoPath, target: &str) -> Result<SymlinkId, StoreError> {
+    fn write_symlink(&self, _path: &RepoPath, target: &str) -> Result<SymlinkId, StoreError> {
         let mut temp_file = NamedTempFile::new_in(&self.path)?;
         temp_file.write_all(target.as_bytes()).unwrap();
         let mut hasher = Blake2b::new();

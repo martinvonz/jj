@@ -18,7 +18,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use crate::repo_path::{
-    DirRepoPath, DirRepoPathComponent, FileRepoPath, RepoPath, RepoPathComponent, RepoPathJoin,
+    DirRepoPath, DirRepoPathComponent, RepoPath, RepoPathComponent, RepoPathJoin,
 };
 use crate::store;
 use crate::store::{ConflictId, TreeEntriesNonRecursiveIter, TreeEntry, TreeId, TreeValue};
@@ -44,9 +44,9 @@ impl Debug for Tree {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DiffSummary {
-    pub modified: Vec<FileRepoPath>,
-    pub added: Vec<FileRepoPath>,
-    pub removed: Vec<FileRepoPath>,
+    pub modified: Vec<RepoPath>,
+    pub added: Vec<RepoPath>,
+    pub removed: Vec<RepoPath>,
 }
 
 impl Tree {
