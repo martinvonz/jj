@@ -102,16 +102,6 @@ impl RepoPath {
         self.dir.to_internal_dir_string() + self.basename.value()
     }
 
-    pub fn to_dir_repo_path(&self) -> DirRepoPath {
-        if self.is_root() {
-            DirRepoPath::root()
-        } else {
-            self.dir.join(&DirRepoPathComponent {
-                value: self.basename.value.clone(),
-            })
-        }
-    }
-
     pub fn to_fs_path(&self, base: &Path) -> PathBuf {
         let mut result = base.to_owned();
         for dir in self.dir.components() {
@@ -187,14 +177,6 @@ impl DirRepoPath {
             result.push('/');
         }
         result
-    }
-
-    pub fn contains_dir(&self, other: &DirRepoPath) -> bool {
-        other.value.starts_with(&self.value)
-    }
-
-    pub fn contains_file(&self, other: &RepoPath) -> bool {
-        other.dir.value.starts_with(&self.value)
     }
 
     // TODO: consider making this return a Option<DirRepoPathSlice> or similar,
@@ -437,19 +419,6 @@ mod tests {
         assert_eq!(
             RepoPath::from_internal_string("dir/file").to_fs_path(&Path::new("")),
             Path::new("dir/file")
-        );
-    }
-
-    #[test]
-    fn test_convert() {
-        assert_eq!(RepoPath::root().to_dir_repo_path(), DirRepoPath::root());
-        assert_eq!(
-            RepoPath::from_internal_string("dir").to_dir_repo_path(),
-            DirRepoPath::from_internal_dir_string("dir/")
-        );
-        assert_eq!(
-            RepoPath::from_internal_string("dir/subdir").to_dir_repo_path(),
-            DirRepoPath::from_internal_dir_string("dir/subdir/")
         );
     }
 }
