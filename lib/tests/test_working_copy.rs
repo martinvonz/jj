@@ -313,11 +313,7 @@ fn test_gitignores(use_git: bool) {
     testutils::write_working_copy_file(&repo, &gitignore_path, "ignored\nmodified\nremoved\n");
     testutils::write_working_copy_file(&repo, &added_path, "2");
     testutils::write_working_copy_file(&repo, &modified_path, "2");
-    std::fs::remove_file(
-        repo.working_copy_path()
-            .join(removed_path.to_internal_string()),
-    )
-    .unwrap();
+    std::fs::remove_file(removed_path.to_fs_path(repo.working_copy_path())).unwrap();
     testutils::write_working_copy_file(&repo, &ignored_path, "2");
     testutils::write_working_copy_file(&repo, &subdir_modified_path, "2");
     testutils::write_working_copy_file(&repo, &subdir_ignored_path, "2");
