@@ -302,7 +302,7 @@ fn test_index_commits_incremental(use_git: bool) {
     let root_commit = repo.store().root_commit();
     let commit_a =
         child_commit(&settings, &repo, &root_commit).write_to_new_transaction(&repo, "test");
-    repo = repo.reload().unwrap();
+    repo = repo.reload();
 
     let index = repo.index();
     // There should be the root commit and the working copy commit, plus
@@ -349,7 +349,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     let root_commit = repo.store().root_commit();
     let commit_a =
         child_commit(&settings, &repo, &root_commit).write_to_new_transaction(&repo, "test");
-    repo = repo.reload().unwrap();
+    repo = repo.reload();
 
     let index = repo.index();
     // There should be the root commit and the working copy commit, plus
@@ -393,7 +393,7 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
     let root_commit = repo.store().root_commit();
     let commit_a =
         child_commit(&settings, &repo, &root_commit).write_to_new_transaction(&repo, "test");
-    repo = repo.reload().unwrap();
+    repo = repo.reload();
 
     assert!(repo.index().has_id(commit_a.id()));
     assert_eq!(repo.index().num_commits(), 2 + 1);

@@ -145,7 +145,7 @@ fn test_bad_locking_interrupted(use_git: bool) {
     let initial = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write_to_new_transaction(&repo, "test");
-    let repo = repo.reload().unwrap();
+    let repo = repo.reload();
 
     // Simulate a crash that resulted in the old op-head left in place. We simulate
     // it somewhat hackily by copying the .jj/op_heads/ directory before the

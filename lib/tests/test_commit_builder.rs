@@ -79,7 +79,7 @@ fn test_rewrite(use_git: bool) {
         CommitBuilder::for_new_commit(&settings, &store, initial_tree.id().clone())
             .set_parents(vec![store.root_commit_id().clone()])
             .write_to_new_transaction(&repo, "test");
-    let repo = repo.reload().unwrap();
+    let repo = repo.reload();
 
     let rewritten_tree = testutils::create_tree(
         &repo,

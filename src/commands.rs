@@ -123,9 +123,9 @@ fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandE
     let loader = RepoLoader::init(ui.settings(), wc_path)?;
     if let Some(op_str) = matches.value_of("at_op") {
         let op = resolve_single_op_from_store(loader.op_store(), op_str)?;
-        Ok(loader.load_at(&op)?)
+        Ok(loader.load_at(&op))
     } else {
-        Ok(loader.load_at_head()?)
+        Ok(loader.load_at_head())
     }
 }
 
@@ -2199,8 +2199,8 @@ fn cmd_op_undo(
     }
 
     let mut tx = repo_command.start_transaction(&format!("undo operation {}", bad_op.id().hex()));
-    let bad_repo = repo.loader().load_at(&bad_op)?;
-    let parent_repo = repo.loader().load_at(&parent_ops[0])?;
+    let bad_repo = repo.loader().load_at(&bad_op);
+    let parent_repo = repo.loader().load_at(&parent_ops[0]);
     tx.mut_repo().merge(&bad_repo, &parent_repo);
     repo_command.finish_transaction(ui, tx)?;
 

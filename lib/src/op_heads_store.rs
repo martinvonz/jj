@@ -187,7 +187,7 @@ fn merge_op_heads(
     mut op_heads: Vec<Operation>,
 ) -> Result<UnpublishedOperation, OpHeadResolutionError> {
     op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
-    let base_repo = repo_loader.load_at(&op_heads[0]).unwrap();
+    let base_repo = repo_loader.load_at(&op_heads[0]);
     let mut tx = base_repo.start_transaction("resolve concurrent operations");
     let merged_repo = tx.mut_repo();
     let neighbors_fn = |op: &Operation| op.parents();
@@ -199,8 +199,8 @@ fn merge_op_heads(
             &|op: &Operation| op.id().clone(),
         )
         .unwrap();
-        let base_repo = repo_loader.load_at(&ancestor_op).unwrap();
-        let other_repo = repo_loader.load_at(&other_op_head).unwrap();
+        let base_repo = repo_loader.load_at(&ancestor_op);
+        let other_repo = repo_loader.load_at(&other_op_head);
         merged_repo.merge(&base_repo, &other_repo);
     }
     let op_parent_ids = op_heads.iter().map(|op| op.id().clone()).collect();

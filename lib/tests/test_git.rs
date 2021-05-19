@@ -228,7 +228,7 @@ fn test_import_refs_merge() {
     tx2.commit();
 
     // Reload the repo, causing the operations to be merged.
-    let repo = repo.reload().unwrap();
+    let repo = repo.reload();
 
     let view = repo.view();
     let git_refs = view.git_refs();
@@ -369,7 +369,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let new_commit = testutils::create_random_commit(&settings, &jj_repo)
         .set_parents(vec![initial_commit_id])
         .write_to_new_transaction(&jj_repo, "test");
-    let jj_repo = jj_repo.reload().unwrap();
+    let jj_repo = jj_repo.reload();
     PushTestSetup {
         source_repo_dir,
         jj_repo,
@@ -412,7 +412,7 @@ fn test_push_commit_not_fast_forward() {
     let mut setup = set_up_push_repos(&settings, &temp_dir);
     let new_commit = testutils::create_random_commit(&settings, &setup.jj_repo)
         .write_to_new_transaction(&setup.jj_repo, "test");
-    setup.jj_repo = setup.jj_repo.reload().unwrap();
+    setup.jj_repo = setup.jj_repo.reload();
     let result = git::push_commit(
         &setup.jj_repo.store().git_repo().unwrap(),
         &new_commit,

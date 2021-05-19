@@ -778,7 +778,7 @@ impl WorkingCopy {
                 // Reload the repo so the new commit is visible in the index and view
                 // TODO: This is not enough. The new commit is not necessarily still in the
                 // view when we reload.
-                repo = repo.reload().unwrap();
+                repo = repo.reload();
             }
             _ => {}
         }

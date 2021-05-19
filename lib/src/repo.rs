@@ -254,7 +254,7 @@ impl ReadonlyRepo {
         user_settings: &UserSettings,
         wc_path: PathBuf,
     ) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
-        RepoLoader::init(user_settings, wc_path)?.load_at_head()
+        Ok(RepoLoader::init(user_settings, wc_path)?.load_at_head())
     }
 
     pub fn loader(&self) -> RepoLoader {
@@ -365,11 +365,11 @@ impl ReadonlyRepo {
         Transaction::new(mut_repo, description)
     }
 
-    pub fn reload(&self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
+    pub fn reload(&self) -> Arc<ReadonlyRepo> {
         self.loader().load_at_head()
     }
 
-    pub fn reload_at(&self, operation: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
+    pub fn reload_at(&self, operation: &Operation) -> Arc<ReadonlyRepo> {
         self.loader().load_at(operation)
     }
 }
@@ -437,13 +437,13 @@ impl RepoLoader {
         &self.op_heads_store
     }
 
-    pub fn load_at_head(&self) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
+    pub fn load_at_head(&self) -> Arc<ReadonlyRepo> {
         let op = self.op_heads_store.get_single_op_head(&self).unwrap();
         let view = ReadonlyView::new(op.view().take_store_view());
         self._finish_load(op, view)
     }
 
-    pub fn load_at(&self, op: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
+    pub fn load_at(&self, op: &Operation) -> Arc<ReadonlyRepo> {
         let view = ReadonlyView::new(op.view().take_store_view());
         self._finish_load(op.clone(), view)
     }
@@ -473,11 +473,7 @@ impl RepoLoader {
         Arc::new(repo)
     }
 
-    fn _finish_load(
-        &self,
-        operation: Operation,
-        view: ReadonlyView,
-    ) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
+    fn _finish_load(&self, operation: Operation, view: ReadonlyView) -> Arc<ReadonlyRepo> {
         let working_copy = WorkingCopy::load(
             self.store.clone(),
             self.wc_path.clone(),
@@ -497,7 +493,7 @@ impl RepoLoader {
             view,
             evolution: Mutex::new(None),
         };
-        Ok(Arc::new(repo))
+        Arc::new(repo)
     }
 }
 
