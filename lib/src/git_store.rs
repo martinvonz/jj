@@ -24,7 +24,7 @@ use git2::Oid;
 use protobuf::Message;
 use uuid::Uuid;
 
-use crate::repo_path::{DirRepoPath, RepoPath};
+use crate::repo_path::RepoPath;
 use crate::store::{
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictPart, FileId, MillisSinceEpoch,
     Signature, Store, StoreError, StoreResult, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
@@ -218,7 +218,7 @@ impl Store for GitStore {
         &self.empty_tree_id
     }
 
-    fn read_tree(&self, _path: &DirRepoPath, id: &TreeId) -> StoreResult<Tree> {
+    fn read_tree(&self, _path: &RepoPath, id: &TreeId) -> StoreResult<Tree> {
         if id == &self.empty_tree_id {
             return Ok(Tree::default());
         }
@@ -283,7 +283,7 @@ impl Store for GitStore {
         Ok(tree)
     }
 
-    fn write_tree(&self, _path: &DirRepoPath, contents: &Tree) -> StoreResult<TreeId> {
+    fn write_tree(&self, _path: &RepoPath, contents: &Tree) -> StoreResult<TreeId> {
         let locked_repo = self.repo.lock().unwrap();
         let mut builder = locked_repo.treebuilder(None).unwrap();
         for entry in contents.entries() {
@@ -565,10 +565,7 @@ mod tests {
         assert_eq!(commit.committer.timestamp.tz_offset, -480);
 
         let root_tree = store
-            .read_tree(
-                &DirRepoPath::root(),
-                &TreeId(root_tree_id.as_bytes().to_vec()),
-            )
+            .read_tree(&RepoPath::root(), &TreeId(root_tree_id.as_bytes().to_vec()))
             .unwrap();
         let mut root_entries = root_tree.entries();
         let dir = root_entries.next().unwrap();
@@ -581,7 +578,7 @@ mod tests {
 
         let dir_tree = store
             .read_tree(
-                &DirRepoPath::from_internal_dir_string("dir/"),
+                &RepoPath::from_internal_string("dir"),
                 &TreeId(dir_tree_id.as_bytes().to_vec()),
             )
             .unwrap();

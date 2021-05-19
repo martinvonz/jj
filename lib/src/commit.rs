@@ -17,7 +17,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use crate::repo_path::DirRepoPath;
+use crate::repo_path::RepoPath;
 use crate::store;
 use crate::store::{ChangeId, CommitId, Signature};
 use crate::store_wrapper::StoreWrapper;
@@ -108,7 +108,7 @@ impl Commit {
 
     pub fn tree(&self) -> Tree {
         self.store
-            .get_tree(&DirRepoPath::root(), &self.data.root_tree)
+            .get_tree(&RepoPath::root(), &self.data.root_tree)
             .unwrap()
     }
 

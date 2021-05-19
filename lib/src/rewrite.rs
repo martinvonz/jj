@@ -15,7 +15,7 @@
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::repo::{MutableRepo, RepoRef};
-use crate::repo_path::DirRepoPath;
+use crate::repo_path::RepoPath;
 use crate::settings::UserSettings;
 use crate::tree::Tree;
 use crate::trees::merge_trees;
@@ -24,7 +24,7 @@ pub fn merge_commit_trees(repo: RepoRef, commits: &[Commit]) -> Tree {
     let store = repo.store();
     if commits.is_empty() {
         store
-            .get_tree(&DirRepoPath::root(), store.empty_tree_id())
+            .get_tree(&RepoPath::root(), store.empty_tree_id())
             .unwrap()
     } else {
         let index = repo.index();
@@ -38,7 +38,7 @@ pub fn merge_commit_trees(repo: RepoRef, commits: &[Commit]) -> Tree {
                 .collect();
             let ancestor_tree = merge_commit_trees(repo, &ancestors);
             let new_tree_id = merge_trees(&new_tree, &ancestor_tree, &other_commit.tree()).unwrap();
-            new_tree = store.get_tree(&DirRepoPath::root(), &new_tree_id).unwrap();
+            new_tree = store.get_tree(&RepoPath::root(), &new_tree_id).unwrap();
         }
         new_tree
     }

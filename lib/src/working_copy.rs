@@ -38,7 +38,7 @@ use crate::commit_builder::CommitBuilder;
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::repo::ReadonlyRepo;
-use crate::repo_path::{DirRepoPath, RepoPath, RepoPathComponent, RepoPathJoin};
+use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::settings::UserSettings;
 use crate::store::{CommitId, FileId, MillisSinceEpoch, StoreError, SymlinkId, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
@@ -482,18 +482,18 @@ impl TreeState {
     pub fn check_out(&mut self, tree_id: TreeId) -> Result<CheckoutStats, CheckoutError> {
         let old_tree = self
             .store
-            .get_tree(&DirRepoPath::root(), &self.tree_id)
+            .get_tree(&RepoPath::root(), &self.tree_id)
             .map_err(|err| match err {
                 StoreError::NotFound => CheckoutError::SourceNotFound,
                 other => CheckoutError::InternalStoreError(other),
             })?;
-        let new_tree = self
-            .store
-            .get_tree(&DirRepoPath::root(), &tree_id)
-            .map_err(|err| match err {
-                StoreError::NotFound => CheckoutError::TargetNotFound,
-                other => CheckoutError::InternalStoreError(other),
-            })?;
+        let new_tree =
+            self.store
+                .get_tree(&RepoPath::root(), &tree_id)
+                .map_err(|err| match err {
+                    StoreError::NotFound => CheckoutError::TargetNotFound,
+                    other => CheckoutError::InternalStoreError(other),
+                })?;
 
         let mut stats = CheckoutStats {
             updated_files: 0,

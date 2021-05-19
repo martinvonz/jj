@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::repo_path::{DirRepoPath, RepoPath};
+use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::{ConflictPart, TreeValue};
 use jujutsu_lib::tree::Tree;
 use jujutsu_lib::{testutils, trees};
@@ -60,7 +60,7 @@ fn test_same_type(use_git: bool) {
             }
         }
         let tree_id = tree_builder.write_tree();
-        store.get_tree(&DirRepoPath::root(), &tree_id).unwrap()
+        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
     };
 
     let base_tree = write_tree(0);
@@ -69,9 +69,7 @@ fn test_same_type(use_git: bool) {
 
     // Create the merged tree
     let merged_tree_id = trees::merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
-    let merged_tree = store
-        .get_tree(&DirRepoPath::root(), &merged_tree_id)
-        .unwrap();
+    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
 
     // Check that we have exactly the paths we expect in the merged tree
     let names: Vec<&str> = merged_tree
@@ -191,7 +189,7 @@ fn test_subtrees(use_git: bool) {
             );
         }
         let tree_id = tree_builder.write_tree();
-        store.get_tree(&DirRepoPath::root(), &tree_id).unwrap()
+        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
     };
 
     let base_tree = write_tree(vec!["f1", "d1/f1", "d1/d1/f1", "d1/d1/d1/f1"]);
@@ -212,9 +210,7 @@ fn test_subtrees(use_git: bool) {
     ]);
 
     let merged_tree_id = trees::merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
-    let merged_tree = store
-        .get_tree(&DirRepoPath::root(), &merged_tree_id)
-        .unwrap();
+    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
     let entries: Vec<_> = merged_tree.entries().collect();
 
     let expected_tree = write_tree(vec![
@@ -249,7 +245,7 @@ fn test_subtree_becomes_empty(use_git: bool) {
             );
         }
         let tree_id = tree_builder.write_tree();
-        store.get_tree(&DirRepoPath::root(), &tree_id).unwrap()
+        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
     };
 
     let base_tree = write_tree(vec!["f1", "d1/f1", "d1/d1/d1/f1", "d1/d1/d1/f2"]);
@@ -257,9 +253,7 @@ fn test_subtree_becomes_empty(use_git: bool) {
     let side2_tree = write_tree(vec!["d1/d1/d1/f2"]);
 
     let merged_tree_id = trees::merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
-    let merged_tree = store
-        .get_tree(&DirRepoPath::root(), &merged_tree_id)
-        .unwrap();
+    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
     assert_eq!(merged_tree.id(), store.empty_tree_id());
 }
 
@@ -307,21 +301,15 @@ fn test_types(use_git: bool) {
         "contents",
     );
     let base_tree_id = base_tree_builder.write_tree();
-    let base_tree = store.get_tree(&DirRepoPath::root(), &base_tree_id).unwrap();
+    let base_tree = store.get_tree(&RepoPath::root(), &base_tree_id).unwrap();
     let side1_tree_id = side1_tree_builder.write_tree();
-    let side1_tree = store
-        .get_tree(&DirRepoPath::root(), &side1_tree_id)
-        .unwrap();
+    let side1_tree = store.get_tree(&RepoPath::root(), &side1_tree_id).unwrap();
     let side2_tree_id = side2_tree_builder.write_tree();
-    let side2_tree = store
-        .get_tree(&DirRepoPath::root(), &side2_tree_id)
-        .unwrap();
+    let side2_tree = store.get_tree(&RepoPath::root(), &side2_tree_id).unwrap();
 
     // Created the merged tree
     let merged_tree_id = trees::merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
-    let merged_tree = store
-        .get_tree(&DirRepoPath::root(), &merged_tree_id)
-        .unwrap();
+    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
 
     // Check the conflicting cases
     match merged_tree.value("normal_executable_symlink").unwrap() {
@@ -402,7 +390,7 @@ fn test_simplify_conflict(use_git: bool) {
 
     let merge_trees = |base: &Tree, side1: &Tree, side2: &Tree| -> Tree {
         let tree_id = trees::merge_trees(&side1, &base, &side2).unwrap();
-        store.get_tree(&DirRepoPath::root(), &tree_id).unwrap()
+        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
     };
 
     // Rebase the branch tree to the first upstream tree

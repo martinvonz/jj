@@ -21,7 +21,7 @@ use std::vec::Vec;
 
 use thiserror::Error;
 
-use crate::repo_path::{DirRepoPath, RepoPath};
+use crate::repo_path::RepoPath;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct CommitId(pub Vec<u8>);
@@ -344,9 +344,9 @@ pub trait Store: Send + Sync + Debug {
 
     fn empty_tree_id(&self) -> &TreeId;
 
-    fn read_tree(&self, path: &DirRepoPath, id: &TreeId) -> StoreResult<Tree>;
+    fn read_tree(&self, path: &RepoPath, id: &TreeId) -> StoreResult<Tree>;
 
-    fn write_tree(&self, path: &DirRepoPath, contents: &Tree) -> StoreResult<TreeId>;
+    fn write_tree(&self, path: &RepoPath, contents: &Tree) -> StoreResult<TreeId>;
 
     fn read_commit(&self, id: &CommitId) -> StoreResult<Commit>;
 

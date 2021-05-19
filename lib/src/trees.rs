@@ -18,9 +18,7 @@ use std::pin::Pin;
 
 use crate::files;
 use crate::files::MergeResult;
-use crate::repo_path::{
-    DirRepoPath, DirRepoPathComponent, RepoPath, RepoPathComponent, RepoPathJoin,
-};
+use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::{
     Conflict, ConflictPart, StoreError, TreeEntriesNonRecursiveIter, TreeId, TreeValue,
 };
@@ -125,11 +123,11 @@ fn diff_entries<'a>(tree1: &'a Tree, tree2: &'a Tree) -> TreeEntryDiffIterator<'
 }
 
 pub fn recursive_tree_diff(root1: Tree, root2: Tree) -> TreeDiffIterator {
-    TreeDiffIterator::new(DirRepoPath::root(), root1, root2)
+    TreeDiffIterator::new(RepoPath::root(), root1, root2)
 }
 
 pub struct TreeDiffIterator {
-    dir: DirRepoPath,
+    dir: RepoPath,
     tree1: Pin<Box<Tree>>,
     tree2: Pin<Box<Tree>>,
     // Iterator over the diffs between tree1 and tree2
@@ -143,7 +141,7 @@ pub struct TreeDiffIterator {
 }
 
 impl TreeDiffIterator {
-    fn new(dir: DirRepoPath, tree1: Tree, tree2: Tree) -> TreeDiffIterator {
+    fn new(dir: RepoPath, tree1: Tree, tree2: Tree) -> TreeDiffIterator {
         let tree1 = Box::pin(tree1);
         let tree2 = Box::pin(tree2);
         let root_entry_iterator: TreeEntryDiffIterator = diff_entries(&tree1, &tree2);
@@ -179,7 +177,7 @@ impl Iterator for TreeDiffIterator {
             // Note: whenever we say "file" below, it may also be a symlink or a conflict.
             if let Some((name, diff)) = self.entry_iterator.next() {
                 let file_path = self.dir.join(&RepoPathComponent::from(name.as_str()));
-                let subdir = DirRepoPathComponent::from(name.as_str());
+                let subdir = RepoPathComponent::from(name.as_str());
                 let subdir_path = self.dir.join(&subdir);
                 // TODO: simplify this mess
                 match diff {
@@ -297,7 +295,7 @@ pub fn merge_trees(
 
 fn merge_tree_value(
     store: &StoreWrapper,
-    dir: &DirRepoPath,
+    dir: &RepoPath,
     basename: &str,
     maybe_base: Option<&TreeValue>,
     maybe_side1: Option<&TreeValue>,
@@ -314,7 +312,7 @@ fn merge_tree_value(
             Some(TreeValue::Tree(side1)),
             Some(TreeValue::Tree(side2)),
         ) => {
-            let subdir = dir.join(&DirRepoPathComponent::from(basename));
+            let subdir = dir.join(&RepoPathComponent::from(basename));
             let merged_tree_id = merge_trees(
                 &store.get_tree(&subdir, &side1).unwrap(),
                 &store.get_tree(&subdir, &base).unwrap(),

@@ -22,7 +22,7 @@ use tempfile::TempDir;
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::repo::{MutableRepo, ReadonlyRepo};
-use crate::repo_path::{DirRepoPath, RepoPath};
+use crate::repo_path::RepoPath;
 use crate::settings::UserSettings;
 use crate::store::{FileId, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
@@ -99,7 +99,7 @@ pub fn create_tree(repo: &ReadonlyRepo, path_contents: &[(&RepoPath, &str)]) -> 
         write_normal_file(&mut tree_builder, path, contents);
     }
     let id = tree_builder.write_tree();
-    store.get_tree(&DirRepoPath::root(), &id).unwrap()
+    store.get_tree(&RepoPath::root(), &id).unwrap()
 }
 
 #[must_use]

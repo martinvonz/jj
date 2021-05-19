@@ -15,7 +15,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
-use crate::repo_path::{DirRepoPath, RepoPath, RepoPathJoin};
+use crate::repo_path::{RepoPath, RepoPathJoin};
 use crate::store;
 use crate::store::{TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
@@ -80,7 +80,7 @@ impl TreeBuilder {
         // Write trees level by level, starting with trees without children.
         let store = self.store.as_ref();
         loop {
-            let mut dirs_to_write: HashSet<DirRepoPath> =
+            let mut dirs_to_write: HashSet<RepoPath> =
                 trees_to_write.keys().cloned().into_iter().collect();
 
             for dir in trees_to_write.keys() {
@@ -108,13 +108,13 @@ impl TreeBuilder {
         }
     }
 
-    fn get_base_trees(&mut self) -> BTreeMap<DirRepoPath, store::Tree> {
+    fn get_base_trees(&mut self) -> BTreeMap<RepoPath, store::Tree> {
         let mut tree_cache = BTreeMap::new();
         let mut base_trees = BTreeMap::new();
         let store = self.store.clone();
 
-        let mut populate_trees = |dir: &DirRepoPath| {
-            let mut current_dir = DirRepoPath::root();
+        let mut populate_trees = |dir: &RepoPath| {
+            let mut current_dir = RepoPath::root();
 
             if !tree_cache.contains_key(&current_dir) {
                 let tree = store.get_tree(&current_dir, &self.base_tree_id).unwrap();
@@ -138,7 +138,7 @@ impl TreeBuilder {
             }
         };
         for path in self.overrides.keys() {
-            if let Some(parent) = path.dir() {
+            if let Some(parent) = path.parent() {
                 populate_trees(&parent);
             }
         }

@@ -22,7 +22,7 @@ use blake2::{Blake2b, Digest};
 use protobuf::{Message, ProtobufError};
 use tempfile::{NamedTempFile, PersistError};
 
-use crate::repo_path::{DirRepoPath, RepoPath};
+use crate::repo_path::RepoPath;
 use crate::store::{
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictPart, FileId, MillisSinceEpoch,
     Signature, Store, StoreError, StoreResult, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
@@ -61,7 +61,7 @@ impl LocalStore {
         fs::create_dir(store_path.join("conflicts")).unwrap();
         let store = Self::load(store_path);
         let empty_tree_id = store
-            .write_tree(&DirRepoPath::root(), &Tree::default())
+            .write_tree(&RepoPath::root(), &Tree::default())
             .unwrap();
         assert_eq!(empty_tree_id, store.empty_tree_id);
         store
@@ -167,7 +167,7 @@ impl Store for LocalStore {
         &self.empty_tree_id
     }
 
-    fn read_tree(&self, _path: &DirRepoPath, id: &TreeId) -> StoreResult<Tree> {
+    fn read_tree(&self, _path: &RepoPath, id: &TreeId) -> StoreResult<Tree> {
         let path = self.tree_path(&id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
@@ -175,7 +175,7 @@ impl Store for LocalStore {
         Ok(tree_from_proto(&proto))
     }
 
-    fn write_tree(&self, _path: &DirRepoPath, tree: &Tree) -> StoreResult<TreeId> {
+    fn write_tree(&self, _path: &RepoPath, tree: &Tree) -> StoreResult<TreeId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
         let proto = tree_to_proto(tree);

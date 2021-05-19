@@ -35,27 +35,6 @@ impl From<&str> for RepoPathComponent {
     }
 }
 
-// Does not include a trailing slash
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct DirRepoPathComponent {
-    value: String,
-}
-
-impl DirRepoPathComponent {
-    pub fn value(&self) -> &str {
-        &self.value
-    }
-}
-
-impl From<&str> for DirRepoPathComponent {
-    fn from(value: &str) -> Self {
-        assert!(!value.contains('/'));
-        DirRepoPathComponent {
-            value: value.to_owned(),
-        }
-    }
-}
-
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RepoPath {
     components: Vec<RepoPathComponent>,
@@ -137,104 +116,16 @@ impl RepoPath {
         }
     }
 
-    pub fn dir(&self) -> Option<DirRepoPath> {
+    pub fn split(&self) -> Option<(RepoPath, &RepoPathComponent)> {
         if self.is_root() {
             None
         } else {
-            let dir_components = self.components[0..self.components.len() - 1]
-                .iter()
-                .map(|component| DirRepoPathComponent {
-                    value: component.value.clone(),
-                })
-                .collect();
-            Some(DirRepoPath {
-                value: dir_components,
-            })
+            Some((self.parent().unwrap(), self.components.last().unwrap()))
         }
     }
 
-    pub fn split(&self) -> Option<(DirRepoPath, &RepoPathComponent)> {
-        if self.is_root() {
-            None
-        } else {
-            Some((self.dir().unwrap(), self.components.last().unwrap()))
-        }
-    }
-}
-
-// Includes a trailing slash
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct DirRepoPath {
-    value: Vec<DirRepoPathComponent>,
-}
-
-impl Debug for DirRepoPath {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.write_fmt(format_args!("{:?}", &self.to_internal_dir_string()))
-    }
-}
-
-impl DirRepoPath {
-    pub fn root() -> Self {
-        DirRepoPath { value: Vec::new() }
-    }
-
-    pub fn is_root(&self) -> bool {
-        return self.components().is_empty();
-    }
-
-    pub fn from_internal_dir_string(value: &str) -> Self {
-        assert!(value.is_empty() || value.ends_with('/'));
-        let mut parts: Vec<&str> = value.split('/').collect();
-        // remove the trailing empty string
-        parts.pop();
-
-        DirRepoPath {
-            value: parts
-                .iter()
-                .map(|x| DirRepoPathComponent {
-                    value: x.to_string(),
-                })
-                .collect(),
-        }
-    }
-
-    /// The full string form used internally, not for presenting to users (where
-    /// we may want to use the platform's separator).
-    pub fn to_internal_dir_string(&self) -> String {
-        let mut result = String::new();
-        for component in &self.value {
-            result.push_str(component.value());
-            result.push('/');
-        }
-        result
-    }
-
-    // TODO: consider making this return a Option<DirRepoPathSlice> or similar,
-    // where the slice would borrow from this instance.
-    pub fn parent(&self) -> Option<DirRepoPath> {
-        match self.value.len() {
-            0 => None,
-            n => Some(DirRepoPath {
-                value: self.value[..n - 1].to_vec(),
-            }),
-        }
-    }
-
-    pub fn split(&self) -> Option<(DirRepoPath, DirRepoPathComponent)> {
-        match self.value.len() {
-            0 => None,
-            n => Some((
-                DirRepoPath {
-                    value: self.value[..n - 1].to_vec(),
-                },
-                self.value[n - 1].clone(),
-            )),
-        }
-    }
-
-    pub fn components(&self) -> &Vec<DirRepoPathComponent> {
-        &self.value
+    pub fn components(&self) -> &Vec<RepoPathComponent> {
+        &self.components
     }
 }
 
@@ -242,32 +133,6 @@ pub trait RepoPathJoin<T> {
     type Result;
 
     fn join(&self, entry: &T) -> Self::Result;
-}
-
-impl RepoPathJoin<DirRepoPathComponent> for DirRepoPath {
-    type Result = DirRepoPath;
-
-    fn join(&self, entry: &DirRepoPathComponent) -> DirRepoPath {
-        let mut new_dir = self.value.clone();
-        new_dir.push(entry.clone());
-        DirRepoPath { value: new_dir }
-    }
-}
-
-impl RepoPathJoin<RepoPathComponent> for DirRepoPath {
-    type Result = RepoPath;
-
-    fn join(&self, entry: &RepoPathComponent) -> RepoPath {
-        let mut components: Vec<RepoPathComponent> = self
-            .value
-            .iter()
-            .map(|component| RepoPathComponent {
-                value: component.value.clone(),
-            })
-            .collect();
-        components.push(entry.clone());
-        RepoPath { components }
-    }
 }
 
 impl RepoPathJoin<RepoPathComponent> for RepoPath {
@@ -289,9 +154,6 @@ mod tests {
         assert!(RepoPath::root().is_root());
         assert!(RepoPath::from_internal_string("").is_root());
         assert!(!RepoPath::from_internal_string("foo").is_root());
-        assert!(DirRepoPath::root().is_root());
-        assert!(DirRepoPath::from_internal_dir_string("").is_root());
-        assert!(!DirRepoPath::from_internal_dir_string("foo/").is_root());
     }
 
     #[test]
@@ -302,40 +164,18 @@ mod tests {
             "dir"
         );
         assert_eq!(
-            RepoPath::from_internal_string("file").to_internal_file_string(),
-            "file"
-        );
-        assert_eq!(
             RepoPath::from_internal_string("dir/file").to_internal_file_string(),
             "dir/file"
-        );
-        assert_eq!(DirRepoPath::root().to_internal_dir_string(), "");
-        assert_eq!(
-            DirRepoPath::from_internal_dir_string("dir/").to_internal_dir_string(),
-            "dir/"
-        );
-        assert_eq!(
-            DirRepoPath::from_internal_dir_string("dir/subdir/").to_internal_dir_string(),
-            "dir/subdir/"
         );
     }
 
     #[test]
     fn test_order() {
-        assert!(DirRepoPath::root() < DirRepoPath::from_internal_dir_string("dir/"));
-        assert!(
-            DirRepoPath::from_internal_dir_string("dir/")
-                < DirRepoPath::from_internal_dir_string("dirx/")
-        );
+        assert!(RepoPath::root() < RepoPath::from_internal_string("dir"));
+        assert!(RepoPath::from_internal_string("dir") < RepoPath::from_internal_string("dirx"));
         // '#' < '/'
-        assert!(
-            DirRepoPath::from_internal_dir_string("dir/")
-                < DirRepoPath::from_internal_dir_string("dir#/")
-        );
-        assert!(
-            DirRepoPath::from_internal_dir_string("dir/")
-                < DirRepoPath::from_internal_dir_string("dir/sub/")
-        );
+        assert!(RepoPath::from_internal_string("dir") < RepoPath::from_internal_string("dir#"));
+        assert!(RepoPath::from_internal_string("dir") < RepoPath::from_internal_string("dir/sub"));
 
         assert!(RepoPath::from_internal_string("abc") < RepoPath::from_internal_string("dir/file"));
         assert!(RepoPath::from_internal_string("dir") < RepoPath::from_internal_string("dir/file"));
@@ -348,33 +188,22 @@ mod tests {
 
     #[test]
     fn test_join() {
-        let root = DirRepoPath::root();
-        let dir_component = DirRepoPathComponent::from("dir");
-        let subdir_component = DirRepoPathComponent::from("subdir");
-        let file_component = RepoPathComponent::from("file");
+        let root = RepoPath::root();
+        let dir = root.join(&RepoPathComponent::from("dir"));
+        assert_eq!(dir, RepoPath::from_internal_string("dir"));
+        let subdir = dir.join(&RepoPathComponent::from("subdir"));
+        assert_eq!(subdir, RepoPath::from_internal_string("dir/subdir"));
         assert_eq!(
-            root.join(&file_component),
-            RepoPath::from_internal_string("file")
-        );
-        let dir = root.join(&dir_component);
-        assert_eq!(dir, DirRepoPath::from_internal_dir_string("dir/"));
-        assert_eq!(
-            dir.join(&file_component),
-            RepoPath::from_internal_string("dir/file")
-        );
-        let subdir = dir.join(&subdir_component);
-        assert_eq!(subdir, DirRepoPath::from_internal_dir_string("dir/subdir/"));
-        assert_eq!(
-            subdir.join(&file_component),
+            subdir.join(&RepoPathComponent::from("file")),
             RepoPath::from_internal_string("dir/subdir/file")
         );
     }
 
     #[test]
     fn test_parent() {
-        let root = DirRepoPath::root();
-        let dir_component = DirRepoPathComponent::from("dir");
-        let subdir_component = DirRepoPathComponent::from("subdir");
+        let root = RepoPath::root();
+        let dir_component = RepoPathComponent::from("dir");
+        let subdir_component = RepoPathComponent::from("subdir");
 
         let dir = root.join(&dir_component);
         let subdir = dir.join(&subdir_component);
@@ -385,61 +214,31 @@ mod tests {
     }
 
     #[test]
-    fn test_split_dir() {
-        let root = DirRepoPath::root();
-        let dir_component = DirRepoPathComponent::from("dir");
-        let subdir_component = DirRepoPathComponent::from("subdir");
+    fn test_split() {
+        let root = RepoPath::root();
+        let dir_component = RepoPathComponent::from("dir");
+        let file_component = RepoPathComponent::from("file");
 
         let dir = root.join(&dir_component);
-        let subdir = dir.join(&subdir_component);
+        let file = dir.join(&file_component);
 
         assert_eq!(root.split(), None);
-        assert_eq!(dir.split(), Some((root, dir_component)));
-        assert_eq!(subdir.split(), Some((dir, subdir_component)));
-    }
-
-    #[test]
-    fn test_split_file() {
-        let root = DirRepoPath::root();
-        let dir_component = DirRepoPathComponent::from("dir");
-        let file_component = RepoPathComponent::from("file");
-
-        let dir = root.join(&dir_component);
-
-        assert_eq!(
-            root.join(&file_component).split(),
-            Some((root, &file_component.clone()))
-        );
-        assert_eq!(
-            dir.join(&file_component).split(),
-            Some((dir, &file_component))
-        );
-    }
-
-    #[test]
-    fn test_dir() {
-        let root = DirRepoPath::root();
-        let dir_component = DirRepoPathComponent::from("dir");
-        let file_component = RepoPathComponent::from("file");
-
-        let dir = root.join(&dir_component);
-
-        assert_eq!(root.join(&file_component).dir(), Some(root));
-        assert_eq!(dir.join(&file_component).dir(), Some(dir));
+        assert_eq!(dir.split(), Some((root, &dir_component)));
+        assert_eq!(file.split(), Some((dir, &file_component)));
     }
 
     #[test]
     fn test_components() {
-        assert_eq!(DirRepoPath::root().components(), &vec![]);
+        assert_eq!(RepoPath::root().components(), &vec![]);
         assert_eq!(
-            DirRepoPath::from_internal_dir_string("dir/").components(),
-            &vec![DirRepoPathComponent::from("dir")]
+            RepoPath::from_internal_string("dir").components(),
+            &vec![RepoPathComponent::from("dir")]
         );
         assert_eq!(
-            DirRepoPath::from_internal_dir_string("dir/subdir/").components(),
+            RepoPath::from_internal_string("dir/subdir").components(),
             &vec![
-                DirRepoPathComponent::from("dir"),
-                DirRepoPathComponent::from("subdir")
+                RepoPathComponent::from("dir"),
+                RepoPathComponent::from("subdir")
             ]
         );
     }

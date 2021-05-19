@@ -21,7 +21,7 @@ use std::sync::{Arc, RwLock, Weak};
 use crate::commit::Commit;
 use crate::git_store::GitStore;
 use crate::local_store::LocalStore;
-use crate::repo_path::{DirRepoPath, RepoPath};
+use crate::repo_path::RepoPath;
 use crate::store;
 use crate::store::{
     ChangeId, CommitId, Conflict, ConflictId, FileId, MillisSinceEpoch, Signature, Store,
@@ -40,7 +40,7 @@ pub struct StoreWrapper {
     store: Box<dyn Store>,
     root_commit_id: CommitId,
     commit_cache: RwLock<HashMap<CommitId, Arc<store::Commit>>>,
-    tree_cache: RwLock<HashMap<(DirRepoPath, TreeId), Arc<store::Tree>>>,
+    tree_cache: RwLock<HashMap<(RepoPath, TreeId), Arc<store::Tree>>>,
 }
 
 impl StoreWrapper {
@@ -168,7 +168,7 @@ impl StoreWrapper {
         commit
     }
 
-    pub fn get_tree(&self, dir: &DirRepoPath, id: &TreeId) -> StoreResult<Tree> {
+    pub fn get_tree(&self, dir: &RepoPath, id: &TreeId) -> StoreResult<Tree> {
         let data = self.get_store_tree(dir, id)?;
         Ok(Tree::new(
             self.weak_self.as_ref().unwrap().upgrade().unwrap(),
@@ -178,7 +178,7 @@ impl StoreWrapper {
         ))
     }
 
-    fn get_store_tree(&self, dir: &DirRepoPath, id: &TreeId) -> StoreResult<Arc<store::Tree>> {
+    fn get_store_tree(&self, dir: &RepoPath, id: &TreeId) -> StoreResult<Arc<store::Tree>> {
         let key = (dir.clone(), id.clone());
         {
             let read_locked_cache = self.tree_cache.read().unwrap();
@@ -192,7 +192,7 @@ impl StoreWrapper {
         Ok(data)
     }
 
-    pub fn write_tree(&self, path: &DirRepoPath, contents: &store::Tree) -> StoreResult<TreeId> {
+    pub fn write_tree(&self, path: &RepoPath, contents: &store::Tree) -> StoreResult<TreeId> {
         // TODO: This should also do caching like write_commit does.
         self.store.write_tree(path, contents)
     }

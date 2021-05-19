@@ -17,9 +17,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::repo_path::{
-    DirRepoPath, DirRepoPathComponent, RepoPath, RepoPathComponent, RepoPathJoin,
-};
+use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store;
 use crate::store::{ConflictId, TreeEntriesNonRecursiveIter, TreeEntry, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
@@ -28,7 +26,7 @@ use crate::trees::{recursive_tree_diff, Diff, TreeDiffIterator};
 #[derive(Clone)]
 pub struct Tree {
     store: Arc<StoreWrapper>,
-    dir: DirRepoPath,
+    dir: RepoPath,
     id: TreeId,
     data: Arc<store::Tree>,
 }
@@ -52,7 +50,7 @@ pub struct DiffSummary {
 impl Tree {
     pub fn new(
         store: Arc<StoreWrapper>,
-        dir: DirRepoPath,
+        dir: RepoPath,
         id: TreeId,
         data: Arc<store::Tree>,
     ) -> Self {
@@ -64,7 +62,7 @@ impl Tree {
         }
     }
 
-    pub fn null(store: Arc<StoreWrapper>, dir: DirRepoPath) -> Self {
+    pub fn null(store: Arc<StoreWrapper>, dir: RepoPath) -> Self {
         Tree {
             store,
             dir,
@@ -77,7 +75,7 @@ impl Tree {
         &self.store
     }
 
-    pub fn dir(&self) -> &DirRepoPath {
+    pub fn dir(&self) -> &RepoPath {
         &self.dir
     }
 
@@ -112,7 +110,7 @@ impl Tree {
     }
 
     pub fn path_value(&self, path: &RepoPath) -> Option<TreeValue> {
-        assert_eq!(self.dir(), &DirRepoPath::root());
+        assert_eq!(self.dir(), &RepoPath::root());
         match path.split() {
             Some((dir, basename)) => self
                 .sub_tree_recursive(dir.components())
@@ -121,7 +119,7 @@ impl Tree {
         }
     }
 
-    pub fn sub_tree(&self, name: &DirRepoPathComponent) -> Option<Tree> {
+    pub fn sub_tree(&self, name: &RepoPathComponent) -> Option<Tree> {
         self.data
             .value(name.value())
             .and_then(|sub_tree| match sub_tree {
@@ -133,12 +131,12 @@ impl Tree {
             })
     }
 
-    pub fn known_sub_tree(&self, name: &DirRepoPathComponent, id: &TreeId) -> Tree {
+    pub fn known_sub_tree(&self, name: &RepoPathComponent, id: &TreeId) -> Tree {
         let subdir = self.dir.join(name);
         self.store.get_tree(&subdir, id).unwrap()
     }
 
-    fn sub_tree_recursive(&self, components: &[DirRepoPathComponent]) -> Option<Tree> {
+    fn sub_tree_recursive(&self, components: &[RepoPathComponent]) -> Option<Tree> {
         if components.is_empty() {
             // TODO: It would be nice to be able to return a reference here, but
             // then we would have to figure out how to share Tree instances
@@ -155,7 +153,7 @@ impl Tree {
                 Some(entry) => match entry.value() {
                     TreeValue::Tree(sub_tree_id) => {
                         let sub_tree = self
-                            .known_sub_tree(&DirRepoPathComponent::from(entry.name()), sub_tree_id);
+                            .known_sub_tree(&RepoPathComponent::from(entry.name()), sub_tree_id);
                         sub_tree.sub_tree_recursive(&components[1..])
                     }
                     _ => None,
@@ -234,7 +232,7 @@ impl Iterator for TreeEntriesIter {
                     match entry.value() {
                         TreeValue::Tree(id) => {
                             let subtree =
-                                tree.known_sub_tree(&DirRepoPathComponent::from(entry.name()), id);
+                                tree.known_sub_tree(&RepoPathComponent::from(entry.name()), id);
                             let subtree = Box::pin(subtree);
                             let iter = subtree.entries_non_recursive();
                             let subtree_iter: TreeEntriesNonRecursiveIter<'static> =

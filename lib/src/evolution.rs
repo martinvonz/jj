@@ -20,7 +20,7 @@ use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::{bfs, closest_common_node, leaves};
 use crate::index::IndexPosition;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
-use crate::repo_path::DirRepoPath;
+use crate::repo_path::RepoPath;
 use crate::rewrite::{merge_commit_trees, rebase_commit};
 use crate::settings::UserSettings;
 use crate::store::{ChangeId, CommitId};
@@ -615,7 +615,7 @@ fn evolve_two_divergent_commits(
         let old_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &commit2.parents());
         let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &new_parents);
         let tree_id = merge_trees(&new_base_tree, &old_base_tree, &commit2.tree()).unwrap();
-        store.get_tree(&DirRepoPath::root(), &tree_id).unwrap()
+        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
     };
     let rebased_predecessor_tree = if common_predecessor.parents() == new_parents {
         common_predecessor.tree()
@@ -625,7 +625,7 @@ fn evolve_two_divergent_commits(
         let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &new_parents);
         let tree_id =
             merge_trees(&new_base_tree, &old_base_tree, &common_predecessor.tree()).unwrap();
-        store.get_tree(&DirRepoPath::root(), &tree_id).unwrap()
+        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
     };
 
     let resolved_tree =
