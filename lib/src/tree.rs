@@ -242,10 +242,7 @@ impl Iterator for TreeEntriesIter {
                             self.stack.push((subtree, subtree_iter));
                         }
                         other => {
-                            let path = RepoPath::new(
-                                tree.dir().clone(),
-                                RepoPathComponent::from(entry.name()),
-                            );
+                            let path = tree.dir().join(&RepoPathComponent::from(entry.name()));
                             return Some((path, other.clone()));
                         }
                     };

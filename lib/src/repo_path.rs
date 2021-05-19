@@ -78,10 +78,6 @@ impl RepoPath {
         }
     }
 
-    pub fn new(dir: DirRepoPath, basename: RepoPathComponent) -> Self {
-        RepoPath { dir, basename }
-    }
-
     pub fn from_internal_string(value: &str) -> Self {
         assert!(!value.ends_with('/'));
         match value.rfind('/') {
