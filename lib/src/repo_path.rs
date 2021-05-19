@@ -88,6 +88,19 @@ impl RepoPath {
     }
 
     /// The full string form used internally, not for presenting to users (where
+    /// we may want to use the platform's separator). This format includes a
+    /// trailing slash, unless this path represents the root directory. That
+    /// way it can be concatenated with a basename and produce a valid path.
+    pub fn to_internal_dir_string(&self) -> String {
+        let mut result = String::new();
+        for component in &self.components {
+            result.push_str(component.value());
+            result.push('/');
+        }
+        result
+    }
+
+    /// The full string form used internally, not for presenting to users (where
     /// we may want to use the platform's separator).
     pub fn to_internal_file_string(&self) -> String {
         let strings: Vec<String> = self
@@ -108,6 +121,20 @@ impl RepoPath {
 
     pub fn is_root(&self) -> bool {
         self.components.is_empty()
+    }
+
+    pub fn contains(&self, other: &RepoPath) -> bool {
+        other.components.starts_with(&self.components)
+    }
+
+    pub fn parent(&self) -> Option<RepoPath> {
+        if self.is_root() {
+            None
+        } else {
+            Some(RepoPath {
+                components: self.components[0..self.components.len() - 1].to_vec(),
+            })
+        }
     }
 
     pub fn dir(&self) -> Option<DirRepoPath> {
@@ -238,6 +265,16 @@ impl RepoPathJoin<RepoPathComponent> for DirRepoPath {
                 value: component.value.clone(),
             })
             .collect();
+        components.push(entry.clone());
+        RepoPath { components }
+    }
+}
+
+impl RepoPathJoin<RepoPathComponent> for RepoPath {
+    type Result = RepoPath;
+
+    fn join(&self, entry: &RepoPathComponent) -> RepoPath {
+        let mut components: Vec<RepoPathComponent> = self.components.clone();
         components.push(entry.clone());
         RepoPath { components }
     }

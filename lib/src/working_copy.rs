@@ -38,9 +38,7 @@ use crate::commit_builder::CommitBuilder;
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::repo::ReadonlyRepo;
-use crate::repo_path::{
-    DirRepoPath, DirRepoPathComponent, RepoPath, RepoPathComponent, RepoPathJoin,
-};
+use crate::repo_path::{DirRepoPath, RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::settings::UserSettings;
 use crate::store::{CommitId, FileId, MillisSinceEpoch, StoreError, SymlinkId, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
@@ -321,11 +319,7 @@ impl TreeState {
                 TreeState::try_chain_gitignore(&git_ignore, "", home_dir_path.join(".gitignore"));
         }
 
-        let mut work = vec![(
-            DirRepoPath::root(),
-            self.working_copy_path.clone(),
-            git_ignore,
-        )];
+        let mut work = vec![(RepoPath::root(), self.working_copy_path.clone(), git_ignore)];
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
         let mut deleted_files: HashSet<&RepoPath> = self.file_states.keys().collect();
         let mut modified_files = BTreeMap::new();
@@ -344,9 +338,9 @@ impl TreeState {
                 if name == ".jj" {
                     continue;
                 }
+                let sub_path = dir.join(&RepoPathComponent::from(name));
                 if file_type.is_dir() {
-                    let subdir = dir.join(&DirRepoPathComponent::from(name));
-                    if git_ignore.matches_all_files_in(&subdir.to_internal_dir_string()) {
+                    if git_ignore.matches_all_files_in(&sub_path.to_internal_dir_string()) {
                         // If the whole directory is ignored, skip it unless we're already tracking
                         // some file in it. TODO: This is pretty ugly... Also, we should
                         // optimize it to check exactly the already-tracked files (we know that
@@ -357,29 +351,23 @@ impl TreeState {
                             .range((Bound::Included(&first_file_in_dir), Bound::Unbounded))
                             .next()
                         {
-                            if !maybe_subdir_file
-                                .dir()
-                                .unwrap()
-                                .components()
-                                .starts_with(dir.components())
-                            {
+                            if !dir.contains(&maybe_subdir_file.parent().unwrap()) {
                                 continue;
                             }
                         }
                     }
                     let disk_subdir = disk_dir.join(file_name);
-                    work.push((subdir, disk_subdir, git_ignore.clone()));
+                    work.push((sub_path, disk_subdir, git_ignore.clone()));
                 } else {
-                    let file = dir.join(&RepoPathComponent::from(name));
                     let disk_file = disk_dir.join(file_name);
-                    deleted_files.remove(&file);
+                    deleted_files.remove(&sub_path);
                     let new_file_state = self.file_state(&entry.path()).unwrap();
                     let clean;
                     let executable;
-                    match self.file_states.get(&file) {
+                    match self.file_states.get(&sub_path) {
                         None => {
                             // untracked
-                            if git_ignore.matches_file(&file.to_internal_file_string()) {
+                            if git_ignore.matches_file(&sub_path.to_internal_file_string()) {
                                 continue;
                             }
                             clean = false;
@@ -404,16 +392,16 @@ impl TreeState {
                     if !clean {
                         let file_value = match new_file_state.file_type {
                             FileType::Normal | FileType::Executable => {
-                                let id = self.write_file_to_store(&file, &disk_file);
+                                let id = self.write_file_to_store(&sub_path, &disk_file);
                                 TreeValue::Normal { id, executable }
                             }
                             FileType::Symlink => {
-                                let id = self.write_symlink_to_store(&file, &disk_file);
+                                let id = self.write_symlink_to_store(&sub_path, &disk_file);
                                 TreeValue::Symlink(id)
                             }
                         };
-                        tree_builder.set(file.clone(), file_value);
-                        modified_files.insert(file, new_file_state);
+                        tree_builder.set(sub_path.clone(), file_value);
+                        modified_files.insert(sub_path, new_file_state);
                     }
                 }
             }
