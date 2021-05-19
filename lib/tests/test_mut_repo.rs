@@ -36,14 +36,12 @@ fn test_checkout_open(use_git: bool) {
     let requested_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(tx.mut_repo());
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
     assert_eq!(actual_checkout.id(), requested_checkout.id());
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
     assert_eq!(repo.view().checkout(), actual_checkout.id());
 }
 
@@ -59,16 +57,14 @@ fn test_checkout_closed(use_git: bool) {
     let requested_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(false)
         .write_to_repo(tx.mut_repo());
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
     assert_eq!(actual_checkout.tree().id(), requested_checkout.tree().id());
     assert_eq!(actual_checkout.parents().len(), 1);
     assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
     assert_eq!(repo.view().checkout(), actual_checkout.id());
 }
 
@@ -93,8 +89,7 @@ fn test_checkout_open_with_conflict(use_git: bool) {
     let requested_checkout = CommitBuilder::for_new_commit(&settings, store, tree_id)
         .set_open(true)
         .write_to_repo(tx.mut_repo());
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
@@ -108,8 +103,7 @@ fn test_checkout_open_with_conflict(use_git: bool) {
     }
     assert_eq!(actual_checkout.parents().len(), 1);
     assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
     assert_eq!(repo.view().checkout(), actual_checkout.id());
 }
 
@@ -134,8 +128,7 @@ fn test_checkout_closed_with_conflict(use_git: bool) {
     let requested_checkout = CommitBuilder::for_new_commit(&settings, store, tree_id)
         .set_open(false)
         .write_to_repo(tx.mut_repo());
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
@@ -149,8 +142,7 @@ fn test_checkout_closed_with_conflict(use_git: bool) {
     }
     assert_eq!(actual_checkout.parents().len(), 1);
     assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
     assert_eq!(repo.view().checkout(), actual_checkout.id());
 }
 
@@ -197,8 +189,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
         .set_open(true)
         .write_to_repo(mut_repo);
     mut_repo.check_out(&settings, &old_checkout);
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -228,8 +219,7 @@ fn test_checkout_previous_empty(use_git: bool) {
     )
     .write_to_repo(mut_repo);
     mut_repo.check_out(&settings, &old_checkout);
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -261,8 +251,7 @@ fn test_checkout_previous_empty_and_obsolete(use_git: bool) {
     let successor = CommitBuilder::for_rewrite_from(&settings, repo.store(), &old_checkout)
         .write_to_repo(mut_repo);
     mut_repo.check_out(&settings, &old_checkout);
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -291,8 +280,7 @@ fn test_checkout_previous_empty_and_pruned(use_git: bool) {
         .set_pruned(true)
         .write_to_repo(mut_repo);
     mut_repo.check_out(&settings, &old_checkout);
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -332,8 +320,7 @@ fn test_add_head_success(use_git: bool) {
     mut_repo.add_head(&new_commit);
     assert!(mut_repo.view().heads().contains(new_commit.id()));
     assert!(mut_repo.index().has_id(new_commit.id()));
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
     assert!(repo.view().heads().contains(new_commit.id()));
     assert!(repo.index().has_id(new_commit.id()));
     let index_stats = repo.index().stats();
@@ -355,8 +342,7 @@ fn test_add_head_ancestor(use_git: bool) {
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
     let _commit3 = graph_builder.commit_with_parents(&[&commit2]);
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let index_stats = repo.index().stats();
     assert_eq!(index_stats.num_heads, 2);
@@ -383,8 +369,7 @@ fn test_add_head_not_immediate_child(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let initial = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     // Create some commit outside of the repo by using a temporary transaction. Then
     // add one of them as a head.
@@ -437,8 +422,7 @@ fn test_remove_head(use_git: bool) {
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
     let commit3 = graph_builder.commit_with_parents(&[&commit2]);
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -451,9 +435,7 @@ fn test_remove_head(use_git: bool) {
     assert!(mut_repo.index().has_id(commit1.id()));
     assert!(mut_repo.index().has_id(commit2.id()));
     assert!(mut_repo.index().has_id(commit3.id()));
-    tx.commit();
-
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
     let heads = repo.view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
@@ -478,8 +460,7 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     let commit3 = graph_builder.commit_with_parents(&[&commit2]);
     tx.mut_repo()
         .insert_git_ref("refs/heads/main".to_string(), commit1.id().clone());
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -490,9 +471,7 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
     assert!(heads.contains(commit1.id()));
-    tx.commit();
-
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
     let heads = repo.view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
@@ -509,16 +488,14 @@ fn test_add_public_head(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     assert!(!mut_repo.view().public_heads().contains(commit1.id()));
     mut_repo.add_public_head(&commit1);
     assert!(mut_repo.view().public_heads().contains(commit1.id()));
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
     assert!(repo.view().public_heads().contains(commit1.id()));
 }
 
@@ -535,16 +512,14 @@ fn test_add_public_head_ancestor(use_git: bool) {
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
     tx.mut_repo().add_public_head(&commit2);
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     assert!(!mut_repo.view().public_heads().contains(commit1.id()));
     mut_repo.add_public_head(&commit1);
     assert!(!mut_repo.view().public_heads().contains(commit1.id()));
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
     assert!(!repo.view().public_heads().contains(commit1.id()));
 }
 
@@ -560,15 +535,13 @@ fn test_remove_public_head(use_git: bool) {
     let mut_repo = tx.mut_repo();
     let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     mut_repo.add_public_head(&commit1);
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     assert!(mut_repo.view().public_heads().contains(commit1.id()));
     mut_repo.remove_public_head(&commit1);
     assert!(!mut_repo.view().public_heads().contains(commit1.id()));
-    tx.commit();
-    let repo = repo.reload().unwrap();
+    let repo = tx.commit();
     assert!(!repo.view().public_heads().contains(commit1.id()));
 }

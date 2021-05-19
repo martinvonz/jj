@@ -104,7 +104,7 @@ fn test_import_refs() {
 #[test]
 fn test_import_refs_reimport() {
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, true);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, true);
     let git_repo = repo.store().git_repo().unwrap();
 
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
@@ -119,14 +119,13 @@ fn test_import_refs_reimport() {
     let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
     jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
-    tx.commit();
+    let repo = tx.commit();
 
     // Delete feature1 and rewrite feature2
     delete_git_ref(&git_repo, "refs/heads/feature1");
     delete_git_ref(&git_repo, "refs/heads/feature2");
     let commit5 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
 
-    repo = repo.reload().unwrap();
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     jujutsu_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
@@ -165,7 +164,7 @@ fn delete_git_ref(git_repo: &git2::Repository, name: &str) {
 #[test]
 fn test_import_refs_merge() {
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, true);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, true);
     let git_repo = repo.store().git_repo().unwrap();
 
     // Set up the following refs and update them as follows:
@@ -202,8 +201,7 @@ fn test_import_refs_merge() {
     git_ref(&git_repo, "refs/heads/remove-forward", commit1.id());
     let mut tx = repo.start_transaction("initial import");
     jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
-    tx.commit();
-    repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     // One of the concurrent operations:
     git_ref(&git_repo, "refs/heads/sideways-unchanged", commit4.id());
@@ -230,7 +228,7 @@ fn test_import_refs_merge() {
     tx2.commit();
 
     // Reload the repo, causing the operations to be merged.
-    repo = repo.reload().unwrap();
+    let repo = repo.reload().unwrap();
 
     let view = repo.view();
     let git_refs = view.git_refs();

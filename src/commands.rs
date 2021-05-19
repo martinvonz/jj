@@ -771,21 +771,20 @@ fn cmd_init(
         fs::create_dir(&wc_path).unwrap();
     }
 
-    let repo;
-    if let Some(git_store_str) = sub_matches.value_of("git-store") {
+    let repo = if let Some(git_store_str) = sub_matches.value_of("git-store") {
         let git_store_path = ui.cwd().join(git_store_str);
-        repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path, git_store_path);
+        let repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path, git_store_path);
         let git_repo = repo.store().git_repo().unwrap();
         let mut tx = repo.start_transaction("import git refs");
         git::import_refs(tx.mut_repo(), &git_repo).unwrap();
         // TODO: Check out a recent commit. Maybe one with the highest generation
         // number.
-        tx.commit();
+        tx.commit()
     } else if sub_matches.is_present("git") {
-        repo = ReadonlyRepo::init_internal_git(ui.settings(), wc_path);
+        ReadonlyRepo::init_internal_git(ui.settings(), wc_path)
     } else {
-        repo = ReadonlyRepo::init_local(ui.settings(), wc_path);
-    }
+        ReadonlyRepo::init_local(ui.settings(), wc_path)
+    };
     writeln!(
         ui,
         "Initialized repo in \"{}\"",

@@ -66,7 +66,7 @@ fn test_index_commits_empty_repo(use_git: bool) {
 #[test_case(true ; "git store")]
 fn test_index_commits_standard_cases(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     //   o H
     // o | G
@@ -94,8 +94,7 @@ fn test_index_commits_standard_cases(use_git: bool) {
     let commit_f = graph_builder.commit_with_parents(&[&commit_b, &commit_e]);
     let commit_g = graph_builder.commit_with_parents(&[&commit_f]);
     let commit_h = graph_builder.commit_with_parents(&[&commit_e]);
-    tx.commit();
-    repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let index = repo.index();
     // There should be the root commit and the working copy commit, plus
@@ -137,7 +136,7 @@ fn test_index_commits_standard_cases(use_git: bool) {
 #[test_case(true ; "git store")]
 fn test_index_commits_criss_cross(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let num_generations = 50;
 
@@ -156,8 +155,7 @@ fn test_index_commits_criss_cross(use_git: bool) {
         left_commits.push(new_left);
         right_commits.push(new_right);
     }
-    tx.commit();
-    repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let index = repo.index();
     // There should the root commit and the working copy commit, plus 2 for each
@@ -238,7 +236,7 @@ fn test_index_commits_criss_cross(use_git: bool) {
 fn test_index_commits_previous_operations(use_git: bool) {
     // Test that commits visible only in previous operations are indexed.
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     // Remove commit B and C in one operation and make sure they're still
     // visible in the index after that operation.
@@ -254,13 +252,11 @@ fn test_index_commits_previous_operations(use_git: bool) {
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
-    tx.commit();
-    repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     tx.mut_repo().remove_head(&commit_c);
-    tx.commit();
-    repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     // Delete index from disk
     let index_operations_dir = repo
@@ -418,8 +414,7 @@ fn create_n_commits(
     for _ in 0..num_commits {
         create_random_commit(settings, repo).write_to_repo(tx.mut_repo());
     }
-    tx.commit();
-    repo.reload().unwrap()
+    tx.commit()
 }
 
 fn commits_by_level(repo: &ReadonlyRepo) -> Vec<u32> {

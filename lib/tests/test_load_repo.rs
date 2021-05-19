@@ -45,12 +45,11 @@ fn test_load_from_subdir(use_git: bool) {
 #[test_case(true ; "git store")]
 fn test_load_at_operation(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let mut tx = repo.start_transaction("add commit");
     let commit = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
-    let op = tx.commit().operation().clone();
-    repo = repo.reload().unwrap();
+    let repo = tx.commit();
 
     let mut tx = repo.start_transaction("remove commit");
     tx.mut_repo().remove_head(&commit);
@@ -65,6 +64,6 @@ fn test_load_at_operation(use_git: bool) {
     // If we load the repo at the previous operation, we should see the commit since
     // it has not been removed yet
     let loader = RepoLoader::init(&settings, repo.working_copy_path().clone()).unwrap();
-    let old_repo = loader.load_at(&op).unwrap();
+    let old_repo = loader.load_at(&repo.operation()).unwrap();
     assert!(old_repo.view().heads().contains(commit.id()));
 }
