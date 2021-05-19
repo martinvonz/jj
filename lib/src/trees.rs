@@ -166,62 +166,55 @@ impl Iterator for TreeDiffIterator {
 
             // Note: whenever we say "file" below, it may also be a symlink or a conflict.
             if let Some((name, before, after)) = self.entry_iterator.next() {
+                let tree_before = matches!(before, Some(TreeValue::Tree(_)));
+                let tree_after = matches!(after, Some(TreeValue::Tree(_)));
+                if tree_before || tree_after {
+                    let subdir = RepoPathComponent::from(name.as_str());
+                    let subdir_path = self.dir.join(&subdir);
+                    let before_tree = match before {
+                        Some(TreeValue::Tree(id_before)) => {
+                            self.tree1.known_sub_tree(&subdir, &id_before)
+                        }
+                        _ => Tree::null(self.tree1.store().clone(), subdir_path.clone()),
+                    };
+                    let after_tree = match after {
+                        Some(TreeValue::Tree(id_after)) => {
+                            self.tree2.known_sub_tree(&subdir, &id_after)
+                        }
+                        _ => Tree::null(self.tree2.store().clone(), subdir_path.clone()),
+                    };
+                    self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
+                        subdir_path,
+                        before_tree,
+                        after_tree,
+                    )));
+                }
                 let file_path = self.dir.join(&RepoPathComponent::from(name.as_str()));
-                let subdir = RepoPathComponent::from(name.as_str());
-                let subdir_path = self.dir.join(&subdir);
-                // TODO: simplify this mess
-                match (before, after) {
-                    (Some(TreeValue::Tree(id_before)), Some(TreeValue::Tree(id_after))) => {
-                        self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
-                            subdir_path,
-                            self.tree1.known_sub_tree(&subdir, &id_before),
-                            self.tree2.known_sub_tree(&subdir, &id_after),
-                        )));
-                    }
-                    (Some(TreeValue::Tree(id_before)), Some(file_after)) => {
-                        self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
-                            subdir_path.clone(),
-                            self.tree1.known_sub_tree(&subdir, &id_before),
-                            Tree::null(self.tree2.store().clone(), subdir_path),
-                        )));
-                        self.added_file = Some((file_path, file_after.clone()));
-                    }
-                    (Some(file_before), Some(TreeValue::Tree(id_after))) => {
-                        self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
-                            subdir_path.clone(),
-                            Tree::null(self.tree1.store().clone(), subdir_path),
-                            self.tree2.known_sub_tree(&subdir, &id_after),
-                        )));
+                if !tree_before && tree_after {
+                    if let Some(file_before) = before {
                         return Some((file_path, Diff::Removed(file_before.clone())));
                     }
-                    (Some(file_before), Some(file_after)) => {
-                        return Some((
-                            file_path,
-                            Diff::Modified(file_before.clone(), file_after.clone()),
-                        ));
+                } else if tree_before && !tree_after {
+                    if let Some(file_after) = after {
+                        self.added_file = Some((file_path, file_after.clone()));
                     }
-                    (None, Some(TreeValue::Tree(id_after))) => {
-                        self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
-                            subdir_path.clone(),
-                            Tree::null(self.tree1.store().clone(), subdir_path),
-                            self.tree2.known_sub_tree(&subdir, &id_after),
-                        )));
-                    }
-                    (None, Some(value_after)) => {
-                        return Some((file_path, Diff::Added(value_after.clone())));
-                    }
-                    (Some(TreeValue::Tree(id_before)), None) => {
-                        self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
-                            subdir_path.clone(),
-                            self.tree1.known_sub_tree(&subdir, &id_before),
-                            Tree::null(self.tree2.store().clone(), subdir_path),
-                        )));
-                    }
-                    (Some(value_before), None) => {
-                        return Some((file_path, Diff::Removed(value_before.clone())));
-                    }
-                    (None, None) => {
-                        panic!("unexpected diff")
+                } else if !tree_before && !tree_after {
+                    match (before, after) {
+                        (Some(file_before), Some(file_after)) => {
+                            return Some((
+                                file_path,
+                                Diff::Modified(file_before.clone(), file_after.clone()),
+                            ));
+                        }
+                        (None, Some(file_after)) => {
+                            return Some((file_path, Diff::Added(file_after.clone())));
+                        }
+                        (Some(file_before), None) => {
+                            return Some((file_path, Diff::Removed(file_before.clone())));
+                        }
+                        (None, None) => {
+                            panic!("unexpected diff")
+                        }
                     }
                 }
             } else {
