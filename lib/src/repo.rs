@@ -132,25 +132,35 @@ impl Debug for ReadonlyRepo {
 }
 
 #[derive(Error, Debug, PartialEq)]
+pub enum RepoInitError {
+    #[error("The destination repo ({0}) already exists")]
+    DestinationExists(PathBuf),
+}
+
+#[derive(Error, Debug, PartialEq)]
 pub enum RepoLoadError {
     #[error("There is no Jujutsu repo in {0}")]
     NoRepoHere(PathBuf),
 }
 
 impl ReadonlyRepo {
-    pub fn init_local(settings: &UserSettings, wc_path: PathBuf) -> Arc<ReadonlyRepo> {
-        let repo_path = wc_path.join(".jj");
-        fs::create_dir(repo_path.clone()).unwrap();
+    pub fn init_local(
+        settings: &UserSettings,
+        wc_path: PathBuf,
+    ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
+        let repo_path = ReadonlyRepo::init_repo_dir(&wc_path)?;
         let store_path = repo_path.join("store");
         fs::create_dir(&store_path).unwrap();
         let store = Box::new(LocalStore::init(store_path));
-        ReadonlyRepo::init(settings, repo_path, wc_path, store)
+        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, store))
     }
 
     /// Initializes a repo with a new Git store in .jj/git/ (bare Git repo)
-    pub fn init_internal_git(settings: &UserSettings, wc_path: PathBuf) -> Arc<ReadonlyRepo> {
-        let repo_path = wc_path.join(".jj");
-        fs::create_dir(repo_path.clone()).unwrap();
+    pub fn init_internal_git(
+        settings: &UserSettings,
+        wc_path: PathBuf,
+    ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
+        let repo_path = ReadonlyRepo::init_repo_dir(&wc_path)?;
         let git_store_path = repo_path.join("git");
         git2::Repository::init_bare(&git_store_path).unwrap();
         let store_path = repo_path.join("store");
@@ -158,7 +168,7 @@ impl ReadonlyRepo {
         let mut store_file = File::create(store_path).unwrap();
         store_file.write_all(b"git: git").unwrap();
         let store = Box::new(GitStore::load(&git_store_path));
-        ReadonlyRepo::init(settings, repo_path, wc_path, store)
+        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, store))
     }
 
     /// Initializes a repo with an existing Git store at the specified path
@@ -166,9 +176,8 @@ impl ReadonlyRepo {
         settings: &UserSettings,
         wc_path: PathBuf,
         git_store_path: PathBuf,
-    ) -> Arc<ReadonlyRepo> {
-        let repo_path = wc_path.join(".jj");
-        fs::create_dir(repo_path.clone()).unwrap();
+    ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
+        let repo_path = ReadonlyRepo::init_repo_dir(&wc_path)?;
         let store_path = repo_path.join("store");
         let git_store_path = fs::canonicalize(git_store_path).unwrap();
         let mut store_file = File::create(store_path).unwrap();
@@ -176,7 +185,17 @@ impl ReadonlyRepo {
             .write_all(format!("git: {}", git_store_path.to_str().unwrap()).as_bytes())
             .unwrap();
         let store = Box::new(GitStore::load(&git_store_path));
-        ReadonlyRepo::init(settings, repo_path, wc_path, store)
+        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, store))
+    }
+
+    fn init_repo_dir(wc_path: &Path) -> Result<PathBuf, RepoInitError> {
+        let repo_path = wc_path.join(".jj");
+        if repo_path.exists() {
+            Err(RepoInitError::DestinationExists(repo_path))
+        } else {
+            fs::create_dir(&repo_path).unwrap();
+            Ok(repo_path)
+        }
     }
 
     fn init(

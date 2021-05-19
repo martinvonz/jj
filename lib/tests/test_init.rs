@@ -22,7 +22,7 @@ fn test_init_local() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let wc_path = temp_dir.path().to_owned();
-    let repo = ReadonlyRepo::init_local(&settings, wc_path.clone());
+    let repo = ReadonlyRepo::init_local(&settings, wc_path.clone()).unwrap();
     assert!(repo.store().git_repo().is_none());
     assert_eq!(repo.working_copy_path(), &wc_path);
     assert_eq!(repo.repo_path(), &wc_path.join(".jj"));
@@ -38,7 +38,7 @@ fn test_init_internal_git() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let wc_path = temp_dir.path().to_owned();
-    let repo = ReadonlyRepo::init_internal_git(&settings, wc_path.clone());
+    let repo = ReadonlyRepo::init_internal_git(&settings, wc_path.clone()).unwrap();
     assert!(repo.store().git_repo().is_some());
     assert_eq!(repo.working_copy_path(), &wc_path);
     assert_eq!(repo.repo_path(), &wc_path.join(".jj"));
@@ -57,7 +57,7 @@ fn test_init_external_git() {
     git2::Repository::init(&git_repo_path).unwrap();
     let wc_path = temp_dir.path().join("jj");
     std::fs::create_dir(&wc_path).unwrap();
-    let repo = ReadonlyRepo::init_external_git(&settings, wc_path.clone(), git_repo_path);
+    let repo = ReadonlyRepo::init_external_git(&settings, wc_path.clone(), git_repo_path).unwrap();
     assert!(repo.store().git_repo().is_some());
     assert_eq!(repo.working_copy_path(), &wc_path);
     assert_eq!(repo.repo_path(), &wc_path.join(".jj"));

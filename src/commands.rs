@@ -40,7 +40,7 @@ use jujutsu_lib::git::GitFetchError;
 use jujutsu_lib::index::HexPrefix;
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId};
 use jujutsu_lib::operation::Operation;
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoLoadError, RepoLoader};
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoInitError, RepoLoadError, RepoLoader};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
@@ -84,6 +84,12 @@ impl From<std::io::Error> for CommandError {
 impl From<StoreError> for CommandError {
     fn from(err: StoreError) -> Self {
         CommandError::UserError(format!("Unexpected error from store: {}", err))
+    }
+}
+
+impl From<RepoInitError> for CommandError {
+    fn from(_: RepoInitError) -> Self {
+        CommandError::UserError("The target repo already exists".to_string())
     }
 }
 
@@ -785,7 +791,7 @@ fn cmd_init(
 
     let repo = if let Some(git_store_str) = sub_matches.value_of("git-store") {
         let git_store_path = ui.cwd().join(git_store_str);
-        let repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path, git_store_path);
+        let repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path, git_store_path)?;
         let git_repo = repo.store().git_repo().unwrap();
         let mut tx = repo.start_transaction("import git refs");
         git::import_refs(tx.mut_repo(), &git_repo).unwrap();
@@ -793,9 +799,9 @@ fn cmd_init(
         // number.
         tx.commit()
     } else if sub_matches.is_present("git") {
-        ReadonlyRepo::init_internal_git(ui.settings(), wc_path)
+        ReadonlyRepo::init_internal_git(ui.settings(), wc_path)?
     } else {
-        ReadonlyRepo::init_local(ui.settings(), wc_path)
+        ReadonlyRepo::init_local(ui.settings(), wc_path)?
     };
     writeln!(
         ui,
@@ -2293,7 +2299,7 @@ fn cmd_git_clone(
         fs::create_dir(&wc_path).unwrap();
     }
 
-    let repo = ReadonlyRepo::init_internal_git(ui.settings(), wc_path);
+    let repo = ReadonlyRepo::init_internal_git(ui.settings(), wc_path)?;
     let git_repo = get_git_repo(repo.store())?;
     writeln!(
         ui,

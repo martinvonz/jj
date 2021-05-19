@@ -277,7 +277,7 @@ fn test_import_refs_empty_git_repo() {
     let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
 
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
+    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir).unwrap();
     let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -297,7 +297,7 @@ fn test_init() {
     let initial_git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     let initial_commit_id = commit_id(&initial_git_commit);
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
+    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir).unwrap();
     // The refs were *not* imported -- it's the caller's responsibility to import
     // any refs they care about.
     assert!(!repo.view().heads().contains(&initial_commit_id));
@@ -315,7 +315,7 @@ fn test_fetch_success() {
     let clone_git_repo =
         git2::Repository::clone(&source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), clone_repo_dir);
+    ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), clone_repo_dir).unwrap();
 
     let new_git_commit =
         empty_git_commit(&source_git_repo, "refs/heads/main", &[&initial_git_commit]);
@@ -341,7 +341,7 @@ fn test_fetch_no_such_remote() {
     let jj_repo_dir = temp_dir.path().join("jj");
     let git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, source_repo_dir);
+    let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, source_repo_dir).unwrap();
 
     let mut tx = jj_repo.start_transaction("test");
     let result = git::fetch(tx.mut_repo(), &git_repo, "invalid-remote");
@@ -365,7 +365,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let initial_commit_id = commit_id(&initial_git_commit);
     git2::Repository::clone(&source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, clone_repo_dir);
+    let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, clone_repo_dir).unwrap();
     let new_commit = testutils::create_random_commit(&settings, &jj_repo)
         .set_parents(vec![initial_commit_id])
         .write_to_new_transaction(&jj_repo, "test");
