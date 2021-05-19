@@ -21,7 +21,7 @@ use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 use std::time::Instant;
@@ -99,12 +99,6 @@ impl From<git2::Error> for CommandError {
     }
 }
 
-impl From<RepoLoadError> for CommandError {
-    fn from(err: RepoLoadError) -> Self {
-        CommandError::UserError(format!("Failed to load repo: {}", err))
-    }
-}
-
 impl From<RevsetParseError> for CommandError {
     fn from(err: RevsetParseError) -> Self {
         CommandError::UserError(format!("Failed to parse revset: {}", err))
@@ -120,7 +114,25 @@ impl From<RevsetError> for CommandError {
 fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandError> {
     let wc_path_str = matches.value_of("repository").unwrap();
     let wc_path = ui.cwd().join(wc_path_str);
-    let loader = RepoLoader::init(ui.settings(), wc_path)?;
+    let loader = match RepoLoader::init(ui.settings(), wc_path) {
+        Ok(loader) => loader,
+        Err(RepoLoadError::NoRepoHere(wc_path)) => {
+            let mut message = format!("There is no jj repo in \"{}\"", wc_path_str);
+            let git_dir = wc_path.join(".git");
+            if git_dir.is_dir() {
+                // TODO: Make this hint separate from the error, so the caller can format
+                // it differently.
+                let git_dir_str = PathBuf::from(wc_path_str)
+                    .join(".git")
+                    .to_str()
+                    .unwrap()
+                    .to_owned();
+                message += &format!("\nIt looks like this is a git repo. You can create a jj repo backed by it by running this:\n\
+                                     jj init --git-store={} <path to new jj repo>", git_dir_str);
+            }
+            return Err(CommandError::UserError(message));
+        }
+    };
     if let Some(op_str) = matches.value_of("at_op") {
         let op = resolve_single_op_from_store(loader.op_store(), op_str)?;
         Ok(loader.load_at(&op))
