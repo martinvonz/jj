@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
+use test_case::test_case;
 
 #[test]
 fn test_init_local() {
@@ -64,4 +66,26 @@ fn test_init_external_git() {
     let mut tx = repo.start_transaction("test");
     testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
     tx.discard();
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_init_no_config_set(use_git: bool) {
+    // Test that we can create a repo without setting any config
+    let settings = UserSettings::from_config(config::Config::new());
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let wc_commit = repo.working_copy_locked().current_commit();
+    assert_eq!(wc_commit.author().name, "(no name configured)".to_string());
+    assert_eq!(
+        wc_commit.author().email,
+        "(no email configured)".to_string()
+    );
+    assert_eq!(
+        wc_commit.committer().name,
+        "(no name configured)".to_string()
+    );
+    assert_eq!(
+        wc_commit.committer().email,
+        "(no email configured)".to_string()
+    );
 }
