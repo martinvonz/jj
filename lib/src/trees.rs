@@ -42,8 +42,6 @@ impl<T> Diff<T> {
     }
 }
 
-pub type TreeValueDiff<'a> = Diff<&'a TreeValue>;
-
 struct TreeEntryDiffIterator<'a> {
     it1: Peekable<TreeEntriesNonRecursiveIter<'a>>,
     it2: Peekable<TreeEntriesNonRecursiveIter<'a>>,
@@ -58,7 +56,7 @@ impl<'a> TreeEntryDiffIterator<'a> {
 }
 
 impl<'a> Iterator for TreeEntryDiffIterator<'a> {
-    type Item = (String, TreeValueDiff<'a>);
+    type Item = (String, Option<&'a TreeValue>, Option<&'a TreeValue>);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -70,18 +68,12 @@ impl<'a> Iterator for TreeEntryDiffIterator<'a> {
                         Ordering::Less => {
                             // entry removed
                             let before = self.it1.next().unwrap();
-                            return Some((
-                                before.name().to_owned(),
-                                TreeValueDiff::Removed(before.value()),
-                            ));
+                            return Some((before.name().to_owned(), Some(before.value()), None));
                         }
                         Ordering::Greater => {
                             // entry added
                             let after = self.it2.next().unwrap();
-                            return Some((
-                                after.name().to_owned(),
-                                TreeValueDiff::Added(after.value()),
-                            ));
+                            return Some((after.name().to_owned(), None, Some(after.value())));
                         }
                         Ordering::Equal => {
                             // entry modified or clean
@@ -90,7 +82,8 @@ impl<'a> Iterator for TreeEntryDiffIterator<'a> {
                             if before.value() != after.value() {
                                 return Some((
                                     before.name().to_owned(),
-                                    TreeValueDiff::Modified(before.value(), after.value()),
+                                    Some(before.value()),
+                                    Some(after.value()),
                                 ));
                             }
                         }
@@ -99,15 +92,12 @@ impl<'a> Iterator for TreeEntryDiffIterator<'a> {
                 (Some(_), None) => {
                     // second iterator exhausted
                     let before = self.it1.next().unwrap();
-                    return Some((
-                        before.name().to_owned(),
-                        TreeValueDiff::Removed(before.value()),
-                    ));
+                    return Some((before.name().to_owned(), Some(before.value()), None));
                 }
                 (None, Some(_)) => {
                     // first iterator exhausted
                     let after = self.it2.next().unwrap();
-                    return Some((after.name().to_owned(), TreeValueDiff::Added(after.value())));
+                    return Some((after.name().to_owned(), None, Some(after.value())));
                 }
                 (None, None) => {
                     // both iterators exhausted
@@ -175,20 +165,20 @@ impl Iterator for TreeDiffIterator {
             }
 
             // Note: whenever we say "file" below, it may also be a symlink or a conflict.
-            if let Some((name, diff)) = self.entry_iterator.next() {
+            if let Some((name, before, after)) = self.entry_iterator.next() {
                 let file_path = self.dir.join(&RepoPathComponent::from(name.as_str()));
                 let subdir = RepoPathComponent::from(name.as_str());
                 let subdir_path = self.dir.join(&subdir);
                 // TODO: simplify this mess
-                match diff {
-                    Diff::Modified(TreeValue::Tree(id_before), TreeValue::Tree(id_after)) => {
+                match (before, after) {
+                    (Some(TreeValue::Tree(id_before)), Some(TreeValue::Tree(id_after))) => {
                         self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
                             subdir_path,
                             self.tree1.known_sub_tree(&subdir, &id_before),
                             self.tree2.known_sub_tree(&subdir, &id_after),
                         )));
                     }
-                    Diff::Modified(TreeValue::Tree(id_before), file_after) => {
+                    (Some(TreeValue::Tree(id_before)), Some(file_after)) => {
                         self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
                             subdir_path.clone(),
                             self.tree1.known_sub_tree(&subdir, &id_before),
@@ -196,7 +186,7 @@ impl Iterator for TreeDiffIterator {
                         )));
                         self.added_file = Some((file_path, file_after.clone()));
                     }
-                    Diff::Modified(file_before, TreeValue::Tree(id_after)) => {
+                    (Some(file_before), Some(TreeValue::Tree(id_after))) => {
                         self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
                             subdir_path.clone(),
                             Tree::null(self.tree1.store().clone(), subdir_path),
@@ -204,31 +194,34 @@ impl Iterator for TreeDiffIterator {
                         )));
                         return Some((file_path, Diff::Removed(file_before.clone())));
                     }
-                    Diff::Modified(file_before, file_after) => {
+                    (Some(file_before), Some(file_after)) => {
                         return Some((
                             file_path,
                             Diff::Modified(file_before.clone(), file_after.clone()),
                         ));
                     }
-                    Diff::Added(TreeValue::Tree(id_after)) => {
+                    (None, Some(TreeValue::Tree(id_after))) => {
                         self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
                             subdir_path.clone(),
                             Tree::null(self.tree1.store().clone(), subdir_path),
                             self.tree2.known_sub_tree(&subdir, &id_after),
                         )));
                     }
-                    Diff::Added(value_after) => {
+                    (None, Some(value_after)) => {
                         return Some((file_path, Diff::Added(value_after.clone())));
                     }
-                    Diff::Removed(TreeValue::Tree(id_before)) => {
+                    (Some(TreeValue::Tree(id_before)), None) => {
                         self.subdir_iterator = Some(Box::new(TreeDiffIterator::new(
                             subdir_path.clone(),
                             self.tree1.known_sub_tree(&subdir, &id_before),
                             Tree::null(self.tree2.store().clone(), subdir_path),
                         )));
                     }
-                    Diff::Removed(value_before) => {
+                    (Some(value_before), None) => {
                         return Some((file_path, Diff::Removed(value_before.clone())));
+                    }
+                    (None, None) => {
+                        panic!("unexpected diff")
                     }
                 }
             } else {
@@ -258,13 +251,8 @@ pub fn merge_trees(
     // Start with a tree identical to side 1 and modify based on changes from base
     // to side 2.
     let mut new_tree = side1_tree.data().clone();
-    for (basename, diff) in diff_entries(base_tree, side2_tree) {
+    for (basename, maybe_base, maybe_side2) in diff_entries(base_tree, side2_tree) {
         let maybe_side1 = side1_tree.value(basename.as_str());
-        let (maybe_base, maybe_side2) = match diff {
-            TreeValueDiff::Modified(base, side2) => (Some(base), Some(side2)),
-            TreeValueDiff::Added(side2) => (None, Some(side2)),
-            TreeValueDiff::Removed(base) => (Some(base), None),
-        };
         if maybe_side1 == maybe_base {
             // side 1 is unchanged: use the value from side 2
             match maybe_side2 {
