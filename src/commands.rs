@@ -2306,7 +2306,6 @@ fn cmd_git_clone(
         }
     })?;
     tx.commit();
-    writeln!(ui, "Done")?;
     Ok(())
 }
 
