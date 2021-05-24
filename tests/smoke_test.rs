@@ -28,8 +28,8 @@ fn smoke_test() {
     assert_eq!(output.status, 0);
     let stdout_string = output.stdout_string();
     let output_regex = Regex::new(
-        "^Working copy : ([[:xdigit:]]+) \n\
-             Parent commit: 000000000000 \n\
+        "^Parent commit: 000000000000 \n\
+             Working copy : ([[:xdigit:]]+) \n\
              The working copy is clean\n\
              $",
     )
@@ -56,8 +56,8 @@ fn smoke_test() {
     assert_eq!(output.status, 0);
     let stdout_string = output.stdout_string();
     let output_regex = Regex::new(
-        "^Working copy : ([[:xdigit:]]+) \n\
-             Parent commit: 000000000000 \n\
+        "^Parent commit: 000000000000 \n\
+             Working copy : ([[:xdigit:]]+) \n\
              Working copy changes:\n\
              A file1\n\
              A file2\n\

@@ -1117,11 +1117,11 @@ fn cmd_status(
     let mut repo_command = command.repo_helper(ui)?;
     let commit = repo_command.commit_working_copy();
     let repo = repo_command.repo();
-    ui.write("Working copy : ")?;
-    ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
-    ui.write("\n")?;
     ui.write("Parent commit: ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &commit.parents()[0])?;
+    ui.write("\n")?;
+    ui.write("Working copy : ")?;
+    ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
     ui.write("\n")?;
     let summary = commit.parents()[0].tree().diff_summary(&commit.tree());
     if summary.is_empty() {
