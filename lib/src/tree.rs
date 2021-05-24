@@ -47,6 +47,12 @@ pub struct DiffSummary {
     pub removed: Vec<RepoPath>,
 }
 
+impl DiffSummary {
+    pub fn is_empty(&self) -> bool {
+        self.modified.is_empty() && self.added.is_empty() && self.removed.is_empty()
+    }
+}
+
 impl Tree {
     pub fn new(
         store: Arc<StoreWrapper>,

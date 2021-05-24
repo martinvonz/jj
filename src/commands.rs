@@ -49,7 +49,7 @@ use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::{StoreError, Timestamp, TreeValue};
 use jujutsu_lib::store_wrapper::StoreWrapper;
 use jujutsu_lib::transaction::Transaction;
-use jujutsu_lib::tree::Tree;
+use jujutsu_lib::tree::DiffSummary;
 use jujutsu_lib::trees::Diff;
 use jujutsu_lib::working_copy::{CheckoutStats, WorkingCopy};
 use jujutsu_lib::{conflicts, files, git, revset};
@@ -965,7 +965,8 @@ fn cmd_diff(
     }
     let repo = repo_command.repo();
     if sub_matches.is_present("summary") {
-        show_diff_summary(ui, repo.working_copy_path(), &from_tree, &to_tree)?;
+        let summary = from_tree.diff_summary(&to_tree);
+        show_diff_summary(ui, repo.working_copy_path(), &summary)?;
     } else {
         let mut styler = ui.styler();
         styler.add_label(String::from("diff"))?;
@@ -1095,15 +1096,14 @@ fn cmd_diff(
     Ok(())
 }
 
-fn show_diff_summary(ui: &mut Ui, wc_path: &Path, from: &Tree, to: &Tree) -> io::Result<()> {
-    let summary = from.diff_summary(&to);
-    for file in summary.modified {
+fn show_diff_summary(ui: &mut Ui, wc_path: &Path, summary: &DiffSummary) -> io::Result<()> {
+    for file in &summary.modified {
         writeln!(ui, "M {}", ui.format_file_path(wc_path, &file))?;
     }
-    for file in summary.added {
+    for file in &summary.added {
         writeln!(ui, "A {}", ui.format_file_path(wc_path, &file))?;
     }
-    for file in summary.removed {
+    for file in &summary.removed {
         writeln!(ui, "R {}", ui.format_file_path(wc_path, &file))?;
     }
     Ok(())
@@ -1123,13 +1123,13 @@ fn cmd_status(
     ui.write("Parent commit: ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &commit.parents()[0])?;
     ui.write("\n")?;
-    ui.write("Diff summary:\n")?;
-    show_diff_summary(
-        ui,
-        repo.working_copy_path(),
-        &commit.parents()[0].tree(),
-        &commit.tree(),
-    )?;
+    let summary = commit.parents()[0].tree().diff_summary(&commit.tree());
+    if summary.is_empty() {
+        ui.write("The working copy is clean\n")?;
+    } else {
+        ui.write("Working copy changes:\n")?;
+        show_diff_summary(ui, repo.working_copy_path(), &summary)?;
+    }
     Ok(())
 }
 

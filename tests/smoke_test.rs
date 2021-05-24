@@ -30,7 +30,7 @@ fn smoke_test() {
     let output_regex = Regex::new(
         "^Working copy : ([[:xdigit:]]+) \n\
              Parent commit: 000000000000 \n\
-             Diff summary:\n\
+             The working copy is clean\n\
              $",
     )
     .unwrap();
@@ -58,7 +58,7 @@ fn smoke_test() {
     let output_regex = Regex::new(
         "^Working copy : ([[:xdigit:]]+) \n\
              Parent commit: 000000000000 \n\
-             Diff summary:\n\
+             Working copy changes:\n\
              A file1\n\
              A file2\n\
              A file3\n\
