@@ -535,7 +535,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .about("Create a copy of the commit with a new change id")
         .arg(rev_arg());
     let prune_command = SubCommand::with_name("prune")
-        .about("Mark a commit pruned, making descendants evolve onto its parent")
+        .about("Mark a commit pruned, making descendants rebase onto its parent")
         .arg(Arg::with_name("revision").index(1).default_value("@"));
     let new_command = SubCommand::with_name("new")
         .about("Create a new, empty commit")
