@@ -243,7 +243,7 @@ impl RepoCommandHelper {
         }
 
         let revset_expression = revset::parse(revision_str)?;
-        let revset = revset::evaluate_expression(self.repo.as_repo_ref(), &revset_expression)?;
+        let revset = revset_expression.evaluate(self.repo.as_repo_ref())?;
         let mut iter = revset.iter();
         match iter.next() {
             None => Err(CommandError::UserError(format!(
@@ -1216,7 +1216,7 @@ fn cmd_log(
     let store = repo.store();
     let revision_str = sub_matches.value_of("revisions").unwrap();
     let revset_expression = revset::parse(revision_str)?;
-    let revset = revset::evaluate_expression(repo.as_repo_ref(), &revset_expression)?;
+    let revset = revset_expression.evaluate(repo.as_repo_ref())?;
     if use_graph {
         let mut graph = AsciiGraphDrawer::new(&mut styler);
         for (index_entry, edges) in revset.iter().graph() {

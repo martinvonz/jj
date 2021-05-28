@@ -14,7 +14,7 @@
 
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo::RepoRef;
-use jujutsu_lib::revset::{evaluate_expression, parse, resolve_symbol, RevsetError};
+use jujutsu_lib::revset::{parse, resolve_symbol, RevsetError};
 use jujutsu_lib::store::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::CommitGraphBuilder;
@@ -227,7 +227,8 @@ fn test_resolve_symbol_git_refs() {
 
 fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
     let expression = parse(revset_str).unwrap();
-    evaluate_expression(repo, &expression)
+    expression
+        .evaluate(repo)
         .unwrap()
         .iter()
         .map(|entry| entry.commit_id())

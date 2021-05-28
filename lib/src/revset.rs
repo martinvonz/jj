@@ -148,6 +148,13 @@ impl RevsetExpression {
             RevsetExpression::non_obsolete_heads(),
         ))
     }
+
+    pub fn evaluate<'repo>(
+        &self,
+        repo: RepoRef<'repo>,
+    ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
+        evaluate_expression(repo, self)
+    }
 }
 
 fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<RevsetExpression, RevsetParseError> {
@@ -794,7 +801,7 @@ pub fn evaluate_expression<'repo>(
         }
         RevsetExpression::Parents(base_expression) => {
             // TODO: Make this lazy
-            let base_set = evaluate_expression(repo, base_expression.as_ref())?;
+            let base_set = base_expression.evaluate(repo)?;
             let mut parent_entries: Vec<_> =
                 base_set.iter().flat_map(|entry| entry.parents()).collect();
             parent_entries.sort_by_key(|b| Reverse(b.position()));
@@ -804,25 +811,23 @@ pub fn evaluate_expression<'repo>(
             }))
         }
         RevsetExpression::Children { roots, heads } => {
-            let root_set = evaluate_expression(repo, roots.as_ref())?;
-            let candidate_set =
-                evaluate_expression(repo, &RevsetExpression::Ancestors(heads.clone()))?;
+            let root_set = roots.evaluate(repo)?;
+            let candidates_expression = RevsetExpression::Ancestors(heads.clone());
+            let candidate_set = candidates_expression.evaluate(repo)?;
             Ok(Box::new(ChildrenRevset {
                 root_set,
                 candidate_set,
             }))
         }
-        RevsetExpression::Ancestors(base_expression) => evaluate_expression(
-            repo,
-            &RevsetExpression::Range {
-                roots: Rc::new(RevsetExpression::None),
-                heads: base_expression.clone(),
-            },
-        ),
+        RevsetExpression::Ancestors(base_expression) => RevsetExpression::Range {
+            roots: Rc::new(RevsetExpression::None),
+            heads: base_expression.clone(),
+        }
+        .evaluate(repo),
         RevsetExpression::Range { roots, heads } => {
-            let root_set = evaluate_expression(repo, roots.as_ref())?;
+            let root_set = roots.evaluate(repo)?;
             let root_ids: Vec<_> = root_set.iter().map(|entry| entry.commit_id()).collect();
-            let head_set = evaluate_expression(repo, heads.as_ref())?;
+            let head_set = heads.evaluate(repo)?;
             let head_ids: Vec<_> = head_set.iter().map(|entry| entry.commit_id()).collect();
             let walk = repo.index().walk_revs(&head_ids, &root_ids);
             Ok(Box::new(RevWalkRevset { walk }))
@@ -831,9 +836,8 @@ pub fn evaluate_expression<'repo>(
         // reverse
         #[allow(clippy::needless_collect)]
         RevsetExpression::DagRange { roots, heads } => {
-            let root_set = evaluate_expression(repo, roots.as_ref())?;
-            let candidate_set =
-                evaluate_expression(repo, &RevsetExpression::Ancestors(heads.clone()))?;
+            let root_set = roots.evaluate(repo)?;
+            let candidate_set = RevsetExpression::Ancestors(heads.clone()).evaluate(repo)?;
             let mut reachable: HashSet<_> = root_set.iter().map(|entry| entry.position()).collect();
             let mut result = vec![];
             let candidates: Vec<_> = candidate_set.iter().collect();
@@ -864,14 +868,14 @@ pub fn evaluate_expression<'repo>(
             Ok(Box::new(EagerRevset { index_entries }))
         }
         RevsetExpression::NonObsoleteHeads(base_expression) => {
-            let base_set = evaluate_expression(repo, base_expression.as_ref())?;
+            let base_set = base_expression.evaluate(repo)?;
             Ok(non_obsolete_heads(repo, base_set))
         }
         RevsetExpression::ParentCount {
             candidates,
             parent_count_range,
         } => {
-            let candidates = evaluate_expression(repo, candidates.as_ref())?;
+            let candidates = candidates.evaluate(repo)?;
             let parent_count_range = parent_count_range.clone();
             Ok(Box::new(FilterRevset {
                 candidates,
@@ -901,7 +905,7 @@ pub fn evaluate_expression<'repo>(
             Ok(Box::new(EagerRevset { index_entries }))
         }
         RevsetExpression::Description { needle, candidates } => {
-            let candidates = evaluate_expression(repo, candidates.as_ref())?;
+            let candidates = candidates.evaluate(repo)?;
             let repo = repo;
             let needle = needle.clone();
             Ok(Box::new(FilterRevset {
@@ -916,18 +920,18 @@ pub fn evaluate_expression<'repo>(
             }))
         }
         RevsetExpression::Union(expression1, expression2) => {
-            let set1 = evaluate_expression(repo, expression1.as_ref())?;
-            let set2 = evaluate_expression(repo, expression2.as_ref())?;
+            let set1 = expression1.evaluate(repo)?;
+            let set2 = expression2.evaluate(repo)?;
             Ok(Box::new(UnionRevset { set1, set2 }))
         }
         RevsetExpression::Intersection(expression1, expression2) => {
-            let set1 = evaluate_expression(repo, expression1.as_ref())?;
-            let set2 = evaluate_expression(repo, expression2.as_ref())?;
+            let set1 = expression1.evaluate(repo)?;
+            let set2 = expression2.evaluate(repo)?;
             Ok(Box::new(IntersectionRevset { set1, set2 }))
         }
         RevsetExpression::Difference(expression1, expression2) => {
-            let set1 = evaluate_expression(repo, expression1.as_ref())?;
-            let set2 = evaluate_expression(repo, expression2.as_ref())?;
+            let set1 = expression1.evaluate(repo)?;
+            let set2 = expression2.evaluate(repo)?;
             Ok(Box::new(DifferenceRevset { set1, set2 }))
         }
     }
