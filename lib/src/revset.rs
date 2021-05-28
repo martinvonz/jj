@@ -778,10 +778,10 @@ impl<'revset, 'repo> Iterator for DifferenceRevsetIterator<'revset, 'repo> {
     }
 }
 
-pub fn evaluate_expression<'revset, 'repo: 'revset>(
+pub fn evaluate_expression<'repo>(
     repo: RepoRef<'repo>,
     expression: &RevsetExpression,
-) -> Result<Box<dyn Revset<'repo> + 'revset>, RevsetError> {
+) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
     match expression {
         RevsetExpression::None => Ok(Box::new(EagerRevset {
             index_entries: vec![],
