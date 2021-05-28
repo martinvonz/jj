@@ -42,7 +42,7 @@ use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoInitError, RepoLoadError, RepoLoader};
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::revset::{RevsetError, RevsetParseError};
+use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujutsu_lib::settings::UserSettings;
@@ -227,22 +227,7 @@ impl RepoCommandHelper {
     }
 
     fn resolve_single_rev(&mut self, revision_str: &str) -> Result<Commit, CommandError> {
-        // If we're looking up the working copy commit ("@"), make sure that it is up to
-        // date (the lib crate only looks at the checkout in the view).
-        // TODO: How do we generally figure out if a revset needs to commit the working
-        // copy? For example, ":@" should ideally not result in a new working copy
-        // commit, but "::@" should. "foo::" is probably also should, since we would
-        // otherwise need to evaluate the revset and see if "foo::" includes the
-        // parent of the current checkout. Other interesting cases include some kind of
-        // reference pointing to the working copy commit. If it's a
-        // type of reference that would get updated when the commit gets rewritten, then
-        // we probably should create a new working copy commit.
-        if revision_str == "@" && !self.working_copy_committed {
-            self.working_copy_committed = true;
-            self.commit_working_copy();
-        }
-
-        let revset_expression = revset::parse(revision_str)?;
+        let revset_expression = self.parse_revset(revision_str)?;
         let revset = revset_expression.evaluate(self.repo.as_repo_ref())?;
         let mut iter = revset.iter();
         match iter.next() {
@@ -262,6 +247,25 @@ impl RepoCommandHelper {
                 }
             }
         }
+    }
+
+    fn parse_revset(&mut self, revision_str: &str) -> Result<RevsetExpression, CommandError> {
+        // If we're looking up the working copy commit ("@"), make sure that it is up to
+        // date (the lib crate only looks at the checkout in the view).
+        // TODO: How do we generally figure out if a revset needs to commit the working
+        // copy? For example, ":@" should ideally not result in a new working copy
+        // commit, but "::@" should. "foo::" is probably also should, since we would
+        // otherwise need to evaluate the revset and see if "foo::" includes the
+        // parent of the current checkout. Other interesting cases include some kind of
+        // reference pointing to the working copy commit. If it's a
+        // type of reference that would get updated when the commit gets rewritten, then
+        // we probably should create a new working copy commit.
+        if revision_str == "@" && !self.working_copy_committed {
+            self.working_copy_committed = true;
+            self.commit_working_copy();
+        }
+
+        Ok(revset::parse(revision_str)?)
     }
 
     fn commit_working_copy(&mut self) -> Commit {
@@ -1194,7 +1198,11 @@ fn cmd_log(
         // visible heads
         repo_command.commit_working_copy();
     }
+    let revset_expression =
+        repo_command.parse_revset(sub_matches.value_of("revisions").unwrap())?;
     let repo = repo_command.repo();
+    let revset = revset_expression.evaluate(repo.as_repo_ref())?;
+    let store = repo.store();
 
     let template_string = match sub_matches.value_of("template") {
         Some(value) => value.to_string(),
@@ -1213,10 +1221,6 @@ fn cmd_log(
     let mut styler = styler.as_mut();
     styler.add_label(String::from("log"))?;
 
-    let store = repo.store();
-    let revision_str = sub_matches.value_of("revisions").unwrap();
-    let revset_expression = revset::parse(revision_str)?;
-    let revset = revset_expression.evaluate(repo.as_repo_ref())?;
     if use_graph {
         let mut graph = AsciiGraphDrawer::new(&mut styler);
         for (index_entry, edges) in revset.iter().graph() {
