@@ -268,6 +268,15 @@ impl RepoCommandHelper {
         Ok(revset::parse(revision_str)?)
     }
 
+    fn check_rewriteable(&self, commit: &Commit) -> Result<(), CommandError> {
+        if commit.id() == self.repo.store().root_commit_id() {
+            return Err(CommandError::UserError(String::from(
+                "Cannot rewrite the root commit",
+            )));
+        }
+        Ok(())
+    }
+
     fn commit_working_copy(&mut self) -> Commit {
         let (reloaded_repo, commit) = self
             .repo
@@ -1389,6 +1398,7 @@ fn cmd_describe(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let description;
     if sub_matches.is_present("stdin") {
@@ -1415,6 +1425,7 @@ fn cmd_open(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let mut tx = repo_command.start_transaction(&format!("open commit {}", commit.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
@@ -1431,6 +1442,7 @@ fn cmd_close(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let mut commit_builder =
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit).set_open(false);
@@ -1477,12 +1489,8 @@ fn cmd_prune(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let predecessor = repo_command.resolve_revision_arg(sub_matches)?;
+    repo_command.check_rewriteable(&predecessor)?;
     let repo = repo_command.repo();
-    if predecessor.id() == repo.store().root_commit_id() {
-        return Err(CommandError::UserError(String::from(
-            "Cannot prune the root commit",
-        )));
-    }
     let mut tx =
         repo_command.start_transaction(&format!("prune commit {}", predecessor.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
@@ -1523,6 +1531,7 @@ fn cmd_squash(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let parents = commit.parents();
     if parents.len() != 1 {
@@ -1531,11 +1540,7 @@ fn cmd_squash(
         )));
     }
     let parent = &parents[0];
-    if parent.id() == repo.store().root_commit_id() {
-        return Err(CommandError::UserError(String::from(
-            "Cannot squash into the root commit",
-        )));
-    }
+    repo_command.check_rewriteable(parent)?;
     let mut tx = repo_command.start_transaction(&format!("squash commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
     let new_parent_tree_id;
@@ -1585,6 +1590,7 @@ fn cmd_unsquash(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let parents = commit.parents();
     if parents.len() != 1 {
@@ -1593,11 +1599,7 @@ fn cmd_unsquash(
         )));
     }
     let parent = &parents[0];
-    if parent.id() == repo.store().root_commit_id() {
-        return Err(CommandError::UserError(String::from(
-            "Cannot unsquash from the root commit",
-        )));
-    }
+    repo_command.check_rewriteable(&parent)?;
     let mut tx = repo_command.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
     let parent_base_tree = merge_commit_trees(repo.as_repo_ref(), &parent.parents());
@@ -1667,6 +1669,7 @@ fn cmd_restore(
     let mut repo_command = command.repo_helper(ui)?;
     let from_commit = repo_command.resolve_single_rev(sub_matches.value_of("from").unwrap())?;
     let to_commit = repo_command.resolve_single_rev(sub_matches.value_of("to").unwrap())?;
+    repo_command.check_rewriteable(&to_commit)?;
     let repo = repo_command.repo();
     let tree_id;
     if sub_matches.is_present("interactive") {
@@ -1732,6 +1735,7 @@ fn cmd_edit(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let instructions = format!(
@@ -1767,6 +1771,7 @@ fn cmd_split(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let instructions = format!(
@@ -1863,6 +1868,7 @@ fn cmd_rebase(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let commit_to_rebase = repo_command.resolve_revision_arg(sub_matches)?;
+    repo_command.check_rewriteable(&commit_to_rebase)?;
     let mut parents = vec![];
     for revision_str in sub_matches.values_of("destination").unwrap() {
         let destination = repo_command.resolve_single_rev(revision_str)?;
