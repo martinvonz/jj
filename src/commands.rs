@@ -298,13 +298,12 @@ impl RepoCommandHelper {
         Ok(())
     }
 
-    fn commit_working_copy(&mut self) -> Commit {
-        let (reloaded_repo, commit) = self
+    fn commit_working_copy(&mut self) {
+        let (reloaded_repo, _) = self
             .repo
             .working_copy_locked()
             .commit(&self.settings, self.repo.clone());
         self.repo = reloaded_repo;
-        commit
     }
 
     fn start_transaction(&self, description: &str) -> Transaction {
@@ -1149,8 +1148,9 @@ fn cmd_status(
     _sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.commit_working_copy();
+    repo_command.commit_working_copy();
     let repo = repo_command.repo();
+    let commit = repo.store().get_commit(repo.view().checkout()).unwrap();
     ui.write("Parent commit: ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &commit.parents()[0])?;
     ui.write("\n")?;
