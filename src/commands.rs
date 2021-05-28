@@ -175,6 +175,7 @@ struct RepoCommandHelper {
     string_args: Vec<String>,
     settings: UserSettings,
     repo: Arc<ReadonlyRepo>,
+    may_update_working_copy: bool,
     working_copy_committed: bool,
     // Whether to evolve orphans when the transaction
     // finishes. This should generally be true for commands that rewrite commits.
@@ -191,10 +192,12 @@ impl RepoCommandHelper {
         root_matches: &ArgMatches,
     ) -> Result<Self, CommandError> {
         let repo = get_repo(ui, &root_matches)?;
+        let may_update_working_copy = root_matches.value_of("at_op").is_none();
         Ok(RepoCommandHelper {
             string_args,
             settings: ui.settings().clone(),
             repo,
+            may_update_working_copy,
             working_copy_committed: false,
             evolve_orphans: true,
             auto_update_checkout: true,
@@ -276,8 +279,7 @@ impl RepoCommandHelper {
             _ => true,
         };
         if mentions_checkout && !self.working_copy_committed {
-            self.working_copy_committed = true;
-            self.commit_working_copy();
+            self.maybe_commit_working_copy();
         }
         Ok(expression)
     }
@@ -298,12 +300,25 @@ impl RepoCommandHelper {
         Ok(())
     }
 
-    fn commit_working_copy(&mut self) {
-        let (reloaded_repo, _) = self
-            .repo
-            .working_copy_locked()
-            .commit(&self.settings, self.repo.clone());
-        self.repo = reloaded_repo;
+    fn commit_working_copy(&mut self) -> Result<(), CommandError> {
+        if !self.may_update_working_copy {
+            return Err(UserError(
+                "Refusing to update working copy (maybe because you're using --at-op)".to_string(),
+            ));
+        }
+        self.maybe_commit_working_copy();
+        Ok(())
+    }
+
+    fn maybe_commit_working_copy(&mut self) {
+        if self.may_update_working_copy {
+            let (reloaded_repo, _) = self
+                .repo
+                .working_copy_locked()
+                .commit(&self.settings, self.repo.clone());
+            self.repo = reloaded_repo;
+            self.working_copy_committed = true;
+        }
     }
 
     fn start_transaction(&self, description: &str) -> Transaction {
@@ -851,7 +866,7 @@ fn cmd_checkout(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?.auto_update_checkout(false);
     let new_commit = repo_command.resolve_revision_arg(sub_matches)?;
-    repo_command.commit_working_copy();
+    repo_command.commit_working_copy()?;
     let mut tx =
         repo_command.start_transaction(&format!("check out commit {}", new_commit.id().hex()));
     tx.mut_repo().check_out(ui.settings(), &new_commit);
@@ -1148,7 +1163,7 @@ fn cmd_status(
     _sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    repo_command.commit_working_copy();
+    repo_command.maybe_commit_working_copy();
     let repo = repo_command.repo();
     let commit = repo.store().get_commit(repo.view().checkout()).unwrap();
     ui.write("Parent commit: ")?;
