@@ -259,22 +259,27 @@ impl RepoCommandHelper {
     }
 
     fn parse_revset(&mut self, revision_str: &str) -> Result<RevsetExpression, CommandError> {
-        // If we're looking up the working copy commit ("@"), make sure that it is up to
-        // date (the lib crate only looks at the checkout in the view).
-        // TODO: How do we generally figure out if a revset needs to commit the working
-        // copy? For example, ":@" should ideally not result in a new working copy
-        // commit, but "::@" should. "foo::" is probably also should, since we would
+        let expression = revset::parse(revision_str)?;
+        // If the revset is exactly "@", then we need to commit the working copy. If
+        // it's another symbol, then we don't. If it's more complex, then we do
+        // (just to be safe). TODO: Maybe make this smarter. How do we generally
+        // figure out if a revset needs to commit the working copy? For example,
+        // ":@" should perhaps not result in a new working copy commit, but
+        // "::@" should. "foo::" is probably also should, since we would
         // otherwise need to evaluate the revset and see if "foo::" includes the
         // parent of the current checkout. Other interesting cases include some kind of
         // reference pointing to the working copy commit. If it's a
         // type of reference that would get updated when the commit gets rewritten, then
         // we probably should create a new working copy commit.
-        if revision_str == "@" && !self.working_copy_committed {
+        let mentions_checkout = match &expression {
+            RevsetExpression::Symbol(name) => name == "@",
+            _ => true,
+        };
+        if mentions_checkout && !self.working_copy_committed {
             self.working_copy_committed = true;
             self.commit_working_copy();
         }
-
-        Ok(revset::parse(revision_str)?)
+        Ok(expression)
     }
 
     fn check_rewriteable(&self, commit: &Commit) -> Result<(), CommandError> {
@@ -1217,18 +1222,13 @@ fn cmd_log(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
 
-    let use_graph = !sub_matches.is_present("no-graph");
-    if use_graph {
-        // Commit so the latest working copy is reflected in the view's checkout and
-        // visible heads
-        repo_command.commit_working_copy();
-    }
     let revset_expression =
         repo_command.parse_revset(sub_matches.value_of("revisions").unwrap())?;
     let repo = repo_command.repo();
     let revset = revset_expression.evaluate(repo.as_repo_ref())?;
     let store = repo.store();
 
+    let use_graph = !sub_matches.is_present("no-graph");
     let template_string = match sub_matches.value_of("template") {
         Some(value) => value.to_string(),
         None => {
