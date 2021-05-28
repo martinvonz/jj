@@ -249,6 +249,15 @@ impl RepoCommandHelper {
         }
     }
 
+    fn resolve_revset(&mut self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
+        let revset_expression = self.parse_revset(revision_str)?;
+        let revset = revset_expression.evaluate(self.repo.as_repo_ref())?;
+        Ok(revset
+            .iter()
+            .map(|entry| self.repo.store().get_commit(&entry.commit_id()).unwrap())
+            .collect())
+    }
+
     fn parse_revset(&mut self, revision_str: &str) -> Result<RevsetExpression, CommandError> {
         // If we're looking up the working copy commit ("@"), make sure that it is up to
         // date (the lib crate only looks at the checkout in the view).
@@ -270,9 +279,16 @@ impl RepoCommandHelper {
 
     fn check_rewriteable(&self, commit: &Commit) -> Result<(), CommandError> {
         if commit.id() == self.repo.store().root_commit_id() {
-            return Err(CommandError::UserError(String::from(
-                "Cannot rewrite the root commit",
-            )));
+            return Err(CommandError::UserError(
+                "Cannot rewrite the root commit".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn check_non_empty(&self, commits: &[Commit]) -> Result<(), CommandError> {
+        if commits.is_empty() {
+            return Err(CommandError::UserError("Empty revision set".to_string()));
         }
         Ok(())
     }
@@ -1488,14 +1504,27 @@ fn cmd_prune(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let predecessor = repo_command.resolve_revision_arg(sub_matches)?;
-    repo_command.check_rewriteable(&predecessor)?;
+    let predecessors = repo_command.resolve_revset(sub_matches.value_of("revision").unwrap())?;
+    repo_command.check_non_empty(&predecessors)?;
+    for predecessor in &predecessors {
+        repo_command.check_rewriteable(&predecessor)?;
+    }
     let repo = repo_command.repo();
-    let mut tx =
-        repo_command.start_transaction(&format!("prune commit {}", predecessor.id().hex()));
-    CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
-        .set_pruned(true)
-        .write_to_repo(tx.mut_repo());
+    let transaction_description = if predecessors.len() == 1 {
+        format!("prune commit {}", predecessors[0].id().hex())
+    } else {
+        format!(
+            "prune commit {} and {} more",
+            predecessors[0].id().hex(),
+            predecessors.len() - 1
+        )
+    };
+    let mut tx = repo_command.start_transaction(&transaction_description);
+    for predecessor in predecessors {
+        CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
+            .set_pruned(true)
+            .write_to_repo(tx.mut_repo());
+    }
     repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
