@@ -38,6 +38,7 @@ use jujutsu_lib::evolution::{
 use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::git::GitFetchError;
 use jujutsu_lib::index::HexPrefix;
+use jujutsu_lib::op_heads_store::OpHeadsStore;
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoInitError, RepoLoadError, RepoLoader};
@@ -140,7 +141,7 @@ fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandE
         }
     };
     if let Some(op_str) = matches.value_of("at_op") {
-        let op = resolve_single_op_from_store(loader.op_store(), op_str)?;
+        let op = resolve_single_op_from_store(loader.op_store(), loader.op_heads_store(), op_str)?;
         Ok(loader.load_at(&op))
     } else {
         Ok(loader.load_at_head())
@@ -417,30 +418,67 @@ fn resolve_single_op(repo: &ReadonlyRepo, op_str: &str) -> Result<Operation, Com
     if op_str == "@" {
         Ok(repo.operation().clone())
     } else {
-        resolve_single_op_from_store(&repo.op_store(), op_str)
+        resolve_single_op_from_store(&repo.op_store(), &repo.op_heads_store(), op_str)
     }
+}
+
+fn find_all_operations(
+    op_store: &Arc<dyn OpStore>,
+    op_heads_store: &Arc<OpHeadsStore>,
+) -> Vec<Operation> {
+    let mut visited = HashSet::new();
+    let mut work: VecDeque<_> = op_heads_store.get_op_heads().into_iter().collect();
+    let mut operations = vec![];
+    while !work.is_empty() {
+        let op_id = work.pop_front().unwrap();
+        if visited.insert(op_id.clone()) {
+            let store_operation = op_store.read_operation(&op_id).unwrap();
+            work.extend(store_operation.parents.iter().cloned());
+            let operation = Operation::new(op_store.clone(), op_id, store_operation);
+            operations.push(operation);
+        }
+    }
+    operations
 }
 
 fn resolve_single_op_from_store(
     op_store: &Arc<dyn OpStore>,
+    op_heads_store: &Arc<OpHeadsStore>,
     op_str: &str,
 ) -> Result<Operation, CommandError> {
     if let Ok(binary_op_id) = hex::decode(op_str) {
         let op_id = OperationId(binary_op_id);
         match op_store.read_operation(&op_id) {
-            Ok(operation) => Ok(Operation::new(op_store.clone(), op_id, operation)),
-            Err(OpStoreError::NotFound) => Err(CommandError::UserError(format!(
-                "Operation id not found: {}",
-                op_str
-            ))),
-            Err(err) => Err(CommandError::InternalError(format!(
-                "Failed to read commit: {:?}",
-                err
-            ))),
+            Ok(operation) => {
+                return Ok(Operation::new(op_store.clone(), op_id, operation));
+            }
+            Err(OpStoreError::NotFound) => {
+                // Fall through
+            }
+            Err(err) => {
+                return Err(CommandError::InternalError(format!(
+                    "Failed to read operation: {:?}",
+                    err
+                )));
+            }
         }
+    }
+    let mut matches = vec![];
+    for op in find_all_operations(op_store, op_heads_store) {
+        if op.id().hex().starts_with(op_str) {
+            matches.push(op);
+        }
+    }
+    if matches.is_empty() {
+        Err(CommandError::UserError(format!(
+            "No operation id matching \"{}\"",
+            op_str
+        )))
+    } else if matches.len() == 1 {
+        Ok(matches.pop().unwrap())
     } else {
         Err(CommandError::UserError(format!(
-            "Invalid operation id: {}",
+            "Operation id prefix \"{}\" is ambiguous",
             op_str
         )))
     }
