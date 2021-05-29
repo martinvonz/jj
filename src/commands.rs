@@ -140,11 +140,12 @@ fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandE
             return Err(CommandError::UserError(message));
         }
     };
-    if let Some(op_str) = matches.value_of("at_op") {
+    let op_str = matches.value_of("at_op").unwrap();
+    if op_str == "@" {
+        Ok(loader.load_at_head())
+    } else {
         let op = resolve_single_op_from_store(loader.op_store(), loader.op_heads_store(), op_str)?;
         Ok(loader.load_at(&op))
-    } else {
-        Ok(loader.load_at_head())
     }
 }
 
@@ -193,7 +194,7 @@ impl RepoCommandHelper {
         root_matches: &ArgMatches,
     ) -> Result<Self, CommandError> {
         let repo = get_repo(ui, &root_matches)?;
-        let may_update_working_copy = root_matches.value_of("at_op").is_none();
+        let may_update_working_copy = root_matches.value_of("at_op").unwrap() == "@";
         Ok(RepoCommandHelper {
             string_args,
             settings: ui.settings().clone(),
@@ -416,6 +417,8 @@ fn op_arg<'a, 'b>() -> Arg<'a, 'b> {
 
 fn resolve_single_op(repo: &ReadonlyRepo, op_str: &str) -> Result<Operation, CommandError> {
     if op_str == "@" {
+        // Get it from the repo to make sure that it refers to the operation the repo
+        // was loaded at
         Ok(repo.operation().clone())
     } else {
         resolve_single_op_from_store(&repo.op_store(), &repo.op_heads_store(), op_str)
@@ -821,7 +824,8 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .long("at-operation")
                 .alias("at-op")
                 .global(true)
-                .takes_value(true),
+                .takes_value(true)
+                .default_value("@"),
         )
         .subcommand(init_command)
         .subcommand(checkout_command)
