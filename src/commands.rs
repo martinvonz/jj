@@ -2218,9 +2218,7 @@ fn cmd_op_log(
             styler.add_label("op-log".to_string())?;
             // TODO: Make this templated
             styler.add_label("id".to_string())?;
-            // TODO: support lookup by op-id prefix, so we don't need to print the full hash
-            // here
-            styler.write_str(&op.id().hex())?;
+            styler.write_str(&op.id().hex()[0..12])?;
             styler.remove_label()?;
             styler.write_str(" ")?;
             let metadata = &op.store_operation().metadata;

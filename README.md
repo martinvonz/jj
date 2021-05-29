@@ -394,15 +394,15 @@ the "operation log". Use the `jj op` (short for `jj operation`) family of
 commands to interact with it. To list the operations, use `jj op log`:  
 ```shell script
 $ jj op log
-o 5bd3845073420b3be0a2cd5508c7ffc1e242fdb5907f4a1d8bc91f9e6cd8beb9e006a50c8e35477bec247e7c4ef73bb84f62e73d13ec9fd709ff64711f94472f martinvonz@<hostname> 2021-05-26 12:53:08.339 -07:00 - 2021-05-26 12:53:08.350 -07:00
+o 5bd384507342 martinvonz@<hostname> 2021-05-26 12:53:08.339 -07:00 - 2021-05-26 12:53:08.350 -07:00
 | squash commit 41f0d2289b568bfcdcf35f73d4f70f3ab6696398
 | args: jj squash
-o 2fd266a8a2e0a82ab639676321eccf7b9ec3912db9c1fc6bd3eb5219941c8b839e53f524afb3ce08cb373d0af84040b05733818c79d1b23fa57bd017e873d373 martinvonz@<hostname> 2021-05-26 12:53:08.335 -07:00 - 2021-05-26 12:53:08.338 -07:00
+o 2fd266a8a2e0 martinvonz@<hostname> 2021-05-26 12:53:08.335 -07:00 - 2021-05-26 12:53:08.338 -07:00
 | commit working copy
-o 1e6dd15305a3c019209ff19f31ce4a6bd6c9e9de8cfeaae8aacc21e1fc9fedeb2d7f2d057a7a1a1d151651b121dd2d1589cd701d919ce080b48485c447b7e3bd martinvonz@<hostname> 2021-05-26 12:52:39.374 -07:00 - 2021-05-26 12:52:39.382 -07:00
+o 1e6dd15305a3 martinvonz@<hostname> 2021-05-26 12:52:39.374 -07:00 - 2021-05-26 12:52:39.382 -07:00
 | check out commit 0c305a9e6b274bc09b2bca85635299dcfdc6811c
 | args: jj co 0c305a9e6b27
-o 401652a2f61e7701e339a25f93cb8c27925df54493c538f623dfd2d0837f2c67f239dd584325989470305e0c21033a795c17cc47d5275604776183dcd12fb825 martinvonz@<hostname> 2021-05-26 12:44:51.872 -07:00 - 2021-05-26 12:44:51.882 -07:00
+o 401652a2f61e martinvonz@<hostname> 2021-05-26 12:44:51.872 -07:00 - 2021-05-26 12:44:51.882 -07:00
 | rebase commit de5690380f40f3f7fc6b7d66d43a4f68ee606228
 | args: jj rebase -r de5690380f40 -d 661432c51c08
 [many more lines]
@@ -432,9 +432,7 @@ updated the working copy.
 
 You can also view the repo the way it looked after some earlier operation. For
 example, if you want to see `jj l` output right after the `jj rebase` operation,
-try `jj l --at-op=401652a2f61e7701e339a25f93cb8c27925df54493c538f623dfd2d0837f2c67f239dd584325989470305e0c21033a795c17cc47d5275604776183dcd12fb825`
-but use the hash from your own `jj op log` (you unfortunately need to provide
-the full hash until https://github.com/martinvonz/jj/issues/16 has been fixed).
+try `jj l --at-op=401652a2f61e` but use the hash from your own `jj op log`.
 
 ### Moving content changes between commits
 
