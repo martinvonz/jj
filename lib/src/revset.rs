@@ -38,22 +38,22 @@ pub enum RevsetError {
     StoreError(#[from] StoreError),
 }
 
-fn resolve_git_ref(repo: RepoRef, symbol: &str) -> Result<Commit, RevsetError> {
+fn resolve_git_ref(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetError> {
     let view = repo.view();
     for git_ref_prefix in &["", "refs/", "refs/heads/", "refs/tags/", "refs/remotes/"] {
         if let Some(commit_id) = view.git_refs().get(&(git_ref_prefix.to_string() + symbol)) {
-            return Ok(repo.store().get_commit(&commit_id)?);
+            return Ok(vec![commit_id.clone()]);
         }
     }
     Err(RevsetError::NoSuchRevision(symbol.to_owned()))
 }
 
-fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Commit, RevsetError> {
+fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetError> {
     // First check if it's a full commit id.
     if let Ok(binary_commit_id) = hex::decode(symbol) {
         let commit_id = CommitId(binary_commit_id);
         match repo.store().get_commit(&commit_id) {
-            Ok(commit) => return Ok(commit),
+            Ok(_) => return Ok(vec![commit_id]),
             Err(StoreError::NotFound) => {} // fall through
             Err(err) => return Err(RevsetError::StoreError(err)),
         }
@@ -67,25 +67,19 @@ fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Commit, RevsetError>
             PrefixResolution::AmbiguousMatch => {
                 return Err(RevsetError::AmbiguousCommitIdPrefix(symbol.to_owned()))
             }
-            PrefixResolution::SingleMatch(commit_id) => {
-                return Ok(repo.store().get_commit(&commit_id)?)
-            }
+            PrefixResolution::SingleMatch(commit_id) => return Ok(vec![commit_id]),
         }
     }
 
     Err(RevsetError::NoSuchRevision(symbol.to_owned()))
 }
 
-// TODO: Decide if we should allow a single symbol to resolve to multiple
-// revisions. For example, we may want to resolve a change id to all the
-// matching commits. Depending on how we decide to handle divergent git refs and
-// similar, we may also want those to resolve to multiple commits.
-pub fn resolve_symbol(repo: RepoRef, symbol: &str) -> Result<Commit, RevsetError> {
+pub fn resolve_symbol(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetError> {
     // TODO: Support change ids.
     if symbol == "@" {
-        Ok(repo.store().get_commit(repo.view().checkout())?)
+        Ok(vec![repo.view().checkout().clone()])
     } else if symbol == "root" {
-        Ok(repo.store().root_commit())
+        Ok(vec![repo.store().root_commit_id().clone()])
     } else {
         // Try to resolve as a git ref
         let git_ref_result = resolve_git_ref(repo, symbol);
@@ -812,10 +806,14 @@ pub fn evaluate_expression<'repo>(
             index_entries: vec![],
         })),
         RevsetExpression::Symbol(symbol) => {
-            let commit_id = resolve_symbol(repo, &symbol)?.id().clone();
-            Ok(Box::new(EagerRevset {
-                index_entries: vec![repo.index().entry_by_id(&commit_id).unwrap()],
-            }))
+            let commit_ids = resolve_symbol(repo, &symbol)?;
+            let index = repo.index();
+            let mut index_entries: Vec<_> = commit_ids
+                .iter()
+                .map(|id| index.entry_by_id(id).unwrap())
+                .collect();
+            index_entries.sort_by_key(|b| Reverse(b.position()));
+            Ok(Box::new(EagerRevset { index_entries }))
         }
         RevsetExpression::Parents(base_expression) => {
             // TODO: Make this lazy

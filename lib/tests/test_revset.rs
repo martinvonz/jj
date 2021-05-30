@@ -27,8 +27,8 @@ fn test_resolve_symbol_root(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     assert_eq!(
-        resolve_symbol(repo.as_repo_ref(), "root").unwrap(),
-        repo.store().root_commit()
+        resolve_symbol(repo.as_repo_ref(), "root"),
+        Ok(vec![repo.store().root_commit_id().clone()])
     );
 }
 
@@ -80,20 +80,23 @@ fn test_resolve_symbol_commit_id() {
     // Test lookup by full commit id
     let repo_ref = mut_repo.as_repo_ref();
     assert_eq!(
-        resolve_symbol(repo_ref, "0454de3cae04c46cda37ba2e8873b4c17ff51dcb").unwrap(),
-        commits[0]
+        resolve_symbol(repo_ref, "0454de3cae04c46cda37ba2e8873b4c17ff51dcb"),
+        Ok(vec![commits[0].id().clone()])
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "045f56cd1b17e8abde86771e2705395dcde6a957").unwrap(),
-        commits[1]
+        resolve_symbol(repo_ref, "045f56cd1b17e8abde86771e2705395dcde6a957"),
+        Ok(vec![commits[1].id().clone()])
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "0468f7da8de2ce442f512aacf83411d26cd2e0cf").unwrap(),
-        commits[2]
+        resolve_symbol(repo_ref, "0468f7da8de2ce442f512aacf83411d26cd2e0cf"),
+        Ok(vec![commits[2].id().clone()])
     );
 
     // Test commit id prefix
-    assert_eq!(resolve_symbol(repo_ref, "046").unwrap(), commits[2]);
+    assert_eq!(
+        resolve_symbol(repo_ref, "046"),
+        Ok(vec![commits[2].id().clone()])
+    );
     assert_eq!(
         resolve_symbol(repo_ref, "04"),
         Err(RevsetError::AmbiguousCommitIdPrefix("04".to_string()))
@@ -130,13 +133,13 @@ fn test_resolve_symbol_checkout(use_git: bool) {
 
     mut_repo.set_checkout(commit1.id().clone());
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "@").unwrap(),
-        commit1
+        resolve_symbol(mut_repo.as_repo_ref(), "@"),
+        Ok(vec![commit1.id().clone()])
     );
     mut_repo.set_checkout(commit2.id().clone());
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "@").unwrap(),
-        commit2
+        resolve_symbol(mut_repo.as_repo_ref(), "@"),
+        Ok(vec![commit2.id().clone()])
     );
 
     tx.discard();
@@ -173,31 +176,31 @@ fn test_resolve_symbol_git_refs() {
     // Full ref
     mut_repo.insert_git_ref("refs/heads/branch".to_string(), commit4.id().clone());
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/branch").unwrap(),
-        commit4
+        resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/branch"),
+        Ok(vec![commit4.id().clone()])
     );
 
     // Qualified with only heads/
     mut_repo.insert_git_ref("refs/heads/branch".to_string(), commit5.id().clone());
     mut_repo.insert_git_ref("refs/tags/branch".to_string(), commit4.id().clone());
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "heads/branch").unwrap(),
-        commit5
+        resolve_symbol(mut_repo.as_repo_ref(), "heads/branch"),
+        Ok(vec![commit5.id().clone()])
     );
 
     // Unqualified branch name
     mut_repo.insert_git_ref("refs/heads/branch".to_string(), commit3.id().clone());
     mut_repo.insert_git_ref("refs/tags/branch".to_string(), commit4.id().clone());
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "branch").unwrap(),
-        commit3
+        resolve_symbol(mut_repo.as_repo_ref(), "branch"),
+        Ok(vec![commit3.id().clone()])
     );
 
     // Unqualified tag name
     mut_repo.insert_git_ref("refs/tags/tag".to_string(), commit4.id().clone());
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "tag").unwrap(),
-        commit4
+        resolve_symbol(mut_repo.as_repo_ref(), "tag"),
+        Ok(vec![commit4.id().clone()])
     );
 
     // Unqualified remote-tracking branch name
@@ -206,20 +209,20 @@ fn test_resolve_symbol_git_refs() {
         commit2.id().clone(),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "origin/remote-branch").unwrap(),
-        commit2
+        resolve_symbol(mut_repo.as_repo_ref(), "origin/remote-branch"),
+        Ok(vec![commit2.id().clone()])
     );
 
     // Cannot shadow checkout ("@") or root symbols
     mut_repo.insert_git_ref("@".to_string(), commit2.id().clone());
     mut_repo.insert_git_ref("root".to_string(), commit3.id().clone());
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "@").unwrap().id(),
-        mut_repo.view().checkout()
+        resolve_symbol(mut_repo.as_repo_ref(), "@"),
+        Ok(vec![mut_repo.view().checkout().clone()])
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "root").unwrap(),
-        mut_repo.store().root_commit()
+        resolve_symbol(mut_repo.as_repo_ref(), "root"),
+        Ok(vec![mut_repo.store().root_commit().id().clone()])
     );
 
     tx.discard();
