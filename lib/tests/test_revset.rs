@@ -16,8 +16,8 @@ use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::revset::{parse, resolve_symbol, RevsetError};
 use jujutsu_lib::store::{CommitId, MillisSinceEpoch, Signature, Timestamp};
-use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::CommitGraphBuilder;
+use jujutsu_lib::{git, testutils};
 use test_case::test_case;
 
 #[test_case(false ; "local store")]
@@ -117,6 +117,119 @@ fn test_resolve_symbol_commit_id() {
     );
 
     tx.discard();
+}
+
+#[test]
+fn test_resolve_symbol_change_id() {
+    let settings = testutils::user_settings();
+    // Test only with git so we can get predictable change ids
+    let (_temp_dir, repo) = testutils::init_repo(&settings, true);
+
+    let git_repo = repo.store().git_repo().unwrap();
+    // Add some commits that will end up having change ids with common prefixes
+    let empty_tree_id = git_repo.treebuilder(None).unwrap().write().unwrap();
+    let git_author = git2::Signature::new(
+        "git author",
+        "git.author@example.com",
+        &git2::Time::new(1000, 60),
+    )
+    .unwrap();
+    let git_committer = git2::Signature::new(
+        "git committer",
+        "git.committer@example.com",
+        &git2::Time::new(2000, -480),
+    )
+    .unwrap();
+    let git_tree = git_repo.find_tree(empty_tree_id).unwrap();
+    let mut git_commit_ids = vec![];
+    for i in &[133, 664, 840] {
+        let git_commit_id = git_repo
+            .commit(
+                Some(&format!("refs/heads/branch{}", i)),
+                &git_author,
+                &git_committer,
+                &format!("test {}", i),
+                &git_tree,
+                &[],
+            )
+            .unwrap();
+        git_commit_ids.push(git_commit_id);
+    }
+
+    let mut tx = repo.start_transaction("test");
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    let repo = tx.commit();
+
+    // Test the test setup
+    assert_eq!(
+        hex::encode(git_commit_ids[0].as_bytes()),
+        // "04e12a5467bba790efb88a9870894ec208b16bf1" reversed
+        "8fd68d104372910e19511df709e5dde62a548720"
+    );
+    assert_eq!(
+        hex::encode(git_commit_ids[1].as_bytes()),
+        // "040b3ba3a51d8edbc4c5855cbd09de71d4c29cca" reversed
+        "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
+    );
+    assert_eq!(
+        hex::encode(git_commit_ids[2].as_bytes()),
+        // "04e1c7082e4e34f3f371d8a1a46770b861b9b547" reversed
+        "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
+    );
+
+    // Test lookup by full change id
+    let repo_ref = repo.as_repo_ref();
+    assert_eq!(
+        resolve_symbol(repo_ref, "04e12a5467bba790efb88a9870894ec2"),
+        Ok(vec![CommitId::from_hex(
+            "8fd68d104372910e19511df709e5dde62a548720"
+        )])
+    );
+    assert_eq!(
+        resolve_symbol(repo_ref, "040b3ba3a51d8edbc4c5855cbd09de71"),
+        Ok(vec![CommitId::from_hex(
+            "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
+        )])
+    );
+    assert_eq!(
+        resolve_symbol(repo_ref, "04e1c7082e4e34f3f371d8a1a46770b8"),
+        Ok(vec![CommitId::from_hex(
+            "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
+        )])
+    );
+
+    // Test change id prefix
+    assert_eq!(
+        resolve_symbol(repo_ref, "04e12"),
+        Ok(vec![CommitId::from_hex(
+            "8fd68d104372910e19511df709e5dde62a548720"
+        )])
+    );
+    assert_eq!(
+        resolve_symbol(repo_ref, "04e1c"),
+        Ok(vec![CommitId::from_hex(
+            "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
+        )])
+    );
+    assert_eq!(
+        resolve_symbol(repo_ref, "04e1"),
+        Err(RevsetError::AmbiguousChangeIdPrefix("04e1".to_string()))
+    );
+    assert_eq!(
+        resolve_symbol(repo_ref, ""),
+        // Commit id is checked first, so this is considered an ambiguous commit id
+        Err(RevsetError::AmbiguousCommitIdPrefix("".to_string()))
+    );
+    assert_eq!(
+        resolve_symbol(repo_ref, "04e13"),
+        Err(RevsetError::NoSuchRevision("04e13".to_string()))
+    );
+
+    // Test non-hex string
+    assert_eq!(
+        resolve_symbol(repo_ref, "foo"),
+        Err(RevsetError::NoSuchRevision("foo".to_string()))
+    );
 }
 
 #[test_case(false ; "local store")]

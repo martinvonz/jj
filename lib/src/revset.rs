@@ -34,6 +34,8 @@ pub enum RevsetError {
     NoSuchRevision(String),
     #[error("Commit id prefix \"{0}\" is ambiguous")]
     AmbiguousCommitIdPrefix(String),
+    #[error("Change id prefix \"{0}\" is ambiguous")]
+    AmbiguousChangeIdPrefix(String),
     #[error("Unexpected error from store: {0}")]
     StoreError(#[from] StoreError),
 }
@@ -74,8 +76,29 @@ fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, Revse
     Err(RevsetError::NoSuchRevision(symbol.to_owned()))
 }
 
+fn resolve_non_obsolete_change_id(
+    repo: RepoRef,
+    change_id_prefix: &str,
+) -> Result<Vec<CommitId>, RevsetError> {
+    if let Some(hex_prefix) = HexPrefix::new(change_id_prefix.to_owned()) {
+        let evolution = repo.evolution();
+        match evolution.resolve_change_id_prefix(&hex_prefix) {
+            PrefixResolution::NoMatch => {
+                Err(RevsetError::NoSuchRevision(change_id_prefix.to_owned()))
+            }
+            PrefixResolution::AmbiguousMatch => Err(RevsetError::AmbiguousChangeIdPrefix(
+                change_id_prefix.to_owned(),
+            )),
+            PrefixResolution::SingleMatch(change_id) => {
+                Ok(evolution.non_obsoletes(&change_id).into_iter().collect())
+            }
+        }
+    } else {
+        Err(RevsetError::NoSuchRevision(change_id_prefix.to_owned()))
+    }
+}
+
 pub fn resolve_symbol(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetError> {
-    // TODO: Support change ids.
     if symbol == "@" {
         Ok(vec![repo.view().checkout().clone()])
     } else if symbol == "root" {
@@ -91,6 +114,12 @@ pub fn resolve_symbol(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, Revs
         let commit_id_result = resolve_commit_id(repo, symbol);
         if !matches!(commit_id_result, Err(RevsetError::NoSuchRevision(_))) {
             return commit_id_result;
+        }
+
+        // Try to resolve as a change id (the non-obsolete commits in the change).
+        let change_id_result = resolve_non_obsolete_change_id(repo, symbol);
+        if !matches!(change_id_result, Err(RevsetError::NoSuchRevision(_))) {
+            return change_id_result;
         }
 
         Err(RevsetError::NoSuchRevision(symbol.to_owned()))

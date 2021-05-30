@@ -18,7 +18,7 @@ use std::sync::Arc;
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::{bfs, closest_common_node, leaves};
-use crate::index::IndexPosition;
+use crate::index::{HexPrefix, IndexPosition, PrefixResolution};
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use crate::repo_path::RepoPath;
 use crate::rewrite::{merge_commit_trees, rebase_commit};
@@ -137,6 +137,28 @@ impl State {
         self.non_obsoletes_by_changeid
             .get(change_id)
             .map_or(false, |non_obsoletes| non_obsoletes.len() > 1)
+    }
+
+    // TODO: We should probably add a change id table to the commit index and move
+    // this there
+    fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<ChangeId> {
+        let mut result = PrefixResolution::NoMatch;
+        for change_id in self.non_obsoletes_by_changeid.keys() {
+            if change_id.hex().starts_with(prefix.hex()) {
+                if result != PrefixResolution::NoMatch {
+                    return PrefixResolution::AmbiguousMatch;
+                }
+                result = PrefixResolution::SingleMatch(change_id.clone());
+            }
+        }
+        result
+    }
+
+    fn non_obsoletes(&self, change_id: &ChangeId) -> HashSet<CommitId> {
+        self.non_obsoletes_by_changeid
+            .get(change_id)
+            .cloned()
+            .unwrap_or_else(HashSet::new)
     }
 
     fn add_commit(&mut self, commit: &Commit) {
@@ -339,10 +361,24 @@ impl EvolutionRef<'_> {
         }
     }
 
+    pub fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<ChangeId> {
+        match self {
+            EvolutionRef::Readonly(evolution) => evolution.resolve_change_id_prefix(prefix),
+            EvolutionRef::Mutable(evolution) => evolution.resolve_change_id_prefix(prefix),
+        }
+    }
+
     pub fn is_divergent(&self, change_id: &ChangeId) -> bool {
         match self {
             EvolutionRef::Readonly(evolution) => evolution.is_divergent(change_id),
             EvolutionRef::Mutable(evolution) => evolution.is_divergent(change_id),
+        }
+    }
+
+    pub fn non_obsoletes(&self, change_id: &ChangeId) -> HashSet<CommitId> {
+        match self {
+            EvolutionRef::Readonly(evolution) => evolution.non_obsoletes(change_id),
+            EvolutionRef::Mutable(evolution) => evolution.non_obsoletes(change_id),
         }
     }
 
@@ -402,6 +438,14 @@ impl ReadonlyEvolution {
         self.state.is_divergent(change_id)
     }
 
+    pub fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<ChangeId> {
+        self.state.resolve_change_id_prefix(prefix)
+    }
+
+    pub fn non_obsoletes(&self, change_id: &ChangeId) -> HashSet<CommitId> {
+        self.state.non_obsoletes(change_id)
+    }
+
     pub fn new_parent(&self, repo: RepoRef, old_parent_id: &CommitId) -> HashSet<CommitId> {
         self.state.new_parent(repo, old_parent_id)
     }
@@ -432,6 +476,14 @@ impl MutableEvolution {
 
     pub fn is_divergent(&self, change_id: &ChangeId) -> bool {
         self.state.is_divergent(change_id)
+    }
+
+    pub fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<ChangeId> {
+        self.state.resolve_change_id_prefix(prefix)
+    }
+
+    pub fn non_obsoletes(&self, change_id: &ChangeId) -> HashSet<CommitId> {
+        self.state.non_obsoletes(change_id)
     }
 
     pub fn new_parent(&self, repo: RepoRef, old_parent_id: &CommitId) -> HashSet<CommitId> {
