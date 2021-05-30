@@ -38,6 +38,44 @@ pub enum RevsetError {
     StoreError(#[from] StoreError),
 }
 
+fn resolve_git_ref(repo: RepoRef, symbol: &str) -> Result<Commit, RevsetError> {
+    let view = repo.view();
+    for git_ref_prefix in &["", "refs/", "refs/heads/", "refs/tags/", "refs/remotes/"] {
+        if let Some(commit_id) = view.git_refs().get(&(git_ref_prefix.to_string() + symbol)) {
+            return Ok(repo.store().get_commit(&commit_id)?);
+        }
+    }
+    Err(RevsetError::NoSuchRevision(symbol.to_owned()))
+}
+
+fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Commit, RevsetError> {
+    // First check if it's a full commit id.
+    if let Ok(binary_commit_id) = hex::decode(symbol) {
+        let commit_id = CommitId(binary_commit_id);
+        match repo.store().get_commit(&commit_id) {
+            Ok(commit) => return Ok(commit),
+            Err(StoreError::NotFound) => {} // fall through
+            Err(err) => return Err(RevsetError::StoreError(err)),
+        }
+    }
+
+    if let Some(prefix) = HexPrefix::new(symbol.to_owned()) {
+        match repo.index().resolve_prefix(&prefix) {
+            PrefixResolution::NoMatch => {
+                return Err(RevsetError::NoSuchRevision(symbol.to_owned()))
+            }
+            PrefixResolution::AmbiguousMatch => {
+                return Err(RevsetError::AmbiguousCommitIdPrefix(symbol.to_owned()))
+            }
+            PrefixResolution::SingleMatch(commit_id) => {
+                return Ok(repo.store().get_commit(&commit_id)?)
+            }
+        }
+    }
+
+    Err(RevsetError::NoSuchRevision(symbol.to_owned()))
+}
+
 // TODO: Decide if we should allow a single symbol to resolve to multiple
 // revisions. For example, we may want to resolve a change id to all the
 // matching commits. Depending on how we decide to handle divergent git refs and
@@ -50,35 +88,15 @@ pub fn resolve_symbol(repo: RepoRef, symbol: &str) -> Result<Commit, RevsetError
         Ok(repo.store().root_commit())
     } else {
         // Try to resolve as a git ref
-        let view = repo.view();
-        for git_ref_prefix in &["", "refs/", "refs/heads/", "refs/tags/", "refs/remotes/"] {
-            if let Some(commit_id) = view.git_refs().get(&(git_ref_prefix.to_string() + symbol)) {
-                return Ok(repo.store().get_commit(&commit_id)?);
-            }
+        let git_ref_result = resolve_git_ref(repo, symbol);
+        if !matches!(git_ref_result, Err(RevsetError::NoSuchRevision(_))) {
+            return git_ref_result;
         }
 
-        // Try to resolve as a commit id. First check if it's a full commit id.
-        if let Ok(binary_commit_id) = hex::decode(symbol) {
-            let commit_id = CommitId(binary_commit_id);
-            match repo.store().get_commit(&commit_id) {
-                Ok(commit) => return Ok(commit),
-                Err(StoreError::NotFound) => {} // fall through
-                Err(err) => return Err(RevsetError::StoreError(err)),
-            }
-        }
-
-        if let Some(prefix) = HexPrefix::new(symbol.to_string()) {
-            match repo.index().resolve_prefix(&prefix) {
-                PrefixResolution::NoMatch => {
-                    return Err(RevsetError::NoSuchRevision(symbol.to_owned()))
-                }
-                PrefixResolution::AmbiguousMatch => {
-                    return Err(RevsetError::AmbiguousCommitIdPrefix(symbol.to_owned()))
-                }
-                PrefixResolution::SingleMatch(commit_id) => {
-                    return Ok(repo.store().get_commit(&commit_id)?)
-                }
-            }
+        // Try to resolve as a commit id.
+        let commit_id_result = resolve_commit_id(repo, symbol);
+        if !matches!(commit_id_result, Err(RevsetError::NoSuchRevision(_))) {
+            return commit_id_result;
         }
 
         Err(RevsetError::NoSuchRevision(symbol.to_owned()))
