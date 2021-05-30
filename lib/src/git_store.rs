@@ -318,7 +318,19 @@ impl Store for GitStore {
         let locked_repo = self.repo.lock().unwrap();
         let git_commit_id = Oid::from_bytes(id.0.as_slice())?;
         let commit = locked_repo.find_commit(git_commit_id)?;
-        let change_id = ChangeId(id.0.clone().as_slice()[0..16].to_vec());
+        // We reverse the bits of the commit id to create the change id. We don't want
+        // to use the first bytes unmodified because then it would be ambiguous
+        // if a given hash prefix refers to the commit id or the change id. It
+        // would have been enough to pick the last 16 bytes instead of the
+        // leading 16 bytes to address that. We also reverse the bits to make it less
+        // likely that users depend on any relationship between the two ids.
+        let change_id = ChangeId(
+            id.0.clone().as_slice()[4..20]
+                .iter()
+                .rev()
+                .map(|b| b.reverse_bits())
+                .collect(),
+        );
         let parents: Vec<_> = commit
             .parent_ids()
             .map(|oid| CommitId(oid.as_bytes().to_vec()))
@@ -535,14 +547,15 @@ mod tests {
                 &[],
             )
             .unwrap();
-        let commit_id = CommitId(git_commit_id.as_bytes().to_vec());
+        let commit_id = CommitId::from_hex("efdcea5ca4b3658149f899ca7feee6876d077263");
+        // The change id is the leading reverse bits of the commit id
+        let change_id = ChangeId::from_hex("c64ee0b6e16777fe53991f9281a6cd25");
+        // Check that the git commit above got the hash we expect
+        assert_eq!(git_commit_id.as_bytes(), &commit_id.0);
 
         let store = GitStore::load(git_repo_path);
         let commit = store.read_commit(&commit_id).unwrap();
-        assert_eq!(
-            &commit.change_id,
-            &ChangeId(commit_id.0.as_slice()[0..16].to_vec())
-        );
+        assert_eq!(&commit.change_id, &change_id);
         assert_eq!(commit.parents, vec![]);
         assert_eq!(commit.predecessors, vec![]);
         assert_eq!(commit.root_tree.0.as_slice(), root_tree_id.as_bytes());
