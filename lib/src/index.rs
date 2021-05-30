@@ -79,7 +79,7 @@ impl<'a> IndexRef<'a> {
         }
     }
 
-    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
+    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         match self {
             IndexRef::Readonly(index) => index.resolve_prefix(prefix),
             IndexRef::Mutable(index) => index.resolve_prefix(prefix),
@@ -298,14 +298,14 @@ impl HexPrefix {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PrefixResolution {
+pub enum PrefixResolution<T> {
     NoMatch,
-    SingleMatch(CommitId),
+    SingleMatch(T),
     AmbiguousMatch,
 }
 
-impl PrefixResolution {
-    fn plus(&self, other: &PrefixResolution) -> PrefixResolution {
+impl<T: Clone> PrefixResolution<T> {
+    fn plus(&self, other: &PrefixResolution<T>) -> PrefixResolution<T> {
         match (self, other) {
             (PrefixResolution::NoMatch, other) => other.clone(),
             (local, PrefixResolution::NoMatch) => local.clone(),
@@ -634,7 +634,7 @@ impl MutableIndex {
         CompositeIndex(self).commit_id_to_pos(commit_id)
     }
 
-    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
+    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         CompositeIndex(self).resolve_prefix(prefix)
     }
 
@@ -688,7 +688,7 @@ trait IndexSegment {
 
     fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition>;
 
-    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution;
+    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
 
     fn segment_is_pruned(&self, local_pos: u32) -> bool;
 
@@ -790,7 +790,7 @@ impl<'a> CompositeIndex<'a> {
         })
     }
 
-    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
+    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         let local_match = self.0.segment_resolve_prefix(prefix);
         if local_match == PrefixResolution::AmbiguousMatch {
             // return early to avoid checking the parent file(s)
@@ -1139,7 +1139,7 @@ impl IndexSegment for ReadonlyIndex {
         }
     }
 
-    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
+    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         let (bytes_prefix, min_bytes_prefix) = prefix.bytes_prefixes();
         match self.commit_id_byte_prefix_to_pos(&min_bytes_prefix) {
             None => PrefixResolution::NoMatch,
@@ -1253,7 +1253,7 @@ impl IndexSegment for MutableIndex {
         self.lookup.get(commit_id).cloned()
     }
 
-    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
+    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         let (bytes_prefix, min_bytes_prefix) = prefix.bytes_prefixes();
         let mut potential_range = self
             .lookup
@@ -1482,7 +1482,7 @@ impl ReadonlyIndex {
         CompositeIndex(self).commit_id_to_pos(commit_id)
     }
 
-    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution {
+    pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         CompositeIndex(self).resolve_prefix(prefix)
     }
 
