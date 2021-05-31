@@ -426,9 +426,15 @@ try `jj l --at-op=401652a2f61e` but use the hash from your own `jj op log`.
 
 You have already seen how `jj squash` can combine the changes from two commits
 into one. There are several other commands for changing the contents of existing
-commits. These commands require you to have `meld` installed for now
-(https://github.com/martinvonz/jj/issues/10). We'll need some more complex
-content to test these commands, so let's create a few more commits:
+commits. These commands assume that you have `meld` installed. If you prefer
+`vimdiff`, add this to your `~/.jjconfig` file:
+```
+[ui]
+diff-editor = "vimdiff"
+```
+
+We'll need some more complex content to test these commands, so let's create a
+few more commits:
 ```shell script
 $ jj co origin/main
 Working copy now at: 61b0efa09dbe 

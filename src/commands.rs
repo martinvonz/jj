@@ -1643,7 +1643,7 @@ fn cmd_squash(
             short_commit_description(&parent)
         );
         new_parent_tree_id =
-            crate::diff_edit::edit_diff(&parent.tree(), &commit.tree(), &instructions)?;
+            crate::diff_edit::edit_diff(ui, &parent.tree(), &commit.tree(), &instructions)?;
         if &new_parent_tree_id == parent.tree().id() {
             return Err(CommandError::UserError(String::from("No changes selected")));
         }
@@ -1702,7 +1702,7 @@ fn cmd_unsquash(
             short_commit_description(&commit)
         );
         new_parent_tree_id =
-            crate::diff_edit::edit_diff(&parent_base_tree, &parent.tree(), &instructions)?;
+            crate::diff_edit::edit_diff(ui, &parent_base_tree, &parent.tree(), &instructions)?;
         if &new_parent_tree_id == parent_base_tree.id() {
             return Err(CommandError::UserError(String::from("No changes selected")));
         }
@@ -1775,7 +1775,7 @@ fn cmd_restore(
             short_commit_description(&to_commit)
         );
         tree_id =
-            crate::diff_edit::edit_diff(&from_commit.tree(), &to_commit.tree(), &instructions)?;
+            crate::diff_edit::edit_diff(ui, &from_commit.tree(), &to_commit.tree(), &instructions)?;
     } else if sub_matches.is_present("paths") {
         let paths = sub_matches.values_of("paths").unwrap();
         let mut tree_builder = repo.store().tree_builder(to_commit.tree().id().clone());
@@ -1830,7 +1830,7 @@ fn cmd_edit(
         don't make any changes, then the operation will be aborted.\n",
         short_commit_description(&commit)
     );
-    let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree(), &instructions)?;
+    let tree_id = crate::diff_edit::edit_diff(ui, &base_tree, &commit.tree(), &instructions)?;
     if &tree_id == commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {
@@ -1867,7 +1867,7 @@ fn cmd_split(
         any changes, then the operation will be aborted.\n",
         short_commit_description(&commit)
     );
-    let tree_id = crate::diff_edit::edit_diff(&base_tree, &commit.tree(), &instructions)?;
+    let tree_id = crate::diff_edit::edit_diff(ui, &base_tree, &commit.tree(), &instructions)?;
     if &tree_id == commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {

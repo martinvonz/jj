@@ -28,6 +28,8 @@ use jujutsu_lib::working_copy::{CheckoutError, TreeState};
 use tempfile::tempdir;
 use thiserror::Error;
 
+use crate::ui::Ui;
+
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum DiffEditError {
     #[error("The diff tool exited with a non-zero code")]
@@ -95,6 +97,7 @@ fn set_readonly_recursively(path: &Path) {
 }
 
 pub fn edit_diff(
+    ui: &mut Ui,
     left_tree: &Tree,
     right_tree: &Tree,
     instructions: &str,
@@ -145,8 +148,15 @@ pub fn edit_diff(
         file.write_all(instructions.as_bytes()).unwrap();
     }
 
+    // TODO: Make this configuration have a table of possible editors and detect the
+    // best one here.
+    let editor_binary = ui
+        .settings()
+        .config()
+        .get_str("ui.diff-editor")
+        .unwrap_or_else(|_| "meld".to_string());
     // Start a diff editor on the two directories.
-    let exit_status = Command::new("meld")
+    let exit_status = Command::new(&editor_binary)
         .arg(&left_wc_dir)
         .arg(&right_wc_dir)
         .status()
