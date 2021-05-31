@@ -220,7 +220,7 @@ functionality in its `jj log` command. It produces hundreds of lines of output,
 so let's pipe its output into `head`:
 ```shell script
 $ jj log | head
-o <-- 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
+@ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
 |
 o fb563a4c6d26 f63e76f175b9 martinvonz@google.com 2021-05-23 22:13:45.000 -07:00
 | Jujutsu is ready!
@@ -232,7 +232,7 @@ o dcfc888f50b3 dcfc888f50b3 martinvonz@google.com 2021-05-23 22:07:40.000 -07:00
 | cli: remove "Done" message at end of git clone
 ```
 
-The `<--` indicates the working copy commit. The first hash on a line is the
+The `@ <--` indicates the working copy commit. The first hash on a line is the
 commit id. The second hash is a "change id", which is an id that follows the
 commit as it's rewritten (similar to Gerrit's Change-Id).
 
@@ -245,7 +245,7 @@ all commits pointed to by git refs. We can combine expression with `|` for
 union, `&` for intersection and `-` for difference. For example:
 ```shell script
 $ jj log -r '@ | root | git_refs()'
-o <-- 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
+@ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
 :
 o 080a9b37ff7e 080a9b37ff7e martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 refs/remotes/origin/main
 : cli: make `jj st` show parent commit before working copy commit
@@ -269,7 +269,7 @@ heads (exclusive) and the working copy (inclusive), as well as their
 descendants:
 ```shell script
 $ jj l
-o <-- 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
+@ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
 |
 o fb563a4c6d26 f63e76f175b9 martinvonz@google.com 2021-05-23 22:13:45.000 -07:00
 ~ Jujutsu is ready!
@@ -296,7 +296,7 @@ $ jj co ::::@
 Working copy now at: 9195b6d2e8dc
 added 0 files, modified 1 files, removed 1 files
 $ jj l
-o <-- 9195b6d2e8dc 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00
+@ 9195b6d2e8dc 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00
 |
 | o 1769bdaa8d6d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00
 | | C
@@ -319,7 +319,7 @@ o 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00
 | C
 o 0c305a9e6b27 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00  conflict
 | B2
-| o <-- 9195b6d2e8dc 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00
+| @ 9195b6d2e8dc 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00
 |/
 | o 47e336632333 ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00
 |/  B1
@@ -357,7 +357,7 @@ $ jj squash
 Rebased 1 descendant commits
 Working copy now at: e659edc4a9fc
 $ jj l
-o <-- e659edc4a9fc 461f38324592 martinvonz@google.com 2021-05-26 12:53:08.000 -07:00
+@ e659edc4a9fc 461f38324592 martinvonz@google.com 2021-05-26 12:53:08.000 -07:00
 |
 | o 69dbcf76642a 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00
 |/  C
@@ -383,7 +383,7 @@ the "operation log". Use the `jj op` (short for `jj operation`) family of
 commands to interact with it. To list the operations, use `jj op log`:  
 ```shell script
 $ jj op log
-o 5bd384507342 martinvonz@<hostname> 2021-05-26 12:53:08.339 -07:00 - 2021-05-26 12:53:08.350 -07:00
+@ 5bd384507342 martinvonz@<hostname> 2021-05-26 12:53:08.339 -07:00 - 2021-05-26 12:53:08.350 -07:00
 | squash commit 41f0d2289b568bfcdcf35f73d4f70f3ab6696398
 | args: jj squash
 o 2fd266a8a2e0 martinvonz@<hostname> 2021-05-26 12:53:08.335 -07:00 - 2021-05-26 12:53:08.338 -07:00
@@ -403,7 +403,7 @@ default, it will undo the most recent operation. Let's try it:
 $ jj op undo
 Working copy now at: 41f0d2289b56
 $ jj l
-o <-- 41f0d2289b56 b1e3a4afde5e martinvonz@google.com 2021-05-26 12:52:39.000 -07:00
+@ 41f0d2289b56 b1e3a4afde5e martinvonz@google.com 2021-05-26 12:52:39.000 -07:00
 |
 | o 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00  conflict
 |/  C
@@ -446,7 +446,7 @@ Working copy now at: 9d97c5018b23
 $ printf 'A\nB\nC\nD\n' > file; jj close -m ABCD
 Working copy now at: c5a985bc3f41 
 $ jj l
-o <-- c5a985bc3f41 3568f6e332d5 martinvonz@google.com 2021-05-26 14:36:46.000 -07:00 
+@ c5a985bc3f41 3568f6e332d5 martinvonz@google.com 2021-05-26 14:36:46.000 -07:00 
 | 
 o 687009839bae 874f2d307594 martinvonz@google.com 2021-05-26 14:36:38.000 -07:00 
 | ABCD

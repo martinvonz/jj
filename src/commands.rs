@@ -1247,7 +1247,6 @@ fn graph_log_template(settings: &UserSettings) -> String {
     // TODO: define a method on boolean values, so we can get auto-coloring
     //       with e.g. `obsolete.then("obsolete")`
     let default_template = r#"
-            if(current_checkout, "<-- ")
             label(if(open, "open"),
             commit_id.short()
             " " change_id.short()
@@ -1279,6 +1278,7 @@ fn cmd_log(
     let revset_expression =
         repo_command.parse_revset(sub_matches.value_of("revisions").unwrap())?;
     let repo = repo_command.repo();
+    let checkout_id = repo.view().checkout().clone();
     let revset = revset_expression.evaluate(repo.as_repo_ref())?;
     let store = repo.store();
 
@@ -1337,7 +1337,17 @@ fn cmd_log(
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            graph.add_node(&index_entry.position(), &graphlog_edges, b"o", &buffer)?;
+            let node_symbol = if index_entry.commit_id() == checkout_id {
+                b"@"
+            } else {
+                b"o"
+            };
+            graph.add_node(
+                &index_entry.position(),
+                &graphlog_edges,
+                node_symbol,
+                &buffer,
+            )?;
         }
     } else {
         for index_entry in revset.iter() {
@@ -1358,6 +1368,7 @@ fn cmd_obslog(
 
     let use_graph = !sub_matches.is_present("no-graph");
     let start_commit = repo_command.resolve_revision_arg(sub_matches)?;
+    let checkout_id = repo_command.repo().view().checkout().clone();
 
     let template_string = match sub_matches.value_of("template") {
         Some(value) => value.to_string(),
@@ -1400,7 +1411,12 @@ fn cmd_obslog(
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            graph.add_node(commit.id(), &edges, b"o", &buffer)?;
+            let node_symbol = if commit.id() == &checkout_id {
+                b"@"
+            } else {
+                b"o"
+            };
+            graph.add_node(commit.id(), &edges, node_symbol, &buffer)?;
         }
     } else {
         for commit in commits {
@@ -2210,6 +2226,7 @@ fn cmd_op_log(
     let repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
     let head_op = repo.operation().clone();
+    let head_op_id = head_op.id().clone();
     let mut styler = ui.styler();
     let mut styler = styler.as_mut();
     struct OpTemplate;
@@ -2268,7 +2285,8 @@ fn cmd_op_log(
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
         }
-        graph.add_node(op.id(), &edges, b"o", &buffer)?;
+        let node_symbol = if op.id() == &head_op_id { b"@" } else { b"o" };
+        graph.add_node(op.id(), &edges, node_symbol, &buffer)?;
     }
 
     Ok(())
