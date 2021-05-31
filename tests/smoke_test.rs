@@ -90,7 +90,7 @@ fn smoke_test() {
         testutils::CommandRunner::new(&repo_path).run(vec!["describe", "-m", "add some files"]);
     assert_eq!(output.status, 0);
     let stdout_string = output.stdout_string();
-    let output_regex = Regex::new("^Now at: [[:xdigit:]]+ add some files\n$").unwrap();
+    let output_regex = Regex::new("^Working copy now at: [[:xdigit:]]+ add some files\n$").unwrap();
     assert!(
         output_regex.is_match(&stdout_string),
         "output was: {}",
@@ -101,7 +101,7 @@ fn smoke_test() {
     let output = testutils::CommandRunner::new(&repo_path).run(vec!["close"]);
     assert_eq!(output.status, 0);
     let stdout_string = output.stdout_string();
-    let output_regex = Regex::new("^Now at: [[:xdigit:]]+ \n$").unwrap();
+    let output_regex = Regex::new("^Working copy now at: [[:xdigit:]]+ \n$").unwrap();
     assert!(
         output_regex.is_match(&stdout_string),
         "output was: {}",

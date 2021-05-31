@@ -506,7 +506,7 @@ fn update_working_copy(
             err
         ))
     })?;
-    ui.write("Now at: ")?;
+    ui.write("Working copy now at: ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &new_commit)?;
     ui.write("\n")?;
     Ok(Some(stats))
