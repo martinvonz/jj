@@ -17,50 +17,11 @@ use std::collections::{BTreeMap, HashSet};
 use crate::op_store;
 use crate::store::CommitId;
 
-pub enum ViewRef<'a> {
-    Readonly(&'a ReadonlyView),
-    Mutable(&'a MutableView),
-}
-
-impl<'a> ViewRef<'a> {
-    pub fn checkout(&self) -> &'a CommitId {
-        match self {
-            ViewRef::Readonly(view) => view.checkout(),
-            ViewRef::Mutable(view) => view.checkout(),
-        }
-    }
-
-    pub fn heads(&self) -> &'a HashSet<CommitId> {
-        match self {
-            ViewRef::Readonly(view) => view.heads(),
-            ViewRef::Mutable(view) => view.heads(),
-        }
-    }
-
-    pub fn public_heads(&self) -> &'a HashSet<CommitId> {
-        match self {
-            ViewRef::Readonly(view) => view.public_heads(),
-            ViewRef::Mutable(view) => view.public_heads(),
-        }
-    }
-
-    pub fn git_refs(&self) -> &'a BTreeMap<String, CommitId> {
-        match self {
-            ViewRef::Readonly(view) => view.git_refs(),
-            ViewRef::Mutable(view) => view.git_refs(),
-        }
-    }
-}
-
-pub struct ReadonlyView {
+pub struct View {
     data: op_store::View,
 }
 
-pub struct MutableView {
-    data: op_store::View,
-}
-
-// TODO: Make a member of MutableView?
+// TODO: Make a member of View?
 pub(crate) fn merge_views(
     left: &op_store::View,
     base: &op_store::View,
@@ -125,48 +86,18 @@ pub(crate) fn merge_views(
     result
 }
 
-impl ReadonlyView {
+impl View {
     pub fn new(op_store_view: op_store::View) -> Self {
-        ReadonlyView {
+        View {
             data: op_store_view,
         }
     }
 
-    pub fn start_modification(&self) -> MutableView {
+    pub fn start_modification(&self) -> View {
         // TODO: Avoid the cloning of the sets here.
-        MutableView {
+        View {
             data: self.data.clone(),
         }
-    }
-
-    pub fn as_view_ref(&self) -> ViewRef {
-        ViewRef::Readonly(self)
-    }
-
-    pub fn checkout(&self) -> &CommitId {
-        &self.data.checkout
-    }
-
-    pub fn heads(&self) -> &HashSet<CommitId> {
-        &self.data.head_ids
-    }
-
-    pub fn public_heads(&self) -> &HashSet<CommitId> {
-        &self.data.public_head_ids
-    }
-
-    pub fn git_refs(&self) -> &BTreeMap<String, CommitId> {
-        &self.data.git_refs
-    }
-
-    pub fn store_view(&self) -> &op_store::View {
-        &self.data
-    }
-}
-
-impl MutableView {
-    pub fn as_view_ref(&self) -> ViewRef {
-        ViewRef::Mutable(self)
     }
 
     pub fn checkout(&self) -> &CommitId {
@@ -223,9 +154,5 @@ impl MutableView {
 
     pub fn store_view_mut(&mut self) -> &mut op_store::View {
         &mut self.data
-    }
-
-    pub fn freeze(self) -> ReadonlyView {
-        ReadonlyView { data: self.data }
     }
 }

@@ -38,7 +38,7 @@ use crate::simple_op_store::SimpleOpStore;
 use crate::store::{CommitId, Store, StoreError};
 use crate::store_wrapper::StoreWrapper;
 use crate::transaction::Transaction;
-use crate::view::{merge_views, MutableView, ReadonlyView, ViewRef};
+use crate::view::{merge_views, View};
 use crate::working_copy::WorkingCopy;
 use crate::{conflicts, op_store, store};
 
@@ -91,10 +91,10 @@ impl<'a> RepoRef<'a> {
         }
     }
 
-    pub fn view(&self) -> ViewRef<'a> {
+    pub fn view(&self) -> &View {
         match self {
-            RepoRef::Readonly(repo) => ViewRef::Readonly(repo.view()),
-            RepoRef::Mutable(repo) => ViewRef::Mutable(repo.view()),
+            RepoRef::Readonly(repo) => repo.view(),
+            RepoRef::Mutable(repo) => repo.view(),
         }
     }
 
@@ -117,7 +117,7 @@ pub struct ReadonlyRepo {
     index_store: Arc<IndexStore>,
     index: Mutex<Option<Arc<ReadonlyIndex>>>,
     working_copy: Arc<Mutex<WorkingCopy>>,
-    view: ReadonlyView,
+    view: View,
     evolution: Mutex<Option<Arc<ReadonlyEvolution>>>,
 }
 
@@ -245,7 +245,7 @@ impl ReadonlyRepo {
         fs::create_dir(repo_path.join("index")).unwrap();
         let index_store = Arc::new(IndexStore::init(repo_path.join("index")));
 
-        let view = ReadonlyView::new(root_view);
+        let view = View::new(root_view);
 
         let repo = ReadonlyRepo {
             repo_path,
@@ -308,7 +308,7 @@ impl ReadonlyRepo {
         &self.operation
     }
 
-    pub fn view(&self) -> &ReadonlyView {
+    pub fn view(&self) -> &View {
         &self.view
     }
 
@@ -458,19 +458,19 @@ impl RepoLoader {
 
     pub fn load_at_head(&self) -> Arc<ReadonlyRepo> {
         let op = self.op_heads_store.get_single_op_head(&self).unwrap();
-        let view = ReadonlyView::new(op.view().take_store_view());
+        let view = View::new(op.view().take_store_view());
         self._finish_load(op, view)
     }
 
     pub fn load_at(&self, op: &Operation) -> Arc<ReadonlyRepo> {
-        let view = ReadonlyView::new(op.view().take_store_view());
+        let view = View::new(op.view().take_store_view());
         self._finish_load(op.clone(), view)
     }
 
     pub fn create_from(
         &self,
         operation: Operation,
-        view: ReadonlyView,
+        view: View,
         working_copy: Arc<Mutex<WorkingCopy>>,
         index: Arc<ReadonlyIndex>,
         evolution: Option<Arc<ReadonlyEvolution>>,
@@ -492,7 +492,7 @@ impl RepoLoader {
         Arc::new(repo)
     }
 
-    fn _finish_load(&self, operation: Operation, view: ReadonlyView) -> Arc<ReadonlyRepo> {
+    fn _finish_load(&self, operation: Operation, view: View) -> Arc<ReadonlyRepo> {
         let working_copy = WorkingCopy::load(
             self.store.clone(),
             self.wc_path.clone(),
@@ -519,7 +519,7 @@ impl RepoLoader {
 pub struct MutableRepo {
     base_repo: Arc<ReadonlyRepo>,
     index: MutableIndex,
-    view: MutableView,
+    view: View,
     evolution: Mutex<Option<MutableEvolution>>,
 }
 
@@ -527,7 +527,7 @@ impl MutableRepo {
     pub fn new(
         base_repo: Arc<ReadonlyRepo>,
         index: Arc<ReadonlyIndex>,
-        view: &ReadonlyView,
+        view: &View,
         evolution: Option<&Arc<ReadonlyEvolution>>,
     ) -> Arc<MutableRepo> {
         let mut_view = view.start_modification();
@@ -561,11 +561,11 @@ impl MutableRepo {
         &self.index
     }
 
-    pub fn view(&self) -> &MutableView {
+    pub fn view(&self) -> &View {
         &self.view
     }
 
-    pub fn consume(self) -> (MutableIndex, MutableView, Option<MutableEvolution>) {
+    pub fn consume(self) -> (MutableIndex, View, Option<MutableEvolution>) {
         (self.index, self.view, self.evolution.lock().unwrap().take())
     }
 

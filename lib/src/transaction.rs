@@ -22,7 +22,7 @@ use crate::op_store::{OperationId, OperationMetadata};
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoLoader};
 use crate::store::Timestamp;
-use crate::view::ReadonlyView;
+use crate::view::View;
 use crate::working_copy::WorkingCopy;
 
 pub struct Transaction {
@@ -74,12 +74,11 @@ impl Transaction {
     pub fn write(mut self) -> UnpublishedOperation {
         let mut_repo = Arc::try_unwrap(self.repo.take().unwrap()).ok().unwrap();
         let base_repo = mut_repo.base_repo().clone();
-        let (mut_index, mut_view, maybe_mut_evolution) = mut_repo.consume();
+        let (mut_index, view, maybe_mut_evolution) = mut_repo.consume();
         let maybe_evolution =
             maybe_mut_evolution.map(|mut_evolution| Arc::new(mut_evolution.freeze()));
         let index = base_repo.index_store().write_index(mut_index).unwrap();
 
-        let view = mut_view.freeze();
         let view_id = base_repo.op_store().write_view(view.store_view()).unwrap();
         let mut operation_metadata =
             OperationMetadata::new(self.description.clone(), self.start_time.clone());
@@ -125,7 +124,7 @@ impl Drop for Transaction {
 
 struct NewRepoData {
     operation: Operation,
-    view: ReadonlyView,
+    view: View,
     working_copy: Arc<Mutex<WorkingCopy>>,
     index: Arc<ReadonlyIndex>,
     evolution: Option<Arc<ReadonlyEvolution>>,
@@ -141,7 +140,7 @@ impl UnpublishedOperation {
     fn new(
         repo_loader: RepoLoader,
         operation: Operation,
-        view: ReadonlyView,
+        view: View,
         working_copy: Arc<Mutex<WorkingCopy>>,
         index: Arc<ReadonlyIndex>,
         evolution: Option<Arc<ReadonlyEvolution>>,
