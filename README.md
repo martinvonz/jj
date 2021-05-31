@@ -121,7 +121,6 @@ Let's check out a different commit so we get some files to work with in the
 working copy:
 ```shell script
 $ jj co 080a9b37ff7e
-Leaving: 60c89901778d
 Now at: 608c179a60df
 added 84 files, modified 0 files, removed 0 files
 $ jj st
@@ -147,7 +146,6 @@ working on:
 # This will bring up $EDITOR (or `pico` by default). Enter something like
 # "Jujutsu is ready!" in the editor and then close it.
 $ jj describe
-Leaving: 608c179a60df
 Now at: b2985d68096d Jujutsu is ready!
 ```
 
@@ -200,7 +198,6 @@ this. We'll get back to that when we talk about conflicts.)
 So, let's say we're now done with this commit, so we close it:
 ```shell script
 $ jj close
-Leaving: 5f80190c44b9 Jujutsu is ready!
 Now at: 192b456b024b
 $ jj st
 Parent commit: fb563a4c6d26 Jujutsu is ready!
@@ -285,23 +282,17 @@ commits:
 ```shell script
 # Check out the grandparent of the working copy
 $ jj co ::@
-Leaving: 192b456b024b
 Now at: 9164f1d6a011
 added 0 files, modified 1 files, removed 0 files
 $ echo a > file1; jj close -m A
-Leaving: 58a7b6f1826e
 Now at: 5be91b2b5b69
 $ echo b1 > file1; jj close -m B1
-Leaving: c4239476586a
 Now at: a0331f1eeece
 $ echo b2 > file1; jj close -m B2
-Leaving: 85136b7495f9
 Now at: fd571967346e
 $ echo c > file2; jj close -m C
-Leaving: e6a47cec0e0d
 Now at: 4ae1e0587eef
 $ jj co ::::@
-Leaving: 4ae1e0587eef
 Now at: 9195b6d2e8dc
 added 0 files, modified 1 files, removed 1 files
 $ jj l
@@ -351,7 +342,6 @@ resolved the conflict, we'll squash the conflict resolution into the conflicted
 B2. That might look like this:
 ```shell script
 $ jj co 0c305a9e6b27  # Replace the hash by what you have for B2
-Leaving: 9195b6d2e8dc
 Now at: 619f58d8a988
 added 0 files, modified 1 files, removed 0 files
 $ cat file1
@@ -365,7 +355,6 @@ b2
 $ echo resolved > file1
 $ jj squash
 Rebased 1 descendant commits
-Leaving: 41f0d2289b56
 Now at: e659edc4a9fc
 $ jj l
 o <-- e659edc4a9fc 461f38324592 martinvonz@google.com 2021-05-26 12:53:08.000 -07:00
@@ -412,7 +401,6 @@ The most useful command is `jj op undo`, which will undo an operation. By
 default, it will undo the most recent operation. Let's try it:
 ```shell script
 $ jj op undo
-Leaving: e659edc4a9fc
 Now at: 41f0d2289b56
 $ jj l
 o <-- 41f0d2289b56 b1e3a4afde5e martinvonz@google.com 2021-05-26 12:52:39.000 -07:00
@@ -443,17 +431,13 @@ commits. These commands require you to have `meld` installed for now
 content to test these commands, so let's create a few more commits:
 ```shell script
 $ jj co origin/main
-Leaving: 6d296c9e0f3d 
 Now at: 61b0efa09dbe 
 added 0 files, modified 0 files, removed 1 files
 $ printf 'a\nb\nc\n' > file; jj close -m abc
-Leaving: 81720067a6bd 
 Now at: f9147a088c0d 
 $ printf 'A\nB\nc\n' > file; jj close -m ABC
-Leaving: fdc61584b2a1 
 Now at: 9d97c5018b23 
 $ printf 'A\nB\nC\nD\n' > file; jj close -m ABCD
-Leaving: cab37b2580fa 
 Now at: c5a985bc3f41 
 $ jj l
 o <-- c5a985bc3f41 3568f6e332d5 martinvonz@google.com 2021-05-26 14:36:46.000 -07:00 
@@ -476,7 +460,6 @@ Now try that:
 ```shell script
 $ jj squash -i -r :@
 Rebased 1 descendant commits
-Leaving: c5a985bc3f41 
 Now at: 4b4c714b36aa 
 ```
 That will bring up Meld with a diff of the changes in the "ABCD" commit. Modify
@@ -503,7 +486,6 @@ checking it out.
 $ jj edit -r ::@
 Created 2423c134ea70 ABC
 Rebased 2 descendant commits
-Leaving: 4b4c714b36aa 
 Now at: d31c52e8ca41 
 ```
 When Meld starts, edit the right side by e.g. adding something to the first

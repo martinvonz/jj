@@ -497,9 +497,6 @@ fn update_working_copy(
     if old_commit == new_commit {
         return Ok(None);
     }
-    ui.write("Leaving: ")?;
-    ui.write_commit_summary(repo.as_repo_ref(), &old_commit)?;
-    ui.write("\n")?;
     // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
     // warning for most commands (but be an error for the checkout command)
     let stats = wc.check_out(new_commit.clone()).map_err(|err| {
