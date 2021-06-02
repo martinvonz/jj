@@ -232,7 +232,7 @@ o dcfc888f50b3 7eddf8dfc70d martinvonz@google.com 2021-05-23 22:07:40.000 -07:00
 | cli: remove "Done" message at end of git clone
 ```
 
-The `@ <--` indicates the working copy commit. The first hash on a line is the
+The `@` indicates the working copy commit. The first hash on a line is the
 commit id. The second hash is a "change id", which is an id that follows the
 commit as it's rewritten (similar to Gerrit's Change-Id).
 
