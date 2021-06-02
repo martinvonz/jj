@@ -21,7 +21,7 @@ use jujutsu_lib::store::{CommitId, Signature};
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 
-use crate::styler::PlainTextStyler;
+use crate::formatter::PlainTextFormatter;
 use crate::templater::{
     AuthorProperty, ChangeIdProperty, CommitIdKeyword, CommitterProperty, ConditionalTemplate,
     ConflictProperty, ConstantTemplateProperty, CurrentCheckoutProperty, DescriptionProperty,
@@ -345,8 +345,8 @@ fn parse_commit_term<'a>(repo: RepoRef<'a>, pair: Pair<Rule>) -> Box<dyn Templat
                             let mut buf: Vec<u8> = vec![];
                             {
                                 let writer = Box::new(&mut buf);
-                                let mut styler = PlainTextStyler::new(writer);
-                                label_template.format(commit, &mut styler).unwrap();
+                                let mut formatter = PlainTextFormatter::new(writer);
+                                label_template.format(commit, &mut formatter).unwrap();
                             }
                             String::from_utf8(buf).unwrap()
                         };

@@ -22,31 +22,31 @@ use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
 
-use crate::styler::{ColorStyler, PlainTextStyler, Styler};
+use crate::formatter::{ColorFormatter, Formatter, PlainTextFormatter};
 use crate::templater::TemplateFormatter;
 
 pub struct Ui<'a> {
     cwd: PathBuf,
-    styler: Mutex<Box<dyn Styler + 'a>>,
+    formatter: Mutex<Box<dyn Formatter + 'a>>,
     settings: UserSettings,
 }
 
-impl<'a> Ui<'a> {
+impl<'stdout> Ui<'stdout> {
     pub fn new(
         cwd: PathBuf,
-        stdout: Box<dyn Write + 'a>,
+        stdout: Box<dyn Write + 'stdout>,
         is_atty: bool,
         settings: UserSettings,
-    ) -> Ui<'a> {
-        let styler: Box<dyn Styler + 'a> = if is_atty {
-            Box::new(ColorStyler::new(stdout, &settings))
+    ) -> Ui<'stdout> {
+        let formatter: Box<dyn Formatter + 'stdout> = if is_atty {
+            Box::new(ColorFormatter::new(stdout, &settings))
         } else {
-            Box::new(PlainTextStyler::new(stdout))
+            Box::new(PlainTextFormatter::new(stdout))
         };
-        let styler = Mutex::new(styler);
+        let formatter = Mutex::new(formatter);
         Ui {
             cwd,
-            styler,
+            formatter,
             settings,
         }
     }
@@ -65,23 +65,23 @@ impl<'a> Ui<'a> {
         &self.settings
     }
 
-    pub fn styler(&self) -> MutexGuard<Box<dyn Styler + 'a>> {
-        self.styler.lock().unwrap()
+    pub fn formatter(&self) -> MutexGuard<Box<dyn Formatter + 'stdout>> {
+        self.formatter.lock().unwrap()
     }
 
     pub fn write(&mut self, text: &str) -> io::Result<()> {
-        self.styler().write_str(text)
+        self.formatter().write_str(text)
     }
 
     pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
-        self.styler().write_fmt(fmt)
+        self.formatter().write_fmt(fmt)
     }
 
     pub fn write_error(&mut self, text: &str) -> io::Result<()> {
-        let mut styler = self.styler();
-        styler.add_label(String::from("error"))?;
-        styler.write_str(text)?;
-        styler.remove_label()?;
+        let mut formatter = self.formatter();
+        formatter.add_label(String::from("error"))?;
+        formatter.write_str(text)?;
+        formatter.remove_label()?;
         Ok(())
     }
 
@@ -96,8 +96,8 @@ impl<'a> Ui<'a> {
                 )
             });
         let template = crate::template_parser::parse_commit_template(repo, &template_string);
-        let mut styler = self.styler();
-        let mut template_writer = TemplateFormatter::new(template, styler.as_mut());
+        let mut formatter = self.formatter();
+        let mut template_writer = TemplateFormatter::new(template, formatter.as_mut());
         template_writer.format(commit)?;
         Ok(())
     }

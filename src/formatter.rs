@@ -19,7 +19,7 @@ use std::io::{Error, Read, Write};
 use jujutsu_lib::settings::UserSettings;
 
 // Lets the caller label strings and translates the labels to colors
-pub trait Styler: Write {
+pub trait Formatter: Write {
     fn write_bytes(&mut self, data: &[u8]) -> io::Result<()> {
         self.write_all(data)
     }
@@ -39,17 +39,17 @@ pub trait Styler: Write {
     fn remove_label(&mut self) -> io::Result<()>;
 }
 
-pub struct PlainTextStyler<'a> {
-    output: Box<dyn Write + 'a>,
+pub struct PlainTextFormatter<'output> {
+    output: Box<dyn Write + 'output>,
 }
 
-impl<'a> PlainTextStyler<'a> {
-    pub fn new(output: Box<dyn Write + 'a>) -> PlainTextStyler<'a> {
+impl<'output> PlainTextFormatter<'output> {
+    pub fn new(output: Box<dyn Write + 'output>) -> PlainTextFormatter<'output> {
         Self { output }
     }
 }
 
-impl Write for PlainTextStyler<'_> {
+impl Write for PlainTextFormatter<'_> {
     fn write(&mut self, data: &[u8]) -> Result<usize, Error> {
         self.output.write(data)
     }
@@ -59,7 +59,7 @@ impl Write for PlainTextStyler<'_> {
     }
 }
 
-impl Styler for PlainTextStyler<'_> {
+impl Formatter for PlainTextFormatter<'_> {
     fn add_label(&mut self, _label: String) -> io::Result<()> {
         Ok(())
     }
@@ -69,8 +69,8 @@ impl Styler for PlainTextStyler<'_> {
     }
 }
 
-pub struct ColorStyler<'a> {
-    output: Box<dyn Write + 'a>,
+pub struct ColorFormatter<'output> {
+    output: Box<dyn Write + 'output>,
     colors: HashMap<String, String>,
     labels: Vec<String>,
     cached_colors: HashMap<Vec<String>, Vec<u8>>,
@@ -111,9 +111,12 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result
 }
 
-impl<'a> ColorStyler<'a> {
-    pub fn new(output: Box<dyn Write + 'a>, user_settings: &UserSettings) -> ColorStyler<'a> {
-        ColorStyler {
+impl<'output> ColorFormatter<'output> {
+    pub fn new(
+        output: Box<dyn Write + 'output>,
+        user_settings: &UserSettings,
+    ) -> ColorFormatter<'output> {
+        ColorFormatter {
             output,
             colors: config_colors(user_settings),
             labels: vec![],
@@ -175,7 +178,7 @@ impl<'a> ColorStyler<'a> {
     }
 }
 
-impl Write for ColorStyler<'_> {
+impl Write for ColorFormatter<'_> {
     fn write(&mut self, data: &[u8]) -> Result<usize, Error> {
         self.output.write(data)
     }
@@ -185,7 +188,7 @@ impl Write for ColorStyler<'_> {
     }
 }
 
-impl Styler for ColorStyler<'_> {
+impl Formatter for ColorFormatter<'_> {
     fn add_label(&mut self, label: String) -> io::Result<()> {
         self.labels.push(label);
         let new_color = self.current_color();

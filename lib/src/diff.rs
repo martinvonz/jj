@@ -826,7 +826,7 @@ mod tests {
     fn test_diff_real_case_write_fmt() {
         // This is from src/ui.rs in commit f44d246e3f88 in this repo. It highlights the
         // need for recursion into the range at the end: after splitting at "Arguments"
-        // and "styler", the region at the end has the unique words "write_fmt"
+        // and "formatter", the region at the end has the unique words "write_fmt"
         // and "fmt", but we forgot to recurse into that region, so we ended up
         // saying that "write_fmt(fmt).unwrap()" was replaced by b"write_fmt(fmt)".
         assert_eq!(diff(

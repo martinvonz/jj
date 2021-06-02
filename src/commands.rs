@@ -59,8 +59,8 @@ use pest::Parser;
 use self::chrono::{FixedOffset, TimeZone, Utc};
 use crate::commands::CommandError::UserError;
 use crate::diff_edit::DiffEditError;
+use crate::formatter::{ColorFormatter, Formatter};
 use crate::graphlog::{AsciiGraphDrawer, Edge};
-use crate::styler::{ColorStyler, Styler};
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
 use crate::ui::Ui;
@@ -938,7 +938,7 @@ fn cmd_files(
     Ok(())
 }
 
-fn print_diff(left: &[u8], right: &[u8], styler: &mut dyn Styler) -> io::Result<()> {
+fn print_diff(left: &[u8], right: &[u8], formatter: &mut dyn Formatter) -> io::Result<()> {
     let num_context_lines = 3;
     let mut context = VecDeque::new();
     // Have we printed "..." for any skipped context?
@@ -956,66 +956,66 @@ fn print_diff(left: &[u8], right: &[u8], styler: &mut dyn Styler) -> io::Result<
                 }
                 if !context_before {
                     for line in &context {
-                        print_diff_line(styler, line)?;
+                        print_diff_line(formatter, line)?;
                     }
                     context.clear();
                     context_before = true;
                 }
                 if !skipped_context {
-                    styler.write_bytes(b"    ...\n")?;
+                    formatter.write_bytes(b"    ...\n")?;
                     skipped_context = true;
                 }
             }
         } else {
             for line in &context {
-                print_diff_line(styler, line)?;
+                print_diff_line(formatter, line)?;
             }
             context.clear();
-            print_diff_line(styler, &diff_line)?;
+            print_diff_line(formatter, &diff_line)?;
             context_before = false;
             skipped_context = false;
         }
     }
     if !context_before {
         for line in &context {
-            print_diff_line(styler, line)?;
+            print_diff_line(formatter, line)?;
         }
     }
 
     Ok(())
 }
 
-fn print_diff_line(styler: &mut dyn Styler, diff_line: &DiffLine) -> io::Result<()> {
+fn print_diff_line(formatter: &mut dyn Formatter, diff_line: &DiffLine) -> io::Result<()> {
     if diff_line.has_left_content {
-        styler.add_label(String::from("left"))?;
-        styler.write_bytes(format!("{:>4}", diff_line.left_line_number).as_bytes())?;
-        styler.remove_label()?;
-        styler.write_bytes(b" ")?;
+        formatter.add_label(String::from("left"))?;
+        formatter.write_bytes(format!("{:>4}", diff_line.left_line_number).as_bytes())?;
+        formatter.remove_label()?;
+        formatter.write_bytes(b" ")?;
     } else {
-        styler.write_bytes(b"     ")?;
+        formatter.write_bytes(b"     ")?;
     }
     if diff_line.has_right_content {
-        styler.add_label(String::from("right"))?;
-        styler.write_bytes(format!("{:>4}", diff_line.right_line_number).as_bytes())?;
-        styler.remove_label()?;
-        styler.write_bytes(b": ")?;
+        formatter.add_label(String::from("right"))?;
+        formatter.write_bytes(format!("{:>4}", diff_line.right_line_number).as_bytes())?;
+        formatter.remove_label()?;
+        formatter.write_bytes(b": ")?;
     } else {
-        styler.write_bytes(b"    : ")?;
+        formatter.write_bytes(b"    : ")?;
     }
     for hunk in &diff_line.hunks {
         match hunk {
             files::DiffHunk::Unmodified(data) => {
-                styler.write_bytes(data)?;
+                formatter.write_bytes(data)?;
             }
             files::DiffHunk::Removed(data) => {
-                styler.add_label(String::from("left"))?;
-                styler.write_bytes(data)?;
-                styler.remove_label()?;
+                formatter.add_label(String::from("left"))?;
+                formatter.write_bytes(data)?;
+                formatter.remove_label()?;
             }
             files::DiffHunk::Added(data) => {
-                styler.add_label(String::from("right"))?;
-                styler.write_bytes(data)?;
-                styler.remove_label()?;
+                formatter.add_label(String::from("right"))?;
+                formatter.write_bytes(data)?;
+                formatter.remove_label()?;
             }
         }
     }
@@ -1055,8 +1055,8 @@ fn cmd_diff(
         let summary = from_tree.diff_summary(&to_tree);
         show_diff_summary(ui, repo.working_copy_path(), &summary)?;
     } else {
-        let mut styler = ui.styler();
-        styler.add_label(String::from("diff"))?;
+        let mut formatter = ui.formatter();
+        formatter.add_label(String::from("diff"))?;
         for (path, diff) in from_tree.diff(&to_tree) {
             let ui_path = ui.format_file_path(repo.working_copy_path(), &path);
             match diff {
@@ -1064,11 +1064,11 @@ fn cmd_diff(
                     id,
                     executable: false,
                 }) => {
-                    styler.add_label(String::from("header"))?;
-                    styler.write_str(&format!("added file {}:\n", ui_path))?;
-                    styler.remove_label()?;
+                    formatter.add_label(String::from("header"))?;
+                    formatter.write_str(&format!("added file {}:\n", ui_path))?;
+                    formatter.remove_label()?;
                     let mut file_reader = repo.store().read_file(&path, &id).unwrap();
-                    styler.write_from_reader(&mut file_reader)?;
+                    formatter.write_from_reader(&mut file_reader)?;
                 }
                 Diff::Modified(
                     TreeValue::Normal {
@@ -1080,13 +1080,13 @@ fn cmd_diff(
                         executable: right_executable,
                     },
                 ) if left_executable == right_executable => {
-                    styler.add_label(String::from("header"))?;
+                    formatter.add_label(String::from("header"))?;
                     if left_executable {
-                        styler.write_str(&format!("modified executable file {}:\n", ui_path))?;
+                        formatter.write_str(&format!("modified executable file {}:\n", ui_path))?;
                     } else {
-                        styler.write_str(&format!("modified file {}:\n", ui_path))?;
+                        formatter.write_str(&format!("modified file {}:\n", ui_path))?;
                     }
-                    styler.remove_label()?;
+                    formatter.remove_label()?;
 
                     let mut file_reader_left = repo.store().read_file(&path, &id_left).unwrap();
                     let mut buffer_left = vec![];
@@ -1098,7 +1098,7 @@ fn cmd_diff(
                     print_diff(
                         buffer_left.as_slice(),
                         buffer_right.as_slice(),
-                        styler.as_mut(),
+                        formatter.as_mut(),
                     )?;
                 }
                 Diff::Modified(
@@ -1108,9 +1108,9 @@ fn cmd_diff(
                         executable: false,
                     },
                 ) => {
-                    styler.add_label(String::from("header"))?;
-                    styler.write_str(&format!("resolved conflict in file {}:\n", ui_path))?;
-                    styler.remove_label()?;
+                    formatter.add_label(String::from("header"))?;
+                    formatter.write_str(&format!("resolved conflict in file {}:\n", ui_path))?;
+                    formatter.remove_label()?;
 
                     let conflict_left = repo.store().read_conflict(&id_left).unwrap();
                     let mut buffer_left = vec![];
@@ -1127,7 +1127,7 @@ fn cmd_diff(
                     print_diff(
                         buffer_left.as_slice(),
                         buffer_right.as_slice(),
-                        styler.as_mut(),
+                        formatter.as_mut(),
                     )?;
                 }
                 Diff::Modified(
@@ -1137,9 +1137,9 @@ fn cmd_diff(
                     },
                     TreeValue::Conflict(id_right),
                 ) => {
-                    styler.add_label(String::from("header"))?;
-                    styler.write_str(&format!("new conflict in file {}:\n", ui_path))?;
-                    styler.remove_label()?;
+                    formatter.add_label(String::from("header"))?;
+                    formatter.write_str(&format!("new conflict in file {}:\n", ui_path))?;
+                    formatter.remove_label()?;
                     let mut file_reader_left = repo.store().read_file(&path, &id_left).unwrap();
                     let mut buffer_left = vec![];
                     file_reader_left.read_to_end(&mut buffer_left).unwrap();
@@ -1155,30 +1155,30 @@ fn cmd_diff(
                     print_diff(
                         buffer_left.as_slice(),
                         buffer_right.as_slice(),
-                        styler.as_mut(),
+                        formatter.as_mut(),
                     )?;
                 }
                 Diff::Removed(TreeValue::Normal {
                     id,
                     executable: false,
                 }) => {
-                    styler.add_label(String::from("header"))?;
-                    styler.write_str(&format!("removed file {}:\n", ui_path))?;
-                    styler.remove_label()?;
+                    formatter.add_label(String::from("header"))?;
+                    formatter.write_str(&format!("removed file {}:\n", ui_path))?;
+                    formatter.remove_label()?;
 
                     let mut file_reader = repo.store().read_file(&path, &id).unwrap();
-                    styler.write_from_reader(&mut file_reader)?;
+                    formatter.write_from_reader(&mut file_reader)?;
                 }
                 other => {
                     writeln!(
-                        styler,
+                        formatter,
                         "unhandled diff case in path {:?}: {:?}",
                         path, other
                     )?;
                 }
             }
         }
-        styler.remove_label()?;
+        formatter.remove_label()?;
     }
     Ok(())
 }
@@ -1296,12 +1296,12 @@ fn cmd_log(
     let template =
         crate::template_parser::parse_commit_template(repo.as_repo_ref(), &template_string);
 
-    let mut styler = ui.styler();
-    let mut styler = styler.as_mut();
-    styler.add_label(String::from("log"))?;
+    let mut formatter = ui.formatter();
+    let mut formatter = formatter.as_mut();
+    formatter.add_label(String::from("log"))?;
 
     if use_graph {
-        let mut graph = AsciiGraphDrawer::new(&mut styler);
+        let mut graph = AsciiGraphDrawer::new(&mut formatter);
         for (index_entry, edges) in revset.iter().graph() {
             let mut graphlog_edges = vec![];
             // TODO: Should we update RevsetGraphIterator to yield this flag instead of all
@@ -1330,9 +1330,9 @@ fn cmd_log(
             // TODO: only use color if requested
             {
                 let writer = Box::new(&mut buffer);
-                let mut styler = ColorStyler::new(writer, ui.settings());
+                let mut formatter = ColorFormatter::new(writer, ui.settings());
                 let commit = store.get_commit(&index_entry.commit_id()).unwrap();
-                template.format(&commit, &mut styler)?;
+                template.format(&commit, &mut formatter)?;
             }
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
@@ -1352,7 +1352,7 @@ fn cmd_log(
     } else {
         for index_entry in revset.iter() {
             let commit = store.get_commit(&index_entry.commit_id()).unwrap();
-            template.format(&commit, styler)?;
+            template.format(&commit, formatter)?;
         }
     }
 
@@ -1385,9 +1385,9 @@ fn cmd_obslog(
         &template_string,
     );
 
-    let mut styler = ui.styler();
-    let mut styler = styler.as_mut();
-    styler.add_label(String::from("log"))?;
+    let mut formatter = ui.formatter();
+    let mut formatter = formatter.as_mut();
+    formatter.add_label(String::from("log"))?;
 
     let commits = topo_order_reverse(
         vec![start_commit],
@@ -1395,7 +1395,7 @@ fn cmd_obslog(
         Box::new(|commit: &Commit| commit.predecessors()),
     );
     if use_graph {
-        let mut graph = AsciiGraphDrawer::new(&mut styler);
+        let mut graph = AsciiGraphDrawer::new(&mut formatter);
         for commit in commits {
             let mut edges = vec![];
             for predecessor in commit.predecessors() {
@@ -1405,8 +1405,8 @@ fn cmd_obslog(
             // TODO: only use color if requested
             {
                 let writer = Box::new(&mut buffer);
-                let mut styler = ColorStyler::new(writer, ui.settings());
-                template.format(&commit, &mut styler)?;
+                let mut formatter = ColorFormatter::new(writer, ui.settings());
+                template.format(&commit, &mut formatter)?;
             }
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
@@ -1420,7 +1420,7 @@ fn cmd_obslog(
         }
     } else {
         for commit in commits {
-            template.format(&commit, styler)?;
+            template.format(&commit, formatter)?;
         }
     }
 
@@ -2227,45 +2227,45 @@ fn cmd_op_log(
     let repo = repo_command.repo();
     let head_op = repo.operation().clone();
     let head_op_id = head_op.id().clone();
-    let mut styler = ui.styler();
-    let mut styler = styler.as_mut();
+    let mut formatter = ui.formatter();
+    let mut formatter = formatter.as_mut();
     struct OpTemplate;
     impl Template<Operation> for OpTemplate {
-        fn format(&self, op: &Operation, styler: &mut dyn Styler) -> io::Result<()> {
+        fn format(&self, op: &Operation, formatter: &mut dyn Formatter) -> io::Result<()> {
             // TODO: why can't this label be applied outside of the template?
-            styler.add_label("op-log".to_string())?;
+            formatter.add_label("op-log".to_string())?;
             // TODO: Make this templated
-            styler.add_label("id".to_string())?;
-            styler.write_str(&op.id().hex()[0..12])?;
-            styler.remove_label()?;
-            styler.write_str(" ")?;
+            formatter.add_label("id".to_string())?;
+            formatter.write_str(&op.id().hex()[0..12])?;
+            formatter.remove_label()?;
+            formatter.write_str(" ")?;
             let metadata = &op.store_operation().metadata;
-            styler.add_label("user".to_string())?;
-            styler.write_str(&format!("{}@{}", metadata.username, metadata.hostname))?;
-            styler.remove_label()?;
-            styler.write_str(" ")?;
-            styler.add_label("time".to_string())?;
-            styler.write_str(&format!(
+            formatter.add_label("user".to_string())?;
+            formatter.write_str(&format!("{}@{}", metadata.username, metadata.hostname))?;
+            formatter.remove_label()?;
+            formatter.write_str(" ")?;
+            formatter.add_label("time".to_string())?;
+            formatter.write_str(&format!(
                 "{} - {}",
                 format_timestamp(&metadata.start_time),
                 format_timestamp(&metadata.end_time)
             ))?;
-            styler.remove_label()?;
-            styler.write_str("\n")?;
-            styler.add_label("description".to_string())?;
-            styler.write_str(&metadata.description)?;
-            styler.remove_label()?;
+            formatter.remove_label()?;
+            formatter.write_str("\n")?;
+            formatter.add_label("description".to_string())?;
+            formatter.write_str(&metadata.description)?;
+            formatter.remove_label()?;
             for (key, value) in &metadata.tags {
-                styler.write_str(&format!("\n{}: {}", key, value))?;
+                formatter.write_str(&format!("\n{}: {}", key, value))?;
             }
-            styler.remove_label()?;
+            formatter.remove_label()?;
 
             Ok(())
         }
     }
     let template = OpTemplate;
 
-    let mut graph = AsciiGraphDrawer::new(&mut styler);
+    let mut graph = AsciiGraphDrawer::new(&mut formatter);
     for op in topo_order_reverse(
         vec![head_op],
         Box::new(|op: &Operation| op.id().clone()),
@@ -2279,8 +2279,8 @@ fn cmd_op_log(
         // TODO: only use color if requested
         {
             let writer = Box::new(&mut buffer);
-            let mut styler = ColorStyler::new(writer, ui.settings());
-            template.format(&op, &mut styler)?;
+            let mut formatter = ColorFormatter::new(writer, ui.settings());
+            template.format(&op, &mut formatter)?;
         }
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');

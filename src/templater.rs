@@ -20,33 +20,36 @@ use jujutsu_lib::commit::Commit;
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::store::{CommitId, Signature};
 
-use crate::styler::Styler;
+use crate::formatter::Formatter;
 
 pub trait Template<C> {
-    fn format(&self, context: &C, styler: &mut dyn Styler) -> io::Result<()>;
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()>;
 }
 
 // TODO: Extract a trait for this type?
-pub struct TemplateFormatter<'s, 't: 's, C> {
+pub struct TemplateFormatter<'f, 't: 'f, C> {
     template: Box<dyn Template<C> + 't>,
-    styler: &'s mut dyn Styler,
+    formatter: &'f mut dyn Formatter,
 }
 
-impl<'s, 't: 's, C> TemplateFormatter<'s, 't, C> {
-    pub fn new(template: Box<dyn Template<C> + 't>, styler: &'s mut dyn Styler) -> Self {
-        TemplateFormatter { template, styler }
+impl<'f, 't: 'f, C> TemplateFormatter<'f, 't, C> {
+    pub fn new(template: Box<dyn Template<C> + 't>, formatter: &'f mut dyn Formatter) -> Self {
+        TemplateFormatter {
+            template,
+            formatter,
+        }
     }
 
     pub fn format<'c, 'a: 'c>(&'a mut self, context: &'c C) -> io::Result<()> {
-        self.template.format(context, self.styler.borrow_mut())
+        self.template.format(context, self.formatter.borrow_mut())
     }
 }
 
 pub struct LiteralTemplate(pub String);
 
 impl<C> Template<C> for LiteralTemplate {
-    fn format(&self, _context: &C, styler: &mut dyn Styler) -> io::Result<()> {
-        styler.write_str(&self.0)
+    fn format(&self, _context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+        formatter.write_str(&self.0)
     }
 }
 
@@ -67,13 +70,13 @@ impl<'a, C> LabelTemplate<'a, C> {
 }
 
 impl<'a, C> Template<C> for LabelTemplate<'a, C> {
-    fn format(&self, context: &C, styler: &mut dyn Styler) -> io::Result<()> {
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         for label in &self.labels {
-            styler.add_label(label.clone())?;
+            formatter.add_label(label.clone())?;
         }
-        self.content.format(context, styler)?;
+        self.content.format(context, formatter)?;
         for _label in &self.labels {
-            styler.remove_label()?;
+            formatter.remove_label()?;
         }
         Ok(())
     }
@@ -98,18 +101,18 @@ impl<'a, C> DynamicLabelTemplate<'a, C> {
 }
 
 impl<'a, C> Template<C> for DynamicLabelTemplate<'a, C> {
-    fn format(&self, context: &C, styler: &mut dyn Styler) -> io::Result<()> {
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let labels = self.label_property.as_ref()(context);
         let labels: Vec<String> = labels
             .split_whitespace()
             .map(|label| label.to_string())
             .collect();
         for label in &labels {
-            styler.add_label(label.clone())?;
+            formatter.add_label(label.clone())?;
         }
-        self.content.format(context, styler)?;
+        self.content.format(context, formatter)?;
         for _label in &labels {
-            styler.remove_label()?;
+            formatter.remove_label()?;
         }
         Ok(())
     }
@@ -119,9 +122,9 @@ impl<'a, C> Template<C> for DynamicLabelTemplate<'a, C> {
 pub struct ListTemplate<'a, C>(pub Vec<Box<dyn Template<C> + 'a>>);
 
 impl<'a, C> Template<C> for ListTemplate<'a, C> {
-    fn format(&self, context: &C, styler: &mut dyn Styler) -> io::Result<()> {
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         for template in &self.0 {
-            template.format(context, styler)?
+            template.format(context, formatter)?
         }
         Ok(())
     }
@@ -147,9 +150,9 @@ pub struct StringPropertyTemplate<'a, C> {
 }
 
 impl<'a, C> Template<C> for StringPropertyTemplate<'a, C> {
-    fn format(&self, context: &C, styler: &mut dyn Styler) -> io::Result<()> {
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let text = self.property.extract(context);
-        styler.write_str(&text)
+        formatter.write_str(&text)
     }
 }
 
@@ -294,11 +297,11 @@ impl<'a, C> ConditionalTemplate<'a, C> {
 }
 
 impl<'a, C> Template<C> for ConditionalTemplate<'a, C> {
-    fn format(&self, context: &C, styler: &mut dyn Styler) -> io::Result<()> {
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         if self.condition.extract(context) {
-            self.true_template.format(context, styler)?;
+            self.true_template.format(context, formatter)?;
         } else if let Some(false_template) = &self.false_template {
-            false_template.format(context, styler)?;
+            false_template.format(context, formatter)?;
         }
         Ok(())
     }
