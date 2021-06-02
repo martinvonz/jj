@@ -224,11 +224,11 @@ $ jj log | head
 |
 o fb563a4c6d26 f63e76f175b9 martinvonz@google.com 2021-05-23 22:13:45.000 -07:00
 | Jujutsu is ready!
-o 080a9b37ff7e 080a9b37ff7e martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 refs/remotes/origin/main
+o 080a9b37ff7e 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 refs/remotes/origin/main
 | cli: make `jj st` show parent commit before working copy commit
-o ba8ff31e32fd ba8ff31e32fd martinvonz@google.com 2021-05-23 22:08:12.000 -07:00
+o ba8ff31e32fd 302257bdb7e5 martinvonz@google.com 2021-05-23 22:08:12.000 -07:00
 | cli: make the working copy changes in `jj status` clearer
-o dcfc888f50b3 dcfc888f50b3 martinvonz@google.com 2021-05-23 22:07:40.000 -07:00
+o dcfc888f50b3 7eddf8dfc70d martinvonz@google.com 2021-05-23 22:07:40.000 -07:00
 | cli: remove "Done" message at end of git clone
 ```
 
@@ -247,7 +247,7 @@ union, `&` for intersection and `-` for difference. For example:
 $ jj log -r '@ | root | git_refs()'
 @ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
 :
-o 080a9b37ff7e 080a9b37ff7e martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 refs/remotes/origin/main
+o 080a9b37ff7e 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 refs/remotes/origin/main
 : cli: make `jj st` show parent commit before working copy commit
 o 000000000000 000000000000  1970-01-01 00:00:00.000 +00:00
 ```
