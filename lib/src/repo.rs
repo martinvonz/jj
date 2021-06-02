@@ -38,7 +38,7 @@ use crate::simple_op_store::SimpleOpStore;
 use crate::store::{CommitId, Store, StoreError};
 use crate::store_wrapper::StoreWrapper;
 use crate::transaction::Transaction;
-use crate::view::{merge_views, View};
+use crate::view::View;
 use crate::working_copy::WorkingCopy;
 use crate::{conflicts, op_store, store};
 
@@ -753,12 +753,7 @@ impl MutableRepo {
         self.index.merge_in(&base_repo.index());
         self.index.merge_in(&other_repo.index());
 
-        let merged_view = merge_views(
-            self.view.store_view(),
-            base_repo.view.store_view(),
-            other_repo.view.store_view(),
-        );
-        self.view.set_view(merged_view);
+        self.view.merge(&base_repo.view, &other_repo.view);
         self.enforce_view_invariants();
 
         self.invalidate_evolution();
