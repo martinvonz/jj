@@ -234,7 +234,9 @@ o dcfc888f50b3 7eddf8dfc70d martinvonz@google.com 2021-05-23 22:07:40.000 -07:00
 
 The `@` indicates the working copy commit. The first hash on a line is the
 commit id. The second hash is a "change id", which is an id that follows the
-commit as it's rewritten (similar to Gerrit's Change-Id).
+commit as it's rewritten (similar to Gerrit's Change-Id). You can give either
+hash to commands that take revisions as arguments. We will generally prefer
+change ids because they stay the same when the commit is rewritten. 
 
 By default, `jj log` lists all revisions (commits) in the repo that have not
 been rewritten (roughly speaking). We can use the `-r` flag to restrict which
@@ -312,7 +314,7 @@ We now have a few commits, where A, B1, and B2 modify the same file, while C
 modifies a different file. We checked out A in order to simplify the next steps.
 Let's now rebase B2 directly onto A:
 ```shell script
-$ jj rebase -r de5690380f40 -d 661432c51c08
+$ jj rebase -r 5548374c0794 -d cf49e6bec410
 Rebased 1 descendant commits
 $ jj l
 o 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00  conflict
@@ -341,7 +343,7 @@ the conflict resolution doesn't get mixed in with the changes in B2. Once we've
 resolved the conflict, we'll squash the conflict resolution into the conflicted
 B2. That might look like this:
 ```shell script
-$ jj co 0c305a9e6b27  # Replace the hash by what you have for B2
+$ jj co 5548374c0794  # Replace the hash by what you have for B2
 Working copy now at: 619f58d8a988
 added 0 files, modified 1 files, removed 0 files
 $ cat file1
