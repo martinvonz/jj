@@ -27,8 +27,21 @@ use crate::templater::TemplateFormatter;
 
 pub struct Ui<'a> {
     cwd: PathBuf,
+    color: bool,
     formatter: Mutex<Box<dyn Formatter + 'a>>,
     settings: UserSettings,
+}
+
+fn new_formatter<'output>(
+    settings: &UserSettings,
+    color: bool,
+    output: Box<dyn Write + 'output>,
+) -> Box<dyn Formatter + 'output> {
+    if color {
+        Box::new(ColorFormatter::new(output, &settings))
+    } else {
+        Box::new(PlainTextFormatter::new(output))
+    }
 }
 
 impl<'stdout> Ui<'stdout> {
@@ -38,14 +51,11 @@ impl<'stdout> Ui<'stdout> {
         is_atty: bool,
         settings: UserSettings,
     ) -> Ui<'stdout> {
-        let formatter: Box<dyn Formatter + 'stdout> = if is_atty {
-            Box::new(ColorFormatter::new(stdout, &settings))
-        } else {
-            Box::new(PlainTextFormatter::new(stdout))
-        };
-        let formatter = Mutex::new(formatter);
+        let color = is_atty;
+        let formatter = Mutex::new(new_formatter(&settings, color, stdout));
         Ui {
             cwd,
+            color,
             formatter,
             settings,
         }
@@ -65,20 +75,27 @@ impl<'stdout> Ui<'stdout> {
         &self.settings
     }
 
-    pub fn formatter(&self) -> MutexGuard<Box<dyn Formatter + 'stdout>> {
+    pub fn new_formatter<'output>(
+        &self,
+        output: Box<dyn Write + 'output>,
+    ) -> Box<dyn Formatter + 'output> {
+        new_formatter(&self.settings, self.color, output)
+    }
+
+    pub fn stdout_formatter(&self) -> MutexGuard<Box<dyn Formatter + 'stdout>> {
         self.formatter.lock().unwrap()
     }
 
     pub fn write(&mut self, text: &str) -> io::Result<()> {
-        self.formatter().write_str(text)
+        self.stdout_formatter().write_str(text)
     }
 
     pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
-        self.formatter().write_fmt(fmt)
+        self.stdout_formatter().write_fmt(fmt)
     }
 
     pub fn write_error(&mut self, text: &str) -> io::Result<()> {
-        let mut formatter = self.formatter();
+        let mut formatter = self.stdout_formatter();
         formatter.add_label(String::from("error"))?;
         formatter.write_str(text)?;
         formatter.remove_label()?;
@@ -96,7 +113,7 @@ impl<'stdout> Ui<'stdout> {
                 )
             });
         let template = crate::template_parser::parse_commit_template(repo, &template_string);
-        let mut formatter = self.formatter();
+        let mut formatter = self.stdout_formatter();
         let mut template_writer = TemplateFormatter::new(template, formatter.as_mut());
         template_writer.format(commit)?;
         Ok(())

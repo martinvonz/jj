@@ -59,7 +59,7 @@ use pest::Parser;
 use self::chrono::{FixedOffset, TimeZone, Utc};
 use crate::commands::CommandError::UserError;
 use crate::diff_edit::DiffEditError;
-use crate::formatter::{ColorFormatter, Formatter};
+use crate::formatter::Formatter;
 use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
@@ -1055,7 +1055,7 @@ fn cmd_diff(
         let summary = from_tree.diff_summary(&to_tree);
         show_diff_summary(ui, repo.working_copy_path(), &summary)?;
     } else {
-        let mut formatter = ui.formatter();
+        let mut formatter = ui.stdout_formatter();
         formatter.add_label(String::from("diff"))?;
         for (path, diff) in from_tree.diff(&to_tree) {
             let ui_path = ui.format_file_path(repo.working_copy_path(), &path);
@@ -1296,7 +1296,7 @@ fn cmd_log(
     let template =
         crate::template_parser::parse_commit_template(repo.as_repo_ref(), &template_string);
 
-    let mut formatter = ui.formatter();
+    let mut formatter = ui.stdout_formatter();
     let mut formatter = formatter.as_mut();
     formatter.add_label(String::from("log"))?;
 
@@ -1327,12 +1327,11 @@ fn cmd_log(
                 graphlog_edges.push(Edge::Missing);
             }
             let mut buffer = vec![];
-            // TODO: only use color if requested
             {
                 let writer = Box::new(&mut buffer);
-                let mut formatter = ColorFormatter::new(writer, ui.settings());
+                let mut formatter = ui.new_formatter(writer);
                 let commit = store.get_commit(&index_entry.commit_id()).unwrap();
-                template.format(&commit, &mut formatter)?;
+                template.format(&commit, formatter.as_mut())?;
             }
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
@@ -1385,7 +1384,7 @@ fn cmd_obslog(
         &template_string,
     );
 
-    let mut formatter = ui.formatter();
+    let mut formatter = ui.stdout_formatter();
     let mut formatter = formatter.as_mut();
     formatter.add_label(String::from("log"))?;
 
@@ -1402,11 +1401,10 @@ fn cmd_obslog(
                 edges.push(Edge::direct(predecessor.id().clone()));
             }
             let mut buffer = vec![];
-            // TODO: only use color if requested
             {
                 let writer = Box::new(&mut buffer);
-                let mut formatter = ColorFormatter::new(writer, ui.settings());
-                template.format(&commit, &mut formatter)?;
+                let mut formatter = ui.new_formatter(writer);
+                template.format(&commit, formatter.as_mut())?;
             }
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
@@ -2227,7 +2225,7 @@ fn cmd_op_log(
     let repo = repo_command.repo();
     let head_op = repo.operation().clone();
     let head_op_id = head_op.id().clone();
-    let mut formatter = ui.formatter();
+    let mut formatter = ui.stdout_formatter();
     let mut formatter = formatter.as_mut();
     struct OpTemplate;
     impl Template<Operation> for OpTemplate {
@@ -2276,11 +2274,10 @@ fn cmd_op_log(
             edges.push(Edge::direct(parent.id().clone()));
         }
         let mut buffer = vec![];
-        // TODO: only use color if requested
         {
             let writer = Box::new(&mut buffer);
-            let mut formatter = ColorFormatter::new(writer, ui.settings());
-            template.format(&op, &mut formatter)?;
+            let mut formatter = ui.new_formatter(writer);
+            template.format(&op, formatter.as_mut())?;
         }
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
