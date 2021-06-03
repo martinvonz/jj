@@ -20,6 +20,7 @@ path = "src/main.rs"
 members = ["lib"]
 
 [dependencies]
+atty = "0.2.14"
 blake2 = "0.9.2"
 bytes = "1.1.0"
 chrono = "0.4.19"

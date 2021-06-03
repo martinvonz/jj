@@ -528,6 +528,7 @@ dependencies = [
 name = "jujutsu"
 version = "0.2.0"
 dependencies = [
+ "atty",
  "blake2",
  "bytes",
  "chrono",

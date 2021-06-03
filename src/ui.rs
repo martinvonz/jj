@@ -17,6 +17,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 use std::{fmt, io};
 
+use atty::Stream;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
@@ -48,10 +49,9 @@ impl<'stdout> Ui<'stdout> {
     pub fn new(
         cwd: PathBuf,
         stdout: Box<dyn Write + 'stdout>,
-        is_atty: bool,
+        color: bool,
         settings: UserSettings,
     ) -> Ui<'stdout> {
-        let color = is_atty;
         let formatter = Mutex::new(new_formatter(&settings, color, stdout));
         Ui {
             cwd,
@@ -64,7 +64,16 @@ impl<'stdout> Ui<'stdout> {
     pub fn for_terminal(settings: UserSettings) -> Ui<'static> {
         let cwd = std::env::current_dir().unwrap();
         let stdout: Box<dyn Write + 'static> = Box::new(io::stdout());
-        Ui::new(cwd, stdout, true, settings)
+        let color_setting = settings
+            .config()
+            .get_str("ui.color")
+            .unwrap_or_else(|_| "auto".to_string());
+        let color = match color_setting.as_str() {
+            "always" => true,
+            "never" => false,
+            _ => atty::is(Stream::Stdout),
+        };
+        Ui::new(cwd, stdout, color, settings)
     }
 
     pub fn cwd(&self) -> &Path {
