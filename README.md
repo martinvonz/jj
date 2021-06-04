@@ -78,7 +78,8 @@ First install Jujutsu:
 ```shell script
 $ git clone https://github.com/martinvonz/jj.git jj-git
 $ cd jj-git
-$ cargo install --path .
+$ rustup install nightly
+$ cargo +nightly install --path .
 $ cd ..
 ```
 
