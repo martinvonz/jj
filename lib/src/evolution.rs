@@ -25,7 +25,7 @@ use crate::rewrite::{merge_commit_trees, rebase_commit};
 use crate::settings::UserSettings;
 use crate::store::{ChangeId, CommitId};
 use crate::store_wrapper::StoreWrapper;
-use crate::trees::merge_trees;
+use crate::tree::merge_trees;
 
 // TODO: Combine some maps/sets and use a struct as value instead.
 // TODO: Move some of this into the index?

@@ -17,8 +17,7 @@ use crate::commit_builder::CommitBuilder;
 use crate::repo::{MutableRepo, RepoRef};
 use crate::repo_path::RepoPath;
 use crate::settings::UserSettings;
-use crate::tree::Tree;
-use crate::trees::merge_trees;
+use crate::tree::{merge_trees, Tree};
 
 pub fn merge_commit_trees(repo: RepoRef, commits: &[Commit]) -> Tree {
     let store = repo.store();

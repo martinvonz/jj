@@ -42,7 +42,7 @@ use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::settings::UserSettings;
 use crate::store::{CommitId, FileId, MillisSinceEpoch, StoreError, SymlinkId, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
-use crate::trees::Diff;
+use crate::tree::Diff;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FileType {
