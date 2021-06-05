@@ -19,21 +19,21 @@ use std::collections::{HashMap, HashSet};
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
 #[derive(PartialEq, Eq, Debug)]
-pub struct Visit<'a> {
-    dirs: VisitDirs<'a>,
-    files: VisitFiles<'a>,
+pub struct Visit<'matcher> {
+    pub dirs: VisitDirs<'matcher>,
+    pub files: VisitFiles<'matcher>,
 }
 
 #[derive(PartialEq, Eq, Debug)]
-pub enum VisitDirs<'a> {
+pub enum VisitDirs<'matcher> {
     All,
-    Set(&'a HashSet<RepoPathComponent>),
+    Set(&'matcher HashSet<RepoPathComponent>),
 }
 
 #[derive(PartialEq, Eq, Debug)]
-pub enum VisitFiles<'a> {
+pub enum VisitFiles<'matcher> {
     All,
-    Set(&'a HashSet<RepoPathComponent>),
+    Set(&'matcher HashSet<RepoPathComponent>),
 }
 
 pub trait Matcher {
@@ -64,7 +64,7 @@ pub struct FilesMatcher {
 }
 
 impl FilesMatcher {
-    fn new(files: HashSet<RepoPath>) -> Self {
+    pub fn new(files: HashSet<RepoPath>) -> Self {
         let mut dirs = Dirs::new();
         for f in &files {
             dirs.add_file(f);

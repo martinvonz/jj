@@ -20,6 +20,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::settings::UserSettings;
@@ -185,7 +186,9 @@ fn test_checkout_file_transitions(use_git: bool) {
     // Check that the working copy is clean.
     let (reloaded_repo, after_commit) = wc.commit(&settings, repo);
     repo = reloaded_repo;
-    let diff_summary = right_commit.tree().diff_summary(&after_commit.tree());
+    let diff_summary = right_commit
+        .tree()
+        .diff_summary(&after_commit.tree(), &EverythingMatcher);
     assert_eq!(diff_summary.modified, vec![]);
     assert_eq!(diff_summary.added, vec![]);
     assert_eq!(diff_summary.removed, vec![]);

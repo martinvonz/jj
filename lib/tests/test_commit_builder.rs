@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
@@ -49,7 +50,10 @@ fn test_initial(use_git: bool) {
     assert_eq!(commit.committer().name, settings.user_name());
     assert_eq!(commit.committer().email, settings.user_email());
     assert_eq!(
-        store.root_commit().tree().diff_summary(&commit.tree()),
+        store
+            .root_commit()
+            .tree()
+            .diff_summary(&commit.tree(), &EverythingMatcher),
         DiffSummary {
             modified: vec![],
             added: vec![dir_file_path, root_file_path],
@@ -119,7 +123,7 @@ fn test_rewrite(use_git: bool) {
         store
             .root_commit()
             .tree()
-            .diff_summary(&rewritten_commit.tree()),
+            .diff_summary(&rewritten_commit.tree(), &EverythingMatcher),
         DiffSummary {
             modified: vec![],
             added: vec![dir_file_path.clone(), root_file_path],
@@ -127,7 +131,9 @@ fn test_rewrite(use_git: bool) {
         }
     );
     assert_eq!(
-        initial_commit.tree().diff_summary(&rewritten_commit.tree()),
+        initial_commit
+            .tree()
+            .diff_summary(&rewritten_commit.tree(), &EverythingMatcher),
         DiffSummary {
             modified: vec![dir_file_path],
             added: vec![],

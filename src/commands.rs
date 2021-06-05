@@ -39,6 +39,7 @@ use jujutsu_lib::evolution::{
 use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::git::GitFetchError;
 use jujutsu_lib::index::HexPrefix;
+use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::op_heads_store::OpHeadsStore;
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId};
 use jujutsu_lib::operation::Operation;
@@ -1052,12 +1053,12 @@ fn cmd_diff(
     }
     let repo = repo_command.repo();
     if sub_matches.is_present("summary") {
-        let summary = from_tree.diff_summary(&to_tree);
+        let summary = from_tree.diff_summary(&to_tree, &EverythingMatcher);
         show_diff_summary(ui, repo.working_copy_path(), &summary)?;
     } else {
         let mut formatter = ui.stdout_formatter();
         formatter.add_label(String::from("diff"))?;
-        for (path, diff) in from_tree.diff(&to_tree) {
+        for (path, diff) in from_tree.diff(&to_tree, &EverythingMatcher) {
             let ui_path = ui.format_file_path(repo.working_copy_path(), &path);
             match diff {
                 Diff::Added(TreeValue::Normal {
@@ -1211,7 +1212,9 @@ fn cmd_status(
     ui.write("Working copy : ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
     ui.write("\n")?;
-    let summary = commit.parents()[0].tree().diff_summary(&commit.tree());
+    let summary = commit.parents()[0]
+        .tree()
+        .diff_summary(&commit.tree(), &EverythingMatcher);
     if summary.is_empty() {
         ui.write("The working copy is clean\n")?;
     } else {

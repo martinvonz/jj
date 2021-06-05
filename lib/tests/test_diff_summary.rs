@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use jujutsu_lib::matchers::{EverythingMatcher, FilesMatcher};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::testutils;
 use jujutsu_lib::tree::DiffSummary;
+use maplit::hashset;
 use test_case::test_case;
 
 #[test_case(false ; "local store")]
@@ -47,7 +49,7 @@ fn test_types(use_git: bool) {
     );
 
     assert_eq!(
-        tree1.diff_summary(&tree2),
+        tree1.diff_summary(&tree2, &EverythingMatcher),
         DiffSummary {
             modified: vec![modified_path],
             added: vec![added_path],
@@ -69,7 +71,7 @@ fn test_tree_file_transition(use_git: bool) {
     let tree2 = testutils::create_tree(&repo, &[(&dir_path, "contents")]);
 
     assert_eq!(
-        tree1.diff_summary(&tree2),
+        tree1.diff_summary(&tree2, &EverythingMatcher),
         DiffSummary {
             modified: vec![],
             added: vec![dir_path.clone()],
@@ -77,7 +79,7 @@ fn test_tree_file_transition(use_git: bool) {
         }
     );
     assert_eq!(
-        tree2.diff_summary(&tree1),
+        tree2.diff_summary(&tree1, &EverythingMatcher),
         DiffSummary {
             modified: vec![],
             added: vec![dir_file_path],
@@ -127,7 +129,7 @@ fn test_sorting(use_git: bool) {
     );
 
     assert_eq!(
-        tree1.diff_summary(&tree2),
+        tree1.diff_summary(&tree2, &EverythingMatcher),
         DiffSummary {
             modified: vec![a_path.clone(), f_a_path.clone(), f_f_a_path.clone()],
             added: vec![
@@ -142,11 +144,141 @@ fn test_sorting(use_git: bool) {
         }
     );
     assert_eq!(
-        tree2.diff_summary(&tree1),
+        tree2.diff_summary(&tree1, &EverythingMatcher),
         DiffSummary {
             modified: vec![a_path, f_a_path, f_f_a_path],
             added: vec![],
             removed: vec![b_path, f_b_path, f_f_b_path, n_path, s_b_path, z_path]
+        }
+    );
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_matcher_dir_file_transition(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let a_path = RepoPath::from_internal_string("a");
+    let a_a_path = RepoPath::from_internal_string("a/a");
+
+    let tree1 = testutils::create_tree(&repo, &[(&a_path, "before")]);
+    let tree2 = testutils::create_tree(&repo, &[(&a_a_path, "after")]);
+
+    let matcher = FilesMatcher::new(hashset! {a_path.clone()});
+    assert_eq!(
+        tree1.diff_summary(&tree2, &matcher),
+        DiffSummary {
+            modified: vec![],
+            added: vec![],
+            removed: vec![a_path.clone()]
+        }
+    );
+    assert_eq!(
+        tree2.diff_summary(&tree1, &matcher),
+        DiffSummary {
+            modified: vec![],
+            added: vec![a_path.clone()],
+            removed: vec![]
+        }
+    );
+
+    let matcher = FilesMatcher::new(hashset! {a_a_path.clone()});
+    assert_eq!(
+        tree1.diff_summary(&tree2, &matcher),
+        DiffSummary {
+            modified: vec![],
+            added: vec![a_a_path.clone()],
+            removed: vec![]
+        }
+    );
+    assert_eq!(
+        tree2.diff_summary(&tree1, &matcher),
+        DiffSummary {
+            modified: vec![],
+            added: vec![],
+            removed: vec![a_a_path.clone()]
+        }
+    );
+
+    let matcher = FilesMatcher::new(hashset! {a_path.clone(), a_a_path.clone()});
+    assert_eq!(
+        tree1.diff_summary(&tree2, &matcher),
+        DiffSummary {
+            modified: vec![],
+            added: vec![a_a_path.clone()],
+            removed: vec![a_path.clone()]
+        }
+    );
+    assert_eq!(
+        tree2.diff_summary(&tree1, &matcher),
+        DiffSummary {
+            modified: vec![],
+            added: vec![a_path.clone()],
+            removed: vec![a_a_path.clone()]
+        }
+    );
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_matcher_normal_cases(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let a_path = RepoPath::from_internal_string("a");
+    let dir1_a_path = RepoPath::from_internal_string("dir1/a");
+    let dir2_b_path = RepoPath::from_internal_string("dir2/b");
+    let z_path = RepoPath::from_internal_string("z");
+
+    let tree1 = testutils::create_tree(&repo, &[(&a_path, "before"), (&dir1_a_path, "before")]);
+    // File "a" gets modified
+    // File "dir1/a" gets modified
+    // File "dir2/b" gets created
+    // File "z" gets created
+    let tree2 = testutils::create_tree(
+        &repo,
+        &[
+            (&a_path, "after"),
+            (&dir1_a_path, "after"),
+            (&dir2_b_path, "after"),
+            (&z_path, "after"),
+        ],
+    );
+
+    let matcher = FilesMatcher::new(hashset! {a_path.clone(), z_path.clone()});
+    assert_eq!(
+        tree1.diff_summary(&tree2, &matcher),
+        DiffSummary {
+            modified: vec![a_path.clone()],
+            added: vec![z_path.clone()],
+            removed: vec![]
+        }
+    );
+    assert_eq!(
+        tree2.diff_summary(&tree1, &matcher),
+        DiffSummary {
+            modified: vec![a_path.clone()],
+            added: vec![],
+            removed: vec![z_path.clone()]
+        }
+    );
+
+    let matcher = FilesMatcher::new(hashset! {dir1_a_path.clone(), dir2_b_path.clone()});
+    assert_eq!(
+        tree1.diff_summary(&tree2, &matcher),
+        DiffSummary {
+            modified: vec![dir1_a_path.clone()],
+            added: vec![dir2_b_path.clone()],
+            removed: vec![]
+        }
+    );
+    assert_eq!(
+        tree2.diff_summary(&tree1, &matcher),
+        DiffSummary {
+            modified: vec![dir1_a_path.clone()],
+            added: vec![],
+            removed: vec![dir2_b_path.clone()]
         }
     );
 }

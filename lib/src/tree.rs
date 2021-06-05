@@ -20,6 +20,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use crate::files::MergeResult;
+use crate::matchers::{EverythingMatcher, Matcher};
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::{
     Conflict, ConflictId, ConflictPart, StoreError, TreeEntriesNonRecursiveIter, TreeEntry, TreeId,
@@ -164,15 +165,19 @@ impl Tree {
         }
     }
 
-    pub fn diff<'a>(&'a self, other: &'a Tree) -> TreeDiffIterator {
-        recursive_tree_diff(self.clone(), other.clone())
+    pub fn diff<'matcher>(
+        &self,
+        other: &Tree,
+        matcher: &'matcher dyn Matcher,
+    ) -> TreeDiffIterator<'matcher> {
+        recursive_tree_diff(self.clone(), other.clone(), matcher)
     }
 
-    pub fn diff_summary(&self, other: &Tree) -> DiffSummary {
+    pub fn diff_summary(&self, other: &Tree, matcher: &dyn Matcher) -> DiffSummary {
         let mut modified = vec![];
         let mut added = vec![];
         let mut removed = vec![];
-        for (file, diff) in self.diff(other) {
+        for (file, diff) in self.diff(other, matcher) {
             match diff {
                 Diff::Modified(_, _) => modified.push(file.clone()),
                 Diff::Added(_) => added.push(file.clone()),
@@ -269,24 +274,30 @@ impl<T> Diff<T> {
     }
 }
 
-struct TreeEntryDiffIterator<'a> {
-    it1: Peekable<TreeEntriesNonRecursiveIter<'a>>,
-    it2: Peekable<TreeEntriesNonRecursiveIter<'a>>,
+struct TreeEntryDiffIterator<'trees, 'matcher> {
+    it1: Peekable<TreeEntriesNonRecursiveIter<'trees>>,
+    it2: Peekable<TreeEntriesNonRecursiveIter<'trees>>,
+    // TODO: Restrict walk according to Matcher::visit()
+    _matcher: &'matcher dyn Matcher,
 }
 
-impl<'a> TreeEntryDiffIterator<'a> {
-    fn new(tree1: &'a Tree, tree2: &'a Tree) -> Self {
+impl<'trees, 'matcher> TreeEntryDiffIterator<'trees, 'matcher> {
+    fn new(tree1: &'trees Tree, tree2: &'trees Tree, matcher: &'matcher dyn Matcher) -> Self {
         let it1 = tree1.entries_non_recursive().peekable();
         let it2 = tree2.entries_non_recursive().peekable();
-        TreeEntryDiffIterator { it1, it2 }
+        TreeEntryDiffIterator {
+            it1,
+            it2,
+            _matcher: matcher,
+        }
     }
 }
 
-impl<'a> Iterator for TreeEntryDiffIterator<'a> {
+impl<'trees, 'matcher> Iterator for TreeEntryDiffIterator<'trees, 'matcher> {
     type Item = (
         RepoPathComponent,
-        Option<&'a TreeValue>,
-        Option<&'a TreeValue>,
+        Option<&'trees TreeValue>,
+        Option<&'trees TreeValue>,
     );
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -339,39 +350,54 @@ impl<'a> Iterator for TreeEntryDiffIterator<'a> {
     }
 }
 
-fn diff_entries<'a>(tree1: &'a Tree, tree2: &'a Tree) -> TreeEntryDiffIterator<'a> {
-    TreeEntryDiffIterator::new(tree1, tree2)
+fn diff_entries<'trees, 'matcher>(
+    tree1: &'trees Tree,
+    tree2: &'trees Tree,
+    matcher: &'matcher dyn Matcher,
+) -> TreeEntryDiffIterator<'trees, 'matcher> {
+    // TODO: make TreeEntryDiffIterator an enum with one variant that iterates over
+    // the tree entries and filters by the matcher (i.e. what
+    // TreeEntryDiffIterator does now) and another variant that iterates over
+    // what the matcher says to visit
+    TreeEntryDiffIterator::new(tree1, tree2, matcher)
 }
 
-pub fn recursive_tree_diff(root1: Tree, root2: Tree) -> TreeDiffIterator {
-    TreeDiffIterator::new(RepoPath::root(), root1, root2)
+pub fn recursive_tree_diff(root1: Tree, root2: Tree, matcher: &dyn Matcher) -> TreeDiffIterator {
+    TreeDiffIterator::new(RepoPath::root(), root1, root2, matcher)
 }
 
-pub struct TreeDiffIterator {
+pub struct TreeDiffIterator<'matcher> {
     dir: RepoPath,
     tree1: Pin<Box<Tree>>,
     tree2: Pin<Box<Tree>>,
+    matcher: &'matcher dyn Matcher,
     // Iterator over the diffs between tree1 and tree2
-    entry_iterator: TreeEntryDiffIterator<'static>,
+    entry_iterator: TreeEntryDiffIterator<'static, 'matcher>,
     // This is used for making sure that when a directory gets replaced by a file, we
     // yield the value for the addition of the file after we yield the values
     // for removing files in the directory.
     added_file: Option<(RepoPath, TreeValue)>,
     // Iterator over the diffs of a subdirectory, if we're currently visiting one.
-    subdir_iterator: Option<Box<TreeDiffIterator>>,
+    subdir_iterator: Option<Box<TreeDiffIterator<'matcher>>>,
 }
 
-impl TreeDiffIterator {
-    fn new(dir: RepoPath, tree1: Tree, tree2: Tree) -> TreeDiffIterator {
+impl<'matcher> TreeDiffIterator<'matcher> {
+    fn new(
+        dir: RepoPath,
+        tree1: Tree,
+        tree2: Tree,
+        matcher: &'matcher dyn Matcher,
+    ) -> TreeDiffIterator {
         let tree1 = Box::pin(tree1);
         let tree2 = Box::pin(tree2);
-        let root_entry_iterator: TreeEntryDiffIterator = diff_entries(&tree1, &tree2);
-        let root_entry_iterator: TreeEntryDiffIterator<'static> =
+        let root_entry_iterator: TreeEntryDiffIterator = diff_entries(&tree1, &tree2, matcher);
+        let root_entry_iterator: TreeEntryDiffIterator<'static, 'matcher> =
             unsafe { std::mem::transmute(root_entry_iterator) };
         Self {
             dir,
             tree1,
             tree2,
+            matcher,
             entry_iterator: root_entry_iterator,
             added_file: None,
             subdir_iterator: None,
@@ -379,7 +405,7 @@ impl TreeDiffIterator {
     }
 }
 
-impl Iterator for TreeDiffIterator {
+impl Iterator for TreeDiffIterator<'_> {
     type Item = (RepoPath, Diff<TreeValue>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -400,17 +426,17 @@ impl Iterator for TreeDiffIterator {
                 let tree_before = matches!(before, Some(TreeValue::Tree(_)));
                 let tree_after = matches!(after, Some(TreeValue::Tree(_)));
                 if tree_before || tree_after {
-                    let subdir = RepoPathComponent::from(name.as_str());
-                    let subdir_path = self.dir.join(&subdir);
+                    let subdir = &name;
+                    let subdir_path = self.dir.join(subdir);
                     let before_tree = match before {
                         Some(TreeValue::Tree(id_before)) => {
-                            self.tree1.known_sub_tree(&subdir, &id_before)
+                            self.tree1.known_sub_tree(subdir, &id_before)
                         }
                         _ => Tree::null(self.tree1.store().clone(), subdir_path.clone()),
                     };
                     let after_tree = match after {
                         Some(TreeValue::Tree(id_after)) => {
-                            self.tree2.known_sub_tree(&subdir, &id_after)
+                            self.tree2.known_sub_tree(subdir, &id_after)
                         }
                         _ => Tree::null(self.tree2.store().clone(), subdir_path.clone()),
                     };
@@ -418,33 +444,36 @@ impl Iterator for TreeDiffIterator {
                         subdir_path,
                         before_tree,
                         after_tree,
+                        self.matcher,
                     )));
                 }
-                let file_path = self.dir.join(&RepoPathComponent::from(name.as_str()));
-                if !tree_before && tree_after {
-                    if let Some(file_before) = before {
-                        return Some((file_path, Diff::Removed(file_before.clone())));
-                    }
-                } else if tree_before && !tree_after {
-                    if let Some(file_after) = after {
-                        self.added_file = Some((file_path, file_after.clone()));
-                    }
-                } else if !tree_before && !tree_after {
-                    match (before, after) {
-                        (Some(file_before), Some(file_after)) => {
-                            return Some((
-                                file_path,
-                                Diff::Modified(file_before.clone(), file_after.clone()),
-                            ));
-                        }
-                        (None, Some(file_after)) => {
-                            return Some((file_path, Diff::Added(file_after.clone())));
-                        }
-                        (Some(file_before), None) => {
+                let file_path = self.dir.join(&name);
+                if self.matcher.matches(&file_path) {
+                    if !tree_before && tree_after {
+                        if let Some(file_before) = before {
                             return Some((file_path, Diff::Removed(file_before.clone())));
                         }
-                        (None, None) => {
-                            panic!("unexpected diff")
+                    } else if tree_before && !tree_after {
+                        if let Some(file_after) = after {
+                            self.added_file = Some((file_path, file_after.clone()));
+                        }
+                    } else if !tree_before && !tree_after {
+                        match (before, after) {
+                            (Some(file_before), Some(file_after)) => {
+                                return Some((
+                                    file_path,
+                                    Diff::Modified(file_before.clone(), file_after.clone()),
+                                ));
+                            }
+                            (None, Some(file_after)) => {
+                                return Some((file_path, Diff::Added(file_after.clone())));
+                            }
+                            (Some(file_before), None) => {
+                                return Some((file_path, Diff::Removed(file_before.clone())));
+                            }
+                            (None, None) => {
+                                panic!("unexpected diff")
+                            }
                         }
                     }
                 }
@@ -475,7 +504,9 @@ pub fn merge_trees(
     // Start with a tree identical to side 1 and modify based on changes from base
     // to side 2.
     let mut new_tree = side1_tree.data().clone();
-    for (basename, maybe_base, maybe_side2) in diff_entries(base_tree, side2_tree) {
+    for (basename, maybe_base, maybe_side2) in
+        diff_entries(base_tree, side2_tree, &EverythingMatcher)
+    {
         let maybe_side1 = side1_tree.value(&basename);
         if maybe_side1 == maybe_base {
             // side 1 is unchanged: use the value from side 2

@@ -18,6 +18,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
+use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::{StoreError, TreeId, TreeValue};
 use jujutsu_lib::store_wrapper::StoreWrapper;
@@ -106,7 +107,7 @@ pub fn edit_diff(
     let store = left_tree.store();
     let mut left_tree_builder = store.tree_builder(store.empty_tree_id().clone());
     let mut right_tree_builder = store.tree_builder(store.empty_tree_id().clone());
-    for (file_path, diff) in left_tree.diff(&right_tree) {
+    for (file_path, diff) in left_tree.diff(&right_tree, &EverythingMatcher) {
         let (left_value, right_value) = diff.as_options();
         if let Some(value) = left_value {
             add_to_tree(store, &mut left_tree_builder, &file_path, value).unwrap();

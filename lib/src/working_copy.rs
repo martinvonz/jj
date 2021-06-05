@@ -37,6 +37,7 @@ use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
+use crate::matchers::EverythingMatcher;
 use crate::repo::ReadonlyRepo;
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::settings::UserSettings;
@@ -501,7 +502,7 @@ impl TreeState {
             removed_files: 0,
         };
 
-        for (path, diff) in old_tree.diff(&new_tree) {
+        for (path, diff) in old_tree.diff(&new_tree, &EverythingMatcher) {
             let disk_path = path.to_fs_path(&self.working_copy_path);
 
             // TODO: Check that the file has not changed before overwriting/removing it.
