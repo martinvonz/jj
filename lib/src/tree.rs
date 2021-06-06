@@ -294,7 +294,11 @@ impl<'a> TreeEntryDiffIterator<'a> {
 }
 
 impl<'a> Iterator for TreeEntryDiffIterator<'a> {
-    type Item = (String, Option<&'a TreeValue>, Option<&'a TreeValue>);
+    type Item = (
+        RepoPathComponent,
+        Option<&'a TreeValue>,
+        Option<&'a TreeValue>,
+    );
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -306,12 +310,20 @@ impl<'a> Iterator for TreeEntryDiffIterator<'a> {
                         Ordering::Less => {
                             // entry removed
                             let before = self.it1.next().unwrap();
-                            return Some((before.name().to_owned(), Some(before.value()), None));
+                            return Some((
+                                RepoPathComponent::from(before.name()),
+                                Some(before.value()),
+                                None,
+                            ));
                         }
                         Ordering::Greater => {
                             // entry added
                             let after = self.it2.next().unwrap();
-                            return Some((after.name().to_owned(), None, Some(after.value())));
+                            return Some((
+                                RepoPathComponent::from(after.name()),
+                                None,
+                                Some(after.value()),
+                            ));
                         }
                         Ordering::Equal => {
                             // entry modified or clean
@@ -319,7 +331,7 @@ impl<'a> Iterator for TreeEntryDiffIterator<'a> {
                             let after = self.it2.next().unwrap();
                             if before.value() != after.value() {
                                 return Some((
-                                    before.name().to_owned(),
+                                    RepoPathComponent::from(before.name()),
                                     Some(before.value()),
                                     Some(after.value()),
                                 ));
@@ -330,12 +342,20 @@ impl<'a> Iterator for TreeEntryDiffIterator<'a> {
                 (Some(_), None) => {
                     // second iterator exhausted
                     let before = self.it1.next().unwrap();
-                    return Some((before.name().to_owned(), Some(before.value()), None));
+                    return Some((
+                        RepoPathComponent::from(before.name()),
+                        Some(before.value()),
+                        None,
+                    ));
                 }
                 (None, Some(_)) => {
                     // first iterator exhausted
                     let after = self.it2.next().unwrap();
-                    return Some((after.name().to_owned(), None, Some(after.value())));
+                    return Some((
+                        RepoPathComponent::from(after.name()),
+                        None,
+                        Some(after.value()),
+                    ));
                 }
                 (None, None) => {
                     // both iterators exhausted
@@ -488,7 +508,7 @@ pub fn merge_trees(
             // side 1 is unchanged: use the value from side 2
             match maybe_side2 {
                 None => new_tree.remove(basename.as_str()),
-                Some(side2) => new_tree.set(basename.to_owned(), side2.clone()),
+                Some(side2) => new_tree.set(basename.as_str().to_owned(), side2.clone()),
             };
         } else if maybe_side1 == maybe_side2 {
             // Both sides changed in the same way: new_tree already has the
@@ -505,7 +525,7 @@ pub fn merge_trees(
             )?;
             match new_value {
                 None => new_tree.remove(basename.as_str()),
-                Some(value) => new_tree.set(basename.to_owned(), value),
+                Some(value) => new_tree.set(basename.as_str().to_owned(), value),
             }
         }
     }
