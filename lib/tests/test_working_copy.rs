@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo::ReadonlyRepo;
-use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::TreeValue;
 use jujutsu_lib::testutils;
@@ -383,7 +383,10 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
 
     // Check that the file is in the commit created by committing the working copy
     let (_repo, new_commit) = repo.working_copy_locked().commit(&settings, repo.clone());
-    assert!(new_commit.tree().entry("modified").is_some());
+    assert!(new_commit
+        .tree()
+        .entry(&RepoPathComponent::from("modified"))
+        .is_some());
 }
 
 #[test_case(false ; "local store")]

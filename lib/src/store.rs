@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Borrow;
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Read;
@@ -21,7 +20,7 @@ use std::vec::Vec;
 
 use thiserror::Error;
 
-use crate::repo_path::RepoPath;
+use crate::repo_path::{RepoPath, RepoPathComponent};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct CommitId(pub Vec<u8>);
@@ -245,16 +244,16 @@ pub enum TreeValue {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TreeEntry<'a> {
-    name: &'a str,
+    name: &'a RepoPathComponent,
     value: &'a TreeValue,
 }
 
 impl<'a> TreeEntry<'a> {
-    pub fn new(name: &'a str, value: &'a TreeValue) -> Self {
+    pub fn new(name: &'a RepoPathComponent, value: &'a TreeValue) -> Self {
         TreeEntry { name, value }
     }
 
-    pub fn name(&self) -> &'a str {
+    pub fn name(&self) -> &'a RepoPathComponent {
         &self.name
     }
 
@@ -264,7 +263,7 @@ impl<'a> TreeEntry<'a> {
 }
 
 pub struct TreeEntriesNonRecursiveIter<'a> {
-    iter: std::collections::btree_map::Iter<'a, String, TreeValue>,
+    iter: std::collections::btree_map::Iter<'a, RepoPathComponent, TreeValue>,
 }
 
 impl<'a> Iterator for TreeEntriesNonRecursiveIter<'a> {
@@ -279,7 +278,7 @@ impl<'a> Iterator for TreeEntriesNonRecursiveIter<'a> {
 
 #[derive(Debug, Clone)]
 pub struct Tree {
-    entries: BTreeMap<String, TreeValue>,
+    entries: BTreeMap<RepoPathComponent, TreeValue>,
 }
 
 impl Default for Tree {
@@ -301,31 +300,22 @@ impl Tree {
         }
     }
 
-    pub fn set(&mut self, name: String, value: TreeValue) {
+    pub fn set(&mut self, name: RepoPathComponent, value: TreeValue) {
         self.entries.insert(name, value);
     }
 
-    pub fn remove<N>(&mut self, name: &N)
-    where
-        N: Borrow<str> + ?Sized,
-    {
-        self.entries.remove(name.borrow());
+    pub fn remove(&mut self, name: &RepoPathComponent) {
+        self.entries.remove(name);
     }
 
-    pub fn entry<N>(&self, name: &N) -> Option<TreeEntry>
-    where
-        N: Borrow<str> + ?Sized,
-    {
+    pub fn entry(&self, name: &RepoPathComponent) -> Option<TreeEntry> {
         self.entries
-            .get_key_value(name.borrow())
+            .get_key_value(name)
             .map(|(name, value)| TreeEntry { name, value })
     }
 
-    pub fn value<N>(&self, name: &N) -> Option<&TreeValue>
-    where
-        N: Borrow<str> + ?Sized,
-    {
-        self.entries.get(name.borrow())
+    pub fn value(&self, name: &RepoPathComponent) -> Option<&TreeValue> {
+        self.entries.get(name)
     }
 }
 

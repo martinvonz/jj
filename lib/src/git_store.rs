@@ -24,7 +24,7 @@ use git2::Oid;
 use protobuf::Message;
 use uuid::Uuid;
 
-use crate::repo_path::RepoPath;
+use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::store::{
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictPart, FileId, MillisSinceEpoch,
     Signature, Store, StoreError, StoreResult, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
@@ -278,7 +278,7 @@ impl Store for GitStore {
                 }
                 kind => panic!("unexpected object type {:?}", kind),
             };
-            tree.set(name.to_string(), value);
+            tree.set(RepoPathComponent::from(name), value);
         }
         Ok(tree)
     }
@@ -287,7 +287,7 @@ impl Store for GitStore {
         let locked_repo = self.repo.lock().unwrap();
         let mut builder = locked_repo.treebuilder(None).unwrap();
         for entry in contents.entries() {
-            let name = entry.name().to_owned();
+            let name = entry.name().string();
             let (name, id, filemode) = match entry.value() {
                 TreeValue::Normal {
                     id,
@@ -300,7 +300,9 @@ impl Store for GitStore {
                 TreeValue::Symlink(id) => (name, &id.0, 0o120000),
                 TreeValue::Tree(id) => (name, &id.0, 0o040000),
                 TreeValue::GitSubmodule(id) => (name, &id.0, 0o160000),
-                TreeValue::Conflict(id) => (name + CONFLICT_SUFFIX, &id.0, 0o100644),
+                TreeValue::Conflict(id) => {
+                    (entry.name().string() + CONFLICT_SUFFIX, &id.0, 0o100644)
+                }
             };
             builder
                 .insert(name, Oid::from_bytes(id).unwrap(), filemode)
@@ -583,7 +585,7 @@ mod tests {
         let mut root_entries = root_tree.entries();
         let dir = root_entries.next().unwrap();
         assert_eq!(root_entries.next(), None);
-        assert_eq!(dir.name(), "dir");
+        assert_eq!(dir.name().as_str(), "dir");
         assert_eq!(
             dir.value(),
             &TreeValue::Tree(TreeId(dir_tree_id.as_bytes().to_vec()))
@@ -599,7 +601,7 @@ mod tests {
         let normal_file = files.next().unwrap();
         let symlink = files.next().unwrap();
         assert_eq!(files.next(), None);
-        assert_eq!(normal_file.name(), "normal");
+        assert_eq!(normal_file.name().as_str(), "normal");
         assert_eq!(
             normal_file.value(),
             &TreeValue::Normal {
@@ -607,7 +609,7 @@ mod tests {
                 executable: false
             }
         );
-        assert_eq!(symlink.name(), "symlink");
+        assert_eq!(symlink.name().as_str(), "symlink");
         assert_eq!(
             symlink.value(),
             &TreeValue::Symlink(SymlinkId(blob2.as_bytes().to_vec()))

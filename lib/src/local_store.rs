@@ -22,7 +22,7 @@ use blake2::{Blake2b, Digest};
 use protobuf::{Message, ProtobufError};
 use tempfile::{NamedTempFile, PersistError};
 
-use crate::repo_path::RepoPath;
+use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::store::{
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictPart, FileId, MillisSinceEpoch,
     Signature, Store, StoreError, StoreResult, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
@@ -282,7 +282,7 @@ fn tree_to_proto(tree: &Tree) -> crate::protos::store::Tree {
     let mut proto = crate::protos::store::Tree::new();
     for entry in tree.entries() {
         let mut proto_entry = crate::protos::store::Tree_Entry::new();
-        proto_entry.set_name(entry.name().to_owned());
+        proto_entry.set_name(entry.name().string());
         proto_entry.set_value(tree_value_to_proto(entry.value()));
         proto.entries.push(proto_entry);
     }
@@ -293,7 +293,7 @@ fn tree_from_proto(proto: &crate::protos::store::Tree) -> Tree {
     let mut tree = Tree::default();
     for proto_entry in proto.entries.iter() {
         let value = tree_value_from_proto(proto_entry.value.as_ref().unwrap());
-        tree.set(proto_entry.name.to_string(), value);
+        tree.set(RepoPathComponent::from(proto_entry.name.as_str()), value);
     }
     tree
 }

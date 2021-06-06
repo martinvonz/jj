@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::store::{ConflictPart, TreeValue};
 use jujutsu_lib::tree::Tree;
 use jujutsu_lib::{testutils, tree};
@@ -74,7 +74,7 @@ fn test_same_type(use_git: bool) {
     // Check that we have exactly the paths we expect in the merged tree
     let names: Vec<&str> = merged_tree
         .entries_non_recursive()
-        .map(|entry| entry.name())
+        .map(|entry| entry.name().as_str())
         .collect();
     assert_eq!(
         names,
@@ -82,26 +82,53 @@ fn test_same_type(use_git: bool) {
     );
 
     // Check that the simple, non-conflicting cases were resolved correctly
-    assert_eq!(merged_tree.value("__a"), side2_tree.value("__a"));
-    assert_eq!(merged_tree.value("_a_"), side1_tree.value("_a_"));
-    assert_eq!(merged_tree.value("_aa"), side1_tree.value("_aa"));
-    assert_eq!(merged_tree.value("aaa"), side1_tree.value("aaa"));
-    assert_eq!(merged_tree.value("aab"), side2_tree.value("aab"));
-    assert_eq!(merged_tree.value("aba"), side1_tree.value("aba"));
-    assert_eq!(merged_tree.value("abb"), side1_tree.value("abb"));
+    assert_eq!(
+        merged_tree.value(&RepoPathComponent::from("__a")),
+        side2_tree.value(&RepoPathComponent::from("__a"))
+    );
+    assert_eq!(
+        merged_tree.value(&RepoPathComponent::from("_a_")),
+        side1_tree.value(&RepoPathComponent::from("_a_"))
+    );
+    assert_eq!(
+        merged_tree.value(&RepoPathComponent::from("_aa")),
+        side1_tree.value(&RepoPathComponent::from("_aa"))
+    );
+    assert_eq!(
+        merged_tree.value(&RepoPathComponent::from("aaa")),
+        side1_tree.value(&RepoPathComponent::from("aaa"))
+    );
+    assert_eq!(
+        merged_tree.value(&RepoPathComponent::from("aab")),
+        side2_tree.value(&RepoPathComponent::from("aab"))
+    );
+    assert_eq!(
+        merged_tree.value(&RepoPathComponent::from("aba")),
+        side1_tree.value(&RepoPathComponent::from("aba"))
+    );
+    assert_eq!(
+        merged_tree.value(&RepoPathComponent::from("abb")),
+        side1_tree.value(&RepoPathComponent::from("abb"))
+    );
 
     // Check the conflicting cases
-    match merged_tree.value("_ab").unwrap() {
+    match merged_tree.value(&RepoPathComponent::from("_ab")).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(id).unwrap();
             assert_eq!(
                 conflict.adds,
                 vec![
                     ConflictPart {
-                        value: side1_tree.value("_ab").cloned().unwrap()
+                        value: side1_tree
+                            .value(&RepoPathComponent::from("_ab"))
+                            .cloned()
+                            .unwrap()
                     },
                     ConflictPart {
-                        value: side2_tree.value("_ab").cloned().unwrap()
+                        value: side2_tree
+                            .value(&RepoPathComponent::from("_ab"))
+                            .cloned()
+                            .unwrap()
                     }
                 ]
             );
@@ -109,59 +136,80 @@ fn test_same_type(use_git: bool) {
         }
         _ => panic!("unexpected value"),
     };
-    match merged_tree.value("a_b").unwrap() {
+    match merged_tree.value(&RepoPathComponent::from("a_b")).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(id).unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
-                    value: base_tree.value("a_b").cloned().unwrap()
+                    value: base_tree
+                        .value(&RepoPathComponent::from("a_b"))
+                        .cloned()
+                        .unwrap()
                 }]
             );
             assert_eq!(
                 conflict.adds,
                 vec![ConflictPart {
-                    value: side2_tree.value("a_b").cloned().unwrap()
+                    value: side2_tree
+                        .value(&RepoPathComponent::from("a_b"))
+                        .cloned()
+                        .unwrap()
                 }]
             );
         }
         _ => panic!("unexpected value"),
     };
-    match merged_tree.value("ab_").unwrap() {
+    match merged_tree.value(&RepoPathComponent::from("ab_")).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(id).unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
-                    value: base_tree.value("ab_").cloned().unwrap()
+                    value: base_tree
+                        .value(&RepoPathComponent::from("ab_"))
+                        .cloned()
+                        .unwrap()
                 }]
             );
             assert_eq!(
                 conflict.adds,
                 vec![ConflictPart {
-                    value: side1_tree.value("ab_").cloned().unwrap()
+                    value: side1_tree
+                        .value(&RepoPathComponent::from("ab_"))
+                        .cloned()
+                        .unwrap()
                 }]
             );
         }
         _ => panic!("unexpected value"),
     };
-    match merged_tree.value("abc").unwrap() {
+    match merged_tree.value(&RepoPathComponent::from("abc")).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(id).unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
-                    value: base_tree.value("abc").cloned().unwrap()
+                    value: base_tree
+                        .value(&RepoPathComponent::from("abc"))
+                        .cloned()
+                        .unwrap()
                 }]
             );
             assert_eq!(
                 conflict.adds,
                 vec![
                     ConflictPart {
-                        value: side1_tree.value("abc").cloned().unwrap()
+                        value: side1_tree
+                            .value(&RepoPathComponent::from("abc"))
+                            .cloned()
+                            .unwrap()
                     },
                     ConflictPart {
-                        value: side2_tree.value("abc").cloned().unwrap()
+                        value: side2_tree
+                            .value(&RepoPathComponent::from("abc"))
+                            .cloned()
+                            .unwrap()
                     }
                 ]
             );
@@ -312,14 +360,17 @@ fn test_types(use_git: bool) {
     let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
 
     // Check the conflicting cases
-    match merged_tree.value("normal_executable_symlink").unwrap() {
+    match merged_tree
+        .value(&RepoPathComponent::from("normal_executable_symlink"))
+        .unwrap()
+    {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(&id).unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
                     value: base_tree
-                        .value("normal_executable_symlink")
+                        .value(&RepoPathComponent::from("normal_executable_symlink"))
                         .cloned()
                         .unwrap()
                 }]
@@ -329,13 +380,13 @@ fn test_types(use_git: bool) {
                 vec![
                     ConflictPart {
                         value: side1_tree
-                            .value("normal_executable_symlink")
+                            .value(&RepoPathComponent::from("normal_executable_symlink"))
                             .cloned()
                             .unwrap()
                     },
                     ConflictPart {
                         value: side2_tree
-                            .value("normal_executable_symlink")
+                            .value(&RepoPathComponent::from("normal_executable_symlink"))
                             .cloned()
                             .unwrap()
                     },
@@ -344,23 +395,35 @@ fn test_types(use_git: bool) {
         }
         _ => panic!("unexpected value"),
     };
-    match merged_tree.value("tree_normal_symlink").unwrap() {
+    match merged_tree
+        .value(&RepoPathComponent::from("tree_normal_symlink"))
+        .unwrap()
+    {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(id).unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
-                    value: base_tree.value("tree_normal_symlink").cloned().unwrap()
+                    value: base_tree
+                        .value(&RepoPathComponent::from("tree_normal_symlink"))
+                        .cloned()
+                        .unwrap()
                 }]
             );
             assert_eq!(
                 conflict.adds,
                 vec![
                     ConflictPart {
-                        value: side1_tree.value("tree_normal_symlink").cloned().unwrap()
+                        value: side1_tree
+                            .value(&RepoPathComponent::from("tree_normal_symlink"))
+                            .cloned()
+                            .unwrap()
                     },
                     ConflictPart {
-                        value: side2_tree.value("tree_normal_symlink").cloned().unwrap()
+                        value: side2_tree
+                            .value(&RepoPathComponent::from("tree_normal_symlink"))
+                            .cloned()
+                            .unwrap()
                     },
                 ]
             );
@@ -396,7 +459,10 @@ fn test_simplify_conflict(use_git: bool) {
     // Rebase the branch tree to the first upstream tree
     let rebased1_tree = merge_trees(&base_tree, &branch_tree, &upstream1_tree);
     // Make sure we have a conflict (testing the test setup)
-    match rebased1_tree.value("file").unwrap() {
+    match rebased1_tree
+        .value(&RepoPathComponent::from("file"))
+        .unwrap()
+    {
         TreeValue::Conflict(_) => {
             // expected
         }
@@ -406,30 +472,48 @@ fn test_simplify_conflict(use_git: bool) {
     // Rebase the rebased tree back to the base. The conflict should be gone. Try
     // both directions.
     let rebased_back_tree = merge_trees(&upstream1_tree, &rebased1_tree, &base_tree);
-    assert_eq!(rebased_back_tree.value("file"), branch_tree.value("file"));
+    assert_eq!(
+        rebased_back_tree.value(&RepoPathComponent::from("file")),
+        branch_tree.value(&RepoPathComponent::from("file"))
+    );
     let rebased_back_tree = merge_trees(&upstream1_tree, &base_tree, &rebased1_tree);
-    assert_eq!(rebased_back_tree.value("file"), branch_tree.value("file"));
+    assert_eq!(
+        rebased_back_tree.value(&RepoPathComponent::from("file")),
+        branch_tree.value(&RepoPathComponent::from("file"))
+    );
 
     // Rebase the rebased tree further upstream. The conflict should be simplified
     // to not mention the contents from the first rebase.
     let further_rebased_tree = merge_trees(&upstream1_tree, &rebased1_tree, &upstream2_tree);
-    match further_rebased_tree.value("file").unwrap() {
+    match further_rebased_tree
+        .value(&RepoPathComponent::from("file"))
+        .unwrap()
+    {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(id).unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
-                    value: base_tree.value("file").cloned().unwrap()
+                    value: base_tree
+                        .value(&RepoPathComponent::from("file"))
+                        .cloned()
+                        .unwrap()
                 }]
             );
             assert_eq!(
                 conflict.adds,
                 vec![
                     ConflictPart {
-                        value: branch_tree.value("file").cloned().unwrap()
+                        value: branch_tree
+                            .value(&RepoPathComponent::from("file"))
+                            .cloned()
+                            .unwrap()
                     },
                     ConflictPart {
-                        value: upstream2_tree.value("file").cloned().unwrap()
+                        value: upstream2_tree
+                            .value(&RepoPathComponent::from("file"))
+                            .cloned()
+                            .unwrap()
                     },
                 ]
             );
@@ -437,23 +521,35 @@ fn test_simplify_conflict(use_git: bool) {
         _ => panic!("unexpected value"),
     };
     let further_rebased_tree = merge_trees(&upstream1_tree, &upstream2_tree, &rebased1_tree);
-    match further_rebased_tree.value("file").unwrap() {
+    match further_rebased_tree
+        .value(&RepoPathComponent::from("file"))
+        .unwrap()
+    {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(id).unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
-                    value: base_tree.value("file").cloned().unwrap()
+                    value: base_tree
+                        .value(&RepoPathComponent::from("file"))
+                        .cloned()
+                        .unwrap()
                 }]
             );
             assert_eq!(
                 conflict.adds,
                 vec![
                     ConflictPart {
-                        value: upstream2_tree.value("file").cloned().unwrap()
+                        value: upstream2_tree
+                            .value(&RepoPathComponent::from("file"))
+                            .cloned()
+                            .unwrap()
                     },
                     ConflictPart {
-                        value: branch_tree.value("file").cloned().unwrap()
+                        value: branch_tree
+                            .value(&RepoPathComponent::from("file"))
+                            .cloned()
+                            .unwrap()
                     },
                 ]
             );

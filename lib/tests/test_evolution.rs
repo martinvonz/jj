@@ -20,7 +20,7 @@ use jujutsu_lib::evolution::{
     DivergenceResolution, DivergenceResolver, OrphanResolution, OrphanResolver,
 };
 use jujutsu_lib::repo::ReadonlyRepo;
-use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
 use test_case::test_case;
@@ -724,10 +724,22 @@ fn test_evolve_divergent(use_git: bool) {
         let tree = resolved.tree();
         let entries: Vec<_> = tree.entries().collect();
         assert_eq!(entries.len(), 4);
-        assert_eq!(tree.value("A").unwrap(), tree5.value("A").unwrap());
-        assert_eq!(tree.value("X").unwrap(), tree2.value("X").unwrap());
-        assert_eq!(tree.value("Y").unwrap(), tree4.value("Y").unwrap());
-        assert_eq!(tree.value("Z").unwrap(), tree6.value("Z").unwrap());
+        assert_eq!(
+            tree.value(&RepoPathComponent::from("A")).unwrap(),
+            tree5.value(&RepoPathComponent::from("A")).unwrap()
+        );
+        assert_eq!(
+            tree.value(&RepoPathComponent::from("X")).unwrap(),
+            tree2.value(&RepoPathComponent::from("X")).unwrap()
+        );
+        assert_eq!(
+            tree.value(&RepoPathComponent::from("Y")).unwrap(),
+            tree4.value(&RepoPathComponent::from("Y")).unwrap()
+        );
+        assert_eq!(
+            tree.value(&RepoPathComponent::from("Z")).unwrap(),
+            tree6.value(&RepoPathComponent::from("Z")).unwrap()
+        );
     }
 
     tx.discard();

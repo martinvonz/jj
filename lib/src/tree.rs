@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Read;
@@ -107,17 +106,11 @@ impl Tree {
         TreeEntriesIter::new(self.clone())
     }
 
-    pub fn entry<N>(&self, basename: &N) -> Option<TreeEntry>
-    where
-        N: Borrow<str> + ?Sized,
-    {
+    pub fn entry(&self, basename: &RepoPathComponent) -> Option<TreeEntry> {
         self.data.entry(basename)
     }
 
-    pub fn value<N>(&self, basename: &N) -> Option<&TreeValue>
-    where
-        N: Borrow<str> + ?Sized,
-    {
+    pub fn value(&self, basename: &RepoPathComponent) -> Option<&TreeValue> {
         self.data.value(basename)
     }
 
@@ -126,21 +119,19 @@ impl Tree {
         match path.split() {
             Some((dir, basename)) => self
                 .sub_tree_recursive(dir.components())
-                .and_then(|tree| tree.data.value(basename.as_str()).cloned()),
+                .and_then(|tree| tree.data.value(basename).cloned()),
             None => Some(TreeValue::Tree(self.id.clone())),
         }
     }
 
     pub fn sub_tree(&self, name: &RepoPathComponent) -> Option<Tree> {
-        self.data
-            .value(name.as_str())
-            .and_then(|sub_tree| match sub_tree {
-                TreeValue::Tree(sub_tree_id) => {
-                    let subdir = self.dir.join(name);
-                    Some(self.store.get_tree(&subdir, sub_tree_id).unwrap())
-                }
-                _ => None,
-            })
+        self.data.value(name).and_then(|sub_tree| match sub_tree {
+            TreeValue::Tree(sub_tree_id) => {
+                let subdir = self.dir.join(name);
+                Some(self.store.get_tree(&subdir, sub_tree_id).unwrap())
+            }
+            _ => None,
+        })
     }
 
     pub fn known_sub_tree(&self, name: &RepoPathComponent, id: &TreeId) -> Tree {
@@ -160,12 +151,11 @@ impl Tree {
                 data: self.data.clone(),
             })
         } else {
-            match self.data.entry(components[0].as_str()) {
+            match self.data.entry(&components[0]) {
                 None => None,
                 Some(entry) => match entry.value() {
                     TreeValue::Tree(sub_tree_id) => {
-                        let sub_tree = self
-                            .known_sub_tree(&RepoPathComponent::from(entry.name()), sub_tree_id);
+                        let sub_tree = self.known_sub_tree(entry.name(), sub_tree_id);
                         sub_tree.sub_tree_recursive(&components[1..])
                     }
                     _ => None,
@@ -243,8 +233,7 @@ impl Iterator for TreeEntriesIter {
                 Some(entry) => {
                     match entry.value() {
                         TreeValue::Tree(id) => {
-                            let subtree =
-                                tree.known_sub_tree(&RepoPathComponent::from(entry.name()), id);
+                            let subtree = tree.known_sub_tree(entry.name(), id);
                             let subtree = Box::pin(subtree);
                             let iter = subtree.entries_non_recursive();
                             let subtree_iter: TreeEntriesNonRecursiveIter<'static> =
@@ -252,7 +241,7 @@ impl Iterator for TreeEntriesIter {
                             self.stack.push((subtree, subtree_iter));
                         }
                         other => {
-                            let path = tree.dir().join(&RepoPathComponent::from(entry.name()));
+                            let path = tree.dir().join(entry.name());
                             return Some((path, other.clone()));
                         }
                     };
@@ -310,20 +299,12 @@ impl<'a> Iterator for TreeEntryDiffIterator<'a> {
                         Ordering::Less => {
                             // entry removed
                             let before = self.it1.next().unwrap();
-                            return Some((
-                                RepoPathComponent::from(before.name()),
-                                Some(before.value()),
-                                None,
-                            ));
+                            return Some((before.name().clone(), Some(before.value()), None));
                         }
                         Ordering::Greater => {
                             // entry added
                             let after = self.it2.next().unwrap();
-                            return Some((
-                                RepoPathComponent::from(after.name()),
-                                None,
-                                Some(after.value()),
-                            ));
+                            return Some((after.name().clone(), None, Some(after.value())));
                         }
                         Ordering::Equal => {
                             // entry modified or clean
@@ -331,7 +312,7 @@ impl<'a> Iterator for TreeEntryDiffIterator<'a> {
                             let after = self.it2.next().unwrap();
                             if before.value() != after.value() {
                                 return Some((
-                                    RepoPathComponent::from(before.name()),
+                                    before.name().clone(),
                                     Some(before.value()),
                                     Some(after.value()),
                                 ));
@@ -342,20 +323,12 @@ impl<'a> Iterator for TreeEntryDiffIterator<'a> {
                 (Some(_), None) => {
                     // second iterator exhausted
                     let before = self.it1.next().unwrap();
-                    return Some((
-                        RepoPathComponent::from(before.name()),
-                        Some(before.value()),
-                        None,
-                    ));
+                    return Some((before.name().clone(), Some(before.value()), None));
                 }
                 (None, Some(_)) => {
                     // first iterator exhausted
                     let after = self.it2.next().unwrap();
-                    return Some((
-                        RepoPathComponent::from(after.name()),
-                        None,
-                        Some(after.value()),
-                    ));
+                    return Some((after.name().clone(), None, Some(after.value())));
                 }
                 (None, None) => {
                     // both iterators exhausted
@@ -503,12 +476,12 @@ pub fn merge_trees(
     // to side 2.
     let mut new_tree = side1_tree.data().clone();
     for (basename, maybe_base, maybe_side2) in diff_entries(base_tree, side2_tree) {
-        let maybe_side1 = side1_tree.value(basename.as_str());
+        let maybe_side1 = side1_tree.value(&basename);
         if maybe_side1 == maybe_base {
             // side 1 is unchanged: use the value from side 2
             match maybe_side2 {
-                None => new_tree.remove(basename.as_str()),
-                Some(side2) => new_tree.set(basename.as_str().to_owned(), side2.clone()),
+                None => new_tree.remove(&basename),
+                Some(side2) => new_tree.set(basename, side2.clone()),
             };
         } else if maybe_side1 == maybe_side2 {
             // Both sides changed in the same way: new_tree already has the
@@ -518,8 +491,8 @@ pub fn merge_trees(
             let new_value =
                 merge_tree_value(store, dir, &basename, maybe_base, maybe_side1, maybe_side2)?;
             match new_value {
-                None => new_tree.remove(basename.as_str()),
-                Some(value) => new_tree.set(basename.as_str().to_owned(), value),
+                None => new_tree.remove(&basename),
+                Some(value) => new_tree.set(basename, value),
             }
         }
     }
