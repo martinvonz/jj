@@ -21,7 +21,7 @@ pub struct RepoPathComponent {
 }
 
 impl RepoPathComponent {
-    pub fn value(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.value
     }
 }
@@ -73,7 +73,7 @@ impl RepoPath {
     pub fn to_internal_dir_string(&self) -> String {
         let mut result = String::new();
         for component in &self.components {
-            result.push_str(component.value());
+            result.push_str(component.as_str());
             result.push('/');
         }
         result

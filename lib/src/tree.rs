@@ -126,14 +126,14 @@ impl Tree {
         match path.split() {
             Some((dir, basename)) => self
                 .sub_tree_recursive(dir.components())
-                .and_then(|tree| tree.data.value(basename.value()).cloned()),
+                .and_then(|tree| tree.data.value(basename.as_str()).cloned()),
             None => Some(TreeValue::Tree(self.id.clone())),
         }
     }
 
     pub fn sub_tree(&self, name: &RepoPathComponent) -> Option<Tree> {
         self.data
-            .value(name.value())
+            .value(name.as_str())
             .and_then(|sub_tree| match sub_tree {
                 TreeValue::Tree(sub_tree_id) => {
                     let subdir = self.dir.join(name);
@@ -160,7 +160,7 @@ impl Tree {
                 data: self.data.clone(),
             })
         } else {
-            match self.data.entry(components[0].value()) {
+            match self.data.entry(components[0].as_str()) {
                 None => None,
                 Some(entry) => match entry.value() {
                     TreeValue::Tree(sub_tree_id) => {

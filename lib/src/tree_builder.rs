@@ -68,10 +68,10 @@ impl TreeBuilder {
                 let tree = trees_to_write.get_mut(&dir).unwrap();
                 match file_override {
                     Override::Replace(value) => {
-                        tree.set(basename.value().to_string(), value);
+                        tree.set(basename.as_str().to_string(), value);
                     }
                     Override::Tombstone => {
-                        tree.remove(basename.value());
+                        tree.remove(basename.as_str());
                     }
                 }
             }
@@ -95,10 +95,10 @@ impl TreeBuilder {
                 if let Some((parent, basename)) = dir.split() {
                     let parent_tree = trees_to_write.get_mut(&parent).unwrap();
                     if tree.is_empty() {
-                        parent_tree.remove(basename.value());
+                        parent_tree.remove(basename.as_str());
                     } else {
                         let tree_id = store.write_tree(&dir, &tree).unwrap();
-                        parent_tree.set(basename.value().to_string(), TreeValue::Tree(tree_id));
+                        parent_tree.set(basename.as_str().to_string(), TreeValue::Tree(tree_id));
                     }
                 } else {
                     // We're writing the root tree. Write it even if empty. Return its id.
