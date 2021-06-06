@@ -515,14 +515,8 @@ pub fn merge_trees(
             // value
         } else {
             // The two sides changed in different ways
-            let new_value = merge_tree_value(
-                store,
-                dir,
-                basename.as_str(),
-                maybe_base,
-                maybe_side1,
-                maybe_side2,
-            )?;
+            let new_value =
+                merge_tree_value(store, dir, &basename, maybe_base, maybe_side1, maybe_side2)?;
             match new_value {
                 None => new_tree.remove(basename.as_str()),
                 Some(value) => new_tree.set(basename.as_str().to_owned(), value),
@@ -535,7 +529,7 @@ pub fn merge_trees(
 fn merge_tree_value(
     store: &StoreWrapper,
     dir: &RepoPath,
-    basename: &str,
+    basename: &RepoPathComponent,
     maybe_base: Option<&TreeValue>,
     maybe_side1: Option<&TreeValue>,
     maybe_side2: Option<&TreeValue>,
@@ -551,7 +545,7 @@ fn merge_tree_value(
             Some(TreeValue::Tree(side1)),
             Some(TreeValue::Tree(side2)),
         ) => {
-            let subdir = dir.join(&RepoPathComponent::from(basename));
+            let subdir = dir.join(basename);
             let merged_tree_id = merge_trees(
                 &store.get_tree(&subdir, &side1).unwrap(),
                 &store.get_tree(&subdir, &base).unwrap(),
@@ -588,7 +582,7 @@ fn merge_tree_value(
                         *side1_executable
                     };
 
-                    let filename = dir.join(&RepoPathComponent::from(basename));
+                    let filename = dir.join(&basename);
                     let mut base_content = vec![];
                     store
                         .read_file(&filename, &base_id)?
