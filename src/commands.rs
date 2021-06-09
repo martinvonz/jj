@@ -44,7 +44,6 @@ use jujutsu_lib::op_heads_store::OpHeadsStore;
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoInitError, RepoLoadError, RepoLoader};
-use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
@@ -64,7 +63,7 @@ use crate::formatter::Formatter;
 use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
-use crate::ui::Ui;
+use crate::ui::{FilePathParseError, Ui};
 
 enum CommandError {
     UserError(String),
@@ -116,6 +115,16 @@ impl From<RevsetParseError> for CommandError {
 impl From<RevsetError> for CommandError {
     fn from(err: RevsetError) -> Self {
         CommandError::UserError(format!("{}", err))
+    }
+}
+
+impl From<FilePathParseError> for CommandError {
+    fn from(err: FilePathParseError) -> Self {
+        match err {
+            FilePathParseError::InputNotInRepo(input) => {
+                CommandError::UserError(format!("Path \"{}\" is not in the repo", input))
+            }
+        }
     }
 }
 
@@ -492,18 +501,23 @@ fn resolve_single_op_from_store(
     }
 }
 
-fn matcher_from_values(values: Option<clap::Values>) -> Box<dyn Matcher> {
+fn matcher_from_values(
+    ui: &Ui,
+    wc_path: &Path,
+    values: Option<clap::Values>,
+) -> Result<Box<dyn Matcher>, CommandError> {
     if let Some(values) = values {
         // TODO: Interpret path relative to cwd (not repo root)
         // TODO: Accept backslash separator on Windows
         // TODO: Add support for matching directories (and probably globs and other
         // formats)
-        let paths = values
-            .map(|path| RepoPath::from_internal_string(path))
-            .collect();
-        Box::new(FilesMatcher::new(paths))
+        let mut paths = HashSet::new();
+        for value in values {
+            paths.insert(ui.parse_file_path(wc_path, value)?);
+        }
+        Ok(Box::new(FilesMatcher::new(paths)))
     } else {
-        Box::new(EverythingMatcher)
+        Ok(Box::new(EverythingMatcher))
     }
 }
 
@@ -1071,8 +1085,9 @@ fn cmd_diff(
         from_tree = merge_commit_trees(repo_command.repo().as_repo_ref(), &parents);
         to_tree = commit.tree()
     }
-    let matcher = matcher_from_values(sub_matches.values_of("paths"));
     let repo = repo_command.repo();
+    let matcher =
+        matcher_from_values(ui, repo.working_copy_path(), sub_matches.values_of("paths"))?;
     if sub_matches.is_present("summary") {
         let summary = from_tree.diff_summary(&to_tree, matcher.as_ref());
         show_diff_summary(ui, repo.working_copy_path(), &summary)?;
@@ -1815,7 +1830,8 @@ fn cmd_restore(
         tree_id =
             crate::diff_edit::edit_diff(ui, &from_commit.tree(), &to_commit.tree(), &instructions)?;
     } else if sub_matches.is_present("paths") {
-        let matcher = matcher_from_values(sub_matches.values_of("paths"));
+        let matcher =
+            matcher_from_values(ui, repo.working_copy_path(), sub_matches.values_of("paths"))?;
         let mut tree_builder = repo.store().tree_builder(to_commit.tree().id().clone());
         for (repo_path, diff) in from_commit.tree().diff(&to_commit.tree(), matcher.as_ref()) {
             match diff.into_options().0 {

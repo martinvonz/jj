@@ -13,13 +13,13 @@
 // limitations under the License.
 
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 use std::{fmt, io};
 
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::repo::RepoRef;
-use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jujutsu_lib::settings::UserSettings;
 
 use crate::formatter::{ColorFormatter, Formatter, PlainTextFormatter};
@@ -125,6 +125,40 @@ impl<'stdout> Ui<'stdout> {
             .unwrap()
             .to_owned()
     }
+
+    /// Parses a path relative to cwd into a RepoPath relative to wc_path
+    pub fn parse_file_path(
+        &self,
+        wc_path: &Path,
+        input: &str,
+    ) -> Result<RepoPath, FilePathParseError> {
+        let repo_relative_path = relative_path(wc_path, &self.cwd.join(input));
+        let mut repo_path = RepoPath::root();
+        for component in repo_relative_path.components() {
+            match component {
+                Component::Normal(a) => {
+                    repo_path = repo_path.join(&RepoPathComponent::from(a.to_str().unwrap()));
+                }
+                Component::CurDir => {}
+                Component::ParentDir => {
+                    if let Some(parent) = repo_path.parent() {
+                        repo_path = parent;
+                    } else {
+                        return Err(FilePathParseError::InputNotInRepo(input.to_string()));
+                    }
+                }
+                _ => {
+                    return Err(FilePathParseError::InputNotInRepo(input.to_string()));
+                }
+            }
+        }
+        Ok(repo_path)
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum FilePathParseError {
+    InputNotInRepo(String),
 }
 
 fn relative_path(mut from: &Path, to: &Path) -> PathBuf {
