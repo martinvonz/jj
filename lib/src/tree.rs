@@ -272,6 +272,14 @@ impl<T> Diff<T> {
             Diff::Removed(left) => (Some(left), None),
         }
     }
+
+    pub fn into_options(self) -> (Option<T>, Option<T>) {
+        match self {
+            Diff::Modified(left, right) => (Some(left), Some(right)),
+            Diff::Added(right) => (None, Some(right)),
+            Diff::Removed(left) => (Some(left), None),
+        }
+    }
 }
 
 struct TreeEntryDiffIterator<'trees, 'matcher> {

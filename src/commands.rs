@@ -39,7 +39,7 @@ use jujutsu_lib::evolution::{
 use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::git::GitFetchError;
 use jujutsu_lib::index::HexPrefix;
-use jujutsu_lib::matchers::EverythingMatcher;
+use jujutsu_lib::matchers::{EverythingMatcher, FilesMatcher, Matcher};
 use jujutsu_lib::op_heads_store::OpHeadsStore;
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId};
 use jujutsu_lib::operation::Operation;
@@ -485,6 +485,21 @@ fn resolve_single_op_from_store(
             "Operation id prefix \"{}\" is ambiguous",
             op_str
         )))
+    }
+}
+
+fn matcher_from_values(values: Option<clap::Values>) -> Box<dyn Matcher> {
+    if let Some(values) = values {
+        // TODO: Interpret path relative to cwd (not repo root)
+        // TODO: Accept backslash separator on Windows
+        // TODO: Add support for matching directories (and probably globs and other
+        // formats)
+        let paths = values
+            .map(|path| RepoPath::from_internal_string(path))
+            .collect();
+        Box::new(FilesMatcher::new(paths))
+    } else {
+        Box::new(EverythingMatcher)
     }
 }
 
@@ -1794,11 +1809,10 @@ fn cmd_restore(
         tree_id =
             crate::diff_edit::edit_diff(ui, &from_commit.tree(), &to_commit.tree(), &instructions)?;
     } else if sub_matches.is_present("paths") {
-        let paths = sub_matches.values_of("paths").unwrap();
+        let matcher = matcher_from_values(sub_matches.values_of("paths"));
         let mut tree_builder = repo.store().tree_builder(to_commit.tree().id().clone());
-        for path in paths {
-            let repo_path = RepoPath::from_internal_string(path);
-            match from_commit.tree().path_value(&repo_path) {
+        for (repo_path, diff) in from_commit.tree().diff(&to_commit.tree(), matcher.as_ref()) {
+            match diff.into_options().0 {
                 Some(value) => {
                     tree_builder.set(repo_path, value);
                 }
