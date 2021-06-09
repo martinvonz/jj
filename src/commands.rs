@@ -400,6 +400,10 @@ fn rev_arg<'a, 'b>() -> Arg<'a, 'b> {
         .default_value("@")
 }
 
+fn paths_arg<'a, 'b>() -> Arg<'a, 'b> {
+    Arg::with_name("paths").index(1).multiple(true)
+}
+
 fn message_arg<'a, 'b>() -> Arg<'a, 'b> {
     Arg::with_name("message")
         .long("message")
@@ -591,7 +595,8 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .takes_value(true),
         )
         .arg(Arg::with_name("from").long("from").takes_value(true))
-        .arg(Arg::with_name("to").long("to").takes_value(true));
+        .arg(Arg::with_name("to").long("to").takes_value(true))
+        .arg(paths_arg());
     let status_command = SubCommand::with_name("status")
         .alias("st")
         .about("Show repo status");
@@ -668,7 +673,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .default_value("@"),
         )
         .arg(Arg::with_name("interactive").long("interactive").short("i"))
-        .arg(Arg::with_name("paths").index(1).multiple(true));
+        .arg(paths_arg());
     let edit_command = SubCommand::with_name("edit")
         .about("Edit the content changes in a revision")
         .arg(rev_arg());
@@ -1066,14 +1071,15 @@ fn cmd_diff(
         from_tree = merge_commit_trees(repo_command.repo().as_repo_ref(), &parents);
         to_tree = commit.tree()
     }
+    let matcher = matcher_from_values(sub_matches.values_of("paths"));
     let repo = repo_command.repo();
     if sub_matches.is_present("summary") {
-        let summary = from_tree.diff_summary(&to_tree, &EverythingMatcher);
+        let summary = from_tree.diff_summary(&to_tree, matcher.as_ref());
         show_diff_summary(ui, repo.working_copy_path(), &summary)?;
     } else {
         let mut formatter = ui.stdout_formatter();
         formatter.add_label(String::from("diff"))?;
-        for (path, diff) in from_tree.diff(&to_tree, &EverythingMatcher) {
+        for (path, diff) in from_tree.diff(&to_tree, matcher.as_ref()) {
             let ui_path = ui.format_file_path(repo.working_copy_path(), &path);
             match diff {
                 Diff::Added(TreeValue::Normal {
