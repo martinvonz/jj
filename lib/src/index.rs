@@ -27,6 +27,7 @@ use std::sync::Arc;
 
 use blake2::{Blake2b, Digest};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use itertools::Itertools;
 use tempfile::NamedTempFile;
 
 use crate::commit::Commit;
@@ -419,16 +420,16 @@ impl MutableIndex {
         let other = CompositeIndex(other_segment);
         for pos in other_segment.segment_num_parent_commits()..other.num_commits() {
             let entry = other.entry_by_pos(IndexPosition(pos));
-            let parent_ids: Vec<_> = entry
+            let parent_ids = entry
                 .parents()
                 .iter()
                 .map(|entry| entry.commit_id())
-                .collect();
-            let predecessor_ids: Vec<_> = entry
+                .collect_vec();
+            let predecessor_ids = entry
                 .predecessors()
                 .iter()
                 .map(|entry| entry.commit_id())
-                .collect();
+                .collect_vec();
             self.add_commit_data(
                 entry.commit_id(),
                 entry.change_id(),
@@ -843,14 +844,14 @@ impl<'a> CompositeIndex<'a> {
     }
 
     pub fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
-        let pos1: Vec<_> = set1
+        let pos1 = set1
             .iter()
             .map(|id| self.commit_id_to_pos(id).unwrap())
-            .collect();
-        let pos2: Vec<_> = set2
+            .collect_vec();
+        let pos2 = set2
             .iter()
             .map(|id| self.commit_id_to_pos(id).unwrap())
-            .collect();
+            .collect_vec();
         self.common_ancestors_pos(&pos1, &pos2)
             .iter()
             .map(|pos| self.entry_by_pos(*pos).commit_id())
@@ -965,13 +966,15 @@ impl<'a> CompositeIndex<'a> {
         &self,
         input: impl IntoIterator<Item = &'input CommitId>,
     ) -> Vec<IndexEntry<'a>> {
-        let mut entries_by_generation: Vec<_> = input
+        let mut entries_by_generation = input
             .into_iter()
             .map(|id| IndexEntryByPosition(self.entry_by_id(id).unwrap()))
-            .collect();
+            .collect_vec();
         entries_by_generation.sort();
-        let entries: Vec<_> = entries_by_generation.into_iter().map(|key| key.0).collect();
-        entries
+        entries_by_generation
+            .into_iter()
+            .map(|key| key.0)
+            .collect_vec()
     }
 }
 
@@ -2303,7 +2306,7 @@ mod tests {
             index
                 .walk_revs(wanted, unwanted)
                 .map(|entry| entry.commit_id())
-                .collect::<Vec<_>>()
+                .collect_vec()
         };
 
         // No wanted commits

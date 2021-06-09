@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools;
 use jujutsu_lib::revset::revset_for_commits;
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdge;
 use jujutsu_lib::testutils;
@@ -47,11 +48,11 @@ fn test_graph_iterator_linearized(skip_transitive_edges: bool) {
     let pos_a = mut_repo.index().commit_id_to_pos(commit_a.id()).unwrap();
 
     let revset = revset_for_commits(mut_repo.as_repo_ref(), &[&commit_a, &commit_d]);
-    let commits: Vec<_> = revset
+    let commits = revset
         .iter()
         .graph()
         .set_skip_transitive_edges(skip_transitive_edges)
-        .collect();
+        .collect_vec();
     drop(revset);
     assert_eq!(commits.len(), 2);
     assert_eq!(commits[0].0.commit_id(), *commit_d.id());
@@ -97,11 +98,11 @@ fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
         mut_repo.as_repo_ref(),
         &[&commit_a, &commit_b, &commit_c, &commit_f],
     );
-    let commits: Vec<_> = revset
+    let commits = revset
         .iter()
         .graph()
         .set_skip_transitive_edges(skip_transitive_edges)
-        .collect();
+        .collect_vec();
     drop(revset);
     assert_eq!(commits.len(), 4);
     assert_eq!(commits[0].0.commit_id(), *commit_f.id());
@@ -155,11 +156,11 @@ fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
     let pos_a = mut_repo.index().commit_id_to_pos(commit_a.id()).unwrap();
 
     let revset = revset_for_commits(mut_repo.as_repo_ref(), &[&commit_a, &commit_c, &commit_e]);
-    let commits: Vec<_> = revset
+    let commits = revset
         .iter()
         .graph()
         .set_skip_transitive_edges(skip_transitive_edges)
-        .collect();
+        .collect_vec();
     drop(revset);
     assert_eq!(commits.len(), 3);
     assert_eq!(commits[0].0.commit_id(), *commit_e.id());
@@ -205,11 +206,11 @@ fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
     let pos_c = mut_repo.index().commit_id_to_pos(commit_c.id()).unwrap();
 
     let revset = revset_for_commits(mut_repo.as_repo_ref(), &[&commit_b, &commit_f]);
-    let commits: Vec<_> = revset
+    let commits = revset
         .iter()
         .graph()
         .set_skip_transitive_edges(skip_transitive_edges)
-        .collect();
+        .collect_vec();
     drop(revset);
     assert_eq!(commits.len(), 2);
     assert_eq!(commits[0].0.commit_id(), *commit_f.id());
@@ -260,11 +261,11 @@ fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
     let pos_d = mut_repo.index().commit_id_to_pos(commit_d.id()).unwrap();
 
     let revset = revset_for_commits(mut_repo.as_repo_ref(), &[&commit_c, &commit_d, &commit_f]);
-    let commits: Vec<_> = revset
+    let commits = revset
         .iter()
         .graph()
         .set_skip_transitive_edges(skip_transitive_edges)
-        .collect();
+        .collect_vec();
     drop(revset);
     assert_eq!(commits.len(), 3);
     assert_eq!(commits[0].0.commit_id(), *commit_f.id());
@@ -341,11 +342,11 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
         mut_repo.as_repo_ref(),
         &[&commit_a, &commit_d, &commit_g, &commit_h, &commit_j],
     );
-    let commits: Vec<_> = revset
+    let commits = revset
         .iter()
         .graph()
         .set_skip_transitive_edges(skip_transitive_edges)
-        .collect();
+        .collect_vec();
     drop(revset);
     assert_eq!(commits.len(), 5);
     assert_eq!(commits[0].0.commit_id(), *commit_j.id());

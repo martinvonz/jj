@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools;
+
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::repo::{MutableRepo, RepoRef};
@@ -28,13 +30,16 @@ pub fn merge_commit_trees(repo: RepoRef, commits: &[Commit]) -> Tree {
     } else {
         let index = repo.index();
         let mut new_tree = commits[0].tree();
-        let commit_ids: Vec<_> = commits.iter().map(|commit| commit.id().clone()).collect();
+        let commit_ids = commits
+            .iter()
+            .map(|commit| commit.id().clone())
+            .collect_vec();
         for (i, other_commit) in commits.iter().enumerate().skip(1) {
             let ancestor_ids = index.common_ancestors(&commit_ids[0..i], &[commit_ids[i].clone()]);
-            let ancestors: Vec<_> = ancestor_ids
+            let ancestors = ancestor_ids
                 .iter()
                 .map(|id| store.get_commit(id).unwrap())
-                .collect();
+                .collect_vec();
             let ancestor_tree = merge_commit_trees(repo, &ancestors);
             let new_tree_id = merge_trees(&new_tree, &ancestor_tree, &other_commit.tree()).unwrap();
             new_tree = store.get_tree(&RepoPath::root(), &new_tree_id).unwrap();

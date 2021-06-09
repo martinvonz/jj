@@ -19,6 +19,7 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use itertools::Itertools;
 use tempfile::NamedTempFile;
 
 use crate::commit::Commit;
@@ -126,7 +127,7 @@ impl IndexStore {
             }
         }
 
-        let mut heads: Vec<CommitId> = new_heads.into_iter().collect();
+        let mut heads = new_heads.into_iter().collect_vec();
         heads.sort();
         let commits = topo_order_earlier_first(store, heads, maybe_parent_file);
 

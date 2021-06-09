@@ -15,6 +15,8 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use itertools::Itertools;
+
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::{bfs, closest_common_node, leaves};
@@ -49,7 +51,7 @@ impl State {
         let view = repo.view();
         let index = repo.index();
         let mut state = State::default();
-        let head_ids: Vec<_> = view.heads().iter().cloned().collect();
+        let head_ids = view.heads().iter().cloned().collect_vec();
         let mut change_to_commits = HashMap::new();
         for head_id in &head_ids {
             state.children.insert(head_id.clone(), HashSet::new());
@@ -95,7 +97,7 @@ impl State {
                 .insert(change_id, non_obsoletes);
         }
         // Find orphans by walking to the children of obsolete commits
-        let mut work: Vec<CommitId> = state.obsolete_commits.iter().cloned().collect();
+        let mut work = state.obsolete_commits.iter().cloned().collect_vec();
         work.extend(state.pruned_commits.iter().cloned());
         while !work.is_empty() {
             let commit_id = work.pop().unwrap();
@@ -313,11 +315,11 @@ impl State {
             }
 
             // Filter out candidates that are ancestors of other candidates.
-            let all_candidates: Vec<CommitId> = repo
+            let all_candidates = repo
                 .index()
                 .heads(all_candidates.iter())
                 .into_iter()
-                .collect();
+                .collect_vec();
 
             for candidate in all_candidates {
                 // TODO: Make this not recursive
@@ -507,14 +509,14 @@ pub struct DivergenceResolver<'settings> {
 impl<'settings> DivergenceResolver<'settings> {
     pub fn new(user_settings: &'settings UserSettings, mut_repo: &MutableRepo) -> Self {
         // TODO: Put them in some defined order
-        let divergent_changes: Vec<_> = mut_repo
+        let divergent_changes = mut_repo
             .evolution()
             .state
             .non_obsoletes_by_changeid
             .values()
             .filter(|non_obsoletes| non_obsoletes.len() > 1)
             .cloned()
-            .collect();
+            .collect_vec();
         DivergenceResolver {
             user_settings,
             remaining_changes: divergent_changes,
@@ -552,12 +554,12 @@ pub struct OrphanResolver<'settings> {
 
 impl<'settings> OrphanResolver<'settings> {
     pub fn new(user_settings: &'settings UserSettings, mut_repo: &MutableRepo) -> Self {
-        let mut orphans_topo_order: Vec<_> = mut_repo
+        let mut orphans_topo_order = mut_repo
             .index()
             .topo_order(mut_repo.evolution().state.orphan_commits.iter())
             .iter()
             .map(|entry| entry.position())
-            .collect();
+            .collect_vec();
         // Reverse so we can pop then efficiently later
         orphans_topo_order.reverse();
         OrphanResolver {
@@ -610,7 +612,7 @@ fn evolve_divergent_change(
     commits: &HashSet<Commit>,
 ) -> DivergenceResolution {
     // Resolve divergence pair-wise, starting with the two oldest commits.
-    let mut commits: Vec<Commit> = commits.iter().cloned().collect();
+    let mut commits = commits.iter().cloned().collect_vec();
     commits.sort_by(|a: &Commit, b: &Commit| a.committer().timestamp.cmp(&b.committer().timestamp));
     commits.reverse();
 

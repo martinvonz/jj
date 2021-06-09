@@ -15,6 +15,8 @@
 use std::fmt::{Debug, Error, Formatter};
 use std::path::{Path, PathBuf};
 
+use itertools::Itertools;
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct RepoPathComponent {
     value: String,
@@ -86,11 +88,11 @@ impl RepoPath {
     /// The full string form used internally, not for presenting to users (where
     /// we may want to use the platform's separator).
     pub fn to_internal_file_string(&self) -> String {
-        let strings: Vec<String> = self
+        let strings = self
             .components
             .iter()
             .map(|component| component.value.clone())
-            .collect();
+            .collect_vec();
         strings.join("/")
     }
 

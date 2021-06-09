@@ -30,6 +30,7 @@ dirs = "3.0.1"
 git2 = "0.13.14"
 hex = "0.4.2"
 indoc = "1.0.3"
+itertools = "0.10.1"
 jujutsu-lib = { version = "=0.2.0", path = "lib"}
 pest = "2.1.3"
 pest_derive = "2.1.0"

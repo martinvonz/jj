@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use itertools::Itertools;
 use regex::{escape as regex_escape, Regex};
 
 pub enum GitIgnoreParseError {}
@@ -87,7 +88,7 @@ impl GitIgnoreLine {
             regex.insert_str(0, "(^|/)");
         }
 
-        let components: Vec<_> = input.split('/').collect();
+        let components = input.split('/').collect_vec();
         for (i, component) in components.iter().enumerate() {
             if *component == "**" {
                 if i == components.len() - 1 {

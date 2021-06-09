@@ -29,6 +29,7 @@ use std::{fs, io};
 
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 use criterion::Criterion;
+use itertools::Itertools;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::dag_walk::topo_order_reverse;
@@ -346,7 +347,7 @@ impl RepoCommandHelper {
                 format!("'{}'", arg.replace("'", "\\'"))
             }
         };
-        let quoted_strings: Vec<_> = self.string_args.iter().map(shell_escape).collect();
+        let quoted_strings = self.string_args.iter().map(shell_escape).collect_vec();
         tx.set_tag("args".to_string(), quoted_strings.join(" "));
         tx
     }
@@ -1442,7 +1443,7 @@ fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
 
     let editor = std::env::var("EDITOR").unwrap_or_else(|_| "pico".to_string());
     // Handle things like `EDITOR=emacs -nw`
-    let args: Vec<_> = editor.split(' ').collect();
+    let args = editor.split(' ').collect_vec();
     let editor_args = if args.len() > 1 { &args[1..] } else { &[] };
     let exit_status = Command::new(args[0])
         .args(editor_args)
@@ -1463,10 +1464,10 @@ fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
     // Delete the file only if everything went well.
     // TODO: Tell the user the name of the file we left behind.
     std::fs::remove_file(description_file_path).ok();
-    let mut lines: Vec<_> = description
+    let mut lines = description
         .split_inclusive('\n')
         .filter(|line| !line.starts_with("JJ: "))
-        .collect();
+        .collect_vec();
     // Remove trailing blank lines
     while matches!(lines.last(), Some(&"\n") | Some(&"\r\n")) {
         lines.pop().unwrap();

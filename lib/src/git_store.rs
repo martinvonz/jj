@@ -21,6 +21,7 @@ use std::time::Duration;
 
 use backoff::{ExponentialBackoff, Operation};
 use git2::Oid;
+use itertools::Itertools;
 use protobuf::Message;
 use uuid::Uuid;
 
@@ -333,10 +334,10 @@ impl Store for GitStore {
                 .map(|b| b.reverse_bits())
                 .collect(),
         );
-        let parents: Vec<_> = commit
+        let parents = commit
             .parent_ids()
             .map(|oid| CommitId(oid.as_bytes().to_vec()))
-            .collect();
+            .collect_vec();
         let tree_id = TreeId(commit.tree_id().as_bytes().to_vec());
         let description = commit.message().unwrap_or("<no message>").to_owned();
         let author = signature_from_git(commit.author());
@@ -379,7 +380,7 @@ impl Store for GitStore {
                 locked_repo.find_commit(Oid::from_bytes(parent_id.0.as_slice())?)?;
             parents.push(parent_git_commit);
         }
-        let parent_refs: Vec<_> = parents.iter().collect();
+        let parent_refs = parents.iter().collect_vec();
         let git_id = locked_repo.commit(
             Some(&create_no_gc_ref()),
             &author,
@@ -642,11 +643,11 @@ mod tests {
             is_pruned: false,
         };
         let commit_id = store.write_commit(&commit).unwrap();
-        let git_refs: Vec<_> = git_repo
+        let git_refs = git_repo
             .references_glob("refs/jj/keep/*")
             .unwrap()
             .map(|git_ref| git_ref.unwrap().target().unwrap())
-            .collect();
+            .collect_vec();
         assert_eq!(git_refs, vec![Oid::from_bytes(&commit_id.0).unwrap()]);
     }
 

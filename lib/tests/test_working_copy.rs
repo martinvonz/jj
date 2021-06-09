@@ -18,6 +18,7 @@ use std::io::{Read, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
 
+use itertools::Itertools;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
@@ -298,11 +299,11 @@ fn test_gitignores(use_git: bool) {
 
     let wc = repo.working_copy().clone();
     let (repo, commit1) = wc.lock().unwrap().commit(&settings, repo);
-    let files1: Vec<_> = commit1
+    let files1 = commit1
         .tree()
         .entries()
         .map(|(name, _value)| name)
-        .collect();
+        .collect_vec();
     assert_eq!(
         files1,
         vec![
@@ -323,11 +324,11 @@ fn test_gitignores(use_git: bool) {
 
     let wc = repo.working_copy().clone();
     let (_repo, commit2) = wc.lock().unwrap().commit(&settings, repo);
-    let files2: Vec<_> = commit2
+    let files2 = commit2
         .tree()
         .entries()
         .map(|(name, _value)| name)
-        .collect();
+        .collect_vec();
     assert_eq!(
         files2,
         vec![

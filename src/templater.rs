@@ -16,6 +16,7 @@ use std::borrow::BorrowMut;
 use std::io;
 use std::ops::Add;
 
+use itertools::Itertools;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::store::{CommitId, Signature};
@@ -61,10 +62,10 @@ pub struct LabelTemplate<'a, C> {
 
 impl<'a, C> LabelTemplate<'a, C> {
     pub fn new(content: Box<dyn Template<C> + 'a>, labels: String) -> Self {
-        let labels: Vec<String> = labels
+        let labels = labels
             .split_whitespace()
             .map(|label| label.to_string())
-            .collect();
+            .collect_vec();
         LabelTemplate { content, labels }
     }
 }
@@ -103,10 +104,10 @@ impl<'a, C> DynamicLabelTemplate<'a, C> {
 impl<'a, C> Template<C> for DynamicLabelTemplate<'a, C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let labels = self.label_property.as_ref()(context);
-        let labels: Vec<String> = labels
+        let labels = labels
             .split_whitespace()
             .map(|label| label.to_string())
-            .collect();
+            .collect_vec();
         for label in &labels {
             formatter.add_label(label.clone())?;
         }
@@ -225,14 +226,14 @@ pub struct GitRefsProperty<'a> {
 
 impl TemplateProperty<Commit, String> for GitRefsProperty<'_> {
     fn extract(&self, context: &Commit) -> String {
-        let refs: Vec<_> = self
+        let refs = self
             .repo
             .view()
             .git_refs()
             .iter()
             .filter(|(_name, id)| *id == context.id())
             .map(|(name, _id)| name.clone())
-            .collect();
+            .collect_vec();
         refs.join(" ")
     }
 }

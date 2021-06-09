@@ -14,6 +14,7 @@
 
 #![feature(assert_matches)]
 
+use itertools::Itertools;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::evolution::{
@@ -722,7 +723,7 @@ fn test_evolve_divergent(use_git: bool) {
         assert_eq!(resolved.predecessors(), &[commit6, commit4]);
 
         let tree = resolved.tree();
-        let entries: Vec<_> = tree.entries().collect();
+        let entries = tree.entries().collect_vec();
         assert_eq!(entries.len(), 4);
         assert_eq!(
             tree.value(&RepoPathComponent::from("A")).unwrap(),

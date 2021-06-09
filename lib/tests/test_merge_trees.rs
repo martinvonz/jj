@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::store::{ConflictPart, TreeValue};
 use jujutsu_lib::tree::Tree;
@@ -72,10 +73,10 @@ fn test_same_type(use_git: bool) {
     let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
 
     // Check that we have exactly the paths we expect in the merged tree
-    let names: Vec<&str> = merged_tree
+    let names = merged_tree
         .entries_non_recursive()
         .map(|entry| entry.name().as_str())
-        .collect();
+        .collect_vec();
     assert_eq!(
         names,
         vec!["__a", "_a_", "_aa", "_ab", "a_b", "aaa", "aab", "ab_", "aba", "abb", "abc",]
@@ -259,7 +260,7 @@ fn test_subtrees(use_git: bool) {
 
     let merged_tree_id = tree::merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
     let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
-    let entries: Vec<_> = merged_tree.entries().collect();
+    let entries = merged_tree.entries().collect_vec();
 
     let expected_tree = write_tree(vec![
         "f1",
@@ -270,7 +271,7 @@ fn test_subtrees(use_git: bool) {
         "d1/d1/d1/f1",
         "d1/d1/d1/f2",
     ]);
-    let expected_entries: Vec<_> = expected_tree.entries().collect();
+    let expected_entries = expected_tree.entries().collect_vec();
     assert_eq!(entries, expected_entries);
 }
 

@@ -18,6 +18,7 @@ use std::iter::Peekable;
 use std::ops::Range;
 use std::rc::Rc;
 
+use itertools::Itertools;
 use pest::iterators::Pairs;
 use pest::Parser;
 use thiserror::Error;
@@ -837,18 +838,20 @@ pub fn evaluate_expression<'repo>(
         RevsetExpression::Symbol(symbol) => {
             let commit_ids = resolve_symbol(repo, &symbol)?;
             let index = repo.index();
-            let mut index_entries: Vec<_> = commit_ids
+            let mut index_entries = commit_ids
                 .iter()
                 .map(|id| index.entry_by_id(id).unwrap())
-                .collect();
+                .collect_vec();
             index_entries.sort_by_key(|b| Reverse(b.position()));
             Ok(Box::new(EagerRevset { index_entries }))
         }
         RevsetExpression::Parents(base_expression) => {
             // TODO: Make this lazy
             let base_set = base_expression.evaluate(repo)?;
-            let mut parent_entries: Vec<_> =
-                base_set.iter().flat_map(|entry| entry.parents()).collect();
+            let mut parent_entries = base_set
+                .iter()
+                .flat_map(|entry| entry.parents())
+                .collect_vec();
             parent_entries.sort_by_key(|b| Reverse(b.position()));
             parent_entries.dedup();
             Ok(Box::new(EagerRevset {
@@ -871,9 +874,9 @@ pub fn evaluate_expression<'repo>(
         .evaluate(repo),
         RevsetExpression::Range { roots, heads } => {
             let root_set = roots.evaluate(repo)?;
-            let root_ids: Vec<_> = root_set.iter().map(|entry| entry.commit_id()).collect();
+            let root_ids = root_set.iter().map(|entry| entry.commit_id()).collect_vec();
             let head_set = heads.evaluate(repo)?;
-            let head_ids: Vec<_> = head_set.iter().map(|entry| entry.commit_id()).collect();
+            let head_ids = head_set.iter().map(|entry| entry.commit_id()).collect_vec();
             let walk = repo.index().walk_revs(&head_ids, &root_ids);
             Ok(Box::new(RevWalkRevset { walk }))
         }
@@ -885,7 +888,7 @@ pub fn evaluate_expression<'repo>(
             let candidate_set = RevsetExpression::Ancestors(heads.clone()).evaluate(repo)?;
             let mut reachable: HashSet<_> = root_set.iter().map(|entry| entry.position()).collect();
             let mut result = vec![];
-            let candidates: Vec<_> = candidate_set.iter().collect();
+            let candidates = candidate_set.iter().collect_vec();
             for candidate in candidates.into_iter().rev() {
                 if reachable.contains(&candidate.position())
                     || candidate
@@ -905,10 +908,10 @@ pub fn evaluate_expression<'repo>(
         RevsetExpression::AllHeads => {
             let index = repo.index();
             let heads = repo.view().heads();
-            let mut index_entries: Vec<_> = heads
+            let mut index_entries = heads
                 .iter()
                 .map(|id| index.entry_by_id(id).unwrap())
-                .collect();
+                .collect_vec();
             index_entries.sort_by_key(|b| Reverse(b.position()));
             Ok(Box::new(EagerRevset { index_entries }))
         }
@@ -930,21 +933,21 @@ pub fn evaluate_expression<'repo>(
         RevsetExpression::PublicHeads => {
             let index = repo.index();
             let heads = repo.view().public_heads();
-            let mut index_entries: Vec<_> = heads
+            let mut index_entries = heads
                 .iter()
                 .map(|id| index.entry_by_id(id).unwrap())
-                .collect();
+                .collect_vec();
             index_entries.sort_by_key(|b| Reverse(b.position()));
             Ok(Box::new(EagerRevset { index_entries }))
         }
         RevsetExpression::GitRefs => {
             let index = repo.index();
-            let mut index_entries: Vec<_> = repo
+            let mut index_entries = repo
                 .view()
                 .git_refs()
                 .values()
                 .map(|id| index.entry_by_id(id).unwrap())
-                .collect();
+                .collect_vec();
             index_entries.sort_by_key(|b| Reverse(b.position()));
             index_entries.dedup();
             Ok(Box::new(EagerRevset { index_entries }))
@@ -987,7 +990,7 @@ fn non_obsolete_heads<'revset, 'repo: 'revset>(
     heads: Box<dyn Revset<'repo> + 'repo>,
 ) -> Box<dyn Revset<'repo> + 'revset> {
     let mut commit_ids = HashSet::new();
-    let mut work: Vec<_> = heads.iter().collect();
+    let mut work = heads.iter().collect_vec();
     let evolution = repo.evolution();
     while !work.is_empty() {
         let index_entry = work.pop().unwrap();
@@ -1005,10 +1008,10 @@ fn non_obsolete_heads<'revset, 'repo: 'revset>(
     }
     let index = repo.index();
     let commit_ids = index.heads(&commit_ids);
-    let mut index_entries: Vec<_> = commit_ids
+    let mut index_entries = commit_ids
         .iter()
         .map(|id| index.entry_by_id(id).unwrap())
-        .collect();
+        .collect_vec();
     index_entries.sort_by_key(|b| Reverse(b.position()));
     Box::new(EagerRevset { index_entries })
 }
@@ -1018,10 +1021,10 @@ pub fn revset_for_commits<'revset, 'repo: 'revset>(
     commits: &[&Commit],
 ) -> Box<dyn Revset<'repo> + 'revset> {
     let index = repo.index();
-    let mut index_entries: Vec<_> = commits
+    let mut index_entries = commits
         .iter()
         .map(|commit| index.entry_by_id(commit.id()).unwrap())
-        .collect();
+        .collect_vec();
     index_entries.sort_by_key(|b| Reverse(b.position()));
     Box::new(EagerRevset { index_entries })
 }

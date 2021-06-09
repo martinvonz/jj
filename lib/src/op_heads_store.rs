@@ -16,6 +16,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use itertools::Itertools;
 use thiserror::Error;
 
 use crate::lock::FileLock;
@@ -141,13 +142,13 @@ impl OpHeadsStore {
             return Ok(Operation::new(op_store.clone(), op_head_id, op_head));
         }
 
-        let op_heads: Vec<_> = op_head_ids
+        let op_heads = op_head_ids
             .iter()
             .map(|op_id: &OperationId| {
                 let data = op_store.read_operation(op_id).unwrap();
                 Operation::new(op_store.clone(), op_id.clone(), data)
             })
-            .collect();
+            .collect_vec();
         let mut op_heads = self.handle_ancestor_ops(op_heads);
 
         // Return without creating a merge operation

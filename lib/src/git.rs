@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools;
 use thiserror::Error;
 
 use crate::commit::Commit;
@@ -31,7 +32,7 @@ pub fn import_refs(
 ) -> Result<(), GitImportError> {
     let store = mut_repo.store().clone();
     let git_refs = git_repo.references()?;
-    let existing_git_refs: Vec<_> = mut_repo.view().git_refs().keys().cloned().collect();
+    let existing_git_refs = mut_repo.view().git_refs().keys().cloned().collect_vec();
     // TODO: Store the id of the previous import and read it back here, so we can
     // merge the views instead of overwriting.
     for existing_git_ref in existing_git_refs {

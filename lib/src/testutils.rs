@@ -17,6 +17,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::sync::Arc;
 
+use itertools::Itertools;
 use tempfile::TempDir;
 
 use crate::commit::Commit;
@@ -150,7 +151,10 @@ impl<'settings, 'repo> CommitGraphBuilder<'settings, 'repo> {
     }
 
     pub fn commit_with_parents(&mut self, parents: &[&Commit]) -> Commit {
-        let parent_ids: Vec<_> = parents.iter().map(|commit| commit.id().clone()).collect();
+        let parent_ids = parents
+            .iter()
+            .map(|commit| commit.id().clone())
+            .collect_vec();
         create_random_commit(self.settings, self.mut_repo.base_repo().as_ref())
             .set_parents(parent_ids)
             .write_to_repo(self.mut_repo)

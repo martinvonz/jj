@@ -83,7 +83,7 @@ where
     let mut emitted = HashSet::new();
     let mut result = vec![];
 
-    let mut start_nodes: Vec<_> = start.into_iter().collect();
+    let mut start_nodes: Vec<T> = start.into_iter().collect();
     start_nodes.reverse();
 
     for start_node in start_nodes {
@@ -384,14 +384,13 @@ mod tests {
             'e' => vec!['b'],
             'F' => vec!['C', 'e'],
         };
-        let expected: HashSet<char> = vec!['D', 'F'].into_iter().collect();
 
         let actual = heads(
             vec!['A', 'C', 'D', 'F'],
             &|node| neighbors[node].clone(),
             &|node| *node,
         );
-        assert_eq!(actual, expected);
+        assert_eq!(actual, hashset!['D', 'F']);
 
         // Check with a different order in the start set
         let actual = heads(
@@ -399,6 +398,6 @@ mod tests {
             &|node| neighbors[node].clone(),
             &|node| *node,
         );
-        assert_eq!(actual, expected);
+        assert_eq!(actual, hashset!['D', 'F']);
     }
 }
