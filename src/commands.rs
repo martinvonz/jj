@@ -507,8 +507,6 @@ fn matcher_from_values(
     values: Option<clap::Values>,
 ) -> Result<Box<dyn Matcher>, CommandError> {
     if let Some(values) = values {
-        // TODO: Interpret path relative to cwd (not repo root)
-        // TODO: Accept backslash separator on Windows
         // TODO: Add support for matching directories (and probably globs and other
         // formats)
         let mut paths = HashSet::new();
