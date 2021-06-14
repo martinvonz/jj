@@ -19,7 +19,7 @@ use tempfile::{NamedTempFile, PersistError};
 
 // Like NamedTempFile::persist(), but also succeeds if the target already
 // exists.
-pub fn persist_temp_file<P: AsRef<Path>>(
+pub fn persist_content_addressed_temp_file<P: AsRef<Path>>(
     temp_file: NamedTempFile,
     new_path: P,
 ) -> Result<File, PersistError> {
@@ -51,7 +51,7 @@ mod tests {
         let target = temp_dir.join("file");
         let mut temp_file = NamedTempFile::new_in(&temp_dir).unwrap();
         temp_file.write_all(b"contents").unwrap();
-        assert!(persist_temp_file(temp_file, &target).is_ok());
+        assert!(persist_content_addressed_temp_file(temp_file, &target).is_ok());
     }
 
     #[test_case(false ; "existing file open")]
@@ -68,6 +68,6 @@ mod tests {
             drop(file);
         }
 
-        assert!(persist_temp_file(temp_file, &target).is_ok());
+        assert!(persist_content_addressed_temp_file(temp_file, &target).is_ok());
     }
 }

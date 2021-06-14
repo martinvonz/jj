@@ -31,7 +31,7 @@ use itertools::Itertools;
 use tempfile::NamedTempFile;
 
 use crate::commit::Commit;
-use crate::file_util::persist_temp_file;
+use crate::file_util::persist_content_addressed_temp_file;
 use crate::store::{ChangeId, CommitId};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
@@ -618,7 +618,7 @@ impl MutableIndex {
         let mut temp_file = NamedTempFile::new_in(&dir)?;
         let file = temp_file.as_file_mut();
         file.write_all(&buf).unwrap();
-        persist_temp_file(temp_file, &index_file_path)?;
+        persist_content_addressed_temp_file(temp_file, &index_file_path)?;
 
         let mut cursor = Cursor::new(&buf);
         ReadonlyIndex::load_from(&mut cursor, dir, index_file_id_hex, hash_length)

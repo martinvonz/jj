@@ -22,7 +22,7 @@ use blake2::{Blake2b, Digest};
 use protobuf::{Message, ProtobufError};
 use tempfile::{NamedTempFile, PersistError};
 
-use crate::file_util::persist_temp_file;
+use crate::file_util::persist_content_addressed_temp_file;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::store::{
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictPart, FileId, MillisSinceEpoch,
@@ -141,7 +141,7 @@ impl Store for LocalStore {
         encoder.finish()?;
         let id = FileId(hasher.finalize().to_vec());
 
-        persist_temp_file(temp_file, self.file_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.file_path(&id))?;
         Ok(id)
     }
 
@@ -160,7 +160,7 @@ impl Store for LocalStore {
         hasher.update(&target.as_bytes());
         let id = SymlinkId(hasher.finalize().to_vec());
 
-        persist_temp_file(temp_file, self.symlink_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.symlink_path(&id))?;
         Ok(id)
     }
 
@@ -187,7 +187,7 @@ impl Store for LocalStore {
 
         let id = TreeId(Blake2b::digest(&proto_bytes).to_vec());
 
-        persist_temp_file(temp_file, self.tree_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.tree_path(&id))?;
         Ok(id)
     }
 
@@ -210,7 +210,7 @@ impl Store for LocalStore {
 
         let id = CommitId(Blake2b::digest(&proto_bytes).to_vec());
 
-        persist_temp_file(temp_file, self.commit_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.commit_path(&id))?;
         Ok(id)
     }
 
@@ -233,7 +233,7 @@ impl Store for LocalStore {
 
         let id = ConflictId(Blake2b::digest(&proto_bytes).to_vec());
 
-        persist_temp_file(temp_file, self.conflict_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.conflict_path(&id))?;
         Ok(id)
     }
 }

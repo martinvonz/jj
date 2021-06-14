@@ -22,7 +22,7 @@ use blake2::{Blake2b, Digest};
 use protobuf::{Message, ProtobufError};
 use tempfile::{NamedTempFile, PersistError};
 
-use crate::file_util::persist_temp_file;
+use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
     OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata, View, ViewId,
 };
@@ -99,7 +99,7 @@ impl OpStore for SimpleOpStore {
 
         let id = ViewId(Blake2b::digest(&proto_bytes).to_vec());
 
-        persist_temp_file(temp_file, self.view_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.view_path(&id))?;
         Ok(id)
     }
 
@@ -122,7 +122,7 @@ impl OpStore for SimpleOpStore {
 
         let id = OperationId(Blake2b::digest(&proto_bytes).to_vec());
 
-        persist_temp_file(temp_file, self.operation_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.operation_path(&id))?;
         Ok(id)
     }
 }
