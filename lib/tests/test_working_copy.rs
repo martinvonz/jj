@@ -52,7 +52,6 @@ fn test_root(use_git: bool) {
     assert_eq!(wc_commit.committer().email, settings.user_email());
 }
 
-#[cfg(unix)]
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
 fn test_checkout_file_transitions(use_git: bool) {
@@ -69,6 +68,7 @@ fn test_checkout_file_transitions(use_git: bool) {
         Missing,
         Normal,
         Executable,
+        #[cfg_attr(windows, allow(dead_code))]
         Symlink,
         Tree,
         GitSubmodule,
@@ -138,13 +138,9 @@ fn test_checkout_file_transitions(use_git: bool) {
         tree_builder.set(RepoPath::from_internal_string(path), value);
     }
 
-    let mut kinds = vec![
-        Kind::Missing,
-        Kind::Normal,
-        Kind::Executable,
-        Kind::Symlink,
-        Kind::Tree,
-    ];
+    let mut kinds = vec![Kind::Missing, Kind::Normal, Kind::Executable, Kind::Tree];
+    #[cfg(unix)]
+    kinds.push(Kind::Symlink);
     if use_git {
         kinds.push(Kind::GitSubmodule);
     }
