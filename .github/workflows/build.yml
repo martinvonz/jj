@@ -27,6 +27,8 @@ jobs:
     - name: Test
       run: |
         cargo test --workspace --verbose
+      env:
+        RUST_BACKTRACE: 1
 
   clippy:
     name: Clippy check
