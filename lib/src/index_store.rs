@@ -24,6 +24,7 @@ use tempfile::NamedTempFile;
 
 use crate::commit::Commit;
 use crate::dag_walk;
+use crate::file_util::persist_temp_file;
 use crate::index::{MutableIndex, ReadonlyIndex};
 use crate::op_store::OperationId;
 use crate::operation::Operation;
@@ -151,7 +152,7 @@ impl IndexStore {
         let mut temp_file = NamedTempFile::new_in(&self.dir)?;
         let file = temp_file.as_file_mut();
         file.write_all(&index.name().as_bytes()).unwrap();
-        temp_file.persist(&self.dir.join("operations").join(op_id.hex()))?;
+        persist_temp_file(temp_file, &self.dir.join("operations").join(op_id.hex()))?;
         Ok(())
     }
 }

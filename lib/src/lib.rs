@@ -30,6 +30,7 @@ pub mod conflicts;
 pub mod dag_walk;
 pub mod diff;
 pub mod evolution;
+pub mod file_util;
 pub mod files;
 pub mod git;
 pub mod git_store;

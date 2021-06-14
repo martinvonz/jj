@@ -33,6 +33,7 @@ use thiserror::Error;
 
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
+use crate::file_util::persist_temp_file;
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::matchers::EverythingMatcher;
@@ -237,9 +238,7 @@ impl TreeState {
         // there is no unknown data in it
         self.update_read_time();
         proto.write_to_writer(temp_file.as_file_mut()).unwrap();
-        temp_file
-            .persist(self.state_path.join("tree_state"))
-            .unwrap();
+        persist_temp_file(temp_file, self.state_path.join("tree_state")).unwrap();
     }
 
     fn file_state(&self, path: &Path) -> Option<FileState> {
@@ -643,7 +642,7 @@ impl WorkingCopy {
     fn write_proto(&self, proto: crate::protos::working_copy::Checkout) {
         let mut temp_file = NamedTempFile::new_in(&self.state_path).unwrap();
         proto.write_to_writer(temp_file.as_file_mut()).unwrap();
-        temp_file.persist(self.state_path.join("checkout")).unwrap();
+        persist_temp_file(temp_file, self.state_path.join("checkout")).unwrap();
     }
 
     fn read_proto(&self) -> crate::protos::working_copy::Checkout {
