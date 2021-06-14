@@ -147,9 +147,9 @@ fn test_checkout_closed_with_conflict(use_git: bool) {
 }
 
 fn write_conflict(store: &Arc<StoreWrapper>, file_path: &RepoPath) -> ConflictId {
-    let file_id1 = testutils::write_file(store, &file_path, "a\n");
-    let file_id2 = testutils::write_file(store, &file_path, "b\n");
-    let file_id3 = testutils::write_file(store, &file_path, "c\n");
+    let file_id1 = testutils::write_file(store, file_path, "a\n");
+    let file_id2 = testutils::write_file(store, file_path, "b\n");
+    let file_id3 = testutils::write_file(store, file_path, "c\n");
     let conflict = Conflict {
         removes: vec![ConflictPart {
             value: TreeValue::Normal {

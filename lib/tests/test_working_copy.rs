@@ -128,8 +128,8 @@ fn test_checkout_file_transitions(use_git: bool) {
                 TreeValue::Tree(id)
             }
             Kind::GitSubmodule => {
-                let id = testutils::create_random_commit(&settings, &repo)
-                    .write_to_new_transaction(&repo, "test")
+                let id = testutils::create_random_commit(settings, repo)
+                    .write_to_new_transaction(repo, "test")
                     .id()
                     .clone();
                 TreeValue::GitSubmodule(id)
@@ -331,10 +331,10 @@ fn test_gitignores(use_git: bool) {
     assert_eq!(
         files2,
         vec![
-            gitignore_path.clone(),
-            added_path.clone(),
-            subdir_modified_path.clone(),
-            modified_path.clone(),
+            gitignore_path,
+            added_path,
+            subdir_modified_path,
+            modified_path,
         ]
     );
 }

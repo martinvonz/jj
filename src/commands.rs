@@ -203,7 +203,7 @@ impl RepoCommandHelper {
         string_args: Vec<String>,
         root_matches: &ArgMatches,
     ) -> Result<Self, CommandError> {
-        let repo = get_repo(ui, &root_matches)?;
+        let repo = get_repo(ui, root_matches)?;
         let may_update_working_copy = root_matches.value_of("at_op").unwrap() == "@";
         Ok(RepoCommandHelper {
             string_args,
@@ -435,7 +435,7 @@ fn resolve_single_op(repo: &ReadonlyRepo, op_str: &str) -> Result<Operation, Com
         // was loaded at
         Ok(repo.operation().clone())
     } else {
-        resolve_single_op_from_store(&repo.op_store(), &repo.op_heads_store(), op_str)
+        resolve_single_op_from_store(repo.op_store(), repo.op_heads_store(), op_str)
     }
 }
 
@@ -1220,13 +1220,13 @@ fn cmd_diff(
 
 fn show_diff_summary(ui: &mut Ui, wc_path: &Path, summary: &DiffSummary) -> io::Result<()> {
     for file in &summary.modified {
-        writeln!(ui, "M {}", ui.format_file_path(wc_path, &file))?;
+        writeln!(ui, "M {}", ui.format_file_path(wc_path, file))?;
     }
     for file in &summary.added {
-        writeln!(ui, "A {}", ui.format_file_path(wc_path, &file))?;
+        writeln!(ui, "A {}", ui.format_file_path(wc_path, file))?;
     }
     for file in &summary.removed {
-        writeln!(ui, "R {}", ui.format_file_path(wc_path, &file))?;
+        writeln!(ui, "R {}", ui.format_file_path(wc_path, file))?;
     }
     Ok(())
 }
@@ -1529,7 +1529,7 @@ fn cmd_describe(
     } else if sub_matches.is_present("message") {
         description = sub_matches.value_of("message").unwrap().to_owned()
     } else {
-        description = edit_description(&repo, commit.description());
+        description = edit_description(repo, commit.description());
     }
     let mut tx = repo_command.start_transaction(&format!("describe commit {}", commit.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
@@ -1571,7 +1571,7 @@ fn cmd_close(
     if sub_matches.is_present("message") {
         description = sub_matches.value_of("message").unwrap().to_string();
     } else if commit.description().is_empty() {
-        description = edit_description(&repo, "\n\nJJ: Enter commit description.\n");
+        description = edit_description(repo, "\n\nJJ: Enter commit description.\n");
     } else {
         description = commit.description().to_string();
     }
@@ -1612,7 +1612,7 @@ fn cmd_prune(
     let predecessors = repo_command.resolve_revset(sub_matches.value_of("revision").unwrap())?;
     repo_command.check_non_empty(&predecessors)?;
     for predecessor in &predecessors {
-        repo_command.check_rewriteable(&predecessor)?;
+        repo_command.check_rewriteable(predecessor)?;
     }
     let repo = repo_command.repo();
     let transaction_description = if predecessors.len() == 1 {
@@ -1691,7 +1691,7 @@ fn cmd_squash(
             to the destination. If you don't make any changes, then all the changes\n\
             from the source will be moved into the parent.\n",
             short_commit_description(&commit),
-            short_commit_description(&parent)
+            short_commit_description(parent)
         );
         new_parent_tree_id =
             crate::diff_edit::edit_diff(ui, &parent.tree(), &commit.tree(), &instructions)?;
@@ -1704,7 +1704,7 @@ fn cmd_squash(
     // Prune the child if the parent now has all the content from the child (always
     // the case in the non-interactive case).
     let prune_child = &new_parent_tree_id == commit.tree().id();
-    let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &parent)
+    let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), parent)
         .set_tree(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
         .write_to_repo(mut_repo);
@@ -1733,7 +1733,7 @@ fn cmd_unsquash(
         )));
     }
     let parent = &parents[0];
-    repo_command.check_rewriteable(&parent)?;
+    repo_command.check_rewriteable(parent)?;
     let mut tx = repo_command.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
     let parent_base_tree = merge_commit_trees(repo.as_repo_ref(), &parent.parents());
@@ -1749,7 +1749,7 @@ fn cmd_unsquash(
             the parent commit. The changes you edited out will be moved into the\n\
             child commit. If you don't make any changes, then the operation will be\n\
             aborted.\n",
-            short_commit_description(&parent),
+            short_commit_description(parent),
             short_commit_description(&commit)
         );
         new_parent_tree_id =
@@ -1763,7 +1763,7 @@ fn cmd_unsquash(
     // Prune the parent if it is now empty (always the case in the non-interactive
     // case).
     let prune_parent = &new_parent_tree_id == parent_base_tree.id();
-    let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &parent)
+    let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), parent)
         .set_tree(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
         .set_pruned(prune_parent)
@@ -1925,7 +1925,7 @@ fn cmd_split(
         let mut tx = repo_command.start_transaction(&format!("split commit {}", commit.id().hex()));
         let mut_repo = tx.mut_repo();
         let first_description = edit_description(
-            &repo,
+            repo,
             &("JJ: Enter commit description for the first part.\n".to_string()
                 + commit.description()),
         );
@@ -1934,7 +1934,7 @@ fn cmd_split(
             .set_description(first_description)
             .write_to_repo(mut_repo);
         let second_description = edit_description(
-            &repo,
+            repo,
             &("JJ: Enter commit description for the second part.\n".to_string()
                 + commit.description()),
         );
@@ -1979,7 +1979,7 @@ fn cmd_merge(
         description = sub_matches.value_of("message").unwrap().to_string();
     } else {
         description = edit_description(
-            &repo,
+            repo,
             "\n\nJJ: Enter commit description for the merge commit.\n",
         );
     }
@@ -2334,7 +2334,7 @@ fn cmd_op_undo(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
-    let bad_op = resolve_single_op(&repo, _cmd_matches.value_of("operation").unwrap())?;
+    let bad_op = resolve_single_op(repo, _cmd_matches.value_of("operation").unwrap())?;
     let parent_ops = bad_op.parents();
     if parent_ops.len() > 1 {
         return Err(CommandError::UserError(
@@ -2363,7 +2363,7 @@ fn cmd_op_restore(
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
-    let target_op = resolve_single_op(&repo, _cmd_matches.value_of("operation").unwrap())?;
+    let target_op = resolve_single_op(repo, _cmd_matches.value_of("operation").unwrap())?;
     let mut tx =
         repo_command.start_transaction(&format!("restore to operation {}", target_op.id().hex()));
     tx.mut_repo().set_view(target_op.view().take_store_view());
@@ -2561,59 +2561,59 @@ where
     let matches = get_app().get_matches_from(&string_args);
     let command_helper = CommandHelper::new(string_args, matches.clone());
     let result = if let Some(sub_matches) = command_helper.root_matches.subcommand_matches("init") {
-        cmd_init(&mut ui, &command_helper, &sub_matches)
+        cmd_init(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("checkout") {
-        cmd_checkout(&mut ui, &command_helper, &sub_matches)
+        cmd_checkout(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("files") {
-        cmd_files(&mut ui, &command_helper, &sub_matches)
+        cmd_files(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("diff") {
-        cmd_diff(&mut ui, &command_helper, &sub_matches)
+        cmd_diff(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("status") {
-        cmd_status(&mut ui, &command_helper, &sub_matches)
+        cmd_status(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("log") {
-        cmd_log(&mut ui, &command_helper, &sub_matches)
+        cmd_log(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("obslog") {
-        cmd_obslog(&mut ui, &command_helper, &sub_matches)
+        cmd_obslog(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("describe") {
-        cmd_describe(&mut ui, &command_helper, &sub_matches)
+        cmd_describe(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("close") {
-        cmd_close(&mut ui, &command_helper, &sub_matches)
+        cmd_close(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("open") {
-        cmd_open(&mut ui, &command_helper, &sub_matches)
+        cmd_open(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("duplicate") {
-        cmd_duplicate(&mut ui, &command_helper, &sub_matches)
+        cmd_duplicate(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("prune") {
-        cmd_prune(&mut ui, &command_helper, &sub_matches)
+        cmd_prune(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("new") {
-        cmd_new(&mut ui, &command_helper, &sub_matches)
+        cmd_new(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("squash") {
-        cmd_squash(&mut ui, &command_helper, &sub_matches)
+        cmd_squash(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("unsquash") {
-        cmd_unsquash(&mut ui, &command_helper, &sub_matches)
+        cmd_unsquash(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("discard") {
-        cmd_discard(&mut ui, &command_helper, &sub_matches)
+        cmd_discard(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("restore") {
-        cmd_restore(&mut ui, &command_helper, &sub_matches)
+        cmd_restore(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("edit") {
-        cmd_edit(&mut ui, &command_helper, &sub_matches)
+        cmd_edit(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("split") {
-        cmd_split(&mut ui, &command_helper, &sub_matches)
+        cmd_split(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("merge") {
-        cmd_merge(&mut ui, &command_helper, &sub_matches)
+        cmd_merge(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("rebase") {
-        cmd_rebase(&mut ui, &command_helper, &sub_matches)
+        cmd_rebase(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("backout") {
-        cmd_backout(&mut ui, &command_helper, &sub_matches)
+        cmd_backout(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("evolve") {
-        cmd_evolve(&mut ui, &command_helper, &sub_matches)
+        cmd_evolve(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("operation") {
-        cmd_operation(&mut ui, &command_helper, &sub_matches)
+        cmd_operation(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("git") {
-        cmd_git(&mut ui, &command_helper, &sub_matches)
+        cmd_git(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("bench") {
-        cmd_bench(&mut ui, &command_helper, &sub_matches)
+        cmd_bench(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("debug") {
-        cmd_debug(&mut ui, &command_helper, &sub_matches)
+        cmd_debug(&mut ui, &command_helper, sub_matches)
     } else {
         panic!("unhandled command: {:#?}", matches);
     };

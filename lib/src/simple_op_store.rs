@@ -81,7 +81,7 @@ fn not_found_to_store_error(err: std::io::Error) -> OpStoreError {
 
 impl OpStore for SimpleOpStore {
     fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {
-        let path = self.view_path(&id);
+        let path = self.view_path(id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
         let proto: crate::protos::op_store::View = Message::parse_from_reader(&mut file)?;
@@ -104,7 +104,7 @@ impl OpStore for SimpleOpStore {
     }
 
     fn read_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
-        let path = self.operation_path(&id);
+        let path = self.operation_path(id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
         let proto: crate::protos::op_store::Operation = Message::parse_from_reader(&mut file)?;

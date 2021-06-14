@@ -49,17 +49,17 @@ pub fn materialize_conflict(
                     let mut base_contents: Vec<u8> = vec![];
                     let mut right_contents: Vec<u8> = vec![];
                     store
-                        .read_file(&path, &left_id)
+                        .read_file(path, &left_id)
                         .unwrap()
                         .read_to_end(&mut left_contents)
                         .unwrap();
                     store
-                        .read_file(&path, &base_id)
+                        .read_file(path, &base_id)
                         .unwrap()
                         .read_to_end(&mut base_contents)
                         .unwrap();
                     store
-                        .read_file(&path, &right_id)
+                        .read_file(path, &right_id)
                         .unwrap()
                         .read_to_end(&mut right_contents)
                         .unwrap();
@@ -106,7 +106,7 @@ pub fn conflict_to_materialized_value(
     conflict: &Conflict,
 ) -> TreeValue {
     let mut buf = vec![];
-    materialize_conflict(store, &path, &conflict, &mut buf);
+    materialize_conflict(store, path, conflict, &mut buf);
     let file_id = store.write_file(path, &mut Cursor::new(&buf)).unwrap();
     TreeValue::Normal {
         id: file_id,

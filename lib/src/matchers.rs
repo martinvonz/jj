@@ -138,11 +138,11 @@ impl Dirs {
     }
 
     fn get_dirs(&self, dir: &RepoPath) -> &HashSet<RepoPathComponent> {
-        self.dirs.get(&dir).unwrap_or(&self.empty_dirs)
+        self.dirs.get(dir).unwrap_or(&self.empty_dirs)
     }
 
     fn get_files(&self, dir: &RepoPath) -> &HashSet<RepoPathComponent> {
-        self.files.get(&dir).unwrap_or(&self.empty_files)
+        self.files.get(dir).unwrap_or(&self.empty_files)
     }
 }
 

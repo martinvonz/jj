@@ -254,11 +254,11 @@ impl<'a> TreeEntry<'a> {
     }
 
     pub fn name(&self) -> &'a RepoPathComponent {
-        &self.name
+        self.name
     }
 
     pub fn value(&self) -> &'a TreeValue {
-        &self.value
+        self.value
     }
 }
 

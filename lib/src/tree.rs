@@ -438,13 +438,13 @@ impl Iterator for TreeDiffIterator<'_> {
                     let subdir_path = self.dir.join(subdir);
                     let before_tree = match before {
                         Some(TreeValue::Tree(id_before)) => {
-                            self.tree1.known_sub_tree(subdir, &id_before)
+                            self.tree1.known_sub_tree(subdir, id_before)
                         }
                         _ => Tree::null(self.tree1.store().clone(), subdir_path.clone()),
                     };
                     let after_tree = match after {
                         Some(TreeValue::Tree(id_after)) => {
-                            self.tree2.known_sub_tree(subdir, &id_after)
+                            self.tree2.known_sub_tree(subdir, id_after)
                         }
                         _ => Tree::null(self.tree2.store().clone(), subdir_path.clone()),
                     };
@@ -559,9 +559,9 @@ fn merge_tree_value(
         ) => {
             let subdir = dir.join(basename);
             let merged_tree_id = merge_trees(
-                &store.get_tree(&subdir, &side1).unwrap(),
-                &store.get_tree(&subdir, &base).unwrap(),
-                &store.get_tree(&subdir, &side2).unwrap(),
+                &store.get_tree(&subdir, side1).unwrap(),
+                &store.get_tree(&subdir, base).unwrap(),
+                &store.get_tree(&subdir, side2).unwrap(),
             )?;
             if &merged_tree_id == store.empty_tree_id() {
                 None
@@ -594,18 +594,18 @@ fn merge_tree_value(
                         *side1_executable
                     };
 
-                    let filename = dir.join(&basename);
+                    let filename = dir.join(basename);
                     let mut base_content = vec![];
                     store
-                        .read_file(&filename, &base_id)?
+                        .read_file(&filename, base_id)?
                         .read_to_end(&mut base_content)?;
                     let mut side1_content = vec![];
                     store
-                        .read_file(&filename, &side1_id)?
+                        .read_file(&filename, side1_id)?
                         .read_to_end(&mut side1_content)?;
                     let mut side2_content = vec![];
                     store
-                        .read_file(&filename, &side2_id)?
+                        .read_file(&filename, side2_id)?
                         .read_to_end(&mut side2_content)?;
 
                     let merge_result = files::merge(&base_content, &side1_content, &side2_content);
@@ -704,7 +704,7 @@ fn simplify_conflict(
     for part in &conflict.adds {
         match part.value {
             TreeValue::Conflict(_) => {
-                let conflict = conflict_part_to_conflict(&store, part)?;
+                let conflict = conflict_part_to_conflict(store, part)?;
                 new_removes.extend_from_slice(&conflict.removes);
                 new_adds.extend_from_slice(&conflict.adds);
             }
@@ -716,7 +716,7 @@ fn simplify_conflict(
     for part in &conflict.removes {
         match part.value {
             TreeValue::Conflict(_) => {
-                let conflict = conflict_part_to_conflict(&store, part)?;
+                let conflict = conflict_part_to_conflict(store, part)?;
                 new_removes.extend_from_slice(&conflict.adds);
                 new_adds.extend_from_slice(&conflict.removes);
             }

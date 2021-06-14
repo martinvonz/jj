@@ -101,17 +101,17 @@ impl View {
             // sides and emit a warning?
         }
 
-        for removed_head in base.public_heads().difference(&other.public_heads()) {
+        for removed_head in base.public_heads().difference(other.public_heads()) {
             self.remove_public_head(removed_head);
         }
-        for added_head in other.public_heads().difference(&base.public_heads()) {
+        for added_head in other.public_heads().difference(base.public_heads()) {
             self.add_public_head(added_head);
         }
 
-        for removed_head in base.heads().difference(&other.heads()) {
+        for removed_head in base.heads().difference(other.heads()) {
             self.remove_head(removed_head);
         }
-        for added_head in other.heads().difference(&base.heads()) {
+        for added_head in other.heads().difference(base.heads()) {
             self.add_head(added_head);
         }
         // TODO: Should it be considered a conflict if a commit-head is removed on one

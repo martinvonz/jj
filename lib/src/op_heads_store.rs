@@ -46,7 +46,7 @@ impl OpHeadsStore {
         op_store: &Arc<dyn OpStore>,
         root_view: &op_store::View,
     ) -> (Self, Operation) {
-        let root_view_id = op_store.write_view(&root_view).unwrap();
+        let root_view_id = op_store.write_view(root_view).unwrap();
         let operation_metadata =
             OperationMetadata::new("initialize repo".to_string(), Timestamp::now());
         let init_operation = op_store::Operation {
@@ -58,7 +58,7 @@ impl OpHeadsStore {
         let init_operation = Operation::new(op_store.clone(), init_operation_id, init_operation);
 
         let op_heads_store = OpHeadsStore { dir };
-        op_heads_store.add_op_head(&init_operation.id());
+        op_heads_store.add_op_head(init_operation.id());
         (op_heads_store, init_operation)
     }
 
@@ -177,7 +177,7 @@ impl OpHeadsStore {
         let op_heads = dag_walk::heads(op_heads, &neighbors_fn, &|op: &Operation| op.id().clone());
         let op_head_ids_after: HashSet<_> = op_heads.iter().map(|op| op.id().clone()).collect();
         for removed_op_head in op_head_ids_before.difference(&op_head_ids_after) {
-            self.remove_op_head(&removed_op_head);
+            self.remove_op_head(removed_op_head);
         }
         op_heads.into_iter().collect()
     }
@@ -201,7 +201,7 @@ fn merge_op_heads(
         )
         .unwrap();
         let base_repo = repo_loader.load_at(&ancestor_op);
-        let other_repo = repo_loader.load_at(&other_op_head);
+        let other_repo = repo_loader.load_at(other_op_head);
         merged_repo.merge(&base_repo, &other_repo);
     }
     let op_parent_ids = op_heads.iter().map(|op| op.id().clone()).collect();

@@ -85,7 +85,7 @@ fn signature_to_git(signature: &Signature) -> git2::Signature {
         (signature.timestamp.timestamp.0 / 1000) as i64,
         signature.timestamp.tz_offset,
     );
-    git2::Signature::new(&name, &email, &time).unwrap()
+    git2::Signature::new(name, email, &time).unwrap()
 }
 
 fn serialize_note(commit: &Commit) -> String {
@@ -136,7 +136,7 @@ fn write_note(
     // TODO: Report this to libgit2.
     let notes_ref_lock = format!("{}.lock", notes_ref);
     let mut try_write_note = || {
-        let note_status = git_repo.note(&committer, &committer, Some(notes_ref), oid, note, false);
+        let note_status = git_repo.note(committer, committer, Some(notes_ref), oid, note, false);
         match note_status {
             Err(err) if err.message().contains(&notes_ref_lock) => {
                 Err(backoff::Error::Transient(err))
@@ -385,7 +385,7 @@ impl Store for GitStore {
             Some(&create_no_gc_ref()),
             &author,
             &committer,
-            &message,
+            message,
             &git_tree,
             &parent_refs,
         )?;

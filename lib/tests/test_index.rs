@@ -26,7 +26,7 @@ use test_case::test_case;
 
 #[must_use]
 fn child_commit(settings: &UserSettings, repo: &ReadonlyRepo, commit: &Commit) -> CommitBuilder {
-    testutils::create_random_commit(&settings, repo).set_parents(vec![commit.id().clone()])
+    testutils::create_random_commit(settings, repo).set_parents(vec![commit.id().clone()])
 }
 
 // Helper just to reduce line wrapping

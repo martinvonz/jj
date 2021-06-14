@@ -27,7 +27,7 @@ fn count_non_merge_operations(repo: &ReadonlyRepo) -> usize {
     for op_id in dag_walk::bfs(
         vec![op_id],
         Box::new(|op_id| op_id.clone()),
-        Box::new(|op_id| op_store.read_operation(&op_id).unwrap().parents),
+        Box::new(|op_id| op_store.read_operation(op_id).unwrap().parents),
     ) {
         if op_store.read_operation(&op_id).unwrap().parents.len() <= 1 {
             num_ops += 1;

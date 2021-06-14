@@ -366,7 +366,7 @@ fn test_types(use_git: bool) {
         .unwrap()
     {
         TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(&id).unwrap();
+            let conflict = store.read_conflict(id).unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
@@ -453,7 +453,7 @@ fn test_simplify_conflict(use_git: bool) {
     let upstream2_tree = write_tree("upstream2 contents");
 
     let merge_trees = |base: &Tree, side1: &Tree, side2: &Tree| -> Tree {
-        let tree_id = tree::merge_trees(&side1, &base, &side2).unwrap();
+        let tree_id = tree::merge_trees(side1, base, side2).unwrap();
         store.get_tree(&RepoPath::root(), &tree_id).unwrap()
     };
 

@@ -88,7 +88,7 @@ where
             if edges.len() > 2 && edge_index < self.edges.len() - 1 {
                 for i in 2..edges.len() {
                     for edge in self.edges.iter().take(edge_index + 1) {
-                        AsciiGraphDrawer::straight_edge(&mut self.writer, &edge)?;
+                        AsciiGraphDrawer::straight_edge(&mut self.writer, edge)?;
                     }
                     for _ in 0..i - 2 {
                         self.writer.write_all(b"  ")?;
@@ -108,7 +108,7 @@ where
 
         // Draw the edges to the left of the new node
         for edge in self.edges.iter().take(edge_index) {
-            AsciiGraphDrawer::straight_edge(&mut self.writer, &edge)?;
+            AsciiGraphDrawer::straight_edge(&mut self.writer, edge)?;
         }
         // Draw the new node
         self.writer.write_all(node_symbol)?;
@@ -122,7 +122,7 @@ where
         self.writer.write_all(b" ")?;
         // Draw the edges to the right of the new node
         for edge in self.edges.iter().skip(edge_index) {
-            AsciiGraphDrawer::straight_edge(&mut self.writer, &edge)?;
+            AsciiGraphDrawer::straight_edge(&mut self.writer, edge)?;
         }
         if edges.len() > 1 {
             self.writer.write_all(b"  ")?;
@@ -138,7 +138,7 @@ where
         // If it's a merge commit, insert a row of '\'.
         if edges.len() >= 2 {
             for edge in self.edges.iter().take(edge_index) {
-                AsciiGraphDrawer::straight_edge(&mut self.writer, &edge)?;
+                AsciiGraphDrawer::straight_edge(&mut self.writer, edge)?;
             }
             AsciiGraphDrawer::straight_edge_no_space(&mut self.writer, &self.edges[edge_index])?;
             for _ in edge_index + 1..self.edges.len() {
@@ -181,7 +181,7 @@ where
         // Emit any remaining lines of text.
         while !self.pending_text.is_empty() {
             for edge in self.edges.iter() {
-                AsciiGraphDrawer::straight_edge(&mut self.writer, &edge)?;
+                AsciiGraphDrawer::straight_edge(&mut self.writer, edge)?;
             }
             for _ in self.edges.len()..pad_to_index {
                 self.writer.write_all(b"  ")?;

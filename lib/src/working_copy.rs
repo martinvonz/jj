@@ -120,7 +120,7 @@ fn file_states_from_proto(
     let mut file_states = BTreeMap::new();
     for (path_str, proto_file_state) in &proto.file_states {
         let path = RepoPath::from_internal_string(path_str.as_str());
-        file_states.insert(path, file_state_from_proto(&proto_file_state));
+        file_states.insert(path, file_state_from_proto(proto_file_state));
     }
     file_states
 }
@@ -442,7 +442,7 @@ impl TreeState {
         // the file exists, and the stat information is most likely accurate,
         // except for other processes modifying the file concurrently (The mtime is set
         // at write time and won't change when we close the file.)
-        let mut file_state = self.file_state(&disk_path).unwrap();
+        let mut file_state = self.file_state(disk_path).unwrap();
         // Make sure the state we record is what we tried to set above. This is mostly
         // for Windows, since the executable bit is not reflected in the file system
         // there.
@@ -463,7 +463,7 @@ impl TreeState {
             let target = PathBuf::from(&target);
             symlink(target, disk_path).unwrap();
         }
-        self.file_state(&disk_path).unwrap()
+        self.file_state(disk_path).unwrap()
     }
 
     #[cfg_attr(windows, allow(unused_variables))]

@@ -50,7 +50,7 @@ impl GitIgnoreLine {
         if !prev_was_space && non_space_seen {
             trimmed_len = input.len();
         }
-        &input.split_at(trimmed_len).0
+        input.split_at(trimmed_len).0
     }
 
     fn parse(prefix: &str, input: &str) -> Result<Option<GitIgnoreLine>, GitIgnoreParseError> {
@@ -111,7 +111,7 @@ impl GitIgnoreLine {
                     } else if let Some(characters) = &mut character_class {
                         if c == ']' {
                             regex.push('[');
-                            regex.push_str(&characters);
+                            regex.push_str(characters);
                             regex.push(']');
                             character_class = None;
                         } else {

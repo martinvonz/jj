@@ -482,7 +482,7 @@ impl MutableIndex {
         if let Some(parent_file) = &self.parent_file {
             buf.write_u32::<LittleEndian>(parent_file.name.len() as u32)
                 .unwrap();
-            buf.write_all(&parent_file.name.as_bytes()).unwrap();
+            buf.write_all(parent_file.name.as_bytes()).unwrap();
         } else {
             buf.write_u32::<LittleEndian>(0).unwrap();
         }
@@ -877,7 +877,7 @@ impl<'a> CompositeIndex<'a> {
         while !(items1.is_empty() || items2.is_empty()) {
             let entry1 = items1.last().unwrap();
             let entry2 = items2.last().unwrap();
-            match entry1.cmp(&entry2) {
+            match entry1.cmp(entry2) {
                 Ordering::Greater => {
                     let entry1 = items1.pop_last().unwrap();
                     for parent_entry in entry1.0.parents() {
@@ -1272,7 +1272,7 @@ impl IndexSegment for MutableIndex {
                     if !id.0.starts_with(&bytes_prefix.0) {
                         break;
                     }
-                    if prefix.matches(&id) {
+                    if prefix.matches(id) {
                         if first_match.is_some() {
                             return PrefixResolution::AmbiguousMatch;
                         }

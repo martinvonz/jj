@@ -148,7 +148,7 @@ impl<'output> ColorFormatter<'output> {
                 }
             }
 
-            let color = self.color_for_name(&best_match.1);
+            let color = self.color_for_name(best_match.1);
             self.cached_colors
                 .insert(self.labels.clone(), color.clone());
             color

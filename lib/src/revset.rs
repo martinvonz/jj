@@ -836,7 +836,7 @@ pub fn evaluate_expression<'repo>(
             index_entries: vec![],
         })),
         RevsetExpression::Symbol(symbol) => {
-            let commit_ids = resolve_symbol(repo, &symbol)?;
+            let commit_ids = resolve_symbol(repo, symbol)?;
             let index = repo.index();
             let mut index_entries = commit_ids
                 .iter()

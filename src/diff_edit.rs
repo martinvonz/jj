@@ -107,7 +107,7 @@ pub fn edit_diff(
     let store = left_tree.store();
     let mut left_tree_builder = store.tree_builder(store.empty_tree_id().clone());
     let mut right_tree_builder = store.tree_builder(store.empty_tree_id().clone());
-    for (file_path, diff) in left_tree.diff(&right_tree, &EverythingMatcher) {
+    for (file_path, diff) in left_tree.diff(right_tree, &EverythingMatcher) {
         let (left_value, right_value) = diff.as_options();
         if let Some(value) = left_value {
             add_to_tree(store, &mut left_tree_builder, &file_path, value).unwrap();
@@ -171,7 +171,7 @@ pub fn edit_diff(
     // Create a Tree based on the initial right tree, applying the changes made to
     // that directory by the diff editor.
     let new_right_partial_tree_id = right_tree_state.write_tree();
-    let new_right_partial_tree = store.get_tree(&RepoPath::root(), &new_right_partial_tree_id)?;
+    let new_right_partial_tree = store.get_tree(&RepoPath::root(), new_right_partial_tree_id)?;
     let new_tree_id = merge_trees(right_tree, &right_partial_tree, &new_right_partial_tree)?;
 
     Ok(new_tree_id)

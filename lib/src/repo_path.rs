@@ -252,23 +252,23 @@ mod tests {
     #[test]
     fn test_to_fs_path() {
         assert_eq!(
-            RepoPath::from_internal_string("").to_fs_path(&Path::new("base/dir")),
+            RepoPath::from_internal_string("").to_fs_path(Path::new("base/dir")),
             Path::new("base/dir")
         );
         assert_eq!(
-            RepoPath::from_internal_string("").to_fs_path(&Path::new("")),
+            RepoPath::from_internal_string("").to_fs_path(Path::new("")),
             Path::new("")
         );
         assert_eq!(
-            RepoPath::from_internal_string("file").to_fs_path(&Path::new("base/dir")),
+            RepoPath::from_internal_string("file").to_fs_path(Path::new("base/dir")),
             Path::new("base/dir/file")
         );
         assert_eq!(
-            RepoPath::from_internal_string("some/deep/dir/file").to_fs_path(&Path::new("base/dir")),
+            RepoPath::from_internal_string("some/deep/dir/file").to_fs_path(Path::new("base/dir")),
             Path::new("base/dir/some/deep/dir/file")
         );
         assert_eq!(
-            RepoPath::from_internal_string("dir/file").to_fs_path(&Path::new("")),
+            RepoPath::from_internal_string("dir/file").to_fs_path(Path::new("")),
             Path::new("dir/file")
         );
     }

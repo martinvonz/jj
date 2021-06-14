@@ -168,7 +168,7 @@ where
         Box::new(|node| {
             let neighbors: Vec<T> = neighbors_fn(node).into_iter().collect();
             for neighbor in &neighbors {
-                reachable.remove(&neighbor);
+                reachable.remove(neighbor);
             }
             neighbors
         }),

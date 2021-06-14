@@ -289,7 +289,7 @@ impl ReadonlyRepo {
     }
 
     pub fn as_repo_ref(&self) -> RepoRef {
-        RepoRef::Readonly(&self)
+        RepoRef::Readonly(self)
     }
 
     pub fn repo_path(&self) -> &PathBuf {
@@ -457,7 +457,7 @@ impl RepoLoader {
     }
 
     pub fn load_at_head(&self) -> Arc<ReadonlyRepo> {
-        let op = self.op_heads_store.get_single_op_head(&self).unwrap();
+        let op = self.op_heads_store.get_single_op_head(self).unwrap();
         let view = View::new(op.view().take_store_view());
         self._finish_load(op, view)
     }
@@ -542,7 +542,7 @@ impl MutableRepo {
     }
 
     pub fn as_repo_ref(&self) -> RepoRef {
-        RepoRef::Mutable(&self)
+        RepoRef::Mutable(self)
     }
 
     pub fn base_repo(&self) -> &Arc<ReadonlyRepo> {
@@ -750,8 +750,8 @@ impl MutableRepo {
         // merging the view. Merging in base_repo's index isn't typically
         // necessary, but it can be if base_repo is ahead of either self or other_repo
         // (e.g. because we're undoing an operation that hasn't been published).
-        self.index.merge_in(&base_repo.index());
-        self.index.merge_in(&other_repo.index());
+        self.index.merge_in(base_repo.index());
+        self.index.merge_in(other_repo.index());
 
         self.view.merge(&base_repo.view, &other_repo.view);
         self.enforce_view_invariants();

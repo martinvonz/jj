@@ -115,7 +115,7 @@ impl Store for LocalStore {
     }
 
     fn read_file(&self, _path: &RepoPath, id: &FileId) -> StoreResult<Box<dyn Read>> {
-        let path = self.file_path(&id);
+        let path = self.file_path(id);
         let file = File::open(path).map_err(not_found_to_store_error)?;
         Ok(Box::new(zstd::Decoder::new(file)?))
     }
@@ -146,7 +146,7 @@ impl Store for LocalStore {
     }
 
     fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, StoreError> {
-        let path = self.symlink_path(&id);
+        let path = self.symlink_path(id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
         let mut target = String::new();
         file.read_to_string(&mut target).unwrap();
@@ -169,7 +169,7 @@ impl Store for LocalStore {
     }
 
     fn read_tree(&self, _path: &RepoPath, id: &TreeId) -> StoreResult<Tree> {
-        let path = self.tree_path(&id);
+        let path = self.tree_path(id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
         let proto: crate::protos::store::Tree = Message::parse_from_reader(&mut file)?;
@@ -192,7 +192,7 @@ impl Store for LocalStore {
     }
 
     fn read_commit(&self, id: &CommitId) -> StoreResult<Commit> {
-        let path = self.commit_path(&id);
+        let path = self.commit_path(id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
         let proto: crate::protos::store::Commit = Message::parse_from_reader(&mut file)?;
@@ -215,7 +215,7 @@ impl Store for LocalStore {
     }
 
     fn read_conflict(&self, id: &ConflictId) -> StoreResult<Conflict> {
-        let path = self.conflict_path(&id);
+        let path = self.conflict_path(id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
         let proto: crate::protos::store::Conflict = Message::parse_from_reader(&mut file)?;

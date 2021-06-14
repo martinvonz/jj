@@ -528,7 +528,7 @@ impl<'settings> DivergenceResolver<'settings> {
             let store = mut_repo.store().clone();
             let commits = commit_ids
                 .iter()
-                .map(|id| store.get_commit(&id).unwrap())
+                .map(|id| store.get_commit(id).unwrap())
                 .collect();
             evolve_divergent_change(self.user_settings, &store, mut_repo, &commits)
         })
@@ -688,7 +688,7 @@ fn evolve_two_divergent_commits(
     // TODO: Merge commit description and other commit metadata. How do we deal with
     // conflicts? It's probably best to interactively ask the caller (which
     // might ask the user in interactive use).
-    CommitBuilder::for_rewrite_from(user_settings, store, &commit1)
+    CommitBuilder::for_rewrite_from(user_settings, store, commit1)
         .set_tree(resolved_tree)
         .set_predecessors(vec![commit1.id().clone(), commit2.id().clone()])
         .write_to_repo(mut_repo)

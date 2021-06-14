@@ -214,8 +214,8 @@ fn test_matcher_dir_file_transition(use_git: bool) {
         tree2.diff_summary(&tree1, &matcher),
         DiffSummary {
             modified: vec![],
-            added: vec![a_path.clone()],
-            removed: vec![a_a_path.clone()]
+            added: vec![a_path],
+            removed: vec![a_a_path]
         }
     );
 }
@@ -258,9 +258,9 @@ fn test_matcher_normal_cases(use_git: bool) {
     assert_eq!(
         tree2.diff_summary(&tree1, &matcher),
         DiffSummary {
-            modified: vec![a_path.clone()],
+            modified: vec![a_path],
             added: vec![],
-            removed: vec![z_path.clone()]
+            removed: vec![z_path]
         }
     );
 
@@ -276,9 +276,9 @@ fn test_matcher_normal_cases(use_git: bool) {
     assert_eq!(
         tree2.diff_summary(&tree1, &matcher),
         DiffSummary {
-            modified: vec![dir1_a_path.clone()],
+            modified: vec![dir1_a_path],
             added: vec![],
-            removed: vec![dir2_b_path.clone()]
+            removed: vec![dir2_b_path]
         }
     );
 }

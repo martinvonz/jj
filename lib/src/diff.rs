@@ -414,11 +414,11 @@ fn refine_changed_ranges<'a>(
             RangeDiff::Replaced(left_range, right_range) => {
                 let left_slice = &left[left_range.clone()];
                 let right_slice = &right[right_range.clone()];
-                let refined_left_ranges: Vec<Range<usize>> = tokenizer(&left_slice);
-                let refined_right_ranges: Vec<Range<usize>> = tokenizer(&right_slice);
+                let refined_left_ranges: Vec<Range<usize>> = tokenizer(left_slice);
+                let refined_right_ranges: Vec<Range<usize>> = tokenizer(right_slice);
                 let unchanged_refined_ranges = unchanged_ranges(
-                    &left_slice,
-                    &right_slice,
+                    left_slice,
+                    right_slice,
                     &refined_left_ranges,
                     &refined_right_ranges,
                 );

@@ -133,7 +133,7 @@ impl IndexStore {
         let commits = topo_order_earlier_first(store, heads, maybe_parent_file);
 
         for commit in &commits {
-            data.add_commit(&commit);
+            data.add_commit(commit);
         }
 
         let index_file = data.save_in(self.dir.clone())?;
@@ -151,7 +151,7 @@ impl IndexStore {
     ) -> io::Result<()> {
         let mut temp_file = NamedTempFile::new_in(&self.dir)?;
         let file = temp_file.as_file_mut();
-        file.write_all(&index.name().as_bytes()).unwrap();
+        file.write_all(index.name().as_bytes()).unwrap();
         persist_temp_file(temp_file, &self.dir.join("operations").join(op_id.hex()))?;
         Ok(())
     }

@@ -38,7 +38,7 @@ fn new_formatter<'output>(
     output: Box<dyn Write + 'output>,
 ) -> Box<dyn Formatter + 'output> {
     if color {
-        Box::new(ColorFormatter::new(output, &settings))
+        Box::new(ColorFormatter::new(output, settings))
     } else {
         Box::new(PlainTextFormatter::new(output))
     }

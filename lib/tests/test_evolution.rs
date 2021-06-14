@@ -28,7 +28,7 @@ use test_case::test_case;
 
 #[must_use]
 fn child_commit(settings: &UserSettings, repo: &ReadonlyRepo, commit: &Commit) -> CommitBuilder {
-    testutils::create_random_commit(&settings, repo).set_parents(vec![commit.id().clone()])
+    testutils::create_random_commit(settings, repo).set_parents(vec![commit.id().clone()])
 }
 
 #[test_case(false ; "local store")]
@@ -545,7 +545,7 @@ fn test_evolve_orphan(use_git: bool) {
         }) = resolution2
         {
             assert_eq!(orphan2, grandchild);
-            assert_eq!(new_commit2.parents(), vec![new_commit1.clone()]);
+            assert_eq!(new_commit2.parents(), vec![new_commit1]);
         }
     }
 
@@ -634,7 +634,7 @@ fn test_evolve_multiple_orphans(use_git: bool) {
             }) = resolution3
             {
                 assert_eq!(orphan3, grandchild2);
-                assert_eq!(new_commit3.parents(), vec![new_commit1.clone()]);
+                assert_eq!(new_commit3.parents(), vec![new_commit1]);
             }
         }
     }

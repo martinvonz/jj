@@ -56,14 +56,14 @@ pub fn rebase_commit(
 ) -> Commit {
     let store = mut_repo.store();
     let old_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &old_commit.parents());
-    let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &new_parents);
+    let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), new_parents);
     // TODO: pass in labels for the merge parts
     let new_tree_id = merge_trees(&new_base_tree, &old_base_tree, &old_commit.tree()).unwrap();
     let new_parent_ids = new_parents
         .iter()
         .map(|commit| commit.id().clone())
         .collect();
-    CommitBuilder::for_rewrite_from(settings, store, &old_commit)
+    CommitBuilder::for_rewrite_from(settings, store, old_commit)
         .set_parents(new_parent_ids)
         .set_tree(new_tree_id)
         .write_to_repo(mut_repo)
@@ -77,7 +77,7 @@ pub fn back_out_commit(
 ) -> Commit {
     let store = mut_repo.store();
     let old_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &old_commit.parents());
-    let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &new_parents);
+    let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), new_parents);
     // TODO: pass in labels for the merge parts
     let new_tree_id = merge_trees(&new_base_tree, &old_commit.tree(), &old_base_tree).unwrap();
     let new_parent_ids = new_parents
