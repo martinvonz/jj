@@ -617,7 +617,7 @@ impl MutableIndex {
 
         let mut temp_file = NamedTempFile::new_in(&dir)?;
         let file = temp_file.as_file_mut();
-        file.write_all(&buf).unwrap();
+        file.write_all(&buf)?;
         persist_content_addressed_temp_file(temp_file, &index_file_path)?;
 
         let mut cursor = Cursor::new(&buf);

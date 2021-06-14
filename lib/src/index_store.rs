@@ -151,7 +151,7 @@ impl IndexStore {
     ) -> io::Result<()> {
         let mut temp_file = NamedTempFile::new_in(&self.dir)?;
         let file = temp_file.as_file_mut();
-        file.write_all(index.name().as_bytes()).unwrap();
+        file.write_all(index.name().as_bytes())?;
         persist_content_addressed_temp_file(
             temp_file,
             &self.dir.join("operations").join(op_id.hex()),

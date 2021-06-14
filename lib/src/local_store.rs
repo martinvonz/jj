@@ -155,7 +155,7 @@ impl Store for LocalStore {
 
     fn write_symlink(&self, _path: &RepoPath, target: &str) -> Result<SymlinkId, StoreError> {
         let mut temp_file = NamedTempFile::new_in(&self.path)?;
-        temp_file.write_all(target.as_bytes()).unwrap();
+        temp_file.write_all(target.as_bytes())?;
         let mut hasher = Blake2b::new();
         hasher.update(&target.as_bytes());
         let id = SymlinkId(hasher.finalize().to_vec());
