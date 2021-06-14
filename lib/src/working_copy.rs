@@ -23,8 +23,6 @@ use std::ops::Bound;
 use std::os::unix::fs::symlink;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
-#[cfg(windows)]
-use std::os::windows::fs::symlink_file;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
@@ -453,6 +451,7 @@ impl TreeState {
         file_state
     }
 
+    #[cfg_attr(windows, allow(unused_variables))]
     fn write_symlink(&self, disk_path: &Path, path: &RepoPath, id: &SymlinkId) -> FileState {
         create_parent_dirs(disk_path);
         #[cfg(windows)]
@@ -468,6 +467,7 @@ impl TreeState {
         self.file_state(&disk_path).unwrap()
     }
 
+    #[cfg_attr(windows, allow(unused_variables))]
     fn set_executable(&self, disk_path: &Path, executable: bool) {
         #[cfg(windows)]
         {
