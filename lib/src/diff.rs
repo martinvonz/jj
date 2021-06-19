@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cmp::min;
-use std::collections::{BTreeMap, HashMap};
+use std::cmp::{max, min, Ordering};
+use std::collections::{btree_map, BTreeMap, HashMap};
 use std::fmt::{Debug, Formatter};
 use std::ops::Range;
+
+use itertools::Itertools;
 
 pub fn find_line_ranges(text: &[u8]) -> Vec<Range<usize>> {
     let mut ranges = vec![];
@@ -474,6 +476,274 @@ fn range_diffs_to_slice_diffs<'a>(
     slice_diffs
 }
 
+/// Wrapper around Range<usize> to provide Ord. We only order by the range's
+/// start because we make sure to never have overlapping ranges.
+#[derive(Clone, PartialEq, Eq, Debug)]
+struct BaseRange(Range<usize>);
+
+impl PartialOrd for BaseRange {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.0.start.partial_cmp(&other.0.start)
+    }
+}
+
+impl Ord for BaseRange {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.start.cmp(&other.0.start)
+    }
+}
+
+/// Takes any number of inputs and finds regions that are them same between all
+/// of them.
+#[derive(Clone, Debug)]
+pub struct Diff<'input> {
+    base_input: &'input [u8],
+    other_inputs: Vec<&'input [u8]>,
+    // The key is a range in the base input. The value is the start of each non-base region
+    // relative to the base region's start. By making them relative, they don't need to change
+    // when the base range changes.
+    unchanged_regions: BTreeMap<BaseRange, Vec<isize>>,
+}
+
+/// Takes the current regions and intersects it with the new unchanged ranges
+/// from a 2-way diff. The result is a map of unchanged regions with one more
+/// offset in the map's values.
+fn intersect_regions(
+    current_ranges: BTreeMap<BaseRange, Vec<isize>>,
+    new_unchanged_ranges: &[(Range<usize>, Range<usize>)],
+) -> BTreeMap<BaseRange, Vec<isize>> {
+    let mut result = BTreeMap::new();
+    let mut current_ranges_iter = current_ranges.into_iter().peekable();
+    for (new_base_range, other_range) in new_unchanged_ranges.iter() {
+        assert_eq!(new_base_range.len(), other_range.len());
+        while let Some((BaseRange(base_range), offsets)) = current_ranges_iter.peek() {
+            // No need to look further if we're past the new range.
+            if base_range.start >= new_base_range.end {
+                break;
+            }
+            // Discard any current unchanged regions that don't match between the base and
+            // the new input.
+            if base_range.end <= new_base_range.start {
+                current_ranges_iter.next();
+                continue;
+            }
+            let new_start = max(base_range.start, new_base_range.start);
+            let new_end = min(base_range.end, new_base_range.end);
+            let mut new_offsets = offsets.clone();
+            new_offsets.push(other_range.start.wrapping_sub(new_base_range.start) as isize);
+            result.insert(BaseRange(new_start..new_end), new_offsets);
+            if base_range.end >= new_base_range.end {
+                // Break without consuming the item; there may be other new ranges that overlap
+                // with it.
+                break;
+            }
+            current_ranges_iter.next();
+        }
+    }
+    result
+}
+
+impl<'input> Diff<'input> {
+    pub fn for_tokenizer(
+        inputs: &[&'input [u8]],
+        tokenizer: &impl Fn(&[u8]) -> Vec<Range<usize>>,
+    ) -> Self {
+        assert!(!inputs.is_empty());
+        let base_input = inputs[0];
+        let other_inputs = inputs.iter().skip(1).copied().collect_vec();
+        // First tokenize each input
+        let base_token_ranges: Vec<Range<usize>> = tokenizer(base_input);
+        let other_token_ranges: Vec<Vec<Range<usize>>> = other_inputs
+            .iter()
+            .map(|other_slice| tokenizer(other_slice))
+            .collect_vec();
+
+        // Look for unchanged regions. Initially consider the whole range of the base
+        // input as unchanged (compared to itself). Then diff each other input
+        // against the base. Intersect the previously found ranges with the
+        // unchanged ranges in the diff.
+        let mut unchanged_regions = BTreeMap::new();
+        unchanged_regions.insert(BaseRange(0..base_input.len()), vec![]);
+        for (i, other_token_ranges) in other_token_ranges.iter().enumerate() {
+            let unchanged_diff_ranges = unchanged_ranges(
+                base_input,
+                other_inputs[i],
+                &base_token_ranges,
+                other_token_ranges,
+            );
+            unchanged_regions = intersect_regions(unchanged_regions, &unchanged_diff_ranges);
+        }
+        // Add an empty range at the end to make life easier for hunks().
+        let offsets = other_inputs
+            .iter()
+            .map(|input| input.len().wrapping_sub(base_input.len()) as isize)
+            .collect_vec();
+        unchanged_regions.insert(BaseRange(base_input.len()..base_input.len()), offsets);
+
+        Self {
+            base_input,
+            other_inputs,
+            unchanged_regions,
+        }
+    }
+
+    pub fn unrefined(inputs: &[&'input [u8]]) -> Self {
+        Diff::for_tokenizer(inputs, &|_| vec![])
+    }
+
+    // TODO: At least when merging, it's wasteful to refine the diff if e.g. if 2
+    // out of 3 inputs match in the differing regions. Perhaps the refine()
+    // method should be on the hunk instead (probably returning a new Diff)?
+    // That would let each user decide which hunks to refine. However, it would
+    // probably mean that many callers repeat the same code. Perhaps it
+    // should be possible to refine a whole diff *or* individual hunks.
+    pub fn default_refinement(inputs: &[&'input [u8]]) -> Self {
+        let mut diff = Diff::for_tokenizer(inputs, &find_line_ranges);
+        diff.refine_changed_regions(&find_word_ranges);
+        diff.refine_changed_regions(&find_nonword_ranges);
+        diff
+    }
+
+    pub fn hunks<'diff>(&'diff self) -> DiffHunkIterator<'diff, 'input> {
+        let previous_offsets = vec![0; self.other_inputs.len()];
+        DiffHunkIterator {
+            diff: self,
+            previous_base_range: 0..0,
+            previous_offsets,
+            unchanged_emitted: true,
+            unchanged_iter: self.unchanged_regions.iter(),
+        }
+    }
+
+    /// Uses the given tokenizer to split the changed regions into smaller
+    /// regions. Then tries to finds unchanged regions among them.
+    pub fn refine_changed_regions(&mut self, tokenizer: &impl Fn(&[u8]) -> Vec<Range<usize>>) {
+        let mut previous_base_end = 0;
+        let mut previous_offsets = vec![0; self.other_inputs.len()];
+        let mut new_unchanged_ranges = BTreeMap::new();
+        for (BaseRange(base_range), offsets) in self.unchanged_regions.iter() {
+            // For the changed region between the previous region and the current one,
+            // create a new Diff instance. Then adjust the start positions and
+            // offsets to be valid in the context of the larger Diff instance
+            // (`self`).
+            let mut slices = vec![&self.base_input[previous_base_end..base_range.start]];
+            for (i, offset) in offsets.iter().enumerate() {
+                let changed_range = previous_base_end.wrapping_add(previous_offsets[i] as usize)
+                    ..base_range.start.wrapping_add(*offset as usize);
+                slices.push(&self.other_inputs[i][changed_range]);
+            }
+
+            let refined_diff = Diff::for_tokenizer(&slices, tokenizer);
+
+            for (BaseRange(base_range), offsets) in refined_diff.unchanged_regions {
+                let new_base_start = base_range.start + previous_base_end;
+                let new_base_end = base_range.end + previous_base_end;
+                let offsets = offsets
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, offset)| offset + previous_offsets[i])
+                    .collect_vec();
+                new_unchanged_ranges.insert(BaseRange(new_base_start..new_base_end), offsets);
+            }
+            previous_base_end = base_range.end;
+            previous_offsets = offsets.clone();
+        }
+        self.unchanged_regions.extend(new_unchanged_ranges);
+        self.compact_unchanged_regions();
+    }
+
+    fn compact_unchanged_regions(&mut self) {
+        let mut compacted = BTreeMap::new();
+        let mut previous: Option<(Range<usize>, Vec<isize>)> = None;
+        for (BaseRange(base_range), value) in self.unchanged_regions.iter() {
+            if let Some((prevous_base_range, previous_value)) = previous {
+                if prevous_base_range.end == base_range.start && previous_value == *value {
+                    previous = Some((prevous_base_range.start..base_range.end, value.clone()));
+                    continue;
+                }
+                compacted.insert(BaseRange(prevous_base_range), previous_value);
+            }
+            previous = Some((base_range.clone(), value.clone()));
+        }
+        if let Some((prevous_base_range, previous_value)) = previous {
+            compacted.insert(BaseRange(prevous_base_range), previous_value);
+        }
+        self.unchanged_regions = compacted;
+    }
+}
+
+#[derive(PartialEq, Eq, Clone)]
+pub enum DiffHunk<'input> {
+    Matching(&'input [u8]),
+    Different(Vec<&'input [u8]>),
+}
+
+impl Debug for DiffHunk<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            DiffHunk::Matching(slice) => f
+                .debug_tuple("DiffHunk::Matching")
+                .field(&String::from_utf8_lossy(slice))
+                .finish(),
+            DiffHunk::Different(slices) => f
+                .debug_tuple("DiffHunk::Different")
+                .field(
+                    &slices
+                        .iter()
+                        .map(|slice| String::from_utf8_lossy(slice))
+                        .collect_vec(),
+                )
+                .finish(),
+        }
+    }
+}
+
+pub struct DiffHunkIterator<'diff, 'input> {
+    diff: &'diff Diff<'input>,
+    previous_base_range: Range<usize>,
+    previous_offsets: Vec<isize>,
+    unchanged_emitted: bool,
+    unchanged_iter: btree_map::Iter<'diff, BaseRange, Vec<isize>>,
+}
+
+impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
+    type Item = DiffHunk<'input>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if !self.unchanged_emitted {
+                self.unchanged_emitted = true;
+                if !self.previous_base_range.is_empty() {
+                    return Some(DiffHunk::Matching(
+                        &self.diff.base_input[self.previous_base_range.clone()],
+                    ));
+                }
+            }
+            if let Some((BaseRange(base_range), offsets)) = self.unchanged_iter.next() {
+                let mut slices =
+                    vec![&self.diff.base_input[self.previous_base_range.end..base_range.start]];
+                for (i, input) in self.diff.other_inputs.iter().enumerate() {
+                    let start = self
+                        .previous_base_range
+                        .end
+                        .wrapping_add(self.previous_offsets[i] as usize);
+                    let end = base_range.start.wrapping_add(offsets[i] as usize);
+                    slices.push(&input[start..end]);
+                }
+                self.previous_base_range = base_range.clone();
+                self.previous_offsets = offsets.clone();
+                self.unchanged_emitted = false;
+                if slices.iter().any(|slice| !slice.is_empty()) {
+                    return Some(DiffHunk::Different(slices));
+                }
+            } else {
+                break;
+            }
+        }
+        None
+    }
+}
+
 /// Diffs two slices of bytes. The returned diff hunks may be any length (may
 /// span many lines or may be only part of a line). This currently uses
 /// Histogram diff (or maybe something similar; I'm not sure I understood the
@@ -752,6 +1022,111 @@ mod tests {
                 &[0..1, 2..3, 4..5, 6..7],
             ),
             vec![(0..1, 0..1), (4..5, 2..3)]
+        );
+    }
+
+    #[test]
+    fn test_intersect_regions_existing_empty() {
+        let actual = intersect_regions(btreemap! {}, &[(20..25, 55..60)]);
+        let expected = btreemap! {};
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_intersect_regions_new_ranges_within_existing() {
+        let actual = intersect_regions(
+            btreemap! {
+                BaseRange(20..70) => vec![3],
+            },
+            &[(25..30, 35..40), (40..50, 40..50)],
+        );
+        let expected = btreemap! {
+            BaseRange(25..30) => vec![3, 10],
+            BaseRange(40..50) => vec![3, 0],
+        };
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_intersect_regions_partial_overlap() {
+        let actual = intersect_regions(
+            btreemap! {
+                BaseRange(20..50) => vec![-3],
+            },
+            &[(15..25, 5..15), (45..60, 55..70)],
+        );
+        let expected = btreemap! {
+            BaseRange(20..25) => vec![-3, -10],
+            BaseRange(45..50) => vec![-3, 10],
+        };
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_intersect_regions_new_range_overlaps_multiple_existing() {
+        let actual = intersect_regions(
+            btreemap! {
+                BaseRange(20..50) => vec![3, -8],
+                BaseRange(70..80) => vec![7, 1],
+            },
+            &[(10..100, 5..95)],
+        );
+        let expected = btreemap! {
+            BaseRange(20..50) => vec![3, -8, -5],
+            BaseRange(70..80) => vec![7, 1, -5],
+        };
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_diff_single_input() {
+        let diff = Diff::default_refinement(&[b"abc"]);
+        assert_eq!(diff.hunks().collect_vec(), vec![DiffHunk::Matching(b"abc")]);
+    }
+
+    #[test]
+    fn test_diff_single_empty_input() {
+        let diff = Diff::default_refinement(&[b""]);
+        assert_eq!(diff.hunks().collect_vec(), vec![]);
+    }
+
+    #[test]
+    fn test_diff_two_inputs_one_different() {
+        let diff = Diff::default_refinement(&[b"a b c", b"a X c"]);
+        assert_eq!(
+            diff.hunks().collect_vec(),
+            vec![
+                DiffHunk::Matching(b"a "),
+                DiffHunk::Different(vec![b"b", b"X"]),
+                DiffHunk::Matching(b" c"),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_diff_multiple_inputs_one_different() {
+        let diff = Diff::default_refinement(&[b"a b c", b"a X c", b"a b c"]);
+        assert_eq!(
+            diff.hunks().collect_vec(),
+            vec![
+                DiffHunk::Matching(b"a "),
+                DiffHunk::Different(vec![b"b", b"X", b"b"]),
+                DiffHunk::Matching(b" c"),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_diff_multiple_inputs_all_different() {
+        let diff = Diff::default_refinement(&[b"a b c", b"a X c", b"a c X"]);
+        assert_eq!(
+            diff.hunks().collect_vec(),
+            vec![
+                DiffHunk::Matching(b"a "),
+                DiffHunk::Different(vec![b"b ", b"X ", b""]),
+                DiffHunk::Matching(b"c"),
+                DiffHunk::Different(vec![b"", b"", b" X"]),
+            ]
         );
     }
 
