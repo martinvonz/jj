@@ -1249,8 +1249,7 @@ dependencies = [
 [[package]]
 name = "test-case"
 version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "956044ef122917dde830c19dec5f76d0670329fde4104836d62ebcb14f4865f1"
+source = "git+https://github.com/martinvonz/test-case?branch=remove-unneeded-unit-expression#70d8e8181840414e74c45f0115eeaa24c2c2905b"
 dependencies = [
  "cfg-if",
  "proc-macro2",
