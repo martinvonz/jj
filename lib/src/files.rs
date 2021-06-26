@@ -17,14 +17,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::ops::Range;
 
 use crate::diff;
-use crate::diff::SliceDiff;
-
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub enum DiffHunk<'a> {
-    Unmodified(&'a [u8]),
-    Added(&'a [u8]),
-    Removed(&'a [u8]),
-}
+use crate::diff::{DiffHunk, SliceDiff};
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct DiffLine<'a> {
@@ -45,7 +38,7 @@ impl DiffLine<'_> {
     pub fn is_unmodified(&self) -> bool {
         self.hunks
             .iter()
-            .all(|hunk| matches!(hunk, DiffHunk::Unmodified(_)))
+            .all(|hunk| matches!(hunk, DiffHunk::Matching(_)))
     }
 }
 
@@ -94,7 +87,7 @@ impl<'a> Iterator for DiffLineIterator<'a> {
                     for line in lines {
                         self.current_line.has_left_content = true;
                         self.current_line.has_right_content = true;
-                        self.current_line.hunks.push(DiffHunk::Unmodified(line));
+                        self.current_line.hunks.push(DiffHunk::Matching(line));
                         if line.ends_with(b"\n") {
                             self.queued_lines.push_back(self.current_line.clone());
                             self.current_line.left_line_number += 1;
@@ -107,7 +100,9 @@ impl<'a> Iterator for DiffLineIterator<'a> {
                     let left_lines = left.split_inclusive(|b| *b == b'\n');
                     for left_line in left_lines {
                         self.current_line.has_left_content = true;
-                        self.current_line.hunks.push(DiffHunk::Removed(left_line));
+                        self.current_line
+                            .hunks
+                            .push(DiffHunk::Different(vec![left_line, b""]));
                         if left_line.ends_with(b"\n") {
                             self.queued_lines.push_back(self.current_line.clone());
                             self.current_line.left_line_number += 1;
@@ -117,7 +112,9 @@ impl<'a> Iterator for DiffLineIterator<'a> {
                     let right_lines = right.split_inclusive(|b| *b == b'\n');
                     for right_line in right_lines {
                         self.current_line.has_right_content = true;
-                        self.current_line.hunks.push(DiffHunk::Added(right_line));
+                        self.current_line
+                            .hunks
+                            .push(DiffHunk::Different(vec![b"", right_line]));
                         if right_line.ends_with(b"\n") {
                             self.queued_lines.push_back(self.current_line.clone());
                             self.current_line.right_line_number += 1;

@@ -33,6 +33,7 @@ use itertools::Itertools;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::dag_walk::topo_order_reverse;
+use jujutsu_lib::diff::DiffHunk;
 use jujutsu_lib::evolution::{
     DivergenceResolution, DivergenceResolver, OrphanResolution, OrphanResolver,
 };
@@ -1037,18 +1038,22 @@ fn print_diff_line(formatter: &mut dyn Formatter, diff_line: &DiffLine) -> io::R
     }
     for hunk in &diff_line.hunks {
         match hunk {
-            files::DiffHunk::Unmodified(data) => {
+            DiffHunk::Matching(data) => {
                 formatter.write_bytes(data)?;
             }
-            files::DiffHunk::Removed(data) => {
-                formatter.add_label(String::from("left"))?;
-                formatter.write_bytes(data)?;
-                formatter.remove_label()?;
-            }
-            files::DiffHunk::Added(data) => {
-                formatter.add_label(String::from("right"))?;
-                formatter.write_bytes(data)?;
-                formatter.remove_label()?;
+            DiffHunk::Different(data) => {
+                let before = data[0];
+                let after = data[1];
+                if !before.is_empty() {
+                    formatter.add_label(String::from("left"))?;
+                    formatter.write_bytes(before)?;
+                    formatter.remove_label()?;
+                }
+                if !after.is_empty() {
+                    formatter.add_label(String::from("right"))?;
+                    formatter.write_bytes(after)?;
+                    formatter.remove_label()?;
+                }
             }
         }
     }
