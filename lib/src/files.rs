@@ -17,7 +17,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::ops::Range;
 
 use crate::diff;
-use crate::diff::DiffHunk;
+use crate::diff::{Diff, DiffHunk};
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct DiffLine<'a> {
@@ -182,133 +182,52 @@ struct SyncRegion {
     right: Range<usize>,
 }
 
-fn find_sync_regions(base: &[u8], left: &[u8], right: &[u8]) -> Vec<SyncRegion> {
-    let base_tokens = crate::diff::find_line_ranges(base);
-    let left_tokens = crate::diff::find_line_ranges(left);
-    let right_tokens = crate::diff::find_line_ranges(right);
-
-    let left_regions = crate::diff::unchanged_ranges(base, left, &base_tokens, &left_tokens);
-    let right_regions = crate::diff::unchanged_ranges(base, right, &base_tokens, &right_tokens);
-
-    let mut left_it = left_regions.iter().peekable();
-    let mut right_it = right_regions.iter().peekable();
-
-    let mut regions: Vec<SyncRegion> = vec![];
-    while let (Some((left_base_range, left_range)), Some((right_base_range, right_range))) =
-        (left_it.peek(), right_it.peek())
-    {
-        // TODO: if left_base_range and right_base_range at least intersect, use the
-        // intersection of the two regions.
-        if left_base_range == right_base_range {
-            regions.push(SyncRegion {
-                base: left_base_range.clone(),
-                left: left_range.clone(),
-                right: right_range.clone(),
-            });
-            left_it.next().unwrap();
-            right_it.next().unwrap();
-        } else if left_base_range.start < right_base_range.start {
-            left_it.next().unwrap();
-        } else {
-            right_it.next().unwrap();
-        }
-    }
-
-    regions.push(SyncRegion {
-        base: (base.len()..base.len()),
-        left: (left.len()..left.len()),
-        right: (right.len()..right.len()),
-    });
-    regions
-}
-
+// TODO: Update callers to use diff::Diff directly instead.
 pub fn merge(base: &[u8], left: &[u8], right: &[u8]) -> MergeResult {
-    let mut previous_region = SyncRegion {
-        base: 0..0,
-        left: 0..0,
-        right: 0..0,
-    };
-    let mut hunk: Vec<u8> = vec![];
-    let mut hunks: Vec<MergeHunk> = vec![];
-    // Find regions that match between base, left, and right. Emit the unchanged
-    // regions as is. For the potentially conflicting regions between them, use
-    // one side if the other is changed. If all three sides are different, emit
-    // a conflict.
-    for sync_region in find_sync_regions(base, left, right) {
-        let base_conflict_slice = &base[previous_region.base.end..sync_region.base.start];
-        let left_conflict_slice = &left[previous_region.left.end..sync_region.left.start];
-        let right_conflict_slice = &right[previous_region.right.end..sync_region.right.start];
-        if left_conflict_slice == base_conflict_slice || left_conflict_slice == right_conflict_slice
-        {
-            hunk.extend(right_conflict_slice);
-        } else if right_conflict_slice == base_conflict_slice {
-            hunk.extend(left_conflict_slice);
-        } else {
-            if !hunk.is_empty() {
-                hunks.push(MergeHunk::Resolved(hunk));
-                hunk = vec![];
+    let diff = Diff::for_tokenizer(&[base, left, right], &diff::find_line_ranges);
+    let mut resolved_hunk: Vec<u8> = vec![];
+    let mut merge_hunks: Vec<MergeHunk> = vec![];
+    for diff_hunk in diff.hunks() {
+        match diff_hunk {
+            DiffHunk::Matching(content) => {
+                resolved_hunk.extend(content);
             }
-            hunks.push(MergeHunk::Conflict {
-                base: base_conflict_slice.to_vec(),
-                left: left_conflict_slice.to_vec(),
-                right: right_conflict_slice.to_vec(),
-            });
+            DiffHunk::Different(content) => {
+                let base_content = content[0];
+                let left_content = content[1];
+                let right_content = content[2];
+                if left_content == base_content || left_content == right_content {
+                    resolved_hunk.extend(right_content);
+                } else if right_content == base_content {
+                    resolved_hunk.extend(left_content);
+                } else {
+                    if !resolved_hunk.is_empty() {
+                        merge_hunks.push(MergeHunk::Resolved(resolved_hunk));
+                        resolved_hunk = vec![];
+                    }
+                    merge_hunks.push(MergeHunk::Conflict {
+                        base: base_content.to_vec(),
+                        left: left_content.to_vec(),
+                        right: right_content.to_vec(),
+                    });
+                }
+            }
         }
-        hunk.extend(base[sync_region.base.clone()].to_vec());
-        previous_region = sync_region;
     }
 
-    if hunks.is_empty() {
-        MergeResult::Resolved(hunk)
+    if merge_hunks.is_empty() {
+        MergeResult::Resolved(resolved_hunk)
     } else {
-        if !hunk.is_empty() {
-            hunks.push(MergeHunk::Resolved(hunk));
+        if !resolved_hunk.is_empty() {
+            merge_hunks.push(MergeHunk::Resolved(resolved_hunk));
         }
-        MergeResult::Conflict(hunks)
+        MergeResult::Conflict(merge_hunks)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_find_sync_regions() {
-        assert_eq!(
-            find_sync_regions(b"", b"", b""),
-            vec![SyncRegion {
-                base: 0..0,
-                left: 0..0,
-                right: 0..0,
-            }]
-        );
-
-        assert_eq!(
-            find_sync_regions(b"a\nb\nc\n", b"a\nx\nb\nc\n", b"a\nb\ny\nc\n"),
-            vec![
-                SyncRegion {
-                    base: 0..2,
-                    left: 0..2,
-                    right: 0..2
-                },
-                SyncRegion {
-                    base: 2..4,
-                    left: 4..6,
-                    right: 2..4
-                },
-                SyncRegion {
-                    base: 4..6,
-                    left: 6..8,
-                    right: 6..8
-                },
-                SyncRegion {
-                    base: 6..6,
-                    left: 8..8,
-                    right: 8..8
-                }
-            ]
-        );
-    }
 
     #[test]
     fn test_merge() {
