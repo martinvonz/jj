@@ -105,47 +105,6 @@ impl Histogram<'_> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-enum RangeDiff {
-    Unchanged(Range<usize>, Range<usize>),
-    Replaced(Range<usize>, Range<usize>),
-}
-
-impl RangeDiff {
-    fn is_empty(&self) -> bool {
-        match self {
-            RangeDiff::Unchanged(left_range, right_range) => {
-                left_range.is_empty() && right_range.is_empty()
-            }
-            RangeDiff::Replaced(left_range, right_range) => {
-                left_range.is_empty() && right_range.is_empty()
-            }
-        }
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub enum SliceDiff<'a> {
-    Unchanged(&'a [u8]),
-    Replaced(&'a [u8], &'a [u8]),
-}
-
-impl Debug for SliceDiff<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            SliceDiff::Unchanged(data) => f
-                .debug_tuple("SliceDiff::Unchanged")
-                .field(&String::from_utf8_lossy(data))
-                .finish(),
-            SliceDiff::Replaced(left, right) => f
-                .debug_tuple("SliceDiff::Replaced")
-                .field(&String::from_utf8_lossy(left))
-                .field(&String::from_utf8_lossy(right))
-                .finish(),
-        }
-    }
-}
-
 /// Finds the LCS given a array where the value of `input[i]` indicates that
 /// the position of element `i` in the right array is at position `input[i]` in
 /// the left array.
@@ -329,153 +288,6 @@ pub(crate) fn unchanged_ranges(
     result
 }
 
-/// Adds ranges between around the `input` ranges so that the full ranges of
-/// `left` and `right` are covered.
-fn fill_in_range_gaps(
-    left: &[u8],
-    right: &[u8],
-    input: &[(Range<usize>, Range<usize>)],
-) -> Vec<RangeDiff> {
-    let mut output = vec![];
-    let mut previous_left_end_pos = 0;
-    let mut previous_right_end_pos = 0;
-    // Add an empty range at the end in order to fill in any gap just before the
-    // end (without needing to duplicate code for that after the loop).
-    for (left_range, right_range) in input
-        .iter()
-        .chain(&[(left.len()..left.len(), right.len()..right.len())])
-    {
-        let left_gap_range = previous_left_end_pos..left_range.start;
-        let right_gap_range = previous_right_end_pos..right_range.start;
-        if !left_gap_range.is_empty() || !right_gap_range.is_empty() {
-            if left[left_gap_range.clone()] == right[right_gap_range.clone()] {
-                output.push(RangeDiff::Unchanged(left_gap_range, right_gap_range));
-            } else {
-                output.push(RangeDiff::Replaced(left_gap_range, right_gap_range));
-            }
-        }
-        previous_left_end_pos = left_range.end;
-        previous_right_end_pos = right_range.end;
-        if !(left_range.is_empty() && right_range.is_empty()) {
-            output.push(RangeDiff::Unchanged(
-                left_range.clone(),
-                right_range.clone(),
-            ));
-        }
-    }
-
-    output
-}
-
-/// Combines adjacent ranges of the same type into larger ranges. Removes empty
-/// ranges.
-fn compact_ranges(input: &[RangeDiff]) -> Vec<RangeDiff> {
-    if input.is_empty() {
-        return vec![];
-    }
-    let mut output = vec![];
-    let mut current_range = input[0].clone();
-    for range in input.iter().skip(1) {
-        match (&mut current_range, range) {
-            (RangeDiff::Unchanged(left1, right1), RangeDiff::Unchanged(left2, right2)) => {
-                left1.end = left2.end;
-                right1.end = right2.end;
-            }
-            (RangeDiff::Replaced(left1, right1), RangeDiff::Replaced(left2, right2)) => {
-                left1.end = left2.end;
-                right1.end = right2.end;
-            }
-            _ => {
-                // The previous range was unchanged and this one was replaced, or vice versa.
-                // If the new range is empty, just ignore it, so we can possibly compact
-                // with the previous one.
-                if !range.is_empty() {
-                    if !current_range.is_empty() {
-                        output.push(current_range.clone());
-                    }
-                    current_range = range.clone();
-                }
-            }
-        }
-    }
-    if !current_range.is_empty() {
-        output.push(current_range);
-    }
-    output
-}
-
-fn refine_changed_ranges<'a>(
-    left: &'a [u8],
-    right: &'a [u8],
-    input: &[RangeDiff],
-    tokenizer: &impl Fn(&[u8]) -> Vec<Range<usize>>,
-) -> Vec<RangeDiff> {
-    let mut output = vec![];
-    for range_diff in input {
-        match range_diff {
-            RangeDiff::Replaced(left_range, right_range) => {
-                let left_slice = &left[left_range.clone()];
-                let right_slice = &right[right_range.clone()];
-                let refined_left_ranges: Vec<Range<usize>> = tokenizer(left_slice);
-                let refined_right_ranges: Vec<Range<usize>> = tokenizer(right_slice);
-                let unchanged_refined_ranges = unchanged_ranges(
-                    left_slice,
-                    right_slice,
-                    &refined_left_ranges,
-                    &refined_right_ranges,
-                );
-                let all_refined_ranges =
-                    fill_in_range_gaps(left_slice, right_slice, &unchanged_refined_ranges);
-                let compacted_refined_range_diffs = compact_ranges(&all_refined_ranges);
-                for refined_range_diff in compacted_refined_range_diffs {
-                    match refined_range_diff {
-                        RangeDiff::Unchanged(refined_left_range, refined_right_range) => output
-                            .push(RangeDiff::Unchanged(
-                                left_range.start + refined_left_range.start
-                                    ..left_range.start + refined_left_range.end,
-                                right_range.start + refined_right_range.start
-                                    ..right_range.start + refined_right_range.end,
-                            )),
-                        RangeDiff::Replaced(refined_left_range, refined_right_range) => output
-                            .push(RangeDiff::Replaced(
-                                left_range.start + refined_left_range.start
-                                    ..left_range.start + refined_left_range.end,
-                                right_range.start + refined_right_range.start
-                                    ..right_range.start + refined_right_range.end,
-                            )),
-                    }
-                }
-            }
-            range => {
-                output.push(range.clone());
-            }
-        }
-    }
-    output
-}
-
-fn range_diffs_to_slice_diffs<'a>(
-    left: &'a [u8],
-    right: &'a [u8],
-    range_diffs: &[RangeDiff],
-) -> Vec<SliceDiff<'a>> {
-    let mut slice_diffs = vec![];
-    for range in range_diffs {
-        match range {
-            RangeDiff::Unchanged(left_range, _right_range) => {
-                slice_diffs.push(SliceDiff::Unchanged(&left[left_range.clone()]));
-            }
-            RangeDiff::Replaced(left_range, right_range) => {
-                slice_diffs.push(SliceDiff::Replaced(
-                    &left[left_range.clone()],
-                    &right[right_range.clone()],
-                ));
-            }
-        }
-    }
-    slice_diffs
-}
-
 /// Wrapper around Range<usize> to provide Ord. We only order by the range's
 /// start because we make sure to never have overlapping ranges.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -555,7 +367,7 @@ impl<'input> Diff<'input> {
         let base_token_ranges: Vec<Range<usize>> = tokenizer(base_input);
         let other_token_ranges: Vec<Vec<Range<usize>>> = other_inputs
             .iter()
-            .map(|other_slice| tokenizer(other_slice))
+            .map(|other_input| tokenizer(other_input))
             .collect_vec();
 
         // Look for unchanged regions. Initially consider the whole range of the base
@@ -749,24 +561,20 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
 /// Histogram diff (or maybe something similar; I'm not sure I understood the
 /// algorithm correctly). It first diffs lines in the input and then refines
 /// the changed ranges at the word level.
-///
-/// TODO: Diff at even lower level in the non-word ranges?
-pub fn diff<'a>(left: &'a [u8], right: &'a [u8]) -> Vec<SliceDiff<'a>> {
+pub fn diff<'a>(left: &'a [u8], right: &'a [u8]) -> Vec<DiffHunk<'a>> {
     if left == right {
-        return vec![SliceDiff::Unchanged(left)];
+        return vec![DiffHunk::Matching(left)];
     }
     if left.is_empty() {
-        return vec![SliceDiff::Replaced(b"", right)];
+        return vec![DiffHunk::Different(vec![b"", right])];
     }
     if right.is_empty() {
-        return vec![SliceDiff::Replaced(left, b"")];
+        return vec![DiffHunk::Different(vec![left, b""])];
     }
 
-    let range_diffs = vec![RangeDiff::Replaced(0..left.len(), 0..right.len())];
-    let range_diffs = refine_changed_ranges(left, right, &range_diffs, &find_line_ranges);
-    let range_diffs = refine_changed_ranges(left, right, &range_diffs, &find_word_ranges);
-    let range_diffs = refine_changed_ranges(left, right, &range_diffs, &find_nonword_ranges);
-    range_diffs_to_slice_diffs(left, right, &range_diffs)
+    Diff::default_refinement(&[left, right])
+        .hunks()
+        .collect_vec()
 }
 
 #[cfg(test)]
@@ -876,113 +684,6 @@ mod tests {
         assert_eq!(
             find_word_ranges(b"fn find_words(text: &[u8])"),
             vec![0..2, 3..13, 14..18, 22..24]
-        );
-    }
-
-    #[test]
-    fn test_fill_in_gaps_empty() {
-        assert_eq!(
-            fill_in_range_gaps(b"abc", b"abcde", &[]),
-            vec![RangeDiff::Replaced(0..3, 0..5),]
-        );
-    }
-
-    #[test]
-    fn test_fill_in_gaps_only_middle() {
-        assert_eq!(
-            fill_in_range_gaps(
-                b"a b c",
-                b"a x b y c",
-                &[(0..2, 0..2), (2..4, 4..6), (4..5, 8..9),]
-            ),
-            vec![
-                RangeDiff::Unchanged(0..2, 0..2),
-                RangeDiff::Replaced(2..2, 2..4),
-                RangeDiff::Unchanged(2..4, 4..6),
-                RangeDiff::Replaced(4..4, 6..8),
-                RangeDiff::Unchanged(4..5, 8..9),
-            ]
-        );
-    }
-
-    #[test]
-    fn test_fill_in_gaps_empty_gap() {
-        assert_eq!(
-            fill_in_range_gaps(b"a b", b"a b", &[(0..1, 0..1), (1..2, 1..2), (2..3, 2..3),]),
-            vec![
-                RangeDiff::Unchanged(0..1, 0..1),
-                RangeDiff::Unchanged(1..2, 1..2),
-                RangeDiff::Unchanged(2..3, 2..3),
-            ]
-        );
-    }
-
-    #[test]
-    fn test_fill_in_gaps_before_and_after() {
-        assert_eq!(
-            fill_in_range_gaps(b" a ", b" a ", &[(1..2, 1..2),]),
-            vec![
-                RangeDiff::Unchanged(0..1, 0..1),
-                RangeDiff::Unchanged(1..2, 1..2),
-                RangeDiff::Unchanged(2..3, 2..3),
-            ]
-        );
-    }
-
-    #[test]
-    fn test_compact_ranges_all_unchanged() {
-        assert_eq!(
-            compact_ranges(&[
-                RangeDiff::Unchanged(0..1, 0..2),
-                RangeDiff::Unchanged(1..2, 2..4),
-                RangeDiff::Unchanged(2..3, 4..6),
-            ]),
-            vec![RangeDiff::Unchanged(0..3, 0..6),]
-        );
-    }
-
-    #[test]
-    fn test_compact_ranges_all_replaced() {
-        assert_eq!(
-            compact_ranges(&[
-                RangeDiff::Replaced(0..1, 0..2),
-                RangeDiff::Replaced(1..2, 2..4),
-                RangeDiff::Replaced(2..3, 4..6),
-            ]),
-            vec![RangeDiff::Replaced(0..3, 0..6),]
-        );
-    }
-
-    #[test]
-    fn test_compact_ranges_mixed() {
-        assert_eq!(
-            compact_ranges(&[
-                RangeDiff::Replaced(0..1, 0..2),
-                RangeDiff::Replaced(1..2, 2..4),
-                RangeDiff::Unchanged(2..3, 4..6),
-                RangeDiff::Unchanged(3..4, 6..8),
-                RangeDiff::Replaced(4..5, 8..10),
-                RangeDiff::Replaced(5..6, 10..12),
-            ]),
-            vec![
-                RangeDiff::Replaced(0..2, 0..4),
-                RangeDiff::Unchanged(2..4, 4..8),
-                RangeDiff::Replaced(4..6, 8..12),
-            ]
-        );
-    }
-
-    #[test]
-    fn test_compact_ranges_mixed_empty_range() {
-        assert_eq!(
-            compact_ranges(&[
-                RangeDiff::Replaced(0..1, 0..2),
-                RangeDiff::Replaced(1..2, 2..4),
-                RangeDiff::Unchanged(2..2, 4..4),
-                RangeDiff::Replaced(3..4, 6..8),
-                RangeDiff::Replaced(4..5, 8..10),
-            ]),
-            vec![RangeDiff::Replaced(0..5, 0..10)]
         );
     }
 
@@ -1134,7 +835,7 @@ mod tests {
     fn test_diff_nothing_in_common() {
         assert_eq!(
             diff(b"aaa", b"bb"),
-            vec![SliceDiff::Replaced(b"aaa", b"bb")]
+            vec![DiffHunk::Different(vec![b"aaa", b"bb"])]
         );
     }
 
@@ -1143,11 +844,9 @@ mod tests {
         assert_eq!(
             diff(b"a z", b"a S z"),
             vec![
-                // TODO: Should compact these two unchanged ranges
-                SliceDiff::Unchanged(b"a"),
-                SliceDiff::Unchanged(b" "),
-                SliceDiff::Replaced(b"", b"S "),
-                SliceDiff::Unchanged(b"z"),
+                DiffHunk::Matching(b"a "),
+                DiffHunk::Different(vec![b"", b"S "]),
+                DiffHunk::Matching(b"z"),
             ]
         );
     }
@@ -1157,13 +856,11 @@ mod tests {
         assert_eq!(
             diff(b"a R R S S z", b"a S S R R z"),
             vec![
-                SliceDiff::Unchanged(b"a"),
-                SliceDiff::Unchanged(b" "),
-                SliceDiff::Replaced(b"R R ", b""),
-                SliceDiff::Unchanged(b"S S"),
-                SliceDiff::Unchanged(b" "),
-                SliceDiff::Replaced(b"", b"R R "),
-                SliceDiff::Unchanged(b"z")
+                DiffHunk::Matching(b"a "),
+                DiffHunk::Different(vec![b"R R ", b""]),
+                DiffHunk::Matching(b"S S "),
+                DiffHunk::Different(vec![b"", b"R R "]),
+                DiffHunk::Matching(b"z")
             ],
         );
     }
@@ -1176,23 +873,19 @@ mod tests {
                 b"a r r x q y z q b y q x r r c",
             ),
             vec![
-                SliceDiff::Unchanged(b"a"),
-                SliceDiff::Unchanged(b" "),
-                SliceDiff::Replaced(b"q", b"r"),
-                SliceDiff::Unchanged(b" "),
-                SliceDiff::Replaced(b"", b"r "),
-                SliceDiff::Unchanged(b"x q y"),
-                SliceDiff::Unchanged(b" "),
-                SliceDiff::Replaced(b"q ", b""),
-                SliceDiff::Unchanged(b"z q b"),
-                SliceDiff::Unchanged(b" "),
-                SliceDiff::Replaced(b"q ", b""),
-                SliceDiff::Unchanged(b"y q x"),
-                SliceDiff::Unchanged(b" "),
-                SliceDiff::Replaced(b"q", b"r"),
-                SliceDiff::Unchanged(b" "),
-                SliceDiff::Replaced(b"", b"r "),
-                SliceDiff::Unchanged(b"c"),
+                DiffHunk::Matching(b"a "),
+                DiffHunk::Different(vec![b"q", b"r"]),
+                DiffHunk::Matching(b" "),
+                DiffHunk::Different(vec![b"", b"r "]),
+                DiffHunk::Matching(b"x q y "),
+                DiffHunk::Different(vec![b"q ", b""]),
+                DiffHunk::Matching(b"z q b "),
+                DiffHunk::Different(vec![b"q ", b""]),
+                DiffHunk::Matching(b"y q x "),
+                DiffHunk::Different(vec![b"q", b"r"]),
+                DiffHunk::Matching(b" "),
+                DiffHunk::Different(vec![b"", b"r "]),
+                DiffHunk::Matching(b"c"),
             ]
         );
     }
@@ -1209,14 +902,11 @@ mod tests {
                 b"    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_>) -> io::Result<()> {\n        self.styler().write_fmt(fmt)\n"
             ),
             vec![
-                SliceDiff::Unchanged(b"    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_"),
-                SliceDiff::Unchanged(b">) "),
-                SliceDiff::Replaced(b"", b"-> io::Result<()> "),
-                SliceDiff::Unchanged(b"{\n        "),
-                SliceDiff::Unchanged(b"self.styler().write_fmt(fmt"),
-                SliceDiff::Unchanged(b")"),
-                SliceDiff::Replaced(b".unwrap()", b""),
-                SliceDiff::Unchanged(b"\n")
+                DiffHunk::Matching(b"    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_>) "),
+                DiffHunk::Different(vec![b"", b"-> io::Result<()> "]),
+                DiffHunk::Matching(b"{\n        self.styler().write_fmt(fmt)"),
+                DiffHunk::Different(vec![b".unwrap()", b""]),
+                DiffHunk::Matching(b"\n")
             ]
         );
     }
@@ -1366,24 +1056,23 @@ int main(int argc, char **argv)
 "##,
             ),
             vec![
-               SliceDiff::Unchanged(b"/*\n * GIT - The information manager from hell\n *\n * Copyright (C) Linus Torvalds, 2005\n */\n#include \"#cache.h\"\n\n"),
-               SliceDiff::Replaced(b"", b"static void create_directories(const char *path)\n{\n\tint len = strlen(path);\n\tchar *buf = malloc(len + 1);\n\tconst char *slash = path;\n\n\twhile ((slash = strchr(slash+1, \'/\')) != NULL) {\n\t\tlen = slash - path;\n\t\tmemcpy(buf, path, len);\n\t\tbuf[len] = 0;\n\t\tmkdir(buf, 0700);\n\t}\n}\n\nstatic int create_file(const char *path)\n{\n\tint fd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\tif (fd < 0) {\n\t\tif (errno == ENOENT) {\n\t\t\tcreate_directories(path);\n\t\t\tfd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\t\t}\n\t}\n\treturn fd;\n}\n\n"),
-               SliceDiff::Unchanged(b"static int unpack(unsigned char *sha1)\n{\n\tvoid *buffer;\n\tunsigned long size;\n\tchar type[20];\n\n\tbuffer = read_sha1_file(sha1, type, &size);\n\tif (!buffer)\n\t\tusage(\"unable to read sha1 file\");\n\tif (strcmp(type, \"tree\"))\n\t\tusage(\"expected a \'tree\' node\");\n\twhile (size) {\n\t\tint len = strlen(buffer)+1;\n\t\tunsigned char *sha1 = buffer + len;\n\t\tchar *path = strchr(buffer, \' \')+1;\n"),
-               SliceDiff::Replaced(b"", b"\t\tchar *data;\n\t\tunsigned long filesize;\n"),
-               SliceDiff::Unchanged(b"\t\tunsigned int mode;\n"),
-               SliceDiff::Replaced(b"", b"\t\tint fd;\n\n"),
-               SliceDiff::Unchanged(b"\t\tif (size < len + 20 || sscanf(buffer, \"%o\", &mode) != 1)\n\t\t\tusage(\"corrupt \'tree\' file\");\n\t\tbuffer = sha1 + 20;\n\t\tsize -= len + 20;\n"),
-               SliceDiff::Unchanged(b"\t\t"),
-               SliceDiff::Replaced(b"printf", b"data = read_sha1_file"),
-               SliceDiff::Unchanged(b"("),
-               SliceDiff::Replaced(b"\"%o %s (%s)\\n\", mode, path, sha1_to_hex(", b""),
-               SliceDiff::Unchanged(b"sha1"),
-               SliceDiff::Replaced(b"", b", type, &filesize"),
-               SliceDiff::Unchanged(b")"),
-               SliceDiff::Replaced(b")", b""),
-               SliceDiff::Unchanged(b";\n"),
-               SliceDiff::Replaced(b"", b"\t\tif (!data || strcmp(type, \"blob\"))\n\t\t\tusage(\"tree file refers to bad file data\");\n\t\tfd = create_file(path);\n\t\tif (fd < 0)\n\t\t\tusage(\"unable to create file\");\n\t\tif (write(fd, data, filesize) != filesize)\n\t\t\tusage(\"unable to write file\");\n\t\tfchmod(fd, mode);\n\t\tclose(fd);\n\t\tfree(data);\n"),
-               SliceDiff::Unchanged(b"\t}\n\treturn 0;\n}\n\nint main(int argc, char **argv)\n{\n\tint fd;\n\tunsigned char sha1[20];\n\n\tif (argc != 2)\n\t\tusage(\"read-tree <key>\");\n\tif (get_sha1_hex(argv[1], sha1) < 0)\n\t\tusage(\"read-tree <key>\");\n\tsha1_file_directory = getenv(DB_ENVIRONMENT);\n\tif (!sha1_file_directory)\n\t\tsha1_file_directory = DEFAULT_DB_ENVIRONMENT;\n\tif (unpack(sha1) < 0)\n\t\tusage(\"unpack failed\");\n\treturn 0;\n}\n")
+               DiffHunk::Matching(b"/*\n * GIT - The information manager from hell\n *\n * Copyright (C) Linus Torvalds, 2005\n */\n#include \"#cache.h\"\n\n"),
+               DiffHunk::Different(vec![b"", b"static void create_directories(const char *path)\n{\n\tint len = strlen(path);\n\tchar *buf = malloc(len + 1);\n\tconst char *slash = path;\n\n\twhile ((slash = strchr(slash+1, \'/\')) != NULL) {\n\t\tlen = slash - path;\n\t\tmemcpy(buf, path, len);\n\t\tbuf[len] = 0;\n\t\tmkdir(buf, 0700);\n\t}\n}\n\nstatic int create_file(const char *path)\n{\n\tint fd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\tif (fd < 0) {\n\t\tif (errno == ENOENT) {\n\t\t\tcreate_directories(path);\n\t\t\tfd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\t\t}\n\t}\n\treturn fd;\n}\n\n"]),
+               DiffHunk::Matching(b"static int unpack(unsigned char *sha1)\n{\n\tvoid *buffer;\n\tunsigned long size;\n\tchar type[20];\n\n\tbuffer = read_sha1_file(sha1, type, &size);\n\tif (!buffer)\n\t\tusage(\"unable to read sha1 file\");\n\tif (strcmp(type, \"tree\"))\n\t\tusage(\"expected a \'tree\' node\");\n\twhile (size) {\n\t\tint len = strlen(buffer)+1;\n\t\tunsigned char *sha1 = buffer + len;\n\t\tchar *path = strchr(buffer, \' \')+1;\n"),
+               DiffHunk::Different(vec![b"", b"\t\tchar *data;\n\t\tunsigned long filesize;\n"]),
+               DiffHunk::Matching(b"\t\tunsigned int mode;\n"),
+               DiffHunk::Different(vec![b"", b"\t\tint fd;\n\n"]),
+               DiffHunk::Matching(b"\t\tif (size < len + 20 || sscanf(buffer, \"%o\", &mode) != 1)\n\t\t\tusage(\"corrupt \'tree\' file\");\n\t\tbuffer = sha1 + 20;\n\t\tsize -= len + 20;\n\t\t"),
+               DiffHunk::Different(vec![b"printf", b"data = read_sha1_file"]),
+               DiffHunk::Matching(b"("),
+               DiffHunk::Different(vec![b"\"%o %s (%s)\\n\", mode, path, sha1_to_hex(", b""]),
+               DiffHunk::Matching(b"sha1"),
+               DiffHunk::Different(vec![b"", b", type, &filesize"]),
+               DiffHunk::Matching(b")"),
+               DiffHunk::Different(vec![b")", b""]),
+               DiffHunk::Matching(b";\n"),
+               DiffHunk::Different(vec![b"", b"\t\tif (!data || strcmp(type, \"blob\"))\n\t\t\tusage(\"tree file refers to bad file data\");\n\t\tfd = create_file(path);\n\t\tif (fd < 0)\n\t\t\tusage(\"unable to create file\");\n\t\tif (write(fd, data, filesize) != filesize)\n\t\t\tusage(\"unable to write file\");\n\t\tfchmod(fd, mode);\n\t\tclose(fd);\n\t\tfree(data);\n"]),
+               DiffHunk::Matching(b"\t}\n\treturn 0;\n}\n\nint main(int argc, char **argv)\n{\n\tint fd;\n\tunsigned char sha1[20];\n\n\tif (argc != 2)\n\t\tusage(\"read-tree <key>\");\n\tif (get_sha1_hex(argv[1], sha1) < 0)\n\t\tusage(\"read-tree <key>\");\n\tsha1_file_directory = getenv(DB_ENVIRONMENT);\n\tif (!sha1_file_directory)\n\t\tsha1_file_directory = DEFAULT_DB_ENVIRONMENT;\n\tif (unpack(sha1) < 0)\n\t\tusage(\"unpack failed\");\n\treturn 0;\n}\n")
             ]
         );
     }

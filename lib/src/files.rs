@@ -17,7 +17,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::ops::Range;
 
 use crate::diff;
-use crate::diff::{DiffHunk, SliceDiff};
+use crate::diff::DiffHunk;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct DiffLine<'a> {
@@ -43,19 +43,19 @@ impl DiffLine<'_> {
 }
 
 pub fn diff<'a>(left: &'a [u8], right: &'a [u8]) -> DiffLineIterator<'a> {
-    let slice_diffs = diff::diff(left, right);
-    DiffLineIterator::new(slice_diffs)
+    let diff_hunks = diff::diff(left, right);
+    DiffLineIterator::new(diff_hunks)
 }
 
 pub struct DiffLineIterator<'a> {
-    slice_diffs: Vec<SliceDiff<'a>>,
+    diff_hunks: Vec<DiffHunk<'a>>,
     current_pos: usize,
     current_line: DiffLine<'a>,
     queued_lines: VecDeque<DiffLine<'a>>,
 }
 
 impl<'a> DiffLineIterator<'a> {
-    fn new(slice_diffs: Vec<SliceDiff<'a>>) -> Self {
+    fn new(diff_hunks: Vec<DiffHunk<'a>>) -> Self {
         let current_line = DiffLine {
             left_line_number: 1,
             right_line_number: 1,
@@ -64,7 +64,7 @@ impl<'a> DiffLineIterator<'a> {
             hunks: vec![],
         };
         DiffLineIterator {
-            slice_diffs,
+            diff_hunks,
             current_pos: 0,
             current_line,
             queued_lines: VecDeque::new(),
@@ -78,11 +78,11 @@ impl<'a> Iterator for DiffLineIterator<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         // TODO: Should we attempt to interpret as utf-8 and otherwise break only at
         // newlines?
-        while self.current_pos < self.slice_diffs.len() && self.queued_lines.is_empty() {
-            let hunk = &self.slice_diffs[self.current_pos];
+        while self.current_pos < self.diff_hunks.len() && self.queued_lines.is_empty() {
+            let hunk = &self.diff_hunks[self.current_pos];
             self.current_pos += 1;
             match hunk {
-                diff::SliceDiff::Unchanged(text) => {
+                diff::DiffHunk::Matching(text) => {
                     let lines = text.split_inclusive(|b| *b == b'\n');
                     for line in lines {
                         self.current_line.has_left_content = true;
@@ -96,7 +96,9 @@ impl<'a> Iterator for DiffLineIterator<'a> {
                         }
                     }
                 }
-                diff::SliceDiff::Replaced(left, right) => {
+                diff::DiffHunk::Different(contents) => {
+                    let left = contents[0];
+                    let right = contents[1];
                     let left_lines = left.split_inclusive(|b| *b == b'\n');
                     for left_line in left_lines {
                         self.current_line.has_left_content = true;
