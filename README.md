@@ -349,10 +349,11 @@ Working copy now at: 619f58d8a988
 added 0 files, modified 1 files, removed 0 files
 $ cat file1
 <<<<<<<
-a
-|||||||
-b1
-=======
+-------
++++++++
+-b1
++a
++++++++
 b2
 >>>>>>>
 $ echo resolved > file1

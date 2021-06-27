@@ -182,38 +182,6 @@ pub struct Conflict {
     pub adds: Vec<ConflictPart>,
 }
 
-impl Conflict {
-    // Returns (left,base,right) if this conflict is a 3-way conflict
-    pub fn to_three_way(
-        &self,
-    ) -> Option<(
-        Option<ConflictPart>,
-        Option<ConflictPart>,
-        Option<ConflictPart>,
-    )> {
-        if self.removes.len() == 1 && self.adds.len() == 2 {
-            // Regular (modify/modify) 3-way conflict
-            Some((
-                Some(self.adds[0].clone()),
-                Some(self.removes[0].clone()),
-                Some(self.adds[1].clone()),
-            ))
-        } else if self.removes.is_empty() && self.adds.len() == 2 {
-            // Add/add conflict
-            Some((Some(self.adds[0].clone()), None, Some(self.adds[1].clone())))
-        } else if self.removes.len() == 1 && self.adds.len() == 1 {
-            // Modify/delete conflict
-            Some((
-                Some(self.adds[0].clone()),
-                Some(self.removes[0].clone()),
-                None,
-            ))
-        } else {
-            None
-        }
-    }
-}
-
 impl Default for Conflict {
     fn default() -> Self {
         Conflict {

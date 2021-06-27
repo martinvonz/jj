@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cmp::min;
 use std::io::{Cursor, Write};
 
 use itertools::Itertools;
 
+use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files;
+use crate::files::{MergeHunk, MergeResult};
 use crate::repo_path::RepoPath;
 use crate::store::{Conflict, ConflictPart, TreeValue};
 use crate::store_wrapper::StoreWrapper;
@@ -76,6 +79,49 @@ fn file_parts(parts: &[ConflictPart]) -> Vec<&ConflictPart> {
         .collect_vec()
 }
 
+fn get_file_contents(store: &StoreWrapper, path: &RepoPath, part: &ConflictPart) -> Vec<u8> {
+    if let TreeValue::Normal {
+        id,
+        executable: false,
+    } = &part.value
+    {
+        let mut content: Vec<u8> = vec![];
+        store
+            .read_file(path, id)
+            .unwrap()
+            .read_to_end(&mut content)
+            .unwrap();
+        content
+    } else {
+        panic!("unexpectedly got a non-file conflict part");
+    }
+}
+
+fn write_diff_hunks(left: &[u8], right: &[u8], file: &mut dyn Write) -> std::io::Result<()> {
+    let diff = Diff::for_tokenizer(&[left, right], &find_line_ranges);
+    for hunk in diff.hunks() {
+        match hunk {
+            DiffHunk::Matching(content) => {
+                for line in content.split_inclusive(|b| *b == b'\n') {
+                    file.write_all(b" ")?;
+                    file.write_all(line)?;
+                }
+            }
+            DiffHunk::Different(content) => {
+                for line in content[0].split_inclusive(|b| *b == b'\n') {
+                    file.write_all(b"-")?;
+                    file.write_all(line)?;
+                }
+                for line in content[1].split_inclusive(|b| *b == b'\n') {
+                    file.write_all(b"+")?;
+                    file.write_all(line)?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn materialize_conflict(
     store: &StoreWrapper,
     path: &RepoPath,
@@ -91,77 +137,54 @@ pub fn materialize_conflict(
         return;
     }
 
-    match conflict.to_three_way() {
-        None => {
-            file.write_all(b"Unresolved complex conflict.\n").unwrap();
+    let added_content = file_adds
+        .iter()
+        .map(|part| get_file_contents(store, path, part))
+        .collect_vec();
+    let removed_content = file_removes
+        .iter()
+        .map(|part| get_file_contents(store, path, part))
+        .collect_vec();
+    let removed_slices = removed_content
+        .iter()
+        .map(|vec| vec.as_slice())
+        .collect_vec();
+    let added_slices = added_content.iter().map(|vec| vec.as_slice()).collect_vec();
+
+    let merge_result = files::merge(&removed_slices, &added_slices);
+    match merge_result {
+        MergeResult::Resolved(content) => {
+            file.write_all(&content).unwrap();
         }
-        Some((Some(left), Some(base), Some(right))) => {
-            match (left.value, base.value, right.value) {
-                (
-                    TreeValue::Normal {
-                        id: left_id,
-                        executable: false,
-                    },
-                    TreeValue::Normal {
-                        id: base_id,
-                        executable: false,
-                    },
-                    TreeValue::Normal {
-                        id: right_id,
-                        executable: false,
-                    },
-                ) => {
-                    let mut left_contents: Vec<u8> = vec![];
-                    let mut base_contents: Vec<u8> = vec![];
-                    let mut right_contents: Vec<u8> = vec![];
-                    store
-                        .read_file(path, &left_id)
-                        .unwrap()
-                        .read_to_end(&mut left_contents)
-                        .unwrap();
-                    store
-                        .read_file(path, &base_id)
-                        .unwrap()
-                        .read_to_end(&mut base_contents)
-                        .unwrap();
-                    store
-                        .read_file(path, &right_id)
-                        .unwrap()
-                        .read_to_end(&mut right_contents)
-                        .unwrap();
-                    let merge_result =
-                        files::merge(&[&base_contents], &[&left_contents, &right_contents]);
-                    match merge_result {
-                        files::MergeResult::Resolved(contents) => {
-                            file.write_all(&contents).unwrap();
+        MergeResult::Conflict(hunks) => {
+            for hunk in hunks {
+                match hunk {
+                    MergeHunk::Resolved(content) => {
+                        file.write_all(&content).unwrap();
+                    }
+                    MergeHunk::Conflict { removes, adds } => {
+                        let num_diffs = min(removes.len(), adds.len());
+
+                        // TODO: Pair up a remove with an add in a way that minimizes the size of
+                        // the diff
+                        file.write_all(b"<<<<<<<\n").unwrap();
+                        for i in 0..num_diffs {
+                            file.write_all(b"-------\n").unwrap();
+                            file.write_all(b"+++++++\n").unwrap();
+                            write_diff_hunks(&removes[i], &adds[i], file).unwrap();
                         }
-                        files::MergeResult::Conflict(hunks) => {
-                            for hunk in hunks {
-                                match hunk {
-                                    files::MergeHunk::Resolved(contents) => {
-                                        file.write_all(&contents).unwrap();
-                                    }
-                                    files::MergeHunk::Conflict { removes, adds } => {
-                                        file.write_all(b"<<<<<<<\n").unwrap();
-                                        file.write_all(&adds[0]).unwrap();
-                                        file.write_all(b"|||||||\n").unwrap();
-                                        file.write_all(&removes[0]).unwrap();
-                                        file.write_all(b"=======\n").unwrap();
-                                        file.write_all(&adds[1]).unwrap();
-                                        file.write_all(b">>>>>>>\n").unwrap();
-                                    }
-                                }
-                            }
+                        for slice in removes.iter().skip(num_diffs) {
+                            file.write_all(b"-------\n").unwrap();
+                            file.write_all(slice).unwrap();
                         }
+                        for slice in adds.iter().skip(num_diffs) {
+                            file.write_all(b"+++++++\n").unwrap();
+                            file.write_all(slice).unwrap();
+                        }
+                        file.write_all(b">>>>>>>\n").unwrap();
                     }
                 }
-                _ => {
-                    file.write_all(b"Unresolved 3-way conflict.\n").unwrap();
-                }
             }
-        }
-        Some(_) => {
-            file.write_all(b"Unresolved complex conflict.\n").unwrap();
         }
     }
 }
