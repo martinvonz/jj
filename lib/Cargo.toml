@@ -41,4 +41,4 @@ zstd = "0.6.0"
 
 [dev-dependencies]
 num_cpus = "1.13.0"
-test-case = { git= "https://github.com/martinvonz/test-case", branch="remove-unneeded-unit-expression" }
+test-case = "1.2.0"

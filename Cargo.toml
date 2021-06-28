@@ -44,5 +44,5 @@ uuid = { version = "0.8.1", features = ["v4"] }
 zstd = "0.6.0"
 
 [dev-dependencies]
-test-case = { git= "https://github.com/martinvonz/test-case", branch="remove-unneeded-unit-expression" }
+test-case = "1.2.0"
 regex = "1.4.2"
