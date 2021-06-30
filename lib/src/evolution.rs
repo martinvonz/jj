@@ -572,7 +572,7 @@ impl<'settings> OrphanResolver<'settings> {
         self.remaining_orphans.pop().map(|orphan_pos| {
             let store = mut_repo.store();
             let orphan_entry = mut_repo.index().entry_by_pos(orphan_pos);
-            let mut new_parents = vec![];
+            let mut new_parent_ids = vec![];
             let mut ambiguous_new_parents = false;
             let evolution = mut_repo.evolution();
             for old_parent in orphan_entry.parents() {
@@ -582,16 +582,17 @@ impl<'settings> OrphanResolver<'settings> {
                     ambiguous_new_parents = true;
                     break;
                 }
-                new_parents.push(
-                    store
-                        .get_commit(new_parent_candidates.iter().next().unwrap())
-                        .unwrap(),
-                );
+                new_parent_ids.push(new_parent_candidates.into_iter().next().unwrap());
             }
             let orphan = store.get_commit(&orphan_entry.commit_id()).unwrap();
             if ambiguous_new_parents {
                 OrphanResolution::AmbiguousTarget { orphan }
             } else {
+                let mut new_parents = vec![];
+                // Don't create commit where one parent is an ancestor of another.
+                for new_parent_id in mut_repo.index().heads(&new_parent_ids) {
+                    new_parents.push(store.get_commit(&new_parent_id).unwrap());
+                }
                 let new_commit = rebase_commit(self.user_settings, mut_repo, &orphan, &new_parents);
                 OrphanResolution::Resolved { orphan, new_commit }
             }

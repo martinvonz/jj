@@ -553,6 +553,41 @@ fn test_evolve_orphan(use_git: bool) {
 }
 
 #[test_case(false ; "local store")]
+// #[test_case(true ; "git store")]
+/// When evolving a merge commit, the new commit should not have a parent that
+/// is an ancestor of another parent.
+fn test_evolve_orphan_merge_ancestor_of_other_parent(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let root_commit = repo.store().root_commit();
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let initial = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
+    let child1 = child_commit(&settings, &repo, &initial).write_to_repo(mut_repo);
+    let child2 = child_commit(&settings, &repo, &initial).write_to_repo(mut_repo);
+    let merge = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![child1.id().clone(), child2.id().clone()])
+        .write_to_repo(mut_repo);
+
+    let rewritten_child2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &child2)
+        .set_parents(vec![child1.id().clone()])
+        .set_description("rewritten child2".to_string())
+        .write_to_repo(mut_repo);
+
+    let mut resolver = OrphanResolver::new(&settings, mut_repo);
+    let resolution = resolver.resolve_next(mut_repo);
+    assert_matches!(resolution, Some(OrphanResolution::Resolved { .. }));
+    assert_eq!(resolver.resolve_next(mut_repo), None);
+    if let Some(OrphanResolution::Resolved { orphan, new_commit }) = resolution {
+        assert_eq!(orphan, merge);
+        assert_eq!(new_commit.parents(), vec![rewritten_child2]);
+    }
+
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
 fn test_evolve_pruned_orphan(use_git: bool) {
     let settings = testutils::user_settings();
