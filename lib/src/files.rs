@@ -16,6 +16,8 @@ use std::collections::VecDeque;
 use std::fmt::{Debug, Error, Formatter};
 use std::ops::Range;
 
+use itertools::Itertools;
+
 use crate::diff;
 use crate::diff::{Diff, DiffHunk};
 
@@ -145,9 +147,8 @@ impl<'a> Iterator for DiffLineIterator<'a> {
 pub enum MergeHunk {
     Resolved(Vec<u8>),
     Conflict {
-        base: Vec<u8>,
-        left: Vec<u8>,
-        right: Vec<u8>,
+        removes: Vec<Vec<u8>>,
+        adds: Vec<Vec<u8>>,
     },
 }
 
@@ -158,11 +159,22 @@ impl Debug for MergeHunk {
                 .debug_tuple("Resolved")
                 .field(&String::from_utf8_lossy(data))
                 .finish(),
-            MergeHunk::Conflict { base, left, right } => f
+            MergeHunk::Conflict { removes, adds } => f
                 .debug_struct("Conflict")
-                .field("base", &String::from_utf8_lossy(base))
-                .field("left", &String::from_utf8_lossy(left))
-                .field("right", &String::from_utf8_lossy(right))
+                .field(
+                    "removes",
+                    &removes
+                        .iter()
+                        .map(|part| String::from_utf8_lossy(part))
+                        .collect_vec(),
+                )
+                .field(
+                    "adds",
+                    &adds
+                        .iter()
+                        .map(|part| String::from_utf8_lossy(part))
+                        .collect_vec(),
+                )
                 .finish(),
         }
     }
@@ -182,7 +194,6 @@ struct SyncRegion {
     right: Range<usize>,
 }
 
-// TODO: Update callers to use diff::Diff directly instead.
 pub fn merge(base: &[u8], left: &[u8], right: &[u8]) -> MergeResult {
     let diff = Diff::for_tokenizer(&[base, left, right], &diff::find_line_ranges);
     let mut resolved_hunk: Vec<u8> = vec![];
@@ -206,9 +217,8 @@ pub fn merge(base: &[u8], left: &[u8], right: &[u8]) -> MergeResult {
                         resolved_hunk = vec![];
                     }
                     merge_hunks.push(MergeHunk::Conflict {
-                        base: base_content.to_vec(),
-                        left: left_content.to_vec(),
-                        right: right_content.to_vec(),
+                        removes: vec![base_content.to_vec()],
+                        adds: vec![left_content.to_vec(), right_content.to_vec()],
                     });
                 }
             }
@@ -252,9 +262,8 @@ mod tests {
             MergeResult::Conflict(vec![
                 MergeHunk::Resolved(b"a\n".to_vec()),
                 MergeHunk::Conflict {
-                    base: b"".to_vec(),
-                    left: b"b\n".to_vec(),
-                    right: b"c\n".to_vec()
+                    removes: vec![b"".to_vec()],
+                    adds: vec![b"b\n".to_vec(), b"c\n".to_vec()]
                 }
             ])
         );
@@ -269,25 +278,22 @@ mod tests {
         assert_eq!(
             merge(b"a", b"", b"b"),
             MergeResult::Conflict(vec![MergeHunk::Conflict {
-                base: b"a".to_vec(),
-                left: b"".to_vec(),
-                right: b"b".to_vec()
+                removes: vec![b"a".to_vec()],
+                adds: vec![b"".to_vec(), b"b".to_vec()]
             }])
         );
         assert_eq!(
             merge(b"a", b"b", b""),
             MergeResult::Conflict(vec![MergeHunk::Conflict {
-                base: b"a".to_vec(),
-                left: b"b".to_vec(),
-                right: b"".to_vec()
+                removes: vec![b"a".to_vec()],
+                adds: vec![b"b".to_vec(), b"".to_vec()]
             }])
         );
         assert_eq!(
             merge(b"a", b"b", b"c"),
             MergeResult::Conflict(vec![MergeHunk::Conflict {
-                base: b"a".to_vec(),
-                left: b"b".to_vec(),
-                right: b"c".to_vec()
+                removes: vec![b"a".to_vec()],
+                adds: vec![b"b".to_vec(), b"c".to_vec()]
             }])
         );
     }

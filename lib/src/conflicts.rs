@@ -141,13 +141,13 @@ pub fn materialize_conflict(
                                     files::MergeHunk::Resolved(contents) => {
                                         file.write_all(&contents).unwrap();
                                     }
-                                    files::MergeHunk::Conflict { base, left, right } => {
+                                    files::MergeHunk::Conflict { removes, adds } => {
                                         file.write_all(b"<<<<<<<\n").unwrap();
-                                        file.write_all(&left).unwrap();
+                                        file.write_all(&adds[0]).unwrap();
                                         file.write_all(b"|||||||\n").unwrap();
-                                        file.write_all(&base).unwrap();
+                                        file.write_all(&removes[0]).unwrap();
                                         file.write_all(b"=======\n").unwrap();
-                                        file.write_all(&right).unwrap();
+                                        file.write_all(&adds[1]).unwrap();
                                         file.write_all(b">>>>>>>\n").unwrap();
                                     }
                                 }
