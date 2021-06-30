@@ -608,7 +608,8 @@ fn merge_tree_value(
                         .read_file(&filename, side2_id)?
                         .read_to_end(&mut side2_content)?;
 
-                    let merge_result = files::merge(&base_content, &side1_content, &side2_content);
+                    let merge_result =
+                        files::merge(&[&base_content], &[&side1_content, &side2_content]);
                     match merge_result {
                         MergeResult::Resolved(merged_content) => {
                             let id = store.write_file(&filename, &mut merged_content.as_slice())?;

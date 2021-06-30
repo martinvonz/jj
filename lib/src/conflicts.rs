@@ -130,7 +130,7 @@ pub fn materialize_conflict(
                         .read_to_end(&mut right_contents)
                         .unwrap();
                     let merge_result =
-                        files::merge(&base_contents, &left_contents, &right_contents);
+                        files::merge(&[&base_contents], &[&left_contents, &right_contents]);
                     match merge_result {
                         files::MergeResult::Resolved(contents) => {
                             file.write_all(&contents).unwrap();
