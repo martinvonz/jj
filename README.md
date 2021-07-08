@@ -163,7 +163,7 @@ M README.md
 Note that you didn't have to tell Jujutsu to add the change like you would with
 `git add`. You actually don't even need to tell it when you add new files or
 remove existing files. However, the flip side of that is that you need to be
-careful keep your `.gitignore` up to date since there's currently no easy way
+careful to keep your `.gitignore` up to date since there's currently no easy way
 to say that you want an already added file to not be tracked
 (https://github.com/martinvonz/jj/issues/14).
 
@@ -206,7 +206,7 @@ Working copy : 192b456b024b
 The working copy is clean
 ```
 
-Note that a commit id printed in green indicate an open commit and blue
+Note that a commit id printed in green indicates an open commit and blue
 indicates a closed commit.
 
 If we later realize that we want to make further changes, we can make them
@@ -216,9 +216,9 @@ working copy commit by default.
 
 ### The log command, "revsets", and aliases
 
-You're probably familiar with `git log`. Jujutsu has the very similar
-functionality in its `jj log` command. It produces hundreds of lines of output,
-so let's pipe its output into `head`:
+You're probably familiar with `git log`. Jujutsu has very similar functionality
+in its `jj log` command. It produces hundreds of lines of output, so let's pipe
+its output into `head`:
 ```shell script
 $ jj log | head
 @ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
@@ -260,7 +260,7 @@ ancestors (`,,foo`), descendants (`foo,,`), DAG range (`foo,,bar`, like
 `git log --ancestry-path`), range (`foo,,,bar`, like Git's `foo..bar`). There
 are also a few more functions, such as `public_heads()`, which is the set of
 revisions that have Git remote-tracking branches pointing to them, except those
-that are ancestors of other revisions in the set. Now define an alias based on
+that are ancestors of other revisions in the set. Let's define an alias based on
 that by adding the following to `~/.jjconfig`:
 ```
 [alias]
@@ -332,7 +332,7 @@ o 661432c51c08 cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00
 
 There are several things worth noting here. First, the `jj rebase` command said
 "Rebased 1 descendant commits". That's because we asked it to rebase commit B2,
-but commit C was on top of it, so it also rebased that commit as well. Second, 
+but commit C was on top of it, so it rebased that commit as well. Second,
 because B2 modified the same file (and word) as B1, rebasing it resulted in
 conflicts, as the `jj l` output indicates. Third, the conflicts did not prevent
 the rebase from completing successfully, nor did it prevent C from getting
