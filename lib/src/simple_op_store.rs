@@ -19,12 +19,14 @@ use std::io::{ErrorKind, Write};
 use std::path::PathBuf;
 
 use blake2::{Blake2b, Digest};
+use itertools::Itertools;
 use protobuf::{Message, ProtobufError};
 use tempfile::{NamedTempFile, PersistError};
 
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
-    OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata, View, ViewId,
+    OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata, RefTarget,
+    View, ViewId,
 };
 use crate::store::{CommitId, MillisSinceEpoch, Timestamp};
 
@@ -204,10 +206,10 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
     for head_id in &view.public_head_ids {
         proto.public_head_ids.push(head_id.0.clone());
     }
-    for (git_ref_name, commit_id) in &view.git_refs {
+    for (git_ref_name, target) in &view.git_refs {
         let mut git_ref_proto = crate::protos::op_store::GitRef::new();
         git_ref_proto.set_name(git_ref_name.clone());
-        git_ref_proto.set_commit_id(commit_id.0.clone());
+        git_ref_proto.set_target(ref_target_to_proto(target));
         proto.git_refs.push(git_ref_proto);
     }
     proto
@@ -223,8 +225,59 @@ fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
             .insert(CommitId(head_id_bytes.to_vec()));
     }
     for git_ref in proto.git_refs.iter() {
-        view.git_refs
-            .insert(git_ref.name.clone(), CommitId(git_ref.commit_id.to_vec()));
+        if git_ref.has_target() {
+            view.git_refs.insert(
+                git_ref.name.clone(),
+                ref_target_from_proto(git_ref.target.as_ref().unwrap()),
+            );
+        } else {
+            // Legacy format
+            view.git_refs.insert(
+                git_ref.name.clone(),
+                RefTarget::Normal(CommitId(git_ref.commit_id.to_vec())),
+            );
+        }
     }
     view
+}
+
+fn ref_target_to_proto(value: &RefTarget) -> crate::protos::op_store::RefTarget {
+    let mut proto = crate::protos::op_store::RefTarget::new();
+    match value {
+        RefTarget::Normal(id) => {
+            proto.set_commit_id(id.0.clone());
+        }
+        RefTarget::Conflict { removes, adds } => {
+            let mut ref_conflict_proto = crate::protos::op_store::RefConflict::new();
+            for id in removes {
+                ref_conflict_proto.removes.push(id.0.clone());
+            }
+            for id in adds {
+                ref_conflict_proto.adds.push(id.0.clone());
+            }
+            proto.set_conflict(ref_conflict_proto);
+        }
+    }
+    proto
+}
+
+fn ref_target_from_proto(proto: &crate::protos::op_store::RefTarget) -> RefTarget {
+    match proto.value.as_ref().unwrap() {
+        crate::protos::op_store::RefTarget_oneof_value::commit_id(id) => {
+            RefTarget::Normal(CommitId(id.to_vec()))
+        }
+        crate::protos::op_store::RefTarget_oneof_value::conflict(conflict) => {
+            let removes = conflict
+                .removes
+                .iter()
+                .map(|id_bytes| CommitId(id_bytes.to_vec()))
+                .collect_vec();
+            let adds = conflict
+                .adds
+                .iter()
+                .map(|id_bytes| CommitId(id_bytes.to_vec()))
+                .collect_vec();
+            RefTarget::Conflict { removes, adds }
+        }
+    }
 }

@@ -44,8 +44,8 @@ pub enum RevsetError {
 fn resolve_git_ref(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetError> {
     let view = repo.view();
     for git_ref_prefix in &["", "refs/", "refs/heads/", "refs/tags/", "refs/remotes/"] {
-        if let Some(commit_id) = view.git_refs().get(&(git_ref_prefix.to_string() + symbol)) {
-            return Ok(vec![commit_id.clone()]);
+        if let Some(ref_target) = view.git_refs().get(&(git_ref_prefix.to_string() + symbol)) {
+            return Ok(ref_target.adds());
         }
     }
     Err(RevsetError::NoSuchRevision(symbol.to_owned()))
@@ -942,12 +942,12 @@ pub fn evaluate_expression<'repo>(
         }
         RevsetExpression::GitRefs => {
             let index = repo.index();
-            let mut index_entries = repo
-                .view()
-                .git_refs()
-                .values()
-                .map(|id| index.entry_by_id(id).unwrap())
-                .collect_vec();
+            let mut index_entries = vec![];
+            for ref_target in repo.view().git_refs().values() {
+                for id in ref_target.adds() {
+                    index_entries.push(index.entry_by_id(&id).unwrap());
+                }
+            }
             index_entries.sort_by_key(|b| Reverse(b.position()));
             index_entries.dedup();
             Ok(Box::new(EagerRevset { index_entries }))

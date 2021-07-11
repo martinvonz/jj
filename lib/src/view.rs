@@ -15,6 +15,7 @@
 use std::collections::{BTreeMap, HashSet};
 
 use crate::op_store;
+use crate::op_store::RefTarget;
 use crate::store::CommitId;
 
 pub struct View {
@@ -47,7 +48,7 @@ impl View {
         &self.data.public_head_ids
     }
 
-    pub fn git_refs(&self) -> &BTreeMap<String, CommitId> {
+    pub fn git_refs(&self) -> &BTreeMap<String, RefTarget> {
         &self.data.git_refs
     }
 
@@ -71,8 +72,8 @@ impl View {
         self.data.public_head_ids.remove(head_id);
     }
 
-    pub fn insert_git_ref(&mut self, name: String, commit_id: CommitId) {
-        self.data.git_refs.insert(name, commit_id);
+    pub fn insert_git_ref(&mut self, name: String, target: RefTarget) {
+        self.data.git_refs.insert(name, target);
     }
 
     pub fn remove_git_ref(&mut self, name: &str) {
@@ -122,17 +123,14 @@ impl View {
         let base_git_ref_names: HashSet<_> = base.git_refs().keys().clone().collect();
         let other_git_ref_names: HashSet<_> = other.git_refs().keys().clone().collect();
         for maybe_modified_git_ref_name in other_git_ref_names.intersection(&base_git_ref_names) {
-            let base_commit_id = base.git_refs().get(*maybe_modified_git_ref_name).unwrap();
-            let other_commit_id = other.git_refs().get(*maybe_modified_git_ref_name).unwrap();
-            if base_commit_id == other_commit_id {
+            let base_target = base.git_refs().get(*maybe_modified_git_ref_name).unwrap();
+            let other_target = other.git_refs().get(*maybe_modified_git_ref_name).unwrap();
+            if base_target == other_target {
                 continue;
             }
             // TODO: Handle modify/modify conflict (i.e. if self and base are different
             // here)
-            self.insert_git_ref(
-                (*maybe_modified_git_ref_name).clone(),
-                other_commit_id.clone(),
-            );
+            self.insert_git_ref((*maybe_modified_git_ref_name).clone(), other_target.clone());
         }
         for added_git_ref_name in other_git_ref_names.difference(&base_git_ref_names) {
             // TODO: Handle add/add conflict (i.e. if self also has the ref here)

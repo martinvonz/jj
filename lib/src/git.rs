@@ -16,6 +16,7 @@ use itertools::Itertools;
 use thiserror::Error;
 
 use crate::commit::Commit;
+use crate::op_store::RefTarget;
 use crate::repo::MutableRepo;
 use crate::store::CommitId;
 
@@ -61,7 +62,7 @@ pub fn import_refs(
         let id = CommitId(git_commit.id().as_bytes().to_vec());
         let commit = store.get_commit(&id).unwrap();
         mut_repo.add_head(&commit);
-        mut_repo.insert_git_ref(git_ref.name().unwrap().to_string(), id);
+        mut_repo.insert_git_ref(git_ref.name().unwrap().to_string(), RefTarget::Normal(id));
         // For now, we consider all remotes "publishing".
         // TODO: Make it configurable which remotes are publishing.
         if git_ref.is_remote() {

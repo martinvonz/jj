@@ -47,6 +47,37 @@ impl OperationId {
     }
 }
 
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum RefTarget {
+    Normal(CommitId),
+    Conflict {
+        removes: Vec<CommitId>,
+        adds: Vec<CommitId>,
+    },
+}
+
+impl RefTarget {
+    pub fn is_conflict(&self) -> bool {
+        matches!(self, RefTarget::Conflict { .. })
+    }
+
+    pub fn adds(&self) -> Vec<CommitId> {
+        match self {
+            RefTarget::Normal(id) => {
+                vec![id.clone()]
+            }
+            RefTarget::Conflict { removes: _, adds } => adds.clone(),
+        }
+    }
+
+    pub fn has_add(&self, needle: &CommitId) -> bool {
+        match self {
+            RefTarget::Normal(id) => id == needle,
+            RefTarget::Conflict { removes: _, adds } => adds.contains(needle),
+        }
+    }
+}
+
 /// Represents the way the repo looks at a given time, just like how a Tree
 /// object represents how the file system looks at a given time.
 #[derive(Clone)]
@@ -55,7 +86,7 @@ pub struct View {
     pub head_ids: HashSet<CommitId>,
     /// Heads of the set of public commits.
     pub public_head_ids: HashSet<CommitId>,
-    pub git_refs: BTreeMap<String, CommitId>,
+    pub git_refs: BTreeMap<String, RefTarget>,
     // The commit that *should be* checked out in the (default) working copy. Note that the
     // working copy (.jj/working_copy/) has the source of truth about which commit *is* checked out
     // (to be precise: the commit to which we most recently completed a checkout to).

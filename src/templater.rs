@@ -226,15 +226,19 @@ pub struct GitRefsProperty<'a> {
 
 impl TemplateProperty<Commit, String> for GitRefsProperty<'_> {
     fn extract(&self, context: &Commit) -> String {
-        let refs = self
-            .repo
-            .view()
-            .git_refs()
-            .iter()
-            .filter(|(_name, id)| *id == context.id())
-            .map(|(name, _id)| name.clone())
-            .collect_vec();
-        refs.join(" ")
+        // TODO: We should keep a map from commit to ref names so we don't have to walk
+        // all refs here.
+        let mut names = vec![];
+        for (name, target) in self.repo.view().git_refs() {
+            if target.has_add(context.id()) {
+                if target.is_conflict() {
+                    names.push(format!("{}?", name));
+                } else {
+                    names.push(name.clone());
+                }
+            }
+        }
+        names.join(" ")
     }
 }
 

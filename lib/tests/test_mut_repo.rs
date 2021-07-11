@@ -15,6 +15,7 @@
 use std::sync::Arc;
 
 use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::{Conflict, ConflictId, ConflictPart, TreeValue};
 use jujutsu_lib::store_wrapper::StoreWrapper;
@@ -457,25 +458,36 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
-    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
-    tx.mut_repo()
-        .insert_git_ref("refs/heads/main".to_string(), commit1.id().clone());
+    let commit3 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit2, &commit3, &commit4]);
+    tx.mut_repo().insert_git_ref(
+        "refs/heads/main".to_string(),
+        RefTarget::Conflict {
+            removes: vec![commit2.id().clone()],
+            adds: vec![commit3.id().clone(), commit4.id().clone()],
+        },
+    );
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     let heads = mut_repo.view().heads().clone();
-    assert!(heads.contains(commit3.id()));
-    mut_repo.remove_head(&commit3);
+    assert!(heads.contains(commit5.id()));
+    mut_repo.remove_head(&commit5);
     let heads = mut_repo.view().heads().clone();
-    assert!(!heads.contains(commit3.id()));
-    assert!(!heads.contains(commit2.id()));
-    assert!(heads.contains(commit1.id()));
+    assert!(!heads.contains(commit5.id()));
+    assert!(heads.contains(commit4.id()));
+    assert!(heads.contains(commit3.id()));
+    assert!(heads.contains(commit2.id()));
+    assert!(!heads.contains(commit1.id()));
     let repo = tx.commit();
     let heads = repo.view().heads().clone();
-    assert!(!heads.contains(commit3.id()));
-    assert!(!heads.contains(commit2.id()));
-    assert!(heads.contains(commit1.id()));
+    assert!(!heads.contains(commit5.id()));
+    assert!(heads.contains(commit4.id()));
+    assert!(heads.contains(commit3.id()));
+    assert!(heads.contains(commit2.id()));
+    assert!(!heads.contains(commit1.id()));
 }
 
 #[test_case(false ; "local store")]

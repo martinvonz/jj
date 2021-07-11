@@ -14,11 +14,25 @@
 
 syntax = "proto3";
 
+message RefConflict {
+  repeated bytes removes = 1;
+  repeated bytes adds = 2;
+}
+
+message RefTarget {
+  oneof value {
+    bytes commit_id = 1;
+    RefConflict conflict = 2;
+  }
+}
+
 message GitRef {
   string name = 1;
-  // Always a commit id. Refs pointing to a non-commit object are not
-  // included.
+  // This field is just for historical reasons (before we had the RefTarget
+  // type). New GitRefs have (only) the target field.
+  // TODO: Delete support for the old format.
   bytes commit_id = 2;
+  RefTarget target = 3;
 }
 
 message View {

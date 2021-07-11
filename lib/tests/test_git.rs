@@ -19,6 +19,7 @@ use std::sync::Arc;
 use git2::Oid;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git::{GitFetchError, GitPushError};
+use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::CommitId;
@@ -84,19 +85,19 @@ fn test_import_refs() {
     assert_eq!(view.git_refs().len(), 4);
     assert_eq!(
         view.git_refs().get("refs/heads/main"),
-        Some(commit_id(&commit2)).as_ref()
+        Some(RefTarget::Normal(commit_id(&commit2))).as_ref()
     );
     assert_eq!(
         view.git_refs().get("refs/heads/feature1"),
-        Some(commit_id(&commit3)).as_ref()
+        Some(RefTarget::Normal(commit_id(&commit3))).as_ref()
     );
     assert_eq!(
         view.git_refs().get("refs/heads/feature2"),
-        Some(commit_id(&commit4)).as_ref()
+        Some(RefTarget::Normal(commit_id(&commit4))).as_ref()
     );
     assert_eq!(
         view.git_refs().get("refs/remotes/origin/main"),
-        Some(commit_id(&commit5)).as_ref()
+        Some(RefTarget::Normal(commit_id(&commit5))).as_ref()
     );
     tx.discard();
 }
@@ -144,11 +145,11 @@ fn test_import_refs_reimport() {
     assert_eq!(view.git_refs().len(), 2);
     assert_eq!(
         view.git_refs().get("refs/heads/main"),
-        Some(commit_id(&commit2)).as_ref()
+        Some(RefTarget::Normal(commit_id(&commit2))).as_ref()
     );
     assert_eq!(
         view.git_refs().get("refs/heads/feature2"),
-        Some(commit_id(&commit5)).as_ref()
+        Some(RefTarget::Normal(commit_id(&commit5))).as_ref()
     );
     tx.discard();
 }
@@ -235,11 +236,11 @@ fn test_import_refs_merge() {
     assert_eq!(git_refs.len(), 9);
     assert_eq!(
         git_refs.get("refs/heads/sideways-unchanged"),
-        Some(commit_id(&commit4)).as_ref()
+        Some(RefTarget::Normal(commit_id(&commit4))).as_ref()
     );
     assert_eq!(
         git_refs.get("refs/heads/unchanged-sideways"),
-        Some(commit_id(&commit4)).as_ref()
+        Some(RefTarget::Normal(commit_id(&commit4))).as_ref()
     );
     assert_eq!(git_refs.get("refs/heads/remove-unchanged"), None);
     assert_eq!(git_refs.get("refs/heads/unchanged-remove"), None);
@@ -248,22 +249,22 @@ fn test_import_refs_merge() {
     // let the later operation overwrite.)
     assert_eq!(
         git_refs.get("refs/heads/forward-forward"),
-        Some(commit_id(&commit3)).as_ref()
+        Some(RefTarget::Normal(commit_id(&commit3))).as_ref()
     );
     // TODO: The rest of these should be conflicts (however we decide to represent
     // that).
     assert_eq!(
         git_refs.get("refs/heads/sideways-sideways"),
-        Some(commit_id(&commit5)).as_ref()
+        Some(RefTarget::Normal(commit_id(&commit5))).as_ref()
     );
     assert_eq!(git_refs.get("refs/heads/forward-remove"), None);
     assert_eq!(
         git_refs.get("refs/heads/remove-forward"),
-        Some(commit_id(&commit2)).as_ref()
+        Some(RefTarget::Normal(commit_id(&commit2))).as_ref()
     );
     assert_eq!(
         git_refs.get("refs/heads/add-add"),
-        Some(commit_id(&commit4)).as_ref()
+        Some(RefTarget::Normal(commit_id(&commit4))).as_ref()
     );
 }
 

@@ -31,7 +31,7 @@ use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
 use crate::local_store::LocalStore;
 use crate::op_heads_store::OpHeadsStore;
-use crate::op_store::{OpStore, OperationId};
+use crate::op_store::{OpStore, OperationId, RefTarget};
 use crate::operation::Operation;
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_store::SimpleOpStore;
@@ -664,7 +664,17 @@ impl MutableRepo {
             .cloned()
             .collect();
         view.head_ids.extend(view.public_head_ids.iter().cloned());
-        view.head_ids.extend(view.git_refs.values().cloned());
+        for ref_target in view.git_refs.values() {
+            match ref_target {
+                RefTarget::Normal(id) => {
+                    view.head_ids.insert(id.clone());
+                }
+                RefTarget::Conflict { removes, adds } => {
+                    view.head_ids.extend(removes.iter().cloned());
+                    view.head_ids.extend(adds.iter().cloned());
+                }
+            }
+        }
         view.head_ids = self
             .index
             .heads(view.head_ids.iter())
@@ -731,8 +741,8 @@ impl MutableRepo {
         self.invalidate_evolution();
     }
 
-    pub fn insert_git_ref(&mut self, name: String, commit_id: CommitId) {
-        self.view.insert_git_ref(name, commit_id);
+    pub fn insert_git_ref(&mut self, name: String, target: RefTarget) {
+        self.view.insert_git_ref(name, target);
     }
 
     pub fn remove_git_ref(&mut self, name: &str) {
