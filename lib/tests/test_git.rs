@@ -18,12 +18,13 @@ use std::sync::Arc;
 use git2::Oid;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git::{GitFetchError, GitPushError};
-use jujutsu_lib::op_store::RefTarget;
+use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::CommitId;
+use jujutsu_lib::testutils::create_random_commit;
 use jujutsu_lib::{git, testutils};
-use maplit::hashset;
+use maplit::{btreemap, hashset};
 use tempfile::TempDir;
 
 fn empty_git_commit<'r>(
@@ -58,10 +59,11 @@ fn test_import_refs() {
     let git_repo = repo.store().git_repo().unwrap();
 
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    git_ref(&git_repo, "refs/remotes/origin/main", commit1.id());
     let commit2 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
     let commit3 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
     let commit4 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
-    let commit5 = empty_git_commit(&git_repo, "refs/remotes/origin/main", &[&commit2]);
+    let commit5 = empty_git_commit(&git_repo, "refs/tags/v1.0", &[&commit1]);
     // Should not be imported
     empty_git_commit(&git_repo, "refs/notes/x", &[&commit2]);
 
@@ -70,15 +72,49 @@ fn test_import_refs() {
     jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     let repo = tx.commit();
     let view = repo.view();
+
     let expected_heads = hashset! {
-            view.checkout().clone(),
-            commit_id(&commit3),
-            commit_id(&commit4),
-            commit_id(&commit5)
+        view.checkout().clone(),
+        commit_id(&commit3),
+        commit_id(&commit4),
+        commit_id(&commit5)
     };
     assert_eq!(*view.heads(), expected_heads);
-    assert_eq!(*view.public_heads(), hashset!(commit_id(&commit5)));
-    assert_eq!(view.git_refs().len(), 4);
+    assert_eq!(*view.public_heads(), hashset!(commit_id(&commit1)));
+
+    let expected_main_branch = BranchTarget {
+        local_target: Some(RefTarget::Normal(commit_id(&commit2))),
+        remote_targets: btreemap! {
+          "origin".to_string() => RefTarget::Normal(commit_id(&commit1)),
+        },
+    };
+    assert_eq!(
+        view.branches().get("main"),
+        Some(expected_main_branch).as_ref()
+    );
+    let expected_feature1_branch = BranchTarget {
+        local_target: Some(RefTarget::Normal(commit_id(&commit3))),
+        remote_targets: btreemap! {},
+    };
+    assert_eq!(
+        view.branches().get("feature1"),
+        Some(expected_feature1_branch).as_ref()
+    );
+    let expected_feature2_branch = BranchTarget {
+        local_target: Some(RefTarget::Normal(commit_id(&commit4))),
+        remote_targets: btreemap! {},
+    };
+    assert_eq!(
+        view.branches().get("feature2"),
+        Some(expected_feature2_branch).as_ref()
+    );
+
+    assert_eq!(
+        view.tags().get("v1.0"),
+        Some(RefTarget::Normal(commit_id(&commit5))).as_ref()
+    );
+
+    assert_eq!(view.git_refs().len(), 5);
     assert_eq!(
         view.git_refs().get("refs/heads/main"),
         Some(RefTarget::Normal(commit_id(&commit2))).as_ref()
@@ -93,6 +129,10 @@ fn test_import_refs() {
     );
     assert_eq!(
         view.git_refs().get("refs/remotes/origin/main"),
+        Some(RefTarget::Normal(commit_id(&commit1))).as_ref()
+    );
+    assert_eq!(
+        view.git_refs().get("refs/tags/v1.0"),
         Some(RefTarget::Normal(commit_id(&commit5))).as_ref()
     );
 }
@@ -104,6 +144,7 @@ fn test_import_refs_reimport() {
     let git_repo = repo.store().git_repo().unwrap();
 
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    git_ref(&git_repo, "refs/remotes/origin/main", commit1.id());
     let commit2 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
     let commit3 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
     let commit4 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
@@ -121,6 +162,17 @@ fn test_import_refs_reimport() {
     delete_git_ref(&git_repo, "refs/heads/feature2");
     let commit5 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
 
+    // Also modify feature2 on the jj side
+    let mut tx = repo.start_transaction("test");
+    let commit6 = create_random_commit(&settings, &repo)
+        .set_parents(vec![commit_id(&commit2)])
+        .write_to_repo(tx.mut_repo());
+    tx.mut_repo().set_local_branch(
+        "feature2".to_string(),
+        RefTarget::Normal(commit6.id().clone()),
+    );
+    let repo = tx.commit();
+
     let mut tx = repo.start_transaction("test");
     jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     let repo = tx.commit();
@@ -131,18 +183,56 @@ fn test_import_refs_reimport() {
             view.checkout().clone(),
             commit_id(&commit3),
             commit_id(&commit4),
-            commit_id(&commit5)
+            commit_id(&commit5),
+            commit6.id().clone(),
     };
     assert_eq!(*view.heads(), expected_heads);
-    assert_eq!(view.git_refs().len(), 2);
+
+    assert_eq!(view.branches().len(), 2);
+    let commit1_target = RefTarget::Normal(commit_id(&commit1));
+    let commit2_target = RefTarget::Normal(commit_id(&commit2));
+    let expected_main_branch = BranchTarget {
+        local_target: Some(RefTarget::Normal(commit_id(&commit2))),
+        remote_targets: btreemap! {
+          "origin".to_string() => commit1_target.clone(),
+        },
+    };
+    assert_eq!(
+        view.branches().get("main"),
+        Some(expected_main_branch).as_ref()
+    );
+    let expected_feature2_branch = BranchTarget {
+        local_target: Some(RefTarget::Conflict {
+            removes: vec![commit_id(&commit4)],
+            adds: vec![commit6.id().clone(), commit_id(&commit5)],
+        }),
+        remote_targets: btreemap! {},
+    };
+    assert_eq!(
+        view.branches().get("feature2"),
+        Some(expected_feature2_branch).as_ref()
+    );
+
+    assert!(view.tags().is_empty());
+
+    assert_eq!(view.git_refs().len(), 3);
     assert_eq!(
         view.git_refs().get("refs/heads/main"),
-        Some(RefTarget::Normal(commit_id(&commit2))).as_ref()
+        Some(commit2_target).as_ref()
     );
     assert_eq!(
-        view.git_refs().get("refs/heads/feature2"),
-        Some(RefTarget::Normal(commit_id(&commit5))).as_ref()
+        view.git_refs().get("refs/remotes/origin/main"),
+        Some(commit1_target).as_ref()
     );
+    let commit5_target = RefTarget::Normal(commit_id(&commit5));
+    assert_eq!(
+        view.git_refs().get("refs/heads/feature2"),
+        Some(commit5_target).as_ref()
+    );
+}
+
+fn git_ref(git_repo: &git2::Repository, name: &str, target: Oid) {
+    git_repo.reference(name, target, true, "").unwrap();
 }
 
 fn delete_git_ref(git_repo: &git2::Repository, name: &str) {
@@ -165,6 +255,8 @@ fn test_import_refs_empty_git_repo() {
     jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     let repo = tx.commit();
     assert_eq!(*repo.view().heads(), heads_before);
+    assert_eq!(repo.view().branches().len(), 0);
+    assert_eq!(repo.view().tags().len(), 0);
     assert_eq!(repo.view().git_refs().len(), 0);
 }
 

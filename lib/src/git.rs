@@ -12,18 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use itertools::Itertools;
+use std::collections::BTreeMap;
+
 use thiserror::Error;
 
 use crate::commit::Commit;
 use crate::op_store::RefTarget;
 use crate::repo::MutableRepo;
 use crate::store::CommitId;
+use crate::view::RefName;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GitImportError {
     #[error("Unexpected git error when importing refs: {0}")]
     InternalGitError(#[from] git2::Error),
+}
+
+fn parse_git_ref(ref_name: &str) -> Option<RefName> {
+    if let Some(branch_name) = ref_name.strip_prefix("refs/heads/") {
+        Some(RefName::LocalBranch(branch_name.to_string()))
+    } else if let Some(remote_and_branch) = ref_name.strip_prefix("refs/remotes/") {
+        remote_and_branch
+            .split_once("/")
+            .map(|(remote, branch)| RefName::RemoteBranch {
+                remote: remote.to_string(),
+                branch: branch.to_string(),
+            })
+    } else {
+        ref_name
+            .strip_prefix("refs/tags/")
+            .map(|tag_name| RefName::Tag(tag_name.to_string()))
+    }
 }
 
 // Reflect changes made in the underlying Git repo in the Jujutsu repo.
@@ -33,16 +52,8 @@ pub fn import_refs(
 ) -> Result<(), GitImportError> {
     let store = mut_repo.store().clone();
     let git_refs = git_repo.references()?;
-    let existing_git_refs = mut_repo.view().git_refs().keys().cloned().collect_vec();
-    // TODO: Store the id of the previous import and read it back here, so we can
-    // merge the views instead of overwriting.
-    for existing_git_ref in existing_git_refs {
-        mut_repo.remove_git_ref(&existing_git_ref);
-        // TODO: We should probably also remove heads pointing to the same
-        // commits and commits no longer reachable from other refs.
-        // If the underlying git repo has a branch that gets rewritten, we
-        // should probably not keep the commits it used to point to.
-    }
+    let mut existing_git_refs = mut_repo.view().git_refs().clone();
+    let mut changed_git_refs = BTreeMap::new();
     for git_ref in git_refs {
         let git_ref = git_ref?;
         if !(git_ref.is_tag() || git_ref.is_branch() || git_ref.is_remote())
@@ -62,11 +73,40 @@ pub fn import_refs(
         let id = CommitId(git_commit.id().as_bytes().to_vec());
         let commit = store.get_commit(&id).unwrap();
         mut_repo.add_head(&commit);
-        mut_repo.set_git_ref(git_ref.name().unwrap().to_string(), RefTarget::Normal(id));
         // For now, we consider all remotes "publishing".
         // TODO: Make it configurable which remotes are publishing.
         if git_ref.is_remote() {
             mut_repo.add_public_head(&commit);
+        }
+        let full_name = git_ref.name().unwrap().to_string();
+        mut_repo.set_git_ref(full_name.clone(), RefTarget::Normal(id.clone()));
+        let old_target = existing_git_refs.remove(&full_name);
+        let new_target = Some(RefTarget::Normal(id));
+        if new_target != old_target {
+            changed_git_refs.insert(full_name, (old_target, new_target));
+        }
+    }
+    for (full_name, target) in existing_git_refs {
+        mut_repo.remove_git_ref(&full_name);
+        // TODO: We should probably also remove heads pointing to the same
+        // commits and commits no longer reachable from other refs.
+        // If the underlying git repo has a branch that gets rewritten, we
+        // should probably not keep the commits it used to point to.
+        changed_git_refs.insert(full_name, (Some(target), None));
+    }
+    for (full_name, (old_git_target, new_git_target)) in changed_git_refs {
+        if let Some(ref_name) = parse_git_ref(&full_name) {
+            // Apply the change that happened in git since last time we imported refs
+            mut_repo.merge_single_ref(&ref_name, old_git_target.as_ref(), new_git_target.as_ref());
+            // If a git remote-tracking branch changed, apply the change to the local branch
+            // as well
+            if let RefName::RemoteBranch { branch, remote: _ } = ref_name {
+                mut_repo.merge_single_ref(
+                    &RefName::LocalBranch(branch),
+                    old_git_target.as_ref(),
+                    new_git_target.as_ref(),
+                );
+            }
         }
     }
     Ok(())
