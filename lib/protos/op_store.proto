@@ -26,6 +26,22 @@ message RefTarget {
   }
 }
 
+message RemoteBranch {
+  string remote_name = 1;
+  RefTarget target = 2;
+}
+
+message Branch {
+  string name = 1;
+  // Unset if the branch has been deleted locally.
+  RefTarget local_target = 2;
+  // TODO: How would we support renaming remotes while having undo work? If
+  // the remote name is stored in config, it's going to become a mess if the
+  // remote is renamed but the configs are left unchanged. Should each remote
+  // be identified (here and in configs) by a UUID?
+  repeated RemoteBranch remote_branches = 3;
+}
+
 message GitRef {
   string name = 1;
   // This field is just for historical reasons (before we had the RefTarget
@@ -35,10 +51,17 @@ message GitRef {
   RefTarget target = 3;
 }
 
+message Tag {
+  string name = 1;
+  RefTarget target = 2;
+}
+
 message View {
   repeated bytes head_ids = 1;
   repeated bytes public_head_ids = 4;
   bytes checkout = 2;
+  repeated Branch branches = 5;
+  repeated Tag tags = 6;
   // Only a subset of the refs. For example, does not include refs/notes/.
   repeated GitRef git_refs = 3;
 }

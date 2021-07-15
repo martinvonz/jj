@@ -87,6 +87,27 @@ impl RefTarget {
     }
 }
 
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct BranchTarget {
+    /// The commit the branch points to locally. `None` if the branch has been
+    /// deleted locally.
+    pub local_target: Option<RefTarget>,
+    // TODO: Do we need to support tombstones for remote branches? For example, if the branch
+    // has been deleted locally and you pull from a remote, maybe it should make a difference
+    // whether the branch is known to have existed on the remote. We may not want to resurrect
+    // the branch if the branch's state on the remote was just not known.
+    pub remote_targets: BTreeMap<String, RefTarget>,
+}
+
+impl Default for BranchTarget {
+    fn default() -> Self {
+        BranchTarget {
+            local_target: None,
+            remote_targets: Default::default(),
+        }
+    }
+}
+
 /// Represents the way the repo looks at a given time, just like how a Tree
 /// object represents how the file system looks at a given time.
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -95,6 +116,8 @@ pub struct View {
     pub head_ids: HashSet<CommitId>,
     /// Heads of the set of public commits.
     pub public_head_ids: HashSet<CommitId>,
+    pub branches: BTreeMap<String, BranchTarget>,
+    pub tags: BTreeMap<String, RefTarget>,
     pub git_refs: BTreeMap<String, RefTarget>,
     // The commit that *should be* checked out in the (default) working copy. Note that the
     // working copy (.jj/working_copy/) has the source of truth about which commit *is* checked out
@@ -108,6 +131,8 @@ impl View {
         Self {
             head_ids: HashSet::new(),
             public_head_ids: HashSet::new(),
+            branches: BTreeMap::new(),
+            tags: BTreeMap::new(),
             git_refs: BTreeMap::new(),
             checkout,
         }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::op_store::RefTarget;
+use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::CommitGraphBuilder;
 use maplit::{btreemap, hashset};
@@ -167,6 +167,151 @@ fn test_merge_views_checkout() {
     // We currently arbitrarily pick the first transaction's checkout (first by
     // transaction end time).
     assert_eq!(repo.view().checkout(), checkout_tx1.id());
+}
+
+#[test]
+fn test_merge_views_branches() {
+    // Tests merging of branches (by performing concurrent operations). See
+    // test_refs.rs for tests of merging of individual ref targets.
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let main_branch_local_tx0 =
+        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let main_branch_origin_tx0 =
+        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let main_branch_alternate_tx0 =
+        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    mut_repo.set_local_branch(
+        "main".to_string(),
+        RefTarget::Normal(main_branch_local_tx0.id().clone()),
+    );
+    mut_repo.set_remote_branch(
+        "main".to_string(),
+        "origin".to_string(),
+        RefTarget::Normal(main_branch_origin_tx0.id().clone()),
+    );
+    mut_repo.set_remote_branch(
+        "main".to_string(),
+        "alternate".to_string(),
+        RefTarget::Normal(main_branch_alternate_tx0.id().clone()),
+    );
+    let feature_branch_local_tx0 =
+        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    mut_repo.set_git_ref(
+        "feature".to_string(),
+        RefTarget::Normal(feature_branch_local_tx0.id().clone()),
+    );
+    let repo = tx.commit();
+
+    let mut tx1 = repo.start_transaction("test");
+    let main_branch_local_tx1 =
+        testutils::create_random_commit(&settings, &repo).write_to_repo(tx1.mut_repo());
+    let main_branch_origin_tx1 =
+        testutils::create_random_commit(&settings, &repo).write_to_repo(tx1.mut_repo());
+    tx1.mut_repo().set_local_branch(
+        "main".to_string(),
+        RefTarget::Normal(main_branch_local_tx1.id().clone()),
+    );
+    tx1.mut_repo().set_remote_branch(
+        "main".to_string(),
+        "origin".to_string(),
+        RefTarget::Normal(main_branch_origin_tx1.id().clone()),
+    );
+    let feature_branch_tx1 =
+        testutils::create_random_commit(&settings, &repo).write_to_repo(tx1.mut_repo());
+    tx1.mut_repo().set_local_branch(
+        "feature".to_string(),
+        RefTarget::Normal(feature_branch_tx1.id().clone()),
+    );
+    tx1.commit();
+
+    let mut tx2 = repo.start_transaction("test");
+    let main_branch_local_tx2 =
+        testutils::create_random_commit(&settings, &repo).write_to_repo(tx2.mut_repo());
+    tx2.mut_repo().set_local_branch(
+        "main".to_string(),
+        RefTarget::Normal(main_branch_local_tx2.id().clone()),
+    );
+    tx2.mut_repo().set_remote_branch(
+        "main".to_string(),
+        "origin".to_string(),
+        RefTarget::Normal(main_branch_origin_tx1.id().clone()),
+    );
+    tx2.commit();
+
+    let repo = repo.reload();
+    let expected_main_branch = BranchTarget {
+        local_target: Some(RefTarget::Conflict {
+            removes: vec![main_branch_local_tx0.id().clone()],
+            adds: vec![
+                main_branch_local_tx1.id().clone(),
+                main_branch_local_tx2.id().clone(),
+            ],
+        }),
+        remote_targets: btreemap! {
+            "origin".to_string() => RefTarget::Normal(main_branch_origin_tx1.id().clone()),
+            "alternate".to_string() => RefTarget::Normal(main_branch_alternate_tx0.id().clone()),
+        },
+    };
+    let expected_feature_branch = BranchTarget {
+        local_target: Some(RefTarget::Normal(feature_branch_tx1.id().clone())),
+        remote_targets: btreemap! {},
+    };
+    assert_eq!(
+        repo.view().branches(),
+        &btreemap! {
+            "main".to_string() => expected_main_branch,
+            "feature".to_string() => expected_feature_branch,
+        }
+    );
+}
+
+#[test]
+fn test_merge_views_tags() {
+    // Tests merging of tags (by performing concurrent operations). See
+    // test_refs.rs for tests of merging of individual ref targets.
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let v1_tx0 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    mut_repo.set_tag("v1.0".to_string(), RefTarget::Normal(v1_tx0.id().clone()));
+    let v2_tx0 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    mut_repo.set_tag("v2.0".to_string(), RefTarget::Normal(v2_tx0.id().clone()));
+    let repo = tx.commit();
+
+    let mut tx1 = repo.start_transaction("test");
+    let v1_tx1 = testutils::create_random_commit(&settings, &repo).write_to_repo(tx1.mut_repo());
+    tx1.mut_repo()
+        .set_tag("v1.0".to_string(), RefTarget::Normal(v1_tx1.id().clone()));
+    let v2_tx1 = testutils::create_random_commit(&settings, &repo).write_to_repo(tx1.mut_repo());
+    tx1.mut_repo()
+        .set_tag("v2.0".to_string(), RefTarget::Normal(v2_tx1.id().clone()));
+    tx1.commit();
+
+    let mut tx2 = repo.start_transaction("test");
+    let v1_tx2 = testutils::create_random_commit(&settings, &repo).write_to_repo(tx2.mut_repo());
+    tx2.mut_repo()
+        .set_tag("v1.0".to_string(), RefTarget::Normal(v1_tx2.id().clone()));
+    tx2.commit();
+
+    let repo = repo.reload();
+    let expected_v1 = RefTarget::Conflict {
+        removes: vec![v1_tx0.id().clone()],
+        adds: vec![v1_tx1.id().clone(), v1_tx2.id().clone()],
+    };
+    let expected_v2 = RefTarget::Normal(v2_tx1.id().clone());
+    assert_eq!(
+        repo.view().tags(),
+        &btreemap! {
+            "v1.0".to_string() => expected_v1,
+            "v2.0".to_string() => expected_v2,
+        }
+    );
 }
 
 #[test]

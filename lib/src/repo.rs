@@ -30,14 +30,14 @@ use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
 use crate::local_store::LocalStore;
 use crate::op_heads_store::OpHeadsStore;
-use crate::op_store::{OpStore, OperationId, RefTarget};
+use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget};
 use crate::operation::Operation;
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_store::SimpleOpStore;
 use crate::store::{CommitId, Store, StoreError};
 use crate::store_wrapper::StoreWrapper;
 use crate::transaction::Transaction;
-use crate::view::View;
+use crate::view::{RefName, View};
 use crate::working_copy::WorkingCopy;
 use crate::{conflicts, op_store, store};
 
@@ -659,16 +659,23 @@ impl MutableRepo {
             .cloned()
             .collect();
         view.head_ids.extend(view.public_head_ids.iter().cloned());
-        for ref_target in view.git_refs.values() {
-            match ref_target {
-                RefTarget::Normal(id) => {
-                    view.head_ids.insert(id.clone());
-                }
-                RefTarget::Conflict { removes, adds } => {
-                    view.head_ids.extend(removes.iter().cloned());
-                    view.head_ids.extend(adds.iter().cloned());
-                }
+        for branch_target in view.branches.values() {
+            if let Some(ref_target) = &branch_target.local_target {
+                view.head_ids.extend(ref_target.removes());
+                view.head_ids.extend(ref_target.adds());
             }
+            for ref_target in branch_target.remote_targets.values() {
+                view.head_ids.extend(ref_target.removes());
+                view.head_ids.extend(ref_target.adds());
+            }
+        }
+        for ref_target in view.tags.values() {
+            view.head_ids.extend(ref_target.removes());
+            view.head_ids.extend(ref_target.adds());
+        }
+        for ref_target in view.git_refs.values() {
+            view.head_ids.extend(ref_target.removes());
+            view.head_ids.extend(ref_target.adds());
         }
         view.head_ids = self
             .index
@@ -736,6 +743,50 @@ impl MutableRepo {
         self.invalidate_evolution();
     }
 
+    pub fn set_branch(&mut self, name: String, target: BranchTarget) {
+        self.view.set_branch(name, target);
+    }
+
+    pub fn remove_branch(&mut self, name: &str) {
+        self.view.remove_branch(name);
+    }
+
+    pub fn get_local_branch(&mut self, name: &str) -> Option<RefTarget> {
+        self.view.get_local_branch(name)
+    }
+
+    pub fn set_local_branch(&mut self, name: String, target: RefTarget) {
+        self.view.set_local_branch(name, target);
+    }
+
+    pub fn remove_local_branch(&mut self, name: &str) {
+        self.view.remove_local_branch(name);
+    }
+
+    pub fn get_remote_branch(&mut self, name: &str, remote_name: &str) -> Option<RefTarget> {
+        self.view.get_remote_branch(name, remote_name)
+    }
+
+    pub fn set_remote_branch(&mut self, name: String, remote_name: String, target: RefTarget) {
+        self.view.set_remote_branch(name, remote_name, target);
+    }
+
+    pub fn remove_remote_branch(&mut self, name: &str, remote_name: &str) {
+        self.view.remove_remote_branch(name, remote_name);
+    }
+
+    pub fn get_tag(&mut self, name: &str) -> Option<RefTarget> {
+        self.view.get_tag(name)
+    }
+
+    pub fn set_tag(&mut self, name: String, target: RefTarget) {
+        self.view.set_tag(name, target);
+    }
+
+    pub fn remove_tag(&mut self, name: &str) {
+        self.view.remove_tag(name);
+    }
+
     pub fn set_git_ref(&mut self, name: String, target: RefTarget) {
         self.view.set_git_ref(name, target);
     }
@@ -763,5 +814,19 @@ impl MutableRepo {
         self.enforce_view_invariants();
 
         self.invalidate_evolution();
+    }
+
+    pub fn merge_single_ref(
+        &mut self,
+        ref_name: &RefName,
+        base_target: Option<&RefTarget>,
+        other_target: Option<&RefTarget>,
+    ) {
+        self.view.merge_single_ref(
+            self.index.as_index_ref(),
+            ref_name,
+            base_target,
+            other_target,
+        );
     }
 }

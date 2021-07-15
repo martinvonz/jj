@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
@@ -25,8 +26,8 @@ use tempfile::{NamedTempFile, PersistError};
 
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
-    OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata, RefTarget,
-    View, ViewId,
+    BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
+    RefTarget, View, ViewId,
 };
 use crate::store::{CommitId, MillisSinceEpoch, Timestamp};
 
@@ -206,12 +207,36 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
     for head_id in &view.public_head_ids {
         proto.public_head_ids.push(head_id.0.clone());
     }
+
+    for (name, target) in &view.branches {
+        let mut branch_proto = crate::protos::op_store::Branch::new();
+        branch_proto.set_name(name.clone());
+        if let Some(local_target) = &target.local_target {
+            branch_proto.set_local_target(ref_target_to_proto(local_target));
+        }
+        for (remote_name, target) in &target.remote_targets {
+            let mut remote_branch_proto = crate::protos::op_store::RemoteBranch::new();
+            remote_branch_proto.set_remote_name(remote_name.clone());
+            remote_branch_proto.set_target(ref_target_to_proto(target));
+            branch_proto.remote_branches.push(remote_branch_proto);
+        }
+        proto.branches.push(branch_proto);
+    }
+
+    for (name, target) in &view.tags {
+        let mut tag_proto = crate::protos::op_store::Tag::new();
+        tag_proto.set_name(name.clone());
+        tag_proto.set_target(ref_target_to_proto(target));
+        proto.tags.push(tag_proto);
+    }
+
     for (git_ref_name, target) in &view.git_refs {
         let mut git_ref_proto = crate::protos::op_store::GitRef::new();
         git_ref_proto.set_name(git_ref_name.clone());
         git_ref_proto.set_target(ref_target_to_proto(target));
         proto.git_refs.push(git_ref_proto);
     }
+
     proto
 }
 
@@ -224,6 +249,37 @@ fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
         view.public_head_ids
             .insert(CommitId(head_id_bytes.to_vec()));
     }
+
+    for branch_proto in proto.branches.iter() {
+        let local_target = branch_proto
+            .local_target
+            .as_ref()
+            .map(|ref_target_proto| ref_target_from_proto(ref_target_proto));
+
+        let mut remote_targets = BTreeMap::new();
+        for remote_branch in branch_proto.remote_branches.iter() {
+            remote_targets.insert(
+                remote_branch.remote_name.clone(),
+                ref_target_from_proto(remote_branch.target.get_ref()),
+            );
+        }
+
+        view.branches.insert(
+            branch_proto.name.clone(),
+            BranchTarget {
+                local_target,
+                remote_targets,
+            },
+        );
+    }
+
+    for tag_proto in proto.tags.iter() {
+        view.tags.insert(
+            tag_proto.name.clone(),
+            ref_target_from_proto(tag_proto.target.get_ref()),
+        );
+    }
+
     for git_ref in proto.git_refs.iter() {
         if git_ref.has_target() {
             view.git_refs.insert(
@@ -238,6 +294,7 @@ fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
             );
         }
     }
+
     view
 }
 
@@ -296,6 +353,10 @@ mod tests {
         let head_id2 = CommitId(b"aaa222".to_vec());
         let public_head_id1 = CommitId(b"bbb444".to_vec());
         let public_head_id2 = CommitId(b"bbb555".to_vec());
+        let branch_main_local_target = RefTarget::Normal(CommitId(b"ccc111".to_vec()));
+        let branch_main_origin_target = RefTarget::Normal(CommitId(b"ccc222".to_vec()));
+        let branch_deleted_origin_target = RefTarget::Normal(CommitId(b"ccc333".to_vec()));
+        let tag_v1_target = RefTarget::Normal(CommitId(b"ddd111".to_vec()));
         let git_refs_main_target = RefTarget::Normal(CommitId(b"fff111".to_vec()));
         let git_refs_feature_target = RefTarget::Conflict {
             removes: vec![CommitId(b"fff111".to_vec())],
@@ -305,6 +366,23 @@ mod tests {
         let view = View {
             head_ids: hashset! {head_id1, head_id2},
             public_head_ids: hashset! {public_head_id1, public_head_id2},
+            branches: btreemap! {
+                "main".to_string() => BranchTarget {
+                    local_target: Some(branch_main_local_target),
+                    remote_targets: btreemap! {
+                        "origin".to_string() => branch_main_origin_target,
+                    }
+                },
+                "deleted".to_string() => BranchTarget {
+                    local_target: None,
+                    remote_targets: btreemap! {
+                        "origin".to_string() => branch_deleted_origin_target,
+                    }
+                },
+            },
+            tags: btreemap! {
+                "v1.0".to_string() => tag_v1_target,
+            },
             git_refs: btreemap! {
                 "refs/heads/main".to_string() => git_refs_main_target,
                 "refs/heads/feature".to_string() => git_refs_feature_target
