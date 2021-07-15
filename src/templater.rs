@@ -220,6 +220,58 @@ impl TemplateProperty<Commit, bool> for CurrentCheckoutProperty<'_> {
     }
 }
 
+pub struct BranchProperty<'a> {
+    pub repo: RepoRef<'a>,
+}
+
+impl TemplateProperty<Commit, String> for BranchProperty<'_> {
+    fn extract(&self, context: &Commit) -> String {
+        let mut names = vec![];
+        for (branch_name, branch_target) in self.repo.view().branches() {
+            let local_target = branch_target.local_target.as_ref();
+            if let Some(local_target) = local_target {
+                if local_target.has_add(context.id()) {
+                    if local_target.is_conflict() {
+                        names.push(format!("{}?", branch_name));
+                    } else {
+                        names.push(branch_name.clone());
+                    }
+                }
+            }
+            for (remote_name, remote_target) in &branch_target.remote_targets {
+                if Some(remote_target) != local_target && remote_target.has_add(context.id()) {
+                    if remote_target.is_conflict() {
+                        names.push(format!("{}@{}?", branch_name, remote_name));
+                    } else {
+                        names.push(format!("{}@{}", branch_name, remote_name));
+                    }
+                }
+            }
+        }
+        names.join(" ")
+    }
+}
+
+pub struct TagProperty<'a> {
+    pub repo: RepoRef<'a>,
+}
+
+impl TemplateProperty<Commit, String> for TagProperty<'_> {
+    fn extract(&self, context: &Commit) -> String {
+        let mut names = vec![];
+        for (tag_name, target) in self.repo.view().tags() {
+            if target.has_add(context.id()) {
+                if target.is_conflict() {
+                    names.push(format!("{}?", tag_name));
+                } else {
+                    names.push(tag_name.clone());
+                }
+            }
+        }
+        names.join(" ")
+    }
+}
+
 pub struct GitRefsProperty<'a> {
     pub repo: RepoRef<'a>,
 }

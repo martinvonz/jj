@@ -1270,7 +1270,8 @@ fn log_template(settings: &UserSettings) -> String {
             "change: " change_id "\n"
             "author: " author.name() " <" author.email() "> " author.timestamp() "\n"
             "committer: " committer.name() " <" committer.email() "> "  committer.timestamp() "\n"
-            "git refs: " git_refs "\n"
+            "branches: " branches "\n"
+            "tags: " tags "\n"
             "open: " open "\n"
             "pruned: " pruned "\n"
             "obsolete: " obsolete "\n"
@@ -1294,7 +1295,8 @@ fn graph_log_template(settings: &UserSettings) -> String {
             " " change_id.short()
             " " author.email()
             " " label("timestamp", author.timestamp())
-            " " git_refs
+            " " branches
+            " " tags
             if(pruned, label("pruned", " pruned"))
             if(obsolete, label("obsolete", " obsolete"))
             if(orphan, label("orphan", " orphan"))
