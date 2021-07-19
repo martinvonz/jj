@@ -763,7 +763,8 @@ impl MutableRepo {
         self.index.merge_in(base_repo.index());
         self.index.merge_in(other_repo.index());
 
-        self.view.merge(&base_repo.view, &other_repo.view);
+        self.view
+            .merge(self.index.as_index_ref(), &base_repo.view, &other_repo.view);
         self.enforce_view_invariants();
 
         self.invalidate_evolution();

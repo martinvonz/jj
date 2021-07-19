@@ -44,6 +44,7 @@ pub mod op_heads_store;
 pub mod op_store;
 pub mod operation;
 pub mod protos;
+pub mod refs;
 pub mod repo;
 pub mod repo_path;
 pub mod revset;

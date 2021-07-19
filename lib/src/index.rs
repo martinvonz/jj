@@ -41,7 +41,7 @@ impl IndexPosition {
     pub const MAX: Self = IndexPosition(u32::MAX);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum IndexRef<'a> {
     Readonly(&'a ReadonlyIndex),
     Mutable(&'a MutableIndex),
@@ -1468,6 +1468,10 @@ impl ReadonlyIndex {
             overflow_parent,
             overflow_predecessor,
         }))
+    }
+
+    pub fn as_index_ref(self: &ReadonlyIndex) -> IndexRef {
+        IndexRef::Readonly(self)
     }
 
     pub fn num_commits(&self) -> u32 {

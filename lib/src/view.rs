@@ -14,8 +14,10 @@
 
 use std::collections::{BTreeMap, HashSet};
 
+use crate::index::IndexRef;
 use crate::op_store;
 use crate::op_store::RefTarget;
+use crate::refs::merge_ref_targets;
 use crate::store::CommitId;
 
 pub struct View {
@@ -92,7 +94,7 @@ impl View {
         &mut self.data
     }
 
-    pub fn merge(&mut self, base: &View, other: &View) {
+    pub fn merge(&mut self, index: IndexRef, base: &View, other: &View) {
         if other.checkout() == base.checkout() || other.checkout() == self.checkout() {
             // Keep the self side
         } else if self.checkout() == base.checkout() {
@@ -120,29 +122,24 @@ impl View {
         // warning?
 
         // Merge git refs
-        let base_git_ref_names: HashSet<_> = base.git_refs().keys().clone().collect();
-        let other_git_ref_names: HashSet<_> = other.git_refs().keys().clone().collect();
-        for maybe_modified_git_ref_name in other_git_ref_names.intersection(&base_git_ref_names) {
-            let base_target = base.git_refs().get(*maybe_modified_git_ref_name).unwrap();
-            let other_target = other.git_refs().get(*maybe_modified_git_ref_name).unwrap();
+        let base_git_ref_names: HashSet<_> = base.git_refs().keys().cloned().collect();
+        let other_git_ref_names: HashSet<_> = other.git_refs().keys().cloned().collect();
+        for maybe_modified_git_ref_name in other_git_ref_names.union(&base_git_ref_names) {
+            let base_target = base.git_refs().get(maybe_modified_git_ref_name);
+            let other_target = other.git_refs().get(maybe_modified_git_ref_name);
             if base_target == other_target {
                 continue;
             }
-            // TODO: Handle modify/modify conflict (i.e. if self and base are different
-            // here)
-            self.insert_git_ref((*maybe_modified_git_ref_name).clone(), other_target.clone());
-        }
-        for added_git_ref_name in other_git_ref_names.difference(&base_git_ref_names) {
-            // TODO: Handle add/add conflict (i.e. if self also has the ref here)
-            self.insert_git_ref(
-                (*added_git_ref_name).clone(),
-                other.git_refs().get(*added_git_ref_name).unwrap().clone(),
-            );
-        }
-        for removed_git_ref_name in base_git_ref_names.difference(&other_git_ref_names) {
-            // TODO: Handle modify/remove conflict (i.e. if self and base are different
-            // here)
-            self.remove_git_ref(*removed_git_ref_name);
+            let self_target = self.git_refs().get(maybe_modified_git_ref_name);
+            let merged_target = merge_ref_targets(index, self_target, base_target, other_target);
+            match merged_target {
+                None => {
+                    self.remove_git_ref(maybe_modified_git_ref_name);
+                }
+                Some(target) => {
+                    self.insert_git_ref(maybe_modified_git_ref_name.clone(), target);
+                }
+            }
         }
     }
 }

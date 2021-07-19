@@ -76,6 +76,15 @@ impl RefTarget {
             RefTarget::Conflict { removes: _, adds } => adds.contains(needle),
         }
     }
+
+    pub fn removes(&self) -> Vec<CommitId> {
+        match self {
+            RefTarget::Normal(_) => {
+                vec![]
+            }
+            RefTarget::Conflict { removes, adds: _ } => removes.clone(),
+        }
+    }
 }
 
 /// Represents the way the repo looks at a given time, just like how a Tree

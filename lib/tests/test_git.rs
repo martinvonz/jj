@@ -168,64 +168,26 @@ fn test_import_refs_merge() {
     let (_temp_dir, repo) = testutils::init_repo(&settings, true);
     let git_repo = repo.store().git_repo().unwrap();
 
-    // Set up the following refs and update them as follows:
-    // sideways-unchanged: one operation rewrites the ref
-    // unchanged-sideways: the other operation rewrites the ref
-    // remove-unchanged: one operation removes the ref
-    // unchanged-remove: the other operation removes the ref
-    // forward-forward: two operations move forward by different amounts
-    // sideways-sideways: two operations rewrite the ref
-    // forward-remove: one operation moves forward, the other operation removes
-    // remove-forward: one operation removes, the other operation moves
-    // add-add: two operations add the ref with different target
-    //
-    // The above cases distinguish between refs moving forward and sideways (and
-    // there are no tests for refs moving backward) because we may want to treat
-    // the cases differently, although that's still unclear.
-    //
-    // TODO: Consider adding more systematic testing to cover
-    // all state transitions. For example, the above does not include a case
-    // where a ref is added on both sides and one is an ancestor of the other
-    // (we should probably resolve that in favor of the descendant).
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     let commit2 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
     let commit3 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit2]);
     let commit4 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
     let commit5 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
-    git_ref(&git_repo, "refs/heads/sideways-unchanged", commit3.id());
-    git_ref(&git_repo, "refs/heads/unchanged-sideways", commit3.id());
-    git_ref(&git_repo, "refs/heads/remove-unchanged", commit3.id());
-    git_ref(&git_repo, "refs/heads/unchanged-remove", commit3.id());
-    git_ref(&git_repo, "refs/heads/sideways-sideways", commit3.id());
-    git_ref(&git_repo, "refs/heads/forward-forward", commit1.id());
-    git_ref(&git_repo, "refs/heads/forward-remove", commit1.id());
-    git_ref(&git_repo, "refs/heads/remove-forward", commit1.id());
     let mut tx = repo.start_transaction("initial import");
-    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
+    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     let repo = tx.commit();
 
     // One of the concurrent operations:
-    git_ref(&git_repo, "refs/heads/sideways-unchanged", commit4.id());
-    delete_git_ref(&git_repo, "refs/heads/remove-unchanged");
-    git_ref(&git_repo, "refs/heads/sideways-sideways", commit4.id());
-    git_ref(&git_repo, "refs/heads/forward-forward", commit2.id());
-    git_ref(&git_repo, "refs/heads/forward-remove", commit2.id());
-    delete_git_ref(&git_repo, "refs/heads/remove-forward");
-    git_ref(&git_repo, "refs/heads/add-add", commit3.id());
+    delete_git_ref(&git_repo, "refs/heads/feature1");
+    git_ref(&git_repo, "refs/heads/main", commit4.id());
     let mut tx1 = repo.start_transaction("concurrent import 1");
-    jujutsu_lib::git::import_refs(tx1.mut_repo(), &git_repo).unwrap_or_default();
+    jujutsu_lib::git::import_refs(tx1.mut_repo(), &git_repo).unwrap();
     tx1.commit();
 
     // The other concurrent operation:
-    git_ref(&git_repo, "refs/heads/unchanged-sideways", commit4.id());
-    delete_git_ref(&git_repo, "refs/heads/unchanged-remove");
-    git_ref(&git_repo, "refs/heads/sideways-sideways", commit5.id());
-    git_ref(&git_repo, "refs/heads/forward-forward", commit3.id());
-    delete_git_ref(&git_repo, "refs/heads/forward-remove");
-    git_ref(&git_repo, "refs/heads/remove-forward", commit2.id());
-    git_ref(&git_repo, "refs/heads/add-add", commit4.id());
     let mut tx2 = repo.start_transaction("concurrent import 2");
-    jujutsu_lib::git::import_refs(tx2.mut_repo(), &git_repo).unwrap_or_default();
+    git_ref(&git_repo, "refs/heads/main", commit5.id());
+    jujutsu_lib::git::import_refs(tx2.mut_repo(), &git_repo).unwrap();
     tx2.commit();
 
     // Reload the repo, causing the operations to be merged.
@@ -233,39 +195,16 @@ fn test_import_refs_merge() {
 
     let view = repo.view();
     let git_refs = view.git_refs();
-    assert_eq!(git_refs.len(), 9);
+    assert_eq!(git_refs.len(), 2);
     assert_eq!(
-        git_refs.get("refs/heads/sideways-unchanged"),
-        Some(RefTarget::Normal(commit_id(&commit4))).as_ref()
+        git_refs.get("refs/heads/main"),
+        Some(RefTarget::Conflict {
+            removes: vec![commit_id(&commit3)],
+            adds: vec![commit_id(&commit4), commit_id(&commit5)]
+        })
+        .as_ref()
     );
-    assert_eq!(
-        git_refs.get("refs/heads/unchanged-sideways"),
-        Some(RefTarget::Normal(commit_id(&commit4))).as_ref()
-    );
-    assert_eq!(git_refs.get("refs/heads/remove-unchanged"), None);
-    assert_eq!(git_refs.get("refs/heads/unchanged-remove"), None);
-    // TODO: Perhaps we should automatically resolve this to the descendant-most
-    // commit? (We currently do get the descendant-most, but that's only because we
-    // let the later operation overwrite.)
-    assert_eq!(
-        git_refs.get("refs/heads/forward-forward"),
-        Some(RefTarget::Normal(commit_id(&commit3))).as_ref()
-    );
-    // TODO: The rest of these should be conflicts (however we decide to represent
-    // that).
-    assert_eq!(
-        git_refs.get("refs/heads/sideways-sideways"),
-        Some(RefTarget::Normal(commit_id(&commit5))).as_ref()
-    );
-    assert_eq!(git_refs.get("refs/heads/forward-remove"), None);
-    assert_eq!(
-        git_refs.get("refs/heads/remove-forward"),
-        Some(RefTarget::Normal(commit_id(&commit2))).as_ref()
-    );
-    assert_eq!(
-        git_refs.get("refs/heads/add-add"),
-        Some(RefTarget::Normal(commit_id(&commit4))).as_ref()
-    );
+    assert_eq!(git_refs.get("refs/heads/feature1"), None);
 }
 
 #[test]
