@@ -1536,11 +1536,16 @@ fn cmd_describe(
     } else {
         description = edit_description(repo, commit.description());
     }
-    let mut tx = repo_command.start_transaction(&format!("describe commit {}", commit.id().hex()));
-    CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
-        .set_description(description)
-        .write_to_repo(tx.mut_repo());
-    repo_command.finish_transaction(ui, tx)?;
+    if description == *commit.description() {
+        ui.write("Nothing changed.\n")?;
+    } else {
+        let mut tx =
+            repo_command.start_transaction(&format!("describe commit {}", commit.id().hex()));
+        CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
+            .set_description(description)
+            .write_to_repo(tx.mut_repo());
+        repo_command.finish_transaction(ui, tx)?;
+    }
     Ok(())
 }
 
