@@ -14,6 +14,8 @@
 
 #![feature(assert_matches)]
 
+use std::assert_matches::assert_matches;
+
 use itertools::Itertools;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
