@@ -42,14 +42,16 @@ use jujutsu_lib::git::GitFetchError;
 use jujutsu_lib::index::HexPrefix;
 use jujutsu_lib::matchers::{EverythingMatcher, FilesMatcher, Matcher};
 use jujutsu_lib::op_heads_store::OpHeadsStore;
-use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId};
+use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget};
 use jujutsu_lib::operation::Operation;
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoInitError, RepoLoadError, RepoLoader};
+use jujutsu_lib::repo::{
+    MutableRepo, ReadonlyRepo, RepoInitError, RepoLoadError, RepoLoader, RepoRef,
+};
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
 use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::store::{StoreError, Timestamp, TreeValue};
+use jujutsu_lib::store::{CommitId, StoreError, Timestamp, TreeValue};
 use jujutsu_lib::store_wrapper::StoreWrapper;
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::{Diff, DiffSummary};
@@ -724,6 +726,12 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .default_value("@")
                 .multiple(true),
         );
+    let branch_command = SubCommand::with_name("branch")
+        .about("Update or delete branch")
+        .arg(rev_arg())
+        .arg(Arg::with_name("allow-backwards").long("allow-backwards"))
+        .arg(Arg::with_name("delete"))
+        .arg(Arg::with_name("name").index(1));
     let evolve_command =
         SubCommand::with_name("evolve").about("Resolve problems with the repo's meta-history");
     let operation_command = SubCommand::with_name("operation")
@@ -880,6 +888,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .subcommand(merge_command)
         .subcommand(rebase_command)
         .subcommand(backout_command)
+        .subcommand(branch_command)
         .subcommand(evolve_command)
         .subcommand(operation_command)
         .subcommand(git_command)
@@ -2050,6 +2059,64 @@ fn cmd_backout(
     Ok(())
 }
 
+fn is_fast_forward(repo: RepoRef, branch_name: &str, new_target_id: &CommitId) -> bool {
+    if let Some(current_target) = repo.view().get_local_branch(branch_name) {
+        if current_target
+            .adds()
+            .iter()
+            .any(|add| repo.index().is_ancestor(add, new_target_id))
+        {
+            return true;
+        }
+    }
+    false
+}
+
+fn cmd_branch(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    sub_matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    let mut repo_command = command.repo_helper(ui)?;
+    if let Some(branch_name) = sub_matches.value_of("name") {
+        if sub_matches.is_present("delete") {
+            let mut tx = repo_command.start_transaction(&format!("delete branch {}", branch_name));
+            tx.mut_repo().remove_local_branch(branch_name);
+            repo_command.finish_transaction(ui, tx)?;
+        } else {
+            let target_commit = repo_command.resolve_revision_arg(sub_matches)?;
+            if !sub_matches.is_present("allow-backwards")
+                && !is_fast_forward(
+                    repo_command.repo().as_repo_ref(),
+                    branch_name,
+                    target_commit.id(),
+                )
+            {
+                return Err(CommandError::UserError(
+                    "Use --allow-backwards to allow moving a branch backwards or sideways"
+                        .to_string(),
+                ));
+            }
+            let mut tx = repo_command.start_transaction(&format!(
+                "point branch {} to commit {}",
+                branch_name,
+                target_commit.id().hex()
+            ));
+            tx.mut_repo().set_local_branch(
+                branch_name.to_string(),
+                RefTarget::Normal(target_commit.id().clone()),
+            );
+            repo_command.finish_transaction(ui, tx)?;
+        }
+    } else {
+        return Err(CommandError::UserError(
+            "No branch name specified".to_string(),
+        ));
+    }
+
+    Ok(())
+}
+
 fn cmd_evolve<'s>(
     ui: &mut Ui<'s>,
     command: &CommandHelper,
@@ -2616,6 +2683,8 @@ where
         cmd_rebase(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("backout") {
         cmd_backout(&mut ui, &command_helper, sub_matches)
+    } else if let Some(sub_matches) = matches.subcommand_matches("branch") {
+        cmd_branch(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("evolve") {
         cmd_evolve(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("operation") {
