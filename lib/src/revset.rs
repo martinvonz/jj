@@ -51,6 +51,24 @@ fn resolve_git_ref(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetE
     Err(RevsetError::NoSuchRevision(symbol.to_owned()))
 }
 
+fn resolve_branch(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetError> {
+    if let Some(branch_target) = repo.view().branches().get(symbol) {
+        return Ok(branch_target
+            .local_target
+            .as_ref()
+            .map(|target| target.adds())
+            .unwrap_or_default());
+    }
+    if let Some((name, remote_name)) = symbol.split_once("@") {
+        if let Some(branch_target) = repo.view().branches().get(name) {
+            if let Some(target) = branch_target.remote_targets.get(remote_name) {
+                return Ok(target.adds());
+            }
+        }
+    }
+    Err(RevsetError::NoSuchRevision(symbol.to_owned()))
+}
+
 fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetError> {
     // First check if it's a full commit id.
     if let Ok(binary_commit_id) = hex::decode(symbol) {
@@ -105,6 +123,17 @@ pub fn resolve_symbol(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, Revs
     } else if symbol == "root" {
         Ok(vec![repo.store().root_commit_id().clone()])
     } else {
+        // Try to resolve as a tag
+        if let Some(target) = repo.view().tags().get(symbol) {
+            return Ok(target.adds());
+        }
+
+        // Try to resolve as a branch
+        let branch_result = resolve_branch(repo, symbol);
+        if !matches!(branch_result, Err(RevsetError::NoSuchRevision(_))) {
+            return branch_result;
+        }
+
         // Try to resolve as a git ref
         let git_ref_result = resolve_git_ref(repo, symbol);
         if !matches!(git_ref_result, Err(RevsetError::NoSuchRevision(_))) {
