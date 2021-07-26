@@ -732,6 +732,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("allow-backwards").long("allow-backwards"))
         .arg(Arg::with_name("delete"))
         .arg(Arg::with_name("name").index(1));
+    let branches_command = SubCommand::with_name("branches").about("List branches");
     let evolve_command =
         SubCommand::with_name("evolve").about("Resolve problems with the repo's meta-history");
     let operation_command = SubCommand::with_name("operation")
@@ -889,6 +890,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .subcommand(rebase_command)
         .subcommand(backout_command)
         .subcommand(branch_command)
+        .subcommand(branches_command)
         .subcommand(evolve_command)
         .subcommand(operation_command)
         .subcommand(git_command)
@@ -2117,6 +2119,51 @@ fn cmd_branch(
     Ok(())
 }
 
+fn cmd_branches(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _sub_matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    let repo_command = command.repo_helper(ui)?;
+    let repo = repo_command.repo();
+    for (name, branch_target) in repo.view().branches() {
+        if let Some(local_target) = &branch_target.local_target {
+            match local_target {
+                RefTarget::Normal(id) => {
+                    write!(ui, "{}: ", name)?;
+                    let commit = repo.store().get_commit(id)?;
+                    ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
+                    writeln!(ui)?;
+                }
+                RefTarget::Conflict { adds, removes } => {
+                    writeln!(ui, "{} (conflicted):", name)?;
+                    for id in removes {
+                        let commit = repo.store().get_commit(id)?;
+                        write!(ui, "  - ")?;
+                        ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
+                        writeln!(ui)?;
+                    }
+                    for id in adds {
+                        let commit = repo.store().get_commit(id)?;
+                        write!(ui, "  + ")?;
+                        ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
+                        writeln!(ui)?;
+                    }
+                }
+            }
+        } else {
+            writeln!(ui, "{} (deleted)", name)?;
+        }
+
+        // TODO: Display information about remote branches, but probably only
+        // those that have different targets than the local branch.
+        // Maybe indicate how much the remotes are ahead/behind/
+        // diverged.
+    }
+
+    Ok(())
+}
+
 fn cmd_evolve<'s>(
     ui: &mut Ui<'s>,
     command: &CommandHelper,
@@ -2685,6 +2732,8 @@ where
         cmd_backout(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("branch") {
         cmd_branch(&mut ui, &command_helper, sub_matches)
+    } else if let Some(sub_matches) = matches.subcommand_matches("branches") {
+        cmd_branches(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("evolve") {
         cmd_evolve(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("operation") {
