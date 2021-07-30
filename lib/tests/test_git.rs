@@ -68,10 +68,10 @@ fn test_import_refs() {
 
     let git_repo = repo.store().git_repo().unwrap();
     let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
     let heads_before: HashSet<_> = repo.view().heads().clone();
-    jujutsu_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
-    let view = mut_repo.view();
+    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    let repo = tx.commit();
+    let view = repo.view();
     let expected_heads: HashSet<_> = heads_before
         .union(&hashset!(
             commit_id(&commit3),
@@ -99,7 +99,6 @@ fn test_import_refs() {
         view.git_refs().get("refs/remotes/origin/main"),
         Some(RefTarget::Normal(commit_id(&commit5))).as_ref()
     );
-    tx.discard();
 }
 
 #[test]
@@ -119,7 +118,7 @@ fn test_import_refs_reimport() {
 
     let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
-    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap_or_default();
+    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     let repo = tx.commit();
 
     // Delete feature1 and rewrite feature2
@@ -128,10 +127,10 @@ fn test_import_refs_reimport() {
     let commit5 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
 
     let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
-    jujutsu_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
+    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    let repo = tx.commit();
 
-    let view = mut_repo.view();
+    let view = repo.view();
     // TODO: commit3 and commit4 should probably be removed
     let expected_heads: HashSet<_> = heads_before
         .union(&hashset!(
@@ -151,7 +150,6 @@ fn test_import_refs_reimport() {
         view.git_refs().get("refs/heads/feature2"),
         Some(RefTarget::Normal(commit_id(&commit5))).as_ref()
     );
-    tx.discard();
 }
 
 fn git_ref(git_repo: &git2::Repository, name: &str, target: Oid) {
@@ -220,11 +218,10 @@ fn test_import_refs_empty_git_repo() {
     let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir).unwrap();
     let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
-    jujutsu_lib::git::import_refs(mut_repo, &git_repo).unwrap_or_default();
-    assert_eq!(*mut_repo.view().heads(), heads_before);
-    assert_eq!(mut_repo.view().git_refs().len(), 0);
-    tx.discard();
+    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    let repo = tx.commit();
+    assert_eq!(*repo.view().heads(), heads_before);
+    assert_eq!(repo.view().git_refs().len(), 0);
 }
 
 #[test]
@@ -266,11 +263,9 @@ fn test_fetch_success() {
 
     // The new commit is visible after git::fetch().
     let mut tx = jj_repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
-    git::fetch(mut_repo, &clone_git_repo, "origin").unwrap();
-    assert!(mut_repo.heads().contains(&commit_id(&new_git_commit)));
-
-    tx.discard();
+    git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
+    let repo = tx.commit();
+    assert!(repo.view().heads().contains(&commit_id(&new_git_commit)));
 }
 
 #[test]
@@ -286,7 +281,6 @@ fn test_fetch_no_such_remote() {
     let mut tx = jj_repo.start_transaction("test");
     let result = git::fetch(tx.mut_repo(), &git_repo, "invalid-remote");
     assert!(matches!(result, Err(GitFetchError::NoSuchRemote(_))));
-
     tx.discard();
 }
 

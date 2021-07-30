@@ -42,17 +42,17 @@ fn test_heads_fork(use_git: bool) {
     let initial = graph_builder.initial_commit();
     let child1 = graph_builder.commit_with_parents(&[&initial]);
     let child2 = graph_builder.commit_with_parents(&[&initial]);
+    let repo = tx.commit();
 
     let wc = repo.working_copy_locked();
     assert_eq!(
-        *tx.mut_repo().view().heads(),
+        *repo.view().heads(),
         hashset! {
             wc.current_commit_id(),
             child1.id().clone(),
             child2.id().clone(),
         }
     );
-    tx.discard();
 }
 
 #[test_case(false ; "local store")]
@@ -67,11 +67,11 @@ fn test_heads_merge(use_git: bool) {
     let child1 = graph_builder.commit_with_parents(&[&initial]);
     let child2 = graph_builder.commit_with_parents(&[&initial]);
     let merge = graph_builder.commit_with_parents(&[&child1, &child2]);
+    let repo = tx.commit();
 
     let wc = repo.working_copy_locked();
     assert_eq!(
-        *tx.mut_repo().view().heads(),
+        *repo.view().heads(),
         hashset! {wc.current_commit_id(), merge.id().clone()}
     );
-    tx.discard();
 }

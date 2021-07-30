@@ -63,6 +63,7 @@ fn test_resolve_symbol_commit_id() {
         .write_to_repo(mut_repo);
         commits.push(commit);
     }
+    let repo = tx.commit();
 
     // Test the test setup
     assert_eq!(
@@ -79,7 +80,7 @@ fn test_resolve_symbol_commit_id() {
     );
 
     // Test lookup by full commit id
-    let repo_ref = mut_repo.as_repo_ref();
+    let repo_ref = repo.as_repo_ref();
     assert_eq!(
         resolve_symbol(repo_ref, "0454de3cae04c46cda37ba2e8873b4c17ff51dcb"),
         Ok(vec![commits[0].id().clone()])
@@ -116,8 +117,6 @@ fn test_resolve_symbol_commit_id() {
         resolve_symbol(repo_ref, "foo"),
         Err(RevsetError::NoSuchRevision("foo".to_string()))
     );
-
-    tx.discard();
 }
 
 #[test]

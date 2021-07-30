@@ -25,8 +25,6 @@ use test_case::test_case;
 fn test_graph_iterator_linearized(skip_transitive_edges: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, true);
-    let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
 
     // Tests that a fork and a merge becomes a single edge:
     // D
@@ -36,31 +34,31 @@ fn test_graph_iterator_linearized(skip_transitive_edges: bool) {
     // A         ~
     // |
     // root
-    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_d = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
-    let pos_root = mut_repo
+    let repo = tx.commit();
+
+    let pos_root = repo
         .index()
         .commit_id_to_pos(repo.store().root_commit_id())
         .unwrap();
-    let pos_a = mut_repo.index().commit_id_to_pos(commit_a.id()).unwrap();
+    let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
 
-    let revset = revset_for_commits(mut_repo.as_repo_ref(), &[&commit_a, &commit_d]);
+    let revset = revset_for_commits(repo.as_repo_ref(), &[&commit_a, &commit_d]);
     let commits = revset
         .iter()
         .graph()
         .set_skip_transitive_edges(skip_transitive_edges)
         .collect_vec();
-    drop(revset);
     assert_eq!(commits.len(), 2);
     assert_eq!(commits[0].0.commit_id(), *commit_d.id());
     assert_eq!(commits[1].0.commit_id(), *commit_a.id());
     assert_eq!(commits[0].1, hashset![RevsetGraphEdge::indirect(pos_a)]);
     assert_eq!(commits[1].1, hashset![RevsetGraphEdge::missing(pos_root)]);
-
-    tx.discard();
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -68,8 +66,6 @@ fn test_graph_iterator_linearized(skip_transitive_edges: bool) {
 fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, true);
-    let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
 
     // Tests that merges outside the set can result in more parent edges than there
     // was in the input: F
@@ -79,23 +75,26 @@ fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
     // A B C        A B C
     //  \|/         ~ ~ ~
     //  root
-    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.initial_commit();
     let commit_c = graph_builder.initial_commit();
     let commit_d = graph_builder.commit_with_parents(&[&commit_a, &commit_b]);
     let commit_e = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_d, &commit_e]);
-    let pos_root = mut_repo
+    let repo = tx.commit();
+
+    let pos_root = repo
         .index()
         .commit_id_to_pos(repo.store().root_commit_id())
         .unwrap();
-    let pos_a = mut_repo.index().commit_id_to_pos(commit_a.id()).unwrap();
-    let pos_b = mut_repo.index().commit_id_to_pos(commit_b.id()).unwrap();
-    let pos_c = mut_repo.index().commit_id_to_pos(commit_c.id()).unwrap();
+    let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
+    let pos_b = repo.index().commit_id_to_pos(commit_b.id()).unwrap();
+    let pos_c = repo.index().commit_id_to_pos(commit_c.id()).unwrap();
 
     let revset = revset_for_commits(
-        mut_repo.as_repo_ref(),
+        repo.as_repo_ref(),
         &[&commit_a, &commit_b, &commit_c, &commit_f],
     );
     let commits = revset
@@ -103,7 +102,6 @@ fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
         .graph()
         .set_skip_transitive_edges(skip_transitive_edges)
         .collect_vec();
-    drop(revset);
     assert_eq!(commits.len(), 4);
     assert_eq!(commits[0].0.commit_id(), *commit_f.id());
     assert_eq!(commits[1].0.commit_id(), *commit_c.id());
@@ -120,8 +118,6 @@ fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
     assert_eq!(commits[1].1, hashset![RevsetGraphEdge::missing(pos_root)]);
     assert_eq!(commits[2].1, hashset![RevsetGraphEdge::missing(pos_root)]);
     assert_eq!(commits[3].1, hashset![RevsetGraphEdge::missing(pos_root)]);
-
-    tx.discard();
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -129,8 +125,6 @@ fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
 fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, true);
-    let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
 
     // Tests that the branch with "C" gets emitted correctly:
     // E
@@ -143,25 +137,27 @@ fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
     // A
     // |
     // root
-    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
     let commit_d = graph_builder.commit_with_parents(&[&commit_b]);
     let commit_e = graph_builder.commit_with_parents(&[&commit_d]);
-    let pos_root = mut_repo
+    let repo = tx.commit();
+
+    let pos_root = repo
         .index()
         .commit_id_to_pos(repo.store().root_commit_id())
         .unwrap();
-    let pos_a = mut_repo.index().commit_id_to_pos(commit_a.id()).unwrap();
+    let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
 
-    let revset = revset_for_commits(mut_repo.as_repo_ref(), &[&commit_a, &commit_c, &commit_e]);
+    let revset = revset_for_commits(repo.as_repo_ref(), &[&commit_a, &commit_c, &commit_e]);
     let commits = revset
         .iter()
         .graph()
         .set_skip_transitive_edges(skip_transitive_edges)
         .collect_vec();
-    drop(revset);
     assert_eq!(commits.len(), 3);
     assert_eq!(commits[0].0.commit_id(), *commit_e.id());
     assert_eq!(commits[1].0.commit_id(), *commit_c.id());
@@ -169,8 +165,6 @@ fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
     assert_eq!(commits[0].1, hashset![RevsetGraphEdge::indirect(pos_a)]);
     assert_eq!(commits[1].1, hashset![RevsetGraphEdge::indirect(pos_a)]);
     assert_eq!(commits[2].1, hashset![RevsetGraphEdge::missing(pos_root)]);
-
-    tx.discard();
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -178,8 +172,6 @@ fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
 fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, true);
-    let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
 
     // Tests that we get missing edges to "a" and "c" and not just one missing edge
     // to the root.
@@ -190,28 +182,30 @@ fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
     // a B c       ~
     //  \|/
     //  root
-    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.initial_commit();
     let commit_c = graph_builder.initial_commit();
     let commit_d = graph_builder.commit_with_parents(&[&commit_a, &commit_b]);
     let commit_e = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_d, &commit_e]);
-    let pos_root = mut_repo
+    let repo = tx.commit();
+
+    let pos_root = repo
         .index()
         .commit_id_to_pos(repo.store().root_commit_id())
         .unwrap();
-    let pos_a = mut_repo.index().commit_id_to_pos(commit_a.id()).unwrap();
-    let pos_b = mut_repo.index().commit_id_to_pos(commit_b.id()).unwrap();
-    let pos_c = mut_repo.index().commit_id_to_pos(commit_c.id()).unwrap();
+    let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
+    let pos_b = repo.index().commit_id_to_pos(commit_b.id()).unwrap();
+    let pos_c = repo.index().commit_id_to_pos(commit_c.id()).unwrap();
 
-    let revset = revset_for_commits(mut_repo.as_repo_ref(), &[&commit_b, &commit_f]);
+    let revset = revset_for_commits(repo.as_repo_ref(), &[&commit_b, &commit_f]);
     let commits = revset
         .iter()
         .graph()
         .set_skip_transitive_edges(skip_transitive_edges)
         .collect_vec();
-    drop(revset);
     assert_eq!(commits.len(), 2);
     assert_eq!(commits[0].0.commit_id(), *commit_f.id());
     assert_eq!(commits[1].0.commit_id(), *commit_b.id());
@@ -224,8 +218,6 @@ fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
         ]
     );
     assert_eq!(commits[1].1, hashset![RevsetGraphEdge::missing(pos_root)]);
-
-    tx.discard();
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -233,8 +225,6 @@ fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
 fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, true);
-    let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
 
     // Tests that we get both an edge from F to D and to D's ancestor C if we keep
     // transitive edges and only the edge from F to D if we skip transitive
@@ -248,25 +238,27 @@ fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
     //   a
     //   |
     //  root
-    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.initial_commit();
     let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_d = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
     let commit_e = graph_builder.commit_with_parents(&[&commit_c]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_d, &commit_e]);
-    let pos_a = mut_repo.index().commit_id_to_pos(commit_a.id()).unwrap();
-    let pos_b = mut_repo.index().commit_id_to_pos(commit_b.id()).unwrap();
-    let pos_c = mut_repo.index().commit_id_to_pos(commit_c.id()).unwrap();
-    let pos_d = mut_repo.index().commit_id_to_pos(commit_d.id()).unwrap();
+    let repo = tx.commit();
 
-    let revset = revset_for_commits(mut_repo.as_repo_ref(), &[&commit_c, &commit_d, &commit_f]);
+    let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
+    let pos_b = repo.index().commit_id_to_pos(commit_b.id()).unwrap();
+    let pos_c = repo.index().commit_id_to_pos(commit_c.id()).unwrap();
+    let pos_d = repo.index().commit_id_to_pos(commit_d.id()).unwrap();
+
+    let revset = revset_for_commits(repo.as_repo_ref(), &[&commit_c, &commit_d, &commit_f]);
     let commits = revset
         .iter()
         .graph()
         .set_skip_transitive_edges(skip_transitive_edges)
         .collect_vec();
-    drop(revset);
     assert_eq!(commits.len(), 3);
     assert_eq!(commits[0].0.commit_id(), *commit_f.id());
     assert_eq!(commits[1].0.commit_id(), *commit_d.id());
@@ -290,8 +282,6 @@ fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
         ]
     );
     assert_eq!(commits[2].1, hashset![RevsetGraphEdge::missing(pos_a)]);
-
-    tx.discard();
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -299,8 +289,6 @@ fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
 fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, true);
-    let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
 
     // Tests a more complex case for skipping transitive edges.
     //   J
@@ -318,7 +306,8 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
     //   A
     //   |
     //  root
-    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
@@ -329,17 +318,19 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
     let commit_h = graph_builder.commit_with_parents(&[&commit_f]);
     let commit_i = graph_builder.commit_with_parents(&[&commit_e, &commit_h]);
     let commit_j = graph_builder.commit_with_parents(&[&commit_g, &commit_i]);
-    let pos_root = mut_repo
+    let repo = tx.commit();
+
+    let pos_root = repo
         .index()
         .commit_id_to_pos(repo.store().root_commit_id())
         .unwrap();
-    let pos_a = mut_repo.index().commit_id_to_pos(commit_a.id()).unwrap();
-    let pos_d = mut_repo.index().commit_id_to_pos(commit_d.id()).unwrap();
-    let pos_g = mut_repo.index().commit_id_to_pos(commit_g.id()).unwrap();
-    let pos_h = mut_repo.index().commit_id_to_pos(commit_h.id()).unwrap();
+    let pos_a = repo.index().commit_id_to_pos(commit_a.id()).unwrap();
+    let pos_d = repo.index().commit_id_to_pos(commit_d.id()).unwrap();
+    let pos_g = repo.index().commit_id_to_pos(commit_g.id()).unwrap();
+    let pos_h = repo.index().commit_id_to_pos(commit_h.id()).unwrap();
 
     let revset = revset_for_commits(
-        mut_repo.as_repo_ref(),
+        repo.as_repo_ref(),
         &[&commit_a, &commit_d, &commit_g, &commit_h, &commit_j],
     );
     let commits = revset
@@ -347,7 +338,6 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
         .graph()
         .set_skip_transitive_edges(skip_transitive_edges)
         .collect_vec();
-    drop(revset);
     assert_eq!(commits.len(), 5);
     assert_eq!(commits[0].0.commit_id(), *commit_j.id());
     assert_eq!(commits[1].0.commit_id(), *commit_h.id());
@@ -383,6 +373,4 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
     assert_eq!(commits[2].1, hashset![RevsetGraphEdge::indirect(pos_a)]);
     assert_eq!(commits[3].1, hashset![RevsetGraphEdge::indirect(pos_a)]);
     assert_eq!(commits[4].1, hashset![RevsetGraphEdge::missing(pos_root)]);
-
-    tx.discard();
 }
