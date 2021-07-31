@@ -281,3 +281,71 @@ fn ref_target_from_proto(proto: &crate::protos::op_store::RefTarget) -> RefTarge
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use tempfile::TempDir;
+
+    use super::*;
+
+    #[test]
+    fn test_read_write_view() {
+        let temp_dir = TempDir::new().unwrap();
+        let store = SimpleOpStore::init(temp_dir.path().to_owned());
+        let head_id1 = CommitId(b"aaa111".to_vec());
+        let head_id2 = CommitId(b"aaa222".to_vec());
+        let public_head_id1 = CommitId(b"bbb444".to_vec());
+        let public_head_id2 = CommitId(b"bbb555".to_vec());
+        let git_refs_main_target = RefTarget::Normal(CommitId(b"fff111".to_vec()));
+        let git_refs_feature_target = RefTarget::Conflict {
+            removes: vec![CommitId(b"fff111".to_vec())],
+            adds: vec![CommitId(b"fff222".to_vec()), CommitId(b"fff333".to_vec())],
+        };
+        let checkout_id = CommitId(b"abc111".to_vec());
+        let view = View {
+            head_ids: hashset! {head_id1, head_id2},
+            public_head_ids: hashset! {public_head_id1, public_head_id2},
+            git_refs: btreemap! {
+                "refs/heads/main".to_string() => git_refs_main_target,
+                "refs/heads/feature".to_string() => git_refs_feature_target
+            },
+            checkout: checkout_id,
+        };
+        let view_id = store.write_view(&view).unwrap();
+        let read_view = store.read_view(&view_id).unwrap();
+        assert_eq!(read_view, view);
+    }
+
+    #[test]
+    fn test_read_write_operation() {
+        let temp_dir = TempDir::new().unwrap();
+        let store = SimpleOpStore::init(temp_dir.path().to_owned());
+        let operation = Operation {
+            view_id: ViewId(b"aaa111".to_vec()),
+            parents: vec![
+                OperationId(b"bbb111".to_vec()),
+                OperationId(b"bbb222".to_vec()),
+            ],
+            metadata: OperationMetadata {
+                start_time: Timestamp {
+                    timestamp: MillisSinceEpoch(123456789),
+                    tz_offset: 3600,
+                },
+                end_time: Timestamp {
+                    timestamp: MillisSinceEpoch(123456800),
+                    tz_offset: 3600,
+                },
+                description: "check out foo".to_string(),
+                hostname: "some.host.example.com".to_string(),
+                username: "someone".to_string(),
+                tags: hashmap! {
+                    "key1".to_string() => "value1".to_string(),
+                    "key2".to_string() => "value2".to_string(),
+                },
+            },
+        };
+        let op_id = store.write_operation(&operation).unwrap();
+        let read_operation = store.read_operation(&op_id).unwrap();
+        assert_eq!(read_operation, operation);
+    }
+}

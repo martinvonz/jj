@@ -89,7 +89,7 @@ impl RefTarget {
 
 /// Represents the way the repo looks at a given time, just like how a Tree
 /// object represents how the file system looks at a given time.
-#[derive(Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct View {
     /// All head commits
     pub head_ids: HashSet<CommitId>,
@@ -126,14 +126,14 @@ impl View {
 /// taken and it will be checked that the current head of the operation
 /// graph is unchanged. If the current head has changed, there has been
 /// concurrent operation.
-#[derive(Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct Operation {
     pub view_id: ViewId,
     pub parents: Vec<OperationId>,
     pub metadata: OperationMetadata,
 }
 
-#[derive(Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct OperationMetadata {
     pub start_time: Timestamp,
     pub end_time: Timestamp,
