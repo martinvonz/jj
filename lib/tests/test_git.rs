@@ -145,57 +145,8 @@ fn test_import_refs_reimport() {
     );
 }
 
-fn git_ref(git_repo: &git2::Repository, name: &str, target: Oid) {
-    git_repo.reference(name, target, true, "").unwrap();
-}
-
 fn delete_git_ref(git_repo: &git2::Repository, name: &str) {
     git_repo.find_reference(name).unwrap().delete().unwrap();
-}
-
-#[test]
-fn test_import_refs_merge() {
-    let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, true);
-    let git_repo = repo.store().git_repo().unwrap();
-
-    let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
-    let commit2 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit1]);
-    let commit3 = empty_git_commit(&git_repo, "refs/heads/main", &[&commit2]);
-    let commit4 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
-    let commit5 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
-    let mut tx = repo.start_transaction("initial import");
-    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
-    let repo = tx.commit();
-
-    // One of the concurrent operations:
-    delete_git_ref(&git_repo, "refs/heads/feature1");
-    git_ref(&git_repo, "refs/heads/main", commit4.id());
-    let mut tx1 = repo.start_transaction("concurrent import 1");
-    jujutsu_lib::git::import_refs(tx1.mut_repo(), &git_repo).unwrap();
-    tx1.commit();
-
-    // The other concurrent operation:
-    let mut tx2 = repo.start_transaction("concurrent import 2");
-    git_ref(&git_repo, "refs/heads/main", commit5.id());
-    jujutsu_lib::git::import_refs(tx2.mut_repo(), &git_repo).unwrap();
-    tx2.commit();
-
-    // Reload the repo, causing the operations to be merged.
-    let repo = repo.reload();
-
-    let view = repo.view();
-    let git_refs = view.git_refs();
-    assert_eq!(git_refs.len(), 2);
-    assert_eq!(
-        git_refs.get("refs/heads/main"),
-        Some(RefTarget::Conflict {
-            removes: vec![commit_id(&commit3)],
-            adds: vec![commit_id(&commit4), commit_id(&commit5)]
-        })
-        .as_ref()
-    );
-    assert_eq!(git_refs.get("refs/heads/feature1"), None);
 }
 
 #[test]
