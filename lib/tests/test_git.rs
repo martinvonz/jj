@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -40,7 +39,7 @@ fn empty_git_commit<'r>(
             Some(ref_name),
             &signature,
             &signature,
-            &format!("commit on {}", ref_name),
+            &format!("random commit {}", rand::random::<u32>()),
             &empty_tree,
             parents,
         )
@@ -68,18 +67,15 @@ fn test_import_refs() {
 
     let git_repo = repo.store().git_repo().unwrap();
     let mut tx = repo.start_transaction("test");
-    let heads_before: HashSet<_> = repo.view().heads().clone();
     jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     let repo = tx.commit();
     let view = repo.view();
-    let expected_heads: HashSet<_> = heads_before
-        .union(&hashset!(
+    let expected_heads = hashset! {
+            view.checkout().clone(),
             commit_id(&commit3),
             commit_id(&commit4),
             commit_id(&commit5)
-        ))
-        .cloned()
-        .collect();
+    };
     assert_eq!(*view.heads(), expected_heads);
     assert_eq!(*view.public_heads(), hashset!(commit_id(&commit5)));
     assert_eq!(view.git_refs().len(), 4);
@@ -116,7 +112,6 @@ fn test_import_refs_reimport() {
         .reference("refs/tags/my-gpg-key", pgp_key_oid, false, "")
         .unwrap();
 
-    let heads_before = repo.view().heads().clone();
     let mut tx = repo.start_transaction("test");
     jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     let repo = tx.commit();
@@ -132,14 +127,12 @@ fn test_import_refs_reimport() {
 
     let view = repo.view();
     // TODO: commit3 and commit4 should probably be removed
-    let expected_heads: HashSet<_> = heads_before
-        .union(&hashset!(
+    let expected_heads = hashset! {
+            view.checkout().clone(),
             commit_id(&commit3),
             commit_id(&commit4),
             commit_id(&commit5)
-        ))
-        .cloned()
-        .collect();
+    };
     assert_eq!(*view.heads(), expected_heads);
     assert_eq!(view.git_refs().len(), 2);
     assert_eq!(
