@@ -14,6 +14,7 @@
 
 use std::collections::BTreeMap;
 
+use git2::FetchPrune;
 use thiserror::Error;
 
 use crate::commit::Commit;
@@ -144,6 +145,7 @@ pub fn fetch(
     });
     let mut fetch_options = git2::FetchOptions::new();
     fetch_options.remote_callbacks(callbacks);
+    fetch_options.prune(FetchPrune::On);
     let refspec: &[&str] = &[];
     remote.fetch(refspec, Some(&mut fetch_options), None)?;
     import_refs(mut_repo, git_repo).map_err(|err| match err {
