@@ -736,8 +736,8 @@ impl MutableRepo {
         self.invalidate_evolution();
     }
 
-    pub fn insert_git_ref(&mut self, name: String, target: RefTarget) {
-        self.view.insert_git_ref(name, target);
+    pub fn set_git_ref(&mut self, name: String, target: RefTarget) {
+        self.view.set_git_ref(name, target);
     }
 
     pub fn remove_git_ref(&mut self, name: &str) {

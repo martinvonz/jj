@@ -74,7 +74,7 @@ impl View {
         self.data.public_head_ids.remove(head_id);
     }
 
-    pub fn insert_git_ref(&mut self, name: String, target: RefTarget) {
+    pub fn set_git_ref(&mut self, name: String, target: RefTarget) {
         self.data.git_refs.insert(name, target);
     }
 
@@ -137,7 +137,7 @@ impl View {
                     self.remove_git_ref(maybe_modified_git_ref_name);
                 }
                 Some(target) => {
-                    self.insert_git_ref(maybe_modified_git_ref_name.clone(), target);
+                    self.set_git_ref(maybe_modified_git_ref_name.clone(), target);
                 }
             }
         }

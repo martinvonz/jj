@@ -461,7 +461,7 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     let commit3 = graph_builder.commit_with_parents(&[&commit1]);
     let commit4 = graph_builder.commit_with_parents(&[&commit1]);
     let commit5 = graph_builder.commit_with_parents(&[&commit2, &commit3, &commit4]);
-    tx.mut_repo().insert_git_ref(
+    tx.mut_repo().set_git_ref(
         "refs/heads/main".to_string(),
         RefTarget::Conflict {
             removes: vec![commit2.id().clone()],
