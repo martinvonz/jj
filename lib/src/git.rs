@@ -173,6 +173,10 @@ pub fn push_commit(
     target: &Commit,
     remote_name: &str,
     remote_branch: &str,
+    // TODO: We want this to be an Option<CommitId> for the expected current commit on the remote.
+    // It's a blunt "force" option instead until git2-rs supports the "push negotiation" callback
+    // (https://github.com/rust-lang/git2-rs/issues/733).
+    force: bool,
 ) -> Result<(), GitPushError> {
     // Create a temporary ref to work around https://github.com/libgit2/libgit2/issues/3178
     let temp_ref_name = format!("refs/jj/git-push/{}", target.id().hex());
@@ -184,7 +188,12 @@ pub fn push_commit(
     )?;
     // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
     let qualified_remote_branch = format!("refs/heads/{}", remote_branch);
-    let refspec = format!("{}:{}", temp_ref_name, qualified_remote_branch);
+    let refspec = format!(
+        "{}{}:{}",
+        (if force { "+" } else { "" }),
+        temp_ref_name,
+        qualified_remote_branch
+    );
     let result = push_ref(git_repo, remote_name, &qualified_remote_branch, &refspec);
     // TODO: Figure out how to do the equivalent of absl::Cleanup for
     // temp_ref.delete().
@@ -196,6 +205,8 @@ pub fn delete_remote_branch(
     git_repo: &git2::Repository,
     remote_name: &str,
     remote_branch: &str,
+    /* TODO: Similar to push_commit(), we want an CommitId for the expected current commit on
+     * the remote. */
 ) -> Result<(), GitPushError> {
     // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
     let qualified_remote_branch = format!("refs/heads/{}", remote_branch);

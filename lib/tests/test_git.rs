@@ -353,7 +353,7 @@ fn test_push_commit_success() {
     let temp_dir = tempfile::tempdir().unwrap();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = setup.jj_repo.store().git_repo().unwrap();
-    let result = git::push_commit(&clone_repo, &setup.new_commit, "origin", "main");
+    let result = git::push_commit(&clone_repo, &setup.new_commit, "origin", "main", false);
     assert_eq!(result, Ok(()));
 
     // Check that the ref got updated in the source repo
@@ -388,8 +388,36 @@ fn test_push_commit_not_fast_forward() {
         &new_commit,
         "origin",
         "main",
+        false,
     );
     assert_eq!(result, Err(GitPushError::NotFastForward));
+}
+
+#[test]
+fn test_push_commit_not_fast_forward_with_force() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let mut setup = set_up_push_repos(&settings, &temp_dir);
+    let new_commit = testutils::create_random_commit(&settings, &setup.jj_repo)
+        .write_to_new_transaction(&setup.jj_repo, "test");
+    setup.jj_repo = setup.jj_repo.reload();
+    let result = git::push_commit(
+        &setup.jj_repo.store().git_repo().unwrap(),
+        &new_commit,
+        "origin",
+        "main",
+        true,
+    );
+    assert_eq!(result, Ok(()));
+
+    // Check that the ref got updated in the source repo
+    let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
+    let new_target = source_repo
+        .find_reference("refs/heads/main")
+        .unwrap()
+        .target();
+    let new_oid = Oid::from_bytes(&new_commit.id().0).unwrap();
+    assert_eq!(new_target, Some(new_oid));
 }
 
 #[test]
@@ -402,6 +430,7 @@ fn test_push_commit_no_such_remote() {
         &setup.new_commit,
         "invalid-remote",
         "main",
+        false,
     );
     assert!(matches!(result, Err(GitPushError::NoSuchRemote(_))));
 }
@@ -416,6 +445,7 @@ fn test_push_commit_invalid_remote() {
         &setup.new_commit,
         "http://invalid-remote",
         "main",
+        false,
     );
     assert!(matches!(result, Err(GitPushError::NoSuchRemote(_))));
 }

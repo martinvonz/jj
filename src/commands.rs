@@ -2585,7 +2585,8 @@ fn cmd_git_push(
     }
 
     let branch_target = maybe_branch_target.unwrap();
-    if branch_target.local_target.as_ref() == branch_target.remote_targets.get(remote_name) {
+    let maybe_remote_target = branch_target.remote_targets.get(remote_name);
+    if branch_target.local_target.as_ref() == maybe_remote_target {
         writeln!(
             ui,
             "Branch {}@{} already matches {}",
@@ -2610,8 +2611,27 @@ fn cmd_git_push(
                         "Won't push open commit".to_string(),
                     ));
                 }
-                git::push_commit(&git_repo, &new_target_commit, remote_name, branch_name)
-                    .map_err(|err| CommandError::UserError(err.to_string()))?;
+                let force = match maybe_remote_target {
+                    None => false,
+                    Some(RefTarget::Conflict { .. }) => {
+                        return Err(CommandError::UserError(format!(
+                            "Branch {}@{} is conflicted",
+                            branch_name, remote_name
+                        )));
+                    }
+                    Some(RefTarget::Normal(old_target_id)) => {
+                        !repo.index().is_ancestor(old_target_id, new_target_id)
+                    }
+                };
+
+                git::push_commit(
+                    &git_repo,
+                    &new_target_commit,
+                    remote_name,
+                    branch_name,
+                    force,
+                )
+                .map_err(|err| CommandError::UserError(err.to_string()))?;
             }
         }
     } else {
