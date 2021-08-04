@@ -771,25 +771,18 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         )
         .subcommand(
             SubCommand::with_name("push")
-                .about("Push a revision to a git remote branch")
+                .about("Push a branch to a git remote")
                 .arg(
-                    Arg::with_name("revision")
-                        .long("revision")
-                        .short("r")
+                    Arg::with_name("branch")
+                        .long("branch")
                         .takes_value(true)
-                        .default_value(":@"),
+                        .required(true),
                 )
                 .arg(
                     Arg::with_name("remote")
                         .long("remote")
                         .takes_value(true)
                         .default_value("origin"),
-                )
-                .arg(
-                    Arg::with_name("branch")
-                        .long("branch")
-                        .takes_value(true)
-                        .required(true),
                 ),
         )
         .subcommand(
@@ -2578,19 +2571,52 @@ fn cmd_git_push(
     _git_matches: &ArgMatches,
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(cmd_matches)?;
-    if commit.is_open() {
-        return Err(CommandError::UserError(
-            "Won't push open commit".to_string(),
-        ));
-    }
+    let repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
-    let git_repo = get_git_repo(repo.store())?;
-    let remote_name = cmd_matches.value_of("remote").unwrap();
     let branch_name = cmd_matches.value_of("branch").unwrap();
-    git::push_commit(&git_repo, &commit, remote_name, branch_name)
-        .map_err(|err| CommandError::UserError(err.to_string()))?;
+    let remote_name = cmd_matches.value_of("remote").unwrap();
+
+    let maybe_branch_target = repo.view().get_branch(branch_name);
+    if maybe_branch_target.is_none() {
+        return Err(CommandError::UserError(format!(
+            "Branch {} doesn't exist",
+            branch_name
+        )));
+    }
+
+    let branch_target = maybe_branch_target.unwrap();
+    if branch_target.local_target.as_ref() == branch_target.remote_targets.get(remote_name) {
+        writeln!(
+            ui,
+            "Branch {}@{} already matches {}",
+            branch_name, remote_name, branch_name
+        )?;
+        return Ok(());
+    }
+
+    let git_repo = get_git_repo(repo.store())?;
+    if let Some(new_target) = &branch_target.local_target {
+        match new_target {
+            RefTarget::Conflict { .. } => {
+                return Err(CommandError::UserError(format!(
+                    "Branch {} is conflicted",
+                    branch_name
+                )));
+            }
+            RefTarget::Normal(new_target_id) => {
+                let new_target_commit = repo.store().get_commit(new_target_id)?;
+                if new_target_commit.is_open() {
+                    return Err(CommandError::UserError(
+                        "Won't push open commit".to_string(),
+                    ));
+                }
+                git::push_commit(&git_repo, &new_target_commit, remote_name, branch_name)
+                    .map_err(|err| CommandError::UserError(err.to_string()))?;
+            }
+        }
+    } else {
+        // TODO: Delete remote branch if the local branch was deleted
+    }
     let mut tx = repo_command.start_transaction("import git refs");
     git::import_refs(tx.mut_repo(), &git_repo)
         .map_err(|err| CommandError::UserError(err.to_string()))?;

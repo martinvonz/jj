@@ -743,6 +743,10 @@ impl MutableRepo {
         self.invalidate_evolution();
     }
 
+    pub fn get_branch(&mut self, name: &str) -> Option<&BranchTarget> {
+        self.view.get_branch(name)
+    }
+
     pub fn set_branch(&mut self, name: String, target: BranchTarget) {
         self.view.set_branch(name, target);
     }

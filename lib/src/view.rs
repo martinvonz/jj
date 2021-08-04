@@ -133,6 +133,10 @@ impl View {
         }
     }
 
+    pub fn get_branch(&self, name: &str) -> Option<&BranchTarget> {
+        self.data.branches.get(name)
+    }
+
     pub fn set_branch(&mut self, name: String, target: BranchTarget) {
         self.data.branches.insert(name, target);
     }
