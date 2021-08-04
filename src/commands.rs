@@ -730,8 +730,8 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .about("Update or delete branch")
         .arg(rev_arg())
         .arg(Arg::with_name("allow-backwards").long("allow-backwards"))
-        .arg(Arg::with_name("delete"))
-        .arg(Arg::with_name("name").index(1));
+        .arg(Arg::with_name("delete").long("delete"))
+        .arg(Arg::with_name("name").index(1).required(true));
     let branches_command = SubCommand::with_name("branches").about("List branches");
     let evolve_command =
         SubCommand::with_name("evolve").about("Resolve problems with the repo's meta-history");
@@ -2080,40 +2080,34 @@ fn cmd_branch(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    if let Some(branch_name) = sub_matches.value_of("name") {
-        if sub_matches.is_present("delete") {
-            let mut tx = repo_command.start_transaction(&format!("delete branch {}", branch_name));
-            tx.mut_repo().remove_local_branch(branch_name);
-            repo_command.finish_transaction(ui, tx)?;
-        } else {
-            let target_commit = repo_command.resolve_revision_arg(sub_matches)?;
-            if !sub_matches.is_present("allow-backwards")
-                && !is_fast_forward(
-                    repo_command.repo().as_repo_ref(),
-                    branch_name,
-                    target_commit.id(),
-                )
-            {
-                return Err(CommandError::UserError(
-                    "Use --allow-backwards to allow moving a branch backwards or sideways"
-                        .to_string(),
-                ));
-            }
-            let mut tx = repo_command.start_transaction(&format!(
-                "point branch {} to commit {}",
-                branch_name,
-                target_commit.id().hex()
-            ));
-            tx.mut_repo().set_local_branch(
-                branch_name.to_string(),
-                RefTarget::Normal(target_commit.id().clone()),
-            );
-            repo_command.finish_transaction(ui, tx)?;
-        }
+    let branch_name = sub_matches.value_of("name").unwrap();
+    if sub_matches.is_present("delete") {
+        let mut tx = repo_command.start_transaction(&format!("delete branch {}", branch_name));
+        tx.mut_repo().remove_local_branch(branch_name);
+        repo_command.finish_transaction(ui, tx)?;
     } else {
-        return Err(CommandError::UserError(
-            "No branch name specified".to_string(),
+        let target_commit = repo_command.resolve_revision_arg(sub_matches)?;
+        if !sub_matches.is_present("allow-backwards")
+            && !is_fast_forward(
+                repo_command.repo().as_repo_ref(),
+                branch_name,
+                target_commit.id(),
+            )
+        {
+            return Err(CommandError::UserError(
+                "Use --allow-backwards to allow moving a branch backwards or sideways".to_string(),
+            ));
+        }
+        let mut tx = repo_command.start_transaction(&format!(
+            "point branch {} to commit {}",
+            branch_name,
+            target_commit.id().hex()
         ));
+        tx.mut_repo().set_local_branch(
+            branch_name.to_string(),
+            RefTarget::Normal(target_commit.id().clone()),
+        );
+        repo_command.finish_transaction(ui, tx)?;
     }
 
     Ok(())
