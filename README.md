@@ -243,11 +243,11 @@ By default, `jj log` lists all revisions (commits) in the repo that have not
 been rewritten (roughly speaking). We can use the `-r` flag to restrict which
 revisions we want to list. The flag accepts a "revset", which is an expression
 in a simple language for specifying revision. For example, `@` refers to the
-working copy commit, `root` refers to the root commit, `git_refs()` refers to
-all commits pointed to by git refs. We can combine expression with `|` for
+working copy commit, `root` refers to the root commit, `branches()` refers to
+all commits pointed to by branches. We can combine expression with `|` for
 union, `&` for intersection and `-` for difference. For example:
 ```shell script
-$ jj log -r '@ | root | git_refs()'
+$ jj log -r '@ | root | branches()'
 @ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
 :
 o 080a9b37ff7e 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 main

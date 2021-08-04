@@ -192,6 +192,8 @@ pub enum RevsetExpression {
     },
     AllHeads,
     PublicHeads,
+    Branches,
+    Tags,
     GitRefs,
     NonObsoleteHeads(Rc<RevsetExpression>),
     ParentCount {
@@ -488,6 +490,26 @@ fn parse_function_expression(
         "public_heads" => {
             if arg_count == 0 {
                 Ok(RevsetExpression::PublicHeads)
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 0 arguments".to_string(),
+                })
+            }
+        }
+        "branches" => {
+            if arg_count == 0 {
+                Ok(RevsetExpression::Branches)
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 0 arguments".to_string(),
+                })
+            }
+        }
+        "tags" => {
+            if arg_count == 0 {
+                Ok(RevsetExpression::Tags)
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -967,6 +989,37 @@ pub fn evaluate_expression<'repo>(
                 .map(|id| index.entry_by_id(id).unwrap())
                 .collect_vec();
             index_entries.sort_by_key(|b| Reverse(b.position()));
+            Ok(Box::new(EagerRevset { index_entries }))
+        }
+        RevsetExpression::Branches => {
+            let index = repo.index();
+            let mut index_entries = vec![];
+            for branch_target in repo.view().branches().values() {
+                if let Some(local_target) = &branch_target.local_target {
+                    for id in local_target.adds() {
+                        index_entries.push(index.entry_by_id(&id).unwrap());
+                    }
+                }
+                for remote_target in branch_target.remote_targets.values() {
+                    for id in remote_target.adds() {
+                        index_entries.push(index.entry_by_id(&id).unwrap());
+                    }
+                }
+            }
+            index_entries.sort_by_key(|b| Reverse(b.position()));
+            index_entries.dedup();
+            Ok(Box::new(EagerRevset { index_entries }))
+        }
+        RevsetExpression::Tags => {
+            let index = repo.index();
+            let mut index_entries = vec![];
+            for ref_target in repo.view().tags().values() {
+                for id in ref_target.adds() {
+                    index_entries.push(index.entry_by_id(&id).unwrap());
+                }
+            }
+            index_entries.sort_by_key(|b| Reverse(b.position()));
+            index_entries.dedup();
             Ok(Box::new(EagerRevset { index_entries }))
         }
         RevsetExpression::GitRefs => {
