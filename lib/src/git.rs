@@ -190,6 +190,17 @@ pub fn push_commit(
     result
 }
 
+pub fn delete_remote_branch(
+    git_repo: &git2::Repository,
+    remote_name: &str,
+    remote_branch: &str,
+) -> Result<(), GitPushError> {
+    // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
+    let qualified_remote_branch = format!("refs/heads/{}", remote_branch);
+    let refspec = format!(":{}", qualified_remote_branch);
+    push_ref(git_repo, remote_name, &qualified_remote_branch, &refspec)
+}
+
 fn push_ref(
     git_repo: &git2::Repository,
     remote_name: &str,

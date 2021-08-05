@@ -2615,7 +2615,8 @@ fn cmd_git_push(
             }
         }
     } else {
-        // TODO: Delete remote branch if the local branch was deleted
+        git::delete_remote_branch(&git_repo, remote_name, branch_name)
+            .map_err(|err| CommandError::UserError(err.to_string()))?;
     }
     let mut tx = repo_command.start_transaction("import git refs");
     git::import_refs(tx.mut_repo(), &git_repo)
