@@ -168,18 +168,34 @@ pub enum GitPushError {
 
 pub fn push_commit(
     git_repo: &git2::Repository,
-    commit: &Commit,
+    target: &Commit,
     remote_name: &str,
     remote_branch: &str,
 ) -> Result<(), GitPushError> {
     // Create a temporary ref to work around https://github.com/libgit2/libgit2/issues/3178
-    let temp_ref_name = format!("refs/jj/git-push/{}", commit.id().hex());
+    let temp_ref_name = format!("refs/jj/git-push/{}", target.id().hex());
     let mut temp_ref = git_repo.reference(
         &temp_ref_name,
-        git2::Oid::from_bytes(&commit.id().0).unwrap(),
+        git2::Oid::from_bytes(&target.id().0).unwrap(),
         true,
         "temporary reference for git push",
     )?;
+    // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
+    let qualified_remote_branch = format!("refs/heads/{}", remote_branch);
+    let refspec = format!("{}:{}", temp_ref_name, qualified_remote_branch);
+    let result = push_ref(git_repo, remote_name, &qualified_remote_branch, &refspec);
+    // TODO: Figure out how to do the equivalent of absl::Cleanup for
+    // temp_ref.delete().
+    temp_ref.delete()?;
+    result
+}
+
+fn push_ref(
+    git_repo: &git2::Repository,
+    remote_name: &str,
+    qualified_remote_branch: &str,
+    refspec: &str,
+) -> Result<(), GitPushError> {
     let mut remote =
         git_repo
             .find_remote(remote_name)
@@ -192,8 +208,6 @@ pub fn push_commit(
                 }
                 _ => GitPushError::InternalGitError(err),
             })?;
-    // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
-    let qualified_remote_branch = format!("refs/heads/{}", remote_branch);
     let mut callbacks = git2::RemoteCallbacks::new();
     let mut updated = false;
     callbacks.credentials(|_url, username_from_url, _allowed_types| {
@@ -205,7 +219,6 @@ pub fn push_commit(
         }
         Ok(())
     });
-    let refspec = format!("{}:{}", temp_ref_name, qualified_remote_branch);
     let mut push_options = git2::PushOptions::new();
     push_options.remote_callbacks(callbacks);
     remote
@@ -217,7 +230,6 @@ pub fn push_commit(
             _ => GitPushError::InternalGitError(err),
         })?;
     drop(push_options);
-    temp_ref.delete()?;
     if updated {
         Ok(())
     } else {
