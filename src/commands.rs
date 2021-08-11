@@ -2114,16 +2114,23 @@ fn cmd_branches(
     let repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
     for (name, branch_target) in repo.view().branches() {
+        ui.stdout_formatter().add_label("branch".to_string())?;
+        write!(ui, "{}", name)?;
+        ui.stdout_formatter().remove_label()?;
         if let Some(local_target) = &branch_target.local_target {
             match local_target {
                 RefTarget::Normal(id) => {
-                    write!(ui, "{}: ", name)?;
+                    write!(ui, ": ")?;
                     let commit = repo.store().get_commit(id)?;
                     ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
                     writeln!(ui)?;
                 }
                 RefTarget::Conflict { adds, removes } => {
-                    writeln!(ui, "{} (conflicted):", name)?;
+                    write!(ui, " ")?;
+                    ui.stdout_formatter().add_label("conflict".to_string())?;
+                    write!(ui, "(conflicted)")?;
+                    ui.stdout_formatter().remove_label()?;
+                    writeln!(ui, ":")?;
                     for id in removes {
                         let commit = repo.store().get_commit(id)?;
                         write!(ui, "  - ")?;
@@ -2139,7 +2146,7 @@ fn cmd_branches(
                 }
             }
         } else {
-            writeln!(ui, "{} (deleted)", name)?;
+            writeln!(ui, " (deleted)")?;
         }
 
         // TODO: Display information about remote branches, but probably only
