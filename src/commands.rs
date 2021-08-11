@@ -16,7 +16,7 @@ extern crate chrono;
 extern crate clap;
 extern crate config;
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fs::OpenOptions;
@@ -198,6 +198,9 @@ struct RepoCommandHelper {
     // Whether the checkout should be updated to an appropriate successor when the transaction
     // finishes. This should generally be true for commands that rewrite commits.
     auto_update_checkout: bool,
+    // Whether branches should be updated to appropriate successors when the transaction
+    // finishes. This should generally be true for commands that rewrite commits.
+    auto_update_branches: bool,
 }
 
 impl RepoCommandHelper {
@@ -216,6 +219,7 @@ impl RepoCommandHelper {
             working_copy_committed: false,
             evolve_orphans: true,
             auto_update_checkout: true,
+            auto_update_branches: true,
         })
     }
 
@@ -226,6 +230,11 @@ impl RepoCommandHelper {
 
     fn auto_update_checkout(mut self, value: bool) -> Self {
         self.auto_update_checkout = value;
+        self
+    }
+
+    fn auto_update_branches(mut self, value: bool) -> Self {
+        self.auto_update_branches = value;
         self
     }
 
@@ -398,6 +407,9 @@ impl RepoCommandHelper {
         }
         if self.auto_update_checkout {
             update_checkout_after_rewrite(ui, mut_repo)?;
+        }
+        if self.auto_update_branches {
+            update_branches_after_rewrite(ui, mut_repo)?;
         }
         self.repo = tx.commit();
         update_working_copy(ui, &self.repo, &self.repo.working_copy_locked())
@@ -574,6 +586,55 @@ fn update_checkout_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) -> io:
     let new_checkout = new_checkout_candidates.iter().min().unwrap();
     let new_commit = mut_repo.store().get_commit(new_checkout).unwrap();
     mut_repo.check_out(ui.settings(), &new_commit);
+    Ok(())
+}
+
+fn update_branches_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) -> io::Result<()> {
+    // TODO: Perhaps this method should be in MutableRepo.
+    let new_evolution = mut_repo.evolution();
+    let base_repo = mut_repo.base_repo();
+    let old_evolution = base_repo.evolution();
+    let mut updates = HashMap::new();
+    for (branch_name, branch_target) in mut_repo.view().branches() {
+        match &branch_target.local_target {
+            None => {
+                // nothing to do (a deleted branch doesn't need updating)
+            }
+            Some(RefTarget::Normal(current_target)) => {
+                if new_evolution.is_obsolete(current_target)
+                    && !old_evolution.is_obsolete(current_target)
+                {
+                    let new_targets =
+                        new_evolution.new_parent(mut_repo.as_repo_ref(), current_target);
+                    if new_targets.len() == 1 {
+                        updates.insert(
+                            branch_name.clone(),
+                            RefTarget::Normal(new_targets.iter().next().unwrap().clone()),
+                        );
+                    } else {
+                        writeln!(
+                            ui,
+                            "Branch {}'s target was obsoleted, but the new target is unclear",
+                            branch_name
+                        )?;
+                    }
+                }
+            }
+            Some(RefTarget::Conflict { adds, .. }) => {
+                for current_target in adds {
+                    if new_evolution.is_obsolete(current_target)
+                        && !old_evolution.is_obsolete(current_target)
+                    {
+                        writeln!(ui, "Branch {}'s target was obsoleted, but not updating it since it's conflicted", branch_name )?;
+                    }
+                }
+            }
+        }
+    }
+    for (branch_name, new_local_target) in updates {
+        mut_repo.set_local_branch(branch_name, new_local_target);
+    }
+
     Ok(())
 }
 
@@ -941,7 +1002,10 @@ fn cmd_checkout(
     command: &CommandHelper,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?.auto_update_checkout(false);
+    let mut repo_command = command
+        .repo_helper(ui)?
+        .auto_update_checkout(false)
+        .auto_update_branches(false);
     let new_commit = repo_command.resolve_revision_arg(sub_matches)?;
     repo_command.commit_working_copy()?;
     let mut tx =
@@ -2070,7 +2134,10 @@ fn cmd_branch(
     command: &CommandHelper,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
+    let mut repo_command = command
+        .repo_helper(ui)?
+        .auto_update_checkout(false)
+        .auto_update_branches(false);
     let branch_name = sub_matches.value_of("name").unwrap();
     if sub_matches.is_present("delete") {
         let mut tx = repo_command.start_transaction(&format!("delete branch {}", branch_name));
