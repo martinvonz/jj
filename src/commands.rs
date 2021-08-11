@@ -2056,15 +2056,13 @@ fn cmd_backout(
 
 fn is_fast_forward(repo: RepoRef, branch_name: &str, new_target_id: &CommitId) -> bool {
     if let Some(current_target) = repo.view().get_local_branch(branch_name) {
-        if current_target
+        current_target
             .adds()
             .iter()
             .any(|add| repo.index().is_ancestor(add, new_target_id))
-        {
-            return true;
-        }
+    } else {
+        true
     }
-    false
 }
 
 fn cmd_branch(
