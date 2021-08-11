@@ -743,7 +743,7 @@ impl MutableRepo {
         self.invalidate_evolution();
     }
 
-    pub fn get_branch(&mut self, name: &str) -> Option<&BranchTarget> {
+    pub fn get_branch(&self, name: &str) -> Option<&BranchTarget> {
         self.view.get_branch(name)
     }
 
@@ -755,7 +755,7 @@ impl MutableRepo {
         self.view.remove_branch(name);
     }
 
-    pub fn get_local_branch(&mut self, name: &str) -> Option<RefTarget> {
+    pub fn get_local_branch(&self, name: &str) -> Option<RefTarget> {
         self.view.get_local_branch(name)
     }
 
@@ -767,7 +767,7 @@ impl MutableRepo {
         self.view.remove_local_branch(name);
     }
 
-    pub fn get_remote_branch(&mut self, name: &str, remote_name: &str) -> Option<RefTarget> {
+    pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> Option<RefTarget> {
         self.view.get_remote_branch(name, remote_name)
     }
 
@@ -779,7 +779,7 @@ impl MutableRepo {
         self.view.remove_remote_branch(name, remote_name);
     }
 
-    pub fn get_tag(&mut self, name: &str) -> Option<RefTarget> {
+    pub fn get_tag(&self, name: &str) -> Option<RefTarget> {
         self.view.get_tag(name)
     }
 
