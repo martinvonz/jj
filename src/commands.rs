@@ -336,11 +336,32 @@ impl RepoCommandHelper {
 
     fn maybe_commit_working_copy(&mut self) {
         if self.may_update_working_copy {
-            let (reloaded_repo, _) = self
-                .repo
-                .working_copy_locked()
-                .commit(&self.settings, self.repo.clone());
-            self.repo = reloaded_repo;
+            let repo = self.repo.clone();
+            let wc = repo.working_copy_locked();
+            let locked_wc = wc.write_tree();
+            let old_commit = locked_wc.old_commit();
+            // Check if the current checkout has changed on disk after we read it. It's fine
+            // if it has, but we'll need to reload the repo so the new commit is
+            // in the index and view.
+            if repo.view().checkout() != old_commit.id() {
+                // TODO: This is not enough. The new commit is not necessarily still in the
+                // view when we reload.
+                self.repo = repo.reload();
+            }
+            let new_tree_id = locked_wc.new_tree_id();
+            if new_tree_id != *old_commit.tree().id() {
+                let mut tx = self.repo.start_transaction("commit working copy");
+                let mut_repo = tx.mut_repo();
+                let commit =
+                    CommitBuilder::for_rewrite_from(&self.settings, self.repo.store(), &old_commit)
+                        .set_tree(new_tree_id)
+                        .write_to_repo(mut_repo);
+                mut_repo.set_checkout(commit.id().clone());
+                self.repo = tx.commit();
+                locked_wc.finish(commit);
+            } else {
+                locked_wc.discard();
+            }
             self.working_copy_committed = true;
         }
     }

@@ -19,7 +19,6 @@ use std::thread;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::store::CommitId;
 use jujutsu_lib::testutils;
 use jujutsu_lib::working_copy::CheckoutError;
 use test_case::test_case;
@@ -69,43 +68,6 @@ fn test_concurrent_checkout(use_git: bool) {
 
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
-fn test_concurrent_commit(use_git: bool) {
-    // Test that concurrent working copy commits result in a chain of successors
-    // instead of divergence.
-    let _home_dir = testutils::new_user_home();
-    let settings = testutils::user_settings();
-    let (_temp_dir, repo1) = testutils::init_repo(&settings, use_git);
-
-    let owned_wc1 = repo1.working_copy().clone();
-    let wc1 = owned_wc1.lock().unwrap();
-    let commit1 = wc1.current_commit();
-
-    // Commit from another process (simulated by another repo instance)
-    let repo2 = ReadonlyRepo::load(&settings, repo1.working_copy_path().clone()).unwrap();
-    testutils::write_working_copy_file(
-        &repo2,
-        &RepoPath::from_internal_string("file2"),
-        "contents2",
-    );
-    let owned_wc2 = repo2.working_copy().clone();
-    let wc2 = owned_wc2.lock().unwrap();
-    let commit2 = wc2.commit(&settings, repo2).1;
-
-    assert_eq!(commit2.predecessors(), vec![commit1]);
-
-    // Creating another commit  (via the first repo instance)  should result in a
-    // successor of the commit created from the other process.
-    testutils::write_working_copy_file(
-        &repo1,
-        &RepoPath::from_internal_string("file3"),
-        "contents3",
-    );
-    let commit3 = wc1.commit(&settings, repo1).1;
-    assert_eq!(commit3.predecessors(), vec![commit2]);
-}
-
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
 fn test_checkout_parallel(use_git: bool) {
     // Test that concurrent checkouts by different processes (simulated by using
     // different repo instances) is safe.
@@ -114,10 +76,12 @@ fn test_checkout_parallel(use_git: bool) {
     let store = repo.store();
 
     let num_threads = max(num_cpus::get(), 4);
+    let mut tree_ids = HashSet::new();
     let mut commit_ids = vec![];
     for i in 0..num_threads {
         let path = RepoPath::from_internal_string(format!("file{}", i).as_str());
         let tree = testutils::create_tree(&repo, &[(&path, "contents")]);
+        tree_ids.insert(tree.id().clone());
         let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())
             .set_open(true)
             .write_to_new_transaction(&repo, "test");
@@ -138,9 +102,8 @@ fn test_checkout_parallel(use_git: bool) {
     tx.commit();
 
     let mut threads = vec![];
-    let commit_ids_set: HashSet<CommitId> = commit_ids.iter().cloned().collect();
     for commit_id in &commit_ids {
-        let commit_ids_set = commit_ids_set.clone();
+        let tree_ids = tree_ids.clone();
         let commit_id = commit_id.clone();
         let settings = settings.clone();
         let working_copy_path = repo.working_copy_path().clone();
@@ -153,12 +116,14 @@ fn test_checkout_parallel(use_git: bool) {
             assert_eq!(stats.updated_files, 0);
             assert_eq!(stats.added_files, 1);
             assert_eq!(stats.removed_files, 1);
-            // Check that the working copy contains one of the commits. We may see a
-            // different commit than the one we just checked out, but since
-            // commit() should take the same lock as check_out(), commit()
-            // should never produce a different tree (resulting in a different commit).
-            let commit_after = wc.commit(&settings, repo).1;
-            assert!(commit_ids_set.contains(commit_after.id()));
+            // Check that the working copy contains one of the trees. We may see a
+            // different tree than the one we just checked out, but since
+            // write_tree() should take the same lock as check_out(), write_tree()
+            // should never produce a different tree.
+            let locked_wc = wc.write_tree();
+            let new_tree_id = locked_wc.new_tree_id();
+            locked_wc.discard();
+            assert!(tree_ids.contains(&new_tree_id));
         });
         threads.push(handle);
     }

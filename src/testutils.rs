@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt::{Debug, Error, Formatter};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
@@ -44,7 +45,7 @@ impl CommandRunner {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub struct CommandOutput {
     pub status: i32,
     pub stdout_buf: Vec<u8>,
@@ -53,5 +54,14 @@ pub struct CommandOutput {
 impl CommandOutput {
     pub fn stdout_string(&self) -> String {
         String::from_utf8(self.stdout_buf.clone()).unwrap()
+    }
+}
+
+impl Debug for CommandOutput {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        f.debug_struct("CommandOutput")
+            .field("status", &self.status)
+            .field("stdout_buf", &String::from_utf8_lossy(&self.stdout_buf))
+            .finish()
     }
 }

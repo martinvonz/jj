@@ -89,3 +89,21 @@ fn test_init_no_config_set(use_git: bool) {
         "(no email configured)".to_string()
     );
 }
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_init_checkout(use_git: bool) {
+    // Test the contents of the checkout after init
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let checkout_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
+    assert_eq!(checkout_commit.tree().id(), repo.store().empty_tree_id());
+    assert_eq!(checkout_commit.store_commit().parents, vec![]);
+    assert_eq!(checkout_commit.predecessors(), vec![]);
+    assert_eq!(checkout_commit.description(), "");
+    assert!(checkout_commit.is_open());
+    assert_eq!(checkout_commit.author().name, settings.user_name());
+    assert_eq!(checkout_commit.author().email, settings.user_email());
+    assert_eq!(checkout_commit.committer().name, settings.user_name());
+    assert_eq!(checkout_commit.committer().email, settings.user_email());
+}

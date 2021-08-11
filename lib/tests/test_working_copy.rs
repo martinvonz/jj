@@ -20,7 +20,6 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::settings::UserSettings;
@@ -32,24 +31,18 @@ use test_case::test_case;
 #[test_case(false ; "local store")]
 #[test_case(true ; "git store")]
 fn test_root(use_git: bool) {
+    // Test that the working copy is clean and empty after init.
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let owned_wc = repo.working_copy().clone();
     let wc = owned_wc.lock().unwrap();
-    assert_eq!(&wc.current_commit_id(), repo.view().checkout());
-    assert_ne!(&wc.current_commit_id(), repo.store().root_commit_id());
-    let (repo, wc_commit) = wc.commit(&settings, repo);
-    assert_eq!(wc_commit.id(), repo.view().checkout());
-    assert_eq!(wc_commit.tree().id(), repo.store().empty_tree_id());
-    assert_eq!(wc_commit.store_commit().parents, vec![]);
-    assert_eq!(wc_commit.predecessors(), vec![]);
-    assert_eq!(wc_commit.description(), "");
-    assert!(wc_commit.is_open());
-    assert_eq!(wc_commit.author().name, settings.user_name());
-    assert_eq!(wc_commit.author().email, settings.user_email());
-    assert_eq!(wc_commit.committer().name, settings.user_name());
-    assert_eq!(wc_commit.committer().email, settings.user_email());
+    let locked_wc = wc.write_tree();
+    let new_tree_id = locked_wc.new_tree_id();
+    locked_wc.discard();
+    let checkout_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
+    assert_eq!(&new_tree_id, checkout_commit.tree().id());
+    assert_eq!(&new_tree_id, repo.store().empty_tree_id());
 }
 
 #[test_case(false ; "local store")]
@@ -60,7 +53,7 @@ fn test_checkout_file_transitions(use_git: bool) {
     // additions and removals as well.
 
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
     let store = repo.store().clone();
 
     #[derive(Debug, Clone, Copy)]
@@ -179,14 +172,10 @@ fn test_checkout_file_transitions(use_git: bool) {
     wc.check_out(right_commit.clone()).unwrap();
 
     // Check that the working copy is clean.
-    let (reloaded_repo, after_commit) = wc.commit(&settings, repo);
-    repo = reloaded_repo;
-    let diff_summary = right_commit
-        .tree()
-        .diff_summary(&after_commit.tree(), &EverythingMatcher);
-    assert_eq!(diff_summary.modified, vec![]);
-    assert_eq!(diff_summary.added, vec![]);
-    assert_eq!(diff_summary.removed, vec![]);
+    let locked_wc = wc.write_tree();
+    let new_tree_id = locked_wc.new_tree_id();
+    locked_wc.discard();
+    assert_eq!(&new_tree_id, right_commit.tree().id());
 
     for (_left_kind, right_kind, path) in &files {
         let wc_path = repo.working_copy_path().join(path);
@@ -248,7 +237,7 @@ fn test_commit_racy_timestamps(use_git: bool) {
     // millisecond as the updated working copy state.
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
-    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let file_path = repo.working_copy_path().join("file");
     let mut previous_tree_id = repo.store().empty_tree_id().clone();
@@ -264,9 +253,9 @@ fn test_commit_racy_timestamps(use_git: bool) {
             file.write_all(format!("contents {}", i).as_bytes())
                 .unwrap();
         }
-        let (reloaded_repo, commit) = wc.commit(&settings, repo);
-        repo = reloaded_repo;
-        let new_tree_id = commit.tree().id().clone();
+        let locked_wc = wc.write_tree();
+        let new_tree_id = locked_wc.new_tree_id();
+        locked_wc.discard();
         assert_ne!(new_tree_id, previous_tree_id);
         previous_tree_id = new_tree_id;
     }
@@ -295,13 +284,16 @@ fn test_gitignores(use_git: bool) {
     std::fs::create_dir(repo.working_copy_path().join("dir")).unwrap();
     testutils::write_working_copy_file(&repo, &subdir_modified_path, "1");
 
-    let wc = repo.working_copy().clone();
-    let (repo, commit1) = wc.lock().unwrap().commit(&settings, repo);
-    let files1 = commit1
-        .tree()
-        .entries()
-        .map(|(name, _value)| name)
-        .collect_vec();
+    let owned_wc = repo.working_copy().clone();
+    let wc = owned_wc.lock().unwrap();
+    let locked_wc = wc.write_tree();
+    let new_tree_id1 = locked_wc.new_tree_id();
+    locked_wc.discard();
+    let tree1 = repo
+        .store()
+        .get_tree(&RepoPath::root(), &new_tree_id1)
+        .unwrap();
+    let files1 = tree1.entries().map(|(name, _value)| name).collect_vec();
     assert_eq!(
         files1,
         vec![
@@ -320,13 +312,14 @@ fn test_gitignores(use_git: bool) {
     testutils::write_working_copy_file(&repo, &subdir_modified_path, "2");
     testutils::write_working_copy_file(&repo, &subdir_ignored_path, "2");
 
-    let wc = repo.working_copy().clone();
-    let (_repo, commit2) = wc.lock().unwrap().commit(&settings, repo);
-    let files2 = commit2
-        .tree()
-        .entries()
-        .map(|(name, _value)| name)
-        .collect_vec();
+    let locked_wc = wc.write_tree();
+    let new_tree_id2 = locked_wc.new_tree_id();
+    locked_wc.discard();
+    let tree2 = repo
+        .store()
+        .get_tree(&RepoPath::root(), &new_tree_id2)
+        .unwrap();
+    let files2 = tree2.entries().map(|(name, _value)| name).collect_vec();
     assert_eq!(
         files2,
         vec![
@@ -380,10 +373,16 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     file.read_to_end(&mut buf).unwrap();
     assert_eq!(buf, b"contents");
 
-    // Check that the file is in the commit created by committing the working copy
-    let (_repo, new_commit) = repo.working_copy_locked().commit(&settings, repo.clone());
-    assert!(new_commit
-        .tree()
+    // Check that the file is in the tree created by committing the working copy
+    let wc = repo.working_copy_locked();
+    let locked_wc = wc.write_tree();
+    let new_tree_id = locked_wc.new_tree_id();
+    locked_wc.discard();
+    let new_tree = repo
+        .store()
+        .get_tree(&RepoPath::root(), &new_tree_id)
+        .unwrap();
+    assert!(new_tree
         .entry(&RepoPathComponent::from("modified"))
         .is_some());
 }
@@ -419,8 +418,15 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     // Check out the commit with the file in ignored/
     repo.working_copy_locked().check_out(commit).unwrap();
 
-    // Check that the file is still in the commit created by committing the working
+    // Check that the file is still in the tree created by committing the working
     // copy (that it didn't get removed because the directory is ignored)
-    let (_repo, new_commit) = repo.working_copy_locked().commit(&settings, repo.clone());
-    assert!(new_commit.tree().path_value(&file_path).is_some());
+    let wc = repo.working_copy_locked();
+    let locked_wc = wc.write_tree();
+    let new_tree_id = locked_wc.new_tree_id();
+    locked_wc.discard();
+    let new_tree = repo
+        .store()
+        .get_tree(&RepoPath::root(), &new_tree_id)
+        .unwrap();
+    assert!(new_tree.path_value(&file_path).is_some());
 }

@@ -32,13 +32,10 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::commit::Commit;
-use crate::commit_builder::CommitBuilder;
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::matchers::EverythingMatcher;
-use crate::repo::ReadonlyRepo;
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
-use crate::settings::UserSettings;
 use crate::store::{CommitId, FileId, MillisSinceEpoch, StoreError, SymlinkId, TreeId, TreeValue};
 use crate::store_wrapper::StoreWrapper;
 use crate::tree::Diff;
@@ -752,48 +749,64 @@ impl WorkingCopy {
         Ok(stats)
     }
 
-    pub fn commit(
-        &self,
-        settings: &UserSettings,
-        mut repo: Arc<ReadonlyRepo>,
-    ) -> (Arc<ReadonlyRepo>, Commit) {
+    pub fn write_tree(&self) -> LockedWorkingCopy {
         let lock_path = self.state_path.join("working_copy.lock");
-        let _lock = FileLock::lock(lock_path);
+        let lock = FileLock::lock(lock_path);
 
-        // Check if the current checkout has changed on disk after we read it. It's fine
-        // if it has, but we'll want our new commit to be a successor of the one
-        // just created in that case, so we need to reset our state to have the new
-        // commit id.
         let current_proto = self.read_proto();
-        let maybe_previous_commit_id = self
-            .commit_id
-            .replace(Some(CommitId(current_proto.commit_id.clone())));
-        match maybe_previous_commit_id {
-            Some(previous_commit_id) if previous_commit_id.0 != current_proto.commit_id => {
-                // Reload the repo so the new commit is visible in the index and view
-                // TODO: This is not enough. The new commit is not necessarily still in the
-                // view when we reload.
-                repo = repo.reload();
-            }
-            _ => {}
-        }
-        let current_commit = self.current_commit();
+        self.commit_id
+            .replace(Some(CommitId(current_proto.commit_id)));
+        self.tree_state().as_mut().unwrap().write_tree();
 
-        let new_tree_id = self.tree_state().as_mut().unwrap().write_tree().clone();
-        if &new_tree_id != current_commit.tree().id() {
-            let mut tx = repo.start_transaction("commit working copy");
-            let mut_repo = tx.mut_repo();
-            let commit = CommitBuilder::for_rewrite_from(settings, repo.store(), &current_commit)
-                .set_tree(new_tree_id)
-                .write_to_repo(mut_repo);
-            mut_repo.set_checkout(commit.id().clone());
-            repo = tx.commit();
-
-            self.commit_id.replace(Some(commit.id().clone()));
-            self.commit.replace(Some(commit));
-            self.save();
+        LockedWorkingCopy {
+            wc: self,
+            lock,
+            closed: false,
         }
-        let commit = self.commit.borrow().as_ref().unwrap().clone();
-        (repo, commit)
+    }
+}
+
+// A working copy that's locked on disk. The tree state has already been
+// updated.
+pub struct LockedWorkingCopy<'a> {
+    wc: &'a WorkingCopy,
+    #[allow(dead_code)]
+    lock: FileLock,
+    closed: bool,
+}
+
+impl LockedWorkingCopy<'_> {
+    pub fn old_commit_id(&self) -> CommitId {
+        self.wc.current_commit_id()
+    }
+
+    pub fn old_commit(&self) -> Commit {
+        self.wc.current_commit()
+    }
+
+    pub fn new_tree_id(&self) -> TreeId {
+        self.wc.current_tree_id()
+    }
+
+    pub fn finish(mut self, commit: Commit) {
+        self.wc.commit_id.replace(Some(commit.id().clone()));
+        self.wc.commit.replace(Some(commit));
+        self.wc.save();
+        self.closed = true;
+    }
+
+    pub fn discard(mut self) {
+        self.closed = true;
+    }
+}
+
+impl Drop for LockedWorkingCopy<'_> {
+    fn drop(&mut self) {
+        if !std::thread::panicking() {
+            debug_assert!(
+                self.closed,
+                "Working copy lock was dropped without being closed."
+            );
+        }
     }
 }
