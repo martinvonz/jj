@@ -158,9 +158,9 @@ pub fn fetch(
 pub enum GitPushError {
     #[error("No git remote named '{0}'")]
     NoSuchRemote(String),
-    #[error("Push is not fast-forwardable'")]
+    #[error("Push is not fast-forwardable")]
     NotFastForward,
-    #[error("Remote reject the update'")]
+    #[error("Remote reject the update")]
     RefUpdateRejected,
     // TODO: I'm sure there are other errors possible, such as transport-level errors,
     // and errors caused by the remote rejecting the push.
