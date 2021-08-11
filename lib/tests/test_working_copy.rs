@@ -176,7 +176,6 @@ fn test_checkout_file_transitions(use_git: bool) {
     let owned_wc = repo.working_copy().clone();
     let wc = owned_wc.lock().unwrap();
     wc.check_out(left_commit).unwrap();
-    repo = wc.commit(&settings, repo).0;
     wc.check_out(right_commit.clone()).unwrap();
 
     // Check that the working copy is clean.
