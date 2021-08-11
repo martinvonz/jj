@@ -2113,46 +2113,60 @@ fn cmd_branches(
 ) -> Result<(), CommandError> {
     let repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
+    
+    let print_branch_target = |ui: &mut Ui, target: Option<&RefTarget>| -> Result<(), CommandError> {
+        match target {
+            Some(RefTarget::Normal(id)) => {
+                write!(ui, ": ")?;
+                let commit = repo.store().get_commit(id)?;
+                ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
+                writeln!(ui)?;
+            }
+            Some(RefTarget::Conflict { adds, removes }) => {
+                write!(ui, " ")?;
+                ui.stdout_formatter().add_label("conflict".to_string())?;
+                write!(ui, "(conflicted)")?;
+                ui.stdout_formatter().remove_label()?;
+                writeln!(ui, ":")?;
+                for id in removes {
+                    let commit = repo.store().get_commit(id)?;
+                    write!(ui, "  - ")?;
+                    ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
+                    writeln!(ui)?;
+                }
+                for id in adds {
+                    let commit = repo.store().get_commit(id)?;
+                    write!(ui, "  + ")?;
+                    ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
+                    writeln!(ui)?;
+                }
+            }
+            None => {
+                writeln!(ui, " (deleted)")?;
+            }
+        }
+        Ok(())
+    };
+    
     for (name, branch_target) in repo.view().branches() {
         ui.stdout_formatter().add_label("branch".to_string())?;
         write!(ui, "{}", name)?;
         ui.stdout_formatter().remove_label()?;
-        if let Some(local_target) = &branch_target.local_target {
-            match local_target {
-                RefTarget::Normal(id) => {
-                    write!(ui, ": ")?;
-                    let commit = repo.store().get_commit(id)?;
-                    ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
-                    writeln!(ui)?;
-                }
-                RefTarget::Conflict { adds, removes } => {
-                    write!(ui, " ")?;
-                    ui.stdout_formatter().add_label("conflict".to_string())?;
-                    write!(ui, "(conflicted)")?;
-                    ui.stdout_formatter().remove_label()?;
-                    writeln!(ui, ":")?;
-                    for id in removes {
-                        let commit = repo.store().get_commit(id)?;
-                        write!(ui, "  - ")?;
-                        ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
-                        writeln!(ui)?;
-                    }
-                    for id in adds {
-                        let commit = repo.store().get_commit(id)?;
-                        write!(ui, "  + ")?;
-                        ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
-                        writeln!(ui)?;
-                    }
-                }
-            }
-        } else {
-            writeln!(ui, " (deleted)")?;
-        }
+        print_branch_target(ui, branch_target.local_target.as_ref())?;
 
-        // TODO: Display information about remote branches, but probably only
-        // those that have different targets than the local branch.
-        // Maybe indicate how much the remotes are ahead/behind/
-        // diverged.
+        for (remote, remote_target) in branch_target.remote_targets.iter().sorted_by_key(|(name, _target)| name.to_owned()) {
+            if Some(remote_target) == branch_target.local_target.as_ref() {
+                continue;
+            }
+            ui.stdout_formatter().add_label("branch".to_string())?;
+            write!(ui, "{}@{}", name, remote)?;
+            ui.stdout_formatter().remove_label()?;
+            print_branch_target(ui, Some(remote_target))?;
+            // TODO: Display information about remote branches, but probably only
+            // those that have different targets than the local branch.
+            // Maybe indicate how much the remotes are ahead/behind/
+            // diverged.
+        }
     }
 
     Ok(())
