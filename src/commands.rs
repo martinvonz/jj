@@ -381,27 +381,19 @@ impl RepoCommandHelper {
     ) -> Result<Option<CheckoutStats>, CommandError> {
         let mut_repo = tx.mut_repo();
         if self.evolve_orphans {
-            let mut orphan_resolver = OrphanResolver::new(ui.settings(), mut_repo);
-            let mut num_resolved = 0;
-            let mut num_failed = 0;
-            while let Some(resolution) = orphan_resolver.resolve_next(mut_repo) {
-                match resolution {
-                    OrphanResolution::Resolved { .. } => {
-                        num_resolved += 1;
-                    }
-                    _ => {
-                        num_failed += 1;
-                    }
-                }
+            let evolve_result = evolve_orphans(ui.settings(), mut_repo)?;
+            if evolve_result.num_resolved > 0 {
+                writeln!(
+                    ui,
+                    "Rebased {} descendant commits",
+                    evolve_result.num_resolved
+                )?;
             }
-            if num_resolved > 0 {
-                writeln!(ui, "Rebased {} descendant commits", num_resolved)?;
-            }
-            if num_failed > 0 {
+            if evolve_result.num_failed > 0 {
                 writeln!(
                     ui,
                     "Failed to rebase {} descendant commits (run `jj evolve`)",
-                    num_failed
+                    evolve_result.num_failed
                 )?;
             }
         }
@@ -557,6 +549,34 @@ fn update_working_copy(
     ui.write_commit_summary(repo.as_repo_ref(), &new_commit)?;
     ui.write("\n")?;
     Ok(Some(stats))
+}
+
+struct OrphanEvolutionResult {
+    num_resolved: i32,
+    num_failed: i32,
+}
+
+fn evolve_orphans(
+    settings: &UserSettings,
+    mut_repo: &mut MutableRepo,
+) -> Result<OrphanEvolutionResult, CommandError> {
+    let mut orphan_resolver = OrphanResolver::new(settings, mut_repo);
+    let mut num_resolved = 0;
+    let mut num_failed = 0;
+    while let Some(resolution) = orphan_resolver.resolve_next(mut_repo) {
+        match resolution {
+            OrphanResolution::Resolved { .. } => {
+                num_resolved += 1;
+            }
+            _ => {
+                num_failed += 1;
+            }
+        }
+    }
+    Ok(OrphanEvolutionResult {
+        num_resolved,
+        num_failed,
+    })
 }
 
 fn update_checkout_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) -> io::Result<()> {
