@@ -248,13 +248,18 @@ impl RepoCommandHelper {
 
     fn resolve_revision_arg(
         &mut self,
+        ui: &mut Ui,
         command_matches: &ArgMatches,
     ) -> Result<Commit, CommandError> {
-        self.resolve_single_rev(command_matches.value_of("revision").unwrap())
+        self.resolve_single_rev(ui, command_matches.value_of("revision").unwrap())
     }
 
-    fn resolve_single_rev(&mut self, revision_str: &str) -> Result<Commit, CommandError> {
-        let revset_expression = self.parse_revset(revision_str)?;
+    fn resolve_single_rev(
+        &mut self,
+        ui: &mut Ui,
+        revision_str: &str,
+    ) -> Result<Commit, CommandError> {
+        let revset_expression = self.parse_revset(ui, revision_str)?;
         let revset = revset_expression.evaluate(self.repo.as_repo_ref())?;
         let mut iter = revset.iter();
         match iter.next() {
@@ -276,8 +281,12 @@ impl RepoCommandHelper {
         }
     }
 
-    fn resolve_revset(&mut self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
-        let revset_expression = self.parse_revset(revision_str)?;
+    fn resolve_revset(
+        &mut self,
+        ui: &mut Ui,
+        revision_str: &str,
+    ) -> Result<Vec<Commit>, CommandError> {
+        let revset_expression = self.parse_revset(ui, revision_str)?;
         let revset = revset_expression.evaluate(self.repo.as_repo_ref())?;
         Ok(revset
             .iter()
@@ -285,7 +294,11 @@ impl RepoCommandHelper {
             .collect())
     }
 
-    fn parse_revset(&mut self, revision_str: &str) -> Result<RevsetExpression, CommandError> {
+    fn parse_revset(
+        &mut self,
+        ui: &mut Ui,
+        revision_str: &str,
+    ) -> Result<RevsetExpression, CommandError> {
         let expression = revset::parse(revision_str)?;
         // If the revset is exactly "@", then we need to commit the working copy. If
         // it's another symbol, then we don't. If it's more complex, then we do
@@ -303,7 +316,7 @@ impl RepoCommandHelper {
             _ => true,
         };
         if mentions_checkout && !self.working_copy_committed {
-            self.maybe_commit_working_copy();
+            self.maybe_commit_working_copy(ui)?;
         }
         Ok(expression)
     }
@@ -324,17 +337,17 @@ impl RepoCommandHelper {
         Ok(())
     }
 
-    fn commit_working_copy(&mut self) -> Result<(), CommandError> {
+    fn commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         if !self.may_update_working_copy {
             return Err(UserError(
                 "Refusing to update working copy (maybe because you're using --at-op)".to_string(),
             ));
         }
-        self.maybe_commit_working_copy();
+        self.maybe_commit_working_copy(ui)?;
         Ok(())
     }
 
-    fn maybe_commit_working_copy(&mut self) {
+    fn maybe_commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             let repo = self.repo.clone();
             let wc = repo.working_copy_locked();
@@ -357,6 +370,21 @@ impl RepoCommandHelper {
                         .set_tree(new_tree_id)
                         .write_to_repo(mut_repo);
                 mut_repo.set_checkout(commit.id().clone());
+                let evolve_result = evolve_orphans(&self.settings, mut_repo)?;
+                if evolve_result.num_resolved > 0 {
+                    writeln!(
+                        ui,
+                        "Rebased {} descendant commits onto updated working copy",
+                        evolve_result.num_resolved
+                    )?;
+                }
+                if evolve_result.num_failed > 0 {
+                    writeln!(
+                        ui,
+                        "Failed to rebase {} descendant commits onto updated working copy (run `jj evolve`)",
+                        evolve_result.num_failed
+                    )?;
+                }
                 self.repo = tx.commit();
                 locked_wc.finish(commit);
             } else {
@@ -364,6 +392,7 @@ impl RepoCommandHelper {
             }
             self.working_copy_committed = true;
         }
+        Ok(())
     }
 
     fn start_transaction(&self, description: &str) -> Transaction {
@@ -1047,8 +1076,8 @@ fn cmd_checkout(
         .repo_helper(ui)?
         .auto_update_checkout(false)
         .auto_update_branches(false);
-    let new_commit = repo_command.resolve_revision_arg(sub_matches)?;
-    repo_command.commit_working_copy()?;
+    let new_commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
+    repo_command.commit_working_copy(ui)?;
     let mut tx =
         repo_command.start_transaction(&format!("check out commit {}", new_commit.id().hex()));
     tx.mut_repo().check_out(ui.settings(), &new_commit);
@@ -1070,7 +1099,7 @@ fn cmd_files(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    let commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     for (name, _value) in commit.tree().entries() {
         writeln!(
             ui,
@@ -1186,13 +1215,14 @@ fn cmd_diff(
     let from_tree;
     let to_tree;
     if sub_matches.is_present("from") || sub_matches.is_present("to") {
-        let from = repo_command.resolve_single_rev(sub_matches.value_of("from").unwrap_or("@"))?;
+        let from =
+            repo_command.resolve_single_rev(ui, sub_matches.value_of("from").unwrap_or("@"))?;
         from_tree = from.tree();
-        let to = repo_command.resolve_single_rev(sub_matches.value_of("to").unwrap_or("@"))?;
+        let to = repo_command.resolve_single_rev(ui, sub_matches.value_of("to").unwrap_or("@"))?;
         to_tree = to.tree();
     } else {
         let commit =
-            repo_command.resolve_single_rev(sub_matches.value_of("revision").unwrap_or("@"))?;
+            repo_command.resolve_single_rev(ui, sub_matches.value_of("revision").unwrap_or("@"))?;
         let parents = commit.parents();
         from_tree = merge_commit_trees(repo_command.repo().as_repo_ref(), &parents);
         to_tree = commit.tree()
@@ -1351,7 +1381,7 @@ fn cmd_status(
     _sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    repo_command.maybe_commit_working_copy();
+    repo_command.maybe_commit_working_copy(ui)?;
     let repo = repo_command.repo();
     let commit = repo.store().get_commit(repo.view().checkout()).unwrap();
     ui.write("Parent commit: ")?;
@@ -1429,7 +1459,7 @@ fn cmd_log(
     let mut repo_command = command.repo_helper(ui)?;
 
     let revset_expression =
-        repo_command.parse_revset(sub_matches.value_of("revisions").unwrap())?;
+        repo_command.parse_revset(ui, sub_matches.value_of("revisions").unwrap())?;
     let repo = repo_command.repo();
     let checkout_id = repo.view().checkout().clone();
     let revset = revset_expression.evaluate(repo.as_repo_ref())?;
@@ -1519,7 +1549,7 @@ fn cmd_obslog(
     let mut repo_command = command.repo_helper(ui)?;
 
     let use_graph = !sub_matches.is_present("no-graph");
-    let start_commit = repo_command.resolve_revision_arg(sub_matches)?;
+    let start_commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     let checkout_id = repo_command.repo().view().checkout().clone();
 
     let template_string = match sub_matches.value_of("template") {
@@ -1634,7 +1664,7 @@ fn cmd_describe(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    let commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let description;
@@ -1666,7 +1696,7 @@ fn cmd_open(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    let commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let mut tx = repo_command.start_transaction(&format!("open commit {}", commit.id().hex()));
@@ -1683,7 +1713,7 @@ fn cmd_close(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    let commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let mut commit_builder =
@@ -1709,7 +1739,7 @@ fn cmd_duplicate(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let predecessor = repo_command.resolve_revision_arg(sub_matches)?;
+    let predecessor = repo_command.resolve_revision_arg(ui, sub_matches)?;
     let repo = repo_command.repo();
     let mut tx =
         repo_command.start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
@@ -1730,7 +1760,8 @@ fn cmd_prune(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let predecessors = repo_command.resolve_revset(sub_matches.value_of("revision").unwrap())?;
+    let predecessors =
+        repo_command.resolve_revset(ui, sub_matches.value_of("revision").unwrap())?;
     repo_command.check_non_empty(&predecessors)?;
     for predecessor in &predecessors {
         repo_command.check_rewriteable(predecessor)?;
@@ -1761,7 +1792,7 @@ fn cmd_new(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let parent = repo_command.resolve_revision_arg(sub_matches)?;
+    let parent = repo_command.resolve_revision_arg(ui, sub_matches)?;
     let repo = repo_command.repo();
     let commit_builder = CommitBuilder::for_open_commit(
         ui.settings(),
@@ -1785,7 +1816,7 @@ fn cmd_squash(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    let commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let parents = commit.parents();
@@ -1844,7 +1875,7 @@ fn cmd_unsquash(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    let commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let parents = commit.parents();
@@ -1903,7 +1934,7 @@ fn cmd_discard(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    let commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     let mut tx = repo_command.start_transaction(&format!("discard commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
     mut_repo.remove_head(&commit);
@@ -1922,8 +1953,8 @@ fn cmd_restore(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let from_commit = repo_command.resolve_single_rev(sub_matches.value_of("from").unwrap())?;
-    let to_commit = repo_command.resolve_single_rev(sub_matches.value_of("to").unwrap())?;
+    let from_commit = repo_command.resolve_single_rev(ui, sub_matches.value_of("from").unwrap())?;
+    let to_commit = repo_command.resolve_single_rev(ui, sub_matches.value_of("to").unwrap())?;
     repo_command.check_rewriteable(&to_commit)?;
     let repo = repo_command.repo();
     let tree_id;
@@ -1989,7 +2020,7 @@ fn cmd_edit(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    let commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
@@ -2025,7 +2056,7 @@ fn cmd_split(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(sub_matches)?;
+    let commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
@@ -2090,7 +2121,7 @@ fn cmd_merge(
     let mut commits = vec![];
     let mut parent_ids = vec![];
     for revision_arg in revision_args {
-        let commit = repo_command.resolve_single_rev(revision_arg)?;
+        let commit = repo_command.resolve_single_rev(ui, revision_arg)?;
         parent_ids.push(commit.id().clone());
         commits.push(commit);
     }
@@ -2122,11 +2153,11 @@ fn cmd_rebase(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let commit_to_rebase = repo_command.resolve_revision_arg(sub_matches)?;
+    let commit_to_rebase = repo_command.resolve_revision_arg(ui, sub_matches)?;
     repo_command.check_rewriteable(&commit_to_rebase)?;
     let mut parents = vec![];
     for revision_str in sub_matches.values_of("destination").unwrap() {
-        let destination = repo_command.resolve_single_rev(revision_str)?;
+        let destination = repo_command.resolve_single_rev(ui, revision_str)?;
         parents.push(destination);
     }
     let mut tx =
@@ -2143,10 +2174,10 @@ fn cmd_backout(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let commit_to_back_out = repo_command.resolve_revision_arg(sub_matches)?;
+    let commit_to_back_out = repo_command.resolve_revision_arg(ui, sub_matches)?;
     let mut parents = vec![];
     for revision_str in sub_matches.values_of("destination").unwrap() {
-        let destination = repo_command.resolve_single_rev(revision_str)?;
+        let destination = repo_command.resolve_single_rev(ui, revision_str)?;
         parents.push(destination);
     }
     let mut tx = repo_command.start_transaction(&format!(
@@ -2185,7 +2216,7 @@ fn cmd_branch(
         tx.mut_repo().remove_local_branch(branch_name);
         repo_command.finish_transaction(ui, tx)?;
     } else {
-        let target_commit = repo_command.resolve_revision_arg(sub_matches)?;
+        let target_commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
         if !sub_matches.is_present("allow-backwards")
             && !is_fast_forward(
                 repo_command.repo().as_repo_ref(),
@@ -2356,7 +2387,7 @@ fn cmd_debug(
 ) -> Result<(), CommandError> {
     if let Some(resolve_matches) = sub_matches.subcommand_matches("resolverev") {
         let mut repo_command = command.repo_helper(ui)?;
-        let commit = repo_command.resolve_revision_arg(resolve_matches)?;
+        let commit = repo_command.resolve_revision_arg(ui, resolve_matches)?;
         writeln!(ui, "{}", commit.id().hex())?;
     } else if let Some(_wc_matches) = sub_matches.subcommand_matches("workingcopy") {
         let repo_command = command.repo_helper(ui)?;
@@ -2431,9 +2462,9 @@ fn cmd_bench(
     if let Some(command_matches) = sub_matches.subcommand_matches("commonancestors") {
         let mut repo_command = command.repo_helper(ui)?;
         let revision1_str = command_matches.value_of("revision1").unwrap();
-        let commit1 = repo_command.resolve_single_rev(revision1_str)?;
+        let commit1 = repo_command.resolve_single_rev(ui, revision1_str)?;
         let revision2_str = command_matches.value_of("revision2").unwrap();
-        let commit2 = repo_command.resolve_single_rev(revision2_str)?;
+        let commit2 = repo_command.resolve_single_rev(ui, revision2_str)?;
         let index = repo_command.repo().index();
         let routine = || index.common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()]);
         run_bench(
@@ -2444,9 +2475,9 @@ fn cmd_bench(
     } else if let Some(command_matches) = sub_matches.subcommand_matches("isancestor") {
         let mut repo_command = command.repo_helper(ui)?;
         let ancestor_str = command_matches.value_of("ancestor").unwrap();
-        let ancestor_commit = repo_command.resolve_single_rev(ancestor_str)?;
+        let ancestor_commit = repo_command.resolve_single_rev(ui, ancestor_str)?;
         let descendants_str = command_matches.value_of("descendant").unwrap();
-        let descendant_commit = repo_command.resolve_single_rev(descendants_str)?;
+        let descendant_commit = repo_command.resolve_single_rev(ui, descendants_str)?;
         let index = repo_command.repo().index();
         let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
         run_bench(
@@ -2457,9 +2488,9 @@ fn cmd_bench(
     } else if let Some(command_matches) = sub_matches.subcommand_matches("walkrevs") {
         let mut repo_command = command.repo_helper(ui)?;
         let unwanted_str = command_matches.value_of("unwanted").unwrap();
-        let unwanted_commit = repo_command.resolve_single_rev(unwanted_str)?;
+        let unwanted_commit = repo_command.resolve_single_rev(ui, unwanted_str)?;
         let wanted_str = command_matches.value_of("wanted");
-        let wanted_commit = repo_command.resolve_single_rev(wanted_str.unwrap())?;
+        let wanted_commit = repo_command.resolve_single_rev(ui, wanted_str.unwrap())?;
         let index = repo_command.repo().index();
         let routine = || {
             index
