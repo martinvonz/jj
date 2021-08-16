@@ -643,7 +643,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("no-graph").long("no-graph"));
     let describe_command = SubCommand::with_name("describe")
         .about("Edit the commit description")
-        .arg(rev_arg())
+        .arg(Arg::with_name("revision").index(1).default_value("@"))
         .arg(message_arg())
         .arg(Arg::with_name("stdin").long("stdin"));
     let close_command = SubCommand::with_name("close")
