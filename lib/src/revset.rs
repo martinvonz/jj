@@ -173,6 +173,7 @@ pub enum RevsetParseError {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RevsetExpression {
     None,
+    Commits(Vec<CommitId>),
     Symbol(String),
     Parents(Rc<RevsetExpression>),
     Children {
@@ -216,6 +217,14 @@ impl RevsetExpression {
 
     pub fn symbol(value: String) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Symbol(value))
+    }
+
+    pub fn commit(commit_id: CommitId) -> Rc<RevsetExpression> {
+        RevsetExpression::commits(vec![commit_id])
+    }
+
+    pub fn commits(commit_ids: Vec<CommitId>) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Commits(commit_ids))
     }
 
     pub fn all_heads() -> Rc<RevsetExpression> {
@@ -962,8 +971,7 @@ pub fn evaluate_expression<'repo>(
         RevsetExpression::None => Ok(Box::new(EagerRevset {
             index_entries: vec![],
         })),
-        RevsetExpression::Symbol(symbol) => {
-            let commit_ids = resolve_symbol(repo, symbol)?;
+        RevsetExpression::Commits(commit_ids) => {
             let index = repo.index();
             let mut index_entries = commit_ids
                 .iter()
@@ -971,6 +979,10 @@ pub fn evaluate_expression<'repo>(
                 .collect_vec();
             index_entries.sort_by_key(|b| Reverse(b.position()));
             Ok(Box::new(EagerRevset { index_entries }))
+        }
+        RevsetExpression::Symbol(symbol) => {
+            let commit_ids = resolve_symbol(repo, symbol)?;
+            evaluate_expression(repo, &RevsetExpression::Commits(commit_ids))
         }
         RevsetExpression::Parents(base_expression) => {
             // TODO: Make this lazy

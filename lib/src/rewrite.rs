@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::{HashMap, HashSet};
+
 use itertools::Itertools;
 
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::repo::{MutableRepo, RepoRef};
 use crate::repo_path::RepoPath;
+use crate::revset::RevsetExpression;
 use crate::settings::UserSettings;
+use crate::store::CommitId;
 use crate::tree::{merge_trees, Tree};
 
 pub fn merge_commit_trees(repo: RepoRef, commits: &[Commit]) -> Tree {
@@ -92,4 +96,114 @@ pub fn back_out_commit(
             hex::encode(&old_commit.id().0)
         ))
         .write_to_repo(mut_repo)
+}
+
+/// Rebases descendants of a commit onto a new commit (or several).
+// TODO: Should there be an option to drop empty commits (and/or an option to
+// drop empty commits only if they weren't already empty)? Or maybe that
+// shouldn't be this type's job.
+pub struct DescendantRebaser<'settings, 'repo> {
+    settings: &'settings UserSettings,
+    mut_repo: &'repo mut MutableRepo,
+    old_parent_id: CommitId,
+    new_parent_ids: Vec<CommitId>,
+    // In reverse order, so we can remove the last one to rebase first.
+    to_rebase: Vec<CommitId>,
+    rebased: HashMap<CommitId, CommitId>,
+}
+
+impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
+    pub fn new(
+        settings: &'settings UserSettings,
+        mut_repo: &'repo mut MutableRepo,
+        old_parent_id: CommitId,
+        new_parent_ids: Vec<CommitId>,
+    ) -> DescendantRebaser<'settings, 'repo> {
+        let expression = RevsetExpression::commit(old_parent_id.clone())
+            .descendants(&RevsetExpression::all_non_obsolete_heads())
+            .minus(
+                &RevsetExpression::commit(old_parent_id.clone())
+                    .union(&RevsetExpression::commits(new_parent_ids.clone()))
+                    .ancestors(),
+            );
+        let revset = expression.evaluate(mut_repo.as_repo_ref()).unwrap();
+        let mut to_rebase = vec![];
+        for index_entry in revset.iter() {
+            to_rebase.push(index_entry.commit_id());
+        }
+        drop(revset);
+
+        DescendantRebaser {
+            settings,
+            mut_repo,
+            old_parent_id,
+            new_parent_ids,
+            to_rebase,
+            rebased: Default::default(),
+        }
+    }
+
+    /// Returns a map from `CommitId` of old commit to new commit. Includes the
+    /// commits rebase so far. Does not include the inputs passed to
+    /// `rebase_descendants`.
+    pub fn rebased(&self) -> &HashMap<CommitId, CommitId> {
+        &self.rebased
+    }
+
+    pub fn rebase_next(&mut self) -> Option<RebasedDescendant> {
+        self.to_rebase.pop().map(|old_commit_id| {
+            let old_commit = self.mut_repo.store().get_commit(&old_commit_id).unwrap();
+            let mut new_parent_ids = vec![];
+            let old_parent_ids = old_commit.parent_ids();
+            for old_parent_id in &old_parent_ids {
+                if old_parent_id == &self.old_parent_id {
+                    new_parent_ids.extend(self.new_parent_ids.clone());
+                } else if let Some(new_parent_id) = self.rebased.get(old_parent_id) {
+                    new_parent_ids.push(new_parent_id.clone());
+                } else {
+                    new_parent_ids.push(old_parent_id.clone());
+                };
+            }
+            if new_parent_ids == old_parent_ids {
+                RebasedDescendant::AlreadyInPlace
+            } else {
+                // Don't create commit where one parent is an ancestor of another.
+                let head_set: HashSet<_> = self
+                    .mut_repo
+                    .index()
+                    .heads(&new_parent_ids)
+                    .iter()
+                    .cloned()
+                    .collect();
+                let new_parent_ids = new_parent_ids
+                    .into_iter()
+                    .filter(|new_parent| head_set.contains(new_parent))
+                    .collect();
+                let new_commit = CommitBuilder::for_rewrite_from(
+                    self.settings,
+                    self.mut_repo.store(),
+                    &old_commit,
+                )
+                .set_parents(new_parent_ids)
+                .write_to_repo(self.mut_repo);
+                self.rebased.insert(old_commit_id, new_commit.id().clone());
+                RebasedDescendant::Rebased {
+                    old_commit,
+                    new_commit,
+                }
+            }
+        })
+    }
+
+    pub fn rebase_all(&mut self) {
+        while self.rebase_next().is_some() {}
+    }
+}
+
+pub enum RebasedDescendant {
+    AlreadyInPlace,
+    Rebased {
+        old_commit: Commit,
+        new_commit: Commit,
+    },
 }
