@@ -1420,6 +1420,46 @@ fn cmd_status(
     ui.write("Working copy : ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
     ui.write("\n")?;
+    let mut conflicted_local_branches = vec![];
+    let mut conflicted_remote_branches = vec![];
+    for (branch_name, branch_target) in repo.view().branches() {
+        if let Some(local_target) = &branch_target.local_target {
+            if local_target.is_conflict() {
+                conflicted_local_branches.push(branch_name.clone());
+            }
+        }
+        for (remote_name, remote_target) in &branch_target.remote_targets {
+            if remote_target.is_conflict() {
+                conflicted_remote_branches.push((branch_name.clone(), remote_name.clone()));
+            }
+        }
+    }
+    if !conflicted_local_branches.is_empty() {
+        ui.stdout_formatter().add_label("conflict".to_string())?;
+        writeln!(ui, "These branches have conflicts:")?;
+        ui.stdout_formatter().remove_label()?;
+        for branch_name in conflicted_local_branches {
+            write!(ui, "  ")?;
+            ui.stdout_formatter().add_label("branch".to_string())?;
+            write!(ui, "{}", branch_name)?;
+            ui.stdout_formatter().remove_label()?;
+            writeln!(ui)?;
+        }
+        writeln!(ui, "  Use `jj branches` to see details. Use `jj branch <name> -r <rev>` to resolve.")?;
+    }
+    if !conflicted_remote_branches.is_empty() {
+        ui.stdout_formatter().add_label("conflict".to_string())?;
+        writeln!(ui, "These remote branches have conflicts:")?;
+        ui.stdout_formatter().remove_label()?;
+        for (branch_name, remote_name) in conflicted_remote_branches {
+            write!(ui, "  ")?;
+            ui.stdout_formatter().add_label("branch".to_string())?;
+            write!(ui, "{}@{}", branch_name, remote_name)?;
+            ui.stdout_formatter().remove_label()?;
+            writeln!(ui)?;
+        }
+        writeln!(ui, "  Use `jj branches` to see details. Use `jj git pull` to resolve.")?;
+    }
     let summary = commit.parents()[0]
         .tree()
         .diff_summary(&commit.tree(), &EverythingMatcher);
