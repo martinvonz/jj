@@ -356,7 +356,8 @@ impl RepoCommandHelper {
             // Check if the current checkout has changed on disk after we read it. It's fine
             // if it has, but we'll need to reload the repo so the new commit is
             // in the index and view.
-            if repo.view().checkout() != old_commit.id() {
+            let old_checkout = repo.view().checkout();
+            if old_checkout != old_commit.id() {
                 // TODO: This is not enough. The new commit is not necessarily still in the
                 // view when we reload.
                 self.repo = repo.reload();
@@ -370,6 +371,34 @@ impl RepoCommandHelper {
                         .set_tree(new_tree_id)
                         .write_to_repo(mut_repo);
                 mut_repo.set_checkout(commit.id().clone());
+
+                // Update branches pointing to the old checkout
+                let mut branches_to_update = HashSet::new();
+                for (branch_name, branch_target) in mut_repo.view().branches() {
+                    match &branch_target.local_target {
+                        None => {
+                            // nothing to do (a deleted branch doesn't need
+                            // updating)
+                        }
+                        Some(RefTarget::Normal(current_target)) => {
+                            if current_target == old_checkout {
+                                branches_to_update.insert(branch_name.clone());
+                            }
+                        }
+                        Some(RefTarget::Conflict { adds, .. }) => {
+                            for current_target in adds {
+                                if current_target == old_checkout {
+                                    writeln!(ui, "Branch {}'s target was rewritten, but not updating it since it's conflicted", branch_name)?;
+                                }
+                            }
+                        }
+                    }
+                }
+                for branch_name in branches_to_update {
+                    mut_repo.set_local_branch(branch_name, RefTarget::Normal(commit.id().clone()));
+                }
+
+                // Evolve descendants (though it currently evolves all commits)
                 let evolve_result = evolve_orphans(&self.settings, mut_repo)?;
                 if evolve_result.num_resolved > 0 {
                     writeln!(
@@ -385,6 +414,7 @@ impl RepoCommandHelper {
                         evolve_result.num_failed
                     )?;
                 }
+
                 self.repo = tx.commit();
                 locked_wc.finish(commit);
             } else {
