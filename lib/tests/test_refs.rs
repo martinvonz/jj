@@ -15,7 +15,7 @@
 use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::refs::merge_ref_targets;
 use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::create_random_commit;
+use jujutsu_lib::testutils::CommitGraphBuilder;
 
 #[test]
 fn test_merge_ref_targets() {
@@ -31,26 +31,14 @@ fn test_merge_ref_targets() {
     // |/
     // 1
     let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
-    let commit1 = create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit3 = create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit4 = create_random_commit(&settings, &repo)
-        .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit5 = create_random_commit(&settings, &repo)
-        .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit6 = create_random_commit(&settings, &repo)
-        .set_parents(vec![commit5.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit7 = create_random_commit(&settings, &repo)
-        .set_parents(vec![commit5.id().clone()])
-        .write_to_repo(mut_repo);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit6 = graph_builder.commit_with_parents(&[&commit5]);
+    let commit7 = graph_builder.commit_with_parents(&[&commit5]);
     let repo = tx.commit();
 
     let target1 = RefTarget::Normal(commit1.id().clone());
