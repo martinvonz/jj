@@ -648,20 +648,20 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("stdin").long("stdin"));
     let close_command = SubCommand::with_name("close")
         .about("Mark a commit closed, making new work go into a new commit")
-        .arg(rev_arg())
+        .arg(Arg::with_name("revision").index(1).default_value("@"))
         .arg(message_arg());
     let open_command = SubCommand::with_name("open")
         .about("Mark a commit open, making new work be added to it")
-        .arg(rev_arg());
+        .arg(Arg::with_name("revision").index(1).default_value("@"));
     let duplicate_command = SubCommand::with_name("duplicate")
         .about("Create a copy of the commit with a new change id")
-        .arg(rev_arg());
+        .arg(Arg::with_name("revision").index(1).default_value("@"));
     let prune_command = SubCommand::with_name("prune")
         .about("Mark a commit pruned, making descendants rebase onto its parent")
         .arg(Arg::with_name("revision").index(1).default_value("@"));
     let new_command = SubCommand::with_name("new")
         .about("Create a new, empty commit")
-        .arg(rev_arg());
+        .arg(Arg::with_name("revision").index(1).default_value("@"));
     let squash_command = SubCommand::with_name("squash")
         .about("Move changes from a commit into its parent")
         .arg(rev_arg())
@@ -672,7 +672,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .arg(Arg::with_name("interactive").long("interactive").short("i"));
     let discard_command = SubCommand::with_name("discard")
         .about("Discard a commit (and its descendants)")
-        .arg(rev_arg());
+        .arg(Arg::with_name("revision").index(1).default_value("@"));
     let restore_command = SubCommand::with_name("restore")
         .about("Restore paths from another revision")
         .arg(
