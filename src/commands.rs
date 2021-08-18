@@ -1909,12 +1909,12 @@ fn cmd_squash(
     if sub_matches.is_present("interactive") {
         let instructions = format!(
             "You are moving changes from: {}\n\
-            into its parent: {}\n\n\
-            
+            into its parent: {}\n\
+            \n\
             The left side of the diff shows the contents of the parent commit. The\n\
             right side initially shows the contents of the commit you're moving\n\
-            changes from.\n\n\
-            
+            changes from.\n\
+            \n\
             Adjust the right side until the diff shows the changes you want to move\n\
             to the destination. If you don't make any changes, then all the changes\n\
             from the source will be moved into the parent.\n",
@@ -1969,10 +1969,10 @@ fn cmd_unsquash(
     if sub_matches.is_present("interactive") {
         let instructions = format!(
             "You are moving changes from: {}\n\
-            into its child: {}\n\n\
-    
-            The diff initially shows the parent commit's changes.\n\n\
-            
+            into its child: {}\n\
+            \n\
+            The diff initially shows the parent commit's changes.\n\
+            \n\
             Adjust the right side until it shows the contents you want to keep in\n\
             the parent commit. The changes you edited out will be moved into the\n\
             child commit. If you don't make any changes, then the operation will be\n\
@@ -2042,12 +2042,12 @@ fn cmd_restore(
         }
         let instructions = format!(
             "You are restoring state from: {}\n\
-            into: {}\n\n\
-    
+            into: {}\n\
+            \n\
             The left side of the diff shows the contents of the commit you're\n\
             restoring from. The right side initially shows the contents of the\n\
-            commit you're restoring into.\n\n\
-            
+            commit you're restoring into.\n\
+            \n\
             Adjust the right side until it has the changes you wanted from the left\n\
             side. If you don't make any changes, then the operation will be aborted.\n",
             short_commit_description(&from_commit),
@@ -2101,10 +2101,10 @@ fn cmd_edit(
     let repo = repo_command.repo();
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let instructions = format!(
-        "You are editing changes in: {}\n\n\
-        
-        The diff initially shows the commit's changes.\n\n\
-        
+        "You are editing changes in: {}\n\
+        \n\
+        The diff initially shows the commit's changes.\n\
+        \n\
         Adjust the right side until it shows the contents you want. If you\n\
         don't make any changes, then the operation will be aborted.\n",
         short_commit_description(&commit)
@@ -2137,10 +2137,10 @@ fn cmd_split(
     let repo = repo_command.repo();
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let instructions = format!(
-        "You are splitting a commit in two: {}\n\n\
-        
-        The diff initially shows the changes in the commit you're splitting.\n\n\
-        
+        "You are splitting a commit in two: {}\n\
+        \n\
+        The diff initially shows the changes in the commit you're splitting.\n\
+        \n\
         Adjust the right side until it shows the contents you want for the first\n\
         commit. The remainder will be in the second commit. If you don't make\n\
         any changes, then the operation will be aborted.\n",
