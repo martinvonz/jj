@@ -1445,7 +1445,10 @@ fn cmd_status(
             ui.stdout_formatter().remove_label()?;
             writeln!(ui)?;
         }
-        writeln!(ui, "  Use `jj branches` to see details. Use `jj branch <name> -r <rev>` to resolve.")?;
+        writeln!(
+            ui,
+            "  Use `jj branches` to see details. Use `jj branch <name> -r <rev>` to resolve."
+        )?;
     }
     if !conflicted_remote_branches.is_empty() {
         ui.stdout_formatter().add_label("conflict".to_string())?;
@@ -1458,7 +1461,10 @@ fn cmd_status(
             ui.stdout_formatter().remove_label()?;
             writeln!(ui)?;
         }
-        writeln!(ui, "  Use `jj branches` to see details. Use `jj git pull` to resolve.")?;
+        writeln!(
+            ui,
+            "  Use `jj branches` to see details. Use `jj git pull` to resolve."
+        )?;
     }
     let summary = commit.parents()[0]
         .tree()
