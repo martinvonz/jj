@@ -2800,7 +2800,16 @@ fn cmd_git_clone(
             CommandError::UserError(format!("Fetch failed: {:?}", err))
         }
     })?;
-    tx.commit();
+    if let Ok(fetch_head_ref) = git_repo.find_reference("FETCH_HEAD") {
+        if let Ok(fetch_head_git_commit) = fetch_head_ref.peel_to_commit() {
+            let fetch_head_id = CommitId(fetch_head_git_commit.id().as_bytes().to_vec());
+            if let Ok(fetch_head_commit) = repo.store().get_commit(&fetch_head_id) {
+                tx.mut_repo().check_out(ui.settings(), &fetch_head_commit);
+            }
+        }
+    }
+    let repo = tx.commit();
+    update_working_copy(ui, &repo, &repo.working_copy_locked())?;
     Ok(())
 }
 

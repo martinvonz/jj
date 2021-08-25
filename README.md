@@ -100,30 +100,26 @@ Now let's clone the same repo using `jj`:
 # repos yet)
 $ jj git clone https://github.com/martinvonz/jj.git jj-jj
 Fetching into new repo in "<dir>/jj-jj"
+Working copy now at: 265ecf5cab2d
 $ cd jj-jj
 ```
 
 Running `jj st` (short for`jj status`) now yields something like this:
 ```shell script
 $ jj st
-Parent commit: 000000000000
-Working copy : 60c89901778d
+Parent commit: 723ebb380971 cleanup: restructure escaped newlines to make new rustc happy
+Working copy : 265ecf5cab2d
 The working copy is clean
 ```
 
-The `000000000000` commit is a virtual commit that's called the "root commit".
-It's the root commit of every repo. The reason that it is our working copy's
-parent is that `jj git clone` doesn't yet check out a particular commit.
+We can see from the output above that our working copy has a commit id
+(`265ecf5cab2d` in the example).
 
-We can also see from the output above that our working copy has a commit id
-(`60c89901778d` in the example).
-
-Let's check out a different commit so we get some files to work with in the
-working copy:
+Let's check out a particular commit, so we get more predicable output:
 ```shell script
 $ jj co 080a9b37ff7e
 Working copy now at: 608c179a60df
-added 84 files, modified 0 files, removed 0 files
+added 2 files, modified 57 files, removed 5 files
 $ jj st
 Parent commit: 080a9b37ff7e cli: make `jj st` show parent commit before working copy commit
 Working copy : 608c179a60df
@@ -254,6 +250,9 @@ o 080a9b37ff7e 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00
 : cli: make `jj st` show parent commit before working copy commit
 o 000000000000 000000000000  1970-01-01 00:00:00.000 +00:00
 ```
+
+(The `000000000000` commit is a virtual commit that's called the "root commit".
+It's the root commit of every repo. The `root` symbol in the revset matches it.)
 
 There are also operators for getting the parents (`:foo`), children `foo:`,
 ancestors (`,,foo`), descendants (`foo,,`), DAG range (`foo,,bar`, like
