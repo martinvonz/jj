@@ -50,7 +50,7 @@ use jujutsu_lib::repo::{
 };
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
-use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit};
+use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::{CommitId, StoreError, Timestamp, TreeValue};
 use jujutsu_lib::store_wrapper::StoreWrapper;
@@ -868,7 +868,20 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .arg(message_arg());
     let rebase_command = SubCommand::with_name("rebase")
         .about("Move a commit to a different parent")
-        .arg(rev_arg())
+        .arg(
+            Arg::with_name("revision")
+                .long("revision")
+                .short("r")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("source")
+                .long("source")
+                .short("s")
+                .takes_value(true)
+                .required(false)
+                .multiple(false),
+        )
         .arg(
             Arg::with_name("destination")
                 .long("destination")
@@ -2229,18 +2242,61 @@ fn cmd_rebase(
     command: &CommandHelper,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let commit_to_rebase = repo_command.resolve_revision_arg(ui, sub_matches)?;
-    repo_command.check_rewriteable(&commit_to_rebase)?;
+    let mut repo_command = command.repo_helper(ui)?.evolve_orphans(false);
     let mut parents = vec![];
     for revision_str in sub_matches.values_of("destination").unwrap() {
         let destination = repo_command.resolve_single_rev(ui, revision_str)?;
         parents.push(destination);
     }
-    let mut tx =
-        repo_command.start_transaction(&format!("rebase commit {}", commit_to_rebase.id().hex()));
-    rebase_commit(ui.settings(), tx.mut_repo(), &commit_to_rebase, &parents);
-    repo_command.finish_transaction(ui, tx)?;
+    // TODO: Unless we want to allow both --revision and --source, is it better to
+    // replace   --source by --rebase-descendants?
+    if sub_matches.is_present("revision") && sub_matches.is_present("source") {
+        return Err(CommandError::UserError(String::from(
+            "--revision cannot be used with --source",
+        )));
+    }
+    if let Some(source_str) = sub_matches.value_of("source") {
+        let old_commit = repo_command.resolve_single_rev(ui, source_str)?;
+        let mut tx = repo_command.start_transaction(&format!(
+            "rebase commit {} and descendants",
+            old_commit.id().hex()
+        ));
+        repo_command.check_rewriteable(&old_commit)?;
+        let new_commit = rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &parents);
+        let mut rebaser = DescendantRebaser::new(
+            ui.settings(),
+            tx.mut_repo(),
+            old_commit.id().clone(),
+            vec![new_commit.id().clone()],
+        );
+        rebaser.rebase_all();
+        let num_rebased = rebaser.rebased().len() + 1;
+        writeln!(ui, "Rebased {} commits", num_rebased)?;
+        repo_command.finish_transaction(ui, tx)?;
+    } else {
+        let old_commit =
+            repo_command.resolve_single_rev(ui, sub_matches.value_of("revision").unwrap_or("@"))?;
+        let mut tx =
+            repo_command.start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
+        repo_command.check_rewriteable(&old_commit)?;
+        rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &parents);
+        let mut rebaser = DescendantRebaser::new(
+            ui.settings(),
+            tx.mut_repo(),
+            old_commit.id().clone(),
+            old_commit.parent_ids(),
+        );
+        rebaser.rebase_all();
+        let num_rebased = rebaser.rebased().len();
+        if num_rebased != 0 {
+            writeln!(
+                ui,
+                "Also rebased {} descendant commits onto parent of rebased commit",
+                num_rebased
+            )?;
+        }
+        repo_command.finish_transaction(ui, tx)?;
+    }
 
     Ok(())
 }

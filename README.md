@@ -314,8 +314,8 @@ We now have a few commits, where A, B1, and B2 modify the same file, while C
 modifies a different file. We checked out A in order to simplify the next steps.
 Let's now rebase B2 directly onto A:
 ```shell script
-$ jj rebase -r 5548374c0794 -d cf49e6bec410
-Rebased 1 descendant commits
+$ jj rebase -s 5548374c0794 -d cf49e6bec410
+Rebased 2 commits
 $ jj l
 o 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00  conflict
 | C
@@ -330,8 +330,8 @@ o 661432c51c08 cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00
 ```
 
 There are several things worth noting here. First, the `jj rebase` command said
-"Rebased 1 descendant commits". That's because we asked it to rebase commit B2,
-but commit C was on top of it, so it rebased that commit as well. Second,
+"Rebased 2 commits". That's because we asked it to rebase commit B2 with the
+`-s` option, which also rebases descendants (commit C in this case). Second,
 because B2 modified the same file (and word) as B1, rebasing it resulted in
 conflicts, as the `jj l` output indicates. Third, the conflicts did not prevent
 the rebase from completing successfully, nor did it prevent C from getting
@@ -395,8 +395,8 @@ o 1e6dd15305a3 martinvonz@<hostname> 2021-05-26 12:52:39.374 -07:00 - 2021-05-26
 | check out commit 0c305a9e6b274bc09b2bca85635299dcfdc6811c
 | args: jj co 0c305a9e6b27
 o 401652a2f61e martinvonz@<hostname> 2021-05-26 12:44:51.872 -07:00 - 2021-05-26 12:44:51.882 -07:00
-| rebase commit de5690380f40f3f7fc6b7d66d43a4f68ee606228
-| args: jj rebase -r de5690380f40 -d 661432c51c08
+| rebase commit de5690380f40f3f7fc6b7d66d43a4f68ee606228 and descendants
+| args: jj rebase -s de5690380f40 -d 661432c51c08
 [many more lines]
 ```
 
