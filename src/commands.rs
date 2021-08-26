@@ -23,6 +23,7 @@ use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 use std::{fs, io};
@@ -298,7 +299,7 @@ impl RepoCommandHelper {
         &mut self,
         ui: &mut Ui,
         revision_str: &str,
-    ) -> Result<RevsetExpression, CommandError> {
+    ) -> Result<Rc<RevsetExpression>, CommandError> {
         let expression = revset::parse(revision_str)?;
         // If the revset is exactly "@", then we need to commit the working copy. If
         // it's another symbol, then we don't. If it's more complex, then we do
@@ -311,7 +312,7 @@ impl RepoCommandHelper {
         // reference pointing to the working copy commit. If it's a
         // type of reference that would get updated when the commit gets rewritten, then
         // we probably should create a new working copy commit.
-        let mentions_checkout = match &expression {
+        let mentions_checkout = match expression.as_ref() {
             RevsetExpression::Symbol(name) => name == "@",
             _ => true,
         };
