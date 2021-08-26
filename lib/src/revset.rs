@@ -170,7 +170,7 @@ pub enum RevsetParseError {
     InvalidFunctionArguments { name: String, message: String },
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RevsetExpression {
     None,
     Symbol(String),
@@ -210,16 +210,132 @@ pub enum RevsetExpression {
 }
 
 impl RevsetExpression {
-    fn non_obsolete_heads() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::NonObsoleteHeads(Rc::new(
-            RevsetExpression::AllHeads,
-        )))
+    pub fn none() -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::None)
     }
 
-    fn non_obsolete_commits() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Ancestors(
-            RevsetExpression::non_obsolete_heads(),
-        ))
+    pub fn symbol(value: String) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Symbol(value))
+    }
+
+    pub fn all_heads() -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::AllHeads)
+    }
+
+    pub fn public_heads() -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::PublicHeads)
+    }
+
+    pub fn branches() -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Branches)
+    }
+
+    pub fn tags() -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Tags)
+    }
+
+    pub fn git_refs() -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::GitRefs)
+    }
+
+    pub fn all_non_obsolete_heads() -> Rc<RevsetExpression> {
+        RevsetExpression::all_heads().non_obsolete_heads()
+    }
+
+    pub fn all_non_obsolete_commits() -> Rc<RevsetExpression> {
+        RevsetExpression::all_non_obsolete_heads().ancestors()
+    }
+
+    /// Non-obsolete heads among `self`.
+    pub fn non_obsolete_heads(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::NonObsoleteHeads(self.clone()))
+    }
+
+    /// Parents of `self`.
+    pub fn parents(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Parents(self.clone()))
+    }
+
+    /// Ancestors of `self`, including `self`.
+    pub fn ancestors(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Ancestors(self.clone()))
+    }
+
+    /// Children of `self`.
+    pub fn children(
+        self: &Rc<RevsetExpression>,
+        heads: &Rc<RevsetExpression>,
+    ) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Children {
+            roots: self.clone(),
+            heads: heads.clone(),
+        })
+    }
+
+    /// Commits that are descendants of `self` and ancestors of `heads`, both
+    /// inclusive.
+    pub fn descendants(
+        self: &Rc<RevsetExpression>,
+        heads: &Rc<RevsetExpression>,
+    ) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::DagRange {
+            roots: self.clone(),
+            heads: heads.clone(),
+        })
+    }
+
+    /// Commits reachable from `heads` but not from `self`.
+    pub fn range(
+        self: &Rc<RevsetExpression>,
+        heads: &Rc<RevsetExpression>,
+    ) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Range {
+            roots: self.clone(),
+            heads: heads.clone(),
+        })
+    }
+
+    /// Commits in `self` with number of parents in the given range.
+    pub fn with_parent_count(
+        self: &Rc<RevsetExpression>,
+        parent_count_range: Range<u32>,
+    ) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::ParentCount {
+            candidates: self.clone(),
+            parent_count_range,
+        })
+    }
+
+    /// Commits in `self` with description containing `needle`.
+    pub fn with_description(self: &Rc<RevsetExpression>, needle: String) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Description {
+            candidates: self.clone(),
+            needle,
+        })
+    }
+
+    /// Commits that are in `self` or in `other` (or both).
+    pub fn union(
+        self: &Rc<RevsetExpression>,
+        other: &Rc<RevsetExpression>,
+    ) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Union(self.clone(), other.clone()))
+    }
+
+    /// Commits that are in `self` and in `other`.
+    pub fn intersection(
+        self: &Rc<RevsetExpression>,
+        other: &Rc<RevsetExpression>,
+    ) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Intersection(self.clone(), other.clone()))
+    }
+
+    /// Commits that are in `self` but not in `other`.
+    pub fn minus(
+        self: &Rc<RevsetExpression>,
+        other: &Rc<RevsetExpression>,
+    ) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Difference(self.clone(), other.clone()))
     }
 
     pub fn evaluate<'repo>(
@@ -250,16 +366,10 @@ fn parse_infix_expression_rule(
     let mut expression1 = parse_range_expression_rule(pairs.next().unwrap().into_inner())?;
     while let Some(operator) = pairs.next() {
         let expression2 = parse_range_expression_rule(pairs.next().unwrap().into_inner())?;
-        match operator.as_rule() {
-            Rule::union_op => {
-                expression1 = Rc::new(RevsetExpression::Union(expression1, expression2))
-            }
-            Rule::intersection_op => {
-                expression1 = Rc::new(RevsetExpression::Intersection(expression1, expression2))
-            }
-            Rule::difference_op => {
-                expression1 = Rc::new(RevsetExpression::Difference(expression1, expression2))
-            }
+        expression1 = match operator.as_rule() {
+            Rule::union_op => expression1.union(&expression2),
+            Rule::intersection_op => expression1.intersection(&expression2),
+            Rule::difference_op => expression1.minus(&expression2),
             _ => {
                 panic!(
                     "unxpected revset infix operator rule {:?}",
@@ -277,9 +387,9 @@ fn parse_range_expression_rule(
     let first = pairs.next().unwrap();
     match first.as_rule() {
         Rule::ancestors_op => {
-            return Ok(Rc::new(RevsetExpression::Ancestors(
-                parse_children_expression_rule(pairs.next().unwrap().into_inner())?,
-            )));
+            return Ok(
+                parse_children_expression_rule(pairs.next().unwrap().into_inner())?.ancestors(),
+            );
         }
         Rule::children_expression => {
             // Fall through
@@ -292,26 +402,17 @@ fn parse_range_expression_rule(
     if let Some(next) = pairs.next() {
         match next.as_rule() {
             Rule::descendants_op => {
-                expression = Rc::new(RevsetExpression::DagRange {
-                    roots: expression,
-                    heads: RevsetExpression::non_obsolete_heads(),
-                });
+                expression = expression.descendants(&RevsetExpression::all_non_obsolete_heads());
             }
             Rule::dag_range_op => {
                 let heads_expression =
                     parse_children_expression_rule(pairs.next().unwrap().into_inner())?;
-                expression = Rc::new(RevsetExpression::DagRange {
-                    roots: expression,
-                    heads: heads_expression,
-                });
+                expression = expression.descendants(&heads_expression);
             }
             Rule::range_op => {
                 let expression2 =
                     parse_children_expression_rule(pairs.next().unwrap().into_inner())?;
-                expression = Rc::new(RevsetExpression::Range {
-                    roots: expression,
-                    heads: expression2,
-                });
+                expression = expression.range(&expression2);
             }
             _ => {
                 panic!("unxpected revset range operator rule {:?}", next.as_rule());
@@ -328,10 +429,7 @@ fn parse_children_expression_rule(
     for operator in pairs {
         match operator.as_rule() {
             Rule::children_op => {
-                expression = Rc::new(RevsetExpression::Children {
-                    roots: expression,
-                    heads: RevsetExpression::non_obsolete_heads(),
-                });
+                expression = expression.children(&RevsetExpression::all_non_obsolete_heads());
             }
             _ => {
                 panic!(
@@ -350,9 +448,7 @@ fn parse_parents_expression_rule(
     let first = pairs.next().unwrap();
     match first.as_rule() {
         Rule::primary => parse_primary_rule(first.into_inner()),
-        Rule::parents_op => Ok(Rc::new(RevsetExpression::Parents(
-            parse_parents_expression_rule(pairs)?,
-        ))),
+        Rule::parents_op => Ok(parse_parents_expression_rule(pairs)?.parents()),
         _ => {
             panic!(
                 "unxpected revset parents operator rule {:?}",
@@ -381,9 +477,9 @@ fn parse_primary_rule(mut pairs: Pairs<Rule>) -> Result<Rc<RevsetExpression>, Re
 fn parse_symbol_rule(mut pairs: Pairs<Rule>) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let first = pairs.next().unwrap();
     match first.as_rule() {
-        Rule::identifier => Ok(Rc::new(RevsetExpression::Symbol(first.as_str().to_owned()))),
+        Rule::identifier => Ok(RevsetExpression::symbol(first.as_str().to_owned())),
         Rule::literal_string => {
-            return Ok(Rc::new(RevsetExpression::Symbol(
+            return Ok(RevsetExpression::symbol(
                 first
                     .as_str()
                     .strip_prefix('"')
@@ -391,7 +487,7 @@ fn parse_symbol_rule(mut pairs: Pairs<Rule>) -> Result<Rc<RevsetExpression>, Rev
                     .strip_suffix('"')
                     .unwrap()
                     .to_owned(),
-            )));
+            ));
         }
         _ => {
             panic!("unxpected symbol parse rule: {:?}", first.as_str());
@@ -407,9 +503,7 @@ fn parse_function_expression(
     match name.as_str() {
         "parents" => {
             if arg_count == 1 {
-                Ok(Rc::new(RevsetExpression::Parents(parse_expression_rule(
-                    argument_pairs.next().unwrap().into_inner(),
-                )?)))
+                Ok(parse_expression_rule(argument_pairs.next().unwrap().into_inner())?.parents())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -421,10 +515,7 @@ fn parse_function_expression(
             if arg_count == 1 {
                 let expression =
                     parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
-                Ok(Rc::new(RevsetExpression::Children {
-                    roots: expression,
-                    heads: RevsetExpression::non_obsolete_heads(),
-                }))
+                Ok(expression.children(&RevsetExpression::all_non_obsolete_heads()))
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -434,9 +525,7 @@ fn parse_function_expression(
         }
         "ancestors" => {
             if arg_count == 1 {
-                Ok(Rc::new(RevsetExpression::Ancestors(parse_expression_rule(
-                    argument_pairs.next().unwrap().into_inner(),
-                )?)))
+                Ok(parse_expression_rule(argument_pairs.next().unwrap().into_inner())?.ancestors())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -448,10 +537,7 @@ fn parse_function_expression(
             if arg_count == 1 {
                 let expression =
                     parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
-                Ok(Rc::new(RevsetExpression::DagRange {
-                    roots: expression,
-                    heads: RevsetExpression::non_obsolete_heads(),
-                }))
+                Ok(expression.descendants(&RevsetExpression::all_non_obsolete_heads()))
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -461,7 +547,7 @@ fn parse_function_expression(
         }
         "all_heads" => {
             if arg_count == 0 {
-                Ok(Rc::new(RevsetExpression::AllHeads))
+                Ok(RevsetExpression::all_heads())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -471,11 +557,12 @@ fn parse_function_expression(
         }
         "non_obsolete_heads" => {
             if arg_count == 0 {
-                Ok(RevsetExpression::non_obsolete_heads())
+                Ok(RevsetExpression::all_non_obsolete_heads())
             } else if arg_count == 1 {
-                Ok(Rc::new(RevsetExpression::NonObsoleteHeads(
-                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?,
-                )))
+                Ok(
+                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?
+                        .non_obsolete_heads(),
+                )
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -485,7 +572,7 @@ fn parse_function_expression(
         }
         "public_heads" => {
             if arg_count == 0 {
-                Ok(Rc::new(RevsetExpression::PublicHeads))
+                Ok(RevsetExpression::public_heads())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -495,7 +582,7 @@ fn parse_function_expression(
         }
         "branches" => {
             if arg_count == 0 {
-                Ok(Rc::new(RevsetExpression::Branches))
+                Ok(RevsetExpression::branches())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -505,7 +592,7 @@ fn parse_function_expression(
         }
         "tags" => {
             if arg_count == 0 {
-                Ok(Rc::new(RevsetExpression::Tags))
+                Ok(RevsetExpression::tags())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -515,7 +602,7 @@ fn parse_function_expression(
         }
         "git_refs" => {
             if arg_count == 0 {
-                Ok(Rc::new(RevsetExpression::GitRefs))
+                Ok(RevsetExpression::git_refs())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -531,14 +618,11 @@ fn parse_function_expression(
                 });
             }
             let candidates = if arg_count == 0 {
-                RevsetExpression::non_obsolete_commits()
+                RevsetExpression::all_non_obsolete_commits()
             } else {
                 parse_expression_rule(argument_pairs.next().unwrap().into_inner())?
             };
-            Ok(Rc::new(RevsetExpression::ParentCount {
-                candidates,
-                parent_count_range: 2..u32::MAX,
-            }))
+            Ok(candidates.with_parent_count(2..u32::MAX))
         }
         "description" => {
             if !(1..=2).contains(&arg_count) {
@@ -552,14 +636,11 @@ fn parse_function_expression(
                 argument_pairs.next().unwrap().into_inner(),
             )?;
             let candidates = if arg_count == 1 {
-                RevsetExpression::non_obsolete_commits()
+                RevsetExpression::all_non_obsolete_commits()
             } else {
                 parse_expression_rule(argument_pairs.next().unwrap().into_inner())?
             };
-            Ok(Rc::new(RevsetExpression::Description {
-                needle,
-                candidates,
-            }))
+            Ok(candidates.with_description(needle))
         }
         _ => Err(RevsetParseError::NoSuchFunction(name)),
     }
@@ -906,18 +987,16 @@ pub fn evaluate_expression<'repo>(
         }
         RevsetExpression::Children { roots, heads } => {
             let root_set = roots.evaluate(repo)?;
-            let candidates_expression = RevsetExpression::Ancestors(heads.clone());
+            let candidates_expression = heads.ancestors();
             let candidate_set = candidates_expression.evaluate(repo)?;
             Ok(Box::new(ChildrenRevset {
                 root_set,
                 candidate_set,
             }))
         }
-        RevsetExpression::Ancestors(base_expression) => RevsetExpression::Range {
-            roots: Rc::new(RevsetExpression::None),
-            heads: base_expression.clone(),
-        }
-        .evaluate(repo),
+        RevsetExpression::Ancestors(base_expression) => RevsetExpression::none()
+            .range(base_expression)
+            .evaluate(repo),
         RevsetExpression::Range { roots, heads } => {
             let root_set = roots.evaluate(repo)?;
             let root_ids = root_set.iter().map(|entry| entry.commit_id()).collect_vec();
@@ -931,7 +1010,7 @@ pub fn evaluate_expression<'repo>(
         #[allow(clippy::needless_collect)]
         RevsetExpression::DagRange { roots, heads } => {
             let root_set = roots.evaluate(repo)?;
-            let candidate_set = RevsetExpression::Ancestors(heads.clone()).evaluate(repo)?;
+            let candidate_set = heads.ancestors().evaluate(repo)?;
             let mut reachable: HashSet<_> = root_set.iter().map(|entry| entry.position()).collect();
             let mut result = vec![];
             let candidates = candidate_set.iter().collect_vec();
@@ -1113,103 +1192,122 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_revset_expression_building() {
+        let checkout_symbol = RevsetExpression::symbol("@".to_string());
+        let foo_symbol = RevsetExpression::symbol("foo".to_string());
+        assert_eq!(
+            checkout_symbol,
+            Rc::new(RevsetExpression::Symbol("@".to_string()))
+        );
+        assert_eq!(
+            checkout_symbol.parents(),
+            Rc::new(RevsetExpression::Parents(checkout_symbol.clone()))
+        );
+        assert_eq!(
+            checkout_symbol.ancestors(),
+            Rc::new(RevsetExpression::Ancestors(checkout_symbol.clone()))
+        );
+        assert_eq!(
+            foo_symbol.children(&checkout_symbol),
+            Rc::new(RevsetExpression::Children {
+                roots: foo_symbol.clone(),
+                heads: checkout_symbol.clone()
+            })
+        );
+        assert_eq!(
+            foo_symbol.descendants(&checkout_symbol),
+            Rc::new(RevsetExpression::DagRange {
+                roots: foo_symbol.clone(),
+                heads: checkout_symbol.clone()
+            })
+        );
+        assert_eq!(
+            foo_symbol.range(&checkout_symbol),
+            Rc::new(RevsetExpression::Range {
+                roots: foo_symbol.clone(),
+                heads: checkout_symbol.clone()
+            })
+        );
+        assert_eq!(
+            foo_symbol.non_obsolete_heads(),
+            Rc::new(RevsetExpression::NonObsoleteHeads(foo_symbol.clone()))
+        );
+        assert_eq!(
+            foo_symbol.with_parent_count(3..5),
+            Rc::new(RevsetExpression::ParentCount {
+                candidates: foo_symbol.clone(),
+                parent_count_range: 3..5
+            })
+        );
+        assert_eq!(
+            foo_symbol.with_description("needle".to_string()),
+            Rc::new(RevsetExpression::Description {
+                candidates: foo_symbol.clone(),
+                needle: "needle".to_string()
+            })
+        );
+        assert_eq!(
+            foo_symbol.union(&checkout_symbol),
+            Rc::new(RevsetExpression::Union(
+                foo_symbol.clone(),
+                checkout_symbol.clone()
+            ))
+        );
+        assert_eq!(
+            foo_symbol.intersection(&checkout_symbol),
+            Rc::new(RevsetExpression::Intersection(
+                foo_symbol.clone(),
+                checkout_symbol.clone()
+            ))
+        );
+        assert_eq!(
+            foo_symbol.minus(&checkout_symbol),
+            Rc::new(RevsetExpression::Difference(
+                foo_symbol,
+                checkout_symbol.clone()
+            ))
+        );
+    }
+
+    #[test]
     fn test_parse_revset() {
+        let checkout_symbol = RevsetExpression::symbol("@".to_string());
+        let foo_symbol = RevsetExpression::symbol("foo".to_string());
+        let bar_symbol = RevsetExpression::symbol("bar".to_string());
         // Parse a single symbol (specifically the "checkout" symbol)
-        assert_eq!(
-            parse("@"),
-            Ok(Rc::new(RevsetExpression::Symbol("@".to_string())))
-        );
+        assert_eq!(parse("@"), Ok(checkout_symbol.clone()));
         // Parse a single symbol
-        assert_eq!(
-            parse("foo"),
-            Ok(Rc::new(RevsetExpression::Symbol("foo".to_string())))
-        );
+        assert_eq!(parse("foo"), Ok(foo_symbol.clone()));
         // Parse a parenthesized symbol
-        assert_eq!(
-            parse("(foo)"),
-            Ok(Rc::new(RevsetExpression::Symbol("foo".to_string())))
-        );
+        assert_eq!(parse("(foo)"), Ok(foo_symbol.clone()));
         // Parse a quoted symbol
-        assert_eq!(
-            parse("\"foo\""),
-            Ok(Rc::new(RevsetExpression::Symbol("foo".to_string())))
-        );
+        assert_eq!(parse("\"foo\""), Ok(foo_symbol.clone()));
         // Parse the "parents" operator
-        assert_eq!(
-            parse(":@"),
-            Ok(Rc::new(RevsetExpression::Parents(Rc::new(
-                RevsetExpression::Symbol("@".to_string())
-            ))))
-        );
+        assert_eq!(parse(":@"), Ok(checkout_symbol.parents()));
         // Parse the "children" operator
         assert_eq!(
             parse("@:"),
-            Ok(Rc::new(RevsetExpression::Children {
-                roots: Rc::new(RevsetExpression::Symbol("@".to_string())),
-                heads: RevsetExpression::non_obsolete_heads(),
-            }))
+            Ok(checkout_symbol.children(&RevsetExpression::all_non_obsolete_heads()))
         );
         // Parse the "ancestors" operator
-        assert_eq!(
-            parse(",,@"),
-            Ok(Rc::new(RevsetExpression::Ancestors(Rc::new(
-                RevsetExpression::Symbol("@".to_string())
-            ))))
-        );
+        assert_eq!(parse(",,@"), Ok(checkout_symbol.ancestors()));
         // Parse the "descendants" operator
         assert_eq!(
             parse("@,,"),
-            Ok(Rc::new(RevsetExpression::DagRange {
-                roots: Rc::new(RevsetExpression::Symbol("@".to_string())),
-                heads: RevsetExpression::non_obsolete_heads(),
-            }))
+            Ok(checkout_symbol.descendants(&RevsetExpression::all_non_obsolete_heads()))
         );
         // Parse the "dag range" operator
-        assert_eq!(
-            parse("foo,,bar"),
-            Ok(Rc::new(RevsetExpression::DagRange {
-                roots: Rc::new(RevsetExpression::Symbol("foo".to_string())),
-                heads: Rc::new(RevsetExpression::Symbol("bar".to_string())),
-            }))
-        );
+        assert_eq!(parse("foo,,bar"), Ok(foo_symbol.descendants(&bar_symbol)));
         // Parse the "intersection" operator
-        assert_eq!(
-            parse("foo & bar"),
-            Ok(Rc::new(RevsetExpression::Intersection(
-                Rc::new(RevsetExpression::Symbol("foo".to_string())),
-                Rc::new(RevsetExpression::Symbol("bar".to_string()))
-            )))
-        );
+        assert_eq!(parse("foo & bar"), Ok(foo_symbol.intersection(&bar_symbol)));
         // Parse the "union" operator
-        assert_eq!(
-            parse("foo | bar"),
-            Ok(Rc::new(RevsetExpression::Union(
-                Rc::new(RevsetExpression::Symbol("foo".to_string())),
-                Rc::new(RevsetExpression::Symbol("bar".to_string()))
-            )))
-        );
+        assert_eq!(parse("foo | bar"), Ok(foo_symbol.union(&bar_symbol)));
         // Parse the "difference" operator
-        assert_eq!(
-            parse("foo - bar"),
-            Ok(Rc::new(RevsetExpression::Difference(
-                Rc::new(RevsetExpression::Symbol("foo".to_string())),
-                Rc::new(RevsetExpression::Symbol("bar".to_string()))
-            )))
-        );
+        assert_eq!(parse("foo - bar"), Ok(foo_symbol.minus(&bar_symbol)));
         // Parentheses are allowed after prefix operators
-        assert_eq!(
-            parse(":(@)"),
-            Ok(Rc::new(RevsetExpression::Parents(Rc::new(
-                RevsetExpression::Symbol("@".to_string())
-            ))))
-        );
+        assert_eq!(parse(":(@)"), Ok(checkout_symbol.parents()));
         // Space is allowed around expressions
-        assert_eq!(
-            parse(" ,,@ "),
-            Ok(Rc::new(RevsetExpression::Ancestors(Rc::new(
-                RevsetExpression::Symbol("@".to_string())
-            ))))
-        );
+        assert_eq!(parse(" ,,@ "), Ok(checkout_symbol.ancestors()));
         // Space is not allowed around prefix operators
         assert_matches!(parse(" ,, @ "), Err(RevsetParseError::SyntaxError(_)));
         // Incomplete parse
@@ -1217,45 +1315,28 @@ mod tests {
         // Space is allowed around infix operators and function arguments
         assert_eq!(
             parse("   description(  arg1 ,   arg2 ) -    parents(   arg1  )  - all_heads(  )  "),
-            Ok(Rc::new(RevsetExpression::Difference(
-                Rc::new(RevsetExpression::Difference(
-                    Rc::new(RevsetExpression::Description {
-                        needle: "arg1".to_string(),
-                        candidates: Rc::new(RevsetExpression::Symbol("arg2".to_string()))
-                    }),
-                    Rc::new(RevsetExpression::Parents(Rc::new(
-                        RevsetExpression::Symbol("arg1".to_string())
-                    )))
-                )),
-                Rc::new(RevsetExpression::AllHeads)
-            )))
+            Ok(RevsetExpression::symbol("arg2".to_string())
+                .with_description("arg1".to_string())
+                .minus(&RevsetExpression::symbol("arg1".to_string()).parents())
+                .minus(&RevsetExpression::all_heads()))
         );
     }
 
     #[test]
     fn test_parse_revset_operator_combinations() {
+        let foo_symbol = RevsetExpression::symbol("foo".to_string());
         // Parse repeated "parents" operator
         assert_eq!(
             parse(":::foo"),
-            Ok(Rc::new(RevsetExpression::Parents(Rc::new(
-                RevsetExpression::Parents(Rc::new(RevsetExpression::Parents(Rc::new(
-                    RevsetExpression::Symbol("foo".to_string())
-                ))))
-            ))))
+            Ok(foo_symbol.parents().parents().parents())
         );
         // Parse repeated "children" operator
         assert_eq!(
             parse("foo:::"),
-            Ok(Rc::new(RevsetExpression::Children {
-                roots: Rc::new(RevsetExpression::Children {
-                    roots: Rc::new(RevsetExpression::Children {
-                        roots: Rc::new(RevsetExpression::Symbol("foo".to_string())),
-                        heads: RevsetExpression::non_obsolete_heads(),
-                    }),
-                    heads: RevsetExpression::non_obsolete_heads(),
-                }),
-                heads: RevsetExpression::non_obsolete_heads()
-            }))
+            Ok(foo_symbol
+                .children(&RevsetExpression::all_non_obsolete_heads())
+                .children(&RevsetExpression::all_non_obsolete_heads())
+                .children(&RevsetExpression::all_non_obsolete_heads()))
         );
         // Parse repeated "ancestors"/"descendants"/"dag range" operators
         assert_matches!(parse(",,foo,,"), Err(RevsetParseError::SyntaxError(_)));
@@ -1268,58 +1349,33 @@ mod tests {
         // The former bind more strongly.
         assert_eq!(
             parse(":foo:"),
-            Ok(Rc::new(RevsetExpression::Children {
-                roots: Rc::new(RevsetExpression::Parents(Rc::new(
-                    RevsetExpression::Symbol("foo".to_string())
-                ))),
-                heads: RevsetExpression::non_obsolete_heads(),
-            }))
+            Ok(foo_symbol
+                .parents()
+                .children(&RevsetExpression::all_non_obsolete_heads()))
         );
         assert_eq!(
             parse(":foo,,"),
-            Ok(Rc::new(RevsetExpression::DagRange {
-                roots: Rc::new(RevsetExpression::Parents(Rc::new(
-                    RevsetExpression::Symbol("foo".to_string())
-                ))),
-                heads: RevsetExpression::non_obsolete_heads(),
-            }))
+            Ok(foo_symbol
+                .parents()
+                .descendants(&RevsetExpression::all_non_obsolete_heads()))
         );
         assert_eq!(
             parse(",,foo:"),
-            Ok(Rc::new(RevsetExpression::Ancestors(Rc::new(
-                RevsetExpression::Children {
-                    roots: Rc::new(RevsetExpression::Symbol("foo".to_string())),
-                    heads: RevsetExpression::non_obsolete_heads()
-                }
-            ))))
+            Ok(foo_symbol
+                .children(&RevsetExpression::all_non_obsolete_heads())
+                .ancestors())
         );
     }
 
     #[test]
     fn test_parse_revset_function() {
-        assert_eq!(
-            parse("parents(@)"),
-            Ok(Rc::new(RevsetExpression::Parents(Rc::new(
-                RevsetExpression::Symbol("@".to_string())
-            ))))
-        );
-        assert_eq!(
-            parse("parents((@))"),
-            Ok(Rc::new(RevsetExpression::Parents(Rc::new(
-                RevsetExpression::Symbol("@".to_string())
-            ))))
-        );
-        assert_eq!(
-            parse("parents(\"@\")"),
-            Ok(Rc::new(RevsetExpression::Parents(Rc::new(
-                RevsetExpression::Symbol("@".to_string())
-            ))))
-        );
+        let checkout_symbol = RevsetExpression::symbol("@".to_string());
+        assert_eq!(parse("parents(@)"), Ok(checkout_symbol.parents()));
+        assert_eq!(parse("parents((@))"), Ok(checkout_symbol.parents()));
+        assert_eq!(parse("parents(\"@\")"), Ok(checkout_symbol.parents()));
         assert_eq!(
             parse("ancestors(parents(@))"),
-            Ok(Rc::new(RevsetExpression::Ancestors(Rc::new(
-                RevsetExpression::Parents(Rc::new(RevsetExpression::Symbol("@".to_string())))
-            ))))
+            Ok(checkout_symbol.parents().ancestors())
         );
         assert_matches!(parse("parents(@"), Err(RevsetParseError::SyntaxError(_)));
         assert_eq!(
@@ -1331,10 +1387,7 @@ mod tests {
         );
         assert_eq!(
             parse("description(foo,bar)"),
-            Ok(Rc::new(RevsetExpression::Description {
-                needle: "foo".to_string(),
-                candidates: Rc::new(RevsetExpression::Symbol("bar".to_string()))
-            }))
+            Ok(RevsetExpression::symbol("bar".to_string()).with_description("foo".to_string()))
         );
         assert_eq!(
             parse("description(all_heads(),bar)"),
@@ -1346,17 +1399,11 @@ mod tests {
         );
         assert_eq!(
             parse("description((foo),bar)"),
-            Ok(Rc::new(RevsetExpression::Description {
-                needle: "foo".to_string(),
-                candidates: Rc::new(RevsetExpression::Symbol("bar".to_string()))
-            }))
+            Ok(RevsetExpression::symbol("bar".to_string()).with_description("foo".to_string()))
         );
         assert_eq!(
             parse("description(\"(foo)\",bar)"),
-            Ok(Rc::new(RevsetExpression::Description {
-                needle: "(foo)".to_string(),
-                candidates: Rc::new(RevsetExpression::Symbol("bar".to_string()))
-            }))
+            Ok(RevsetExpression::symbol("bar".to_string()).with_description("(foo)".to_string()))
         );
     }
 }
