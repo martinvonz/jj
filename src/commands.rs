@@ -756,138 +756,373 @@ fn update_branches_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) -> io:
 
 fn get_app<'a, 'b>() -> App<'a, 'b> {
     let init_command = SubCommand::with_name("init")
-        .about("Initialize a repo")
-        .arg(Arg::with_name("destination").index(1).default_value("."))
-        .arg(Arg::with_name("git").long("git"))
+        .about("Create a new repo in the given directory")
+        .long_about(
+            "Create a new repo in the given directory. If the given directory does not exist, it \
+             will be created. If no directory is given, the current directory is used.",
+        )
+        .arg(
+            Arg::with_name("destination")
+                .index(1)
+                .default_value(".")
+                .help("The destination directory"),
+        )
+        .arg(
+            Arg::with_name("git")
+                .long("git")
+                .help("Use the Git backend, creating a jj repo backed by a Git repo"),
+        )
         .arg(
             Arg::with_name("git-store")
                 .long("git-store")
                 .takes_value(true)
-                .help("path to a .git backing store"),
+                .help("Path to a .git/ directory the jj repo will be backed by"),
         );
     let checkout_command = SubCommand::with_name("checkout")
         .alias("co")
-        .about("Update the working copy to another commit")
-        .arg(Arg::with_name("revision").index(1).required(true));
+        .about("Update the working copy to another revision")
+        .long_about(
+            "Update the working copy to another revision. If the revision is closed or has \
+             conflicts, then a new, open revision will be created on top, and that will be \
+             checked out. See `jj concepts working-copy` for more information.",
+        )
+        .arg(
+            Arg::with_name("revision")
+                .index(1)
+                .required(true)
+                .help("The revision to update to"),
+        );
     let files_command = SubCommand::with_name("files")
-        .about("List files")
-        .arg(rev_arg());
+        .about("List files in a revision")
+        .arg(rev_arg().help("The revision to list files in"));
     let diff_command = SubCommand::with_name("diff")
-        .about("Show modified files")
+        .about("Show changes in a revision")
+        .long_about(
+            "Show changes in a revision.
+
+With the `-r` option, which is the default, shows the changes compared to the parent revision. If \
+             there are several parent revisions (i.e., the given revision is a merge), then they \
+             will be merged and the changes from the result to the given revision will be shown.
+
+With the `--from` and/or `--to` options, shows the difference from/to the given revisions. If \
+             either is left out, it defaults to the current checkout. For example, `jj diff \
+             --from main` shows the changes from \"main\" (perhaps a branch name) to the current \
+             checkout.",
+        )
         .arg(
             Arg::with_name("summary")
                 .long("summary")
                 .short("s")
-                .help("show only the diff type (modified/added/removed)"),
+                .help("For each path, show only whether it was modified, added, or removed"),
         )
         .arg(
             Arg::with_name("revision")
                 .long("revision")
                 .short("r")
-                .takes_value(true),
+                .takes_value(true)
+                .help("Show changes changes in this revision, compared to its parent(s)"),
         )
-        .arg(Arg::with_name("from").long("from").takes_value(true))
-        .arg(Arg::with_name("to").long("to").takes_value(true))
+        .arg(
+            Arg::with_name("from")
+                .long("from")
+                .takes_value(true)
+                .help("Show changes from this revision"),
+        )
+        .arg(
+            Arg::with_name("to")
+                .long("to")
+                .takes_value(true)
+                .help("Show changes to this revision"),
+        )
         .arg(paths_arg());
     let status_command = SubCommand::with_name("status")
         .alias("st")
-        .about("Show repo status");
+        .about("Show high-level repo status")
+        .long_about(
+            "Show high-level repo status. This includes:
+
+ * The working copy commit and its (first) parent, and a summary of the changes between them
+
+ * Conflicted branches (see `jj concepts branches`)",
+        );
     let log_command = SubCommand::with_name("log")
         .about("Show commit history")
         .arg(
             Arg::with_name("template")
                 .long("template")
                 .short("T")
-                .takes_value(true),
+                .takes_value(true)
+                .help(
+                    "Render each revision using the given template (the syntax is not yet \
+                     documented and is likely to change)",
+                ),
         )
         .arg(
             Arg::with_name("revisions")
                 .long("revisions")
                 .short("r")
                 .takes_value(true)
-                .default_value(",,non_obsolete_heads()"),
+                .default_value(",,non_obsolete_heads()")
+                .help("Which revisions to show"),
         )
-        .arg(Arg::with_name("no-graph").long("no-graph"));
+        .arg(
+            Arg::with_name("no-graph")
+                .long("no-graph")
+                .help("Don't show the graph, show a flat list of revisions"),
+        );
     let obslog_command = SubCommand::with_name("obslog")
-        .about("Show how a commit has evolved")
+        .about("Show how a change has evolved")
+        .long_about("Show how a change has evolved as it's been updated, rebased, etc.")
         .arg(rev_arg())
         .arg(
             Arg::with_name("template")
                 .long("template")
                 .short("T")
-                .takes_value(true),
+                .takes_value(true)
+                .help(
+                    "Render each revision using the given template (the syntax is not yet \
+                     documented)",
+                ),
         )
-        .arg(Arg::with_name("no-graph").long("no-graph"));
+        .arg(
+            Arg::with_name("no-graph")
+                .long("no-graph")
+                .help("Don't show the graph, show a flat list of revisions"),
+        );
     let describe_command = SubCommand::with_name("describe")
-        .about("Edit the commit description")
-        .arg(Arg::with_name("revision").index(1).default_value("@"))
-        .arg(message_arg())
-        .arg(Arg::with_name("stdin").long("stdin"));
+        .about("Edit the change description")
+        .about(
+            "Starts an editor to let you edit the description of a change. The editor will be \
+             $EDITOR, or `pico` if that's not defined.",
+        )
+        .arg(
+            Arg::with_name("revision")
+                .index(1)
+                .default_value("@")
+                .help("The revision whose description to edit"),
+        )
+        .arg(message_arg().help("The change description to use (don't open editor)"))
+        .arg(
+            Arg::with_name("stdin")
+                .long("stdin")
+                .help("Read the change description from stdin"),
+        );
     let close_command = SubCommand::with_name("close")
-        .about("Mark a commit closed, making new work go into a new commit")
-        .arg(Arg::with_name("revision").index(1).default_value("@"))
-        .arg(message_arg());
+        .about("Mark a revision closed")
+        .long_about(
+            "Mark a revision closed. See `jj concepts working-copy` for information about \
+             open/closed revisions.",
+        )
+        .arg(
+            Arg::with_name("revision")
+                .index(1)
+                .default_value("@")
+                .help("The revision to close"),
+        )
+        .arg(message_arg().help("The change description to use (don't open editor)"));
     let open_command = SubCommand::with_name("open")
-        .about("Mark a commit open, making new work be added to it")
-        .arg(Arg::with_name("revision").index(1).required(true));
+        .about("Mark a revision open")
+        .long_about(
+            "Mark a revision open. See `jj concepts working-copy` for information about \
+             open/closed revisions.",
+        )
+        .arg(
+            Arg::with_name("revision")
+                .index(1)
+                .required(true)
+                .help("The revision to open"),
+        );
     let duplicate_command = SubCommand::with_name("duplicate")
-        .about("Create a copy of the commit with a new change id")
-        .arg(Arg::with_name("revision").index(1).default_value("@"));
+        .about("Create a new change with the same content as an existing one")
+        .arg(
+            Arg::with_name("revision")
+                .index(1)
+                .default_value("@")
+                .help("The revision to duplicate"),
+        );
+    // TODO: Maybe this should be renamed to `jj abandon`? Or `jj drop`?
     let prune_command = SubCommand::with_name("prune")
-        .about("Mark a commit pruned, making descendants rebase onto its parent")
-        .arg(Arg::with_name("revision").index(1).default_value("@"));
+        .about("Abandon a revision")
+        .long_about(
+            "Abandon a revision, rebasing descendants onto its parent(s). The behavior is similar \
+             to `jj restore`; the difference is that `jj prune` gives you a new change, while `jj \
+             restore` updates the existing change.",
+        )
+        .arg(
+            Arg::with_name("revision")
+                .index(1)
+                .default_value("@")
+                .help("The revision(s) to prune"),
+        );
     let new_command = SubCommand::with_name("new")
-        .about("Create a new, empty commit")
-        .arg(Arg::with_name("revision").index(1).default_value("@"));
+        .about("Create a new, empty change")
+        .long_about(
+            "Create a new, empty change. This may be useful if you want to make some changes \
+             you're unsure of on top of the working copy. If the changes turned out to useful, \
+             you can `jj squash` them into the previous working copy. If they turned out to be \
+             unsuccessful, you can `jj prune` them and `jj co :@` the previous working copy.",
+        )
+        .arg(
+            Arg::with_name("revision")
+                .index(1)
+                .default_value("@")
+                .help("Parent of the new change")
+                .long_help(
+                    "Parent of the new change. If the parent is the working copy, then the new \
+                     change will be checked out.",
+                ),
+        );
     let squash_command = SubCommand::with_name("squash")
-        .about("Move changes from a commit into its parent")
+        .about("Move changes from a revision into its parent")
+        .long_about(
+            "Move changes from a revision into its parent. After moving the changes into the \
+             parent, the child revision will have the same content state as before. If that means \
+             that the change is now empty compared to its parent, it will be pruned. Note that \
+             this will always be the case without `--interactive`.",
+        )
         .arg(rev_arg())
-        .arg(Arg::with_name("interactive").long("interactive").short("i"));
+        .arg(
+            Arg::with_name("interactive")
+                .long("interactive")
+                .short("i")
+                .help("Interactively squash part of the changes"),
+        );
+    // TODO: It doesn't make much sense to run this without -i. We should make that
+    // the default. We should also prune the parent commit if that becomes empty.
     let unsquash_command = SubCommand::with_name("unsquash")
-        .about("Move changes from a commit's parent into the commit")
+        .about("Move changes from a revision's parent into the revision")
         .arg(rev_arg())
-        .arg(Arg::with_name("interactive").long("interactive").short("i"));
+        .arg(
+            Arg::with_name("interactive")
+                .long("interactive")
+                .short("i")
+                .help("Interactively unsquash part of the changes"),
+        );
+    // TODO: This command is not very compatible with the current implementation of
+    // evolution. Once we've removed support for evolution (as I hope to do),
+    // this command will become equivalent to prune (or perhaps it's the other
+    // way around).
     let discard_command = SubCommand::with_name("discard")
-        .about("Discard a commit (and its descendants)")
-        .arg(Arg::with_name("revision").index(1).default_value("@"));
+        .about("Discard a revision and its descendants (avoid command for now)")
+        .arg(
+            Arg::with_name("revision")
+                .index(1)
+                .default_value("@")
+                .help("The revision to discard"),
+        );
     let restore_command = SubCommand::with_name("restore")
         .about("Restore paths from another revision")
+        .long_about(
+            "Restore paths from another revision. That means that the paths get the same content \
+             in the destination (`--to`) as they had in the source (`--from`). This is typically \
+             used for undoing changes to some paths in the working copy (`jj restore <paths>`).
+
+ If you restore from a revision where the path has conflicts, then the destination revision will \
+             have the same conflict. If the destination is the working copy, then a new commit \
+             will be created on top for resolving the conflict (as if you had run `jj checkout` \
+             on the new revision). Taken together, that means that if you're already resolving \
+             conflicts and you want to restart the resolution of some file, you may want to run \
+             `jj restore <path>; jj squash`.",
+        )
         .arg(
             Arg::with_name("from")
                 .long("from")
                 .takes_value(true)
-                .default_value(":@"),
+                .default_value(":@")
+                .help("Revision to restore from (source)"),
         )
         .arg(
             Arg::with_name("to")
                 .long("to")
                 .takes_value(true)
-                .default_value("@"),
+                .default_value("@")
+                .help("Revision to restore into (destination)"),
         )
-        .arg(Arg::with_name("interactive").long("interactive").short("i"))
+        .arg(
+            Arg::with_name("interactive")
+                .long("interactive")
+                .short("i")
+                .help("Interactively restore part of the changes"),
+        )
         .arg(paths_arg());
     let edit_command = SubCommand::with_name("edit")
         .about("Edit the content changes in a revision")
-        .arg(rev_arg());
+        .long_about(
+            "Lets you interactively edit the content changes in a revision.
+
+Starts a diff editor (`meld` by default) on the changes in the revision. Edit the right side of \
+             the diff until it looks the way you want. Once you close the editor, the revision \
+             will be updated. Descendants will be rebased on top as usual, which may result in \
+             conflicts. See `jj squash -i` or `jj unsquash -i` if you instead want to move \
+             changes into or out of the parent revision.",
+        )
+        .arg(rev_arg().help("The revision to edit"));
     let split_command = SubCommand::with_name("split")
         .about("Split a revision in two")
-        .arg(rev_arg());
+        .long_about(
+            "Lets you interactively split a revision in two.
+
+Starts a diff editor (`meld` by default) on the changes in the revision. Edit the right side of \
+             the diff until it has the content you want in the first revision. Once you close the \
+             editor, your edited content will replace the previous revision. The remaining \
+             changes will be put in a new revision on top. You will be asked to enter a change \
+             description for each.",
+        )
+        .arg(rev_arg().help("The revision to split"));
     let merge_command = SubCommand::with_name("merge")
         .about("Merge work from multiple branches")
+        .long_about(
+            "Merge work from multiple branches.
+
+Unlike most other VCSs, `jj merge` does not implicitly include the working copy revision's parent \
+             as one of the parents of the merge; you need to explicitly list all revisions that \
+             should become parents of the merge. Also, you need to explicitly check out the \
+             resulting revision if you want to.",
+        )
         .arg(
             Arg::with_name("revisions")
                 .index(1)
                 .required(true)
                 .multiple(true),
         )
-        .arg(message_arg());
+        .arg(message_arg().help("The change description to use (don't open editor)"));
     let rebase_command = SubCommand::with_name("rebase")
-        .about("Move a commit to a different parent")
+        .about("Move a revision to a different parent")
+        .long_about(
+            "Move a revision to a different parent.
+
+With `-s`, rebases the specified revision and its descendants onto the destination. For example,
+`jj rebase -s B -d D` would transform your history like this:
+
+D          C'
+|          |
+| C        B'
+| |   =>   |
+| B        D
+|/         |
+A          A
+
+With `-r`, rebases only the specified revision onto the destination. Any \"hole\" left behind will \
+             be filled by rebasing descendants onto the specified revision's parent(s). For \
+             example, `jj rebase -r B -d D` would transform your history like this:
+
+D          B'
+|          |
+| C        D
+| |   =>   |
+| B        | C'
+|/         |/
+A          A",
+        )
         .arg(
             Arg::with_name("revision")
                 .long("revision")
                 .short("r")
-                .takes_value(true),
+                .takes_value(true)
+                .help(
+                    "Rebase only this revision, rebasing descendants onto this revision's \
+                     parent(s)",
+                ),
         )
         .arg(
             Arg::with_name("source")
@@ -895,7 +1130,8 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .short("s")
                 .takes_value(true)
                 .required(false)
-                .multiple(false),
+                .multiple(false)
+                .help("Rebase this revision and its descendants"),
         )
         .arg(
             Arg::with_name("destination")
@@ -903,81 +1139,132 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .short("d")
                 .takes_value(true)
                 .required(true)
-                .multiple(true),
+                .multiple(true)
+                .help("The revision to rebase onto"),
         );
+    // TODO: It seems better to default the destination to `:@`. Maybe the working
+    // copy should be rebased on top?
     let backout_command = SubCommand::with_name("backout")
-        .about("Apply the reverse of a commit on top of another commit")
-        .arg(rev_arg())
+        .about("Apply the reverse of a revision on top of another revision")
+        .arg(rev_arg().help("The revision to apply the reverse of"))
         .arg(
             Arg::with_name("destination")
                 .long("destination")
                 .short("d")
                 .takes_value(true)
                 .default_value("@")
-                .multiple(true),
+                .multiple(true)
+                .help("The revision to apply the reverse changes on top of"),
         );
     let branch_command = SubCommand::with_name("branch")
-        .about("Update or delete branch")
-        .arg(rev_arg())
-        .arg(Arg::with_name("allow-backwards").long("allow-backwards"))
-        .arg(Arg::with_name("delete").long("delete"))
-        .arg(Arg::with_name("name").index(1).required(true));
-    let branches_command = SubCommand::with_name("branches").about("List branches");
-    let evolve_command =
-        SubCommand::with_name("evolve").about("Resolve problems with the repo's meta-history");
+        .about("Create, update, or delete a branch")
+        .long_about(
+            "Create, update, or delete a branch. See `jj concepts branches` for information about \
+             branches.",
+        )
+        .arg(rev_arg().help("The branch's target revision"))
+        .arg(
+            Arg::with_name("allow-backwards")
+                .long("allow-backwards")
+                .help("Allow moving the branch backwards or sideways"),
+        )
+        .arg(
+            Arg::with_name("delete")
+                .long("delete")
+                .help("Delete the branch"),
+        )
+        .arg(
+            Arg::with_name("name")
+                .index(1)
+                .required(true)
+                .help("The name of the branch to move or delete"),
+        );
+    let branches_command = SubCommand::with_name("branches")
+        .about("List branches")
+        .long_about(
+            "\
+List branches and their targets. A remote branch will be included only if its target is different \
+             from the local target. For a conflicted branch (both local and remote), old target \
+             revisions are preceded by a \"-\" and new target revisions are preceded by a \"+\".
+
+See `jj concepts branches` for information about branches.",
+        );
+    let evolve_command = SubCommand::with_name("evolve")
+        .about("Resolve problems with the repo's meta-history (deprecated).");
     let operation_command = SubCommand::with_name("operation")
         .alias("op")
         .about("Commands for working with the operation log")
+        .long_about(
+            "Commands for working with the operation log. See `jj concepts operations` for \
+             information about the operation log.",
+        )
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(SubCommand::with_name("log").about("Show the operation log"))
         .subcommand(
             SubCommand::with_name("undo")
                 .about("Undo an operation")
-                .arg(op_arg()),
+                .arg(op_arg().help("The operation to undo")),
         )
         .subcommand(
             SubCommand::with_name("restore")
-                .about("restore to the state at an operation")
-                .arg(op_arg()),
+                .about("Restore to the state at an operation")
+                .arg(op_arg().help("The operation to restore to")),
         );
     let git_command = SubCommand::with_name("git")
-        .about("Commands for working with the underlying git repo")
+        .about("Commands for working with the underlying Git repo")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("fetch")
-                .about("Fetch from a git remote")
+                .about("Fetch from a Git remote")
                 .arg(
                     Arg::with_name("remote")
                         .long("remote")
                         .takes_value(true)
-                        .default_value("origin"),
+                        .default_value("origin")
+                        .help("The remote to fetch from (only named remotes are supported)"),
                 ),
         )
         .subcommand(
             SubCommand::with_name("clone")
-                .about("Create a new repo backed by a clone of a git repo")
-                .arg(Arg::with_name("source").index(1).required(true))
-                .arg(Arg::with_name("destination").index(2).required(true)),
+                .about("Create a new repo backed by a clone of a Git repo")
+                .long_about(
+                    "Create a new repo backed by a clone of a Git repo. The Git repo will be a \
+                     bare git repo stored inside the `.jj/` directory.",
+                )
+                .arg(
+                    Arg::with_name("source")
+                        .index(1)
+                        .required(true)
+                        .help("URL or path of the Git repo to clone"),
+                )
+                .arg(
+                    Arg::with_name("destination")
+                        .index(2)
+                        .required(true)
+                        .help("The directory to write the Jujutsu repo to"),
+                ),
         )
         .subcommand(
             SubCommand::with_name("push")
-                .about("Push a branch to a git remote")
+                .about("Push a branch to a Git remote")
                 .arg(
                     Arg::with_name("branch")
                         .long("branch")
                         .takes_value(true)
-                        .required(true),
+                        .required(true)
+                        .help("The name of the branch to push"),
                 )
                 .arg(
                     Arg::with_name("remote")
                         .long("remote")
                         .takes_value(true)
-                        .default_value("origin"),
+                        .default_value("origin")
+                        .help("The remote to push to (only named remotes are supported)"),
                 ),
         )
         .subcommand(
             SubCommand::with_name("refresh")
-                .about("Update repo with changes made in underlying git repo"),
+                .about("Update repo with changes made in the underlying Git repo"),
         );
     let bench_command = SubCommand::with_name("bench")
         .about("Commands for benchmarking internal operations")
@@ -1013,7 +1300,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("resolverev")
-                .about("Resolve a revision identifier to its full id")
+                .about("Resolve a revision identifier to its full ID")
                 .arg(rev_arg()),
         )
         .subcommand(
@@ -1050,7 +1337,12 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .version(crate_version!())
         .author("Martin von Zweigbergk <martinvonz@google.com>")
-        .about("An experimental VCS")
+        .about(
+            "An experimental VCS
+
+To get started, see the tutorial at https://github.com/martinvonz/jj.\
+             ",
+        )
         .help_message(help_message)
         .version_message("Print version information")
         .arg(
@@ -1059,7 +1351,12 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .short("R")
                 .global(true)
                 .takes_value(true)
-                .default_value("."),
+                .default_value(".")
+                .help("Path to repository to operate on")
+                .long_help(
+                    "Path to repository to operate on. By default, Jujutsu searches for the \
+                     closest .jj/ directory in an ancestor of the current working directory.",
+                ),
         )
         .arg(
             Arg::with_name("at_op")
@@ -1067,7 +1364,26 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .alias("at-op")
                 .global(true)
                 .takes_value(true)
-                .default_value("@"),
+                .default_value("@")
+                .help("Operation to load the repo at")
+                .long_help(
+                    "Operation to load the repo at. By default, Jujutsu loads the repo at the \
+                     most recent operation. You can use `--at-op=<operation ID>` to see what the \
+                     repo looked like at an earlier operation. For example `jj --at-op=<operation \
+                     ID> st` will show you what `jj st` would have shown you when the given \
+                     operation had just finished.
+
+Use `jj op log` to find the operation ID you want. Any unambiguous prefix of the operation id is \
+                     enough.
+
+When loading the repo at an earlier operation, the working copy will not be automatically \
+                     committed.
+
+It is possible to mutating commands when loading the repo at an earlier operation. Doing that is \
+                     equivalent to having run concurrent commands starting at the earlier \
+                     operation. There's rarely a reason to do that, but it is possible.
+",
+                ),
         );
     for subcommand in [
         init_command,
