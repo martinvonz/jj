@@ -1031,13 +1031,16 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         )
         .subcommand(SubCommand::with_name("index").about("Show commit index stats"))
         .subcommand(SubCommand::with_name("reindex").about("Rebuild commit index"));
-    App::new("Jujutsu")
+    let help_message = "Print help information";
+    let mut app = App::new("Jujutsu")
         .global_setting(clap::AppSettings::ColoredHelp)
         .global_setting(clap::AppSettings::VersionlessSubcommands)
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .version(crate_version!())
         .author("Martin von Zweigbergk <martinvonz@google.com>")
         .about("An experimental VCS")
+        .help_message(help_message)
+        .version_message("Print version information")
         .arg(
             Arg::with_name("repository")
                 .long("repository")
@@ -1053,36 +1056,41 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .global(true)
                 .takes_value(true)
                 .default_value("@"),
-        )
-        .subcommand(init_command)
-        .subcommand(checkout_command)
-        .subcommand(files_command)
-        .subcommand(diff_command)
-        .subcommand(status_command)
-        .subcommand(log_command)
-        .subcommand(obslog_command)
-        .subcommand(describe_command)
-        .subcommand(close_command)
-        .subcommand(open_command)
-        .subcommand(duplicate_command)
-        .subcommand(prune_command)
-        .subcommand(new_command)
-        .subcommand(squash_command)
-        .subcommand(unsquash_command)
-        .subcommand(discard_command)
-        .subcommand(restore_command)
-        .subcommand(edit_command)
-        .subcommand(split_command)
-        .subcommand(merge_command)
-        .subcommand(rebase_command)
-        .subcommand(backout_command)
-        .subcommand(branch_command)
-        .subcommand(branches_command)
-        .subcommand(evolve_command)
-        .subcommand(operation_command)
-        .subcommand(git_command)
-        .subcommand(bench_command)
-        .subcommand(debug_command)
+        );
+    for subcommand in [
+        init_command,
+        checkout_command,
+        files_command,
+        diff_command,
+        status_command,
+        log_command,
+        obslog_command,
+        describe_command,
+        close_command,
+        open_command,
+        duplicate_command,
+        prune_command,
+        new_command,
+        squash_command,
+        unsquash_command,
+        discard_command,
+        restore_command,
+        edit_command,
+        split_command,
+        merge_command,
+        rebase_command,
+        backout_command,
+        branch_command,
+        branches_command,
+        evolve_command,
+        operation_command,
+        git_command,
+        bench_command,
+        debug_command,
+    ] {
+        app = app.subcommand(subcommand.help_message(help_message));
+    }
+    app
 }
 
 fn short_commit_description(commit: &Commit) -> String {
