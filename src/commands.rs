@@ -1330,7 +1330,7 @@ See `jj concepts branches` for information about branches.",
                 .about("Show help about the working copy"),
         )
         .subcommand(SubCommand::with_name("operations").about("Show help about operations"));
-    let help_message = "Print help information";
+    let help_message = "Print help information, more help with --help than with -h";
     let mut app = App::new("Jujutsu")
         .global_setting(clap::AppSettings::ColoredHelp)
         .global_setting(clap::AppSettings::VersionlessSubcommands)
