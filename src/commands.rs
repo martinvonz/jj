@@ -1033,6 +1033,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .subcommand(SubCommand::with_name("reindex").about("Rebuild commit index"));
     App::new("Jujutsu")
         .global_setting(clap::AppSettings::ColoredHelp)
+        .global_setting(clap::AppSettings::VersionlessSubcommands)
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .version(crate_version!())
         .author("Martin von Zweigbergk <martinvonz@google.com>")
