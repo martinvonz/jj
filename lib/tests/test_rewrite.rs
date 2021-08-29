@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::rewrite::DescendantRebaser;
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::CommitGraphBuilder;
@@ -344,6 +346,71 @@ fn test_rebase_descendants_widen_merge(use_git: bool) {
             commit3.id().clone(),
             commit4.id().clone()
         ]
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_rebase_descendants_contents(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    // Commit 2 was replaced by commit 4. Commit 3 should have the changes from
+    // commit 3 and commit 4, but not the changes from commit 2.
+    //
+    // 4
+    // | 3
+    // | 2
+    // |/
+    // 1
+    let mut tx = repo.start_transaction("test");
+    let path1 = RepoPath::from_internal_string("file1");
+    let tree1 = testutils::create_tree(&repo, &[(&path1, "content")]);
+    let commit1 = CommitBuilder::for_new_commit(&settings, repo.store(), tree1.id().clone())
+        .write_to_repo(tx.mut_repo());
+    let path2 = RepoPath::from_internal_string("file2");
+    let tree2 = testutils::create_tree(&repo, &[(&path2, "content")]);
+    let commit2 = CommitBuilder::for_new_commit(&settings, repo.store(), tree2.id().clone())
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_repo(tx.mut_repo());
+    let path3 = RepoPath::from_internal_string("file3");
+    let tree3 = testutils::create_tree(&repo, &[(&path3, "content")]);
+    let commit3 = CommitBuilder::for_new_commit(&settings, repo.store(), tree3.id().clone())
+        .set_parents(vec![commit2.id().clone()])
+        .write_to_repo(tx.mut_repo());
+    let path4 = RepoPath::from_internal_string("file4");
+    let tree4 = testutils::create_tree(&repo, &[(&path4, "content")]);
+    let commit4 = CommitBuilder::for_new_commit(&settings, repo.store(), tree4.id().clone())
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_repo(tx.mut_repo());
+
+    let mut rebaser = DescendantRebaser::new(
+        &settings,
+        tx.mut_repo(),
+        commit2.id().clone(),
+        vec![commit4.id().clone()],
+    );
+    rebaser.rebase_all();
+    let rebased = rebaser.rebased();
+    assert_eq!(rebased.len(), 1);
+    let new_commit3 = repo
+        .store()
+        .get_commit(rebased.get(commit3.id()).unwrap())
+        .unwrap();
+
+    assert_eq!(
+        new_commit3.tree().path_value(&path3),
+        commit3.tree().path_value(&path3)
+    );
+    assert_eq!(
+        new_commit3.tree().path_value(&path4),
+        commit4.tree().path_value(&path4)
+    );
+    assert_ne!(
+        new_commit3.tree().path_value(&path2),
+        commit2.tree().path_value(&path2)
     );
 
     tx.discard();

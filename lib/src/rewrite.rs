@@ -178,14 +178,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 let new_parent_ids = new_parent_ids
                     .into_iter()
                     .filter(|new_parent| head_set.contains(new_parent))
-                    .collect();
-                let new_commit = CommitBuilder::for_rewrite_from(
-                    self.settings,
-                    self.mut_repo.store(),
-                    &old_commit,
-                )
-                .set_parents(new_parent_ids)
-                .write_to_repo(self.mut_repo);
+                    .collect_vec();
+                let new_parents = new_parent_ids
+                    .iter()
+                    .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id).unwrap())
+                    .collect_vec();
+                let new_commit =
+                    rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents);
                 self.rebased.insert(old_commit_id, new_commit.id().clone());
                 RebasedDescendant::Rebased {
                     old_commit,
