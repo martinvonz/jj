@@ -393,7 +393,12 @@ impl RepoCommandHelper {
                         Some(RefTarget::Conflict { adds, .. }) => {
                             for current_target in adds {
                                 if current_target == old_checkout {
-                                    writeln!(ui, "Branch {}'s target was rewritten, but not updating it since it's conflicted", branch_name)?;
+                                    writeln!(
+                                        ui,
+                                        "Branch {}'s target was rewritten, but not updating it \
+                                         since it's conflicted",
+                                        branch_name
+                                    )?;
                                 }
                             }
                         }
@@ -415,7 +420,8 @@ impl RepoCommandHelper {
                 if evolve_result.num_failed > 0 {
                     writeln!(
                         ui,
-                        "Failed to rebase {} descendant commits onto updated working copy (run `jj evolve`)",
+                        "Failed to rebase {} descendant commits onto updated working copy (run \
+                         `jj evolve`)",
                         evolve_result.num_failed
                     )?;
                 }
@@ -730,7 +736,12 @@ fn update_branches_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) -> io:
                     if new_evolution.is_obsolete(current_target)
                         && !old_evolution.is_obsolete(current_target)
                     {
-                        writeln!(ui, "Branch {}'s target was obsoleted, but not updating it since it's conflicted", branch_name )?;
+                        writeln!(
+                            ui,
+                            "Branch {}'s target was obsoleted, but not updating it since it's \
+                             conflicted",
+                            branch_name
+                        )?;
                     }
                 }
             }
@@ -985,7 +996,10 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         )
         .subcommand(
             SubCommand::with_name("walkrevs")
-                .about("Walk revisions that are ancestors of the second argument but not ancestors of the first")
+                .about(
+                    "Walk revisions that are ancestors of the second argument but not ancestors \
+                     of the first",
+                )
                 .arg(Arg::with_name("unwanted").index(1).required(true))
                 .arg(Arg::with_name("wanted").index(2).required(true)),
         )
