@@ -148,8 +148,12 @@ fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandE
                     .to_str()
                     .unwrap()
                     .to_owned();
-                message += &format!("\nIt looks like this is a git repo. You can create a jj repo backed by it by running this:\n\
-                                     jj init --git-store={} <path to new jj repo>", git_dir_str);
+                message += &format!(
+                    "
+It looks like this is a git repo. You can create a jj repo backed by it by running this:
+jj init --git-store={} <path to new jj repo>",
+                    git_dir_str
+                );
             }
             return Err(CommandError::UserError(message));
         }
@@ -1922,16 +1926,18 @@ fn cmd_squash(
     let new_parent_tree_id;
     if sub_matches.is_present("interactive") {
         let instructions = format!(
-            "You are moving changes from: {}\n\
-            into its parent: {}\n\
-            \n\
-            The left side of the diff shows the contents of the parent commit. The\n\
-            right side initially shows the contents of the commit you're moving\n\
-            changes from.\n\
-            \n\
-            Adjust the right side until the diff shows the changes you want to move\n\
-            to the destination. If you don't make any changes, then all the changes\n\
-            from the source will be moved into the parent.\n",
+            "\
+You are moving changes from: {}
+into its parent: {}
+
+The left side of the diff shows the contents of the parent commit. The
+right side initially shows the contents of the commit you're moving
+changes from.
+
+Adjust the right side until the diff shows the changes you want to move
+to the destination. If you don't make any changes, then all the changes
+from the source will be moved into the parent.
+",
             short_commit_description(&commit),
             short_commit_description(parent)
         );
@@ -1982,15 +1988,17 @@ fn cmd_unsquash(
     let new_parent_tree_id;
     if sub_matches.is_present("interactive") {
         let instructions = format!(
-            "You are moving changes from: {}\n\
-            into its child: {}\n\
-            \n\
-            The diff initially shows the parent commit's changes.\n\
-            \n\
-            Adjust the right side until it shows the contents you want to keep in\n\
-            the parent commit. The changes you edited out will be moved into the\n\
-            child commit. If you don't make any changes, then the operation will be\n\
-            aborted.\n",
+            "\
+You are moving changes from: {}
+into its child: {}
+
+The diff initially shows the parent commit's changes.
+
+Adjust the right side until it shows the contents you want to keep in
+the parent commit. The changes you edited out will be moved into the
+child commit. If you don't make any changes, then the operation will be
+aborted.
+",
             short_commit_description(parent),
             short_commit_description(&commit)
         );
@@ -2055,15 +2063,17 @@ fn cmd_restore(
             ));
         }
         let instructions = format!(
-            "You are restoring state from: {}\n\
-            into: {}\n\
-            \n\
-            The left side of the diff shows the contents of the commit you're\n\
-            restoring from. The right side initially shows the contents of the\n\
-            commit you're restoring into.\n\
-            \n\
-            Adjust the right side until it has the changes you wanted from the left\n\
-            side. If you don't make any changes, then the operation will be aborted.\n",
+            "\
+You are restoring state from: {}
+into: {}
+
+The left side of the diff shows the contents of the commit you're
+restoring from. The right side initially shows the contents of the
+commit you're restoring into.
+
+Adjust the right side until it has the changes you wanted from the left
+side. If you don't make any changes, then the operation will be aborted.
+",
             short_commit_description(&from_commit),
             short_commit_description(&to_commit)
         );
@@ -2115,12 +2125,13 @@ fn cmd_edit(
     let repo = repo_command.repo();
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let instructions = format!(
-        "You are editing changes in: {}\n\
-        \n\
-        The diff initially shows the commit's changes.\n\
-        \n\
-        Adjust the right side until it shows the contents you want. If you\n\
-        don't make any changes, then the operation will be aborted.\n",
+        "\
+You are editing changes in: {}
+
+The diff initially shows the commit's changes.
+
+Adjust the right side until it shows the contents you want. If you
+don't make any changes, then the operation will be aborted.",
         short_commit_description(&commit)
     );
     let tree_id = crate::diff_edit::edit_diff(ui, &base_tree, &commit.tree(), &instructions)?;
@@ -2151,13 +2162,15 @@ fn cmd_split(
     let repo = repo_command.repo();
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let instructions = format!(
-        "You are splitting a commit in two: {}\n\
-        \n\
-        The diff initially shows the changes in the commit you're splitting.\n\
-        \n\
-        Adjust the right side until it shows the contents you want for the first\n\
-        commit. The remainder will be in the second commit. If you don't make\n\
-        any changes, then the operation will be aborted.\n",
+        "\
+You are splitting a commit in two: {}
+
+The diff initially shows the changes in the commit you're splitting.
+
+Adjust the right side until it shows the contents you want for the first
+commit. The remainder will be in the second commit. If you don't make
+any changes, then the operation will be aborted.
+",
         short_commit_description(&commit)
     );
     let tree_id = crate::diff_edit::edit_diff(ui, &base_tree, &commit.tree(), &instructions)?;

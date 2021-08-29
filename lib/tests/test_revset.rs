@@ -769,16 +769,9 @@ fn test_evaluate_expression_descendants(use_git: bool) {
         ]
     );
 
-    // Can find ancestors of a specific commit
+    // Can find descendants of a specific commit
     assert_eq!(
-        resolve_commit_ids(
-            mut_repo.as_repo_ref(),
-            &format!(
-                "{},,\
-        ",
-                commit3.id().hex()
-            )
-        ),
+        resolve_commit_ids(mut_repo.as_repo_ref(), &format!("{},,", commit3.id().hex())),
         vec![
             commit6.id().clone(),
             commit4.id().clone(),
