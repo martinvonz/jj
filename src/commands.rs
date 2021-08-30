@@ -814,7 +814,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .arg(message_arg());
     let open_command = SubCommand::with_name("open")
         .about("Mark a commit open, making new work be added to it")
-        .arg(Arg::with_name("revision").index(1).default_value("@"));
+        .arg(Arg::with_name("revision").index(1).required(true));
     let duplicate_command = SubCommand::with_name("duplicate")
         .about("Create a copy of the commit with a new change id")
         .arg(Arg::with_name("revision").index(1).default_value("@"));
