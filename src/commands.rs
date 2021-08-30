@@ -1213,6 +1213,14 @@ See `jj concepts branches` for information about branches.",
         );
     let git_command = SubCommand::with_name("git")
         .about("Commands for working with the underlying Git repo")
+        .long_about(
+            "Commands for working with the underlying Git repo.
+
+For a comparison with Git, including \
+             a table of commands, see
+https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
+             ",
+        )
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
             SubCommand::with_name("fetch")
