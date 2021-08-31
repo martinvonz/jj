@@ -430,3 +430,38 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
         .unwrap();
     assert!(new_tree.path_value(&file_path).is_some());
 }
+
+#[test_case(false ; "local store")]
+#[test_case(true ; "git store")]
+fn test_dotgit_ignored(use_git: bool) {
+    // Tests that .git directories and files are always ignored (we could accept
+    // them if the backend is not git).
+
+    let _home_dir = testutils::new_user_home();
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let wc = repo.working_copy_locked();
+
+    // Test with a .git/ directory (with a file in, since we don't write empty
+    // trees)
+    let dotgit_path = repo.working_copy_path().join(".git");
+    std::fs::create_dir(&dotgit_path).unwrap();
+    testutils::write_working_copy_file(
+        &repo,
+        &RepoPath::from_internal_string(".git/file"),
+        "contents",
+    );
+    let locked_working_copy = wc.write_tree();
+    let new_tree_id = locked_working_copy.new_tree_id();
+    assert_eq!(new_tree_id, *repo.store().empty_tree_id());
+    locked_working_copy.discard();
+    std::fs::remove_dir_all(&dotgit_path).unwrap();
+
+    // Test with a .git file
+    testutils::write_working_copy_file(&repo, &RepoPath::from_internal_string(".git"), "contents");
+    let locked_working_copy = wc.write_tree();
+    let new_tree_id = locked_working_copy.new_tree_id();
+    assert_eq!(new_tree_id, *repo.store().empty_tree_id());
+    locked_working_copy.discard();
+}

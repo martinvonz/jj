@@ -333,7 +333,7 @@ impl TreeState {
                 let file_type = entry.file_type().unwrap();
                 let file_name = entry.file_name();
                 let name = file_name.to_str().unwrap();
-                if name == ".jj" {
+                if name == ".jj" || name == ".git" {
                     continue;
                 }
                 let sub_path = dir.join(&RepoPathComponent::from(name));
