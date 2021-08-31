@@ -78,6 +78,8 @@ First install Jujutsu:
 ```shell script
 $ git clone https://github.com/martinvonz/jj.git jj-git
 $ cd jj-git
+# We need the "nightly" Rust toolchain. This command installs that without
+# changing your default.
 $ rustup install nightly
 $ cargo +nightly install --path .
 $ cd ..
