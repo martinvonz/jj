@@ -39,6 +39,7 @@ protobuf-codegen-pure = "2.22.1"
 rand = "0.8.0"
 serde_json = "1.0.60"
 tempfile = "3.1.0"
+textwrap = "0.14.2"
 thiserror = "1.0.22"
 uuid = { version = "0.8.1", features = ["v4"] }
 zstd = "0.6.0"

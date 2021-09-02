@@ -106,6 +106,8 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result.insert(String::from("op-log user"), String::from("yellow"));
     result.insert(String::from("op-log time"), String::from("magenta"));
 
+    result.insert(String::from("concepts heading"), String::from("yellow"));
+
     if let Ok(table) = user_settings.config().get_table("colors") {
         for (key, value) in table {
             result.insert(key, value.to_string());
