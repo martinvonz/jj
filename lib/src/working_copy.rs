@@ -302,10 +302,7 @@ impl TreeState {
 
     // Look for changes to the working copy. If there are any changes, create
     // a new tree from it and return it, and also update the dirstate on disk.
-    // TODO: respect ignores
     pub fn write_tree(&mut self) -> &TreeId {
-        // We create a temporary git repo with the working copy shared with ours only
-        // so we can use libgit2's .gitignore check.
         // TODO: We should probably have the caller pass in the home directory to the
         // library crate instead of depending on $HOME directly here. We should also
         // have the caller (within the library crate) chain that the
