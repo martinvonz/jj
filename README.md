@@ -4,9 +4,9 @@
 ## Disclaimer
 
 This is not a Google product. It is an experimental version-control system
-(VCS). It is not ready for use. It was written by me, Martin von Zweigbergk
-(martinvonz@google.com). It is my personal hobby project. It does not indicate
-any commitment or direction from Google.
+(VCS). It was written by me, Martin von Zweigbergk (martinvonz@google.com). It
+is my personal hobby project. It does not indicate any commitment or direction
+from Google.
 
 
 ## Introduction
@@ -66,6 +66,16 @@ Features:
    https://www.mercurial-scm.org/wiki/ChangesetEvolution). However, you will
    often not need to know that because the conflict design described above lets
    Jujutsu keep commits rebased even if there are conflicts.
+
+
+## Status ##
+
+The tool is quite feature-complete. I have almost exclusively used `jj` to
+develop the project itself since early January 2021. However, there *will* be
+changes to workflows and backward-incompatible changes to the on-disk formats
+(I'll try to provide upgrade commands if requested). It's also likely that
+workflows and setups different from what I personally use are not well
+supported. 
 
 
 ## Tutorial
