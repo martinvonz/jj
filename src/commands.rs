@@ -891,7 +891,8 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         );
     let describe_command = SubCommand::with_name("describe")
         .about("Edit the change description")
-        .about(
+        .about("Edit the description of a change")
+        .long_about(
             "Starts an editor to let you edit the description of a change. The editor will be \
              $EDITOR, or `pico` if that's not defined.",
         )
