@@ -1341,7 +1341,7 @@ See `jj concepts branches` for information about branches.",
         .about(
             "An experimental VCS
 
-To get started, see the tutorial at https://github.com/martinvonz/jj.\
+To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.\
              ",
         )
         .help_message(help_message)
