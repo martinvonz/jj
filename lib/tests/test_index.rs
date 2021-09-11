@@ -300,9 +300,9 @@ fn test_index_commits_incremental(use_git: bool) {
     // o root
 
     let root_commit = repo.store().root_commit();
-    let commit_a =
-        child_commit(&settings, &repo, &root_commit).write_to_new_transaction(&repo, "test");
-    repo = repo.reload();
+    let mut tx = repo.start_transaction("test");
+    let commit_a = child_commit(&settings, &repo, &root_commit).write_to_repo(tx.mut_repo());
+    repo = tx.commit();
 
     let index = repo.index();
     // There should be the root commit and the working copy commit, plus
@@ -347,9 +347,9 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     // o root
 
     let root_commit = repo.store().root_commit();
-    let commit_a =
-        child_commit(&settings, &repo, &root_commit).write_to_new_transaction(&repo, "test");
-    repo = repo.reload();
+    let mut tx = repo.start_transaction("test");
+    let commit_a = child_commit(&settings, &repo, &root_commit).write_to_repo(tx.mut_repo());
+    repo = tx.commit();
 
     let index = repo.index();
     // There should be the root commit and the working copy commit, plus
@@ -391,9 +391,9 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
     // o root
 
     let root_commit = repo.store().root_commit();
-    let commit_a =
-        child_commit(&settings, &repo, &root_commit).write_to_new_transaction(&repo, "test");
-    repo = repo.reload();
+    let mut tx = repo.start_transaction("test");
+    let commit_a = child_commit(&settings, &repo, &root_commit).write_to_repo(tx.mut_repo());
+    repo = tx.commit();
 
     assert!(repo.index().has_id(commit_a.id()));
     assert_eq!(repo.index().num_commits(), 2 + 1);

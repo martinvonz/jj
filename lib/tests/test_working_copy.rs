@@ -121,10 +121,12 @@ fn test_checkout_file_transitions(use_git: bool) {
                 TreeValue::Tree(id)
             }
             Kind::GitSubmodule => {
+                let mut tx = repo.start_transaction("test");
                 let id = testutils::create_random_commit(settings, repo)
-                    .write_to_new_transaction(repo, "test")
+                    .write_to_repo(tx.mut_repo())
                     .id()
                     .clone();
+                tx.commit();
                 TreeValue::GitSubmodule(id)
             }
         };
@@ -157,14 +159,16 @@ fn test_checkout_file_transitions(use_git: bool) {
     let left_tree_id = left_tree_builder.write_tree();
     let right_tree_id = right_tree_builder.write_tree();
 
+    let mut tx = repo.start_transaction("test");
     let left_commit = CommitBuilder::for_new_commit(&settings, repo.store(), left_tree_id)
         .set_parents(vec![store.root_commit_id().clone()])
         .set_open(true)
-        .write_to_new_transaction(&repo, "test");
+        .write_to_repo(tx.mut_repo());
     let right_commit = CommitBuilder::for_new_commit(&settings, repo.store(), right_tree_id)
         .set_parents(vec![store.root_commit_id().clone()])
         .set_open(true)
-        .write_to_new_transaction(&repo, "test");
+        .write_to_repo(tx.mut_repo());
+    tx.commit();
 
     let owned_wc = repo.working_copy().clone();
     let wc = owned_wc.lock().unwrap();

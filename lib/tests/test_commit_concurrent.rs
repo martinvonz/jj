@@ -51,8 +51,9 @@ fn test_commit_parallel(use_git: bool) {
         let settings = settings.clone();
         let repo = repo.clone();
         let handle = thread::spawn(move || {
-            testutils::create_random_commit(&settings, &repo)
-                .write_to_new_transaction(&repo, "test");
+            let mut tx = repo.start_transaction("test");
+            testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+            tx.commit();
         });
         threads.push(handle);
     }
@@ -83,8 +84,9 @@ fn test_commit_parallel_instances(use_git: bool) {
         let settings = settings.clone();
         let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
         let handle = thread::spawn(move || {
-            testutils::create_random_commit(&settings, &repo)
-                .write_to_new_transaction(&repo, "test");
+            let mut tx = repo.start_transaction("test");
+            testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+            tx.commit();
         });
         threads.push(handle);
     }

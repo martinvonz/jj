@@ -96,25 +96,31 @@ fn test_bad_locking_children(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
+    let mut tx = repo.start_transaction("test");
     let initial = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![repo.store().root_commit_id().clone()])
-        .write_to_new_transaction(&repo, "test");
+        .write_to_repo(tx.mut_repo());
+    tx.commit();
 
     // Simulate a write of a commit that happens on one machine
     let machine1_path = TempDir::new().unwrap().into_path();
     copy_directory(repo.working_copy_path(), &machine1_path);
     let machine1_repo = ReadonlyRepo::load(&settings, machine1_path).unwrap();
+    let mut machine1_tx = machine1_repo.start_transaction("test");
     let child1 = testutils::create_random_commit(&settings, &machine1_repo)
         .set_parents(vec![initial.id().clone()])
-        .write_to_new_transaction(&machine1_repo, "test");
+        .write_to_repo(machine1_tx.mut_repo());
+    machine1_tx.commit();
 
     // Simulate a write of a commit that happens on another machine
     let machine2_path = TempDir::new().unwrap().into_path();
     copy_directory(repo.working_copy_path(), &machine2_path);
     let machine2_repo = ReadonlyRepo::load(&settings, machine2_path).unwrap();
+    let mut machine2_tx = machine2_repo.start_transaction("test");
     let child2 = testutils::create_random_commit(&settings, &machine2_repo)
         .set_parents(vec![initial.id().clone()])
-        .write_to_new_transaction(&machine2_repo, "test");
+        .write_to_repo(machine2_tx.mut_repo());
+    machine2_tx.commit();
 
     // Simulate that the distributed file system now has received the changes from
     // both machines
@@ -142,10 +148,11 @@ fn test_bad_locking_interrupted(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
+    let mut tx = repo.start_transaction("test");
     let initial = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![repo.store().root_commit_id().clone()])
-        .write_to_new_transaction(&repo, "test");
-    let repo = repo.reload();
+        .write_to_repo(tx.mut_repo());
+    let repo = tx.commit();
 
     // Simulate a crash that resulted in the old op-head left in place. We simulate
     // it somewhat hackily by copying the .jj/op_heads/ directory before the

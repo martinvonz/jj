@@ -37,9 +37,11 @@ fn test_initial(use_git: bool) {
         ],
     );
 
+    let mut tx = repo.start_transaction("test");
     let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())
         .set_parents(vec![store.root_commit_id().clone()])
-        .write_to_new_transaction(&repo, "test");
+        .write_to_repo(tx.mut_repo());
+    tx.commit();
 
     assert_eq!(commit.parents(), vec![store.root_commit()]);
     assert_eq!(commit.predecessors(), vec![]);
@@ -79,11 +81,12 @@ fn test_rewrite(use_git: bool) {
         ],
     );
 
+    let mut tx = repo.start_transaction("test");
     let initial_commit =
         CommitBuilder::for_new_commit(&settings, &store, initial_tree.id().clone())
             .set_parents(vec![store.root_commit_id().clone()])
-            .write_to_new_transaction(&repo, "test");
-    let repo = repo.reload();
+            .write_to_repo(tx.mut_repo());
+    let repo = tx.commit();
 
     let rewritten_tree = testutils::create_tree(
         &repo,
@@ -99,10 +102,12 @@ fn test_rewrite(use_git: bool) {
         .set("user.email", "rewrite.user@example.com")
         .unwrap();
     let rewrite_settings = UserSettings::from_config(config);
+    let mut tx = repo.start_transaction("test");
     let rewritten_commit =
         CommitBuilder::for_rewrite_from(&rewrite_settings, &store, &initial_commit)
             .set_tree(rewritten_tree.id().clone())
-            .write_to_new_transaction(&repo, "test");
+            .write_to_repo(tx.mut_repo());
+    tx.commit();
     assert_eq!(rewritten_commit.parents(), vec![store.root_commit()]);
     assert_eq!(
         rewritten_commit.predecessors(),

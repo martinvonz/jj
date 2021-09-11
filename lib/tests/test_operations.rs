@@ -133,10 +133,11 @@ fn test_isolation(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     let wc_id = repo.working_copy_locked().current_commit_id();
+    let mut tx = repo.start_transaction("test");
     let initial = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![repo.store().root_commit_id().clone()])
-        .write_to_new_transaction(&repo, "test");
-    let repo = repo.reload();
+        .write_to_repo(tx.mut_repo());
+    let repo = tx.commit();
 
     let mut tx1 = repo.start_transaction("transaction 1");
     let mut_repo1 = tx1.mut_repo();

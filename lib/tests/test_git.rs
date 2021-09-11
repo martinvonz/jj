@@ -336,10 +336,11 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     git2::Repository::clone(source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let jj_repo = ReadonlyRepo::init_external_git(settings, jj_repo_dir, clone_repo_dir).unwrap();
+    let mut tx = jj_repo.start_transaction("test");
     let new_commit = testutils::create_random_commit(settings, &jj_repo)
         .set_parents(vec![initial_commit_id])
-        .write_to_new_transaction(&jj_repo, "test");
-    let jj_repo = jj_repo.reload();
+        .write_to_repo(tx.mut_repo());
+    let jj_repo = tx.commit();
     PushTestSetup {
         source_repo_dir,
         jj_repo,
@@ -380,9 +381,10 @@ fn test_push_commit_not_fast_forward() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
-    let new_commit = testutils::create_random_commit(&settings, &setup.jj_repo)
-        .write_to_new_transaction(&setup.jj_repo, "test");
-    setup.jj_repo = setup.jj_repo.reload();
+    let mut tx = setup.jj_repo.start_transaction("test");
+    let new_commit =
+        testutils::create_random_commit(&settings, &setup.jj_repo).write_to_repo(tx.mut_repo());
+    setup.jj_repo = tx.commit();
     let result = git::push_commit(
         &setup.jj_repo.store().git_repo().unwrap(),
         &new_commit,
@@ -398,9 +400,10 @@ fn test_push_commit_not_fast_forward_with_force() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
-    let new_commit = testutils::create_random_commit(&settings, &setup.jj_repo)
-        .write_to_new_transaction(&setup.jj_repo, "test");
-    setup.jj_repo = setup.jj_repo.reload();
+    let mut tx = setup.jj_repo.start_transaction("test");
+    let new_commit =
+        testutils::create_random_commit(&settings, &setup.jj_repo).write_to_repo(tx.mut_repo());
+    setup.jj_repo = tx.commit();
     let result = git::push_commit(
         &setup.jj_repo.store().git_repo().unwrap(),
         &new_commit,

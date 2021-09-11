@@ -31,15 +31,17 @@ fn test_concurrent_checkout(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo1) = testutils::init_repo(&settings, use_git);
 
+    let mut tx1 = repo1.start_transaction("test");
     let commit1 = testutils::create_random_commit(&settings, &repo1)
         .set_open(true)
-        .write_to_new_transaction(&repo1, "test");
+        .write_to_repo(tx1.mut_repo());
     let commit2 = testutils::create_random_commit(&settings, &repo1)
         .set_open(true)
-        .write_to_new_transaction(&repo1, "test");
+        .write_to_repo(tx1.mut_repo());
     let commit3 = testutils::create_random_commit(&settings, &repo1)
         .set_open(true)
-        .write_to_new_transaction(&repo1, "test");
+        .write_to_repo(tx1.mut_repo());
+    tx1.commit();
 
     // Check out commit1
     let wc1 = repo1.working_copy_locked();
@@ -78,13 +80,14 @@ fn test_checkout_parallel(use_git: bool) {
     let num_threads = max(num_cpus::get(), 4);
     let mut tree_ids = HashSet::new();
     let mut commit_ids = vec![];
+    let mut tx = repo.start_transaction("test");
     for i in 0..num_threads {
         let path = RepoPath::from_internal_string(format!("file{}", i).as_str());
         let tree = testutils::create_tree(&repo, &[(&path, "contents")]);
         tree_ids.insert(tree.id().clone());
         let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())
             .set_open(true)
-            .write_to_new_transaction(&repo, "test");
+            .write_to_repo(tx.mut_repo());
         commit_ids.push(commit.id().clone());
     }
 
@@ -94,7 +97,6 @@ fn test_checkout_parallel(use_git: bool) {
         &repo,
         &[(&RepoPath::from_internal_string("other file"), "contents")],
     );
-    let mut tx = repo.start_transaction("test");
     let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())
         .set_open(true)
         .write_to_repo(tx.mut_repo());

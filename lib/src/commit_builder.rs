@@ -17,7 +17,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::commit::Commit;
-use crate::repo::{MutableRepo, ReadonlyRepo};
+use crate::repo::MutableRepo;
 use crate::settings::UserSettings;
 use crate::store;
 use crate::store::{ChangeId, CommitId, Signature, Timestamp, TreeId};
@@ -152,13 +152,6 @@ impl CommitBuilder {
     pub fn set_committer(mut self, committer: Signature) -> Self {
         self.commit.committer = committer;
         self
-    }
-
-    pub fn write_to_new_transaction(self, repo: &Arc<ReadonlyRepo>, description: &str) -> Commit {
-        let mut tx = repo.start_transaction(description);
-        let commit = self.write_to_repo(tx.mut_repo());
-        tx.commit();
-        commit
     }
 
     pub fn write_to_repo(mut self, repo: &mut MutableRepo) -> Commit {
