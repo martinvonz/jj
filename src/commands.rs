@@ -39,7 +39,7 @@ use jujutsu_lib::evolution::{
     DivergenceResolution, DivergenceResolver, OrphanResolution, OrphanResolver,
 };
 use jujutsu_lib::files::DiffLine;
-use jujutsu_lib::git::GitFetchError;
+use jujutsu_lib::git::{GitFetchError, GitRefUpdate};
 use jujutsu_lib::index::HexPrefix;
 use jujutsu_lib::matchers::{EverythingMatcher, FilesMatcher, Matcher};
 use jujutsu_lib::op_heads_store::OpHeadsStore;
@@ -3317,7 +3317,7 @@ fn cmd_git_push(
         return Ok(());
     }
 
-    let git_repo = get_git_repo(repo.store())?;
+    let mut ref_updates = vec![];
     if let Some(new_target) = &branch_target.local_target {
         match new_target {
             RefTarget::Conflict { .. } => {
@@ -3346,20 +3346,23 @@ fn cmd_git_push(
                     }
                 };
 
-                git::push_commit(
-                    &git_repo,
-                    &new_target_commit,
-                    remote_name,
-                    branch_name,
+                ref_updates.push(GitRefUpdate {
+                    qualified_name: format!("refs/heads/{}", branch_name),
                     force,
-                )
-                .map_err(|err| CommandError::UserError(err.to_string()))?;
+                    new_target: Some(new_target_id.clone()),
+                });
             }
         }
     } else {
-        git::delete_remote_branch(&git_repo, remote_name, branch_name)
-            .map_err(|err| CommandError::UserError(err.to_string()))?;
+        ref_updates.push(GitRefUpdate {
+            qualified_name: format!("refs/heads/{}", branch_name),
+            force: false,
+            new_target: None,
+        });
     }
+    let git_repo = get_git_repo(repo.store())?;
+    git::push_updates(&git_repo, remote_name, &ref_updates)
+        .map_err(|err| CommandError::UserError(err.to_string()))?;
     let mut tx = repo_command.start_transaction("import git refs");
     git::import_refs(tx.mut_repo(), &git_repo)
         .map_err(|err| CommandError::UserError(err.to_string()))?;

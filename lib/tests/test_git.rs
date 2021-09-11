@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use git2::Oid;
 use jujutsu_lib::commit::Commit;
-use jujutsu_lib::git::{GitFetchError, GitPushError};
+use jujutsu_lib::git::{GitFetchError, GitPushError, GitRefUpdate};
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::settings::UserSettings;
@@ -349,12 +349,20 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
 }
 
 #[test]
-fn test_push_commit_success() {
+fn test_push_updates_success() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = setup.jj_repo.store().git_repo().unwrap();
-    let result = git::push_commit(&clone_repo, &setup.new_commit, "origin", "main", false);
+    let result = git::push_updates(
+        &clone_repo,
+        "origin",
+        &[GitRefUpdate {
+            qualified_name: "refs/heads/main".to_string(),
+            force: false,
+            new_target: Some(setup.new_commit.id().clone()),
+        }],
+    );
     assert_eq!(result, Ok(()));
 
     // Check that the ref got updated in the source repo
@@ -377,7 +385,77 @@ fn test_push_commit_success() {
 }
 
 #[test]
-fn test_push_commit_not_fast_forward() {
+fn test_push_updates_deletion() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let setup = set_up_push_repos(&settings, &temp_dir);
+    let clone_repo = setup.jj_repo.store().git_repo().unwrap();
+
+    let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
+    // Test the setup
+    assert!(source_repo.find_reference("refs/heads/main").is_ok());
+
+    let result = git::push_updates(
+        &setup.jj_repo.store().git_repo().unwrap(),
+        "origin",
+        &[GitRefUpdate {
+            qualified_name: "refs/heads/main".to_string(),
+            force: false,
+            new_target: None,
+        }],
+    );
+    assert_eq!(result, Ok(()));
+
+    // Check that the ref got deleted in the source repo
+    assert!(source_repo.find_reference("refs/heads/main").is_err());
+
+    // Check that the ref got deleted in the cloned repo. This just tests our
+    // assumptions about libgit2 because we want the refs/remotes/origin/main
+    // branch to be deleted.
+    assert!(clone_repo
+        .find_reference("refs/remotes/origin/main")
+        .is_err());
+}
+
+#[test]
+fn test_push_updates_mixed_deletion_and_addition() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let setup = set_up_push_repos(&settings, &temp_dir);
+    let clone_repo = setup.jj_repo.store().git_repo().unwrap();
+    let result = git::push_updates(
+        &clone_repo,
+        "origin",
+        &[
+            GitRefUpdate {
+                qualified_name: "refs/heads/main".to_string(),
+                force: false,
+                new_target: None,
+            },
+            GitRefUpdate {
+                qualified_name: "refs/heads/topic".to_string(),
+                force: false,
+                new_target: Some(setup.new_commit.id().clone()),
+            },
+        ],
+    );
+    assert_eq!(result, Ok(()));
+
+    // Check that the topic ref got updated in the source repo
+    let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
+    let new_target = source_repo
+        .find_reference("refs/heads/topic")
+        .unwrap()
+        .target();
+    let new_oid = Oid::from_bytes(&setup.new_commit.id().0).unwrap();
+    assert_eq!(new_target, Some(new_oid));
+
+    // Check that the main ref got deleted in the source repo
+    assert!(source_repo.find_reference("refs/heads/main").is_err());
+}
+
+#[test]
+fn test_push_updates_not_fast_forward() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
@@ -385,18 +463,20 @@ fn test_push_commit_not_fast_forward() {
     let new_commit =
         testutils::create_random_commit(&settings, &setup.jj_repo).write_to_repo(tx.mut_repo());
     setup.jj_repo = tx.commit();
-    let result = git::push_commit(
+    let result = git::push_updates(
         &setup.jj_repo.store().git_repo().unwrap(),
-        &new_commit,
         "origin",
-        "main",
-        false,
+        &[GitRefUpdate {
+            qualified_name: "refs/heads/main".to_string(),
+            force: false,
+            new_target: Some(new_commit.id().clone()),
+        }],
     );
     assert_eq!(result, Err(GitPushError::NotFastForward));
 }
 
 #[test]
-fn test_push_commit_not_fast_forward_with_force() {
+fn test_push_updates_not_fast_forward_with_force() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
@@ -404,12 +484,14 @@ fn test_push_commit_not_fast_forward_with_force() {
     let new_commit =
         testutils::create_random_commit(&settings, &setup.jj_repo).write_to_repo(tx.mut_repo());
     setup.jj_repo = tx.commit();
-    let result = git::push_commit(
+    let result = git::push_updates(
         &setup.jj_repo.store().git_repo().unwrap(),
-        &new_commit,
         "origin",
-        "main",
-        true,
+        &[GitRefUpdate {
+            qualified_name: "refs/heads/main".to_string(),
+            force: true,
+            new_target: Some(new_commit.id().clone()),
+        }],
     );
     assert_eq!(result, Ok(()));
 
@@ -424,31 +506,35 @@ fn test_push_commit_not_fast_forward_with_force() {
 }
 
 #[test]
-fn test_push_commit_no_such_remote() {
+fn test_push_updates_no_such_remote() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let setup = set_up_push_repos(&settings, &temp_dir);
-    let result = git::push_commit(
+    let result = git::push_updates(
         &setup.jj_repo.store().git_repo().unwrap(),
-        &setup.new_commit,
         "invalid-remote",
-        "main",
-        false,
+        &[GitRefUpdate {
+            qualified_name: "refs/heads/main".to_string(),
+            force: false,
+            new_target: Some(setup.new_commit.id().clone()),
+        }],
     );
     assert!(matches!(result, Err(GitPushError::NoSuchRemote(_))));
 }
 
 #[test]
-fn test_push_commit_invalid_remote() {
+fn test_push_updates_invalid_remote() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let setup = set_up_push_repos(&settings, &temp_dir);
-    let result = git::push_commit(
+    let result = git::push_updates(
         &setup.jj_repo.store().git_repo().unwrap(),
-        &setup.new_commit,
         "http://invalid-remote",
-        "main",
-        false,
+        &[GitRefUpdate {
+            qualified_name: "refs/heads/main".to_string(),
+            force: false,
+            new_target: Some(setup.new_commit.id().clone()),
+        }],
     );
     assert!(matches!(result, Err(GitPushError::NoSuchRemote(_))));
 }

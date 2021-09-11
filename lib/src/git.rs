@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use git2::FetchPrune;
+use itertools::Itertools;
 use thiserror::Error;
 
 use crate::commit::Commit;
@@ -160,8 +161,8 @@ pub enum GitPushError {
     NoSuchRemote(String),
     #[error("Push is not fast-forwardable")]
     NotFastForward,
-    #[error("Remote reject the update")]
-    RefUpdateRejected,
+    #[error("Remote reject the update of some refs")]
+    RefUpdateRejected(Vec<String>),
     // TODO: I'm sure there are other errors possible, such as transport-level errors,
     // and errors caused by the remote rejecting the push.
     #[error("Unexpected git error when pushing: {0}")]
@@ -178,47 +179,69 @@ pub fn push_commit(
     // (https://github.com/rust-lang/git2-rs/issues/733).
     force: bool,
 ) -> Result<(), GitPushError> {
-    // Create a temporary ref to work around https://github.com/libgit2/libgit2/issues/3178
-    let temp_ref_name = format!("refs/jj/git-push/{}", target.id().hex());
-    let mut temp_ref = git_repo.reference(
-        &temp_ref_name,
-        git2::Oid::from_bytes(&target.id().0).unwrap(),
-        true,
-        "temporary reference for git push",
-    )?;
-    // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
-    let qualified_remote_branch = format!("refs/heads/{}", remote_branch);
-    let refspec = format!(
-        "{}{}:{}",
-        (if force { "+" } else { "" }),
-        temp_ref_name,
-        qualified_remote_branch
-    );
-    let result = push_ref(git_repo, remote_name, &qualified_remote_branch, &refspec);
-    // TODO: Figure out how to do the equivalent of absl::Cleanup for
-    // temp_ref.delete().
-    temp_ref.delete()?;
+    push_updates(
+        git_repo,
+        remote_name,
+        &[GitRefUpdate {
+            qualified_name: format!("refs/heads/{}", remote_branch),
+            force,
+            new_target: Some(target.id().clone()),
+        }],
+    )
+}
+
+pub struct GitRefUpdate {
+    pub qualified_name: String,
+    // TODO: We want this to be a `current_target: Option<CommitId>` for the expected current
+    // commit on the remote. It's a blunt "force" option instead until git2-rs supports the
+    // "push negotiation" callback (https://github.com/rust-lang/git2-rs/issues/733).
+    pub force: bool,
+    pub new_target: Option<CommitId>,
+}
+
+pub fn push_updates(
+    git_repo: &git2::Repository,
+    remote_name: &str,
+    updates: &[GitRefUpdate],
+) -> Result<(), GitPushError> {
+    let mut temp_refs = vec![];
+    let mut qualified_remote_refs = vec![];
+    let mut refspecs = vec![];
+    for update in updates {
+        qualified_remote_refs.push(update.qualified_name.as_str());
+        if let Some(new_target) = &update.new_target {
+            // Create a temporary ref to work around https://github.com/libgit2/libgit2/issues/3178
+            let temp_ref_name = format!("refs/jj/git-push/{}", new_target.hex());
+            temp_refs.push(git_repo.reference(
+                &temp_ref_name,
+                git2::Oid::from_bytes(&new_target.0).unwrap(),
+                true,
+                "temporary reference for git push",
+            )?);
+            refspecs.push(format!(
+                "{}{}:{}",
+                (if update.force { "+" } else { "" }),
+                temp_ref_name,
+                update.qualified_name
+            ));
+        } else {
+            refspecs.push(format!(":{}", update.qualified_name));
+        }
+    }
+    let result = push_refs(git_repo, remote_name, &qualified_remote_refs, &refspecs);
+    for mut temp_ref in temp_refs {
+        // TODO: Figure out how to do the equivalent of absl::Cleanup for
+        // temp_ref.delete().
+        temp_ref.delete()?;
+    }
     result
 }
 
-pub fn delete_remote_branch(
+fn push_refs(
     git_repo: &git2::Repository,
     remote_name: &str,
-    remote_branch: &str,
-    /* TODO: Similar to push_commit(), we want an CommitId for the expected current commit on
-     * the remote. */
-) -> Result<(), GitPushError> {
-    // Need to add "refs/heads/" prefix due to https://github.com/libgit2/libgit2/issues/1125
-    let qualified_remote_branch = format!("refs/heads/{}", remote_branch);
-    let refspec = format!(":{}", qualified_remote_branch);
-    push_ref(git_repo, remote_name, &qualified_remote_branch, &refspec)
-}
-
-fn push_ref(
-    git_repo: &git2::Repository,
-    remote_name: &str,
-    qualified_remote_branch: &str,
-    refspec: &str,
+    qualified_remote_refs: &[&str],
+    refspecs: &[String],
 ) -> Result<(), GitPushError> {
     let mut remote =
         git_repo
@@ -232,21 +255,22 @@ fn push_ref(
                 }
                 _ => GitPushError::InternalGitError(err),
             })?;
+    let mut remaining_remote_refs: HashSet<_> = qualified_remote_refs.iter().copied().collect();
+    let mut push_options = git2::PushOptions::new();
     let mut callbacks = git2::RemoteCallbacks::new();
-    let mut updated = false;
     callbacks.credentials(|_url, username_from_url, _allowed_types| {
         git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
     });
     callbacks.push_update_reference(|refname, status| {
-        if refname == qualified_remote_branch && status.is_none() {
-            updated = true;
+        // The status is Some if the ref update was rejected
+        if status.is_none() {
+            remaining_remote_refs.remove(refname);
         }
         Ok(())
     });
-    let mut push_options = git2::PushOptions::new();
     push_options.remote_callbacks(callbacks);
     remote
-        .push(&[refspec], Some(&mut push_options))
+        .push(refspecs, Some(&mut push_options))
         .map_err(|err| match (err.class(), err.code()) {
             (git2::ErrorClass::Reference, git2::ErrorCode::NotFastForward) => {
                 GitPushError::NotFastForward
@@ -254,9 +278,15 @@ fn push_ref(
             _ => GitPushError::InternalGitError(err),
         })?;
     drop(push_options);
-    if updated {
+    if remaining_remote_refs.is_empty() {
         Ok(())
     } else {
-        Err(GitPushError::RefUpdateRejected)
+        Err(GitPushError::RefUpdateRejected(
+            remaining_remote_refs
+                .iter()
+                .sorted()
+                .map(|name| name.to_string())
+                .collect(),
+        ))
     }
 }
