@@ -1254,7 +1254,6 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
                 .arg(
                     Arg::with_name("destination")
                         .index(2)
-                        .required(true)
                         .help("The directory to write the Jujutsu repo to"),
                 ),
         )
@@ -3227,6 +3226,14 @@ fn cmd_git_fetch(
     Ok(())
 }
 
+fn clone_destination_for_source(source: &str) -> Option<&str> {
+    let destination = source.strip_suffix(".git").unwrap_or(source);
+    let destination = destination.strip_suffix('/').unwrap_or(destination);
+    destination
+        .rsplit_once(&['/', '\\', ':'][..])
+        .map(|(_, name)| name)
+}
+
 fn cmd_git_clone(
     ui: &mut Ui,
     _command: &CommandHelper,
@@ -3234,7 +3241,14 @@ fn cmd_git_clone(
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let source = cmd_matches.value_of("source").unwrap();
-    let wc_path_str = cmd_matches.value_of("destination").unwrap();
+    let wc_path_str = cmd_matches
+        .value_of("destination")
+        .or_else(|| clone_destination_for_source(source))
+        .ok_or_else(|| {
+            CommandError::UserError(
+                "No destination specified and wasn't able to guess it".to_string(),
+            )
+        })?;
     let wc_path = ui.cwd().join(wc_path_str);
     if wc_path.exists() {
         assert!(wc_path.is_dir());
