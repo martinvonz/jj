@@ -45,6 +45,7 @@ use jujutsu_lib::matchers::{EverythingMatcher, FilesMatcher, Matcher};
 use jujutsu_lib::op_heads_store::OpHeadsStore;
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget};
 use jujutsu_lib::operation::Operation;
+use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction};
 use jujutsu_lib::repo::{
     MutableRepo, ReadonlyRepo, RepoInitError, RepoLoadError, RepoLoader, RepoRef,
 };
@@ -3305,61 +3306,62 @@ fn cmd_git_push(
             branch_name
         )));
     }
-
     let branch_target = maybe_branch_target.unwrap();
-    let maybe_remote_target = branch_target.remote_targets.get(remote_name);
-    if branch_target.local_target.as_ref() == maybe_remote_target {
-        writeln!(
-            ui,
-            "Branch {}@{} already matches {}",
-            branch_name, remote_name, branch_name
-        )?;
-        return Ok(());
-    }
+    let push_action = classify_branch_push_action(branch_target, remote_name);
 
     let mut ref_updates = vec![];
-    if let Some(new_target) = &branch_target.local_target {
-        match new_target {
-            RefTarget::Conflict { .. } => {
-                return Err(CommandError::UserError(format!(
-                    "Branch {} is conflicted",
-                    branch_name
-                )));
-            }
-            RefTarget::Normal(new_target_id) => {
-                let new_target_commit = repo.store().get_commit(new_target_id)?;
+    match push_action {
+        BranchPushAction::AlreadyMatches => {
+            writeln!(
+                ui,
+                "Branch {}@{} already matches {}",
+                branch_name, remote_name, branch_name
+            )?;
+            return Ok(());
+        }
+        BranchPushAction::LocalConflicted => {
+            return Err(CommandError::UserError(format!(
+                "Branch {} is conflicted",
+                branch_name
+            )));
+        }
+        BranchPushAction::RemoteConflicted => {
+            return Err(CommandError::UserError(format!(
+                "Branch {}@{} is conflicted",
+                branch_name, remote_name
+            )));
+        }
+        BranchPushAction::Update {
+            old_target,
+            new_target,
+        } => {
+            let qualified_name = format!("refs/heads/{}", branch_name);
+            if let Some(new_target) = new_target {
+                let new_target_commit = repo.store().get_commit(&new_target)?;
                 if new_target_commit.is_open() {
                     return Err(CommandError::UserError(
                         "Won't push open commit".to_string(),
                     ));
                 }
-                let force = match maybe_remote_target {
+                let force = match old_target {
                     None => false,
-                    Some(RefTarget::Conflict { .. }) => {
-                        return Err(CommandError::UserError(format!(
-                            "Branch {}@{} is conflicted",
-                            branch_name, remote_name
-                        )));
-                    }
-                    Some(RefTarget::Normal(old_target_id)) => {
-                        !repo.index().is_ancestor(old_target_id, new_target_id)
-                    }
+                    Some(old_target) => !repo.index().is_ancestor(&old_target, &new_target),
                 };
-
                 ref_updates.push(GitRefUpdate {
-                    qualified_name: format!("refs/heads/{}", branch_name),
+                    qualified_name,
                     force,
-                    new_target: Some(new_target_id.clone()),
+                    new_target: Some(new_target),
+                });
+            } else {
+                ref_updates.push(GitRefUpdate {
+                    qualified_name,
+                    force: false,
+                    new_target: None,
                 });
             }
         }
-    } else {
-        ref_updates.push(GitRefUpdate {
-            qualified_name: format!("refs/heads/{}", branch_name),
-            force: false,
-            new_target: None,
-        });
     }
+
     let git_repo = get_git_repo(repo.store())?;
     git::push_updates(&git_repo, remote_name, &ref_updates)
         .map_err(|err| CommandError::UserError(err.to_string()))?;

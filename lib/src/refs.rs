@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use crate::index::IndexRef;
-use crate::op_store::RefTarget;
+use crate::op_store::{BranchTarget, RefTarget};
 use crate::store::CommitId;
 
 pub fn merge_ref_targets(
@@ -106,4 +106,162 @@ fn find_pair_to_remove(
     }
 
     None
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum BranchPushAction {
+    Update {
+        old_target: Option<CommitId>,
+        new_target: Option<CommitId>,
+    },
+    AlreadyMatches,
+    LocalConflicted,
+    RemoteConflicted,
+}
+
+/// Figure out what changes (if any) need to be made to the remote when pushing
+/// this branch.
+pub fn classify_branch_push_action(
+    branch_target: &BranchTarget,
+    remote_name: &str,
+) -> BranchPushAction {
+    let maybe_remote_target = branch_target.remote_targets.get(remote_name);
+    if branch_target.local_target.as_ref() == maybe_remote_target {
+        return BranchPushAction::AlreadyMatches;
+    }
+
+    match (&maybe_remote_target, &branch_target.local_target) {
+        (_, Some(RefTarget::Conflict { .. })) => BranchPushAction::LocalConflicted,
+        (Some(RefTarget::Conflict { .. }), _) => BranchPushAction::RemoteConflicted,
+        (Some(RefTarget::Normal(old_target)), Some(RefTarget::Normal(new_target))) => {
+            BranchPushAction::Update {
+                old_target: Some(old_target.clone()),
+                new_target: Some(new_target.clone()),
+            }
+        }
+        (Some(RefTarget::Normal(old_target)), None) => BranchPushAction::Update {
+            old_target: Some(old_target.clone()),
+            new_target: None,
+        },
+        (None, Some(RefTarget::Normal(new_target))) => BranchPushAction::Update {
+            old_target: None,
+            new_target: Some(new_target.clone()),
+        },
+        (None, None) => {
+            panic!("Unexpected branch doesn't exist anywhere")
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use maplit::btreemap;
+
+    use super::*;
+
+    #[test]
+    fn test_classify_branch_push_action_unchanged() {
+        let commit_id1 = CommitId::from_hex("11");
+        let branch = BranchTarget {
+            local_target: Some(RefTarget::Normal(commit_id1.clone())),
+            remote_targets: btreemap! {
+                "origin".to_string() => RefTarget::Normal(commit_id1)
+            },
+        };
+        assert_eq!(
+            classify_branch_push_action(&branch, "origin"),
+            BranchPushAction::AlreadyMatches
+        );
+    }
+
+    #[test]
+    fn test_classify_branch_push_action_added() {
+        let commit_id1 = CommitId::from_hex("11");
+        let branch = BranchTarget {
+            local_target: Some(RefTarget::Normal(commit_id1.clone())),
+            remote_targets: btreemap! {},
+        };
+        assert_eq!(
+            classify_branch_push_action(&branch, "origin"),
+            BranchPushAction::Update {
+                old_target: None,
+                new_target: Some(commit_id1),
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_branch_push_action_removed() {
+        let commit_id1 = CommitId::from_hex("11");
+        let branch = BranchTarget {
+            local_target: None,
+            remote_targets: btreemap! {
+                "origin".to_string() => RefTarget::Normal(commit_id1.clone())
+            },
+        };
+        assert_eq!(
+            classify_branch_push_action(&branch, "origin"),
+            BranchPushAction::Update {
+                old_target: Some(commit_id1),
+                new_target: None,
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_branch_push_action_updated() {
+        let commit_id1 = CommitId::from_hex("11");
+        let commit_id2 = CommitId::from_hex("22");
+        let branch = BranchTarget {
+            local_target: Some(RefTarget::Normal(commit_id2.clone())),
+            remote_targets: btreemap! {
+                "origin".to_string() => RefTarget::Normal(commit_id1.clone())
+            },
+        };
+        assert_eq!(
+            classify_branch_push_action(&branch, "origin"),
+            BranchPushAction::Update {
+                old_target: Some(commit_id1),
+                new_target: Some(commit_id2),
+            }
+        );
+    }
+
+    #[test]
+    fn test_classify_branch_push_action_local_conflicted() {
+        let commit_id1 = CommitId::from_hex("11");
+        let commit_id2 = CommitId::from_hex("22");
+        let branch = BranchTarget {
+            local_target: Some(RefTarget::Conflict {
+                removes: vec![],
+                adds: vec![commit_id1.clone(), commit_id2],
+            }),
+            remote_targets: btreemap! {
+                "origin".to_string() => RefTarget::Normal(commit_id1)
+            },
+        };
+        assert_eq!(
+            classify_branch_push_action(&branch, "origin"),
+            BranchPushAction::LocalConflicted
+        );
+    }
+
+    #[test]
+    fn test_classify_branch_push_action_remote_conflicted() {
+        let commit_id1 = CommitId::from_hex("11");
+        let commit_id2 = CommitId::from_hex("22");
+        let branch = BranchTarget {
+            local_target: Some(RefTarget::Normal(commit_id1.clone())),
+            remote_targets: btreemap! {
+                "origin".to_string() => RefTarget::Conflict {
+                removes: vec![],
+                adds: vec![commit_id1, commit_id2]
+            }
+            },
+        };
+        assert_eq!(
+            classify_branch_push_action(&branch, "origin"),
+            BranchPushAction::RemoteConflicted
+        );
+    }
 }
