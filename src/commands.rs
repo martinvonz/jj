@@ -2796,6 +2796,7 @@ fn cmd_branches(
             Ok(())
         };
 
+    let index = repo.index();
     for (name, branch_target) in repo.view().branches() {
         ui.stdout_formatter().add_label("branch".to_string())?;
         write!(ui, "{}", name)?;
@@ -2814,11 +2815,26 @@ fn cmd_branches(
             ui.stdout_formatter().add_label("branch".to_string())?;
             write!(ui, "@{}", remote)?;
             ui.stdout_formatter().remove_label()?;
+            if let Some(local_target) = branch_target.local_target.as_ref() {
+                let remote_ahead_count = index
+                    .walk_revs(&remote_target.adds(), &local_target.adds())
+                    .count();
+                let local_ahead_count = index
+                    .walk_revs(&local_target.adds(), &remote_target.adds())
+                    .count();
+                if remote_ahead_count != 0 && local_ahead_count == 0 {
+                    write!(ui, " (ahead by {} commits)", remote_ahead_count)?;
+                } else if remote_ahead_count == 0 && local_ahead_count != 0 {
+                    write!(ui, " (behind by {} commits)", local_ahead_count)?;
+                } else if remote_ahead_count != 0 && local_ahead_count != 0 {
+                    write!(
+                        ui,
+                        " (ahead by {} commits, behind by {} commits)",
+                        remote_ahead_count, local_ahead_count
+                    )?;
+                }
+            }
             print_branch_target(ui, Some(remote_target))?;
-            // TODO: Display information about remote branches, but probably
-            // only those that have different targets than the local
-            // branch. Maybe indicate how much the remotes are
-            // ahead/behind/ diverged.
         }
     }
 
