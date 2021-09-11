@@ -1010,6 +1010,11 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .index(1)
                 .default_value("@")
                 .help("The revision to discard"),
+        )
+        .arg(
+            Arg::with_name("public")
+                .long("public")
+                .help("Discard a public head"),
         );
     let restore_command = SubCommand::with_name("restore")
         .about("Restore paths from another revision")
@@ -2396,7 +2401,11 @@ fn cmd_discard(
     let commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     let mut tx = repo_command.start_transaction(&format!("discard commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
-    mut_repo.remove_head(&commit);
+    if sub_matches.is_present("public") {
+        mut_repo.remove_public_head(&commit);
+    } else {
+        mut_repo.remove_head(&commit);
+    }
     for parent in commit.parents() {
         mut_repo.add_head(&parent);
     }
