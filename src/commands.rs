@@ -2810,8 +2810,9 @@ fn cmd_branches(
             if Some(remote_target) == branch_target.local_target.as_ref() {
                 continue;
             }
+            write!(ui, "  ")?;
             ui.stdout_formatter().add_label("branch".to_string())?;
-            write!(ui, "{}@{}", name, remote)?;
+            write!(ui, "@{}", remote)?;
             ui.stdout_formatter().remove_label()?;
             print_branch_target(ui, Some(remote_target))?;
             // TODO: Display information about remote branches, but probably
