@@ -25,11 +25,12 @@ use itertools::Itertools;
 use protobuf::Message;
 use uuid::Uuid;
 
-use crate::repo_path::{RepoPath, RepoPathComponent};
-use crate::store::{
-    ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictPart, FileId, MillisSinceEpoch,
-    Signature, Store, StoreError, StoreResult, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
+use crate::backend::{
+    Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict, ConflictId,
+    ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree, TreeId,
+    TreeValue,
 };
+use crate::repo_path::{RepoPath, RepoPathComponent};
 
 /// Ref namespace used only for preventing GC.
 const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
@@ -37,26 +38,26 @@ const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
 const COMMITS_NOTES_REF: &str = "refs/notes/jj/commits";
 const CONFLICT_SUFFIX: &str = ".jjconflict";
 
-impl From<git2::Error> for StoreError {
+impl From<git2::Error> for BackendError {
     fn from(err: git2::Error) -> Self {
         match err.code() {
-            git2::ErrorCode::NotFound => StoreError::NotFound,
-            _other => StoreError::Other(err.to_string()),
+            git2::ErrorCode::NotFound => BackendError::NotFound,
+            _other => BackendError::Other(err.to_string()),
         }
     }
 }
 
-pub struct GitStore {
+pub struct GitBackend {
     repo: Mutex<git2::Repository>,
     empty_tree_id: TreeId,
 }
 
-impl GitStore {
+impl GitBackend {
     pub fn load(path: &Path) -> Self {
         let repo = Mutex::new(git2::Repository::open(path).unwrap());
         let empty_tree_id =
             TreeId(hex::decode("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap());
-        GitStore {
+        GitBackend {
             repo,
             empty_tree_id,
         }
@@ -159,7 +160,7 @@ fn write_note(
     Ok(())
 }
 
-impl Debug for GitStore {
+impl Debug for GitBackend {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         f.debug_struct("GitStore")
             .field("path", &self.repo.lock().unwrap().path())
@@ -167,7 +168,7 @@ impl Debug for GitStore {
     }
 }
 
-impl Store for GitStore {
+impl Backend for GitBackend {
     fn hash_length(&self) -> usize {
         20
     }
@@ -177,9 +178,9 @@ impl Store for GitStore {
         Some(git2::Repository::open(&path).unwrap())
     }
 
-    fn read_file(&self, _path: &RepoPath, id: &FileId) -> StoreResult<Box<dyn Read>> {
+    fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         if id.0.len() != self.hash_length() {
-            return Err(StoreError::NotFound);
+            return Err(BackendError::NotFound);
         }
         let locked_repo = self.repo.lock().unwrap();
         let blob = locked_repo
@@ -189,7 +190,7 @@ impl Store for GitStore {
         Ok(Box::new(Cursor::new(content)))
     }
 
-    fn write_file(&self, _path: &RepoPath, contents: &mut dyn Read) -> StoreResult<FileId> {
+    fn write_file(&self, _path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId> {
         let mut bytes = Vec::new();
         contents.read_to_end(&mut bytes).unwrap();
         let locked_repo = self.repo.lock().unwrap();
@@ -197,9 +198,9 @@ impl Store for GitStore {
         Ok(FileId(oid.as_bytes().to_vec()))
     }
 
-    fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, StoreError> {
+    fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
         if id.0.len() != self.hash_length() {
-            return Err(StoreError::NotFound);
+            return Err(BackendError::NotFound);
         }
         let locked_repo = self.repo.lock().unwrap();
         let blob = locked_repo
@@ -209,7 +210,7 @@ impl Store for GitStore {
         Ok(target)
     }
 
-    fn write_symlink(&self, _path: &RepoPath, target: &str) -> Result<SymlinkId, StoreError> {
+    fn write_symlink(&self, _path: &RepoPath, target: &str) -> Result<SymlinkId, BackendError> {
         let locked_repo = self.repo.lock().unwrap();
         let oid = locked_repo.blob(target.as_bytes()).unwrap();
         Ok(SymlinkId(oid.as_bytes().to_vec()))
@@ -219,12 +220,12 @@ impl Store for GitStore {
         &self.empty_tree_id
     }
 
-    fn read_tree(&self, _path: &RepoPath, id: &TreeId) -> StoreResult<Tree> {
+    fn read_tree(&self, _path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
         if id == &self.empty_tree_id {
             return Ok(Tree::default());
         }
         if id.0.len() != self.hash_length() {
-            return Err(StoreError::NotFound);
+            return Err(BackendError::NotFound);
         }
 
         let locked_repo = self.repo.lock().unwrap();
@@ -284,7 +285,7 @@ impl Store for GitStore {
         Ok(tree)
     }
 
-    fn write_tree(&self, _path: &RepoPath, contents: &Tree) -> StoreResult<TreeId> {
+    fn write_tree(&self, _path: &RepoPath, contents: &Tree) -> BackendResult<TreeId> {
         let locked_repo = self.repo.lock().unwrap();
         let mut builder = locked_repo.treebuilder(None).unwrap();
         for entry in contents.entries() {
@@ -313,9 +314,9 @@ impl Store for GitStore {
         Ok(TreeId(oid.as_bytes().to_vec()))
     }
 
-    fn read_commit(&self, id: &CommitId) -> StoreResult<Commit> {
+    fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
         if id.0.len() != self.hash_length() {
-            return Err(StoreError::NotFound);
+            return Err(BackendError::NotFound);
         }
 
         let locked_repo = self.repo.lock().unwrap();
@@ -365,7 +366,7 @@ impl Store for GitStore {
         Ok(commit)
     }
 
-    fn write_commit(&self, contents: &Commit) -> StoreResult<CommitId> {
+    fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId> {
         // TODO: We shouldn't have to create an in-memory index just to write an
         // object...
         let locked_repo = self.repo.lock().unwrap();
@@ -405,7 +406,7 @@ impl Store for GitStore {
         Ok(id)
     }
 
-    fn read_conflict(&self, id: &ConflictId) -> StoreResult<Conflict> {
+    fn read_conflict(&self, id: &ConflictId) -> BackendResult<Conflict> {
         let mut file = self.read_file(
             &RepoPath::from_internal_string("unused"),
             &FileId(id.0.clone()),
@@ -419,7 +420,7 @@ impl Store for GitStore {
         })
     }
 
-    fn write_conflict(&self, conflict: &Conflict) -> StoreResult<ConflictId> {
+    fn write_conflict(&self, conflict: &Conflict) -> BackendResult<ConflictId> {
         let json = serde_json::json!({
             "removes": conflict_part_list_to_json(&conflict.removes),
             "adds": conflict_part_list_to_json(&conflict.adds),
@@ -507,7 +508,7 @@ fn bytes_vec_from_json(value: &serde_json::Value) -> Vec<u8> {
 mod tests {
 
     use super::*;
-    use crate::store::{FileId, MillisSinceEpoch};
+    use crate::backend::{FileId, MillisSinceEpoch};
 
     #[test]
     fn read_plain_git_commit() {
@@ -556,7 +557,7 @@ mod tests {
         // Check that the git commit above got the hash we expect
         assert_eq!(git_commit_id.as_bytes(), &commit_id.0);
 
-        let store = GitStore::load(git_repo_path);
+        let store = GitBackend::load(git_repo_path);
         let commit = store.read_commit(&commit_id).unwrap();
         assert_eq!(&commit.change_id, &change_id);
         assert_eq!(commit.parents, vec![]);
@@ -622,7 +623,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let git_repo_path = temp_dir.path();
         let git_repo = git2::Repository::init(git_repo_path).unwrap();
-        let store = GitStore::load(git_repo_path);
+        let store = GitBackend::load(git_repo_path);
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),
@@ -656,7 +657,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let git_repo_path = temp_dir.path();
         git2::Repository::init(git_repo_path).unwrap();
-        let store = GitStore::load(git_repo_path);
+        let store = GitBackend::load(git_repo_path);
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),
@@ -684,7 +685,7 @@ mod tests {
             Ok(_) => {
                 panic!("expectedly successfully wrote two commits with the same git commit object")
             }
-            Err(StoreError::Other(message)) if message.contains(&expected_error_message) => {}
+            Err(BackendError::Other(message)) if message.contains(&expected_error_message) => {}
             Err(err) => panic!("unexpected error: {:?}", err),
         };
     }

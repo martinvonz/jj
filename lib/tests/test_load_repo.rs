@@ -26,8 +26,8 @@ fn test_load_bad_path() {
     assert_eq!(result.err(), Some(RepoLoadError::NoRepoHere(wc_path)));
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_load_from_subdir(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -41,8 +41,8 @@ fn test_load_from_subdir(use_git: bool) {
     assert_eq!(same_repo.working_copy_path(), repo.working_copy_path());
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_load_at_operation(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);

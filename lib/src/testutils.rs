@@ -20,13 +20,13 @@ use std::sync::Arc;
 use itertools::Itertools;
 use tempfile::TempDir;
 
+use crate::backend::{FileId, TreeId, TreeValue};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::repo::{MutableRepo, ReadonlyRepo};
 use crate::repo_path::RepoPath;
 use crate::settings::UserSettings;
-use crate::store::{FileId, TreeId, TreeValue};
-use crate::store_wrapper::StoreWrapper;
+use crate::store::Store;
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
 
@@ -62,7 +62,7 @@ pub fn init_repo(settings: &UserSettings, use_git: bool) -> (TempDir, Arc<Readon
     (temp_dir, repo)
 }
 
-pub fn write_file(store: &StoreWrapper, path: &RepoPath, contents: &str) -> FileId {
+pub fn write_file(store: &Store, path: &RepoPath, contents: &str) -> FileId {
     store.write_file(path, &mut contents.as_bytes()).unwrap()
 }
 

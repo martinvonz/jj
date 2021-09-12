@@ -15,10 +15,10 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
+use crate::backend;
+use crate::backend::{TreeId, TreeValue};
 use crate::repo_path::{RepoPath, RepoPathJoin};
-use crate::store;
-use crate::store::{TreeId, TreeValue};
-use crate::store_wrapper::StoreWrapper;
+use crate::store::Store;
 use crate::tree::Tree;
 
 #[derive(Debug)]
@@ -29,13 +29,13 @@ enum Override {
 
 #[derive(Debug)]
 pub struct TreeBuilder {
-    store: Arc<StoreWrapper>,
+    store: Arc<Store>,
     base_tree_id: TreeId,
     overrides: BTreeMap<RepoPath, Override>,
 }
 
 impl TreeBuilder {
-    pub fn new(store: Arc<StoreWrapper>, base_tree_id: TreeId) -> TreeBuilder {
+    pub fn new(store: Arc<Store>, base_tree_id: TreeId) -> TreeBuilder {
         let overrides = BTreeMap::new();
         TreeBuilder {
             store,
@@ -44,7 +44,7 @@ impl TreeBuilder {
         }
     }
 
-    pub fn repo(&self) -> &StoreWrapper {
+    pub fn repo(&self) -> &Store {
         self.store.as_ref()
     }
 
@@ -108,7 +108,7 @@ impl TreeBuilder {
         }
     }
 
-    fn get_base_trees(&mut self) -> BTreeMap<RepoPath, store::Tree> {
+    fn get_base_trees(&mut self) -> BTreeMap<RepoPath, backend::Tree> {
         let mut tree_cache = BTreeMap::new();
         let mut base_trees = BTreeMap::new();
         let store = self.store.clone();

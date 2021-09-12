@@ -20,8 +20,8 @@ use jujutsu_lib::testutils;
 use jujutsu_lib::tree::DiffSummary;
 use test_case::test_case;
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_initial(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -64,8 +64,8 @@ fn test_initial(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_rewrite(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);

@@ -15,7 +15,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
 
-use crate::store::{CommitId, Timestamp};
+use crate::backend::{CommitId, Timestamp};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct ViewId(pub Vec<u8>);

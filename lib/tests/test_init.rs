@@ -68,8 +68,8 @@ fn test_init_external_git() {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_init_no_config_set(use_git: bool) {
     // Test that we can create a repo without setting any config
     let settings = UserSettings::from_config(config::Config::new());
@@ -90,8 +90,8 @@ fn test_init_no_config_set(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_init_checkout(use_git: bool) {
     // Test the contents of the checkout after init
     let settings = testutils::user_settings();

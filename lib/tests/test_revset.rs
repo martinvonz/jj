@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::revset::{parse, resolve_symbol, RevsetError};
-use jujutsu_lib::store::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jujutsu_lib::testutils::CommitGraphBuilder;
 use jujutsu_lib::{git, testutils};
 use test_case::test_case;
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_resolve_symbol_root(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -232,8 +232,8 @@ fn test_resolve_symbol_change_id() {
     );
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_resolve_symbol_checkout(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -391,8 +391,8 @@ fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
         .collect()
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_root_and_checkout(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -419,8 +419,8 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_parents(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -481,8 +481,8 @@ fn test_evaluate_expression_parents(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_children(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -548,8 +548,8 @@ fn test_evaluate_expression_children(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_ancestors(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -585,8 +585,8 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_range(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -649,8 +649,8 @@ fn test_evaluate_expression_range(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_dag_range(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -724,8 +724,8 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_descendants(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -782,8 +782,8 @@ fn test_evaluate_expression_descendants(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_all_heads(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -803,8 +803,8 @@ fn test_evaluate_expression_all_heads(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_public_heads(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -837,8 +837,8 @@ fn test_evaluate_expression_public_heads(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_git_refs(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -907,8 +907,8 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_obsolete(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -954,8 +954,8 @@ fn test_evaluate_expression_obsolete(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_merges(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -986,8 +986,8 @@ fn test_evaluate_expression_merges(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_description(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -1033,8 +1033,8 @@ fn test_evaluate_expression_description(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_union(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -1107,8 +1107,8 @@ fn test_evaluate_expression_union(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_intersection(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -1148,8 +1148,8 @@ fn test_evaluate_expression_intersection(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_difference(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);

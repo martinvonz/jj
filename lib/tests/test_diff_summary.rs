@@ -19,8 +19,8 @@ use jujutsu_lib::tree::DiffSummary;
 use maplit::hashset;
 use test_case::test_case;
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_types(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -58,8 +58,8 @@ fn test_types(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_tree_file_transition(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -88,8 +88,8 @@ fn test_tree_file_transition(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_sorting(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -153,8 +153,8 @@ fn test_sorting(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_matcher_dir_file_transition(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -220,8 +220,8 @@ fn test_matcher_dir_file_transition(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_matcher_normal_cases(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);

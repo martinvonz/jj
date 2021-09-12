@@ -22,14 +22,14 @@ use std::sync::Arc;
 use itertools::Itertools;
 use tempfile::NamedTempFile;
 
+use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::index::{MutableIndex, ReadonlyIndex};
 use crate::op_store::OperationId;
 use crate::operation::Operation;
-use crate::store::CommitId;
-use crate::store_wrapper::StoreWrapper;
+use crate::store::Store;
 
 pub struct IndexStore {
     dir: PathBuf,
@@ -50,7 +50,7 @@ impl IndexStore {
         IndexStore { dir }
     }
 
-    pub fn get_index_at_op(&self, op: &Operation, store: &StoreWrapper) -> Arc<ReadonlyIndex> {
+    pub fn get_index_at_op(&self, op: &Operation, store: &Store) -> Arc<ReadonlyIndex> {
         let op_id_hex = op.id().hex();
         let op_id_file = self.dir.join("operations").join(&op_id_hex);
         if op_id_file.exists() {
@@ -89,7 +89,7 @@ impl IndexStore {
 
     fn index_at_operation(
         &self,
-        store: &StoreWrapper,
+        store: &Store,
         operation: &Operation,
     ) -> io::Result<Arc<ReadonlyIndex>> {
         let view = operation.view();
@@ -163,7 +163,7 @@ impl IndexStore {
 // Returns the ancestors of heads with parents and predecessors come before the
 // commit itself
 fn topo_order_earlier_first(
-    store: &StoreWrapper,
+    store: &Store,
     heads: Vec<CommitId>,
     parent_file: Option<Arc<ReadonlyIndex>>,
 ) -> Vec<Commit> {

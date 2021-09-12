@@ -17,12 +17,12 @@ use std::io::{Cursor, Write};
 
 use itertools::Itertools;
 
+use crate::backend::{Conflict, ConflictPart, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files;
 use crate::files::{MergeHunk, MergeResult};
 use crate::repo_path::RepoPath;
-use crate::store::{Conflict, ConflictPart, TreeValue};
-use crate::store_wrapper::StoreWrapper;
+use crate::store::Store;
 
 fn describe_conflict_part(part: &ConflictPart) -> String {
     match &part.value {
@@ -79,7 +79,7 @@ fn file_parts(parts: &[ConflictPart]) -> Vec<&ConflictPart> {
         .collect_vec()
 }
 
-fn get_file_contents(store: &StoreWrapper, path: &RepoPath, part: &ConflictPart) -> Vec<u8> {
+fn get_file_contents(store: &Store, path: &RepoPath, part: &ConflictPart) -> Vec<u8> {
     if let TreeValue::Normal {
         id,
         executable: false,
@@ -123,7 +123,7 @@ fn write_diff_hunks(left: &[u8], right: &[u8], file: &mut dyn Write) -> std::io:
 }
 
 pub fn materialize_conflict(
-    store: &StoreWrapper,
+    store: &Store,
     path: &RepoPath,
     conflict: &Conflict,
     file: &mut dyn Write,
@@ -190,7 +190,7 @@ pub fn materialize_conflict(
 }
 
 pub fn conflict_to_materialized_value(
-    store: &StoreWrapper,
+    store: &Store,
     path: &RepoPath,
     conflict: &Conflict,
 ) -> TreeValue {

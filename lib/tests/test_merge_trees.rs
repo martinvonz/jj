@@ -13,14 +13,14 @@
 // limitations under the License.
 
 use itertools::Itertools;
+use jujutsu_lib::backend::{ConflictPart, TreeValue};
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
-use jujutsu_lib::store::{ConflictPart, TreeValue};
 use jujutsu_lib::tree::Tree;
 use jujutsu_lib::{testutils, tree};
 use test_case::test_case;
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_same_type(use_git: bool) {
     // Tests all possible cases where the entry type is unchanged, specifically
     // using only normal files in all trees (no symlinks, no trees, etc.).
@@ -219,8 +219,8 @@ fn test_same_type(use_git: bool) {
     };
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_subtrees(use_git: bool) {
     // Tests that subtrees are merged.
 
@@ -275,8 +275,8 @@ fn test_subtrees(use_git: bool) {
     assert_eq!(entries, expected_entries);
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_subtree_becomes_empty(use_git: bool) {
     // Tests that subtrees that become empty are removed from the parent tree.
 
@@ -306,8 +306,8 @@ fn test_subtree_becomes_empty(use_git: bool) {
     assert_eq!(merged_tree.id(), store.empty_tree_id());
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_types(use_git: bool) {
     // Tests conflicts between different types. This is mostly to test that the
     // conflicts survive the roundtrip to the store.
@@ -433,8 +433,8 @@ fn test_types(use_git: bool) {
     };
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_simplify_conflict(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);

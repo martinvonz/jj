@@ -19,17 +19,17 @@ use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
 
 use itertools::Itertools;
+use jujutsu_lib::backend::TreeValue;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::store::TreeValue;
 use jujutsu_lib::testutils;
 use jujutsu_lib::tree_builder::TreeBuilder;
 use test_case::test_case;
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_root(use_git: bool) {
     // Test that the working copy is clean and empty after init.
     let settings = testutils::user_settings();
@@ -45,8 +45,8 @@ fn test_root(use_git: bool) {
     assert_eq!(&new_tree_id, repo.store().empty_tree_id());
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_checkout_file_transitions(use_git: bool) {
     // Tests switching between commits where a certain path is of one type in one
     // commit and another type in the other. Includes a "missing" type, so we cover
@@ -234,8 +234,8 @@ fn test_checkout_file_transitions(use_git: bool) {
     }
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_commit_racy_timestamps(use_git: bool) {
     // Tests that file modifications are detected even if they happen the same
     // millisecond as the updated working copy state.
@@ -265,8 +265,8 @@ fn test_commit_racy_timestamps(use_git: bool) {
     }
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_gitignores(use_git: bool) {
     // Tests that .gitignore files are respected.
 
@@ -335,8 +335,8 @@ fn test_gitignores(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     // Tests that a .gitignore'd file gets overwritten if check out a commit where
     // the file is tracked.
@@ -391,8 +391,8 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
         .is_some());
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     // Tests that a .gitignore'd directory that already has a tracked file in it
     // does not get removed when committing the working directory.
@@ -435,8 +435,8 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     assert!(new_tree.path_value(&file_path).is_some());
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_dotgit_ignored(use_git: bool) {
     // Tests that .git directories and files are always ignored (we could accept
     // them if the backend is not git).

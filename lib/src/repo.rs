@@ -21,25 +21,25 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use thiserror::Error;
 
+use crate::backend::{Backend, BackendError, CommitId};
 use crate::commit::Commit;
 use crate::commit_builder::{new_change_id, signature, CommitBuilder};
 use crate::dag_walk::topo_order_reverse;
 use crate::evolution::{EvolutionRef, MutableEvolution, ReadonlyEvolution};
-use crate::git_store::GitStore;
+use crate::git_backend::GitBackend;
 use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
-use crate::local_store::LocalStore;
+use crate::local_backend::LocalBackend;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget};
 use crate::operation::Operation;
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_store::SimpleOpStore;
-use crate::store::{CommitId, Store, StoreError};
-use crate::store_wrapper::StoreWrapper;
+use crate::store::Store;
 use crate::transaction::Transaction;
 use crate::view::{RefName, View};
 use crate::working_copy::WorkingCopy;
-use crate::{conflicts, op_store, store};
+use crate::{backend, conflicts, op_store};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum RepoError {
@@ -49,11 +49,11 @@ pub enum RepoError {
     Other(String),
 }
 
-impl From<StoreError> for RepoError {
-    fn from(err: StoreError) -> Self {
+impl From<BackendError> for RepoError {
+    fn from(err: BackendError) -> Self {
         match err {
-            StoreError::NotFound => RepoError::NotFound,
-            StoreError::Other(description) => RepoError::Other(description),
+            BackendError::NotFound => RepoError::NotFound,
+            BackendError::Other(description) => RepoError::Other(description),
         }
     }
 }
@@ -69,7 +69,7 @@ pub enum RepoRef<'a> {
 }
 
 impl<'a> RepoRef<'a> {
-    pub fn store(&self) -> &Arc<StoreWrapper> {
+    pub fn store(&self) -> &Arc<Store> {
         match self {
             RepoRef::Readonly(repo) => repo.store(),
             RepoRef::Mutable(repo) => repo.store(),
@@ -108,7 +108,7 @@ impl<'a> RepoRef<'a> {
 pub struct ReadonlyRepo {
     repo_path: PathBuf,
     wc_path: PathBuf,
-    store: Arc<StoreWrapper>,
+    store: Arc<Store>,
     op_store: Arc<dyn OpStore>,
     op_heads_store: Arc<OpHeadsStore>,
     operation: Operation,
@@ -150,11 +150,11 @@ impl ReadonlyRepo {
         let repo_path = ReadonlyRepo::init_repo_dir(&wc_path)?;
         let store_path = repo_path.join("store");
         fs::create_dir(&store_path).unwrap();
-        let store = Box::new(LocalStore::init(store_path));
-        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, store))
+        let backend = Box::new(LocalBackend::init(store_path));
+        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, backend))
     }
 
-    /// Initializes a repo with a new Git store in .jj/git/ (bare Git repo)
+    /// Initializes a repo with a new Git backend in .jj/git/ (bare Git repo)
     pub fn init_internal_git(
         settings: &UserSettings,
         wc_path: PathBuf,
@@ -166,11 +166,11 @@ impl ReadonlyRepo {
         let git_store_path = fs::canonicalize(git_store_path).unwrap();
         let mut store_file = File::create(store_path).unwrap();
         store_file.write_all(b"git: git").unwrap();
-        let store = Box::new(GitStore::load(&git_store_path));
-        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, store))
+        let backend = Box::new(GitBackend::load(&git_store_path));
+        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, backend))
     }
 
-    /// Initializes a repo with an existing Git store at the specified path
+    /// Initializes a repo with an existing Git backend at the specified path
     pub fn init_external_git(
         settings: &UserSettings,
         wc_path: PathBuf,
@@ -183,8 +183,8 @@ impl ReadonlyRepo {
         store_file
             .write_all(format!("git: {}", git_store_path.to_str().unwrap()).as_bytes())
             .unwrap();
-        let store = Box::new(GitStore::load(&git_store_path));
-        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, store))
+        let backend = Box::new(GitBackend::load(&git_store_path));
+        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, backend))
     }
 
     fn init_repo_dir(wc_path: &Path) -> Result<PathBuf, RepoInitError> {
@@ -201,10 +201,10 @@ impl ReadonlyRepo {
         user_settings: &UserSettings,
         repo_path: PathBuf,
         wc_path: PathBuf,
-        store: Box<dyn Store>,
+        backend: Box<dyn Backend>,
     ) -> Arc<ReadonlyRepo> {
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
-        let store = StoreWrapper::new(store);
+        let store = Store::new(backend);
 
         fs::create_dir(repo_path.join("working_copy")).unwrap();
         let working_copy = WorkingCopy::init(
@@ -215,7 +215,7 @@ impl ReadonlyRepo {
 
         fs::create_dir(repo_path.join("view")).unwrap();
         let signature = signature(user_settings);
-        let checkout_commit = store::Commit {
+        let checkout_commit = backend::Commit {
             parents: vec![],
             predecessors: vec![],
             root_tree: store.empty_tree_id().clone(),
@@ -352,7 +352,7 @@ impl ReadonlyRepo {
         self.working_copy.as_ref().lock().unwrap()
     }
 
-    pub fn store(&self) -> &Arc<StoreWrapper> {
+    pub fn store(&self) -> &Arc<Store> {
         &self.store
     }
 
@@ -396,7 +396,7 @@ pub struct RepoLoader {
     wc_path: PathBuf,
     repo_path: PathBuf,
     repo_settings: RepoSettings,
-    store: Arc<StoreWrapper>,
+    store: Arc<Store>,
     op_store: Arc<dyn OpStore>,
     op_heads_store: Arc<OpHeadsStore>,
     index_store: Arc<IndexStore>,
@@ -423,7 +423,7 @@ impl RepoLoader {
     ) -> Result<RepoLoader, RepoLoadError> {
         let repo_path = find_repo_dir(&wc_path).ok_or(RepoLoadError::NoRepoHere(wc_path))?;
         let wc_path = repo_path.parent().unwrap().to_owned();
-        let store = StoreWrapper::load_store(&repo_path);
+        let store = Store::load_store(&repo_path);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
         let op_heads_store = Arc::new(OpHeadsStore::load(repo_path.join("op_heads")));
@@ -439,7 +439,7 @@ impl RepoLoader {
         })
     }
 
-    pub fn store(&self) -> &Arc<StoreWrapper> {
+    pub fn store(&self) -> &Arc<Store> {
         &self.store
     }
 
@@ -548,7 +548,7 @@ impl MutableRepo {
         &self.base_repo
     }
 
-    pub fn store(&self) -> &Arc<StoreWrapper> {
+    pub fn store(&self) -> &Arc<Store> {
         self.base_repo.store()
     }
 
@@ -593,7 +593,7 @@ impl MutableRepo {
         self.evolution.lock().unwrap().take();
     }
 
-    pub fn write_commit(&mut self, commit: store::Commit) -> Commit {
+    pub fn write_commit(&mut self, commit: backend::Commit) -> Commit {
         let commit = self.store().write_commit(commit);
         self.add_head(&commit);
         commit

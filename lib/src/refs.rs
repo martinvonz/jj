@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::backend::CommitId;
 use crate::index::IndexRef;
 use crate::op_store::{BranchTarget, RefTarget};
-use crate::store::CommitId;
 
 pub fn merge_ref_targets(
     index: IndexRef,

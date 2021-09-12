@@ -14,12 +14,12 @@
 
 use std::sync::Arc;
 
+use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::index::IndexRef;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::store::CommitId;
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::{create_random_commit, CommitGraphBuilder};
 use test_case::test_case;
@@ -38,8 +38,8 @@ fn generation_number<'a>(index: impl Into<IndexRef<'a>>, commit_id: &CommitId) -
         .generation_number()
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_index_commits_empty_repo(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -62,8 +62,8 @@ fn test_index_commits_empty_repo(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_index_commits_standard_cases(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -132,8 +132,8 @@ fn test_index_commits_standard_cases(use_git: bool) {
     assert!(index.is_ancestor(commit_a.id(), commit_h.id()));
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_index_commits_criss_cross(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -231,8 +231,8 @@ fn test_index_commits_criss_cross(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_index_commits_previous_operations(use_git: bool) {
     // Test that commits visible only in previous operations are indexed.
     let settings = testutils::user_settings();
@@ -284,8 +284,8 @@ fn test_index_commits_previous_operations(use_git: bool) {
     assert_eq!(generation_number(index.as_ref(), commit_c.id()), 3);
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_index_commits_incremental(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
@@ -333,8 +333,8 @@ fn test_index_commits_incremental(use_git: bool) {
     assert_eq!(generation_number(index.as_ref(), commit_c.id()), 3);
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
@@ -375,8 +375,8 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_index_commits_incremental_already_indexed(use_git: bool) {
     // Tests that trying to add a commit that's already been added is a no-op.
     let settings = testutils::user_settings();
@@ -424,8 +424,8 @@ fn commits_by_level(repo: &ReadonlyRepo) -> Vec<u32> {
         .collect()
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_index_commits_incremental_squashed(use_git: bool) {
     let settings = testutils::user_settings();
 

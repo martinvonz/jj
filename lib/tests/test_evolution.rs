@@ -33,8 +33,8 @@ fn child_commit(settings: &UserSettings, repo: &ReadonlyRepo, commit: &Commit) -
     testutils::create_random_commit(settings, repo).set_parents(vec![commit.id().clone()])
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_obsolete_and_orphan(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -80,8 +80,8 @@ fn test_obsolete_and_orphan(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_divergent(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -107,8 +107,8 @@ fn test_divergent(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_divergent_pruned(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -134,8 +134,8 @@ fn test_divergent_pruned(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_divergent_duplicate(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -163,8 +163,8 @@ fn test_divergent_duplicate(use_git: bool) {
 
 // TODO: Create a #[repo_test] proc macro that injects the `settings` and `repo`
 // variables into the test function
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_new_parent_rewritten(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -187,8 +187,8 @@ fn test_new_parent_rewritten(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_new_parent_cherry_picked(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -210,8 +210,8 @@ fn test_new_parent_cherry_picked(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_new_parent_is_pruned(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -237,8 +237,8 @@ fn test_new_parent_is_pruned(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_new_parent_divergent(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -275,8 +275,8 @@ fn test_new_parent_divergent(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_new_parent_divergent_one_not_pruned(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -319,8 +319,8 @@ fn test_new_parent_divergent_one_not_pruned(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_new_parent_divergent_all_pruned(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -365,8 +365,8 @@ fn test_new_parent_divergent_all_pruned(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_new_parent_split(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -398,8 +398,8 @@ fn test_new_parent_split(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_new_parent_split_pruned_descendant(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -435,8 +435,8 @@ fn test_new_parent_split_pruned_descendant(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_new_parent_split_forked(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -474,8 +474,8 @@ fn test_new_parent_split_forked(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_new_parent_split_forked_pruned(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -511,8 +511,8 @@ fn test_new_parent_split_forked_pruned(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_evolve_orphan(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -554,8 +554,8 @@ fn test_evolve_orphan(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 /// When evolving a merge commit, the new commit should not have a parent that
 /// is an ancestor of another parent.
 fn test_evolve_orphan_merge_ancestor_of_other_parent(use_git: bool) {
@@ -589,8 +589,8 @@ fn test_evolve_orphan_merge_ancestor_of_other_parent(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evolve_pruned_orphan(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -625,8 +625,8 @@ fn test_evolve_pruned_orphan(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_evolve_multiple_orphans(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -679,8 +679,8 @@ fn test_evolve_multiple_orphans(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_evolve_divergent(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);

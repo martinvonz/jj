@@ -88,8 +88,8 @@ fn merge_directories(left: &Path, base: &Path, right: &Path, output: &Path) {
     }
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_bad_locking_children(use_git: bool) {
     // Test that two new commits created on separate machines are both visible (not
     // lost due to lack of locking)
@@ -139,8 +139,8 @@ fn test_bad_locking_children(use_git: bool) {
     assert_eq!(op.parents.len(), 2);
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_bad_locking_interrupted(use_git: bool) {
     // Test that an interrupted update of the op-heads resulting in on op-head
     // that's a descendant of the other is resolved without creating a new

@@ -15,13 +15,13 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use crate::backend::Timestamp;
 use crate::evolution::ReadonlyEvolution;
 use crate::index::ReadonlyIndex;
 use crate::op_store;
 use crate::op_store::{OperationId, OperationMetadata};
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoLoader};
-use crate::store::Timestamp;
 use crate::view::View;
 use crate::working_copy::WorkingCopy;
 

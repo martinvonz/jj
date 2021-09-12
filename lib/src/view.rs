@@ -14,11 +14,11 @@
 
 use std::collections::{BTreeMap, HashSet};
 
+use crate::backend::CommitId;
 use crate::index::IndexRef;
 use crate::op_store;
 use crate::op_store::{BranchTarget, RefTarget};
 use crate::refs::merge_ref_targets;
-use crate::store::CommitId;
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum RefName {

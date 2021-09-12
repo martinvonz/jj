@@ -19,11 +19,11 @@ use std::sync::Arc;
 use itertools::Itertools;
 use thiserror::Error;
 
+use crate::backend::Timestamp;
 use crate::lock::FileLock;
 use crate::op_store::{OpStore, OperationId, OperationMetadata};
 use crate::operation::Operation;
 use crate::repo::RepoLoader;
-use crate::store::Timestamp;
 use crate::transaction::UnpublishedOperation;
 use crate::{dag_walk, op_store};
 

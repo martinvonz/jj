@@ -18,10 +18,10 @@ use git2::FetchPrune;
 use itertools::Itertools;
 use thiserror::Error;
 
+use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::op_store::RefTarget;
 use crate::repo::MutableRepo;
-use crate::store::CommitId;
 use crate::view::RefName;
 
 #[derive(Error, Debug, PartialEq)]

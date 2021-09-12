@@ -14,11 +14,11 @@
 
 use std::sync::Arc;
 
+use jujutsu_lib::backend::{Conflict, ConflictId, ConflictPart, TreeValue};
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::store::{Conflict, ConflictId, ConflictPart, TreeValue};
-use jujutsu_lib::store_wrapper::StoreWrapper;
+use jujutsu_lib::store::Store;
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::CommitGraphBuilder;
 use test_case::test_case;
@@ -26,8 +26,8 @@ use test_case::test_case;
 // TODO Many of the tests here are not run with Git because they end up creating
 // two commits with the same contents.
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_checkout_open(use_git: bool) {
     // Test that MutableRepo::check_out() uses the requested commit if it's open
     let settings = testutils::user_settings();
@@ -46,8 +46,8 @@ fn test_checkout_open(use_git: bool) {
     assert_eq!(repo.view().checkout(), actual_checkout.id());
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_checkout_closed(use_git: bool) {
     // Test that MutableRepo::check_out() creates a child if the requested commit is
     // closed
@@ -69,8 +69,8 @@ fn test_checkout_closed(use_git: bool) {
     assert_eq!(repo.view().checkout(), actual_checkout.id());
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_checkout_open_with_conflict(use_git: bool) {
     // Test that MutableRepo::check_out() creates a child if the requested
     // commit is open and has conflicts
@@ -108,8 +108,8 @@ fn test_checkout_open_with_conflict(use_git: bool) {
     assert_eq!(repo.view().checkout(), actual_checkout.id());
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_checkout_closed_with_conflict(use_git: bool) {
     // Test that MutableRepo::check_out() creates a child if the requested commit is
     // closed and has conflicts
@@ -147,7 +147,7 @@ fn test_checkout_closed_with_conflict(use_git: bool) {
     assert_eq!(repo.view().checkout(), actual_checkout.id());
 }
 
-fn write_conflict(store: &Arc<StoreWrapper>, file_path: &RepoPath) -> ConflictId {
+fn write_conflict(store: &Arc<Store>, file_path: &RepoPath) -> ConflictId {
     let file_id1 = testutils::write_file(store, file_path, "a\n");
     let file_id2 = testutils::write_file(store, file_path, "b\n");
     let file_id3 = testutils::write_file(store, file_path, "c\n");
@@ -176,8 +176,8 @@ fn write_conflict(store: &Arc<StoreWrapper>, file_path: &RepoPath) -> ConflictId
     store.write_conflict(&conflict).unwrap()
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_checkout_previous_not_empty(use_git: bool) {
     // Test that MutableRepo::check_out() does not usually prune the previous
     // commit.
@@ -202,8 +202,8 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_checkout_previous_empty(use_git: bool) {
     // Test that MutableRepo::check_out() prunes the previous commit if it was
     // empty.
@@ -232,8 +232,8 @@ fn test_checkout_previous_empty(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_checkout_previous_empty_and_obsolete(use_git: bool) {
     // Test that MutableRepo::check_out() does not unnecessarily prune the previous
     // commit if it was empty but already obsolete.
@@ -266,8 +266,8 @@ fn test_checkout_previous_empty_and_obsolete(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_checkout_previous_empty_and_pruned(use_git: bool) {
     // Test that MutableRepo::check_out() does not unnecessarily prune the previous
     // commit if it was empty but already obsolete.
@@ -296,8 +296,8 @@ fn test_checkout_previous_empty_and_pruned(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_add_head_success(use_git: bool) {
     // Test that MutableRepo::add_head() adds the head, and that it's still there
     // after commit. It should also be indexed.
@@ -330,8 +330,8 @@ fn test_add_head_success(use_git: bool) {
     assert_eq!(index_stats.max_generation_number, 1);
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_add_head_ancestor(use_git: bool) {
     // Test that MutableRepo::add_head() does not add a head if it's an ancestor of
     // an existing head.
@@ -360,8 +360,8 @@ fn test_add_head_ancestor(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_add_head_not_immediate_child(use_git: bool) {
     // Test that MutableRepo::add_head() can be used for adding a head that is not
     // an immediate child of a current head.
@@ -405,8 +405,8 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     tx.discard();
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_remove_head(use_git: bool) {
     // Test that MutableRepo::remove_head() removes the head, and that it's still
     // removed after commit. It should remain in the index, since we otherwise would
@@ -446,8 +446,8 @@ fn test_remove_head(use_git: bool) {
     assert!(repo.index().has_id(commit3.id()));
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_remove_head_ancestor_git_ref(use_git: bool) {
     // Test that MutableRepo::remove_head() does not leave the view with a git ref
     // pointing to a commit that's not reachable by any head.
@@ -490,8 +490,8 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     assert!(!heads.contains(commit1.id()));
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_add_public_head(use_git: bool) {
     // Test that MutableRepo::add_public_head() adds the head, and that it's still
     // there after commit.
@@ -511,8 +511,8 @@ fn test_add_public_head(use_git: bool) {
     assert!(repo.view().public_heads().contains(commit1.id()));
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_add_public_head_ancestor(use_git: bool) {
     // Test that MutableRepo::add_public_head() does not add a public head if it's
     // an ancestor of an existing public head.
@@ -535,8 +535,8 @@ fn test_add_public_head_ancestor(use_git: bool) {
     assert!(!repo.view().public_heads().contains(commit1.id()));
 }
 
-#[test_case(false ; "local store")]
-// #[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_remove_public_head(use_git: bool) {
     // Test that MutableRepo::remove_public_head() removes the head, and that it's
     // still removed after commit.

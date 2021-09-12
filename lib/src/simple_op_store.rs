@@ -24,12 +24,12 @@ use itertools::Itertools;
 use protobuf::{Message, ProtobufError};
 use tempfile::{NamedTempFile, PersistError};
 
+use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
     BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
     RefTarget, View, ViewId,
 };
-use crate::store::{CommitId, MillisSinceEpoch, Timestamp};
 
 impl From<std::io::Error> for OpStoreError {
     fn from(err: std::io::Error) -> Self {

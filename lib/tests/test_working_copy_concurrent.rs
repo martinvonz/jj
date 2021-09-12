@@ -23,8 +23,8 @@ use jujutsu_lib::testutils;
 use jujutsu_lib::working_copy::CheckoutError;
 use test_case::test_case;
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_concurrent_checkout(use_git: bool) {
     // Test that we error out if a concurrent checkout is detected (i.e. if the
     // current checkout changed on disk after we read it).
@@ -68,8 +68,8 @@ fn test_concurrent_checkout(use_git: bool) {
     );
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_checkout_parallel(use_git: bool) {
     // Test that concurrent checkouts by different processes (simulated by using
     // different repo instances) is safe.

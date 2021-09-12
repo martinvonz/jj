@@ -17,6 +17,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
+use crate::backend::{ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::{bfs, closest_common_node, leaves};
@@ -25,8 +26,7 @@ use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use crate::repo_path::RepoPath;
 use crate::rewrite::{merge_commit_trees, rebase_commit};
 use crate::settings::UserSettings;
-use crate::store::{ChangeId, CommitId};
-use crate::store_wrapper::StoreWrapper;
+use crate::store::Store;
 use crate::tree::merge_trees;
 
 // TODO: Combine some maps/sets and use a struct as value instead.
@@ -608,7 +608,7 @@ pub enum OrphanResolution {
 
 fn evolve_divergent_change(
     user_settings: &UserSettings,
-    store: &Arc<StoreWrapper>,
+    store: &Arc<Store>,
     mut_repo: &mut MutableRepo,
     commits: &HashSet<Commit>,
 ) -> DivergenceResolution {
@@ -657,7 +657,7 @@ fn evolve_divergent_change(
 
 fn evolve_two_divergent_commits(
     user_settings: &UserSettings,
-    store: &Arc<StoreWrapper>,
+    store: &Arc<Store>,
     mut_repo: &mut MutableRepo,
     common_predecessor: &Commit,
     commit1: &Commit,

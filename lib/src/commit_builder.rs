@@ -16,17 +16,17 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
+use crate::backend;
+use crate::backend::{ChangeId, CommitId, Signature, Timestamp, TreeId};
 use crate::commit::Commit;
 use crate::repo::MutableRepo;
 use crate::settings::UserSettings;
-use crate::store;
-use crate::store::{ChangeId, CommitId, Signature, Timestamp, TreeId};
-use crate::store_wrapper::StoreWrapper;
+use crate::store::Store;
 
 #[derive(Debug)]
 pub struct CommitBuilder {
-    store: Arc<StoreWrapper>,
-    commit: store::Commit,
+    store: Arc<Store>,
+    commit: backend::Commit,
 }
 
 pub fn new_change_id() -> ChangeId {
@@ -45,11 +45,11 @@ pub fn signature(settings: &UserSettings) -> Signature {
 impl CommitBuilder {
     pub fn for_new_commit(
         settings: &UserSettings,
-        store: &Arc<StoreWrapper>,
+        store: &Arc<Store>,
         tree_id: TreeId,
     ) -> CommitBuilder {
         let signature = signature(settings);
-        let commit = store::Commit {
+        let commit = backend::Commit {
             parents: vec![],
             predecessors: vec![],
             root_tree: tree_id,
@@ -68,7 +68,7 @@ impl CommitBuilder {
 
     pub fn for_rewrite_from(
         settings: &UserSettings,
-        store: &Arc<StoreWrapper>,
+        store: &Arc<Store>,
         predecessor: &Commit,
     ) -> CommitBuilder {
         let mut commit = predecessor.store_commit().clone();
@@ -82,12 +82,12 @@ impl CommitBuilder {
 
     pub fn for_open_commit(
         settings: &UserSettings,
-        store: &Arc<StoreWrapper>,
+        store: &Arc<Store>,
         parent_id: CommitId,
         tree_id: TreeId,
     ) -> CommitBuilder {
         let signature = signature(settings);
-        let commit = store::Commit {
+        let commit = backend::Commit {
             parents: vec![parent_id],
             predecessors: vec![],
             root_tree: tree_id,

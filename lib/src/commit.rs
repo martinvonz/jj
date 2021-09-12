@@ -17,17 +17,17 @@ use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+use crate::backend;
+use crate::backend::{ChangeId, CommitId, Signature};
 use crate::repo_path::RepoPath;
-use crate::store;
-use crate::store::{ChangeId, CommitId, Signature};
-use crate::store_wrapper::StoreWrapper;
+use crate::store::Store;
 use crate::tree::Tree;
 
 #[derive(Clone)]
 pub struct Commit {
-    store: Arc<StoreWrapper>,
+    store: Arc<Store>,
     id: CommitId,
-    data: Arc<store::Commit>,
+    data: Arc<backend::Commit>,
 }
 
 impl Debug for Commit {
@@ -63,11 +63,11 @@ impl Hash for Commit {
 }
 
 impl Commit {
-    pub fn new(store: Arc<StoreWrapper>, id: CommitId, data: Arc<store::Commit>) -> Self {
+    pub fn new(store: Arc<Store>, id: CommitId, data: Arc<backend::Commit>) -> Self {
         Commit { store, id, data }
     }
 
-    pub fn store(&self) -> &Arc<StoreWrapper> {
+    pub fn store(&self) -> &Arc<Store> {
         &self.store
     }
 
@@ -116,7 +116,7 @@ impl Commit {
         &self.data.change_id
     }
 
-    pub fn store_commit(&self) -> &store::Commit {
+    pub fn store_commit(&self) -> &backend::Commit {
         &self.data
     }
 

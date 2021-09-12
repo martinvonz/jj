@@ -15,9 +15,9 @@
 extern crate pest;
 
 use chrono::{FixedOffset, TimeZone, Utc};
+use jujutsu_lib::backend::{CommitId, Signature};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::repo::RepoRef;
-use jujutsu_lib::store::{CommitId, Signature};
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 

@@ -16,13 +16,13 @@ use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
 
+use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::repo::{MutableRepo, RepoRef};
 use crate::repo_path::RepoPath;
 use crate::revset::RevsetExpression;
 use crate::settings::UserSettings;
-use crate::store::CommitId;
 use crate::tree::{merge_trees, Tree};
 
 pub fn merge_commit_trees(repo: RepoRef, commits: &[Commit]) -> Tree {

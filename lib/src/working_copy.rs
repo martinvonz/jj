@@ -31,13 +31,15 @@ use protobuf::Message;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
+use crate::backend::{
+    BackendError, CommitId, FileId, MillisSinceEpoch, SymlinkId, TreeId, TreeValue,
+};
 use crate::commit::Commit;
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::matchers::EverythingMatcher;
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
-use crate::store::{CommitId, FileId, MillisSinceEpoch, StoreError, SymlinkId, TreeId, TreeValue};
-use crate::store_wrapper::StoreWrapper;
+use crate::store::Store;
 use crate::tree::Diff;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -76,7 +78,7 @@ impl FileState {
 }
 
 pub struct TreeState {
-    store: Arc<StoreWrapper>,
+    store: Arc<Store>,
     working_copy_path: PathBuf,
     state_path: PathBuf,
     tree_id: TreeId,
@@ -146,7 +148,7 @@ pub enum CheckoutError {
     #[error("Concurrent checkout")]
     ConcurrentCheckout,
     #[error("Internal error: {0:?}")]
-    InternalStoreError(StoreError),
+    InternalBackendError(BackendError),
 }
 
 impl TreeState {
@@ -158,21 +160,13 @@ impl TreeState {
         &self.file_states
     }
 
-    pub fn init(
-        store: Arc<StoreWrapper>,
-        working_copy_path: PathBuf,
-        state_path: PathBuf,
-    ) -> TreeState {
+    pub fn init(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> TreeState {
         let mut wc = TreeState::empty(store, working_copy_path, state_path);
         wc.save();
         wc
     }
 
-    fn empty(
-        store: Arc<StoreWrapper>,
-        working_copy_path: PathBuf,
-        state_path: PathBuf,
-    ) -> TreeState {
+    fn empty(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> TreeState {
         let tree_id = store.empty_tree_id().clone();
         // Canonicalize the working copy path because "repo/." makes libgit2 think that
         // everything should be ignored
@@ -186,11 +180,7 @@ impl TreeState {
         }
     }
 
-    pub fn load(
-        store: Arc<StoreWrapper>,
-        working_copy_path: PathBuf,
-        state_path: PathBuf,
-    ) -> TreeState {
+    pub fn load(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> TreeState {
         let maybe_file = File::open(state_path.join("tree_state"));
         let file = match maybe_file {
             Err(ref err) if err.kind() == std::io::ErrorKind::NotFound => {
@@ -481,15 +471,15 @@ impl TreeState {
             .store
             .get_tree(&RepoPath::root(), &self.tree_id)
             .map_err(|err| match err {
-                StoreError::NotFound => CheckoutError::SourceNotFound,
-                other => CheckoutError::InternalStoreError(other),
+                BackendError::NotFound => CheckoutError::SourceNotFound,
+                other => CheckoutError::InternalBackendError(other),
             })?;
         let new_tree =
             self.store
                 .get_tree(&RepoPath::root(), &tree_id)
                 .map_err(|err| match err {
-                    StoreError::NotFound => CheckoutError::TargetNotFound,
-                    other => CheckoutError::InternalStoreError(other),
+                    BackendError::NotFound => CheckoutError::TargetNotFound,
+                    other => CheckoutError::InternalBackendError(other),
                 })?;
 
         let mut stats = CheckoutStats {
@@ -587,7 +577,7 @@ impl TreeState {
 }
 
 pub struct WorkingCopy {
-    store: Arc<StoreWrapper>,
+    store: Arc<Store>,
     working_copy_path: PathBuf,
     state_path: PathBuf,
     commit_id: RefCell<Option<CommitId>>,
@@ -597,11 +587,7 @@ pub struct WorkingCopy {
 }
 
 impl WorkingCopy {
-    pub fn init(
-        store: Arc<StoreWrapper>,
-        working_copy_path: PathBuf,
-        state_path: PathBuf,
-    ) -> WorkingCopy {
+    pub fn init(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> WorkingCopy {
         // Leave the commit_id empty so a subsequent call to check out the root revision
         // will have an effect.
         let proto = crate::protos::working_copy::Checkout::new();
@@ -621,11 +607,7 @@ impl WorkingCopy {
         }
     }
 
-    pub fn load(
-        store: Arc<StoreWrapper>,
-        working_copy_path: PathBuf,
-        state_path: PathBuf,
-    ) -> WorkingCopy {
+    pub fn load(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> WorkingCopy {
         WorkingCopy {
             store,
             working_copy_path,

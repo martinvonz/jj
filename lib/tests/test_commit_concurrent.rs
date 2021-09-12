@@ -36,8 +36,8 @@ fn count_non_merge_operations(repo: &ReadonlyRepo) -> usize {
     num_ops
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_commit_parallel(use_git: bool) {
     // This loads a Repo instance and creates and commits many concurrent
     // transactions from it. It then reloads the repo. That should merge all the
@@ -70,8 +70,8 @@ fn test_commit_parallel(use_git: bool) {
     assert_eq!(count_non_merge_operations(&repo), num_threads + 1);
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_commit_parallel_instances(use_git: bool) {
     // Like the test above but creates a new repo instance for every thread, which
     // makes it behave very similar to separate processes.

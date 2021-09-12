@@ -22,55 +22,56 @@ use blake2::{Blake2b, Digest};
 use protobuf::{Message, ProtobufError};
 use tempfile::{NamedTempFile, PersistError};
 
+use crate::backend::{
+    Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict, ConflictId,
+    ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree, TreeId,
+    TreeValue,
+};
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::repo_path::{RepoPath, RepoPathComponent};
-use crate::store::{
-    ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictPart, FileId, MillisSinceEpoch,
-    Signature, Store, StoreError, StoreResult, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
-};
 
-impl From<std::io::Error> for StoreError {
+impl From<std::io::Error> for BackendError {
     fn from(err: std::io::Error) -> Self {
-        StoreError::Other(err.to_string())
+        BackendError::Other(err.to_string())
     }
 }
 
-impl From<PersistError> for StoreError {
+impl From<PersistError> for BackendError {
     fn from(err: PersistError) -> Self {
-        StoreError::Other(err.to_string())
+        BackendError::Other(err.to_string())
     }
 }
 
-impl From<ProtobufError> for StoreError {
+impl From<ProtobufError> for BackendError {
     fn from(err: ProtobufError) -> Self {
-        StoreError::Other(err.to_string())
+        BackendError::Other(err.to_string())
     }
 }
 
 #[derive(Debug)]
-pub struct LocalStore {
+pub struct LocalBackend {
     path: PathBuf,
     empty_tree_id: TreeId,
 }
 
-impl LocalStore {
+impl LocalBackend {
     pub fn init(store_path: PathBuf) -> Self {
         fs::create_dir(store_path.join("commits")).unwrap();
         fs::create_dir(store_path.join("trees")).unwrap();
         fs::create_dir(store_path.join("files")).unwrap();
         fs::create_dir(store_path.join("symlinks")).unwrap();
         fs::create_dir(store_path.join("conflicts")).unwrap();
-        let store = Self::load(store_path);
-        let empty_tree_id = store
+        let backend = Self::load(store_path);
+        let empty_tree_id = backend
             .write_tree(&RepoPath::root(), &Tree::default())
             .unwrap();
-        assert_eq!(empty_tree_id, store.empty_tree_id);
-        store
+        assert_eq!(empty_tree_id, backend.empty_tree_id);
+        backend
     }
 
     pub fn load(store_path: PathBuf) -> Self {
         let empty_tree_id = TreeId(hex::decode("786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce").unwrap());
-        LocalStore {
+        LocalBackend {
             path: store_path,
             empty_tree_id,
         }
@@ -97,15 +98,15 @@ impl LocalStore {
     }
 }
 
-fn not_found_to_store_error(err: std::io::Error) -> StoreError {
+fn not_found_to_backend_error(err: std::io::Error) -> BackendError {
     if err.kind() == ErrorKind::NotFound {
-        StoreError::NotFound
+        BackendError::NotFound
     } else {
-        StoreError::from(err)
+        BackendError::from(err)
     }
 }
 
-impl Store for LocalStore {
+impl Backend for LocalBackend {
     fn hash_length(&self) -> usize {
         64
     }
@@ -114,13 +115,13 @@ impl Store for LocalStore {
         None
     }
 
-    fn read_file(&self, _path: &RepoPath, id: &FileId) -> StoreResult<Box<dyn Read>> {
+    fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         let path = self.file_path(id);
-        let file = File::open(path).map_err(not_found_to_store_error)?;
+        let file = File::open(path).map_err(not_found_to_backend_error)?;
         Ok(Box::new(zstd::Decoder::new(file)?))
     }
 
-    fn write_file(&self, _path: &RepoPath, contents: &mut dyn Read) -> StoreResult<FileId> {
+    fn write_file(&self, _path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
         let mut encoder = zstd::Encoder::new(temp_file.as_file(), 0)?;
         let mut hasher = Blake2b::new();
@@ -145,15 +146,15 @@ impl Store for LocalStore {
         Ok(id)
     }
 
-    fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, StoreError> {
+    fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
         let path = self.symlink_path(id);
-        let mut file = File::open(path).map_err(not_found_to_store_error)?;
+        let mut file = File::open(path).map_err(not_found_to_backend_error)?;
         let mut target = String::new();
         file.read_to_string(&mut target).unwrap();
         Ok(target)
     }
 
-    fn write_symlink(&self, _path: &RepoPath, target: &str) -> Result<SymlinkId, StoreError> {
+    fn write_symlink(&self, _path: &RepoPath, target: &str) -> Result<SymlinkId, BackendError> {
         let mut temp_file = NamedTempFile::new_in(&self.path)?;
         temp_file.write_all(target.as_bytes())?;
         let mut hasher = Blake2b::new();
@@ -168,15 +169,15 @@ impl Store for LocalStore {
         &self.empty_tree_id
     }
 
-    fn read_tree(&self, _path: &RepoPath, id: &TreeId) -> StoreResult<Tree> {
+    fn read_tree(&self, _path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
         let path = self.tree_path(id);
-        let mut file = File::open(path).map_err(not_found_to_store_error)?;
+        let mut file = File::open(path).map_err(not_found_to_backend_error)?;
 
         let proto: crate::protos::store::Tree = Message::parse_from_reader(&mut file)?;
         Ok(tree_from_proto(&proto))
     }
 
-    fn write_tree(&self, _path: &RepoPath, tree: &Tree) -> StoreResult<TreeId> {
+    fn write_tree(&self, _path: &RepoPath, tree: &Tree) -> BackendResult<TreeId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
         let proto = tree_to_proto(tree);
@@ -191,15 +192,15 @@ impl Store for LocalStore {
         Ok(id)
     }
 
-    fn read_commit(&self, id: &CommitId) -> StoreResult<Commit> {
+    fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
         let path = self.commit_path(id);
-        let mut file = File::open(path).map_err(not_found_to_store_error)?;
+        let mut file = File::open(path).map_err(not_found_to_backend_error)?;
 
         let proto: crate::protos::store::Commit = Message::parse_from_reader(&mut file)?;
         Ok(commit_from_proto(&proto))
     }
 
-    fn write_commit(&self, commit: &Commit) -> StoreResult<CommitId> {
+    fn write_commit(&self, commit: &Commit) -> BackendResult<CommitId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
         let proto = commit_to_proto(commit);
@@ -214,15 +215,15 @@ impl Store for LocalStore {
         Ok(id)
     }
 
-    fn read_conflict(&self, id: &ConflictId) -> StoreResult<Conflict> {
+    fn read_conflict(&self, id: &ConflictId) -> BackendResult<Conflict> {
         let path = self.conflict_path(id);
-        let mut file = File::open(path).map_err(not_found_to_store_error)?;
+        let mut file = File::open(path).map_err(not_found_to_backend_error)?;
 
         let proto: crate::protos::store::Conflict = Message::parse_from_reader(&mut file)?;
         Ok(conflict_from_proto(&proto))
     }
 
-    fn write_conflict(&self, conflict: &Conflict) -> StoreResult<ConflictId> {
+    fn write_conflict(&self, conflict: &Conflict) -> BackendResult<ConflictId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
         let proto = conflict_to_proto(conflict);

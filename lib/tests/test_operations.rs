@@ -14,9 +14,9 @@
 
 use std::path::Path;
 
+use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo::RepoRef;
-use jujutsu_lib::store::CommitId;
 use jujutsu_lib::testutils;
 use test_case::test_case;
 
@@ -27,8 +27,8 @@ fn list_dir(dir: &Path) -> Vec<String> {
         .collect()
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_unpublished_operation(use_git: bool) {
     // Test that the operation doesn't get published until that's requested.
     let settings = testutils::user_settings();
@@ -48,8 +48,8 @@ fn test_unpublished_operation(use_git: bool) {
     assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_consecutive_operations(use_git: bool) {
     // Test that consecutive operations result in a single op-head on disk after
     // each operation
@@ -80,8 +80,8 @@ fn test_consecutive_operations(use_git: bool) {
     assert_eq!(list_dir(&op_heads_dir), vec![op_id2.hex()]);
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_concurrent_operations(use_git: bool) {
     // Test that consecutive operations result in multiple op-heads on disk until
     // the repo has been reloaded (which currently happens right away).
@@ -125,8 +125,8 @@ fn assert_heads(repo: RepoRef, expected: Vec<&CommitId>) {
     assert_eq!(*repo.view().heads(), expected);
 }
 
-#[test_case(false ; "local store")]
-#[test_case(true ; "git store")]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_isolation(use_git: bool) {
     // Test that two concurrent transactions don't see each other's changes.
     let settings = testutils::user_settings();

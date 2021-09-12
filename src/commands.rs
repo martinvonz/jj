@@ -31,6 +31,7 @@ use std::{fs, io};
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 use criterion::Criterion;
 use itertools::Itertools;
+use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::dag_walk::topo_order_reverse;
@@ -53,8 +54,7 @@ use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::store::{CommitId, StoreError, Timestamp, TreeValue};
-use jujutsu_lib::store_wrapper::StoreWrapper;
+use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::{Diff, DiffSummary};
 use jujutsu_lib::working_copy::{CheckoutStats, WorkingCopy};
@@ -87,8 +87,8 @@ impl From<std::io::Error> for CommandError {
     }
 }
 
-impl From<StoreError> for CommandError {
-    fn from(err: StoreError) -> Self {
+impl From<BackendError> for CommandError {
+    fn from(err: BackendError) -> Self {
         CommandError::UserError(format!("Unexpected error from store: {}", err))
     }
 }
@@ -3205,7 +3205,7 @@ fn cmd_operation(
     Ok(())
 }
 
-fn get_git_repo(store: &StoreWrapper) -> Result<git2::Repository, CommandError> {
+fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     match store.git_repo() {
         None => Err(CommandError::UserError(
             "The repo is not backed by a git repo".to_string(),

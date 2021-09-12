@@ -19,22 +19,22 @@ use std::iter::Peekable;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use crate::backend::{
+    BackendError, Conflict, ConflictId, ConflictPart, TreeEntriesNonRecursiveIter, TreeEntry,
+    TreeId, TreeValue,
+};
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
-use crate::store::{
-    Conflict, ConflictId, ConflictPart, StoreError, TreeEntriesNonRecursiveIter, TreeEntry, TreeId,
-    TreeValue,
-};
-use crate::store_wrapper::StoreWrapper;
-use crate::{files, store};
+use crate::store::Store;
+use crate::{backend, files};
 
 #[derive(Clone)]
 pub struct Tree {
-    store: Arc<StoreWrapper>,
+    store: Arc<Store>,
     dir: RepoPath,
     id: TreeId,
-    data: Arc<store::Tree>,
+    data: Arc<backend::Tree>,
 }
 
 impl Debug for Tree {
@@ -60,12 +60,7 @@ impl DiffSummary {
 }
 
 impl Tree {
-    pub fn new(
-        store: Arc<StoreWrapper>,
-        dir: RepoPath,
-        id: TreeId,
-        data: Arc<store::Tree>,
-    ) -> Self {
+    pub fn new(store: Arc<Store>, dir: RepoPath, id: TreeId, data: Arc<backend::Tree>) -> Self {
         Tree {
             store,
             dir,
@@ -74,16 +69,16 @@ impl Tree {
         }
     }
 
-    pub fn null(store: Arc<StoreWrapper>, dir: RepoPath) -> Self {
+    pub fn null(store: Arc<Store>, dir: RepoPath) -> Self {
         Tree {
             store,
             dir,
             id: TreeId(vec![]),
-            data: Arc::new(store::Tree::default()),
+            data: Arc::new(backend::Tree::default()),
         }
     }
 
-    pub fn store(&self) -> &Arc<StoreWrapper> {
+    pub fn store(&self) -> &Arc<Store> {
         &self.store
     }
 
@@ -95,7 +90,7 @@ impl Tree {
         &self.id
     }
 
-    pub fn data(&self) -> &store::Tree {
+    pub fn data(&self) -> &backend::Tree {
         &self.data
     }
 
@@ -496,7 +491,7 @@ pub fn merge_trees(
     side1_tree: &Tree,
     base_tree: &Tree,
     side2_tree: &Tree,
-) -> Result<TreeId, StoreError> {
+) -> Result<TreeId, BackendError> {
     let store = base_tree.store().as_ref();
     let dir = base_tree.dir();
     assert_eq!(side1_tree.dir(), dir);
@@ -539,13 +534,13 @@ pub fn merge_trees(
 }
 
 fn merge_tree_value(
-    store: &StoreWrapper,
+    store: &Store,
     dir: &RepoPath,
     basename: &RepoPathComponent,
     maybe_base: Option<&TreeValue>,
     maybe_side1: Option<&TreeValue>,
     maybe_side2: Option<&TreeValue>,
-) -> Result<Option<TreeValue>, StoreError> {
+) -> Result<Option<TreeValue>, BackendError> {
     // Resolve non-trivial conflicts:
     //   * resolve tree conflicts by recursing
     //   * try to resolve file conflicts by merging the file contents
@@ -646,10 +641,7 @@ fn merge_tree_value(
     })
 }
 
-fn conflict_part_to_conflict(
-    store: &StoreWrapper,
-    part: &ConflictPart,
-) -> Result<Conflict, StoreError> {
+fn conflict_part_to_conflict(store: &Store, part: &ConflictPart) -> Result<Conflict, BackendError> {
     match &part.value {
         TreeValue::Conflict(id) => {
             let conflict = store.read_conflict(id)?;
@@ -665,9 +657,9 @@ fn conflict_part_to_conflict(
 }
 
 fn simplify_conflict(
-    store: &StoreWrapper,
+    store: &Store,
     conflict: &Conflict,
-) -> Result<Option<TreeValue>, StoreError> {
+) -> Result<Option<TreeValue>, BackendError> {
     // Important cases to simplify:
     //
     // D

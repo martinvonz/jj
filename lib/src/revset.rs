@@ -23,11 +23,11 @@ use pest::iterators::Pairs;
 use pest::Parser;
 use thiserror::Error;
 
+use crate::backend::{BackendError, CommitId};
 use crate::commit::Commit;
 use crate::index::{HexPrefix, IndexEntry, IndexPosition, PrefixResolution, RevWalk};
 use crate::repo::RepoRef;
 use crate::revset_graph_iterator::RevsetGraphIterator;
-use crate::store::{CommitId, StoreError};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum RevsetError {
@@ -38,7 +38,7 @@ pub enum RevsetError {
     #[error("Change id prefix \"{0}\" is ambiguous")]
     AmbiguousChangeIdPrefix(String),
     #[error("Unexpected error from store: {0}")]
-    StoreError(#[from] StoreError),
+    StoreError(#[from] BackendError),
 }
 
 fn resolve_git_ref(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetError> {
@@ -75,7 +75,7 @@ fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, Revse
         let commit_id = CommitId(binary_commit_id);
         match repo.store().get_commit(&commit_id) {
             Ok(_) => return Ok(vec![commit_id]),
-            Err(StoreError::NotFound) => {} // fall through
+            Err(BackendError::NotFound) => {} // fall through
             Err(err) => return Err(RevsetError::StoreError(err)),
         }
     }

@@ -18,10 +18,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
+use jujutsu_lib::backend::{BackendError, TreeId, TreeValue};
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::store::{StoreError, TreeId, TreeValue};
-use jujutsu_lib::store_wrapper::StoreWrapper;
+use jujutsu_lib::store::Store;
 use jujutsu_lib::tree::{merge_trees, Tree};
 use jujutsu_lib::tree_builder::TreeBuilder;
 use jujutsu_lib::working_copy::{CheckoutError, TreeState};
@@ -37,7 +37,7 @@ pub enum DiffEditError {
     #[error("Failed to write directories to diff: {0:?}")]
     CheckoutError(CheckoutError),
     #[error("Internal error: {0:?}")]
-    InternalStoreError(StoreError),
+    InternalBackendError(BackendError),
 }
 
 impl From<CheckoutError> for DiffEditError {
@@ -46,18 +46,18 @@ impl From<CheckoutError> for DiffEditError {
     }
 }
 
-impl From<StoreError> for DiffEditError {
-    fn from(err: StoreError) -> Self {
-        DiffEditError::InternalStoreError(err)
+impl From<BackendError> for DiffEditError {
+    fn from(err: BackendError) -> Self {
+        DiffEditError::InternalBackendError(err)
     }
 }
 
 fn add_to_tree(
-    store: &StoreWrapper,
+    store: &Store,
     tree_builder: &mut TreeBuilder,
     repo_path: &RepoPath,
     value: &TreeValue,
-) -> Result<(), StoreError> {
+) -> Result<(), BackendError> {
     match value {
         TreeValue::Conflict(conflict_id) => {
             let conflict = store.read_conflict(conflict_id)?;
@@ -73,7 +73,7 @@ fn add_to_tree(
 }
 
 fn check_out(
-    store: Arc<StoreWrapper>,
+    store: Arc<Store>,
     wc_dir: PathBuf,
     state_dir: PathBuf,
     tree_id: TreeId,
