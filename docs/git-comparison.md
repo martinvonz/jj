@@ -30,9 +30,28 @@ commit), but that's left out of the table to keep it simple. For example,
       <td><code>git clone &lt;source&gt; &lt;destination&gt;</code></td>
     </tr>
     <tr>
+      <td>Update the local repo with all branches from a remote</td>
+      <td><code>jj git fetch [--remote &lt;remote&gt;]</code> (there is no
+          support for fetching into non-Git repos yet)</td>
+      <td><code>git fetch [&lt;remote&gt;]</code></td>
+    </tr>
+    <tr>
+      <td>Update a remote repo with all branches from the local repo</td>
+      <td><code>jj git push [--remote &lt;remote&gt;]</code> (there is no
+          support for pushing from non-Git repos yet)</td>
+      <td><code>git push --all [&lt;remote&gt;]</code></td>
+    </tr>
+    <tr>
+      <td>Update a remote repo with a single branch from the local repo</td>
+      <td><code>jj git push --branch &lt;branch name&gt;
+                [--remote &lt;remote&gt;]</code> (there is no support for
+                pushing from non-Git repos yet)</td>
+      <td><code>git push &lt;remote&gt; &lt;branch name&gt;</code></td>
+    </tr>
+    <tr>
       <td>Show summary of current work and repo status</td>
       <td><code>jj st</code></td>
-      <td><code>git st</code></td>
+      <td><code>git status</code></td>
     </tr>
     <tr>
       <td>Show diff of the current change</td>
