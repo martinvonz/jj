@@ -368,10 +368,8 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     assert_eq!(stats.num_commits, 2 + 1);
     assert_eq!(stats.num_merges, 0);
     assert_eq!(stats.max_generation_number, 1);
-    assert_eq!(stats.levels.len(), 2);
-    assert_eq!(stats.levels[0].num_commits, 2);
-    assert_eq!(stats.levels[1].num_commits, 1);
-    assert_ne!(stats.levels[1].name, stats.levels[0].name);
+    assert_eq!(stats.levels.len(), 1);
+    assert_eq!(stats.levels[0].num_commits, 3);
 
     assert_eq!(generation_number(index.as_ref(), root_commit.id()), 0);
     assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
@@ -433,9 +431,9 @@ fn test_index_commits_incremental_squashed(use_git: bool) {
 
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
     repo = create_n_commits(&settings, &repo, 1);
-    assert_eq!(commits_by_level(&repo), vec![2, 1]);
+    assert_eq!(commits_by_level(&repo), vec![3]);
     repo = create_n_commits(&settings, &repo, 1);
-    assert_eq!(commits_by_level(&repo), vec![4]);
+    assert_eq!(commits_by_level(&repo), vec![3, 1]);
 
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
     repo = create_n_commits(&settings, &repo, 2);
@@ -459,7 +457,15 @@ fn test_index_commits_incremental_squashed(use_git: bool) {
     repo = create_n_commits(&settings, &repo, 8);
     repo = create_n_commits(&settings, &repo, 4);
     repo = create_n_commits(&settings, &repo, 2);
-    assert_eq!(commits_by_level(&repo), vec![34, 16, 8, 4, 2]);
+    assert_eq!(commits_by_level(&repo), vec![58, 6]);
+
+    let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
+    repo = create_n_commits(&settings, &repo, 29);
+    repo = create_n_commits(&settings, &repo, 15);
+    repo = create_n_commits(&settings, &repo, 7);
+    repo = create_n_commits(&settings, &repo, 3);
+    repo = create_n_commits(&settings, &repo, 1);
+    assert_eq!(commits_by_level(&repo), vec![31, 15, 7, 3, 1]);
 
     let (_temp_dir, mut repo) = testutils::init_repo(&settings, use_git);
     repo = create_n_commits(&settings, &repo, 10);

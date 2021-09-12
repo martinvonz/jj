@@ -563,9 +563,9 @@ impl MutableIndex {
         buf
     }
 
-    /// If the MutableIndex has more commits than its parent ReadonlyIndex,
-    /// return MutableIndex with the commits from both. This is done
-    /// recursively, so the stack of index files has O(log n) files.
+    /// If the MutableIndex has more than half the commits of its parent
+    /// ReadonlyIndex, return MutableIndex with the commits from both. This
+    /// is done recursively, so the stack of index files has O(log n) files.
     fn maybe_squash_with_ancestors(self) -> MutableIndex {
         let mut num_new_commits = self.segment_num_commits();
         let mut files_to_squash = vec![];
@@ -576,7 +576,7 @@ impl MutableIndex {
                 Some(parent_file) => {
                     // TODO: We should probably also squash if the parent file has less than N
                     // commits, regardless of how many (few) are in `self`.
-                    if num_new_commits < parent_file.segment_num_commits() {
+                    if 2 * num_new_commits < parent_file.segment_num_commits() {
                         squashed = MutableIndex::incremental(parent_file);
                         break;
                     }
