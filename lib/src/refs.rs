@@ -109,11 +109,14 @@ fn find_pair_to_remove(
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct BranchPushUpdate {
+    pub old_target: Option<CommitId>,
+    pub new_target: Option<CommitId>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum BranchPushAction {
-    Update {
-        old_target: Option<CommitId>,
-        new_target: Option<CommitId>,
-    },
+    Update(BranchPushUpdate),
     AlreadyMatches,
     LocalConflicted,
     RemoteConflicted,
@@ -134,19 +137,19 @@ pub fn classify_branch_push_action(
         (_, Some(RefTarget::Conflict { .. })) => BranchPushAction::LocalConflicted,
         (Some(RefTarget::Conflict { .. }), _) => BranchPushAction::RemoteConflicted,
         (Some(RefTarget::Normal(old_target)), Some(RefTarget::Normal(new_target))) => {
-            BranchPushAction::Update {
+            BranchPushAction::Update(BranchPushUpdate {
                 old_target: Some(old_target.clone()),
                 new_target: Some(new_target.clone()),
-            }
+            })
         }
-        (Some(RefTarget::Normal(old_target)), None) => BranchPushAction::Update {
+        (Some(RefTarget::Normal(old_target)), None) => BranchPushAction::Update(BranchPushUpdate {
             old_target: Some(old_target.clone()),
             new_target: None,
-        },
-        (None, Some(RefTarget::Normal(new_target))) => BranchPushAction::Update {
+        }),
+        (None, Some(RefTarget::Normal(new_target))) => BranchPushAction::Update(BranchPushUpdate {
             old_target: None,
             new_target: Some(new_target.clone()),
-        },
+        }),
         (None, None) => {
             panic!("Unexpected branch doesn't exist anywhere")
         }
@@ -183,10 +186,10 @@ mod tests {
         };
         assert_eq!(
             classify_branch_push_action(&branch, "origin"),
-            BranchPushAction::Update {
+            BranchPushAction::Update(BranchPushUpdate {
                 old_target: None,
                 new_target: Some(commit_id1),
-            }
+            })
         );
     }
 
@@ -201,10 +204,10 @@ mod tests {
         };
         assert_eq!(
             classify_branch_push_action(&branch, "origin"),
-            BranchPushAction::Update {
+            BranchPushAction::Update(BranchPushUpdate {
                 old_target: Some(commit_id1),
                 new_target: None,
-            }
+            })
         );
     }
 
@@ -220,10 +223,10 @@ mod tests {
         };
         assert_eq!(
             classify_branch_push_action(&branch, "origin"),
-            BranchPushAction::Update {
+            BranchPushAction::Update(BranchPushUpdate {
                 old_target: Some(commit_id1),
                 new_target: Some(commit_id2),
-            }
+            })
         );
     }
 

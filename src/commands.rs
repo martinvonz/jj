@@ -1260,13 +1260,17 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
         )
         .subcommand(
             SubCommand::with_name("push")
-                .about("Push a branch to a Git remote")
+                .about("Push to a Git remote")
+                .long_about(
+                    "Push to a Git remote
+
+By default, all branches are pushed. Use `--branch` if you want to push only one branch.",
+                )
                 .arg(
                     Arg::with_name("branch")
                         .long("branch")
                         .takes_value(true)
-                        .required(true)
-                        .help("The name of the branch to push"),
+                        .help("Push only this branch"),
                 )
                 .arg(
                     Arg::with_name("remote")
@@ -3296,69 +3300,92 @@ fn cmd_git_push(
 ) -> Result<(), CommandError> {
     let repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
-    let branch_name = cmd_matches.value_of("branch").unwrap();
     let remote_name = cmd_matches.value_of("remote").unwrap();
 
-    let maybe_branch_target = repo.view().get_branch(branch_name);
-    if maybe_branch_target.is_none() {
-        return Err(CommandError::UserError(format!(
-            "Branch {} doesn't exist",
-            branch_name
-        )));
-    }
-    let branch_target = maybe_branch_target.unwrap();
-    let push_action = classify_branch_push_action(branch_target, remote_name);
-
-    let mut ref_updates = vec![];
-    match push_action {
-        BranchPushAction::AlreadyMatches => {
-            writeln!(
-                ui,
-                "Branch {}@{} already matches {}",
-                branch_name, remote_name, branch_name
-            )?;
-            return Ok(());
-        }
-        BranchPushAction::LocalConflicted => {
+    let mut branch_updates = HashMap::new();
+    if let Some(branch_name) = cmd_matches.value_of("branch") {
+        let maybe_branch_target = repo.view().get_branch(branch_name);
+        if maybe_branch_target.is_none() {
             return Err(CommandError::UserError(format!(
-                "Branch {} is conflicted",
+                "Branch {} doesn't exist",
                 branch_name
             )));
         }
-        BranchPushAction::RemoteConflicted => {
-            return Err(CommandError::UserError(format!(
-                "Branch {}@{} is conflicted",
-                branch_name, remote_name
-            )));
-        }
-        BranchPushAction::Update {
-            old_target,
-            new_target,
-        } => {
-            let qualified_name = format!("refs/heads/{}", branch_name);
-            if let Some(new_target) = new_target {
-                let new_target_commit = repo.store().get_commit(&new_target)?;
-                if new_target_commit.is_open() {
-                    return Err(CommandError::UserError(
-                        "Won't push open commit".to_string(),
-                    ));
-                }
-                let force = match old_target {
-                    None => false,
-                    Some(old_target) => !repo.index().is_ancestor(&old_target, &new_target),
-                };
-                ref_updates.push(GitRefUpdate {
-                    qualified_name,
-                    force,
-                    new_target: Some(new_target),
-                });
-            } else {
-                ref_updates.push(GitRefUpdate {
-                    qualified_name,
-                    force: false,
-                    new_target: None,
-                });
+        let branch_target = maybe_branch_target.unwrap();
+        let push_action = classify_branch_push_action(branch_target, remote_name);
+
+        match push_action {
+            BranchPushAction::AlreadyMatches => {
+                writeln!(
+                    ui,
+                    "Branch {}@{} already matches {}",
+                    branch_name, remote_name, branch_name
+                )?;
+                return Ok(());
             }
+            BranchPushAction::LocalConflicted => {
+                return Err(CommandError::UserError(format!(
+                    "Branch {} is conflicted",
+                    branch_name
+                )));
+            }
+            BranchPushAction::RemoteConflicted => {
+                return Err(CommandError::UserError(format!(
+                    "Branch {}@{} is conflicted",
+                    branch_name, remote_name
+                )));
+            }
+            BranchPushAction::Update(update) => {
+                if let Some(new_target) = &update.new_target {
+                    let new_target_commit = repo.store().get_commit(new_target)?;
+                    if new_target_commit.is_open() {
+                        return Err(CommandError::UserError(
+                            "Won't push open commit".to_string(),
+                        ));
+                    }
+                }
+                branch_updates.insert(branch_name, update);
+            }
+        }
+    } else {
+        // TODO: Is it useful to warn about conflicted branches?
+        for (branch_name, branch_target) in repo.view().branches() {
+            let push_action = classify_branch_push_action(branch_target, remote_name);
+            match push_action {
+                BranchPushAction::AlreadyMatches => {}
+                BranchPushAction::LocalConflicted => {}
+                BranchPushAction::RemoteConflicted => {}
+                BranchPushAction::Update(update) => {
+                    branch_updates.insert(branch_name, update);
+                }
+            }
+        }
+    }
+
+    if branch_updates.is_empty() {
+        writeln!(ui, "Nothing changed.")?;
+        return Ok(());
+    }
+
+    let mut ref_updates = vec![];
+    for (branch_name, update) in branch_updates {
+        let qualified_name = format!("refs/heads/{}", branch_name);
+        if let Some(new_target) = update.new_target {
+            let force = match update.old_target {
+                None => false,
+                Some(old_target) => !repo.index().is_ancestor(&old_target, &new_target),
+            };
+            ref_updates.push(GitRefUpdate {
+                qualified_name,
+                force,
+                new_target: Some(new_target),
+            });
+        } else {
+            ref_updates.push(GitRefUpdate {
+                qualified_name,
+                force: false,
+                new_target: None,
+            });
         }
     }
 
