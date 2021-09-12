@@ -152,6 +152,31 @@ commit), but that's left out of the table to keep it simple. For example,
           rebase/merge/cherry-pick --continue</code></td>
     </tr>
     <tr>
+      <td>List branches</td>
+      <td><code>jj branches</code></td>
+      <td><code>git branch</code></td>
+    </tr>
+    <tr>
+      <td>Create a branch</td>
+      <td><code>jj branch &lt;name&gt; -r &lt;revision&gt;</code></td>
+      <td><code>git branch &lt;name&gt; &lt;revision&gt;</code></td>
+    </tr>
+    <tr>
+      <td>Move a branch forward</td>
+      <td><code>jj branch &lt;name&gt; -r &lt;revision&gt;</code></td>
+      <td><code>git branch -f &lt;name&gt; &lt;revision&gt;</code></td>
+    </tr>
+    <tr>
+      <td>Move a branch backward or sideways</td>
+      <td><code>jj branch &lt;name&gt; -r &lt;revision&gt; --allow-backwards</code></td>
+      <td><code>git branch -f &lt;name&gt; &lt;revision&gt;</code></td>
+    </tr>
+    <tr>
+      <td>Delete a branch</td>
+      <td><code>jj branch --delete &lt;name&gt; </code></td>
+      <td><code>git branch --delete &lt;name&gt;</code></td>
+    </tr>
+    <tr>
       <td>See log of operations performed on the repo</td>
       <td><code>jj op log</code></td>
       <td>Not supported</td>
