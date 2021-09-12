@@ -71,12 +71,12 @@ commit), but that's left out of the table to keep it simple. For example,
     <tr>
       <td>Remove a file from the current change</td>
       <td><code>rm filename</code></td>
-      <td><code>git rm filename</code></td>
+      <td><code>rm filename</code></td>
     </tr>
     <tr>
       <td>Modify a file in the current change</td>
       <td><code>echo stuff >> filename</code></td>
-      <td><code>echo stuff >> filename; git add filename</code></td>
+      <td><code>echo stuff >> filename</code></td>
     </tr>
     <tr>
       <td>Finish work on the current change and start a new change</td>
