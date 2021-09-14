@@ -3271,18 +3271,22 @@ fn cmd_git_clone(
     let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();
     let mut tx = repo.start_transaction("fetch from git remote into empty repo");
-    git::fetch(tx.mut_repo(), &git_repo, remote_name).map_err(|err| match err {
-        GitFetchError::NoSuchRemote(_) => {
-            panic!("should't happen as we just created the git remote")
-        }
-        GitFetchError::InternalGitError(err) => {
-            CommandError::UserError(format!("Fetch failed: {:?}", err))
-        }
-    })?;
-    if let Ok(fetch_head_ref) = git_repo.find_reference("FETCH_HEAD") {
-        if let Ok(fetch_head_git_commit) = fetch_head_ref.peel_to_commit() {
-            let fetch_head_id = CommitId(fetch_head_git_commit.id().as_bytes().to_vec());
-            if let Ok(fetch_head_commit) = repo.store().get_commit(&fetch_head_id) {
+    let maybe_default_branch =
+        git::fetch(tx.mut_repo(), &git_repo, remote_name).map_err(|err| match err {
+            GitFetchError::NoSuchRemote(_) => {
+                panic!("should't happen as we just created the git remote")
+            }
+            GitFetchError::InternalGitError(err) => {
+                CommandError::UserError(format!("Fetch failed: {:?}", err))
+            }
+        })?;
+    if let Some(default_branch) = maybe_default_branch {
+        let default_branch_target = tx
+            .mut_repo()
+            .view()
+            .get_remote_branch(&default_branch, "origin");
+        if let Some(RefTarget::Normal(commit_id)) = default_branch_target {
+            if let Ok(fetch_head_commit) = repo.store().get_commit(&commit_id) {
                 tx.mut_repo().check_out(ui.settings(), &fetch_head_commit);
             }
         }

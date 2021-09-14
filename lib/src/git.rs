@@ -127,7 +127,7 @@ pub fn fetch(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     remote_name: &str,
-) -> Result<(), GitFetchError> {
+) -> Result<Option<String>, GitFetchError> {
     let mut remote =
         git_repo
             .find_remote(remote_name)
@@ -149,10 +149,22 @@ pub fn fetch(
     fetch_options.prune(FetchPrune::On);
     let refspec: &[&str] = &[];
     remote.fetch(refspec, Some(&mut fetch_options), None)?;
+    // TODO: We could make it optional to get the default branch since we only care
+    // about it on clone.
+    let mut default_branch = None;
+    if let Ok(default_ref_buf) = remote.default_branch() {
+        if let Some(default_ref) = default_ref_buf.as_str() {
+            // LocalBranch here is the local branch on the remote, so it's really the remote
+            // branch
+            if let Some(RefName::LocalBranch(branch_name)) = parse_git_ref(default_ref) {
+                default_branch = Some(branch_name);
+            }
+        }
+    }
     import_refs(mut_repo, git_repo).map_err(|err| match err {
         GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
     })?;
-    Ok(())
+    Ok(default_branch)
 }
 
 #[derive(Error, Debug, PartialEq)]
