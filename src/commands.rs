@@ -59,6 +59,7 @@ use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::{Diff, DiffSummary};
 use jujutsu_lib::working_copy::{CheckoutStats, WorkingCopy};
 use jujutsu_lib::{conflicts, files, git, revset};
+use maplit::hashmap;
 use pest::Parser;
 
 use self::chrono::{FixedOffset, TimeZone, Utc};
@@ -2656,8 +2657,9 @@ fn cmd_rebase(
         let mut rebaser = DescendantRebaser::new(
             ui.settings(),
             tx.mut_repo(),
-            old_commit.id().clone(),
-            vec![new_commit.id().clone()],
+            hashmap! {
+                old_commit.id().clone() => vec![new_commit.id().clone()]
+            },
         );
         rebaser.rebase_all();
         let num_rebased = rebaser.rebased().len() + 1;
@@ -2673,8 +2675,9 @@ fn cmd_rebase(
         let mut rebaser = DescendantRebaser::new(
             ui.settings(),
             tx.mut_repo(),
-            old_commit.id().clone(),
-            old_commit.parent_ids(),
+            hashmap! {
+                old_commit.id().clone() => old_commit.parent_ids()
+            },
         );
         rebaser.rebase_all();
         let num_rebased = rebaser.rebased().len();

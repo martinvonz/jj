@@ -531,6 +531,7 @@ dependencies = [
  "indoc",
  "itertools 0.10.1",
  "jujutsu-lib",
+ "maplit",
  "pest",
  "pest_derive",
  "protobuf",

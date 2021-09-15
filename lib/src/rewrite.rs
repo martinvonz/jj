@@ -15,7 +15,6 @@
 use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
-use maplit::hashmap;
 
 use crate::backend::CommitId;
 use crate::commit::Commit;
@@ -120,10 +119,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     pub fn new(
         settings: &'settings UserSettings,
         mut_repo: &'repo mut MutableRepo,
-        old_parent_id: CommitId,
-        new_parent_ids: Vec<CommitId>,
+        replacements: HashMap<CommitId, Vec<CommitId>>,
     ) -> DescendantRebaser<'settings, 'repo> {
-        let replacements = hashmap! { old_parent_id => new_parent_ids};
         let old_commits_expression =
             RevsetExpression::commits(replacements.keys().cloned().collect());
         let new_commits_expression =
