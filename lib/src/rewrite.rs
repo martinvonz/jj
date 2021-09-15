@@ -165,7 +165,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 };
             }
             if new_parent_ids == old_parent_ids {
-                RebasedDescendant::AlreadyInPlace
+                RebasedDescendant::AlreadyInPlace(old_commit)
             } else {
                 // Don't create commit where one parent is an ancestor of another.
                 let head_set: HashSet<_> = self
@@ -199,8 +199,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RebasedDescendant {
-    AlreadyInPlace,
+    AlreadyInPlace(Commit),
     Rebased {
         old_commit: Commit,
         new_commit: Commit,

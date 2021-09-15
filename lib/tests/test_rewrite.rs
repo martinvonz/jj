@@ -12,12 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use jujutsu_lib::backend::CommitId;
+use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::rewrite::DescendantRebaser;
+use jujutsu_lib::rewrite::{DescendantRebaser, RebasedDescendant};
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::CommitGraphBuilder;
 use test_case::test_case;
+
+fn assert_in_place(rebased: Option<RebasedDescendant>, expected_old_commit: &Commit) {
+    if let Some(RebasedDescendant::AlreadyInPlace(old_commit)) = rebased {
+        assert_eq!(old_commit, *expected_old_commit);
+    } else {
+        panic!("expected in-place commit: {:?}", rebased);
+    }
+}
+
+fn assert_rebased(
+    rebased: Option<RebasedDescendant>,
+    expected_old_commit: &Commit,
+    expected_new_parents: &[CommitId],
+) -> Commit {
+    if let Some(RebasedDescendant::Rebased {
+        old_commit,
+        new_commit,
+    }) = rebased
+    {
+        assert_eq!(old_commit, *expected_old_commit);
+        assert_eq!(new_commit.change_id(), expected_old_commit.change_id());
+        assert_eq!(&new_commit.parent_ids(), expected_new_parents);
+        return new_commit;
+    } else {
+        panic!("expected rebased commit: {:?}", rebased);
+    }
+}
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -49,27 +78,11 @@ fn test_rebase_descendants_sideways(use_git: bool) {
         commit2.id().clone(),
         vec![commit6.id().clone()],
     );
-    rebaser.rebase_all();
-    let rebased = rebaser.rebased();
-    assert_eq!(rebased.len(), 3);
-    let new_commit3 = repo
-        .store()
-        .get_commit(rebased.get(commit3.id()).unwrap())
-        .unwrap();
-    assert_eq!(new_commit3.change_id(), commit3.change_id());
-    assert_eq!(new_commit3.parent_ids(), vec![commit6.id().clone()]);
-    let new_commit4 = repo
-        .store()
-        .get_commit(rebased.get(commit4.id()).unwrap())
-        .unwrap();
-    assert_eq!(new_commit4.change_id(), commit4.change_id());
-    assert_eq!(new_commit4.parent_ids(), vec![new_commit3.id().clone()]);
-    let new_commit5 = repo
-        .store()
-        .get_commit(rebased.get(commit5.id()).unwrap())
-        .unwrap();
-    assert_eq!(new_commit5.change_id(), commit5.change_id());
-    assert_eq!(new_commit5.parent_ids(), vec![commit6.id().clone()]);
+    let new_commit3 = assert_rebased(rebaser.rebase_next(), &commit3, &[commit6.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit4, &[new_commit3.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit5, &[commit6.id().clone()]);
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 3);
 
     tx.discard();
 }
@@ -93,7 +106,7 @@ fn test_rebase_descendants_forward(use_git: bool) {
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
     let commit3 = graph_builder.commit_with_parents(&[&commit2]);
-    let _commit4 = graph_builder.commit_with_parents(&[&commit3]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit3]);
     let commit5 = graph_builder.commit_with_parents(&[&commit2]);
 
     let mut rebaser = DescendantRebaser::new(
@@ -102,15 +115,10 @@ fn test_rebase_descendants_forward(use_git: bool) {
         commit2.id().clone(),
         vec![commit3.id().clone()],
     );
-    rebaser.rebase_all();
-    let rebased = rebaser.rebased();
-    assert_eq!(rebased.len(), 1);
-    let new_commit5 = repo
-        .store()
-        .get_commit(rebased.get(commit5.id()).unwrap())
-        .unwrap();
-    assert_eq!(new_commit5.change_id(), commit5.change_id());
-    assert_eq!(new_commit5.parent_ids(), vec![commit3.id().clone()]);
+    assert_in_place(rebaser.rebase_next(), &commit4);
+    assert_rebased(rebaser.rebase_next(), &commit5, &[commit3.id().clone()]);
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 1);
 
     tx.discard();
 }
@@ -140,15 +148,9 @@ fn test_rebase_descendants_backward(use_git: bool) {
         commit3.id().clone(),
         vec![commit2.id().clone()],
     );
-    rebaser.rebase_all();
-    let rebased = rebaser.rebased();
-    assert_eq!(rebased.len(), 1);
-    let new_commit4 = repo
-        .store()
-        .get_commit(rebased.get(commit4.id()).unwrap())
-        .unwrap();
-    assert_eq!(new_commit4.change_id(), commit4.change_id());
-    assert_eq!(new_commit4.parent_ids(), vec![commit2.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit4, &[commit2.id().clone()]);
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 1);
 
     tx.discard();
 }
@@ -184,30 +186,15 @@ fn test_rebase_descendants_internal_merge(use_git: bool) {
         commit2.id().clone(),
         vec![commit6.id().clone()],
     );
-    rebaser.rebase_all();
-    let rebased = rebaser.rebased();
-    assert_eq!(rebased.len(), 3);
-    let new_commit3 = repo
-        .store()
-        .get_commit(rebased.get(commit3.id()).unwrap())
-        .unwrap();
-    assert_eq!(new_commit3.change_id(), commit3.change_id());
-    assert_eq!(new_commit3.parent_ids(), vec![commit6.id().clone()]);
-    let new_commit4 = repo
-        .store()
-        .get_commit(rebased.get(commit4.id()).unwrap())
-        .unwrap();
-    assert_eq!(new_commit4.change_id(), commit4.change_id());
-    assert_eq!(new_commit4.parent_ids(), vec![commit6.id().clone()]);
-    let new_commit5 = repo
-        .store()
-        .get_commit(rebased.get(commit5.id()).unwrap())
-        .unwrap();
-    assert_eq!(new_commit5.change_id(), commit5.change_id());
-    assert_eq!(
-        new_commit5.parent_ids(),
-        vec![new_commit3.id().clone(), new_commit4.id().clone()]
+    let new_commit3 = assert_rebased(rebaser.rebase_next(), &commit3, &[commit6.id().clone()]);
+    let new_commit4 = assert_rebased(rebaser.rebase_next(), &commit4, &[commit6.id().clone()]);
+    assert_rebased(
+        rebaser.rebase_next(),
+        &commit5,
+        &[new_commit3.id().clone(), new_commit4.id().clone()],
     );
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 3);
 
     tx.discard();
 }
@@ -244,18 +231,13 @@ fn test_rebase_descendants_external_merge(use_git: bool) {
         commit3.id().clone(),
         vec![commit6.id().clone()],
     );
-    rebaser.rebase_all();
-    let rebased = rebaser.rebased();
-    assert_eq!(rebased.len(), 1);
-    let new_commit5 = repo
-        .store()
-        .get_commit(rebased.get(commit5.id()).unwrap())
-        .unwrap();
-    assert_eq!(new_commit5.change_id(), commit5.change_id());
-    assert_eq!(
-        new_commit5.parent_ids(),
-        vec![commit6.id().clone(), commit4.id().clone()]
+    assert_rebased(
+        rebaser.rebase_next(),
+        &commit5,
+        &[commit6.id().clone(), commit4.id().clone()],
     );
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 1);
 
     tx.discard();
 }
@@ -287,15 +269,9 @@ fn test_rebase_descendants_degenerate_merge(use_git: bool) {
         commit2.id().clone(),
         vec![commit1.id().clone()],
     );
-    rebaser.rebase_all();
-    let rebased = rebaser.rebased();
-    assert_eq!(rebased.len(), 1);
-    let new_commit4 = repo
-        .store()
-        .get_commit(rebased.get(commit4.id()).unwrap())
-        .unwrap();
-    assert_eq!(new_commit4.change_id(), commit4.change_id());
-    assert_eq!(new_commit4.parent_ids(), vec![commit3.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit4, &[commit3.id().clone()]);
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 1);
 
     tx.discard();
 }
@@ -331,22 +307,17 @@ fn test_rebase_descendants_widen_merge(use_git: bool) {
         commit5.id().clone(),
         vec![commit2.id().clone(), commit3.id().clone()],
     );
-    rebaser.rebase_all();
-    let rebased = rebaser.rebased();
-    assert_eq!(rebased.len(), 1);
-    let new_commit6 = repo
-        .store()
-        .get_commit(rebased.get(commit6.id()).unwrap())
-        .unwrap();
-    assert_eq!(new_commit6.change_id(), commit6.change_id());
-    assert_eq!(
-        new_commit6.parent_ids(),
-        vec![
+    assert_rebased(
+        rebaser.rebase_next(),
+        &commit6,
+        &[
             commit2.id().clone(),
             commit3.id().clone(),
-            commit4.id().clone()
-        ]
+            commit4.id().clone(),
+        ],
     );
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 1);
 
     tx.discard();
 }
