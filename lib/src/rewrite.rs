@@ -15,6 +15,7 @@
 use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
+use maplit::hashmap;
 
 use crate::backend::CommitId;
 use crate::commit::Commit;
@@ -105,10 +106,13 @@ pub fn back_out_commit(
 pub struct DescendantRebaser<'settings, 'repo> {
     settings: &'settings UserSettings,
     mut_repo: &'repo mut MutableRepo,
-    old_parent_id: CommitId,
-    new_parent_ids: Vec<CommitId>,
+    replacements: HashMap<CommitId, Vec<CommitId>>,
     // In reverse order, so we can remove the last one to rebase first.
     to_rebase: Vec<CommitId>,
+    // Ancestors of the destinations. These were also in `to_rebase` to start with, but we don't
+    // actually rebase them. Instead, we record them in `replacements` when we visit them. That
+    // way, their descendants will be rebased correctly.
+    ancestors: HashSet<CommitId>,
     rebased: HashMap<CommitId, CommitId>,
 }
 
@@ -119,26 +123,41 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         old_parent_id: CommitId,
         new_parent_ids: Vec<CommitId>,
     ) -> DescendantRebaser<'settings, 'repo> {
-        let expression = RevsetExpression::commit(old_parent_id.clone())
+        let replacements = hashmap! { old_parent_id => new_parent_ids};
+        let old_commits_expression =
+            RevsetExpression::commits(replacements.keys().cloned().collect());
+        let new_commits_expression =
+            RevsetExpression::commits(replacements.values().flatten().cloned().collect());
+
+        let to_rebase_expression = old_commits_expression
             .descendants(&RevsetExpression::all_non_obsolete_heads())
-            .minus(
-                &RevsetExpression::commit(old_parent_id.clone())
-                    .union(&RevsetExpression::commits(new_parent_ids.clone()))
-                    .ancestors(),
-            );
-        let revset = expression.evaluate(mut_repo.as_repo_ref()).unwrap();
+            .minus(&old_commits_expression);
+        let to_rebase_revset = to_rebase_expression
+            .evaluate(mut_repo.as_repo_ref())
+            .unwrap();
         let mut to_rebase = vec![];
-        for index_entry in revset.iter() {
+        for index_entry in to_rebase_revset.iter() {
             to_rebase.push(index_entry.commit_id());
         }
-        drop(revset);
+        drop(to_rebase_revset);
+
+        let ancestors_expression =
+            to_rebase_expression.intersection(&new_commits_expression.ancestors());
+        let ancestors_revset = ancestors_expression
+            .evaluate(mut_repo.as_repo_ref())
+            .unwrap();
+        let mut ancestors = HashSet::new();
+        for index_entry in ancestors_revset.iter() {
+            ancestors.insert(index_entry.commit_id());
+        }
+        drop(ancestors_revset);
 
         DescendantRebaser {
             settings,
             mut_repo,
-            old_parent_id,
-            new_parent_ids,
+            replacements,
             to_rebase,
+            ancestors,
             rebased: Default::default(),
         }
     }
@@ -156,15 +175,19 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             let mut new_parent_ids = vec![];
             let old_parent_ids = old_commit.parent_ids();
             for old_parent_id in &old_parent_ids {
-                if old_parent_id == &self.old_parent_id {
-                    new_parent_ids.extend(self.new_parent_ids.clone());
+                if let Some(replacements) = self.replacements.get(old_parent_id) {
+                    new_parent_ids.extend(replacements.clone());
                 } else if let Some(new_parent_id) = self.rebased.get(old_parent_id) {
                     new_parent_ids.push(new_parent_id.clone());
                 } else {
                     new_parent_ids.push(old_parent_id.clone());
                 };
             }
-            if new_parent_ids == old_parent_ids {
+            if self.ancestors.contains(&old_commit_id) {
+                // Update the `replacements` map so descendants are rebased correctly.
+                self.replacements.insert(old_commit_id, new_parent_ids);
+                RebasedDescendant::AncestorOfDestination(old_commit)
+            } else if new_parent_ids == old_parent_ids {
                 RebasedDescendant::AlreadyInPlace(old_commit)
             } else {
                 // Don't create commit where one parent is an ancestor of another.
@@ -202,6 +225,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RebasedDescendant {
     AlreadyInPlace(Commit),
+    AncestorOfDestination(Commit),
     Rebased {
         old_commit: Commit,
         new_commit: Commit,

@@ -29,6 +29,14 @@ fn assert_in_place(rebased: Option<RebasedDescendant>, expected_old_commit: &Com
     }
 }
 
+fn assert_ancestor(rebased: Option<RebasedDescendant>, expected_old_commit: &Commit) {
+    if let Some(RebasedDescendant::AncestorOfDestination(old_commit)) = rebased {
+        assert_eq!(old_commit, *expected_old_commit);
+    } else {
+        panic!("expected ancestor commit: {:?}", rebased);
+    }
+}
+
 fn assert_rebased(
     rebased: Option<RebasedDescendant>,
     expected_old_commit: &Commit,
@@ -42,7 +50,7 @@ fn assert_rebased(
         assert_eq!(old_commit, *expected_old_commit);
         assert_eq!(new_commit.change_id(), expected_old_commit.change_id());
         assert_eq!(&new_commit.parent_ids(), expected_new_parents);
-        return new_commit;
+        new_commit
     } else {
         panic!("expected rebased commit: {:?}", rebased);
     }
@@ -93,11 +101,15 @@ fn test_rebase_descendants_forward(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    // Commit 2 was replaced by commit 3. Commit 5 should be rebased (commit 4 is
-    // already in place).
+    // Commit 2 was replaced by commit 6. Commits 3 and 5 should be rebased onto 6.
+    // Commit 4 does not get rebased because it's an ancestor of the
+    // destination. Commit 7 does not get replaced because it's already in
+    // place.
     //
-    // 4
-    // 3 5
+    // 7
+    // 6 5
+    // |/
+    // 4 3
     // |/
     // 2
     // 1
@@ -106,19 +118,24 @@ fn test_rebase_descendants_forward(use_git: bool) {
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
     let commit3 = graph_builder.commit_with_parents(&[&commit2]);
-    let commit4 = graph_builder.commit_with_parents(&[&commit3]);
-    let commit5 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit4]);
+    let commit6 = graph_builder.commit_with_parents(&[&commit4]);
+    let commit7 = graph_builder.commit_with_parents(&[&commit6]);
 
     let mut rebaser = DescendantRebaser::new(
         &settings,
         tx.mut_repo(),
         commit2.id().clone(),
-        vec![commit3.id().clone()],
+        vec![commit6.id().clone()],
     );
-    assert_in_place(rebaser.rebase_next(), &commit4);
-    assert_rebased(rebaser.rebase_next(), &commit5, &[commit3.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit3, &[commit6.id().clone()]);
+    assert_ancestor(rebaser.rebase_next(), &commit4);
+    assert_rebased(rebaser.rebase_next(), &commit5, &[commit6.id().clone()]);
+    assert_ancestor(rebaser.rebase_next(), &commit6);
+    assert_in_place(rebaser.rebase_next(), &commit7);
     assert!(rebaser.rebase_next().is_none());
-    assert_eq!(rebaser.rebased().len(), 1);
+    assert_eq!(rebaser.rebased().len(), 2);
 
     tx.discard();
 }
