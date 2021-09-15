@@ -3286,8 +3286,8 @@ fn cmd_git_clone(
             .view()
             .get_remote_branch(&default_branch, "origin");
         if let Some(RefTarget::Normal(commit_id)) = default_branch_target {
-            if let Ok(fetch_head_commit) = repo.store().get_commit(&commit_id) {
-                tx.mut_repo().check_out(ui.settings(), &fetch_head_commit);
+            if let Ok(commit) = repo.store().get_commit(&commit_id) {
+                tx.mut_repo().check_out(ui.settings(), &commit);
             }
         }
     }
