@@ -3223,14 +3223,14 @@ fn cmd_git_fetch(
     _git_matches: &ArgMatches,
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let repo_command = command.repo_helper(ui)?;
+    let mut repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     let remote_name = cmd_matches.value_of("remote").unwrap();
     let mut tx = repo_command.start_transaction(&format!("fetch from git remote {}", remote_name));
     git::fetch(tx.mut_repo(), &git_repo, remote_name)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
-    tx.commit();
+    repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
@@ -3305,7 +3305,7 @@ fn cmd_git_push(
     _git_matches: &ArgMatches,
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let repo_command = command.repo_helper(ui)?;
+    let mut repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
     let remote_name = cmd_matches.value_of("remote").unwrap();
 
@@ -3402,7 +3402,7 @@ fn cmd_git_push(
     let mut tx = repo_command.start_transaction("import git refs");
     git::import_refs(tx.mut_repo(), &git_repo)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
-    tx.commit();
+    repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
@@ -3412,13 +3412,13 @@ fn cmd_git_refresh(
     _git_matches: &ArgMatches,
     _cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let repo_command = command.repo_helper(ui)?;
+    let mut repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     let mut tx = repo_command.start_transaction("import git refs");
     git::import_refs(tx.mut_repo(), &git_repo)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
-    tx.commit();
+    repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
