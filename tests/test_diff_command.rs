@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::PathBuf;
+
 use common::TestEnvironment;
 
 pub mod common;
@@ -45,6 +47,13 @@ fn test_diff_basic() {
     R file1
     M file2
     A file3
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--types"]);
+    insta::assert_snapshot!(stdout, @r###"
+    F- file1
+    FF file2
+    -F file3
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
@@ -102,10 +111,87 @@ fn test_diff_basic() {
 }
 
 #[test]
+fn test_diff_types() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let file_path = repo_path.join("foo");
+
+    // Missing
+    test_env.jj_cmd_success(&repo_path, &["new", "root", "-m=missing"]);
+
+    // Normal file
+    test_env.jj_cmd_success(&repo_path, &["new", "root", "-m=file"]);
+    std::fs::write(&file_path, "foo").unwrap();
+
+    // Conflict (add/add)
+    test_env.jj_cmd_success(&repo_path, &["new", "root", "-m=conflict"]);
+    std::fs::write(&file_path, "foo").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new", "root"]);
+    std::fs::write(&file_path, "bar").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["move", r#"--to=description("conflict")"#]);
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        // Executable
+        test_env.jj_cmd_success(&repo_path, &["new", "root", "-m=executable"]);
+        std::fs::write(&file_path, "foo").unwrap();
+        std::fs::set_permissions(&file_path, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        // Symlink
+        test_env.jj_cmd_success(&repo_path, &["new", "root", "-m=symlink"]);
+        std::os::unix::fs::symlink(PathBuf::from("."), &file_path).unwrap();
+    }
+
+    let diff = |from: &str, to: &str| {
+        test_env.jj_cmd_success(
+            &repo_path,
+            &[
+                "diff",
+                "--types",
+                &format!(r#"--from=description("{}")"#, from),
+                &format!(r#"--to=description("{}")"#, to),
+            ],
+        )
+    };
+    insta::assert_snapshot!(diff("missing", "file"), @r###"
+    -F foo
+    "###);
+    insta::assert_snapshot!(diff("file", "conflict"), @r###"
+    FC foo
+    "###);
+    insta::assert_snapshot!(diff("conflict", "missing"), @r###"
+    C- foo
+    "###);
+
+    #[cfg(unix)]
+    {
+        insta::assert_snapshot!(diff("symlink", "file"), @r###"
+        LF foo
+        "###);
+        insta::assert_snapshot!(diff("missing", "executable"), @r###"
+        -F foo
+        "###);
+    }
+}
+
+#[test]
 fn test_diff_bad_args() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["diff", "-s", "--types"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The argument '--summary' cannot be used with '--types'
+
+    Usage: jj diff --summary [PATHS]...
+
+    For more information try '--help'
+    "###);
 
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["diff", "--color-words", "--git"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -181,6 +267,22 @@ fn test_diff_relative_paths() {
     M subdir1\file3
     M ..\dir2\file4
     M ..\file1
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path.join("dir1"), &["diff", "--types"]);
+    #[cfg(unix)]
+    insta::assert_snapshot!(stdout, @r###"
+    FF file2
+    FF subdir1/file3
+    FF ../dir2/file4
+    FF ../file1
+    "###);
+    #[cfg(windows)]
+    insta::assert_snapshot!(stdout, @r###"
+    FF file2
+    FF subdir1\file3
+    FF ..\dir2\file4
+    FF ..\file1
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path.join("dir1"), &["diff", "--git"]);
