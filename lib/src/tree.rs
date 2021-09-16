@@ -492,7 +492,7 @@ pub fn merge_trees(
     base_tree: &Tree,
     side2_tree: &Tree,
 ) -> Result<TreeId, BackendError> {
-    let store = base_tree.store().as_ref();
+    let store = base_tree.store();
     let dir = base_tree.dir();
     assert_eq!(side1_tree.dir(), dir);
     assert_eq!(side2_tree.dir(), dir);
@@ -534,7 +534,7 @@ pub fn merge_trees(
 }
 
 fn merge_tree_value(
-    store: &Store,
+    store: &Arc<Store>,
     dir: &RepoPath,
     basename: &RepoPathComponent,
     maybe_base: Option<&TreeValue>,

@@ -50,7 +50,7 @@ impl IndexStore {
         IndexStore { dir }
     }
 
-    pub fn get_index_at_op(&self, op: &Operation, store: &Store) -> Arc<ReadonlyIndex> {
+    pub fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Arc<ReadonlyIndex> {
         let op_id_hex = op.id().hex();
         let op_id_file = self.dir.join("operations").join(&op_id_hex);
         if op_id_file.exists() {
@@ -89,7 +89,7 @@ impl IndexStore {
 
     fn index_at_operation(
         &self,
-        store: &Store,
+        store: &Arc<Store>,
         operation: &Operation,
     ) -> io::Result<Arc<ReadonlyIndex>> {
         let view = operation.view();
@@ -163,7 +163,7 @@ impl IndexStore {
 // Returns the ancestors of heads with parents and predecessors come before the
 // commit itself
 fn topo_order_earlier_first(
-    store: &Store,
+    store: &Arc<Store>,
     heads: Vec<CommitId>,
     parent_file: Option<Arc<ReadonlyIndex>>,
 ) -> Vec<Commit> {

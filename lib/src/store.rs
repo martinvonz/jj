@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock, Weak};
+use std::sync::{Arc, RwLock};
 
 use crate::backend;
 use crate::backend::{
@@ -34,7 +34,6 @@ use crate::tree_builder::TreeBuilder;
 /// adds the root commit and adds caching.
 #[derive(Debug)]
 pub struct Store {
-    weak_self: Option<Weak<Store>>,
     backend: Box<dyn Backend>,
     root_commit_id: CommitId,
     commit_cache: RwLock<HashMap<CommitId, Arc<backend::Commit>>>,
@@ -44,17 +43,12 @@ pub struct Store {
 impl Store {
     pub fn new(backend: Box<dyn Backend>) -> Arc<Self> {
         let root_commit_id = CommitId(vec![0; backend.hash_length()]);
-        let mut wrapper = Arc::new(Store {
-            weak_self: None,
+        Arc::new(Store {
             backend,
             root_commit_id,
             commit_cache: Default::default(),
             tree_cache: Default::default(),
-        });
-        let weak_self = Arc::downgrade(&wrapper);
-        let mut ref_mut = unsafe { Arc::get_mut_unchecked(&mut wrapper) };
-        ref_mut.weak_self = Some(weak_self);
-        wrapper
+        })
     }
 
     pub fn load_store(repo_path: &Path) -> Arc<Store> {
@@ -96,17 +90,13 @@ impl Store {
         &self.root_commit_id
     }
 
-    pub fn root_commit(&self) -> Commit {
+    pub fn root_commit(self: &Arc<Self>) -> Commit {
         self.get_commit(&self.root_commit_id).unwrap()
     }
 
-    pub fn get_commit(&self, id: &CommitId) -> BackendResult<Commit> {
+    pub fn get_commit(self: &Arc<Self>, id: &CommitId) -> BackendResult<Commit> {
         let data = self.get_backend_commit(id)?;
-        Ok(Commit::new(
-            self.weak_self.as_ref().unwrap().upgrade().unwrap(),
-            id.clone(),
-            data,
-        ))
+        Ok(Commit::new(self.clone(), id.clone(), data))
     }
 
     fn make_root_commit(&self) -> backend::Commit {
@@ -151,29 +141,20 @@ impl Store {
         Ok(data)
     }
 
-    pub fn write_commit(&self, commit: backend::Commit) -> Commit {
+    pub fn write_commit(self: &Arc<Self>, commit: backend::Commit) -> Commit {
         let commit_id = self.backend.write_commit(&commit).unwrap();
         let data = Arc::new(commit);
         {
             let mut write_locked_cache = self.commit_cache.write().unwrap();
             write_locked_cache.insert(commit_id.clone(), data.clone());
         }
-        let commit = Commit::new(
-            self.weak_self.as_ref().unwrap().upgrade().unwrap(),
-            commit_id,
-            data,
-        );
-        commit
+
+        Commit::new(self.clone(), commit_id, data)
     }
 
-    pub fn get_tree(&self, dir: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
+    pub fn get_tree(self: &Arc<Self>, dir: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
         let data = self.get_backend_tree(dir, id)?;
-        Ok(Tree::new(
-            self.weak_self.as_ref().unwrap().upgrade().unwrap(),
-            dir.clone(),
-            id.clone(),
-            data,
-        ))
+        Ok(Tree::new(self.clone(), dir.clone(), id.clone(), data))
     }
 
     fn get_backend_tree(&self, dir: &RepoPath, id: &TreeId) -> BackendResult<Arc<backend::Tree>> {
@@ -219,10 +200,7 @@ impl Store {
         self.backend.write_conflict(contents)
     }
 
-    pub fn tree_builder(&self, base_tree_id: TreeId) -> TreeBuilder {
-        TreeBuilder::new(
-            self.weak_self.as_ref().unwrap().upgrade().unwrap(),
-            base_tree_id,
-        )
+    pub fn tree_builder(self: &Arc<Self>, base_tree_id: TreeId) -> TreeBuilder {
+        TreeBuilder::new(self.clone(), base_tree_id)
     }
 }

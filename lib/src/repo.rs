@@ -324,7 +324,7 @@ impl ReadonlyRepo {
         if locked_index.is_none() {
             locked_index.replace(
                 self.index_store
-                    .get_index_at_op(&self.operation, self.store.as_ref()),
+                    .get_index_at_op(&self.operation, &self.store),
             );
         }
         let index: &Arc<ReadonlyIndex> = locked_index.as_ref().unwrap();
