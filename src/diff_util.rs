@@ -33,11 +33,21 @@ use crate::cli_util::{CommandError, WorkspaceCommandHelper};
 use crate::formatter::Formatter;
 
 #[derive(clap::Args, Clone, Debug)]
-#[command(group(clap::ArgGroup::new("diff-format").args(&["git", "color_words"])))]
+#[command(group(clap::ArgGroup::new("short-format").args(&["summary", "types"])))]
+#[command(group(clap::ArgGroup::new("long-format").args(&["git", "color_words"])))]
 pub struct DiffFormatArgs {
     /// For each path, show only whether it was modified, added, or removed
     #[arg(long, short)]
     pub summary: bool,
+    /// For each path, show only its type before and after
+    ///
+    /// The diff is shown as two letters. The first letter indicates the type
+    /// before and the second letter indicates the type after. '-' indicates
+    /// that the path was not present, 'F' represents a regular file, `L'
+    /// represents a symlink, 'C' represents a conflict, and 'G' represents a
+    /// Git submodule.
+    #[arg(long)]
+    pub types: bool,
     /// Show a Git-format diff
     #[arg(long)]
     pub git: bool,
@@ -49,6 +59,7 @@ pub struct DiffFormatArgs {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DiffFormat {
     Summary,
+    Types,
     Git,
     ColorWords,
 }
@@ -82,6 +93,7 @@ pub fn diff_formats_for_log(
 fn diff_formats_from_args(args: &DiffFormatArgs) -> Vec<DiffFormat> {
     [
         (args.summary, DiffFormat::Summary),
+        (args.types, DiffFormat::Types),
         (args.git, DiffFormat::Git),
         (args.color_words, DiffFormat::ColorWords),
     ]
@@ -99,6 +111,7 @@ fn default_diff_format(settings: &UserSettings) -> DiffFormat {
         .as_deref()
     {
         Ok("summary") => DiffFormat::Summary,
+        Ok("types") => DiffFormat::Types,
         Ok("git") => DiffFormat::Git,
         Ok("color-words") => DiffFormat::ColorWords,
         _ => DiffFormat::ColorWords,
@@ -118,6 +131,9 @@ pub fn show_diff(
         match format {
             DiffFormat::Summary => {
                 show_diff_summary(formatter, workspace_command, tree_diff)?;
+            }
+            DiffFormat::Types => {
+                show_types(formatter, workspace_command, tree_diff)?;
             }
             DiffFormat::Git => {
                 show_git_diff(formatter, workspace_command, tree_diff)?;
@@ -684,4 +700,35 @@ pub fn show_diff_summary(
         }
         Ok(())
     })
+}
+
+pub fn show_types(
+    formatter: &mut dyn Formatter,
+    workspace_command: &WorkspaceCommandHelper,
+    tree_diff: TreeDiffIterator,
+) -> io::Result<()> {
+    formatter.with_label("diff", |formatter| {
+        for (repo_path, diff) in tree_diff {
+            let (before, after) = diff.as_options();
+            writeln!(
+                formatter.labeled("modified"),
+                "{}{} {}",
+                diff_summary_char(before),
+                diff_summary_char(after),
+                workspace_command.format_file_path(&repo_path)
+            )?;
+        }
+        Ok(())
+    })
+}
+
+fn diff_summary_char(value: Option<&TreeValue>) -> char {
+    match value {
+        None => '-',
+        Some(TreeValue::File { .. }) => 'F',
+        Some(TreeValue::Symlink(_)) => 'L',
+        Some(TreeValue::GitSubmodule(_)) => 'G',
+        Some(TreeValue::Conflict(_)) => 'C',
+        Some(TreeValue::Tree(_)) => panic!("unexpected tree entry in diff"),
+    }
 }
