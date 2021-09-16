@@ -611,7 +611,14 @@ fn matcher_from_values(
         // formats)
         let mut paths = HashSet::new();
         for value in values {
-            paths.insert(ui.parse_file_path(wc_path, value)?);
+            let repo_path = ui.parse_file_path(wc_path, value)?;
+            // TODO: Remove this when we have support for directories
+            if repo_path.is_root() {
+                return Err(CommandError::UserError(
+                    "Directory patterns are not yet supported.".to_string(),
+                ));
+            }
+            paths.insert(repo_path);
         }
         Ok(Box::new(FilesMatcher::new(paths)))
     } else {
