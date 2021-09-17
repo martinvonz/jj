@@ -52,7 +52,10 @@ use jujutsu_lib::repo::{
 };
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
-use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
+use jujutsu_lib::rewrite::{
+    back_out_commit, merge_commit_trees, rebase_commit, update_branches_after_rewrite,
+    DescendantRebaser,
+};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
@@ -494,7 +497,7 @@ impl RepoCommandHelper {
             update_checkout_after_rewrite(ui, mut_repo)?;
         }
         if self.auto_update_branches {
-            update_branches_after_rewrite(ui, mut_repo)?;
+            update_branches_after_rewrite(mut_repo);
         }
         self.repo = tx.commit();
         update_working_copy(ui, &self.repo, &self.repo.working_copy_locked())
@@ -706,60 +709,6 @@ fn update_checkout_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) -> io:
     let new_checkout = new_checkout_candidates.iter().min().unwrap();
     let new_commit = mut_repo.store().get_commit(new_checkout).unwrap();
     mut_repo.check_out(ui.settings(), &new_commit);
-    Ok(())
-}
-
-fn update_branches_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) -> io::Result<()> {
-    // TODO: Perhaps this method should be in MutableRepo.
-    let new_evolution = mut_repo.evolution();
-    let base_repo = mut_repo.base_repo();
-    let old_evolution = base_repo.evolution();
-    let mut updates = HashMap::new();
-    for (branch_name, branch_target) in mut_repo.view().branches() {
-        match &branch_target.local_target {
-            None => {
-                // nothing to do (a deleted branch doesn't need updating)
-            }
-            Some(RefTarget::Normal(current_target)) => {
-                if new_evolution.is_obsolete(current_target)
-                    && !old_evolution.is_obsolete(current_target)
-                {
-                    let new_targets =
-                        new_evolution.new_parent(mut_repo.as_repo_ref(), current_target);
-                    if new_targets.len() == 1 {
-                        updates.insert(
-                            branch_name.clone(),
-                            RefTarget::Normal(new_targets.iter().next().unwrap().clone()),
-                        );
-                    } else {
-                        writeln!(
-                            ui,
-                            "Branch {}'s target was obsoleted, but the new target is unclear",
-                            branch_name
-                        )?;
-                    }
-                }
-            }
-            Some(RefTarget::Conflict { adds, .. }) => {
-                for current_target in adds {
-                    if new_evolution.is_obsolete(current_target)
-                        && !old_evolution.is_obsolete(current_target)
-                    {
-                        writeln!(
-                            ui,
-                            "Branch {}'s target was obsoleted, but not updating it since it's \
-                             conflicted",
-                            branch_name
-                        )?;
-                    }
-                }
-            }
-        }
-    }
-    for (branch_name, new_local_target) in updates {
-        mut_repo.set_local_branch(branch_name, new_local_target);
-    }
-
     Ok(())
 }
 

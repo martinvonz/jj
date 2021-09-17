@@ -19,11 +19,13 @@ use itertools::Itertools;
 use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
+use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, RepoRef};
 use crate::repo_path::RepoPath;
 use crate::revset::RevsetExpression;
 use crate::settings::UserSettings;
 use crate::tree::{merge_trees, Tree};
+use crate::view::RefName;
 
 pub fn merge_commit_trees(repo: RepoRef, commits: &[Commit]) -> Tree {
     let store = repo.store();
@@ -227,4 +229,56 @@ pub enum RebasedDescendant {
         old_commit: Commit,
         new_commit: Commit,
     },
+}
+
+pub fn update_branches_after_rewrite(mut_repo: &mut MutableRepo) {
+    let new_evolution = mut_repo.evolution();
+    let base_repo = mut_repo.base_repo();
+    let old_evolution = base_repo.evolution();
+    let mut updates = vec![];
+    let index = mut_repo.index().as_index_ref();
+
+    let ref_target_update = |old_id: CommitId| -> Option<(RefTarget, RefTarget)> {
+        if new_evolution.is_obsolete(&old_id) && !old_evolution.is_obsolete(&old_id) {
+            // The call to index.heads() is mostly to get a predictable order
+            let new_ids = index.heads(&new_evolution.new_parent(mut_repo.as_repo_ref(), &old_id));
+            let old_ids = std::iter::repeat(old_id).take(new_ids.len()).collect_vec();
+            Some((
+                RefTarget::Conflict {
+                    removes: vec![],
+                    adds: old_ids,
+                },
+                RefTarget::Conflict {
+                    removes: vec![],
+                    adds: new_ids,
+                },
+            ))
+        } else {
+            None
+        }
+    };
+
+    for (branch_name, branch_target) in mut_repo.view().branches() {
+        if let Some(old_target) = &branch_target.local_target {
+            for old_add in old_target.adds() {
+                if let Some((old_target, new_target)) = ref_target_update(old_add) {
+                    updates.push((branch_name.clone(), old_target, new_target));
+                }
+            }
+            for old_remove in old_target.removes() {
+                if let Some((old_target, new_target)) = ref_target_update(old_remove) {
+                    // Arguments reversed for removes
+                    updates.push((branch_name.clone(), new_target, old_target));
+                }
+            }
+        }
+    }
+
+    for (branch_name, old_target, new_target) in updates {
+        mut_repo.merge_single_ref(
+            &RefName::LocalBranch(branch_name),
+            Some(&old_target),
+            Some(&new_target),
+        );
+    }
 }

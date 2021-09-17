@@ -15,8 +15,9 @@
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::rewrite::{DescendantRebaser, RebasedDescendant};
+use jujutsu_lib::rewrite::{update_branches_after_rewrite, DescendantRebaser, RebasedDescendant};
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::CommitGraphBuilder;
 use maplit::hashmap;
@@ -539,3 +540,204 @@ fn test_rebase_descendants_contents(use_git: bool) {
 
     tx.discard();
 }
+
+#[test]
+fn test_update_branches_after_rewrite_basic() {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+
+    // Branch "main" points to branch B. B gets rewritten as B2. Branch main should
+    // be updated to point to B2.
+    //
+    // B main         B2 main
+    // |         =>   |
+    // A              A
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    tx.mut_repo()
+        .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
+    tx.mut_repo().set_remote_branch(
+        "main".to_string(),
+        "origin".to_string(),
+        RefTarget::Normal(commit_b.id().clone()),
+    );
+    tx.mut_repo()
+        .set_tag("v1".to_string(), RefTarget::Normal(commit_b.id().clone()));
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+        .write_to_repo(tx.mut_repo());
+    update_branches_after_rewrite(tx.mut_repo());
+    assert_eq!(
+        tx.mut_repo().get_local_branch("main"),
+        Some(RefTarget::Normal(commit_b2.id().clone()))
+    );
+    // The remote branch and tag should not get updated
+    assert_eq!(
+        tx.mut_repo().get_remote_branch("main", "origin"),
+        Some(RefTarget::Normal(commit_b.id().clone()))
+    );
+    assert_eq!(
+        tx.mut_repo().get_tag("v1"),
+        Some(RefTarget::Normal(commit_b.id().clone()))
+    );
+
+    tx.discard();
+}
+
+#[test]
+fn test_update_branches_after_rewrite_to_conflict() {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+
+    // Branch "main" points to commit B. B gets rewritten as B2, B3, B4. Branch main
+    // should become a conflict pointing to all of them.
+    //
+    //                B4 main?
+    //                | B3 main?
+    // B main         |/B2 main?
+    // |         =>   |/
+    // A              A
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    tx.mut_repo()
+        .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+        .write_to_repo(tx.mut_repo());
+    // Different description so they're not the same commit
+    let commit_b3 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+        .set_description("different".to_string())
+        .write_to_repo(tx.mut_repo());
+    // Different description so they're not the same commit
+    let commit_b4 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+        .set_description("more different".to_string())
+        .write_to_repo(tx.mut_repo());
+    update_branches_after_rewrite(tx.mut_repo());
+    assert_eq!(
+        tx.mut_repo().get_local_branch("main"),
+        Some(RefTarget::Conflict {
+            removes: vec![commit_b.id().clone(), commit_b.id().clone()],
+            adds: vec![
+                commit_b2.id().clone(),
+                commit_b3.id().clone(),
+                commit_b4.id().clone()
+            ]
+        })
+    );
+
+    tx.discard();
+}
+
+#[test]
+fn test_update_branches_after_rewrite_update_conflict() {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+
+    // Branch "main" is a conflict removing commit A and adding commit B and C.
+    // A gets rewritten as A2 and A3. B gets rewritten as B2 and B2. The branch
+    // should become a conflict removing A2, A3, and B, and adding A, B2, B3, C.
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.initial_commit();
+    let commit_c = graph_builder.initial_commit();
+    tx.mut_repo().set_local_branch(
+        "main".to_string(),
+        RefTarget::Conflict {
+            removes: vec![commit_a.id().clone()],
+            adds: vec![commit_b.id().clone(), commit_c.id().clone()],
+        },
+    );
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    let commit_a2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_a)
+        .write_to_repo(tx.mut_repo());
+    // Different description so they're not the same commit
+    let commit_a3 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_a)
+        .set_description("different".to_string())
+        .write_to_repo(tx.mut_repo());
+    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+        .write_to_repo(tx.mut_repo());
+    // Different description so they're not the same commit
+    let commit_b3 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+        .set_description("different".to_string())
+        .write_to_repo(tx.mut_repo());
+    update_branches_after_rewrite(tx.mut_repo());
+    assert_eq!(
+        tx.mut_repo().get_local_branch("main"),
+        Some(RefTarget::Conflict {
+            removes: vec![
+                commit_b.id().clone(),
+                commit_a2.id().clone(),
+                commit_a3.id().clone()
+            ],
+            adds: vec![
+                commit_c.id().clone(),
+                commit_b2.id().clone(),
+                commit_b3.id().clone(),
+                commit_a.id().clone()
+            ]
+        })
+    );
+
+    tx.discard();
+}
+
+#[test]
+fn test_update_branches_after_rewrite_resolves_conflict() {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+
+    // Branch "main" is a conflict removing ancestor commit A and adding commit B
+    // and C (maybe it moved forward to B locally and moved forward to C
+    // remotely). Now B gets rewritten as B2, which is a descendant of C (maybe
+    // B was automatically rebased on top of the updated remote). That
+    // would result in a conflict removing A and adding B2 and C. However, since C
+    // is a descendant of A, and B2 is a descendant of C, the conflict gets
+    // resolved to B2.
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
+    tx.mut_repo().set_local_branch(
+        "main".to_string(),
+        RefTarget::Conflict {
+            removes: vec![commit_a.id().clone()],
+            adds: vec![commit_b.id().clone(), commit_c.id().clone()],
+        },
+    );
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+        .set_parents(vec![commit_c.id().clone()])
+        .write_to_repo(tx.mut_repo());
+    update_branches_after_rewrite(tx.mut_repo());
+    assert_eq!(
+        tx.mut_repo().get_local_branch("main"),
+        Some(RefTarget::Normal(commit_b2.id().clone()))
+    );
+
+    tx.discard();
+}
+
+// TODO: Add a test for the following case, which can't happen with our current
+// evolution-based rewriting.
+//
+// 1. Operation 1 points a branch to commit A
+// 2. Operation 2 repoints the branch to commit B
+// 3. Operation 3, which is concurrent with operation 2, deletes the branch
+// 4. Resolved state (operation 4) will have a "-A+B" state for the branch
+//
+// Now we hide B and make A visible instead. When that diff is applied to the
+// branch, the branch state becomes empty and is thus deleted.
