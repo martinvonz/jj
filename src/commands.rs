@@ -383,35 +383,7 @@ impl RepoCommandHelper {
                 mut_repo.set_checkout(commit.id().clone());
 
                 // Update branches pointing to the old checkout
-                let mut branches_to_update = HashSet::new();
-                for (branch_name, branch_target) in mut_repo.view().branches() {
-                    match &branch_target.local_target {
-                        None => {
-                            // nothing to do (a deleted branch doesn't need
-                            // updating)
-                        }
-                        Some(RefTarget::Normal(current_target)) => {
-                            if current_target == old_checkout {
-                                branches_to_update.insert(branch_name.clone());
-                            }
-                        }
-                        Some(RefTarget::Conflict { adds, .. }) => {
-                            for current_target in adds {
-                                if current_target == old_checkout {
-                                    writeln!(
-                                        ui,
-                                        "Branch {}'s target was rewritten, but not updating it \
-                                         since it's conflicted",
-                                        branch_name
-                                    )?;
-                                }
-                            }
-                        }
-                    }
-                }
-                for branch_name in branches_to_update {
-                    mut_repo.set_local_branch(branch_name, RefTarget::Normal(commit.id().clone()));
-                }
+                update_branches_after_rewrite(mut_repo);
 
                 // Evolve descendants (though it currently evolves all commits)
                 let evolve_result = evolve_orphans(&self.settings, mut_repo)?;
