@@ -20,7 +20,7 @@ use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::rewrite::{update_branches_after_rewrite, DescendantRebaser, RebasedDescendant};
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::CommitGraphBuilder;
-use maplit::hashmap;
+use maplit::{hashmap, hashset};
 use test_case::test_case;
 
 fn assert_rebased(
@@ -70,8 +70,9 @@ fn test_rebase_descendants_sideways(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit2.id().clone() => vec![commit6.id().clone()]
+            commit2.id().clone() => commit6.id().clone()
         },
+        hashset! {},
     );
     let new_commit3 = assert_rebased(rebaser.rebase_next(), &commit3, &[commit6.id().clone()]);
     assert_rebased(rebaser.rebase_next(), &commit4, &[new_commit3.id().clone()]);
@@ -115,8 +116,9 @@ fn test_rebase_descendants_forward(use_git: bool) {
         tx.mut_repo(),
         hashmap! {
             commit2.id().clone() =>
-            vec![commit6.id().clone()]
+            commit6.id().clone()
         },
+        hashset! {},
     );
     assert_rebased(rebaser.rebase_next(), &commit3, &[commit6.id().clone()]);
     assert_rebased(rebaser.rebase_next(), &commit5, &[commit6.id().clone()]);
@@ -149,8 +151,9 @@ fn test_rebase_descendants_backward(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit3.id().clone() => vec![commit2.id().clone()]
+            commit3.id().clone() => commit2.id().clone()
         },
+        hashset! {},
     );
     assert_rebased(rebaser.rebase_next(), &commit4, &[commit2.id().clone()]);
     assert!(rebaser.rebase_next().is_none());
@@ -188,8 +191,9 @@ fn test_rebase_descendants_internal_merge(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit2.id().clone() => vec![commit6.id().clone()]
+            commit2.id().clone() => commit6.id().clone()
         },
+        hashset! {},
     );
     let new_commit3 = assert_rebased(rebaser.rebase_next(), &commit3, &[commit6.id().clone()]);
     let new_commit4 = assert_rebased(rebaser.rebase_next(), &commit4, &[commit6.id().clone()]);
@@ -234,8 +238,9 @@ fn test_rebase_descendants_external_merge(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit3.id().clone() => vec![commit6.id().clone()]
+            commit3.id().clone() => commit6.id().clone()
         },
+        hashset! {},
     );
     assert_rebased(
         rebaser.rebase_next(),
@@ -250,12 +255,86 @@ fn test_rebase_descendants_external_merge(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
-fn test_rebase_descendants_degenerate_merge(use_git: bool) {
+fn test_rebase_descendants_abandon(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    // Commit 2 was replaced by commit 1 (maybe it was abandoned). Commit 4 should
-    // get rebased to have only 3 as parent (not 1 and 3).
+    // Commit 2 and commit 5 were abandoned. Commit 3 and commit 4 should get
+    // rebased onto commit 1. Commit 6 should get rebased onto the new commit 4.
+    //
+    // 6
+    // 5
+    // 4 3
+    // |/
+    // 2
+    // 1
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit4]);
+    let commit6 = graph_builder.commit_with_parents(&[&commit5]);
+
+    let mut rebaser = DescendantRebaser::new(
+        &settings,
+        tx.mut_repo(),
+        hashmap! {},
+        hashset! {commit2.id().clone(), commit5.id().clone()},
+    );
+    assert_rebased(rebaser.rebase_next(), &commit3, &[commit1.id().clone()]);
+    let new_commit4 = assert_rebased(rebaser.rebase_next(), &commit4, &[commit1.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit6, &[new_commit4.id().clone()]);
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 3);
+
+    tx.discard();
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rebase_descendants_abandon_and_replace(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    // Commit 2 was replaced by commit 5. Commit 3 was abandoned. Commit 4 should
+    // get rebased onto commit 5.
+    //
+    //   4
+    //   3
+    // 5 2
+    // |/
+    // 1
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit3]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit1]);
+
+    let mut rebaser = DescendantRebaser::new(
+        &settings,
+        tx.mut_repo(),
+        hashmap! {commit2.id().clone() => commit5.id().clone()},
+        hashset! {commit3.id().clone()},
+    );
+    assert_rebased(rebaser.rebase_next(), &commit4, &[commit5.id().clone()]);
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 1);
+
+    tx.discard();
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rebase_descendants_abandon_degenerate_merge(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    // Commit 2 was abandoned. Commit 4 should get rebased to have only 3 as parent
+    // (not 1 and 3).
     //
     // 4
     // |\
@@ -272,9 +351,8 @@ fn test_rebase_descendants_degenerate_merge(use_git: bool) {
     let mut rebaser = DescendantRebaser::new(
         &settings,
         tx.mut_repo(),
-        hashmap! {
-            commit2.id().clone() => vec![commit1.id().clone()]
-        },
+        hashmap! {},
+        hashset! {commit2.id().clone()},
     );
     assert_rebased(rebaser.rebase_next(), &commit4, &[commit3.id().clone()]);
     assert!(rebaser.rebase_next().is_none());
@@ -285,12 +363,12 @@ fn test_rebase_descendants_degenerate_merge(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
-fn test_rebase_descendants_widen_merge(use_git: bool) {
+fn test_rebase_descendants_abandon_widen_merge(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    // Commit 5 was replaced by commits 2 and 3 (maybe 5 was abandoned). Commit 6
-    // should get rebased to have 2, 3, and 4 as parents (in that order).
+    // Commit 5 was abandoned. Commit 6 should get rebased to have 2, 3, and 4 as
+    // parents (in that order).
     //
     // 6
     // |\
@@ -311,9 +389,8 @@ fn test_rebase_descendants_widen_merge(use_git: bool) {
     let mut rebaser = DescendantRebaser::new(
         &settings,
         tx.mut_repo(),
-        hashmap! {
-            commit5.id().clone() => vec![commit2.id().clone(), commit3.id().clone()]
-        },
+        hashmap! {},
+        hashset! {commit5.id().clone()},
     );
     assert_rebased(
         rebaser.rebase_next(),
@@ -357,9 +434,10 @@ fn test_rebase_descendants_multiple_sideways(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit2.id().clone() => vec![commit6.id().clone()],
-            commit4.id().clone() => vec![commit6.id().clone()],
+            commit2.id().clone() => commit6.id().clone(),
+            commit4.id().clone() => commit6.id().clone(),
         },
+        hashset! {},
     );
     assert_rebased(rebaser.rebase_next(), &commit3, &[commit6.id().clone()]);
     assert_rebased(rebaser.rebase_next(), &commit5, &[commit6.id().clone()]);
@@ -394,9 +472,10 @@ fn test_rebase_descendants_multiple_swap(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit2.id().clone() => vec![commit4.id().clone()],
-            commit4.id().clone() => vec![commit2.id().clone()],
+            commit2.id().clone() => commit4.id().clone(),
+            commit4.id().clone() => commit2.id().clone(),
         },
+        hashset! {},
     );
     assert_rebased(rebaser.rebase_next(), &commit3, &[commit4.id().clone()]);
     assert_rebased(rebaser.rebase_next(), &commit5, &[commit2.id().clone()]);
@@ -441,9 +520,10 @@ fn test_rebase_descendants_multiple_forward_and_backward(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit2.id().clone() => vec![commit4.id().clone()],
-            commit6.id().clone() => vec![commit3.id().clone()],
+            commit2.id().clone() => commit4.id().clone(),
+            commit6.id().clone() => commit3.id().clone(),
         },
+        hashset! {},
     );
     assert_rebased(rebaser.rebase_next(), &commit7, &[commit3.id().clone()]);
     assert_rebased(rebaser.rebase_next(), &commit8, &[commit4.id().clone()]);
@@ -492,8 +572,9 @@ fn test_rebase_descendants_contents(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit2.id().clone() => vec![commit4.id().clone()]
+            commit2.id().clone() => commit4.id().clone()
         },
+        hashset! {},
     );
     rebaser.rebase_all();
     let rebased = rebaser.rebased();

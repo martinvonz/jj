@@ -107,13 +107,13 @@ pub fn back_out_commit(
 pub struct DescendantRebaser<'settings, 'repo> {
     settings: &'settings UserSettings,
     mut_repo: &'repo mut MutableRepo,
-    replacements: HashMap<CommitId, Vec<CommitId>>,
+    new_parents: HashMap<CommitId, Vec<CommitId>>,
     // In reverse order, so we can remove the last one to rebase first.
     to_visit: Vec<CommitId>,
-    // Ancestors of the destinations. These were also in `to_visit` to start with, but we don't
+    // Commits to visit but skip. These were also in `to_visit` to start with, but we don't
     // want to rebase them. Instead, we record them in `replacements` when we visit them. That way,
     // their descendants will be rebased correctly.
-    ancestors: HashSet<CommitId>,
+    to_skip: HashSet<CommitId>,
     rebased: HashMap<CommitId, CommitId>,
 }
 
@@ -121,16 +121,18 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     pub fn new(
         settings: &'settings UserSettings,
         mut_repo: &'repo mut MutableRepo,
-        replacements: HashMap<CommitId, Vec<CommitId>>,
+        replaced: HashMap<CommitId, CommitId>,
+        abandoned: HashSet<CommitId>,
     ) -> DescendantRebaser<'settings, 'repo> {
-        let old_commits_expression =
-            RevsetExpression::commits(replacements.keys().cloned().collect());
+        let old_commits_expression = RevsetExpression::commits(replaced.keys().cloned().collect())
+            .union(&RevsetExpression::commits(
+                abandoned.iter().cloned().collect(),
+            ));
         let new_commits_expression =
-            RevsetExpression::commits(replacements.values().flatten().cloned().collect());
+            RevsetExpression::commits(replaced.values().cloned().collect());
 
-        let to_visit_expression = old_commits_expression
-            .descendants(&RevsetExpression::all_non_obsolete_heads())
-            .minus(&old_commits_expression);
+        let to_visit_expression =
+            old_commits_expression.descendants(&RevsetExpression::all_non_obsolete_heads());
         let to_visit_revset = to_visit_expression
             .evaluate(mut_repo.as_repo_ref())
             .unwrap();
@@ -145,18 +147,23 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let ancestors_revset = ancestors_expression
             .evaluate(mut_repo.as_repo_ref())
             .unwrap();
-        let mut ancestors = HashSet::new();
+        let mut to_skip = abandoned;
         for index_entry in ancestors_revset.iter() {
-            ancestors.insert(index_entry.commit_id());
+            to_skip.insert(index_entry.commit_id());
         }
         drop(ancestors_revset);
+
+        let mut new_parents = HashMap::new();
+        for (old_commit, new_commit) in replaced {
+            new_parents.insert(old_commit, vec![new_commit]);
+        }
 
         DescendantRebaser {
             settings,
             mut_repo,
-            replacements,
+            new_parents,
             to_visit,
-            ancestors,
+            to_skip,
             rebased: Default::default(),
         }
     }
@@ -170,11 +177,14 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 
     pub fn rebase_next(&mut self) -> Option<RebasedDescendant> {
         while let Some(old_commit_id) = self.to_visit.pop() {
+            if self.new_parents.contains_key(&old_commit_id) {
+                continue;
+            }
             let old_commit = self.mut_repo.store().get_commit(&old_commit_id).unwrap();
             let mut new_parent_ids = vec![];
             let old_parent_ids = old_commit.parent_ids();
             for old_parent_id in &old_parent_ids {
-                if let Some(replacements) = self.replacements.get(old_parent_id) {
+                if let Some(replacements) = self.new_parents.get(old_parent_id) {
                     new_parent_ids.extend(replacements.clone());
                 } else if let Some(new_parent_id) = self.rebased.get(old_parent_id) {
                     new_parent_ids.push(new_parent_id.clone());
@@ -182,9 +192,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                     new_parent_ids.push(old_parent_id.clone());
                 };
             }
-            if self.ancestors.contains(&old_commit_id) {
+            if self.to_skip.contains(&old_commit_id) {
                 // Update the `replacements` map so descendants are rebased correctly.
-                self.replacements.insert(old_commit_id, new_parent_ids);
+                self.new_parents.insert(old_commit_id, new_parent_ids);
                 continue;
             } else if new_parent_ids == old_parent_ids {
                 // The commit is already in place.
