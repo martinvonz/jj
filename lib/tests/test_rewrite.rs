@@ -23,28 +23,12 @@ use jujutsu_lib::testutils::CommitGraphBuilder;
 use maplit::hashmap;
 use test_case::test_case;
 
-fn assert_in_place(rebased: Option<RebasedDescendant>, expected_old_commit: &Commit) {
-    if let Some(RebasedDescendant::AlreadyInPlace(old_commit)) = rebased {
-        assert_eq!(old_commit, *expected_old_commit);
-    } else {
-        panic!("expected in-place commit: {:?}", rebased);
-    }
-}
-
-fn assert_ancestor(rebased: Option<RebasedDescendant>, expected_old_commit: &Commit) {
-    if let Some(RebasedDescendant::AncestorOfDestination(old_commit)) = rebased {
-        assert_eq!(old_commit, *expected_old_commit);
-    } else {
-        panic!("expected ancestor commit: {:?}", rebased);
-    }
-}
-
 fn assert_rebased(
     rebased: Option<RebasedDescendant>,
     expected_old_commit: &Commit,
     expected_new_parents: &[CommitId],
 ) -> Commit {
-    if let Some(RebasedDescendant::Rebased {
+    if let Some(RebasedDescendant {
         old_commit,
         new_commit,
     }) = rebased
@@ -124,7 +108,7 @@ fn test_rebase_descendants_forward(use_git: bool) {
     let commit4 = graph_builder.commit_with_parents(&[&commit2]);
     let commit5 = graph_builder.commit_with_parents(&[&commit4]);
     let commit6 = graph_builder.commit_with_parents(&[&commit4]);
-    let commit7 = graph_builder.commit_with_parents(&[&commit6]);
+    let _commit7 = graph_builder.commit_with_parents(&[&commit6]);
 
     let mut rebaser = DescendantRebaser::new(
         &settings,
@@ -135,10 +119,7 @@ fn test_rebase_descendants_forward(use_git: bool) {
         },
     );
     assert_rebased(rebaser.rebase_next(), &commit3, &[commit6.id().clone()]);
-    assert_ancestor(rebaser.rebase_next(), &commit4);
     assert_rebased(rebaser.rebase_next(), &commit5, &[commit6.id().clone()]);
-    assert_ancestor(rebaser.rebase_next(), &commit6);
-    assert_in_place(rebaser.rebase_next(), &commit7);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 2);
 
@@ -464,9 +445,6 @@ fn test_rebase_descendants_multiple_forward_and_backward(use_git: bool) {
             commit6.id().clone() => vec![commit3.id().clone()],
         },
     );
-    assert_ancestor(rebaser.rebase_next(), &commit3);
-    assert_ancestor(rebaser.rebase_next(), &commit4);
-    assert_in_place(rebaser.rebase_next(), &commit5);
     assert_rebased(rebaser.rebase_next(), &commit7, &[commit3.id().clone()]);
     assert_rebased(rebaser.rebase_next(), &commit8, &[commit4.id().clone()]);
     assert!(rebaser.rebase_next().is_none());

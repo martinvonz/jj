@@ -109,10 +109,10 @@ pub struct DescendantRebaser<'settings, 'repo> {
     mut_repo: &'repo mut MutableRepo,
     replacements: HashMap<CommitId, Vec<CommitId>>,
     // In reverse order, so we can remove the last one to rebase first.
-    to_rebase: Vec<CommitId>,
-    // Ancestors of the destinations. These were also in `to_rebase` to start with, but we don't
-    // actually rebase them. Instead, we record them in `replacements` when we visit them. That
-    // way, their descendants will be rebased correctly.
+    to_visit: Vec<CommitId>,
+    // Ancestors of the destinations. These were also in `to_visit` to start with, but we don't
+    // want to rebase them. Instead, we record them in `replacements` when we visit them. That way,
+    // their descendants will be rebased correctly.
     ancestors: HashSet<CommitId>,
     rebased: HashMap<CommitId, CommitId>,
 }
@@ -128,20 +128,20 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let new_commits_expression =
             RevsetExpression::commits(replacements.values().flatten().cloned().collect());
 
-        let to_rebase_expression = old_commits_expression
+        let to_visit_expression = old_commits_expression
             .descendants(&RevsetExpression::all_non_obsolete_heads())
             .minus(&old_commits_expression);
-        let to_rebase_revset = to_rebase_expression
+        let to_visit_revset = to_visit_expression
             .evaluate(mut_repo.as_repo_ref())
             .unwrap();
-        let mut to_rebase = vec![];
-        for index_entry in to_rebase_revset.iter() {
-            to_rebase.push(index_entry.commit_id());
+        let mut to_visit = vec![];
+        for index_entry in to_visit_revset.iter() {
+            to_visit.push(index_entry.commit_id());
         }
-        drop(to_rebase_revset);
+        drop(to_visit_revset);
 
         let ancestors_expression =
-            to_rebase_expression.intersection(&new_commits_expression.ancestors());
+            to_visit_expression.intersection(&new_commits_expression.ancestors());
         let ancestors_revset = ancestors_expression
             .evaluate(mut_repo.as_repo_ref())
             .unwrap();
@@ -155,7 +155,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             settings,
             mut_repo,
             replacements,
-            to_rebase,
+            to_visit,
             ancestors,
             rebased: Default::default(),
         }
@@ -169,7 +169,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     }
 
     pub fn rebase_next(&mut self) -> Option<RebasedDescendant> {
-        self.to_rebase.pop().map(|old_commit_id| {
+        while let Some(old_commit_id) = self.to_visit.pop() {
             let old_commit = self.mut_repo.store().get_commit(&old_commit_id).unwrap();
             let mut new_parent_ids = vec![];
             let old_parent_ids = old_commit.parent_ids();
@@ -185,35 +185,36 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             if self.ancestors.contains(&old_commit_id) {
                 // Update the `replacements` map so descendants are rebased correctly.
                 self.replacements.insert(old_commit_id, new_parent_ids);
-                RebasedDescendant::AncestorOfDestination(old_commit)
+                continue;
             } else if new_parent_ids == old_parent_ids {
-                RebasedDescendant::AlreadyInPlace(old_commit)
-            } else {
-                // Don't create commit where one parent is an ancestor of another.
-                let head_set: HashSet<_> = self
-                    .mut_repo
-                    .index()
-                    .heads(&new_parent_ids)
-                    .iter()
-                    .cloned()
-                    .collect();
-                let new_parent_ids = new_parent_ids
-                    .into_iter()
-                    .filter(|new_parent| head_set.contains(new_parent))
-                    .collect_vec();
-                let new_parents = new_parent_ids
-                    .iter()
-                    .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id).unwrap())
-                    .collect_vec();
-                let new_commit =
-                    rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents);
-                self.rebased.insert(old_commit_id, new_commit.id().clone());
-                RebasedDescendant::Rebased {
-                    old_commit,
-                    new_commit,
-                }
+                // The commit is already in place.
+                continue;
             }
-        })
+
+            // Don't create commit where one parent is an ancestor of another.
+            let head_set: HashSet<_> = self
+                .mut_repo
+                .index()
+                .heads(&new_parent_ids)
+                .iter()
+                .cloned()
+                .collect();
+            let new_parent_ids = new_parent_ids
+                .into_iter()
+                .filter(|new_parent| head_set.contains(new_parent))
+                .collect_vec();
+            let new_parents = new_parent_ids
+                .iter()
+                .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id).unwrap())
+                .collect_vec();
+            let new_commit = rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents);
+            self.rebased.insert(old_commit_id, new_commit.id().clone());
+            return Some(RebasedDescendant {
+                old_commit,
+                new_commit,
+            });
+        }
+        None
     }
 
     pub fn rebase_all(&mut self) {
@@ -222,13 +223,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum RebasedDescendant {
-    AlreadyInPlace(Commit),
-    AncestorOfDestination(Commit),
-    Rebased {
-        old_commit: Commit,
-        new_commit: Commit,
-    },
+pub struct RebasedDescendant {
+    pub old_commit: Commit,
+    pub new_commit: Commit,
 }
 
 pub fn update_branches_after_rewrite(mut_repo: &mut MutableRepo) {
