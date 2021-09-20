@@ -2169,10 +2169,24 @@ fn cmd_abandon(
         )
     };
     let mut tx = repo_command.start_transaction(&transaction_description);
+    let abandoned = predecessors
+        .iter()
+        .map(|commit| commit.id().clone())
+        .collect();
     for predecessor in predecessors {
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
             .set_pruned(true)
             .write_to_repo(tx.mut_repo());
+    }
+    let mut rebaser = DescendantRebaser::new(ui.settings(), tx.mut_repo(), hashmap! {}, abandoned);
+    rebaser.rebase_all();
+    let num_rebased = rebaser.rebased().len();
+    if num_rebased > 0 && num_rebased != 0 {
+        writeln!(
+            ui,
+            "Rebased {} descendant commits onto parents of abandoned commits",
+            num_rebased
+        )?;
     }
     repo_command.finish_transaction(ui, tx)?;
     Ok(())
