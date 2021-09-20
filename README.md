@@ -81,7 +81,7 @@ supported.
 ## Getting started
 
 The best way to get started is probably to go through
-[the tuturial](docs/tutorial.md).
+[the tutorial](docs/tutorial.md).
 
 
 ## Future plans
