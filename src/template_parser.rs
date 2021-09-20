@@ -238,7 +238,7 @@ fn parse_commit_keyword<'a>(repo: RepoRef<'a>, pair: Pair<Rule>) -> (Property<'a
         "author" => Property::Signature(Box::new(AuthorProperty)),
         "committer" => Property::Signature(Box::new(CommitterProperty)),
         "open" => Property::Boolean(Box::new(OpenProperty)),
-        "pruned" => Property::Boolean(Box::new(PrunedProperty)),
+        "abandoned" => Property::Boolean(Box::new(PrunedProperty)),
         "current_checkout" => Property::Boolean(Box::new(CurrentCheckoutProperty { repo })),
         "branches" => Property::String(Box::new(BranchProperty { repo })),
         "tags" => Property::String(Box::new(TagProperty { repo })),

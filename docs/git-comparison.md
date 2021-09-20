@@ -90,7 +90,7 @@ commit), but that's left out of the table to keep it simple. For example,
     </tr>
     <tr>
       <td>Abandon the current change and start a new change</td>
-      <td><code>jj prune</code></td>
+      <td><code>jj abandon</code></td>
       <td><code>git reset --hard</code> (cannot be undone)</td>
     </tr>
     <tr>

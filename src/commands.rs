@@ -871,19 +871,18 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .default_value("@")
                 .help("The revision to duplicate"),
         );
-    // TODO: Maybe this should be renamed to `jj abandon`? Or `jj drop`?
-    let prune_command = SubCommand::with_name("prune")
+    let abandon_command = SubCommand::with_name("abandon")
         .about("Abandon a revision")
         .long_about(
             "Abandon a revision, rebasing descendants onto its parent(s). The behavior is similar \
-             to `jj restore`; the difference is that `jj prune` gives you a new change, while `jj \
-             restore` updates the existing change.",
+             to `jj restore`; the difference is that `jj abandon` gives you a new change, while \
+             `jj restore` updates the existing change.",
         )
         .arg(
             Arg::with_name("revision")
                 .index(1)
                 .default_value("@")
-                .help("The revision(s) to prune"),
+                .help("The revision(s) to abandon"),
         );
     let new_command = SubCommand::with_name("new")
         .about("Create a new, empty change")
@@ -891,7 +890,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
             "Create a new, empty change. This may be useful if you want to make some changes \
              you're unsure of on top of the working copy. If the changes turned out to useful, \
              you can `jj squash` them into the previous working copy. If they turned out to be \
-             unsuccessful, you can `jj prune` them and `jj co :@` the previous working copy.",
+             unsuccessful, you can `jj abandon` them and `jj co :@` the previous working copy.",
         )
         .arg(
             Arg::with_name("revision")
@@ -908,7 +907,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         .long_about(
             "Move changes from a revision into its parent. After moving the changes into the \
              parent, the child revision will have the same content state as before. If that means \
-             that the change is now empty compared to its parent, it will be pruned. Note that \
+             that the change is now empty compared to its parent, it will be abandon. Note that \
              this will always be the case without `--interactive`.",
         )
         .arg(rev_arg())
@@ -919,7 +918,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .help("Interactively squash part of the changes"),
         );
     // TODO: It doesn't make much sense to run this without -i. We should make that
-    // the default. We should also prune the parent commit if that becomes empty.
+    // the default. We should also abandon the parent commit if that becomes empty.
     let unsquash_command = SubCommand::with_name("unsquash")
         .about("Move changes from a revision's parent into the revision")
         .arg(rev_arg())
@@ -931,7 +930,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         );
     // TODO: This command is not very compatible with the current implementation of
     // evolution. Once we've removed support for evolution (as I hope to do),
-    // this command will become equivalent to prune (or perhaps it's the other
+    // this command will become equivalent to abandon (or perhaps it's the other
     // way around).
     let discard_command = SubCommand::with_name("discard")
         .about("Discard a revision and its descendants (avoid command for now)")
@@ -1344,7 +1343,7 @@ It is possible to mutating commands when loading the repo at an earlier operatio
         close_command,
         open_command,
         duplicate_command,
-        prune_command,
+        abandon_command,
         new_command,
         squash_command,
         unsquash_command,
@@ -1805,7 +1804,7 @@ fn log_template(settings: &UserSettings) -> String {
             "branches: " branches "\n"
             "tags: " tags "\n"
             "open: " open "\n"
-            "pruned: " pruned "\n"
+            "abandoned: " abandoned "\n"
             "obsolete: " obsolete "\n"
             "orphan: " orphan "\n"
             "divergent: " divergent "\n"
@@ -1829,7 +1828,7 @@ fn graph_log_template(settings: &UserSettings) -> String {
             " " label("timestamp", author.timestamp())
             " " branches
             " " tags
-            if(pruned, label("pruned", " pruned"))
+            if(abandoned, label("abandoned", " abandoned"))
             if(obsolete, label("obsolete", " obsolete"))
             if(orphan, label("orphan", " orphan"))
             if(divergent, label("divergent", " divergent"))
@@ -2147,7 +2146,7 @@ fn cmd_duplicate(
     Ok(())
 }
 
-fn cmd_prune(
+fn cmd_abandon(
     ui: &mut Ui,
     command: &CommandHelper,
     sub_matches: &ArgMatches,
@@ -2161,10 +2160,10 @@ fn cmd_prune(
     }
     let repo = repo_command.repo();
     let transaction_description = if predecessors.len() == 1 {
-        format!("prune commit {}", predecessors[0].id().hex())
+        format!("abandon commit {}", predecessors[0].id().hex())
     } else {
         format!(
-            "prune commit {} and {} more",
+            "abandon commit {} and {} more",
             predecessors[0].id().hex(),
             predecessors.len() - 1
         )
@@ -2248,9 +2247,9 @@ from the source will be moved into the parent.
     } else {
         new_parent_tree_id = commit.tree().id().clone();
     }
-    // Prune the child if the parent now has all the content from the child (always
-    // the case in the non-interactive case).
-    let prune_child = &new_parent_tree_id == commit.tree().id();
+    // Abandon the child if the parent now has all the content from the child
+    // (always the case in the non-interactive case).
+    let abandon_child = &new_parent_tree_id == commit.tree().id();
     let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), parent)
         .set_tree(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
@@ -2258,7 +2257,7 @@ from the source will be moved into the parent.
     // Commit the remainder on top of the new parent commit.
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_parents(vec![new_parent.id().clone()])
-        .set_pruned(prune_child)
+        .set_pruned(abandon_child)
         .write_to_repo(mut_repo);
     repo_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -2309,13 +2308,13 @@ aborted.
     } else {
         new_parent_tree_id = parent_base_tree.id().clone();
     }
-    // Prune the parent if it is now empty (always the case in the non-interactive
+    // Abandon the parent if it is now empty (always the case in the non-interactive
     // case).
-    let prune_parent = &new_parent_tree_id == parent_base_tree.id();
+    let abandon_parent = &new_parent_tree_id == parent_base_tree.id();
     let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), parent)
         .set_tree(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
-        .set_pruned(prune_parent)
+        .set_pruned(abandon_parent)
         .write_to_repo(mut_repo);
     // Commit the new child on top of the new parent.
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
@@ -2885,7 +2884,11 @@ fn cmd_debug(
         writeln!(ui, "Number of merges: {}", stats.num_merges)?;
         writeln!(ui, "Max generation number: {}", stats.max_generation_number)?;
         writeln!(ui, "Number of heads: {}", stats.num_heads)?;
-        writeln!(ui, "Number of pruned commits: {}", stats.num_pruned_commits)?;
+        writeln!(
+            ui,
+            "Number of abandoned commits: {}",
+            stats.num_pruned_commits
+        )?;
         writeln!(ui, "Number of changes: {}", stats.num_changes)?;
         writeln!(ui, "Stats per level:")?;
         for (i, level) in stats.levels.iter().enumerate() {
@@ -3653,8 +3656,8 @@ where
         cmd_open(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("duplicate") {
         cmd_duplicate(&mut ui, &command_helper, sub_matches)
-    } else if let Some(sub_matches) = matches.subcommand_matches("prune") {
-        cmd_prune(&mut ui, &command_helper, sub_matches)
+    } else if let Some(sub_matches) = matches.subcommand_matches("abandon") {
+        cmd_abandon(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("new") {
         cmd_new(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("squash") {

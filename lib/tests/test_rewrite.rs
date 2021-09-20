@@ -273,8 +273,8 @@ fn test_rebase_descendants_degenerate_merge(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    // Commit 2 was replaced by commit 1 (maybe it was pruned). Commit 4 should get
-    // rebased to have only 3 as parent (not 1 and 3).
+    // Commit 2 was replaced by commit 1 (maybe it was abandoned). Commit 4 should
+    // get rebased to have only 3 as parent (not 1 and 3).
     //
     // 4
     // |\
@@ -308,7 +308,7 @@ fn test_rebase_descendants_widen_merge(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    // Commit 5 was replaced by commits 2 and 3 (maybe 5 was pruned). Commit 6
+    // Commit 5 was replaced by commits 2 and 3 (maybe 5 was abandoned). Commit 6
     // should get rebased to have 2, 3, and 4 as parents (in that order).
     //
     // 6

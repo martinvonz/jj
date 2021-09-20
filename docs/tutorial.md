@@ -307,9 +307,9 @@ o 661432c51c08 cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00
 Note that commit C automatically got rebased on top of the resolved B2, and that
 C is also resolved (since it modified only a different file).
 
-By the way, if we want to get rid of B1 now, we can run `jj prune 47e336632333`.
-That will hide the commit from the log output and will rebase any descendants to
-its parent.
+By the way, if we want to get rid of B1 now, we can run `jj abandon
+47e336632333`. That will hide the commit from the log output and will rebase any
+descendants to its parent.
 
 ## The operation log
 

@@ -610,8 +610,9 @@ impl MutableRepo {
         if current_checkout.is_empty()
             && !(current_checkout.is_pruned() || self.evolution().is_obsolete(&current_checkout_id))
         {
-            // Prune the checkout we're leaving if it's empty.
-            // TODO: Also prune it if the only changes are conflicts that got materialized.
+            // Abandon the checkout we're leaving if it's empty.
+            // TODO: Also abandon it if the only changes are conflicts that got
+            // materialized.
             CommitBuilder::for_rewrite_from(settings, self.store(), &current_checkout)
                 .set_pruned(true)
                 .write_to_repo(self);
