@@ -148,7 +148,14 @@ pub fn fetch(
     fetch_options.remote_callbacks(callbacks);
     fetch_options.prune(FetchPrune::On);
     let refspec: &[&str] = &[];
-    remote.fetch(refspec, Some(&mut fetch_options), None)?;
+    remote.download(refspec, Some(&mut fetch_options))?;
+    // The FetchOptions above ate our RemoteCallbacks so it seems we need to create
+    // a new instance.
+    let mut callbacks = git2::RemoteCallbacks::new();
+    callbacks.credentials(|_url, username_from_url, _allowed_types| {
+        git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
+    });
+    remote.update_tips(Some(&mut callbacks), false, git2::AutotagOption::All, None)?;
     // TODO: We could make it optional to get the default branch since we only care
     // about it on clone.
     let mut default_branch = None;
@@ -161,6 +168,7 @@ pub fn fetch(
             }
         }
     }
+    remote.disconnect()?;
     import_refs(mut_repo, git_repo).map_err(|err| match err {
         GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
     })?;
