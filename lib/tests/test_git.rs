@@ -288,20 +288,54 @@ fn test_fetch_success() {
     let clone_git_repo =
         git2::Repository::clone(source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    ReadonlyRepo::init_external_git(&settings, jj_repo_dir.clone(), clone_repo_dir).unwrap();
+    let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, clone_repo_dir).unwrap();
 
     let new_git_commit =
         empty_git_commit(&source_git_repo, "refs/heads/main", &[&initial_git_commit]);
 
-    // The new commit is not visible before git::fetch().
-    let jj_repo = ReadonlyRepo::load(&settings, jj_repo_dir).unwrap();
-    assert!(!jj_repo.view().heads().contains(&commit_id(&new_git_commit)));
+    // The new commit is not visible before git::fetch() even if we reload the repo.
+    assert!(!jj_repo
+        .reload()
+        .view()
+        .heads()
+        .contains(&commit_id(&new_git_commit)));
 
-    // The new commit is visible after git::fetch().
     let mut tx = jj_repo.start_transaction("test");
-    git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
+    let default_branch = git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
+    // The default branch is "main"
+    assert_eq!(default_branch, Some("main".to_string()));
     let repo = tx.commit();
+    // The new commit is visible after git::fetch().
     assert!(repo.view().heads().contains(&commit_id(&new_git_commit)));
+}
+
+#[test]
+fn test_fetch_no_default_branch() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let source_repo_dir = temp_dir.path().join("source");
+    let clone_repo_dir = temp_dir.path().join("clone");
+    let jj_repo_dir = temp_dir.path().join("jj");
+    let source_git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
+    let initial_git_commit = empty_git_commit(&source_git_repo, "refs/heads/main", &[]);
+    let clone_git_repo =
+        git2::Repository::clone(source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
+    std::fs::create_dir(&jj_repo_dir).unwrap();
+    let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, clone_repo_dir).unwrap();
+
+    empty_git_commit(&source_git_repo, "refs/heads/main", &[&initial_git_commit]);
+    // It's actually not enough to have a detached HEAD, it also needs to point to a
+    // commit without a commit (that's possibly a bug in Git *and* libgit2), so
+    // we point it to initial_git_commit.
+    source_git_repo
+        .set_head_detached(initial_git_commit.id())
+        .unwrap();
+
+    let mut tx = jj_repo.start_transaction("test");
+    let default_branch = git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
+    // There is no default branch
+    assert_eq!(default_branch, None);
+    tx.discard();
 }
 
 #[test]
