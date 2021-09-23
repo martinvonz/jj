@@ -29,7 +29,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use std::{fs, io};
 
-use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
+use clap::{crate_version, App, Arg, ArgMatches};
 use criterion::Criterion;
 use git2::{Oid, Repository};
 use itertools::Itertools;
@@ -157,13 +157,13 @@ impl From<FilePathParseError> for CommandError {
     }
 }
 
-struct CommandHelper<'args> {
+struct CommandHelper {
     string_args: Vec<String>,
-    root_args: ArgMatches<'args>,
+    root_args: ArgMatches,
 }
 
-impl<'args> CommandHelper<'args> {
-    fn new(string_args: Vec<String>, root_args: ArgMatches<'args>) -> Self {
+impl CommandHelper {
+    fn new(string_args: Vec<String>, root_args: ArgMatches) -> Self {
         Self {
             string_args,
             root_args,
@@ -558,30 +558,30 @@ impl WorkspaceCommandHelper {
     }
 }
 
-fn rev_arg<'a, 'b>() -> Arg<'a, 'b> {
-    Arg::with_name("revision")
+fn rev_arg<'help>() -> Arg<'help> {
+    Arg::new("revision")
         .long("revision")
-        .short("r")
+        .short('r')
         .takes_value(true)
         .default_value("@")
 }
 
-fn paths_arg<'a, 'b>() -> Arg<'a, 'b> {
-    Arg::with_name("paths").index(1).multiple(true)
+fn paths_arg<'help>() -> Arg<'help> {
+    Arg::new("paths").index(1).multiple_occurrences(true)
 }
 
-fn message_arg<'a, 'b>() -> Arg<'a, 'b> {
-    Arg::with_name("message")
+fn message_arg<'help>() -> Arg<'help> {
+    Arg::new("message")
         .long("message")
-        .short("m")
+        .short('m')
         .takes_value(true)
 }
 
-fn op_arg<'a, 'b>() -> Arg<'a, 'b> {
-    Arg::with_name("operation")
+fn op_arg<'help>() -> Arg<'help> {
+    Arg::new("operation")
         .long("operation")
         .alias("op")
-        .short("o")
+        .short('o')
         .takes_value(true)
         .default_value("@")
 }
@@ -717,31 +717,31 @@ fn rebase_descendants(settings: &UserSettings, mut_repo: &mut MutableRepo) -> i3
     num_rebased
 }
 
-fn get_app<'a, 'b>() -> App<'a, 'b> {
-    let init_command = SubCommand::with_name("init")
+fn get_app<'help>() -> App<'help> {
+    let init_command = App::new("init")
         .about("Create a new repo in the given directory")
         .long_about(
             "Create a new repo in the given directory. If the given directory does not exist, it \
              will be created. If no directory is given, the current directory is used.",
         )
         .arg(
-            Arg::with_name("destination")
+            Arg::new("destination")
                 .index(1)
                 .default_value(".")
                 .help("The destination directory"),
         )
         .arg(
-            Arg::with_name("git")
+            Arg::new("git")
                 .long("git")
                 .help("Use the Git backend, creating a jj repo backed by a Git repo"),
         )
         .arg(
-            Arg::with_name("git-store")
+            Arg::new("git-store")
                 .long("git-store")
                 .takes_value(true)
                 .help("Path to a .git/ directory the jj repo will be backed by"),
         );
-    let checkout_command = SubCommand::with_name("checkout")
+    let checkout_command = App::new("checkout")
         .alias("co")
         .about("Update the working copy to another revision")
         .long_about(
@@ -751,18 +751,18 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
              https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.",
         )
         .arg(
-            Arg::with_name("revision")
+            Arg::new("revision")
                 .index(1)
                 .required(true)
                 .help("The revision to update to"),
         );
-    let untrack_command = SubCommand::with_name("untrack")
+    let untrack_command = App::new("untrack")
         .about("Stop tracking specified paths in the working copy")
         .arg(paths_arg());
-    let files_command = SubCommand::with_name("files")
+    let files_command = App::new("files")
         .about("List files in a revision")
         .arg(rev_arg().help("The revision to list files in"));
-    let diff_command = SubCommand::with_name("diff")
+    let diff_command = App::new("diff")
         .about("Show changes in a revision")
         .long_about(
             "Show changes in a revision.
@@ -777,73 +777,73 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
              checkout.",
         )
         .arg(
-            Arg::with_name("summary")
+            Arg::new("summary")
                 .long("summary")
-                .short("s")
+                .short('s')
                 .help("For each path, show only whether it was modified, added, or removed"),
         )
         .arg(
-            Arg::with_name("git")
+            Arg::new("git")
                 .long("git")
                 .conflicts_with("summary")
                 .help("Show a Git-format diff"),
         )
         .arg(
-            Arg::with_name("color-words")
+            Arg::new("color-words")
                 .long("color-words")
                 .conflicts_with("summary")
                 .conflicts_with("git")
                 .help("Show a word-level diff with changes indicated only by color"),
         )
         .arg(
-            Arg::with_name("revision")
+            Arg::new("revision")
                 .long("revision")
-                .short("r")
+                .short('r')
                 .takes_value(true)
                 .help("Show changes changes in this revision, compared to its parent(s)"),
         )
         .arg(
-            Arg::with_name("from")
+            Arg::new("from")
                 .long("from")
                 .takes_value(true)
                 .help("Show changes from this revision"),
         )
         .arg(
-            Arg::with_name("to")
+            Arg::new("to")
                 .long("to")
                 .takes_value(true)
                 .help("Show changes to this revision"),
         )
         .arg(paths_arg());
-    let show_command = SubCommand::with_name("show")
+    let show_command = App::new("show")
         .about("Show commit description and changes in a revision")
         .long_about("Show commit description and changes in a revision")
         .arg(
-            Arg::with_name("summary")
+            Arg::new("summary")
                 .long("summary")
-                .short("s")
+                .short('s')
                 .help("For each path, show only whether it was modified, added, or removed"),
         )
         .arg(
-            Arg::with_name("git")
+            Arg::new("git")
                 .long("git")
                 .conflicts_with("summary")
                 .help("Show a Git-format diff"),
         )
         .arg(
-            Arg::with_name("color-words")
+            Arg::new("color-words")
                 .long("color-words")
                 .conflicts_with("summary")
                 .conflicts_with("git")
                 .help("Show a word-level diff with changes indicated only by color"),
         )
         .arg(
-            Arg::with_name("revision")
+            Arg::new("revision")
                 .index(1)
                 .default_value("@")
                 .help("Show changes changes in this revision, compared to its parent(s)"),
         );
-    let status_command = SubCommand::with_name("status")
+    let status_command = App::new("status")
         .alias("st")
         .about("Show high-level repo status")
         .long_about(
@@ -855,12 +855,12 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
  * Conflicted branches (see https://github.com/martinvonz/jj/blob/main/docs/branches.md)\
              ",
         );
-    let log_command = SubCommand::with_name("log")
+    let log_command = App::new("log")
         .about("Show commit history")
         .arg(
-            Arg::with_name("template")
+            Arg::new("template")
                 .long("template")
-                .short("T")
+                .short('T')
                 .takes_value(true)
                 .help(
                     "Render each revision using the given template (the syntax is not yet \
@@ -868,26 +868,26 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 ),
         )
         .arg(
-            Arg::with_name("revisions")
+            Arg::new("revisions")
                 .long("revisions")
-                .short("r")
+                .short('r')
                 .takes_value(true)
                 .default_value(":heads()")
                 .help("Which revisions to show"),
         )
         .arg(
-            Arg::with_name("no-graph")
+            Arg::new("no-graph")
                 .long("no-graph")
                 .help("Don't show the graph, show a flat list of revisions"),
         );
-    let obslog_command = SubCommand::with_name("obslog")
+    let obslog_command = App::new("obslog")
         .about("Show how a change has evolved")
         .long_about("Show how a change has evolved as it's been updated, rebased, etc.")
         .arg(rev_arg())
         .arg(
-            Arg::with_name("template")
+            Arg::new("template")
                 .long("template")
-                .short("T")
+                .short('T')
                 .takes_value(true)
                 .help(
                     "Render each revision using the given template (the syntax is not yet \
@@ -895,11 +895,11 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 ),
         )
         .arg(
-            Arg::with_name("no-graph")
+            Arg::new("no-graph")
                 .long("no-graph")
                 .help("Don't show the graph, show a flat list of revisions"),
         );
-    let describe_command = SubCommand::with_name("describe")
+    let describe_command = App::new("describe")
         .about("Edit the change description")
         .about("Edit the description of a change")
         .long_about(
@@ -907,18 +907,18 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
              $EDITOR, or `pico` if that's not defined.",
         )
         .arg(
-            Arg::with_name("revision")
+            Arg::new("revision")
                 .index(1)
                 .default_value("@")
                 .help("The revision whose description to edit"),
         )
         .arg(message_arg().help("The change description to use (don't open editor)"))
         .arg(
-            Arg::with_name("stdin")
+            Arg::new("stdin")
                 .long("stdin")
                 .help("Read the change description from stdin"),
         );
-    let close_command = SubCommand::with_name("close")
+    let close_command = App::new("close")
         .alias("commit")
         .about("Mark a revision closed")
         .long_about(
@@ -926,19 +926,19 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
             https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.",
         )
         .arg(
-            Arg::with_name("revision")
+            Arg::new("revision")
                 .index(1)
                 .default_value("@")
                 .help("The revision to close"),
         )
         .arg(
-            Arg::with_name("edit")
+            Arg::new("edit")
                 .long("edit")
-                .short("e")
+                .short('e')
                 .help("Also edit the description"),
         )
         .arg(message_arg().help("The change description to use (don't open editor)"));
-    let open_command = SubCommand::with_name("open")
+    let open_command = App::new("open")
         .about("Mark a revision open")
         .alias("uncommit")
         .long_about(
@@ -946,20 +946,20 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
             https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.",
         )
         .arg(
-            Arg::with_name("revision")
+            Arg::new("revision")
                 .index(1)
                 .required(true)
                 .help("The revision to open"),
         );
-    let duplicate_command = SubCommand::with_name("duplicate")
+    let duplicate_command = App::new("duplicate")
         .about("Create a new change with the same content as an existing one")
         .arg(
-            Arg::with_name("revision")
+            Arg::new("revision")
                 .index(1)
                 .default_value("@")
                 .help("The revision to duplicate"),
         );
-    let abandon_command = SubCommand::with_name("abandon")
+    let abandon_command = App::new("abandon")
         .about("Abandon a revision")
         .long_about(
             "Abandon a revision, rebasing descendants onto its parent(s). The behavior is similar \
@@ -967,12 +967,12 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
              `jj restore` updates the existing change.",
         )
         .arg(
-            Arg::with_name("revision")
+            Arg::new("revision")
                 .index(1)
                 .default_value("@")
                 .help("The revision(s) to abandon"),
         );
-    let new_command = SubCommand::with_name("new")
+    let new_command = App::new("new")
         .about("Create a new, empty change")
         .long_about(
             "Create a new, empty change. This may be useful if you want to make some changes \
@@ -981,7 +981,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
              unsuccessful, you can `jj abandon` them and `jj co @-` the previous working copy.",
         )
         .arg(
-            Arg::with_name("revision")
+            Arg::new("revision")
                 .index(1)
                 .default_value("@")
                 .help("Parent of the new change")
@@ -990,7 +990,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                      change will be checked out.",
                 ),
         );
-    let squash_command = SubCommand::with_name("squash")
+    let squash_command = App::new("squash")
         .alias("amend")
         .about("Move changes from a revision into its parent")
         .long_about(
@@ -1001,24 +1001,24 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         )
         .arg(rev_arg())
         .arg(
-            Arg::with_name("interactive")
+            Arg::new("interactive")
                 .long("interactive")
-                .short("i")
+                .short('i')
                 .help("Interactively squash part of the changes"),
         );
     // TODO: It doesn't make much sense to run this without -i. We should make that
     // the default. We should also abandon the parent commit if that becomes empty.
-    let unsquash_command = SubCommand::with_name("unsquash")
+    let unsquash_command = App::new("unsquash")
         .alias("unamend")
         .about("Move changes from a revision's parent into the revision")
         .arg(rev_arg())
         .arg(
-            Arg::with_name("interactive")
+            Arg::new("interactive")
                 .long("interactive")
-                .short("i")
+                .short('i')
                 .help("Interactively unsquash part of the changes"),
         );
-    let restore_command = SubCommand::with_name("restore")
+    let restore_command = App::new("restore")
         .about("Restore paths from another revision")
         .long_about(
             "Restore paths from another revision. That means that the paths get the same content \
@@ -1033,27 +1033,27 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
              `jj restore <path>; jj squash`.",
         )
         .arg(
-            Arg::with_name("from")
+            Arg::new("from")
                 .long("from")
                 .takes_value(true)
                 .default_value("@-")
                 .help("Revision to restore from (source)"),
         )
         .arg(
-            Arg::with_name("to")
+            Arg::new("to")
                 .long("to")
                 .takes_value(true)
                 .default_value("@")
                 .help("Revision to restore into (destination)"),
         )
         .arg(
-            Arg::with_name("interactive")
+            Arg::new("interactive")
                 .long("interactive")
-                .short("i")
+                .short('i')
                 .help("Interactively restore part of the changes"),
         )
         .arg(paths_arg());
-    let edit_command = SubCommand::with_name("edit")
+    let edit_command = App::new("edit")
         .about("Edit the content changes in a revision")
         .long_about(
             "Lets you interactively edit the content changes in a revision.
@@ -1065,7 +1065,7 @@ Starts a diff editor (`meld` by default) on the changes in the revision. Edit th
              changes into or out of the parent revision.",
         )
         .arg(rev_arg().help("The revision to edit"));
-    let split_command = SubCommand::with_name("split")
+    let split_command = App::new("split")
         .about("Split a revision in two")
         .long_about(
             "Lets you interactively split a revision in two.
@@ -1077,7 +1077,7 @@ Starts a diff editor (`meld` by default) on the changes in the revision. Edit th
              description for each.",
         )
         .arg(rev_arg().help("The revision to split"));
-    let merge_command = SubCommand::with_name("merge")
+    let merge_command = App::new("merge")
         .about("Merge work from multiple branches")
         .long_about(
             "Merge work from multiple branches.
@@ -1088,13 +1088,13 @@ Unlike most other VCSs, `jj merge` does not implicitly include the working copy 
              resulting revision if you want to.",
         )
         .arg(
-            Arg::with_name("revisions")
+            Arg::new("revisions")
                 .index(1)
                 .required(true)
-                .multiple(true),
+                .multiple_occurrences(true),
         )
         .arg(message_arg().help("The change description to use (don't open editor)"));
-    let rebase_command = SubCommand::with_name("rebase")
+    let rebase_command = App::new("rebase")
         .about("Move a revision to a different parent")
         .long_about(
             "Move a revision to a different parent.
@@ -1123,9 +1123,9 @@ D          B'
 A          A",
         )
         .arg(
-            Arg::with_name("revision")
+            Arg::new("revision")
                 .long("revision")
-                .short("r")
+                .short('r')
                 .takes_value(true)
                 .help(
                     "Rebase only this revision, rebasing descendants onto this revision's \
@@ -1133,38 +1133,38 @@ A          A",
                 ),
         )
         .arg(
-            Arg::with_name("source")
+            Arg::new("source")
                 .long("source")
-                .short("s")
+                .short('s')
                 .takes_value(true)
                 .required(false)
-                .multiple(false)
+                .multiple_occurrences(false)
                 .help("Rebase this revision and its descendants"),
         )
         .arg(
-            Arg::with_name("destination")
+            Arg::new("destination")
                 .long("destination")
-                .short("d")
+                .short('d')
                 .takes_value(true)
                 .required(true)
-                .multiple(true)
+                .multiple_occurrences(true)
                 .help("The revision to rebase onto"),
         );
     // TODO: It seems better to default the destination to `@-`. Maybe the working
     // copy should be rebased on top?
-    let backout_command = SubCommand::with_name("backout")
+    let backout_command = App::new("backout")
         .about("Apply the reverse of a revision on top of another revision")
         .arg(rev_arg().help("The revision to apply the reverse of"))
         .arg(
-            Arg::with_name("destination")
+            Arg::new("destination")
                 .long("destination")
-                .short("d")
+                .short('d')
                 .takes_value(true)
                 .default_value("@")
-                .multiple(true)
+                .multiple_occurrences(true)
                 .help("The revision to apply the reverse changes on top of"),
         );
-    let branch_command = SubCommand::with_name("branch")
+    let branch_command = App::new("branch")
         .about("Create, update, or delete a branch")
         .long_about(
             "Create, update, or delete a branch. For information about branches, see \
@@ -1172,12 +1172,12 @@ A          A",
         )
         .arg(rev_arg().help("The branch's target revision"))
         .arg(
-            Arg::with_name("allow-backwards")
+            Arg::new("allow-backwards")
                 .long("allow-backwards")
                 .help("Allow moving the branch backwards or sideways"),
         )
         .arg(
-            Arg::with_name("delete")
+            Arg::new("delete")
                 .long("delete")
                 .help("Delete the branch locally")
                 .long_help(
@@ -1186,7 +1186,7 @@ A          A",
                 ),
         )
         .arg(
-            Arg::with_name("forget")
+            Arg::new("forget")
                 .long("forget")
                 .help("Forget the branch")
                 .long_help(
@@ -1197,25 +1197,23 @@ A          A",
                 ),
         )
         .arg(
-            Arg::with_name("name")
+            Arg::new("name")
                 .index(1)
                 .required(true)
                 .help("The name of the branch to move or delete"),
         );
-    let branches_command = SubCommand::with_name("branches")
-        .about("List branches")
-        .long_about(
-            "\
+    let branches_command = App::new("branches").about("List branches").long_about(
+        "\
 List branches and their targets. A remote branch will be included only if its target is different \
-             from the local target. For a conflicted branch (both local and remote), old target \
-             revisions are preceded by a \"-\" and new target revisions are preceded by a \"+\".
+         from the local target. For a conflicted branch (both local and remote), old target \
+         revisions are preceded by a \"-\" and new target revisions are preceded by a \"+\".
 
 For information about branches, see https://github.com/martinvonz/jj/blob/main/docs/branches.md",
         );
-    let undo_command = SubCommand::with_name("undo")
+    let undo_command = App::new("undo")
         .about("Undo an operation")
         .arg(op_arg().help("The operation to undo"));
-    let operation_command = SubCommand::with_name("operation")
+    let operation_command = App::new("operation")
         .alias("op")
         .about("Commands for working with the operation log")
         .long_about(
@@ -1223,15 +1221,15 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
             operation log, see https://github.com/martinvonz/jj/blob/main/docs/operation-log.md.",
         )
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
-        .subcommand(SubCommand::with_name("log").about("Show the operation log"))
+        .subcommand(App::new("log").about("Show the operation log"))
         .subcommand(undo_command.clone())
         .subcommand(
-            SubCommand::with_name("restore")
+            App::new("restore")
                 .about("Restore to the state at an operation")
                 .arg(op_arg().help("The operation to restore to")),
         );
     let undo_command = undo_command.about("Undo an operation (shortcut for `jj op undo`)");
-    let git_command = SubCommand::with_name("git")
+    let git_command = App::new("git")
         .about("Commands for working with the underlying Git repo")
         .long_about(
             "Commands for working with the underlying Git repo.
@@ -1242,30 +1240,30 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
         )
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
-            SubCommand::with_name("remote")
+            App::new("remote")
                 .about("Manage Git remotes")
                 .setting(clap::AppSettings::SubcommandRequiredElseHelp)
                 .subcommand(
-                    SubCommand::with_name("add")
+                    App::new("add")
                         .about("Add a Git remote")
                         .arg(
-                            Arg::with_name("remote")
+                            Arg::new("remote")
                                 .index(1)
                                 .required(true)
                                 .help("The remote's name"),
                         )
                         .arg(
-                            Arg::with_name("url")
+                            Arg::new("url")
                                 .index(2)
                                 .required(true)
                                 .help("The remote's URL"),
                         ),
                 )
                 .subcommand(
-                    SubCommand::with_name("remove")
+                    App::new("remove")
                         .about("Remove a Git remote and forget its branches")
                         .arg(
-                            Arg::with_name("remote")
+                            Arg::new("remote")
                                 .index(1)
                                 .required(true)
                                 .help("The remote's name"),
@@ -1273,10 +1271,10 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
                 ),
         )
         .subcommand(
-            SubCommand::with_name("fetch")
+            App::new("fetch")
                 .about("Fetch from a Git remote")
                 .arg(
-                    Arg::with_name("remote")
+                    Arg::new("remote")
                         .long("remote")
                         .takes_value(true)
                         .default_value("origin")
@@ -1284,26 +1282,26 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
                 ),
         )
         .subcommand(
-            SubCommand::with_name("clone")
+            App::new("clone")
                 .about("Create a new repo backed by a clone of a Git repo")
                 .long_about(
                     "Create a new repo backed by a clone of a Git repo. The Git repo will be a \
                      bare git repo stored inside the `.jj/` directory.",
                 )
                 .arg(
-                    Arg::with_name("source")
+                    Arg::new("source")
                         .index(1)
                         .required(true)
                         .help("URL or path of the Git repo to clone"),
                 )
                 .arg(
-                    Arg::with_name("destination")
+                    Arg::new("destination")
                         .index(2)
                         .help("The directory to write the Jujutsu repo to"),
                 ),
         )
         .subcommand(
-            SubCommand::with_name("push")
+            App::new("push")
                 .about("Push to a Git remote")
                 .long_about(
                     "Push to a Git remote
@@ -1311,13 +1309,13 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
 By default, all branches are pushed. Use `--branch` if you want to push only one branch.",
                 )
                 .arg(
-                    Arg::with_name("branch")
+                    Arg::new("branch")
                         .long("branch")
                         .takes_value(true)
                         .help("Push only this branch"),
                 )
                 .arg(
-                    Arg::with_name("remote")
+                    Arg::new("remote")
                         .long("remote")
                         .takes_value(true)
                         .default_value("origin")
@@ -1325,91 +1323,80 @@ By default, all branches are pushed. Use `--branch` if you want to push only one
                 ),
         )
         .subcommand(
-            SubCommand::with_name("import")
+            App::new("import")
                 .about("Update repo with changes made in the underlying Git repo"),
         )
         .subcommand(
-            SubCommand::with_name("export")
+            App::new("export")
                 .about("Update the underlying Git repo with changes made in the repo"),
         );
-    let bench_command = SubCommand::with_name("bench")
+    let bench_command = App::new("bench")
         .about("Commands for benchmarking internal operations")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
-            SubCommand::with_name("commonancestors")
+            App::new("commonancestors")
                 .about("Find the common ancestor(s) of a set of commits")
-                .arg(Arg::with_name("revision1").index(1).required(true))
-                .arg(Arg::with_name("revision2").index(2).required(true)),
+                .arg(Arg::new("revision1").index(1).required(true))
+                .arg(Arg::new("revision2").index(2).required(true)),
         )
         .subcommand(
-            SubCommand::with_name("isancestor")
+            App::new("isancestor")
                 .about("Checks if the first commit is an ancestor of the second commit")
-                .arg(Arg::with_name("ancestor").index(1).required(true))
-                .arg(Arg::with_name("descendant").index(2).required(true)),
+                .arg(Arg::new("ancestor").index(1).required(true))
+                .arg(Arg::new("descendant").index(2).required(true)),
         )
         .subcommand(
-            SubCommand::with_name("walkrevs")
+            App::new("walkrevs")
                 .about(
                     "Walk revisions that are ancestors of the second argument but not ancestors \
                      of the first",
                 )
-                .arg(Arg::with_name("unwanted").index(1).required(true))
-                .arg(Arg::with_name("wanted").index(2).required(true)),
+                .arg(Arg::new("unwanted").index(1).required(true))
+                .arg(Arg::new("wanted").index(2).required(true)),
         )
         .subcommand(
-            SubCommand::with_name("resolveprefix")
+            App::new("resolveprefix")
                 .about("Resolve a commit ID prefix")
-                .arg(Arg::with_name("prefix").index(1).required(true)),
+                .arg(Arg::new("prefix").index(1).required(true)),
         );
-    let debug_command = SubCommand::with_name("debug")
+    let debug_command = App::new("debug")
         .about("Low-level commands not intended for users")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
-            SubCommand::with_name("completion")
+            App::new("completion")
                 .about("Print a command-line-completion script")
-                .arg(Arg::with_name("bash").long("bash"))
-                .arg(Arg::with_name("fish").long("fish"))
-                .arg(Arg::with_name("zsh").long("zsh")),
+                .arg(Arg::new("bash").long("bash"))
+                .arg(Arg::new("fish").long("fish"))
+                .arg(Arg::new("zsh").long("zsh")),
         )
         .subcommand(
-            SubCommand::with_name("resolverev")
+            App::new("resolverev")
                 .about("Resolve a revision identifier to its full ID")
                 .arg(rev_arg()),
         )
+        .subcommand(App::new("workingcopy").about("Show information about the working copy state"))
+        .subcommand(App::new("writeworkingcopy").about("Write a tree from the working copy state"))
         .subcommand(
-            SubCommand::with_name("workingcopy")
-                .about("Show information about the working copy state"),
-        )
-        .subcommand(
-            SubCommand::with_name("writeworkingcopy")
-                .about("Write a tree from the working copy state"),
-        )
-        .subcommand(
-            SubCommand::with_name("template")
+            App::new("template")
                 .about("Parse a template")
-                .arg(Arg::with_name("template").index(1).required(true)),
+                .arg(Arg::new("template").index(1).required(true)),
         )
-        .subcommand(SubCommand::with_name("index").about("Show commit index stats"))
-        .subcommand(SubCommand::with_name("reindex").about("Rebuild commit index"));
-    let help_message = "Print help information, more help with --help than with -h";
-    let mut app = App::new("Jujutsu")
-        .global_setting(clap::AppSettings::ColoredHelp)
-        .global_setting(clap::AppSettings::VersionlessSubcommands)
+        .subcommand(App::new("index").about("Show commit index stats"))
+        .subcommand(App::new("reindex").about("Rebuild commit index"));
+    let mut app = App::new("jj")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .version(crate_version!())
         .author("Martin von Zweigbergk <martinvonz@google.com>")
         .about(
-            "An experimental VCS
+            "Jujutsu (An experimental VCS)
 
 To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.\
              ",
         )
-        .help_message(help_message)
-        .version_message("Print version information")
         .arg(
-            Arg::with_name("repository")
+            Arg::new("repository")
                 .long("repository")
-                .short("R")
+                .short('R')
                 .global(true)
                 .takes_value(true)
                 .default_value(".")
@@ -1420,7 +1407,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
                 ),
         )
         .arg(
-            Arg::with_name("at_op")
+            Arg::new("at_op")
                 .long("at-operation")
                 .alias("at-op")
                 .global(true)
@@ -1446,6 +1433,9 @@ It is possible to mutating commands when loading the repo at an earlier operatio
 ",
                 ),
         );
+    // TODO: We should also set the help message on sub-sub-commands etc.
+    let help_message = "Print help information, more help with --help than with -h";
+    app = app.mut_arg("help", |arg| arg.help(help_message));
     for subcommand in [
         init_command,
         checkout_command,
@@ -1478,7 +1468,7 @@ It is possible to mutating commands when loading the repo at an earlier operatio
         bench_command,
         debug_command,
     ] {
-        app = app.subcommand(subcommand.help_message(help_message));
+        app = app.subcommand(subcommand.mut_arg("help", |arg| arg.help(help_message)));
     }
     app
 }
@@ -3315,13 +3305,13 @@ fn cmd_debug(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
         let mut app = get_app();
         let mut buf = vec![];
         let shell = if complation_matches.is_present("zsh") {
-            clap::Shell::Zsh
+            clap_complete::Shell::Zsh
         } else if complation_matches.is_present("fish") {
-            clap::Shell::Fish
+            clap_complete::Shell::Fish
         } else {
-            clap::Shell::Bash
+            clap_complete::Shell::Bash
         };
-        app.gen_completions_to("jj", shell, &mut buf);
+        clap_complete::generate(shell, &mut app, "jj", &mut buf);
         ui.stdout_formatter().write_all(&buf)?;
     } else if let Some(resolve_matches) = args.subcommand_matches("resolverev") {
         let mut workspace_command = command.workspace_helper(ui)?;
