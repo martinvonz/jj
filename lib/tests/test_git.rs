@@ -294,20 +294,38 @@ fn test_fetch_success() {
     let new_git_commit =
         empty_git_commit(&source_git_repo, "refs/heads/main", &[&initial_git_commit]);
 
-    // The new commit is not visible before git::fetch() even if we reload the repo.
-    assert!(!jj_repo
-        .reload()
-        .view()
-        .heads()
-        .contains(&commit_id(&new_git_commit)));
-
     let mut tx = jj_repo.start_transaction("test");
     let default_branch = git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
     // The default branch is "main"
     assert_eq!(default_branch, Some("main".to_string()));
     let repo = tx.commit();
     // The new commit is visible after git::fetch().
-    assert!(repo.view().heads().contains(&commit_id(&new_git_commit)));
+    let view = repo.view();
+    assert!(view.heads().contains(&commit_id(&new_git_commit)));
+    let initial_commit_target = RefTarget::Normal(commit_id(&initial_git_commit));
+    let new_commit_target = RefTarget::Normal(commit_id(&new_git_commit));
+    assert_eq!(
+        *view.git_refs(),
+        btreemap! {
+            // The two first refs were created by by git2::Repository::clone()
+            "refs/heads/main".to_string() => initial_commit_target,
+            "refs/remotes/origin/HEAD".to_string() => new_commit_target.clone(),
+            "refs/remotes/origin/main".to_string() => new_commit_target.clone(),
+        }
+    );
+    assert_eq!(
+        *view.branches(),
+        btreemap! {
+            "main".to_string() => BranchTarget {
+                local_target: Some(new_commit_target.clone()),
+                remote_targets: btreemap! {"origin".to_string() => new_commit_target.clone()}
+            },
+            "HEAD".to_string() => BranchTarget {
+                local_target: Some(new_commit_target.clone()),
+                remote_targets: btreemap! {"origin".to_string() => new_commit_target}
+            },
+        }
+    );
 }
 
 #[test]
