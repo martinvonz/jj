@@ -285,6 +285,7 @@ fn test_fetch_success() {
     let jj_repo_dir = temp_dir.path().join("jj");
     let source_git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
     let initial_git_commit = empty_git_commit(&source_git_repo, "refs/heads/main", &[]);
+    source_git_repo.set_head("refs/heads/main").unwrap();
     let clone_git_repo =
         git2::Repository::clone(source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
@@ -301,10 +302,9 @@ fn test_fetch_success() {
         .contains(&commit_id(&new_git_commit)));
 
     let mut tx = jj_repo.start_transaction("test");
-    let _default_branch = git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
+    let default_branch = git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
     // The default branch is "main"
-    // TODO: Figure out why this is unreliable. Issue #30.
-    //assert_eq!(default_branch, Some("main".to_string()));
+    assert_eq!(default_branch, Some("main".to_string()));
     let repo = tx.commit();
     // The new commit is visible after git::fetch().
     assert!(repo.view().heads().contains(&commit_id(&new_git_commit)));
