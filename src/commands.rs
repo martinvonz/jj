@@ -1106,7 +1106,22 @@ A          A",
         .arg(
             Arg::with_name("delete")
                 .long("delete")
-                .help("Delete the branch"),
+                .help("Delete the branch locally")
+                .long_help(
+                    "Delete the branch locally. The deletion will be propagated to remotes on \
+                     push.",
+                ),
+        )
+        .arg(
+            Arg::with_name("forget")
+                .long("forget")
+                .help("Forget the branch")
+                .long_help(
+                    "Forget everything about the branch. There will be no record of its position \
+                     on remotes (no branchname@remotename in log output). Pushing will not affect \
+                     the branch on the remote. Pulling will bring the branch back if it still \
+                     exists on the remote.",
+                ),
         )
         .arg(
             Arg::with_name("name")
@@ -2681,6 +2696,10 @@ fn cmd_branch(
     if sub_matches.is_present("delete") {
         let mut tx = repo_command.start_transaction(&format!("delete branch {}", branch_name));
         tx.mut_repo().remove_local_branch(branch_name);
+        repo_command.finish_transaction(ui, tx)?;
+    } else if sub_matches.is_present("forget") {
+        let mut tx = repo_command.start_transaction(&format!("forget branch {}", branch_name));
+        tx.mut_repo().remove_branch(branch_name);
         repo_command.finish_transaction(ui, tx)?;
     } else {
         let target_commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
