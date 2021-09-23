@@ -1260,6 +1260,13 @@ By default, all branches are pushed. Use `--branch` if you want to push only one
         .about("Low-level commands not intended for users")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
+            SubCommand::with_name("completion")
+                .about("Print a command-line-completion script")
+                .arg(Arg::with_name("bash").long("bash"))
+                .arg(Arg::with_name("fish").long("fish"))
+                .arg(Arg::with_name("zsh").long("zsh")),
+        )
+        .subcommand(
             SubCommand::with_name("resolverev")
                 .about("Resolve a revision identifier to its full ID")
                 .arg(rev_arg()),
@@ -2888,7 +2895,19 @@ fn cmd_debug(
     command: &CommandHelper,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    if let Some(resolve_matches) = sub_matches.subcommand_matches("resolverev") {
+    if let Some(complation_matches) = sub_matches.subcommand_matches("completion") {
+        let mut app = get_app();
+        let mut buf = vec![];
+        let shell = if complation_matches.is_present("zsh") {
+            clap::Shell::Zsh
+        } else if complation_matches.is_present("fish") {
+            clap::Shell::Fish
+        } else {
+            clap::Shell::Bash
+        };
+        app.gen_completions_to("jj", shell, &mut buf);
+        ui.stdout_formatter().write_all(&buf)?;
+    } else if let Some(resolve_matches) = sub_matches.subcommand_matches("resolverev") {
         let mut repo_command = command.repo_helper(ui)?;
         let commit = repo_command.resolve_revision_arg(ui, resolve_matches)?;
         writeln!(ui, "{}", commit.id().hex())?;
