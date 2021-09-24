@@ -155,7 +155,12 @@ pub fn fetch(
     callbacks.credentials(|_url, username_from_url, _allowed_types| {
         git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
     });
-    remote.update_tips(Some(&mut callbacks), false, git2::AutotagOption::All, None)?;
+    remote.update_tips(
+        Some(&mut callbacks),
+        false,
+        git2::AutotagOption::Unspecified,
+        None,
+    )?;
     // TODO: We could make it optional to get the default branch since we only care
     // about it on clone.
     let mut default_branch = None;
