@@ -101,9 +101,11 @@ impl State {
         work.extend(state.pruned_commits.iter().cloned());
         while !work.is_empty() {
             let commit_id = work.pop().unwrap();
-            for child in state.children.get(&commit_id).unwrap() {
-                if state.orphan_commits.insert(child.clone()) {
-                    work.push(child.clone());
+            if let Some(children) = state.children.get(&commit_id) {
+                for child in children {
+                    if state.orphan_commits.insert(child.clone()) {
+                        work.push(child.clone());
+                    }
                 }
             }
         }
