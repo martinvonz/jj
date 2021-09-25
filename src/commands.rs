@@ -691,7 +691,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .long("revisions")
                 .short("r")
                 .takes_value(true)
-                .default_value(",,non_obsolete_heads()")
+                .default_value(",,heads()")
                 .help("Which revisions to show"),
         )
         .arg(
@@ -2543,8 +2543,8 @@ fn cmd_rebase(
         // Manually rebase children because we don't want to rebase them onto the
         // rewritten commit. (But we still want to record the commit as rewritten so
         // branches and the working copy get updated to the rewritten commit.)
-        let children_expression = RevsetExpression::commit(old_commit.id().clone())
-            .children(&RevsetExpression::all_non_obsolete_heads());
+        let children_expression =
+            RevsetExpression::commit(old_commit.id().clone()).children(&RevsetExpression::heads());
         let mut num_rebased_descendants = 0;
         let store = repo_command.repo.store();
         for child_index_entry in children_expression

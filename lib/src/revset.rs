@@ -95,10 +95,7 @@ fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, Revse
     Err(RevsetError::NoSuchRevision(symbol.to_owned()))
 }
 
-fn resolve_non_obsolete_change_id(
-    repo: RepoRef,
-    change_id_prefix: &str,
-) -> Result<Vec<CommitId>, RevsetError> {
+fn resolve_change_id(repo: RepoRef, change_id_prefix: &str) -> Result<Vec<CommitId>, RevsetError> {
     if let Some(hex_prefix) = HexPrefix::new(change_id_prefix.to_owned()) {
         let evolution = repo.evolution();
         match evolution.resolve_change_id_prefix(&hex_prefix) {
@@ -146,8 +143,8 @@ pub fn resolve_symbol(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, Revs
             return commit_id_result;
         }
 
-        // Try to resolve as a change id (the non-obsolete commits in the change).
-        let change_id_result = resolve_non_obsolete_change_id(repo, symbol);
+        // Try to resolve as a change id.
+        let change_id_result = resolve_change_id(repo, symbol);
         if !matches!(change_id_result, Err(RevsetError::NoSuchRevision(_))) {
             return change_id_result;
         }
@@ -191,7 +188,7 @@ pub enum RevsetExpression {
         roots: Rc<RevsetExpression>,
         heads: Rc<RevsetExpression>,
     },
-    AllHeads,
+    Heads,
     PublicHeads,
     Branches,
     Tags,
@@ -215,6 +212,10 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::None)
     }
 
+    pub fn all() -> Rc<RevsetExpression> {
+        RevsetExpression::heads().ancestors()
+    }
+
     pub fn symbol(value: String) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Symbol(value))
     }
@@ -227,8 +228,8 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Commits(commit_ids))
     }
 
-    pub fn all_heads() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::AllHeads)
+    pub fn heads() -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Heads)
     }
 
     pub fn public_heads() -> Rc<RevsetExpression> {
@@ -245,14 +246,6 @@ impl RevsetExpression {
 
     pub fn git_refs() -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::GitRefs)
-    }
-
-    pub fn all_non_obsolete_heads() -> Rc<RevsetExpression> {
-        RevsetExpression::all_heads().non_obsolete_heads()
-    }
-
-    pub fn all_non_obsolete_commits() -> Rc<RevsetExpression> {
-        RevsetExpression::all_non_obsolete_heads().ancestors()
     }
 
     /// Non-obsolete heads among `self`.
@@ -411,7 +404,7 @@ fn parse_range_expression_rule(
     if let Some(next) = pairs.next() {
         match next.as_rule() {
             Rule::descendants_op => {
-                expression = expression.descendants(&RevsetExpression::all_non_obsolete_heads());
+                expression = expression.descendants(&RevsetExpression::heads());
             }
             Rule::dag_range_op => {
                 let heads_expression =
@@ -438,7 +431,7 @@ fn parse_children_expression_rule(
     for operator in pairs {
         match operator.as_rule() {
             Rule::children_op => {
-                expression = expression.children(&RevsetExpression::all_non_obsolete_heads());
+                expression = expression.children(&RevsetExpression::heads());
             }
             _ => {
                 panic!(
@@ -524,7 +517,7 @@ fn parse_function_expression(
             if arg_count == 1 {
                 let expression =
                     parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
-                Ok(expression.children(&RevsetExpression::all_non_obsolete_heads()))
+                Ok(expression.children(&RevsetExpression::heads()))
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -546,7 +539,7 @@ fn parse_function_expression(
             if arg_count == 1 {
                 let expression =
                     parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
-                Ok(expression.descendants(&RevsetExpression::all_non_obsolete_heads()))
+                Ok(expression.descendants(&RevsetExpression::heads()))
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -554,28 +547,13 @@ fn parse_function_expression(
                 })
             }
         }
-        "all_heads" => {
+        "heads" => {
             if arg_count == 0 {
-                Ok(RevsetExpression::all_heads())
+                Ok(RevsetExpression::heads())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
                     message: "Expected 0 arguments".to_string(),
-                })
-            }
-        }
-        "non_obsolete_heads" => {
-            if arg_count == 0 {
-                Ok(RevsetExpression::all_non_obsolete_heads())
-            } else if arg_count == 1 {
-                Ok(
-                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?
-                        .non_obsolete_heads(),
-                )
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 0 or 1 argument".to_string(),
                 })
             }
         }
@@ -627,7 +605,7 @@ fn parse_function_expression(
                 });
             }
             let candidates = if arg_count == 0 {
-                RevsetExpression::all_non_obsolete_commits()
+                RevsetExpression::all()
             } else {
                 parse_expression_rule(argument_pairs.next().unwrap().into_inner())?
             };
@@ -645,7 +623,7 @@ fn parse_function_expression(
                 argument_pairs.next().unwrap().into_inner(),
             )?;
             let candidates = if arg_count == 1 {
-                RevsetExpression::all_non_obsolete_commits()
+                RevsetExpression::all()
             } else {
                 parse_expression_rule(argument_pairs.next().unwrap().into_inner())?
             };
@@ -1042,7 +1020,7 @@ pub fn evaluate_expression<'repo>(
                 index_entries: result,
             }))
         }
-        RevsetExpression::AllHeads => {
+        RevsetExpression::Heads => {
             let index = repo.index();
             let heads = repo.view().heads();
             let mut index_entries = heads
@@ -1241,10 +1219,6 @@ mod tests {
             })
         );
         assert_eq!(
-            foo_symbol.non_obsolete_heads(),
-            Rc::new(RevsetExpression::NonObsoleteHeads(foo_symbol.clone()))
-        );
-        assert_eq!(
             foo_symbol.with_parent_count(3..5),
             Rc::new(RevsetExpression::ParentCount {
                 candidates: foo_symbol.clone(),
@@ -1299,14 +1273,14 @@ mod tests {
         // Parse the "children" operator
         assert_eq!(
             parse("@:"),
-            Ok(checkout_symbol.children(&RevsetExpression::all_non_obsolete_heads()))
+            Ok(checkout_symbol.children(&RevsetExpression::heads()))
         );
         // Parse the "ancestors" operator
         assert_eq!(parse(",,@"), Ok(checkout_symbol.ancestors()));
         // Parse the "descendants" operator
         assert_eq!(
             parse("@,,"),
-            Ok(checkout_symbol.descendants(&RevsetExpression::all_non_obsolete_heads()))
+            Ok(checkout_symbol.descendants(&RevsetExpression::heads()))
         );
         // Parse the "dag range" operator
         assert_eq!(parse("foo,,bar"), Ok(foo_symbol.descendants(&bar_symbol)));
@@ -1326,11 +1300,11 @@ mod tests {
         assert_matches!(parse("foo | :"), Err(RevsetParseError::SyntaxError(_)));
         // Space is allowed around infix operators and function arguments
         assert_eq!(
-            parse("   description(  arg1 ,   arg2 ) -    parents(   arg1  )  - all_heads(  )  "),
+            parse("   description(  arg1 ,   arg2 ) -    parents(   arg1  )  - heads(  )  "),
             Ok(RevsetExpression::symbol("arg2".to_string())
                 .with_description("arg1".to_string())
                 .minus(&RevsetExpression::symbol("arg1".to_string()).parents())
-                .minus(&RevsetExpression::all_heads()))
+                .minus(&RevsetExpression::heads()))
         );
     }
 
@@ -1346,9 +1320,9 @@ mod tests {
         assert_eq!(
             parse("foo:::"),
             Ok(foo_symbol
-                .children(&RevsetExpression::all_non_obsolete_heads())
-                .children(&RevsetExpression::all_non_obsolete_heads())
-                .children(&RevsetExpression::all_non_obsolete_heads()))
+                .children(&RevsetExpression::heads())
+                .children(&RevsetExpression::heads())
+                .children(&RevsetExpression::heads()))
         );
         // Parse repeated "ancestors"/"descendants"/"dag range" operators
         assert_matches!(parse(",,foo,,"), Err(RevsetParseError::SyntaxError(_)));
@@ -1361,21 +1335,15 @@ mod tests {
         // The former bind more strongly.
         assert_eq!(
             parse(":foo:"),
-            Ok(foo_symbol
-                .parents()
-                .children(&RevsetExpression::all_non_obsolete_heads()))
+            Ok(foo_symbol.parents().children(&RevsetExpression::heads()))
         );
         assert_eq!(
             parse(":foo,,"),
-            Ok(foo_symbol
-                .parents()
-                .descendants(&RevsetExpression::all_non_obsolete_heads()))
+            Ok(foo_symbol.parents().descendants(&RevsetExpression::heads()))
         );
         assert_eq!(
             parse(",,foo:"),
-            Ok(foo_symbol
-                .children(&RevsetExpression::all_non_obsolete_heads())
-                .ancestors())
+            Ok(foo_symbol.children(&RevsetExpression::heads()).ancestors())
         );
     }
 
@@ -1402,11 +1370,10 @@ mod tests {
             Ok(RevsetExpression::symbol("bar".to_string()).with_description("foo".to_string()))
         );
         assert_eq!(
-            parse("description(all_heads(),bar)"),
+            parse("description(heads(),bar)"),
             Err(RevsetParseError::InvalidFunctionArguments {
                 name: "description".to_string(),
-                message: "Expected function argument of type string, found: all_heads()"
-                    .to_string()
+                message: "Expected function argument of type string, found: heads()".to_string()
             })
         );
         assert_eq!(
