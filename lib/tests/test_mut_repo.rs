@@ -428,7 +428,7 @@ fn test_remove_head(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     assert!(mut_repo.view().heads().contains(commit3.id()));
-    mut_repo.remove_head(&commit3);
+    mut_repo.remove_head(commit3.id());
     let heads = mut_repo.view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
@@ -474,7 +474,7 @@ fn test_remove_head_ancestor_git_ref(use_git: bool) {
     let mut_repo = tx.mut_repo();
     let heads = mut_repo.view().heads().clone();
     assert!(heads.contains(commit5.id()));
-    mut_repo.remove_head(&commit5);
+    mut_repo.remove_head(commit5.id());
     let heads = mut_repo.view().heads().clone();
     assert!(!heads.contains(commit5.id()));
     assert!(heads.contains(commit4.id()));
@@ -552,7 +552,7 @@ fn test_remove_public_head(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     assert!(mut_repo.view().public_heads().contains(commit1.id()));
-    mut_repo.remove_public_head(&commit1);
+    mut_repo.remove_public_head(commit1.id());
     assert!(!mut_repo.view().public_heads().contains(commit1.id()));
     let repo = tx.commit();
     assert!(!repo.view().public_heads().contains(commit1.id()));

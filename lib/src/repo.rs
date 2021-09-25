@@ -725,8 +725,8 @@ impl MutableRepo {
         }
     }
 
-    pub fn remove_head(&mut self, head: &Commit) {
-        self.view.remove_head(head.id());
+    pub fn remove_head(&mut self, head: &CommitId) {
+        self.view.remove_head(head);
         self.enforce_view_invariants();
         self.invalidate_evolution();
     }
@@ -739,8 +739,8 @@ impl MutableRepo {
         }
     }
 
-    pub fn remove_public_head(&mut self, head: &Commit) {
-        self.view.remove_public_head(head.id());
+    pub fn remove_public_head(&mut self, head: &CommitId) {
+        self.view.remove_public_head(head);
         self.invalidate_evolution();
     }
 

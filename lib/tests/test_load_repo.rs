@@ -52,7 +52,7 @@ fn test_load_at_operation(use_git: bool) {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("remove commit");
-    tx.mut_repo().remove_head(&commit);
+    tx.mut_repo().remove_head(commit.id());
     tx.commit();
 
     // If we load the repo at head, we should not see the commit since it was

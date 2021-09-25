@@ -100,8 +100,9 @@ fn test_merge_views_heads() {
     let repo = tx.commit();
 
     let mut tx1 = repo.start_transaction("test");
-    tx1.mut_repo().remove_head(&head_remove_tx1);
-    tx1.mut_repo().remove_public_head(&public_head_remove_tx1);
+    tx1.mut_repo().remove_head(head_remove_tx1.id());
+    tx1.mut_repo()
+        .remove_public_head(public_head_remove_tx1.id());
     let head_add_tx1 =
         testutils::create_random_commit(&settings, &repo).write_to_repo(tx1.mut_repo());
     let public_head_add_tx1 =
@@ -110,8 +111,9 @@ fn test_merge_views_heads() {
     tx1.commit();
 
     let mut tx2 = repo.start_transaction("test");
-    tx2.mut_repo().remove_head(&head_remove_tx2);
-    tx2.mut_repo().remove_public_head(&public_head_remove_tx2);
+    tx2.mut_repo().remove_head(head_remove_tx2.id());
+    tx2.mut_repo()
+        .remove_public_head(public_head_remove_tx2.id());
     let head_add_tx2 =
         testutils::create_random_commit(&settings, &repo).write_to_repo(tx2.mut_repo());
     let public_head_add_tx2 =

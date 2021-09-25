@@ -73,7 +73,7 @@ fn test_obsolete_and_orphan(use_git: bool) {
     assert!(!mut_repo.evolution().is_orphan(rewritten.id()));
 
     // It should no longer be obsolete if we remove the successor.
-    mut_repo.remove_head(&rewritten);
+    mut_repo.remove_head(rewritten.id());
     assert!(!mut_repo.evolution().is_obsolete(original.id()));
     assert!(!mut_repo.evolution().is_orphan(child.id()));
     assert!(!mut_repo.evolution().is_orphan(grandchild.id()));

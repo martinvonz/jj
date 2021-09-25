@@ -2370,9 +2370,9 @@ fn cmd_discard(
     let mut tx = repo_command.start_transaction(&format!("discard commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
     if sub_matches.is_present("public") {
-        mut_repo.remove_public_head(&commit);
+        mut_repo.remove_public_head(commit.id());
     } else {
-        mut_repo.remove_head(&commit);
+        mut_repo.remove_head(commit.id());
     }
     for parent in commit.parents() {
         mut_repo.add_head(&parent);

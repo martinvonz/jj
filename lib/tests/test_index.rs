@@ -255,7 +255,7 @@ fn test_index_commits_previous_operations(use_git: bool) {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    tx.mut_repo().remove_head(&commit_c);
+    tx.mut_repo().remove_head(commit_c.id());
     let repo = tx.commit();
 
     // Delete index from disk
