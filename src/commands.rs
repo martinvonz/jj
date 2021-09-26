@@ -36,9 +36,6 @@ use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::diff::DiffHunk;
-use jujutsu_lib::evolution::{
-    DivergenceResolution, DivergenceResolver, OrphanResolution, OrphanResolver,
-};
 use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::git::{GitFetchError, GitRefUpdate};
 use jujutsu_lib::index::HexPrefix;
@@ -199,8 +196,8 @@ struct RepoCommandHelper {
     repo: Arc<ReadonlyRepo>,
     may_update_working_copy: bool,
     working_copy_committed: bool,
-    // Whether to rebase descendants when the transaction
-    // finishes. This should generally be true for commands that rewrite commits.
+    // Whether to rebase descendants when the transaction finishes. This should generally be true
+    // for commands that rewrite commits.
     rebase_descendants: bool,
 }
 
@@ -1041,8 +1038,6 @@ List branches and their targets. A remote branch will be included only if its ta
 
 See `jj concepts branches` for information about branches.",
         );
-    let evolve_command = SubCommand::with_name("evolve")
-        .about("Resolve problems with the repo's meta-history (deprecated).");
     let operation_command = SubCommand::with_name("operation")
         .alias("op")
         .about("Commands for working with the operation log")
@@ -1280,7 +1275,6 @@ It is possible to mutating commands when loading the repo at an earlier operatio
         backout_command,
         branch_command,
         branches_command,
-        evolve_command,
         operation_command,
         git_command,
         bench_command,
@@ -2736,72 +2730,6 @@ fn cmd_branches(
     Ok(())
 }
 
-fn cmd_evolve<'s>(
-    ui: &mut Ui<'s>,
-    command: &CommandHelper,
-    _sub_matches: &ArgMatches,
-) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?.rebase_descendants(false);
-
-    // TODO: This clone is unnecessary. Maybe ui.write() etc should not require a
-    // mutable borrow? But the mutable borrow might be useful for making sure we
-    // have only one Ui instance we write to across threads?
-    let user_settings = ui.settings().clone();
-    let mut tx = repo_command.start_transaction("evolve");
-    let mut_repo = tx.mut_repo();
-    let mut divergence_resolver = DivergenceResolver::new(&user_settings, mut_repo);
-    while let Some(resolution) = divergence_resolver.resolve_next(mut_repo) {
-        match resolution {
-            DivergenceResolution::Resolved {
-                divergents,
-                resolved,
-            } => {
-                ui.write("Resolving divergent commits:\n").unwrap();
-                for source in divergents {
-                    ui.write("  ")?;
-                    ui.write_commit_summary(mut_repo.as_repo_ref(), &source)?;
-                    ui.write("\n")?;
-                }
-                ui.write("Resolved as: ")?;
-                ui.write_commit_summary(mut_repo.as_repo_ref(), &resolved)?;
-                ui.write("\n")?;
-            }
-            DivergenceResolution::NoCommonPredecessor { commit1, commit2 } => {
-                ui.write("Skipping divergent commits with no common predecessor:\n")?;
-                ui.write("  ")?;
-                ui.write_commit_summary(mut_repo.as_repo_ref(), &commit1)?;
-                ui.write("\n")?;
-                ui.write("  ")?;
-                ui.write_commit_summary(mut_repo.as_repo_ref(), &commit2)?;
-                ui.write("\n")?;
-            }
-        }
-    }
-
-    let mut orphan_resolver = OrphanResolver::new(&user_settings, mut_repo);
-    while let Some(resolution) = orphan_resolver.resolve_next(mut_repo) {
-        match resolution {
-            OrphanResolution::Resolved { orphan, new_commit } => {
-                ui.write("Resolving orphan: ")?;
-                ui.write_commit_summary(mut_repo.as_repo_ref(), &orphan)?;
-                ui.write("\n")?;
-                ui.write("Resolved as: ")?;
-                ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
-                ui.write("\n")?;
-            }
-            OrphanResolution::AmbiguousTarget { orphan } => {
-                ui.write("Skipping orphan with ambiguous new parents: ")?;
-                ui.write_commit_summary(mut_repo.as_repo_ref(), &orphan)?;
-                ui.write("\n")?;
-            }
-        }
-    }
-
-    repo_command.finish_transaction(ui, tx)?;
-
-    Ok(())
-}
-
 fn cmd_debug(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3503,8 +3431,7 @@ One benefit of the operation log (and the reason for its creation) is that it al
 As an example, let's say you had started editing the description of a change and then also update \
              the contents of the change (maybe because you had forgotten the editor). When you \
              eventually close your editor, the command will succeed and e.g. `jj log` will \
-             indicate that the change has diverged (`jj evolve` will automatically resolve the \
-             divergence).",
+             indicate that the change has diverged.",
         ));
         sections.push((
             "LOADING AN OLD VERSION OF REPO:",
@@ -3646,8 +3573,6 @@ where
         cmd_branch(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("branches") {
         cmd_branches(&mut ui, &command_helper, sub_matches)
-    } else if let Some(sub_matches) = matches.subcommand_matches("evolve") {
-        cmd_evolve(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("operation") {
         cmd_operation(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("git") {
