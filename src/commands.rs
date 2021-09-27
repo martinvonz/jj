@@ -382,9 +382,6 @@ impl RepoCommandHelper {
                         .write_to_repo(mut_repo);
                 mut_repo.set_checkout(commit.id().clone());
 
-                // Update branches pointing to the old checkout
-                update_branches_after_rewrite(mut_repo);
-
                 // Evolve descendants (though it currently evolves all commits)
                 let evolve_result = evolve_orphans(&self.settings, mut_repo)?;
                 if evolve_result.num_resolved > 0 {
@@ -402,6 +399,10 @@ impl RepoCommandHelper {
                         evolve_result.num_failed
                     )?;
                 }
+
+                // Update branches pointing to the old checkout and any branches pointing to
+                // descendants.
+                update_branches_after_rewrite(mut_repo);
 
                 self.repo = tx.commit();
                 locked_wc.finish(commit);
