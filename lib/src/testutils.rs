@@ -25,6 +25,7 @@ use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::repo::{MutableRepo, ReadonlyRepo};
 use crate::repo_path::RepoPath;
+use crate::rewrite::RebasedDescendant;
 use crate::settings::UserSettings;
 use crate::store::Store;
 use crate::tree::Tree;
@@ -158,5 +159,30 @@ impl<'settings, 'repo> CommitGraphBuilder<'settings, 'repo> {
         create_random_commit(self.settings, self.mut_repo.base_repo().as_ref())
             .set_parents(parent_ids)
             .write_to_repo(self.mut_repo)
+    }
+}
+
+pub fn assert_rebased(
+    rebased: Option<RebasedDescendant>,
+    expected_old_commit: &Commit,
+    expected_new_parents: &[&Commit],
+) -> Commit {
+    if let Some(RebasedDescendant {
+        old_commit,
+        new_commit,
+    }) = rebased
+    {
+        assert_eq!(old_commit, *expected_old_commit);
+        assert_eq!(new_commit.change_id(), expected_old_commit.change_id());
+        assert_eq!(
+            new_commit.parent_ids(),
+            expected_new_parents
+                .iter()
+                .map(|commit| commit.id().clone())
+                .collect_vec()
+        );
+        new_commit
+    } else {
+        panic!("expected rebased commit: {:?}", rebased);
     }
 }

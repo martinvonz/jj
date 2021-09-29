@@ -12,35 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::backend::CommitId;
-use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::rewrite::{update_branches_after_rewrite, DescendantRebaser, RebasedDescendant};
+use jujutsu_lib::rewrite::{update_branches_after_rewrite, DescendantRebaser};
 use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::CommitGraphBuilder;
+use jujutsu_lib::testutils::{assert_rebased, CommitGraphBuilder};
 use maplit::{hashmap, hashset};
 use test_case::test_case;
-
-fn assert_rebased(
-    rebased: Option<RebasedDescendant>,
-    expected_old_commit: &Commit,
-    expected_new_parents: &[CommitId],
-) -> Commit {
-    if let Some(RebasedDescendant {
-        old_commit,
-        new_commit,
-    }) = rebased
-    {
-        assert_eq!(old_commit, *expected_old_commit);
-        assert_eq!(new_commit.change_id(), expected_old_commit.change_id());
-        assert_eq!(&new_commit.parent_ids(), expected_new_parents);
-        new_commit
-    } else {
-        panic!("expected rebased commit: {:?}", rebased);
-    }
-}
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -74,9 +53,9 @@ fn test_rebase_descendants_sideways(use_git: bool) {
         },
         hashset! {},
     );
-    let new_commit3 = assert_rebased(rebaser.rebase_next(), &commit3, &[commit6.id().clone()]);
-    assert_rebased(rebaser.rebase_next(), &commit4, &[new_commit3.id().clone()]);
-    assert_rebased(rebaser.rebase_next(), &commit5, &[commit6.id().clone()]);
+    let new_commit3 = assert_rebased(rebaser.rebase_next(), &commit3, &[&commit6]);
+    assert_rebased(rebaser.rebase_next(), &commit4, &[&new_commit3]);
+    assert_rebased(rebaser.rebase_next(), &commit5, &[&commit6]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 3);
 
@@ -120,8 +99,8 @@ fn test_rebase_descendants_forward(use_git: bool) {
         },
         hashset! {},
     );
-    assert_rebased(rebaser.rebase_next(), &commit3, &[commit6.id().clone()]);
-    assert_rebased(rebaser.rebase_next(), &commit5, &[commit6.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit3, &[&commit6]);
+    assert_rebased(rebaser.rebase_next(), &commit5, &[&commit6]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 2);
 
@@ -155,7 +134,7 @@ fn test_rebase_descendants_backward(use_git: bool) {
         },
         hashset! {},
     );
-    assert_rebased(rebaser.rebase_next(), &commit4, &[commit2.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit4, &[&commit2]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 1);
 
@@ -195,12 +174,12 @@ fn test_rebase_descendants_internal_merge(use_git: bool) {
         },
         hashset! {},
     );
-    let new_commit3 = assert_rebased(rebaser.rebase_next(), &commit3, &[commit6.id().clone()]);
-    let new_commit4 = assert_rebased(rebaser.rebase_next(), &commit4, &[commit6.id().clone()]);
+    let new_commit3 = assert_rebased(rebaser.rebase_next(), &commit3, &[&commit6]);
+    let new_commit4 = assert_rebased(rebaser.rebase_next(), &commit4, &[&commit6]);
     assert_rebased(
         rebaser.rebase_next(),
         &commit5,
-        &[new_commit3.id().clone(), new_commit4.id().clone()],
+        &[&new_commit3, &new_commit4],
     );
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 3);
@@ -242,11 +221,7 @@ fn test_rebase_descendants_external_merge(use_git: bool) {
         },
         hashset! {},
     );
-    assert_rebased(
-        rebaser.rebase_next(),
-        &commit5,
-        &[commit6.id().clone(), commit4.id().clone()],
-    );
+    assert_rebased(rebaser.rebase_next(), &commit5, &[&commit6, &commit4]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 1);
 
@@ -283,9 +258,9 @@ fn test_rebase_descendants_abandon(use_git: bool) {
         hashmap! {},
         hashset! {commit2.id().clone(), commit5.id().clone()},
     );
-    assert_rebased(rebaser.rebase_next(), &commit3, &[commit1.id().clone()]);
-    let new_commit4 = assert_rebased(rebaser.rebase_next(), &commit4, &[commit1.id().clone()]);
-    assert_rebased(rebaser.rebase_next(), &commit6, &[new_commit4.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit3, &[&commit1]);
+    let new_commit4 = assert_rebased(rebaser.rebase_next(), &commit4, &[&commit1]);
+    assert_rebased(rebaser.rebase_next(), &commit6, &[&new_commit4]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 3);
 
@@ -320,7 +295,7 @@ fn test_rebase_descendants_abandon_and_replace(use_git: bool) {
         hashmap! {commit2.id().clone() => commit5.id().clone()},
         hashset! {commit3.id().clone()},
     );
-    assert_rebased(rebaser.rebase_next(), &commit4, &[commit5.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit4, &[&commit5]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 1);
 
@@ -354,7 +329,7 @@ fn test_rebase_descendants_abandon_degenerate_merge(use_git: bool) {
         hashmap! {},
         hashset! {commit2.id().clone()},
     );
-    assert_rebased(rebaser.rebase_next(), &commit4, &[commit3.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit4, &[&commit3]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 1);
 
@@ -395,11 +370,7 @@ fn test_rebase_descendants_abandon_widen_merge(use_git: bool) {
     assert_rebased(
         rebaser.rebase_next(),
         &commit6,
-        &[
-            commit2.id().clone(),
-            commit3.id().clone(),
-            commit4.id().clone(),
-        ],
+        &[&commit2, &commit3, &commit4],
     );
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 1);
@@ -439,8 +410,8 @@ fn test_rebase_descendants_multiple_sideways(use_git: bool) {
         },
         hashset! {},
     );
-    assert_rebased(rebaser.rebase_next(), &commit3, &[commit6.id().clone()]);
-    assert_rebased(rebaser.rebase_next(), &commit5, &[commit6.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit3, &[&commit6]);
+    assert_rebased(rebaser.rebase_next(), &commit5, &[&commit6]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 2);
 
@@ -477,8 +448,8 @@ fn test_rebase_descendants_multiple_swap(use_git: bool) {
         },
         hashset! {},
     );
-    assert_rebased(rebaser.rebase_next(), &commit3, &[commit4.id().clone()]);
-    assert_rebased(rebaser.rebase_next(), &commit5, &[commit2.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit3, &[&commit4]);
+    assert_rebased(rebaser.rebase_next(), &commit5, &[&commit2]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 2);
 
@@ -525,8 +496,8 @@ fn test_rebase_descendants_multiple_forward_and_backward(use_git: bool) {
         },
         hashset! {},
     );
-    assert_rebased(rebaser.rebase_next(), &commit7, &[commit3.id().clone()]);
-    assert_rebased(rebaser.rebase_next(), &commit8, &[commit4.id().clone()]);
+    assert_rebased(rebaser.rebase_next(), &commit7, &[&commit3]);
+    assert_rebased(rebaser.rebase_next(), &commit8, &[&commit4]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 2);
 
