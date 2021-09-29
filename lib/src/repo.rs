@@ -528,16 +528,16 @@ impl MutableRepo {
         index: Arc<ReadonlyIndex>,
         view: &View,
         evolution: Option<&Arc<ReadonlyEvolution>>,
-    ) -> Arc<MutableRepo> {
+    ) -> MutableRepo {
         let mut_view = view.start_modification();
         let mut_index = MutableIndex::incremental(index);
         let mut_evolution = evolution.map(|evolution| evolution.start_modification());
-        Arc::new(MutableRepo {
+        MutableRepo {
             base_repo,
             index: mut_index,
             view: mut_view,
             evolution: Mutex::new(mut_evolution),
-        })
+        }
     }
 
     pub fn as_repo_ref(&self) -> RepoRef {

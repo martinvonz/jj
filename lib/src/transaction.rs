@@ -26,7 +26,7 @@ use crate::view::View;
 use crate::working_copy::WorkingCopy;
 
 pub struct Transaction {
-    repo: Option<Arc<MutableRepo>>,
+    repo: Option<MutableRepo>,
     parents: Vec<OperationId>,
     description: String,
     start_time: Timestamp,
@@ -35,7 +35,7 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn new(mut_repo: Arc<MutableRepo>, description: &str) -> Transaction {
+    pub fn new(mut_repo: MutableRepo, description: &str) -> Transaction {
         let parents = vec![mut_repo.base_repo().op_id().clone()];
         Transaction {
             repo: Some(mut_repo),
@@ -60,7 +60,7 @@ impl Transaction {
     }
 
     pub fn mut_repo(&mut self) -> &mut MutableRepo {
-        Arc::get_mut(self.repo.as_mut().unwrap()).unwrap()
+        self.repo.as_mut().unwrap()
     }
 
     /// Writes the transaction to the operation store and publishes it.
@@ -72,7 +72,7 @@ impl Transaction {
     /// That means that a repo can be loaded at the operation, but the
     /// operation will not be seen when loading the repo at head.
     pub fn write(mut self) -> UnpublishedOperation {
-        let mut_repo = Arc::try_unwrap(self.repo.take().unwrap()).ok().unwrap();
+        let mut_repo = self.repo.take().unwrap();
         let base_repo = mut_repo.base_repo().clone();
         let (mut_index, view, maybe_mut_evolution) = mut_repo.consume();
         let maybe_evolution =
