@@ -2164,36 +2164,32 @@ fn cmd_abandon(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
-    let predecessors =
-        repo_command.resolve_revset(ui, sub_matches.value_of("revision").unwrap())?;
-    repo_command.check_non_empty(&predecessors)?;
-    for predecessor in &predecessors {
-        repo_command.check_rewriteable(predecessor)?;
+    let to_abandon = repo_command.resolve_revset(ui, sub_matches.value_of("revision").unwrap())?;
+    repo_command.check_non_empty(&to_abandon)?;
+    for commit in &to_abandon {
+        repo_command.check_rewriteable(commit)?;
     }
     let repo = repo_command.repo();
-    let transaction_description = if predecessors.len() == 1 {
-        format!("abandon commit {}", predecessors[0].id().hex())
+    let transaction_description = if to_abandon.len() == 1 {
+        format!("abandon commit {}", to_abandon[0].id().hex())
     } else {
         format!(
             "abandon commit {} and {} more",
-            predecessors[0].id().hex(),
-            predecessors.len() - 1
+            to_abandon[0].id().hex(),
+            to_abandon.len() - 1
         )
     };
     let mut tx = repo_command.start_transaction(&transaction_description);
-    let abandoned = predecessors
-        .iter()
-        .map(|commit| commit.id().clone())
-        .collect();
-    for predecessor in predecessors {
-        CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
+    for commit in to_abandon {
+        tx.mut_repo().record_abandoned_commit(commit.id().clone());
+        CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_pruned(true)
             .write_to_repo(tx.mut_repo());
     }
-    let mut rebaser = DescendantRebaser::new(ui.settings(), tx.mut_repo(), hashmap! {}, abandoned);
+    let mut rebaser = tx.mut_repo().create_descendant_rebaser(ui.settings());
     rebaser.rebase_all();
     let num_rebased = rebaser.rebased().len();
-    if num_rebased > 0 && num_rebased != 0 {
+    if num_rebased > 0 {
         writeln!(
             ui,
             "Rebased {} descendant commits onto parents of abandoned commits",
@@ -2628,15 +2624,8 @@ fn cmd_rebase(
             old_commit.id().hex()
         ));
         repo_command.check_rewriteable(&old_commit)?;
-        let new_commit = rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &parents);
-        let mut rebaser = DescendantRebaser::new(
-            ui.settings(),
-            tx.mut_repo(),
-            hashmap! {
-                old_commit.id().clone() => new_commit.id().clone()
-            },
-            hashset! {},
-        );
+        rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &parents);
+        let mut rebaser = tx.mut_repo().create_descendant_rebaser(ui.settings());
         rebaser.rebase_all();
         let num_rebased = rebaser.rebased().len() + 1;
         writeln!(ui, "Rebased {} commits", num_rebased)?;
@@ -2648,6 +2637,11 @@ fn cmd_rebase(
             repo_command.start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
         repo_command.check_rewriteable(&old_commit)?;
         rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &parents);
+        // Manually use DescendantRebaser instead of
+        // mut_repo.create_descendant_rebaser() because we don't want to rebase children
+        // onto the rewritten commit. (But we still want to record the commit as
+        // rewritten so branches and the working copy get updated to the
+        // rewritten commit.)
         let mut rebaser = DescendantRebaser::new(
             ui.settings(),
             tx.mut_repo(),
@@ -2656,7 +2650,7 @@ fn cmd_rebase(
         );
         rebaser.rebase_all();
         let num_rebased = rebaser.rebased().len();
-        if num_rebased != 0 {
+        if num_rebased > 0 {
             writeln!(
                 ui,
                 "Also rebased {} descendant commits onto parent of rebased commit",
