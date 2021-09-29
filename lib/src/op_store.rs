@@ -87,7 +87,7 @@ impl RefTarget {
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(Default, PartialEq, Eq, Clone, Debug)]
 pub struct BranchTarget {
     /// The commit the branch points to locally. `None` if the branch has been
     /// deleted locally.
@@ -97,15 +97,6 @@ pub struct BranchTarget {
     // whether the branch is known to have existed on the remote. We may not want to resurrect
     // the branch if the branch's state on the remote was just not known.
     pub remote_targets: BTreeMap<String, RefTarget>,
-}
-
-impl Default for BranchTarget {
-    fn default() -> Self {
-        BranchTarget {
-            local_target: None,
-            remote_targets: Default::default(),
-        }
-    }
 }
 
 /// Represents the way the repo looks at a given time, just like how a Tree

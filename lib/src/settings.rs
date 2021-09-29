@@ -21,7 +21,7 @@ pub struct UserSettings {
 
 #[derive(Debug, Clone)]
 pub struct RepoSettings {
-    config: config::Config,
+    _config: config::Config,
 }
 
 impl UserSettings {
@@ -51,7 +51,7 @@ impl UserSettings {
                 .format(config::FileFormat::Toml),
         )?;
 
-        Ok(RepoSettings { config })
+        Ok(RepoSettings { _config: config })
     }
 
     pub fn user_name(&self) -> String {

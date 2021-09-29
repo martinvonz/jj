@@ -172,7 +172,7 @@ pub struct ConflictPart {
     pub value: TreeValue,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Default, Debug, PartialEq, Eq, Clone)]
 pub struct Conflict {
     // A conflict is represented by a list of positive and negative states that need to be applied.
     // In a simple 3-way merge of B and C with merge base A, the conflict will be { add: [B, C],
@@ -180,15 +180,6 @@ pub struct Conflict {
     // same as non-conflict A.
     pub removes: Vec<ConflictPart>,
     pub adds: Vec<ConflictPart>,
-}
-
-impl Default for Conflict {
-    fn default() -> Self {
-        Conflict {
-            removes: Default::default(),
-            adds: Default::default(),
-        }
-    }
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -244,17 +235,9 @@ impl<'a> Iterator for TreeEntriesNonRecursiveIter<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct Tree {
     entries: BTreeMap<RepoPathComponent, TreeValue>,
-}
-
-impl Default for Tree {
-    fn default() -> Self {
-        Self {
-            entries: BTreeMap::new(),
-        }
-    }
 }
 
 impl Tree {
