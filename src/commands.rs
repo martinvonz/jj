@@ -2323,6 +2323,9 @@ from the source will be moved into the parent.
         .set_parents(vec![new_parent.id().clone()])
         .set_pruned(abandon_child)
         .write_to_repo(mut_repo);
+    if abandon_child {
+        mut_repo.record_abandoned_commit(commit.id().clone());
+    }
     repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -2380,10 +2383,18 @@ aborted.
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
         .set_pruned(abandon_parent)
         .write_to_repo(mut_repo);
-    // Commit the new child on top of the new parent.
-    CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
-        .set_parents(vec![new_parent.id().clone()])
-        .write_to_repo(mut_repo);
+    if abandon_parent {
+        mut_repo.record_abandoned_commit(parent.id().clone());
+        // Commit the new child on top of the parent's parents.
+        CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
+            .set_parents(parent.parent_ids())
+            .write_to_repo(mut_repo);
+    } else {
+        // Commit the new child on top of the new parent.
+        CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
+            .set_parents(vec![new_parent.id().clone()])
+            .write_to_repo(mut_repo);
+    }
     repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
