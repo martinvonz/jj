@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::fs::File;
@@ -33,6 +34,7 @@ use crate::local_backend::LocalBackend;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget};
 use crate::operation::Operation;
+use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
@@ -520,6 +522,8 @@ pub struct MutableRepo {
     index: MutableIndex,
     view: View,
     evolution: Mutex<Option<MutableEvolution>>,
+    rewritten_commits: HashMap<CommitId, HashSet<CommitId>>,
+    abandoned_commits: HashSet<CommitId>,
 }
 
 impl MutableRepo {
@@ -537,6 +541,8 @@ impl MutableRepo {
             index: mut_index,
             view: mut_view,
             evolution: Mutex::new(mut_evolution),
+            rewritten_commits: Default::default(),
+            abandoned_commits: Default::default(),
         }
     }
 
@@ -597,6 +603,54 @@ impl MutableRepo {
         let commit = self.store().write_commit(commit);
         self.add_head(&commit);
         commit
+    }
+
+    /// Record a commit as having been rewritten in this transaction. This
+    /// record is used by `rebase_descendants()`.
+    ///
+    /// Rewritten commits don't have to be recorded here. This is just a
+    /// convenient place to record it. It won't matter after the transaction
+    /// has been committed.
+    pub fn record_rewritten_commit(&mut self, old_id: CommitId, new_id: CommitId) {
+        self.rewritten_commits
+            .entry(old_id)
+            .or_default()
+            .insert(new_id);
+    }
+
+    /// Record a commit as having been abandoned in this transaction. This
+    /// record is used by `rebase_descendants()`.
+    ///
+    /// Abandoned commits don't have to be recorded here. This is just a
+    /// convenient place to record it. It won't matter after the transaction
+    /// has been committed.
+    pub fn record_abandoned_commit(&mut self, old_id: CommitId) {
+        self.abandoned_commits.insert(old_id);
+    }
+
+    /// Creates a `DescendantRebaser` to rebase descendants of the recorded
+    /// rewritten and abandoned commits. Clears the records of rewritten and
+    /// abandoned commits.
+    pub fn create_descendant_rebaser<'settings, 'repo>(
+        &'repo mut self,
+        settings: &'settings UserSettings,
+    ) -> DescendantRebaser<'settings, 'repo> {
+        let mut replaced = HashMap::new();
+        for (old_commit, new_commits) in &self.rewritten_commits {
+            if new_commits.len() == 1 {
+                replaced.insert(
+                    old_commit.clone(),
+                    new_commits.iter().next().unwrap().clone(),
+                );
+            } else {
+                // TODO: If there are any children, record a conflict in the
+                // view for each of them. It should probably be
+                // DescendantRebaser's responsibility to do that.
+                // We would then simply pass it self.rewritten_commits.
+            }
+        }
+        let abandoned = self.abandoned_commits.clone();
+        DescendantRebaser::new(settings, self, replaced, abandoned)
     }
 
     pub fn set_checkout(&mut self, id: CommitId) {

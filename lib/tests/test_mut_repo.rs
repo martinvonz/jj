@@ -20,7 +20,7 @@ use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::CommitGraphBuilder;
+use jujutsu_lib::testutils::{assert_rebased, CommitGraphBuilder};
 use test_case::test_case;
 
 // TODO Many of the tests here are not run with Git because they end up creating
@@ -556,4 +556,76 @@ fn test_remove_public_head(use_git: bool) {
     assert!(!mut_repo.view().public_heads().contains(commit1.id()));
     let repo = tx.commit();
     assert!(!repo.view().public_heads().contains(commit1.id()));
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rebase_descendants_simple(use_git: bool) {
+    // Tests that MutableRepo::create_descendant_rebaser() creates a
+    // DescendantRebaser that rebases descendants of rewritten and abandoned
+    // commits.
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit4]);
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit6 = graph_builder.commit_with_parents(&[&commit1]);
+    mut_repo.record_rewritten_commit(commit2.id().clone(), commit6.id().clone());
+    mut_repo.record_abandoned_commit(commit4.id().clone());
+    let mut rebaser = mut_repo.create_descendant_rebaser(&settings);
+    // Commit 3 got rebased onto commit 2's replacement, i.e. commit 6
+    assert_rebased(rebaser.rebase_next(), &commit3, &[&commit6]);
+    // Commit 5 got rebased onto commit 4's parent, i.e. commit 1
+    assert_rebased(rebaser.rebase_next(), &commit5, &[&commit1]);
+    assert!(rebaser.rebase_next().is_none());
+    // No more descendants to rebase if we try again.
+    assert!(mut_repo
+        .create_descendant_rebaser(&settings)
+        .rebase_next()
+        .is_none());
+    tx.discard();
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rebase_descendants_conflicting_rewrite(use_git: bool) {
+    // Tests MutableRepo::create_descendant_rebaser() when a commit has been marked
+    // as rewritten to several other commits.
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let _commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit4 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit1]);
+    mut_repo.record_rewritten_commit(commit2.id().clone(), commit4.id().clone());
+    mut_repo.record_rewritten_commit(commit2.id().clone(), commit5.id().clone());
+    let mut rebaser = mut_repo.create_descendant_rebaser(&settings);
+    // Commit 3 does *not* get rebased because it's unclear if it should go onto
+    // commit 4 or commit 5
+    assert!(rebaser.rebase_next().is_none());
+    // No more descendants to rebase if we try again.
+    assert!(mut_repo
+        .create_descendant_rebaser(&settings)
+        .rebase_next()
+        .is_none());
+    tx.discard();
 }
