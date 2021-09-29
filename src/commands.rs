@@ -204,7 +204,7 @@ struct RepoCommandHelper {
     working_copy_committed: bool,
     // Whether to evolve orphans when the transaction
     // finishes. This should generally be true for commands that rewrite commits.
-    evolve_orphans: bool,
+    rebase_descendants: bool,
     // Whether the checkout should be updated to an appropriate successor when the transaction
     // finishes. This should generally be true for commands that rewrite commits.
     auto_update_checkout: bool,
@@ -227,14 +227,14 @@ impl RepoCommandHelper {
             repo,
             may_update_working_copy,
             working_copy_committed: false,
-            evolve_orphans: true,
+            rebase_descendants: true,
             auto_update_checkout: true,
             auto_update_branches: true,
         })
     }
 
-    fn evolve_orphans(mut self, value: bool) -> Self {
-        self.evolve_orphans = value;
+    fn rebase_descendants(mut self, value: bool) -> Self {
+        self.rebase_descendants = value;
         self
     }
 
@@ -382,21 +382,13 @@ impl RepoCommandHelper {
                         .write_to_repo(mut_repo);
                 mut_repo.set_checkout(commit.id().clone());
 
-                // Evolve descendants (though it currently evolves all commits)
-                let evolve_result = evolve_orphans(&self.settings, mut_repo)?;
-                if evolve_result.num_resolved > 0 {
+                // Rebase descendants
+                let num_rebased = rebase_descendants(&self.settings, mut_repo);
+                if num_rebased > 0 {
                     writeln!(
                         ui,
                         "Rebased {} descendant commits onto updated working copy",
-                        evolve_result.num_resolved
-                    )?;
-                }
-                if evolve_result.num_failed > 0 {
-                    writeln!(
-                        ui,
-                        "Failed to rebase {} descendant commits onto updated working copy (run \
-                         `jj evolve`)",
-                        evolve_result.num_failed
+                        num_rebased
                     )?;
                 }
 
@@ -449,21 +441,10 @@ impl RepoCommandHelper {
         mut tx: Transaction,
     ) -> Result<Option<CheckoutStats>, CommandError> {
         let mut_repo = tx.mut_repo();
-        if self.evolve_orphans {
-            let evolve_result = evolve_orphans(ui.settings(), mut_repo)?;
-            if evolve_result.num_resolved > 0 {
-                writeln!(
-                    ui,
-                    "Rebased {} descendant commits",
-                    evolve_result.num_resolved
-                )?;
-            }
-            if evolve_result.num_failed > 0 {
-                writeln!(
-                    ui,
-                    "Failed to rebase {} descendant commits (run `jj evolve`)",
-                    evolve_result.num_failed
-                )?;
+        if self.rebase_descendants {
+            let num_rebased = rebase_descendants(ui.settings(), mut_repo);
+            if num_rebased > 0 {
+                writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
             }
         }
         if self.auto_update_checkout {
@@ -654,32 +635,13 @@ fn update_working_copy(
     Ok(Some(stats))
 }
 
-struct OrphanEvolutionResult {
-    num_resolved: i32,
-    num_failed: i32,
-}
-
-fn evolve_orphans(
-    settings: &UserSettings,
-    mut_repo: &mut MutableRepo,
-) -> Result<OrphanEvolutionResult, CommandError> {
-    let mut orphan_resolver = OrphanResolver::new(settings, mut_repo);
-    let mut num_resolved = 0;
-    let mut num_failed = 0;
-    while let Some(resolution) = orphan_resolver.resolve_next(mut_repo) {
-        match resolution {
-            OrphanResolution::Resolved { .. } => {
-                num_resolved += 1;
-            }
-            _ => {
-                num_failed += 1;
-            }
-        }
+fn rebase_descendants(settings: &UserSettings, mut_repo: &mut MutableRepo) -> i32 {
+    let mut rebaser = mut_repo.create_descendant_rebaser(settings);
+    let mut num_rebased = 0;
+    while rebaser.rebase_next().is_some() {
+        num_rebased += 1;
     }
-    Ok(OrphanEvolutionResult {
-        num_resolved,
-        num_failed,
-    })
+    num_rebased
 }
 
 fn update_checkout_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) -> io::Result<()> {
@@ -2533,7 +2495,7 @@ fn cmd_split(
     command: &CommandHelper,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?.evolve_orphans(false);
+    let mut repo_command = command.repo_helper(ui)?.rebase_descendants(false);
     let commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
@@ -2646,7 +2608,7 @@ fn cmd_rebase(
     command: &CommandHelper,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?.evolve_orphans(false);
+    let mut repo_command = command.repo_helper(ui)?.rebase_descendants(false);
     let mut parents = vec![];
     for revision_str in sub_matches.values_of("destination").unwrap() {
         let destination = repo_command.resolve_single_rev(ui, revision_str)?;
@@ -2879,7 +2841,7 @@ fn cmd_evolve<'s>(
     command: &CommandHelper,
     _sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?.evolve_orphans(false);
+    let mut repo_command = command.repo_helper(ui)?.rebase_descendants(false);
 
     // TODO: This clone is unnecessary. Maybe ui.write() etc should not require a
     // mutable borrow? But the mutable borrow might be useful for making sure we
