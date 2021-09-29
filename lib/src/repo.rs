@@ -670,6 +670,7 @@ impl MutableRepo {
             CommitBuilder::for_rewrite_from(settings, self.store(), &current_checkout)
                 .set_pruned(true)
                 .write_to_repo(self);
+            self.record_abandoned_commit(current_checkout_id);
         }
         let store = self.store();
         // Create a new tree with any conflicts resolved.
