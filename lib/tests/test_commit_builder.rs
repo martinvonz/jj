@@ -17,6 +17,7 @@ use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
+use jujutsu_lib::testutils::{assert_rebased, CommitGraphBuilder};
 use jujutsu_lib::tree::DiffSummary;
 use test_case::test_case;
 
@@ -145,4 +146,67 @@ fn test_rewrite(use_git: bool) {
             removed: vec![]
         }
     );
+}
+
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
+fn test_commit_builder_descendants(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let store = repo.store().clone();
+
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let repo = tx.commit();
+
+    // Test with for_new_commit()
+    let mut tx = repo.start_transaction("test");
+    CommitBuilder::for_new_commit(&settings, &store, store.empty_tree_id().clone())
+        .write_to_repo(tx.mut_repo());
+    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
+    assert!(rebaser.rebase_next().is_none());
+    tx.discard();
+
+    // Test with for_open_commit()
+    let mut tx = repo.start_transaction("test");
+    CommitBuilder::for_open_commit(
+        &settings,
+        &store,
+        commit2.id().clone(),
+        store.empty_tree_id().clone(),
+    )
+    .write_to_repo(tx.mut_repo());
+    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
+    assert!(rebaser.rebase_next().is_none());
+    tx.discard();
+
+    // Test with for_rewrite_from()
+    let mut tx = repo.start_transaction("test");
+    let commit4 =
+        CommitBuilder::for_rewrite_from(&settings, &store, &commit2).write_to_repo(tx.mut_repo());
+    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
+    assert_rebased(rebaser.rebase_next(), &commit3, &[&commit4]);
+    assert!(rebaser.rebase_next().is_none());
+    tx.discard();
+
+    // Test with for_rewrite_from() but new change id
+    let mut tx = repo.start_transaction("test");
+    CommitBuilder::for_rewrite_from(&settings, &store, &commit2)
+        .generate_new_change_id()
+        .write_to_repo(tx.mut_repo());
+    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
+    assert!(rebaser.rebase_next().is_none());
+    tx.discard();
+
+    // Test with for_rewrite_from() but pruned
+    let mut tx = repo.start_transaction("test");
+    CommitBuilder::for_rewrite_from(&settings, &store, &commit2)
+        .set_pruned(true)
+        .write_to_repo(tx.mut_repo());
+    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
+    assert!(rebaser.rebase_next().is_none());
+    tx.discard();
 }

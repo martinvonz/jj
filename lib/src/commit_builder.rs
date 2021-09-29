@@ -27,6 +27,7 @@ use crate::store::Store;
 pub struct CommitBuilder {
     store: Arc<Store>,
     commit: backend::Commit,
+    rewrite_source: Option<Commit>,
 }
 
 pub fn new_change_id() -> ChangeId {
@@ -63,6 +64,7 @@ impl CommitBuilder {
         CommitBuilder {
             store: store.clone(),
             commit,
+            rewrite_source: None,
         }
     }
 
@@ -77,6 +79,7 @@ impl CommitBuilder {
         CommitBuilder {
             store: store.clone(),
             commit,
+            rewrite_source: Some(predecessor.clone()),
         }
     }
 
@@ -101,6 +104,7 @@ impl CommitBuilder {
         CommitBuilder {
             store: store.clone(),
             commit,
+            rewrite_source: None,
         }
     }
 
@@ -160,6 +164,16 @@ impl CommitBuilder {
             assert_eq!(parents.len(), 1);
             parents.clear();
         }
-        repo.write_commit(self.commit)
+        let mut rewrite_source_id = None;
+        if let Some(rewrite_source) = self.rewrite_source {
+            if !self.commit.is_pruned && *rewrite_source.change_id() == self.commit.change_id {
+                rewrite_source_id.replace(rewrite_source.id().clone());
+            }
+        }
+        let commit = repo.write_commit(self.commit);
+        if let Some(rewrite_source_id) = rewrite_source_id {
+            repo.record_rewritten_commit(rewrite_source_id, commit.id().clone())
+        }
+        commit
     }
 }
