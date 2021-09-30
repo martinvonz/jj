@@ -2533,7 +2533,7 @@ fn cmd_split(
     command: &CommandHelper,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
+    let mut repo_command = command.repo_helper(ui)?.evolve_orphans(false);
     let commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     repo_command.check_rewriteable(&commit)?;
     let repo = repo_command.repo();
@@ -2576,6 +2576,17 @@ any changes, then the operation will be aborted.
             .generate_new_change_id()
             .set_description(second_description)
             .write_to_repo(mut_repo);
+        let mut rebaser = DescendantRebaser::new(
+            ui.settings(),
+            mut_repo,
+            hashmap! { commit.id().clone() => second_commit.id().clone() },
+            hashset! {},
+        );
+        rebaser.rebase_all();
+        let num_rebased = rebaser.rebased().len();
+        if num_rebased > 0 {
+            writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
+        }
         ui.write("First part: ")?;
         ui.write_commit_summary(mut_repo.as_repo_ref(), &first_commit)?;
         ui.write("\nSecond part: ")?;
