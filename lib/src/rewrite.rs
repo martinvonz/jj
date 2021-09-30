@@ -100,7 +100,7 @@ pub fn back_out_commit(
         .write_to_repo(mut_repo)
 }
 
-/// Rebases descendants of a commit onto a new commit (or several).
+/// Rebases descendants of rewritten or abandoned commits.
 // TODO: Should there be an option to drop empty commits (and/or an option to
 // drop empty commits only if they weren't already empty)? Or maybe that
 // shouldn't be this type's job.
@@ -108,7 +108,7 @@ pub struct DescendantRebaser<'settings, 'repo> {
     settings: &'settings UserSettings,
     mut_repo: &'repo mut MutableRepo,
     new_parents: HashMap<CommitId, Vec<CommitId>>,
-    // In reverse order, so we can remove the last one to rebase first.
+    // In reverse order (parents after children), so we can remove the last one to rebase first.
     to_visit: Vec<CommitId>,
     // Commits to visit but skip. These were also in `to_visit` to start with, but we don't
     // want to rebase them. Instead, we record them in `replacements` when we visit them. That way,
@@ -175,23 +175,28 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         &self.rebased
     }
 
+    fn new_parents(&self, old_parent_ids: &[CommitId]) -> Vec<CommitId> {
+        let mut new_parent_ids = vec![];
+        for old_parent_id in old_parent_ids {
+            if let Some(replacements) = self.new_parents.get(old_parent_id) {
+                new_parent_ids.extend(replacements.clone());
+            } else if let Some(new_parent_id) = self.rebased.get(old_parent_id) {
+                new_parent_ids.push(new_parent_id.clone());
+            } else {
+                new_parent_ids.push(old_parent_id.clone());
+            };
+        }
+        new_parent_ids
+    }
+
     pub fn rebase_next(&mut self) -> Option<RebasedDescendant> {
         while let Some(old_commit_id) = self.to_visit.pop() {
             if self.new_parents.contains_key(&old_commit_id) {
                 continue;
             }
             let old_commit = self.mut_repo.store().get_commit(&old_commit_id).unwrap();
-            let mut new_parent_ids = vec![];
             let old_parent_ids = old_commit.parent_ids();
-            for old_parent_id in &old_parent_ids {
-                if let Some(replacements) = self.new_parents.get(old_parent_id) {
-                    new_parent_ids.extend(replacements.clone());
-                } else if let Some(new_parent_id) = self.rebased.get(old_parent_id) {
-                    new_parent_ids.push(new_parent_id.clone());
-                } else {
-                    new_parent_ids.push(old_parent_id.clone());
-                };
-            }
+            let new_parent_ids = self.new_parents(&old_parent_ids);
             if self.to_skip.contains(&old_commit_id) {
                 // Update the `replacements` map so descendants are rebased correctly.
                 self.new_parents.insert(old_commit_id, new_parent_ids);
@@ -209,12 +214,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 .iter()
                 .cloned()
                 .collect();
-            let new_parent_ids = new_parent_ids
-                .into_iter()
-                .filter(|new_parent| head_set.contains(new_parent))
-                .collect_vec();
             let new_parents = new_parent_ids
                 .iter()
+                .filter(|new_parent| head_set.contains(new_parent))
                 .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id).unwrap())
                 .collect_vec();
             let new_commit = rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents);
