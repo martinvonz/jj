@@ -15,7 +15,7 @@
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::rewrite::{update_branches_after_rewrite, DescendantRebaser};
+use jujutsu_lib::rewrite::DescendantRebaser;
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::{assert_rebased, CommitGraphBuilder};
 use maplit::{hashmap, hashset};
@@ -629,7 +629,7 @@ fn test_rebase_descendants_contents(use_git: bool) {
 }
 
 #[test]
-fn test_update_branches_after_rewrite_basic() {
+fn test_rebase_descendants_basic_branch_update() {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, false);
 
@@ -657,7 +657,9 @@ fn test_update_branches_after_rewrite_basic() {
     let mut tx = repo.start_transaction("test");
     let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
         .write_to_repo(tx.mut_repo());
-    update_branches_after_rewrite(tx.mut_repo());
+    tx.mut_repo()
+        .create_descendant_rebaser(&settings)
+        .rebase_all();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         Some(RefTarget::Normal(commit_b2.id().clone()))
@@ -676,7 +678,7 @@ fn test_update_branches_after_rewrite_basic() {
 }
 
 #[test]
-fn test_update_branches_after_rewrite_to_conflict() {
+fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, false);
 
@@ -707,7 +709,9 @@ fn test_update_branches_after_rewrite_to_conflict() {
     let commit_b4 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
         .set_description("more different".to_string())
         .write_to_repo(tx.mut_repo());
-    update_branches_after_rewrite(tx.mut_repo());
+    tx.mut_repo()
+        .create_descendant_rebaser(&settings)
+        .rebase_all();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         Some(RefTarget::Conflict {
@@ -724,7 +728,7 @@ fn test_update_branches_after_rewrite_to_conflict() {
 }
 
 #[test]
-fn test_update_branches_after_rewrite_update_conflict() {
+fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, false);
 
@@ -758,20 +762,22 @@ fn test_update_branches_after_rewrite_update_conflict() {
     let commit_b3 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
         .set_description("different".to_string())
         .write_to_repo(tx.mut_repo());
-    update_branches_after_rewrite(tx.mut_repo());
+    tx.mut_repo()
+        .create_descendant_rebaser(&settings)
+        .rebase_all();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         Some(RefTarget::Conflict {
             removes: vec![
-                commit_b.id().clone(),
                 commit_a2.id().clone(),
-                commit_a3.id().clone()
+                commit_a3.id().clone(),
+                commit_b.id().clone(),
             ],
             adds: vec![
                 commit_c.id().clone(),
+                commit_a.id().clone(),
                 commit_b2.id().clone(),
                 commit_b3.id().clone(),
-                commit_a.id().clone()
             ]
         })
     );
@@ -780,7 +786,7 @@ fn test_update_branches_after_rewrite_update_conflict() {
 }
 
 #[test]
-fn test_update_branches_after_rewrite_resolves_conflict() {
+fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, false);
 
@@ -809,7 +815,9 @@ fn test_update_branches_after_rewrite_resolves_conflict() {
     let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
         .set_parents(vec![commit_c.id().clone()])
         .write_to_repo(tx.mut_repo());
-    update_branches_after_rewrite(tx.mut_repo());
+    tx.mut_repo()
+        .create_descendant_rebaser(&settings)
+        .rebase_all();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         Some(RefTarget::Normal(commit_b2.id().clone()))

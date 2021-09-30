@@ -100,13 +100,17 @@ pub fn back_out_commit(
         .write_to_repo(mut_repo)
 }
 
-/// Rebases descendants of rewritten or abandoned commits.
+/// Rebases descendants of a commit onto a new commit (or several).
 // TODO: Should there be an option to drop empty commits (and/or an option to
 // drop empty commits only if they weren't already empty)? Or maybe that
 // shouldn't be this type's job.
 pub struct DescendantRebaser<'settings, 'repo> {
     settings: &'settings UserSettings,
     mut_repo: &'repo mut MutableRepo,
+    // The commit identified by the key has been replaced by all the ones in the value, typically
+    // because the key commit was abandoned (the value commits are then the abandoned commit's
+    // parents). A child of the key commit should be rebased onto all the value commits. A branch
+    // pointing to the key commit should become a conflict pointing to all the value commits.
     new_parents: HashMap<CommitId, Vec<CommitId>>,
     divergent: HashMap<CommitId, Vec<CommitId>>,
     // In reverse order (parents after children), so we can remove the last one to rebase first.
@@ -116,6 +120,8 @@ pub struct DescendantRebaser<'settings, 'repo> {
     // their descendants will be rebased correctly.
     to_skip: HashSet<CommitId>,
     rebased: HashMap<CommitId, CommitId>,
+    // Names of branches where local target includes the commit id in the key.
+    branches: HashMap<CommitId, Vec<String>>,
 }
 
 impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
@@ -133,7 +139,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             RevsetExpression::commits(rewritten.values().flatten().cloned().collect());
 
         let to_visit_expression =
-            old_commits_expression.descendants(&RevsetExpression::all_non_obsolete_heads());
+            old_commits_expression.descendants(&RevsetExpression::all_heads());
         let to_visit_revset = to_visit_expression
             .evaluate(mut_repo.as_repo_ref())
             .unwrap();
@@ -166,6 +172,26 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             }
         }
 
+        // Build a map from commit to branches pointing to it, so we don't need to scan
+        // all branches each time we rebase a commit.
+        let mut branches: HashMap<_, Vec<_>> = HashMap::new();
+        for (branch_name, branch_target) in mut_repo.view().branches() {
+            if let Some(local_target) = &branch_target.local_target {
+                for commit in local_target.adds() {
+                    branches
+                        .entry(commit)
+                        .or_default()
+                        .push(branch_name.clone());
+                }
+                for commit in local_target.removes() {
+                    branches
+                        .entry(commit)
+                        .or_default()
+                        .push(branch_name.clone());
+                }
+            }
+        }
+
         DescendantRebaser {
             settings,
             mut_repo,
@@ -174,6 +200,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             to_visit,
             to_skip,
             rebased: Default::default(),
+            branches,
         }
     }
 
@@ -184,28 +211,87 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         &self.rebased
     }
 
-    fn new_parents(&self, old_parent_ids: &[CommitId]) -> Vec<CommitId> {
-        let mut new_parent_ids = vec![];
-        for old_parent_id in old_parent_ids {
-            if let Some(replacements) = self.new_parents.get(old_parent_id) {
-                new_parent_ids.extend(replacements.clone());
-            } else if let Some(new_parent_id) = self.rebased.get(old_parent_id) {
-                new_parent_ids.push(new_parent_id.clone());
+    fn new_parents(&self, old_ids: &[CommitId]) -> Vec<CommitId> {
+        let mut new_ids = vec![];
+        for old_id in old_ids {
+            if let Some(replacements) = self.new_parents.get(old_id) {
+                new_ids.extend(replacements.clone());
+            } else if let Some(new_parent_id) = self.rebased.get(old_id) {
+                new_ids.push(new_parent_id.clone());
             } else {
-                new_parent_ids.push(old_parent_id.clone());
+                new_ids.push(old_id.clone());
             };
         }
-        new_parent_ids
+        new_ids
+    }
+
+    fn ref_target_update(old_id: CommitId, new_ids: Vec<CommitId>) -> (RefTarget, RefTarget) {
+        let old_ids = std::iter::repeat(old_id).take(new_ids.len()).collect_vec();
+        (
+            RefTarget::Conflict {
+                removes: vec![],
+                adds: old_ids,
+            },
+            RefTarget::Conflict {
+                removes: vec![],
+                adds: new_ids,
+            },
+        )
+    }
+
+    fn update_branches(&mut self, old_commit_id: CommitId, new_commit_ids: Vec<CommitId>) {
+        if let Some(branch_names) = self.branches.get(&old_commit_id) {
+            let view = self.mut_repo.view();
+            let mut branch_updates = vec![];
+            for branch_name in branch_names {
+                let local_target = view.get_local_branch(branch_name).unwrap();
+                for old_add in local_target.adds() {
+                    if old_add == old_commit_id {
+                        branch_updates.push((branch_name.clone(), true));
+                    }
+                }
+                for old_add in local_target.removes() {
+                    if old_add == old_commit_id {
+                        // Arguments reversed for removes
+                        branch_updates.push((branch_name.clone(), false));
+                    }
+                }
+            }
+            let (old_target, new_target) =
+                DescendantRebaser::ref_target_update(old_commit_id.clone(), new_commit_ids);
+            for (branch_name, is_add) in branch_updates {
+                if is_add {
+                    self.mut_repo.merge_single_ref(
+                        &RefName::LocalBranch(branch_name),
+                        Some(&old_target),
+                        Some(&new_target),
+                    );
+                } else {
+                    // Arguments reversed for removes
+                    self.mut_repo.merge_single_ref(
+                        &RefName::LocalBranch(branch_name),
+                        Some(&new_target),
+                        Some(&old_target),
+                    );
+                }
+            }
+        }
     }
 
     pub fn rebase_next(&mut self) -> Option<RebasedDescendant> {
         while let Some(old_commit_id) = self.to_visit.pop() {
-            if self.new_parents.contains_key(&old_commit_id) {
+            if let Some(new_parent_ids) = self.new_parents.get(&old_commit_id).cloned() {
+                // This is a commit that had already been rebased before `self` was created
+                // (i.e. it's part of the input for this rebase). We don't need
+                // to rebase it, but we still want to update branches pointing
+                // to the old commit.
+                self.update_branches(old_commit_id, new_parent_ids);
                 continue;
             }
-            if self.divergent.contains_key(&old_commit_id) {
+            if let Some(new_commit_ids) = self.divergent.get(&old_commit_id).cloned() {
                 // Leave divergent commits in place. Don't update `new_parents` since we don't
                 // want to rebase descendants either.
+                self.update_branches(old_commit_id, new_commit_ids);
                 continue;
             }
             let old_commit = self.mut_repo.store().get_commit(&old_commit_id).unwrap();
@@ -234,6 +320,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id).unwrap())
                 .collect_vec();
             let new_commit = rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents);
+            self.update_branches(old_commit_id.clone(), vec![new_commit.id().clone()]);
             self.rebased.insert(old_commit_id, new_commit.id().clone());
             return Some(RebasedDescendant {
                 old_commit,
@@ -252,56 +339,4 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 pub struct RebasedDescendant {
     pub old_commit: Commit,
     pub new_commit: Commit,
-}
-
-pub fn update_branches_after_rewrite(mut_repo: &mut MutableRepo) {
-    let new_evolution = mut_repo.evolution();
-    let base_repo = mut_repo.base_repo();
-    let old_evolution = base_repo.evolution();
-    let mut updates = vec![];
-    let index = mut_repo.index().as_index_ref();
-
-    let ref_target_update = |old_id: CommitId| -> Option<(RefTarget, RefTarget)> {
-        if new_evolution.is_obsolete(&old_id) && !old_evolution.is_obsolete(&old_id) {
-            // The call to index.heads() is mostly to get a predictable order
-            let new_ids = index.heads(&new_evolution.new_parent(mut_repo.as_repo_ref(), &old_id));
-            let old_ids = std::iter::repeat(old_id).take(new_ids.len()).collect_vec();
-            Some((
-                RefTarget::Conflict {
-                    removes: vec![],
-                    adds: old_ids,
-                },
-                RefTarget::Conflict {
-                    removes: vec![],
-                    adds: new_ids,
-                },
-            ))
-        } else {
-            None
-        }
-    };
-
-    for (branch_name, branch_target) in mut_repo.view().branches() {
-        if let Some(old_target) = &branch_target.local_target {
-            for old_add in old_target.adds() {
-                if let Some((old_target, new_target)) = ref_target_update(old_add) {
-                    updates.push((branch_name.clone(), old_target, new_target));
-                }
-            }
-            for old_remove in old_target.removes() {
-                if let Some((old_target, new_target)) = ref_target_update(old_remove) {
-                    // Arguments reversed for removes
-                    updates.push((branch_name.clone(), new_target, old_target));
-                }
-            }
-        }
-    }
-
-    for (branch_name, old_target, new_target) in updates {
-        mut_repo.merge_single_ref(
-            &RefName::LocalBranch(branch_name),
-            Some(&old_target),
-            Some(&new_target),
-        );
-    }
 }

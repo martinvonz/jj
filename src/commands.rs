@@ -52,10 +52,7 @@ use jujutsu_lib::repo::{
 };
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
-use jujutsu_lib::rewrite::{
-    back_out_commit, merge_commit_trees, rebase_commit, update_branches_after_rewrite,
-    DescendantRebaser,
-};
+use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
@@ -208,9 +205,6 @@ struct RepoCommandHelper {
     // Whether the checkout should be updated to an appropriate successor when the transaction
     // finishes. This should generally be true for commands that rewrite commits.
     auto_update_checkout: bool,
-    // Whether branches should be updated to appropriate successors when the transaction
-    // finishes. This should generally be true for commands that rewrite commits.
-    auto_update_branches: bool,
 }
 
 impl RepoCommandHelper {
@@ -229,7 +223,6 @@ impl RepoCommandHelper {
             working_copy_committed: false,
             rebase_descendants: true,
             auto_update_checkout: true,
-            auto_update_branches: true,
         })
     }
 
@@ -240,11 +233,6 @@ impl RepoCommandHelper {
 
     fn auto_update_checkout(mut self, value: bool) -> Self {
         self.auto_update_checkout = value;
-        self
-    }
-
-    fn auto_update_branches(mut self, value: bool) -> Self {
-        self.auto_update_branches = value;
         self
     }
 
@@ -392,10 +380,6 @@ impl RepoCommandHelper {
                     )?;
                 }
 
-                // Update branches pointing to the old checkout and any branches pointing to
-                // descendants.
-                update_branches_after_rewrite(mut_repo);
-
                 self.repo = tx.commit();
                 locked_wc.finish(commit);
             } else {
@@ -449,9 +433,6 @@ impl RepoCommandHelper {
         }
         if self.auto_update_checkout {
             update_checkout_after_rewrite(ui, mut_repo)?;
-        }
-        if self.auto_update_branches {
-            update_branches_after_rewrite(mut_repo);
         }
         self.repo = tx.commit();
         update_working_copy(ui, &self.repo, &self.repo.working_copy_locked())
@@ -1403,10 +1384,7 @@ fn cmd_checkout(
     command: &CommandHelper,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command
-        .repo_helper(ui)?
-        .auto_update_checkout(false)
-        .auto_update_branches(false);
+    let mut repo_command = command.repo_helper(ui)?.auto_update_checkout(false);
     let new_commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     repo_command.commit_working_copy(ui)?;
     let mut tx =
@@ -2677,7 +2655,7 @@ fn cmd_branch(
     let mut repo_command = command
         .repo_helper(ui)?
         .auto_update_checkout(false)
-        .auto_update_branches(false);
+        .rebase_descendants(false);
     let branch_name = sub_matches.value_of("name").unwrap();
     if sub_matches.is_present("delete") {
         let mut tx = repo_command.start_transaction(&format!("delete branch {}", branch_name));
