@@ -2510,7 +2510,7 @@ any changes, then the operation will be aborted.
         let mut rebaser = DescendantRebaser::new(
             ui.settings(),
             mut_repo,
-            hashmap! { commit.id().clone() => second_commit.id().clone() },
+            hashmap! { commit.id().clone() => hashset!{second_commit.id().clone()} },
             hashset! {},
         );
         rebaser.rebase_all();

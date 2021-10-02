@@ -108,6 +108,7 @@ pub struct DescendantRebaser<'settings, 'repo> {
     settings: &'settings UserSettings,
     mut_repo: &'repo mut MutableRepo,
     new_parents: HashMap<CommitId, Vec<CommitId>>,
+    divergent: HashMap<CommitId, Vec<CommitId>>,
     // In reverse order (parents after children), so we can remove the last one to rebase first.
     to_visit: Vec<CommitId>,
     // Commits to visit but skip. These were also in `to_visit` to start with, but we don't
@@ -121,15 +122,15 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     pub fn new(
         settings: &'settings UserSettings,
         mut_repo: &'repo mut MutableRepo,
-        replaced: HashMap<CommitId, CommitId>,
+        rewritten: HashMap<CommitId, HashSet<CommitId>>,
         abandoned: HashSet<CommitId>,
     ) -> DescendantRebaser<'settings, 'repo> {
-        let old_commits_expression = RevsetExpression::commits(replaced.keys().cloned().collect())
+        let old_commits_expression = RevsetExpression::commits(rewritten.keys().cloned().collect())
             .union(&RevsetExpression::commits(
                 abandoned.iter().cloned().collect(),
             ));
         let new_commits_expression =
-            RevsetExpression::commits(replaced.values().cloned().collect());
+            RevsetExpression::commits(rewritten.values().flatten().cloned().collect());
 
         let to_visit_expression =
             old_commits_expression.descendants(&RevsetExpression::all_non_obsolete_heads());
@@ -154,14 +155,22 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         drop(ancestors_revset);
 
         let mut new_parents = HashMap::new();
-        for (old_commit, new_commit) in replaced {
-            new_parents.insert(old_commit, vec![new_commit]);
+        let mut divergent = HashMap::new();
+        for (old_commit, new_commits) in rewritten {
+            if new_commits.len() == 1 {
+                new_parents.insert(old_commit, vec![new_commits.iter().next().unwrap().clone()]);
+            } else {
+                // The call to index.heads() is mostly to get a predictable order
+                let new_commits = mut_repo.index().heads(&new_commits);
+                divergent.insert(old_commit, new_commits);
+            }
         }
 
         DescendantRebaser {
             settings,
             mut_repo,
             new_parents,
+            divergent,
             to_visit,
             to_skip,
             rebased: Default::default(),
@@ -192,6 +201,11 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     pub fn rebase_next(&mut self) -> Option<RebasedDescendant> {
         while let Some(old_commit_id) = self.to_visit.pop() {
             if self.new_parents.contains_key(&old_commit_id) {
+                continue;
+            }
+            if self.divergent.contains_key(&old_commit_id) {
+                // Leave divergent commits in place. Don't update `new_parents` since we don't
+                // want to rebase descendants either.
                 continue;
             }
             let old_commit = self.mut_repo.store().get_commit(&old_commit_id).unwrap();

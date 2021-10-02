@@ -49,7 +49,7 @@ fn test_rebase_descendants_sideways(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit_b.id().clone() => commit_f.id().clone()
+            commit_b.id().clone() => hashset!{commit_f.id().clone()}
         },
         hashset! {},
     );
@@ -94,8 +94,7 @@ fn test_rebase_descendants_forward(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit_b.id().clone() =>
-            commit_f.id().clone()
+            commit_b.id().clone() => hashset!{commit_f.id().clone()}
         },
         hashset! {},
     );
@@ -130,7 +129,7 @@ fn test_rebase_descendants_backward(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit_c.id().clone() => commit_b.id().clone()
+            commit_c.id().clone() => hashset!{commit_b.id().clone()}
         },
         hashset! {},
     );
@@ -170,7 +169,7 @@ fn test_rebase_descendants_internal_merge(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit_b.id().clone() => commit_f.id().clone()
+            commit_b.id().clone() => hashset!{commit_f.id().clone()}
         },
         hashset! {},
     );
@@ -217,7 +216,7 @@ fn test_rebase_descendants_external_merge(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit_c.id().clone() => commit_f.id().clone()
+            commit_c.id().clone() => hashset!{commit_f.id().clone()}
         },
         hashset! {},
     );
@@ -292,7 +291,7 @@ fn test_rebase_descendants_abandon_and_replace(use_git: bool) {
     let mut rebaser = DescendantRebaser::new(
         &settings,
         tx.mut_repo(),
-        hashmap! {commit_b.id().clone() => commit_e.id().clone()},
+        hashmap! {commit_b.id().clone() => hashset!{commit_e.id().clone()}},
         hashset! {commit_c.id().clone()},
     );
     assert_rebased(rebaser.rebase_next(), &commit_d, &[&commit_e]);
@@ -405,8 +404,8 @@ fn test_rebase_descendants_multiple_sideways(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit_b.id().clone() => commit_f.id().clone(),
-            commit_d.id().clone() => commit_f.id().clone(),
+            commit_b.id().clone() => hashset!{commit_f.id().clone()},
+            commit_d.id().clone() => hashset!{commit_f.id().clone()},
         },
         hashset! {},
     );
@@ -424,7 +423,7 @@ fn test_rebase_descendants_multiple_swap(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    // Commit B was replaced by commit D and commit D was replaced by commit B.
+    // Commit B was replaced by commit D. Commit D was replaced by commit B.
     // Commit C and commit E should swap places.
     //
     // C E
@@ -443,8 +442,8 @@ fn test_rebase_descendants_multiple_swap(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit_b.id().clone() => commit_d.id().clone(),
-            commit_d.id().clone() => commit_b.id().clone(),
+            commit_b.id().clone() => hashset!{commit_d.id().clone()},
+            commit_d.id().clone() => hashset!{commit_b.id().clone()},
         },
         hashset! {},
     );
@@ -462,7 +461,7 @@ fn test_rebase_descendants_multiple_forward_and_backward(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    // Commit B was replaced by commit D and commit F was replaced by commit C.
+    // Commit B was replaced by commit D. Commit F was replaced by commit C.
     // Commit G should be rebased onto commit C. Commit 8 should be rebased onto
     // commit D. Commits C-D should be left alone since they're ancestors of D.
     // Commit E should be left alone since its already in place (as a descendant of
@@ -491,13 +490,71 @@ fn test_rebase_descendants_multiple_forward_and_backward(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit_b.id().clone() => commit_d.id().clone(),
-            commit_f.id().clone() => commit_c.id().clone(),
+            commit_b.id().clone() => hashset!{commit_d.id().clone()},
+            commit_f.id().clone() => hashset!{commit_c.id().clone()},
         },
         hashset! {},
     );
     assert_rebased(rebaser.rebase_next(), &commit_g, &[&commit_c]);
     assert_rebased(rebaser.rebase_next(), &commit_h, &[&commit_d]);
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 2);
+
+    tx.discard();
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rebase_descendants_divergent_rewrite(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    // Commit B was replaced by commit B2. Commit D was replaced by commits D2 and
+    // D3. Commit F was replaced by commit F2. Commit C should be rebased onto
+    // B2. Commit E should not be rebased. Commit F should be rebased onto
+    // commit F2.
+    //
+    // G
+    // F
+    // E
+    // D
+    // C
+    // B
+    // | F2
+    // |/
+    // | D3
+    // |/
+    // | D2
+    // |/
+    // | B2
+    // |/
+    // A
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
+    let commit_d = graph_builder.commit_with_parents(&[&commit_c]);
+    let commit_e = graph_builder.commit_with_parents(&[&commit_d]);
+    let commit_f = graph_builder.commit_with_parents(&[&commit_e]);
+    let commit_g = graph_builder.commit_with_parents(&[&commit_f]);
+    let commit_b2 = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_d2 = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_d3 = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_f2 = graph_builder.commit_with_parents(&[&commit_a]);
+
+    let mut rebaser = DescendantRebaser::new(
+        &settings,
+        tx.mut_repo(),
+        hashmap! {
+            commit_b.id().clone() => hashset!{commit_b2.id().clone()},
+            commit_d.id().clone() => hashset!{commit_d2.id().clone(), commit_d3.id().clone()},
+            commit_f.id().clone() => hashset!{commit_f2.id().clone()},
+        },
+        hashset! {},
+    );
+    assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_b2]);
+    assert_rebased(rebaser.rebase_next(), &commit_g, &[&commit_f2]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 2);
 
@@ -543,7 +600,7 @@ fn test_rebase_descendants_contents(use_git: bool) {
         &settings,
         tx.mut_repo(),
         hashmap! {
-            commit_b.id().clone() => commit_d.id().clone()
+            commit_b.id().clone() => hashset!{commit_d.id().clone()}
         },
         hashset! {},
     );

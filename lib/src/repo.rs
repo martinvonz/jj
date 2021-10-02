@@ -637,22 +637,12 @@ impl MutableRepo {
         &'repo mut self,
         settings: &'settings UserSettings,
     ) -> DescendantRebaser<'settings, 'repo> {
-        let mut replaced = HashMap::new();
-        for (old_commit, new_commits) in &self.rewritten_commits {
-            if new_commits.len() == 1 {
-                replaced.insert(
-                    old_commit.clone(),
-                    new_commits.iter().next().unwrap().clone(),
-                );
-            } else {
-                // TODO: If there are any children, record a conflict in the
-                // view for each of them. It should probably be
-                // DescendantRebaser's responsibility to do that.
-                // We would then simply pass it self.rewritten_commits.
-            }
-        }
-        let abandoned = self.abandoned_commits.clone();
-        DescendantRebaser::new(settings, self, replaced, abandoned)
+        DescendantRebaser::new(
+            settings,
+            self,
+            self.rewritten_commits.clone(),
+            self.abandoned_commits.clone(),
+        )
     }
 
     pub fn set_checkout(&mut self, id: CommitId) {
