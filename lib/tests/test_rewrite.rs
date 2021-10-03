@@ -17,7 +17,7 @@ use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::rewrite::DescendantRebaser;
 use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::{assert_rebased, CommitGraphBuilder};
+use jujutsu_lib::testutils::{assert_rebased, create_random_commit, CommitGraphBuilder};
 use maplit::{hashmap, hashset};
 use test_case::test_case;
 
@@ -836,3 +836,113 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
 //
 // Now we hide B and make A visible instead. When that diff is applied to the
 // branch, the branch state becomes empty and is thus deleted.
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rebase_descendants_update_checkout_open(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    // Checked-out, open commit B was replaced by open commit C. C should become
+    // checked out.
+    //
+    // C B
+    // |/
+    // A
+    let mut tx = repo.start_transaction("test");
+    let commit_a = create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+    let commit_b = create_random_commit(&settings, &repo)
+        .set_parents(vec![commit_a.id().clone()])
+        .set_open(true)
+        .write_to_repo(tx.mut_repo());
+    tx.mut_repo().set_checkout(commit_b.id().clone());
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    let commit_c = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+        .set_description("C".to_string())
+        .write_to_repo(tx.mut_repo());
+    tx.mut_repo()
+        .create_descendant_rebaser(&settings)
+        .rebase_all();
+    let repo = tx.commit();
+
+    assert_eq!(repo.view().checkout(), commit_c.id());
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rebase_descendants_update_checkout_closed(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    // Checked-out, open commit B was replaced by closed commit C. A child of C
+    // should become checked out.
+    //
+    // C B
+    // |/
+    // A
+    let mut tx = repo.start_transaction("test");
+    let commit_a = create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+    let commit_b = create_random_commit(&settings, &repo)
+        .set_parents(vec![commit_a.id().clone()])
+        .set_open(true)
+        .write_to_repo(tx.mut_repo());
+    tx.mut_repo().set_checkout(commit_b.id().clone());
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    let commit_c = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+        .set_description("C".to_string())
+        .set_open(false)
+        .write_to_repo(tx.mut_repo());
+    tx.mut_repo()
+        .create_descendant_rebaser(&settings)
+        .rebase_all();
+    let repo = tx.commit();
+
+    let checkout = repo.store().get_commit(repo.view().checkout()).unwrap();
+    assert!(checkout.is_open());
+    assert_eq!(checkout.parent_ids(), vec![commit_c.id().clone()]);
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    // Checked-out, open merge commit D was abandoned. A parent commit should become
+    // checked out.
+    //
+    // D
+    // |\
+    // B C
+    // |/
+    // A
+    let mut tx = repo.start_transaction("test");
+    let commit_a = create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+    let commit_b = create_random_commit(&settings, &repo)
+        .set_parents(vec![commit_a.id().clone()])
+        .write_to_repo(tx.mut_repo());
+    let commit_c = create_random_commit(&settings, &repo)
+        .set_parents(vec![commit_a.id().clone()])
+        .write_to_repo(tx.mut_repo());
+    let commit_d = create_random_commit(&settings, &repo)
+        .set_parents(vec![commit_b.id().clone(), commit_c.id().clone()])
+        .set_open(true)
+        .write_to_repo(tx.mut_repo());
+    tx.mut_repo().set_checkout(commit_d.id().clone());
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    tx.mut_repo().record_abandoned_commit(commit_d.id().clone());
+    tx.mut_repo()
+        .create_descendant_rebaser(&settings)
+        .rebase_all();
+    let repo = tx.commit();
+
+    let checkout = repo.store().get_commit(repo.view().checkout()).unwrap();
+    assert!(checkout.is_open());
+    assert_eq!(checkout.parent_ids(), vec![commit_b.id().clone()]);
+}

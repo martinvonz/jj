@@ -214,8 +214,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     fn new_parents(&self, old_ids: &[CommitId]) -> Vec<CommitId> {
         let mut new_ids = vec![];
         for old_id in old_ids {
-            if let Some(replacements) = self.new_parents.get(old_id) {
-                new_ids.extend(replacements.clone());
+            if let Some(new_parent_ids) = self.new_parents.get(old_id) {
+                new_ids.extend(new_parent_ids.clone());
             } else if let Some(new_parent_id) = self.rebased.get(old_id) {
                 new_ids.push(new_parent_id.clone());
             } else {
@@ -239,7 +239,18 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         )
     }
 
-    fn update_branches(&mut self, old_commit_id: CommitId, new_commit_ids: Vec<CommitId>) {
+    fn update_branches_and_checkout(
+        &mut self,
+        old_commit_id: CommitId,
+        new_commit_ids: Vec<CommitId>,
+    ) {
+        if *self.mut_repo.view().checkout() == old_commit_id {
+            // We arbitrarily pick a new checkout among the candidates.
+            let new_commit_id = new_commit_ids[0].clone();
+            let new_commit = self.mut_repo.store().get_commit(&new_commit_id).unwrap();
+            self.mut_repo.check_out(self.settings, &new_commit);
+        }
+
         if let Some(branch_names) = self.branches.get(&old_commit_id) {
             let view = self.mut_repo.view();
             let mut branch_updates = vec![];
@@ -285,21 +296,23 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 // (i.e. it's part of the input for this rebase). We don't need
                 // to rebase it, but we still want to update branches pointing
                 // to the old commit.
-                self.update_branches(old_commit_id, new_parent_ids);
+                self.update_branches_and_checkout(old_commit_id, new_parent_ids);
                 continue;
             }
-            if let Some(new_commit_ids) = self.divergent.get(&old_commit_id).cloned() {
+            if let Some(divergent_ids) = self.divergent.get(&old_commit_id).cloned() {
                 // Leave divergent commits in place. Don't update `new_parents` since we don't
                 // want to rebase descendants either.
-                self.update_branches(old_commit_id, new_commit_ids);
+                self.update_branches_and_checkout(old_commit_id, divergent_ids);
                 continue;
             }
             let old_commit = self.mut_repo.store().get_commit(&old_commit_id).unwrap();
             let old_parent_ids = old_commit.parent_ids();
             let new_parent_ids = self.new_parents(&old_parent_ids);
             if self.to_skip.contains(&old_commit_id) {
-                // Update the `replacements` map so descendants are rebased correctly.
-                self.new_parents.insert(old_commit_id, new_parent_ids);
+                // Update the `new_parents` map so descendants are rebased correctly.
+                self.new_parents
+                    .insert(old_commit_id.clone(), new_parent_ids.clone());
+                self.update_branches_and_checkout(old_commit_id, new_parent_ids);
                 continue;
             } else if new_parent_ids == old_parent_ids {
                 // The commit is already in place.
@@ -320,7 +333,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id).unwrap())
                 .collect_vec();
             let new_commit = rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents);
-            self.update_branches(old_commit_id.clone(), vec![new_commit.id().clone()]);
+            self.update_branches_and_checkout(old_commit_id.clone(), vec![new_commit.id().clone()]);
             self.rebased.insert(old_commit_id, new_commit.id().clone());
             return Some(RebasedDescendant {
                 old_commit,

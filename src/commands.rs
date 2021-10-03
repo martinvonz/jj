@@ -199,12 +199,9 @@ struct RepoCommandHelper {
     repo: Arc<ReadonlyRepo>,
     may_update_working_copy: bool,
     working_copy_committed: bool,
-    // Whether to evolve orphans when the transaction
+    // Whether to rebase descendants when the transaction
     // finishes. This should generally be true for commands that rewrite commits.
     rebase_descendants: bool,
-    // Whether the checkout should be updated to an appropriate successor when the transaction
-    // finishes. This should generally be true for commands that rewrite commits.
-    auto_update_checkout: bool,
 }
 
 impl RepoCommandHelper {
@@ -222,17 +219,11 @@ impl RepoCommandHelper {
             may_update_working_copy,
             working_copy_committed: false,
             rebase_descendants: true,
-            auto_update_checkout: true,
         })
     }
 
     fn rebase_descendants(mut self, value: bool) -> Self {
         self.rebase_descendants = value;
-        self
-    }
-
-    fn auto_update_checkout(mut self, value: bool) -> Self {
-        self.auto_update_checkout = value;
         self
     }
 
@@ -431,9 +422,6 @@ impl RepoCommandHelper {
                 writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
             }
         }
-        if self.auto_update_checkout {
-            update_checkout_after_rewrite(ui, mut_repo)?;
-        }
         self.repo = tx.commit();
         update_working_copy(ui, &self.repo, &self.repo.working_copy_locked())
     }
@@ -596,36 +584,6 @@ fn rebase_descendants(settings: &UserSettings, mut_repo: &mut MutableRepo) -> i3
         num_rebased += 1;
     }
     num_rebased
-}
-
-fn update_checkout_after_rewrite(ui: &mut Ui, mut_repo: &mut MutableRepo) -> io::Result<()> {
-    // TODO: Perhaps this method should be in MutableRepo.
-    let new_checkout_candidates = mut_repo
-        .evolution()
-        .new_parent(mut_repo.as_repo_ref(), mut_repo.view().checkout());
-    if new_checkout_candidates.is_empty() {
-        return Ok(());
-    }
-    // Filter out heads that already existed.
-    // TODO: Filter out *commits* that already existed (so we get updated to an
-    // appropriate new non-head)
-    let old_heads = mut_repo.base_repo().view().heads().clone();
-    let new_checkout_candidates: HashSet<_> = new_checkout_candidates
-        .difference(&old_heads)
-        .cloned()
-        .collect();
-    if new_checkout_candidates.is_empty() {
-        return Ok(());
-    }
-    if new_checkout_candidates.len() > 1 {
-        ui.write(
-            "There are several candidates for updating the checkout to -- picking arbitrarily\n",
-        )?;
-    }
-    let new_checkout = new_checkout_candidates.iter().min().unwrap();
-    let new_commit = mut_repo.store().get_commit(new_checkout).unwrap();
-    mut_repo.check_out(ui.settings(), &new_commit);
-    Ok(())
 }
 
 fn get_app<'a, 'b>() -> App<'a, 'b> {
@@ -1384,7 +1342,7 @@ fn cmd_checkout(
     command: &CommandHelper,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?.auto_update_checkout(false);
+    let mut repo_command = command.repo_helper(ui)?;
     let new_commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
     repo_command.commit_working_copy(ui)?;
     let mut tx =
@@ -2652,10 +2610,7 @@ fn cmd_branch(
     command: &CommandHelper,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command
-        .repo_helper(ui)?
-        .auto_update_checkout(false)
-        .rebase_descendants(false);
+    let mut repo_command = command.repo_helper(ui)?.rebase_descendants(false);
     let branch_name = sub_matches.value_of("name").unwrap();
     if sub_matches.is_present("delete") {
         let mut tx = repo_command.start_transaction(&format!("delete branch {}", branch_name));
