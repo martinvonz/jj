@@ -184,6 +184,8 @@ fn test_merge_views_branches() {
         testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     let main_branch_origin_tx0 =
         testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let main_branch_origin_tx1 =
+        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     let main_branch_alternate_tx0 =
         testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     mut_repo.set_local_branch(
@@ -210,8 +212,6 @@ fn test_merge_views_branches() {
 
     let mut tx1 = repo.start_transaction("test");
     let main_branch_local_tx1 =
-        testutils::create_random_commit(&settings, &repo).write_to_repo(tx1.mut_repo());
-    let main_branch_origin_tx1 =
         testutils::create_random_commit(&settings, &repo).write_to_repo(tx1.mut_repo());
     tx1.mut_repo().set_local_branch(
         "main".to_string(),
