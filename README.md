@@ -61,11 +61,13 @@ Features:
    This design also lets Jujutsu rebase merge commits correctly (unlike both Git
    and Mercurial).
 
- * **Supports Evolution**
-   Jujutsu copies the Evolution feature from Mercurial (see
-   https://www.mercurial-scm.org/wiki/ChangesetEvolution). However, you will
-   often not need to know that because the conflict design described above lets
-   Jujutsu keep commits rebased even if there are conflicts.
+ * **Automatic rebase**
+
+   Whenever you modify a commit, any descendants of the old commit will be
+   rebased onto the new commit. Thanks to the conflict design described above,
+   that can be done even if there are conflicts. Branches pointing to rebased
+   commits will be updated. So will the working copy if it points to a rebased
+   commit.
 
 
 ## Status ##
