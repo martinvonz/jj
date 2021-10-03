@@ -188,6 +188,6 @@ fn test_isolation(use_git: bool) {
     let repo = repo.reload();
     assert_heads(
         repo.as_repo_ref(),
-        vec![&wc_id, initial.id(), rewrite1.id(), rewrite2.id()],
+        vec![&wc_id, rewrite1.id(), rewrite2.id()],
     );
 }

@@ -453,36 +453,9 @@ impl RepoCommandHelper {
         if self.auto_update_branches {
             update_branches_after_rewrite(mut_repo);
         }
-        remove_hidden_heads(mut_repo);
         self.repo = tx.commit();
         update_working_copy(ui, &self.repo, &self.repo.working_copy_locked())
     }
-}
-
-fn remove_hidden_heads(mut_repo: &mut MutableRepo) {
-    let mut view = mut_repo.view().store_view().clone();
-    let heads_expression =
-        RevsetExpression::commits(view.head_ids.iter().cloned().collect_vec()).non_obsolete_heads();
-    let public_heads_expression =
-        RevsetExpression::commits(view.public_head_ids.iter().cloned().collect_vec())
-            .non_obsolete_heads();
-    view.head_ids.clear();
-    view.public_head_ids.clear();
-    for index_entry in heads_expression
-        .evaluate(mut_repo.as_repo_ref())
-        .unwrap()
-        .iter()
-    {
-        view.head_ids.insert(index_entry.commit_id());
-    }
-    for index_entry in public_heads_expression
-        .evaluate(mut_repo.as_repo_ref())
-        .unwrap()
-        .iter()
-    {
-        view.public_head_ids.insert(index_entry.commit_id());
-    }
-    mut_repo.set_view(view)
 }
 
 fn rev_arg<'a, 'b>() -> Arg<'a, 'b> {
