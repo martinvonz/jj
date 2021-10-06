@@ -17,17 +17,19 @@ use std::collections::HashSet;
 use std::iter::Peekable;
 use std::ops::Range;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use itertools::Itertools;
 use pest::iterators::Pairs;
 use pest::Parser;
 use thiserror::Error;
 
-use crate::backend::{BackendError, CommitId};
+use crate::backend::{BackendError, BackendResult, CommitId};
 use crate::commit::Commit;
 use crate::index::{HexPrefix, IndexEntry, IndexPosition, PrefixResolution, RevWalk};
 use crate::repo::RepoRef;
 use crate::revset_graph_iterator::RevsetGraphIterator;
+use crate::store::Store;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum RevsetError {
@@ -678,6 +680,17 @@ impl<'revset, 'repo> RevsetIterator<'revset, 'repo> {
         Self { inner }
     }
 
+    pub fn commit_ids(self) -> RevsetCommitIdIterator<'revset, 'repo> {
+        RevsetCommitIdIterator(self.inner)
+    }
+
+    pub fn commits(self, store: &Arc<Store>) -> RevsetCommitIterator<'revset, 'repo> {
+        RevsetCommitIterator {
+            iter: self.inner,
+            store: store.clone(),
+        }
+    }
+
     pub fn graph(self) -> RevsetGraphIterator<'revset, 'repo> {
         RevsetGraphIterator::new(self)
     }
@@ -688,6 +701,33 @@ impl<'repo> Iterator for RevsetIterator<'_, 'repo> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
+    }
+}
+
+pub struct RevsetCommitIdIterator<'revset, 'repo: 'revset>(
+    Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>,
+);
+
+impl Iterator for RevsetCommitIdIterator<'_, '_> {
+    type Item = CommitId;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|index_entry| index_entry.commit_id())
+    }
+}
+
+pub struct RevsetCommitIterator<'revset, 'repo: 'revset> {
+    store: Arc<Store>,
+    iter: Box<dyn Iterator<Item = IndexEntry<'repo>> + 'revset>,
+}
+
+impl Iterator for RevsetCommitIterator<'_, '_> {
+    type Item = BackendResult<Commit>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next()
+            .map(|index_entry| self.store.get_commit(&index_entry.commit_id()))
     }
 }
 
@@ -985,9 +1025,9 @@ pub fn evaluate_expression<'repo>(
             .evaluate(repo),
         RevsetExpression::Range { roots, heads } => {
             let root_set = roots.evaluate(repo)?;
-            let root_ids = root_set.iter().map(|entry| entry.commit_id()).collect_vec();
+            let root_ids = root_set.iter().commit_ids().collect_vec();
             let head_set = heads.evaluate(repo)?;
-            let head_ids = head_set.iter().map(|entry| entry.commit_id()).collect_vec();
+            let head_ids = head_set.iter().commit_ids().collect_vec();
             let walk = repo.index().walk_revs(&head_ids, &root_ids);
             Ok(Box::new(RevWalkRevset { walk }))
         }

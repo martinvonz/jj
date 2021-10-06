@@ -247,21 +247,20 @@ impl RepoCommandHelper {
     ) -> Result<Commit, CommandError> {
         let revset_expression = self.parse_revset(ui, revision_str)?;
         let revset = revset_expression.evaluate(self.repo.as_repo_ref())?;
-        let mut iter = revset.iter();
+        let mut iter = revset.iter().commits(self.repo.store());
         match iter.next() {
             None => Err(CommandError::UserError(format!(
                 "Revset \"{}\" didn't resolve to any revisions",
                 revision_str
             ))),
-            Some(entry) => {
-                let commit = self.repo.store().get_commit(&entry.commit_id())?;
+            Some(commit) => {
                 if iter.next().is_some() {
                     return Err(CommandError::UserError(format!(
                         "Revset \"{}\" resolved to more than one revision",
                         revision_str
                     )));
                 } else {
-                    Ok(commit)
+                    Ok(commit?)
                 }
             }
         }
@@ -276,7 +275,8 @@ impl RepoCommandHelper {
         let revset = revset_expression.evaluate(self.repo.as_repo_ref())?;
         Ok(revset
             .iter()
-            .map(|entry| self.repo.store().get_commit(&entry.commit_id()).unwrap())
+            .commits(self.repo.store())
+            .map(Result::unwrap)
             .collect())
     }
 
@@ -2546,16 +2546,16 @@ fn cmd_rebase(
         let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
         let mut num_rebased_descendants = 0;
         let store = repo_command.repo.store();
-        for child_index_entry in children_expression
+        for child_commit in children_expression
             .evaluate(repo_command.repo().as_repo_ref())
             .unwrap()
             .iter()
+            .commits(store)
         {
-            let child_commit = store.get_commit(&child_index_entry.commit_id())?;
             rebase_commit(
                 ui.settings(),
                 tx.mut_repo(),
-                &child_commit,
+                &child_commit?,
                 &old_commit.parents(),
             );
             num_rebased_descendants += 1;

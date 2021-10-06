@@ -387,7 +387,7 @@ fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
         .evaluate(repo)
         .unwrap()
         .iter()
-        .map(|entry| entry.commit_id())
+        .commit_ids()
         .collect()
 }
 

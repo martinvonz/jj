@@ -801,19 +801,21 @@ impl MutableRepo {
                 .non_obsolete_heads();
         view.head_ids.clear();
         view.public_head_ids.clear();
-        for index_entry in heads_expression
+        for head_id in heads_expression
             .evaluate(self.as_repo_ref())
             .unwrap()
             .iter()
+            .commit_ids()
         {
-            view.head_ids.insert(index_entry.commit_id());
+            view.head_ids.insert(head_id);
         }
-        for index_entry in public_heads_expression
+        for head_id in public_heads_expression
             .evaluate(self.as_repo_ref())
             .unwrap()
             .iter()
+            .commit_ids()
         {
-            view.public_head_ids.insert(index_entry.commit_id());
+            view.public_head_ids.insert(head_id);
         }
         self.set_view(view)
     }

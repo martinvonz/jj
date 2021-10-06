@@ -142,10 +142,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let to_visit_revset = to_visit_expression
             .evaluate(mut_repo.as_repo_ref())
             .unwrap();
-        let mut to_visit = vec![];
-        for index_entry in to_visit_revset.iter() {
-            to_visit.push(index_entry.commit_id());
-        }
+        let to_visit = to_visit_revset.iter().commit_ids().collect_vec();
         drop(to_visit_revset);
 
         let ancestors_expression =
@@ -154,9 +151,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .evaluate(mut_repo.as_repo_ref())
             .unwrap();
         let mut to_skip = abandoned;
-        for index_entry in ancestors_revset.iter() {
-            to_skip.insert(index_entry.commit_id());
-        }
+        to_skip.extend(ancestors_revset.iter().commit_ids());
         drop(ancestors_revset);
 
         let mut new_parents = HashMap::new();
