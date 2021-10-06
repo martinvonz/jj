@@ -173,10 +173,7 @@ pub enum RevsetExpression {
     Commits(Vec<CommitId>),
     Symbol(String),
     Parents(Rc<RevsetExpression>),
-    Children {
-        roots: Rc<RevsetExpression>,
-        heads: Rc<RevsetExpression>,
-    },
+    Children(Rc<RevsetExpression>),
     Ancestors(Rc<RevsetExpression>),
     // Commits that are ancestors of "heads" but not ancestors of "roots"
     Range {
@@ -264,19 +261,18 @@ impl RevsetExpression {
     }
 
     /// Children of `self`.
-    pub fn children(
-        self: &Rc<RevsetExpression>,
-        heads: &Rc<RevsetExpression>,
-    ) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Children {
-            roots: self.clone(),
-            heads: heads.clone(),
-        })
+    pub fn children(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Children(self.clone()))
+    }
+
+    /// Descendants of `self`.
+    pub fn descendants(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+        self.dag_range_to(&RevsetExpression::heads())
     }
 
     /// Commits that are descendants of `self` and ancestors of `heads`, both
     /// inclusive.
-    pub fn descendants(
+    pub fn dag_range_to(
         self: &Rc<RevsetExpression>,
         heads: &Rc<RevsetExpression>,
     ) -> Rc<RevsetExpression> {
@@ -404,12 +400,12 @@ fn parse_range_expression_rule(
     if let Some(next) = pairs.next() {
         match next.as_rule() {
             Rule::descendants_op => {
-                expression = expression.descendants(&RevsetExpression::heads());
+                expression = expression.descendants();
             }
             Rule::dag_range_op => {
                 let heads_expression =
                     parse_children_expression_rule(pairs.next().unwrap().into_inner())?;
-                expression = expression.descendants(&heads_expression);
+                expression = expression.dag_range_to(&heads_expression);
             }
             Rule::range_op => {
                 let expression2 =
@@ -431,7 +427,7 @@ fn parse_children_expression_rule(
     for operator in pairs {
         match operator.as_rule() {
             Rule::children_op => {
-                expression = expression.children(&RevsetExpression::heads());
+                expression = expression.children();
             }
             _ => {
                 panic!(
@@ -517,7 +513,7 @@ fn parse_function_expression(
             if arg_count == 1 {
                 let expression =
                     parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
-                Ok(expression.children(&RevsetExpression::heads()))
+                Ok(expression.children())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -539,7 +535,7 @@ fn parse_function_expression(
             if arg_count == 1 {
                 let expression =
                     parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
-                Ok(expression.descendants(&RevsetExpression::heads()))
+                Ok(expression.descendants())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -975,9 +971,9 @@ pub fn evaluate_expression<'repo>(
                 index_entries: parent_entries,
             }))
         }
-        RevsetExpression::Children { roots, heads } => {
+        RevsetExpression::Children(roots) => {
             let root_set = roots.evaluate(repo)?;
-            let candidates_expression = heads.ancestors();
+            let candidates_expression = roots.descendants();
             let candidate_set = candidates_expression.evaluate(repo)?;
             Ok(Box::new(ChildrenRevset {
                 root_set,
@@ -1198,17 +1194,21 @@ mod tests {
             Rc::new(RevsetExpression::Ancestors(checkout_symbol.clone()))
         );
         assert_eq!(
-            foo_symbol.children(&checkout_symbol),
-            Rc::new(RevsetExpression::Children {
+            foo_symbol.children(),
+            Rc::new(RevsetExpression::Children(foo_symbol.clone()))
+        );
+        assert_eq!(
+            foo_symbol.descendants(),
+            Rc::new(RevsetExpression::DagRange {
                 roots: foo_symbol.clone(),
-                heads: checkout_symbol.clone()
+                heads: RevsetExpression::heads(),
             })
         );
         assert_eq!(
-            foo_symbol.descendants(&checkout_symbol),
+            foo_symbol.dag_range_to(&checkout_symbol),
             Rc::new(RevsetExpression::DagRange {
                 roots: foo_symbol.clone(),
-                heads: checkout_symbol.clone()
+                heads: checkout_symbol.clone(),
             })
         );
         assert_eq!(
@@ -1271,19 +1271,13 @@ mod tests {
         // Parse the "parents" operator
         assert_eq!(parse(":@"), Ok(checkout_symbol.parents()));
         // Parse the "children" operator
-        assert_eq!(
-            parse("@:"),
-            Ok(checkout_symbol.children(&RevsetExpression::heads()))
-        );
+        assert_eq!(parse("@:"), Ok(checkout_symbol.children()));
         // Parse the "ancestors" operator
         assert_eq!(parse(",,@"), Ok(checkout_symbol.ancestors()));
         // Parse the "descendants" operator
-        assert_eq!(
-            parse("@,,"),
-            Ok(checkout_symbol.descendants(&RevsetExpression::heads()))
-        );
+        assert_eq!(parse("@,,"), Ok(checkout_symbol.descendants()));
         // Parse the "dag range" operator
-        assert_eq!(parse("foo,,bar"), Ok(foo_symbol.descendants(&bar_symbol)));
+        assert_eq!(parse("foo,,bar"), Ok(foo_symbol.dag_range_to(&bar_symbol)));
         // Parse the "intersection" operator
         assert_eq!(parse("foo & bar"), Ok(foo_symbol.intersection(&bar_symbol)));
         // Parse the "union" operator
@@ -1319,10 +1313,7 @@ mod tests {
         // Parse repeated "children" operator
         assert_eq!(
             parse("foo:::"),
-            Ok(foo_symbol
-                .children(&RevsetExpression::heads())
-                .children(&RevsetExpression::heads())
-                .children(&RevsetExpression::heads()))
+            Ok(foo_symbol.children().children().children())
         );
         // Parse repeated "ancestors"/"descendants"/"dag range" operators
         assert_matches!(parse(",,foo,,"), Err(RevsetParseError::SyntaxError(_)));
@@ -1333,18 +1324,9 @@ mod tests {
         assert_matches!(parse("foo,,bar,,"), Err(RevsetParseError::SyntaxError(_)));
         // Parse combinations of "parents"/"children" operators and the range operators.
         // The former bind more strongly.
-        assert_eq!(
-            parse(":foo:"),
-            Ok(foo_symbol.parents().children(&RevsetExpression::heads()))
-        );
-        assert_eq!(
-            parse(":foo,,"),
-            Ok(foo_symbol.parents().descendants(&RevsetExpression::heads()))
-        );
-        assert_eq!(
-            parse(",,foo:"),
-            Ok(foo_symbol.children(&RevsetExpression::heads()).ancestors())
-        );
+        assert_eq!(parse(":foo:"), Ok(foo_symbol.parents().children()));
+        assert_eq!(parse(":foo,,"), Ok(foo_symbol.parents().descendants()));
+        assert_eq!(parse(",,foo:"), Ok(foo_symbol.children().ancestors()));
     }
 
     #[test]

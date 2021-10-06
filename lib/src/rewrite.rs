@@ -138,7 +138,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let new_commits_expression =
             RevsetExpression::commits(rewritten.values().flatten().cloned().collect());
 
-        let to_visit_expression = old_commits_expression.descendants(&RevsetExpression::heads());
+        let to_visit_expression = old_commits_expression.descendants();
         let to_visit_revset = to_visit_expression
             .evaluate(mut_repo.as_repo_ref())
             .unwrap();
