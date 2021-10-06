@@ -2540,24 +2540,35 @@ fn cmd_rebase(
             repo_command.start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
         repo_command.check_rewriteable(&old_commit)?;
         rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &parents);
-        // Manually use DescendantRebaser instead of
-        // mut_repo.create_descendant_rebaser() because we don't want to rebase children
-        // onto the rewritten commit. (But we still want to record the commit as
-        // rewritten so branches and the working copy get updated to the
-        // rewritten commit.)
-        let mut rebaser = DescendantRebaser::new(
-            ui.settings(),
-            tx.mut_repo(),
-            hashmap! {},
-            hashset! {old_commit.id().clone()},
-        );
+        // Manually rebase children because we don't want to rebase them onto the
+        // rewritten commit. (But we still want to record the commit as rewritten so
+        // branches and the working copy get updated to the rewritten commit.)
+        let children_expression = RevsetExpression::commit(old_commit.id().clone())
+            .children(&RevsetExpression::all_non_obsolete_heads());
+        let mut num_rebased_descendants = 0;
+        let store = repo_command.repo.store();
+        for child_index_entry in children_expression
+            .evaluate(repo_command.repo().as_repo_ref())
+            .unwrap()
+            .iter()
+        {
+            let child_commit = store.get_commit(&child_index_entry.commit_id())?;
+            rebase_commit(
+                ui.settings(),
+                tx.mut_repo(),
+                &child_commit,
+                &old_commit.parents(),
+            );
+            num_rebased_descendants += 1;
+        }
+        let mut rebaser = tx.mut_repo().create_descendant_rebaser(ui.settings());
         rebaser.rebase_all();
-        let num_rebased = rebaser.rebased().len();
-        if num_rebased > 0 {
+        num_rebased_descendants += rebaser.rebased().len();
+        if num_rebased_descendants > 0 {
             writeln!(
                 ui,
                 "Also rebased {} descendant commits onto parent of rebased commit",
-                num_rebased
+                num_rebased_descendants
             )?;
         }
         repo_command.finish_transaction(ui, tx)?;
