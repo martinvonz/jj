@@ -119,9 +119,14 @@ pub struct DescendantRebaser<'settings, 'repo> {
     // want to rebase them. Instead, we record them in `replacements` when we visit them. That way,
     // their descendants will be rebased correctly.
     to_skip: HashSet<CommitId>,
+    new_commits: HashSet<CommitId>,
     rebased: HashMap<CommitId, CommitId>,
     // Names of branches where local target includes the commit id in the key.
     branches: HashMap<CommitId, Vec<String>>,
+    // Parents of rebased/abandoned commit that should become new heads once their descendants
+    // have been rebased.
+    heads_to_add: HashSet<CommitId>,
+    heads_to_remove: Vec<CommitId>,
 }
 
 impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
@@ -135,8 +140,15 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .union(&RevsetExpression::commits(
                 abandoned.iter().cloned().collect(),
             ));
-        let new_commits_expression =
-            RevsetExpression::commits(rewritten.values().flatten().cloned().collect());
+        let heads_to_add_expression = old_commits_expression
+            .parents()
+            .minus(&old_commits_expression);
+        let heads_to_add = heads_to_add_expression
+            .evaluate(mut_repo.as_repo_ref())
+            .unwrap()
+            .iter()
+            .commit_ids()
+            .collect();
 
         let to_visit_expression = old_commits_expression.descendants();
         let to_visit_revset = to_visit_expression
@@ -145,6 +157,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let to_visit = to_visit_revset.iter().commit_ids().collect_vec();
         drop(to_visit_revset);
 
+        let new_commits_expression =
+            RevsetExpression::commits(rewritten.values().flatten().cloned().collect());
         let ancestors_expression =
             to_visit_expression.intersection(&new_commits_expression.ancestors());
         let ancestors_revset = ancestors_expression
@@ -153,6 +167,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let mut to_skip = abandoned;
         to_skip.extend(ancestors_revset.iter().commit_ids());
         drop(ancestors_revset);
+
+        let new_commits = rewritten.values().flatten().cloned().collect();
 
         let mut new_parents = HashMap::new();
         let mut divergent = HashMap::new();
@@ -193,8 +209,11 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             divergent,
             to_visit,
             to_skip,
+            new_commits,
             rebased: Default::default(),
             branches,
+            heads_to_add,
+            heads_to_remove: Default::default(),
         }
     }
 
@@ -233,11 +252,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         )
     }
 
-    fn update_branches_and_checkout(
-        &mut self,
-        old_commit_id: CommitId,
-        new_commit_ids: Vec<CommitId>,
-    ) {
+    fn update_references(&mut self, old_commit_id: CommitId, new_commit_ids: Vec<CommitId>) {
         if *self.mut_repo.view().checkout() == old_commit_id {
             // We arbitrarily pick a new checkout among the candidates.
             let new_commit_id = new_commit_ids[0].clone();
@@ -281,8 +296,14 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 }
             }
         }
+
+        self.heads_to_add.remove(&old_commit_id);
+        if !self.new_commits.contains(&old_commit_id) {
+            self.heads_to_remove.push(old_commit_id);
+        }
     }
 
+    // TODO: Perhaps the interface since it's not just about rebasing commits.
     pub fn rebase_next(&mut self) -> Option<RebasedDescendant> {
         while let Some(old_commit_id) = self.to_visit.pop() {
             if let Some(new_parent_ids) = self.new_parents.get(&old_commit_id).cloned() {
@@ -290,13 +311,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 // (i.e. it's part of the input for this rebase). We don't need
                 // to rebase it, but we still want to update branches pointing
                 // to the old commit.
-                self.update_branches_and_checkout(old_commit_id, new_parent_ids);
+                self.update_references(old_commit_id, new_parent_ids);
                 continue;
             }
             if let Some(divergent_ids) = self.divergent.get(&old_commit_id).cloned() {
                 // Leave divergent commits in place. Don't update `new_parents` since we don't
                 // want to rebase descendants either.
-                self.update_branches_and_checkout(old_commit_id, divergent_ids);
+                self.update_references(old_commit_id, divergent_ids);
                 continue;
             }
             let old_commit = self.mut_repo.store().get_commit(&old_commit_id).unwrap();
@@ -306,7 +327,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 // Update the `new_parents` map so descendants are rebased correctly.
                 self.new_parents
                     .insert(old_commit_id.clone(), new_parent_ids.clone());
-                self.update_branches_and_checkout(old_commit_id, new_parent_ids);
+                self.update_references(old_commit_id, new_parent_ids);
                 continue;
             } else if new_parent_ids == old_parent_ids {
                 // The commit is already in place.
@@ -327,13 +348,23 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id).unwrap())
                 .collect_vec();
             let new_commit = rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents);
-            self.update_branches_and_checkout(old_commit_id.clone(), vec![new_commit.id().clone()]);
+            self.update_references(old_commit_id.clone(), vec![new_commit.id().clone()]);
             self.rebased.insert(old_commit_id, new_commit.id().clone());
             return Some(RebasedDescendant {
                 old_commit,
                 new_commit,
             });
         }
+        let mut view = self.mut_repo.view().store_view().clone();
+        for commit_id in &self.heads_to_remove {
+            view.head_ids.remove(commit_id);
+        }
+        for commit_id in &self.heads_to_add {
+            view.head_ids.insert(commit_id.clone());
+        }
+        self.heads_to_remove.clear();
+        self.heads_to_add.clear();
+        self.mut_repo.set_view(view);
         None
     }
 

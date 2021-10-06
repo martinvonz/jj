@@ -54,10 +54,19 @@ fn test_rebase_descendants_sideways(use_git: bool) {
         hashset! {},
     );
     let new_commit_c = assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_f]);
-    assert_rebased(rebaser.rebase_next(), &commit_d, &[&new_commit_c]);
-    assert_rebased(rebaser.rebase_next(), &commit_e, &[&commit_f]);
+    let new_commit_d = assert_rebased(rebaser.rebase_next(), &commit_d, &[&new_commit_c]);
+    let new_commit_e = assert_rebased(rebaser.rebase_next(), &commit_e, &[&commit_f]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 3);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            new_commit_d.id().clone(),
+            new_commit_e.id().clone()
+        }
+    );
 
     tx.discard();
 }
@@ -88,7 +97,7 @@ fn test_rebase_descendants_forward(use_git: bool) {
     let commit_d = graph_builder.commit_with_parents(&[&commit_b]);
     let commit_e = graph_builder.commit_with_parents(&[&commit_d]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_d]);
-    let _commit_g = graph_builder.commit_with_parents(&[&commit_f]);
+    let commit_g = graph_builder.commit_with_parents(&[&commit_f]);
 
     let mut rebaser = DescendantRebaser::new(
         &settings,
@@ -98,10 +107,20 @@ fn test_rebase_descendants_forward(use_git: bool) {
         },
         hashset! {},
     );
-    assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_f]);
-    assert_rebased(rebaser.rebase_next(), &commit_e, &[&commit_f]);
+    let new_commit_c = assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_f]);
+    let new_commit_e = assert_rebased(rebaser.rebase_next(), &commit_e, &[&commit_f]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 2);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            commit_g.id().clone(),
+            new_commit_c.id().clone(),
+            new_commit_e.id().clone()
+        }
+    );
 
     tx.discard();
 }
@@ -133,9 +152,14 @@ fn test_rebase_descendants_backward(use_git: bool) {
         },
         hashset! {},
     );
-    assert_rebased(rebaser.rebase_next(), &commit_d, &[&commit_b]);
+    let new_commit_d = assert_rebased(rebaser.rebase_next(), &commit_d, &[&commit_b]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 1);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {repo.view().checkout().clone(), new_commit_d.id().clone()}
+    );
 
     tx.discard();
 }
@@ -175,13 +199,18 @@ fn test_rebase_descendants_internal_merge(use_git: bool) {
     );
     let new_commit_c = assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_f]);
     let new_commit_d = assert_rebased(rebaser.rebase_next(), &commit_d, &[&commit_f]);
-    assert_rebased(
+    let new_commit_e = assert_rebased(
         rebaser.rebase_next(),
         &commit_e,
         &[&new_commit_c, &new_commit_d],
     );
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 3);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! { repo.view().checkout().clone(), new_commit_e.id().clone() }
+    );
 
     tx.discard();
 }
@@ -220,9 +249,14 @@ fn test_rebase_descendants_external_merge(use_git: bool) {
         },
         hashset! {},
     );
-    assert_rebased(rebaser.rebase_next(), &commit_e, &[&commit_f, &commit_d]);
+    let new_commit_e = assert_rebased(rebaser.rebase_next(), &commit_e, &[&commit_f, &commit_d]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 1);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {repo.view().checkout().clone(), new_commit_e.id().clone()}
+    );
 
     tx.discard();
 }
@@ -257,11 +291,57 @@ fn test_rebase_descendants_abandon(use_git: bool) {
         hashmap! {},
         hashset! {commit_b.id().clone(), commit_e.id().clone()},
     );
-    assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_a]);
+    let new_commit_c = assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_a]);
     let new_commit_d = assert_rebased(rebaser.rebase_next(), &commit_d, &[&commit_a]);
-    assert_rebased(rebaser.rebase_next(), &commit_f, &[&new_commit_d]);
+    let new_commit_f = assert_rebased(rebaser.rebase_next(), &commit_f, &[&new_commit_d]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 3);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            new_commit_c.id().clone(),
+            new_commit_f.id().clone()
+        }
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rebase_descendants_abandon_no_descendants(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    // Commit B and C were abandoned. Commit A should become a head.
+    //
+    // C
+    // B
+    // A
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
+
+    let mut rebaser = DescendantRebaser::new(
+        &settings,
+        tx.mut_repo(),
+        hashmap! {},
+        hashset! {commit_b.id().clone(), commit_c.id().clone()},
+    );
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 0);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            commit_a.id().clone(),
+        }
+    );
 
     tx.discard();
 }
@@ -294,9 +374,14 @@ fn test_rebase_descendants_abandon_and_replace(use_git: bool) {
         hashmap! {commit_b.id().clone() => hashset!{commit_e.id().clone()}},
         hashset! {commit_c.id().clone()},
     );
-    assert_rebased(rebaser.rebase_next(), &commit_d, &[&commit_e]);
+    let new_commit_d = assert_rebased(rebaser.rebase_next(), &commit_d, &[&commit_e]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 1);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {repo.view().checkout().clone(), new_commit_d.id().clone()}
+    );
 
     tx.discard();
 }
@@ -328,9 +413,14 @@ fn test_rebase_descendants_abandon_degenerate_merge(use_git: bool) {
         hashmap! {},
         hashset! {commit_b.id().clone()},
     );
-    assert_rebased(rebaser.rebase_next(), &commit_d, &[&commit_c]);
+    let new_commit_d = assert_rebased(rebaser.rebase_next(), &commit_d, &[&commit_c]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 1);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {repo.view().checkout().clone(), new_commit_d.id().clone()}
+    );
 
     tx.discard();
 }
@@ -366,13 +456,18 @@ fn test_rebase_descendants_abandon_widen_merge(use_git: bool) {
         hashmap! {},
         hashset! {commit_e.id().clone()},
     );
-    assert_rebased(
+    let new_commit_f = assert_rebased(
         rebaser.rebase_next(),
         &commit_f,
         &[&commit_b, &commit_c, &commit_d],
     );
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 1);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {repo.view().checkout().clone(), new_commit_f.id().clone()}
+    );
 
     tx.discard();
 }
@@ -409,10 +504,19 @@ fn test_rebase_descendants_multiple_sideways(use_git: bool) {
         },
         hashset! {},
     );
-    assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_f]);
-    assert_rebased(rebaser.rebase_next(), &commit_e, &[&commit_f]);
+    let new_commit_c = assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_f]);
+    let new_commit_e = assert_rebased(rebaser.rebase_next(), &commit_e, &[&commit_f]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 2);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            new_commit_c.id().clone(),
+            new_commit_e.id().clone()
+        }
+    );
 
     tx.discard();
 }
@@ -447,10 +551,60 @@ fn test_rebase_descendants_multiple_swap(use_git: bool) {
         },
         hashset! {},
     );
-    assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_d]);
-    assert_rebased(rebaser.rebase_next(), &commit_e, &[&commit_b]);
+    let new_commit_c = assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_d]);
+    let new_commit_e = assert_rebased(rebaser.rebase_next(), &commit_e, &[&commit_b]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 2);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            new_commit_c.id().clone(),
+            new_commit_e.id().clone()
+        }
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rebase_descendants_multiple_no_descendants(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    // Commit B was replaced by commit C. Commit C was replaced by commit B.
+    //
+    // B C
+    // |/
+    // A
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
+
+    let mut rebaser = DescendantRebaser::new(
+        &settings,
+        tx.mut_repo(),
+        hashmap! {
+            commit_b.id().clone() => hashset!{commit_c.id().clone()},
+            commit_c.id().clone() => hashset!{commit_b.id().clone()},
+        },
+        hashset! {},
+    );
+    assert!(rebaser.rebase_next().is_none());
+    assert!(rebaser.rebased().is_empty());
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            commit_b.id().clone(),
+            commit_c.id().clone()
+        }
+    );
 
     tx.discard();
 }
@@ -462,7 +616,7 @@ fn test_rebase_descendants_multiple_forward_and_backward(use_git: bool) {
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
     // Commit B was replaced by commit D. Commit F was replaced by commit C.
-    // Commit G should be rebased onto commit C. Commit 8 should be rebased onto
+    // Commit G should be rebased onto commit C. Commit H should be rebased onto
     // commit D. Commits C-D should be left alone since they're ancestors of D.
     // Commit E should be left alone since its already in place (as a descendant of
     // D).
@@ -471,7 +625,7 @@ fn test_rebase_descendants_multiple_forward_and_backward(use_git: bool) {
     // F
     // E
     // D
-    // C 8
+    // C H
     // |/
     // B
     // A
@@ -495,10 +649,20 @@ fn test_rebase_descendants_multiple_forward_and_backward(use_git: bool) {
         },
         hashset! {},
     );
-    assert_rebased(rebaser.rebase_next(), &commit_g, &[&commit_c]);
-    assert_rebased(rebaser.rebase_next(), &commit_h, &[&commit_d]);
+    let new_commit_g = assert_rebased(rebaser.rebase_next(), &commit_g, &[&commit_c]);
+    let new_commit_h = assert_rebased(rebaser.rebase_next(), &commit_h, &[&commit_d]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 2);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            commit_e.id().clone(),
+            new_commit_g.id().clone(),
+            new_commit_h.id().clone()
+        }
+    );
 
     tx.discard();
 }
@@ -553,10 +717,22 @@ fn test_rebase_descendants_divergent_rewrite(use_git: bool) {
         },
         hashset! {},
     );
-    assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_b2]);
-    assert_rebased(rebaser.rebase_next(), &commit_g, &[&commit_f2]);
+    let new_commit_c = assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_b2]);
+    let new_commit_g = assert_rebased(rebaser.rebase_next(), &commit_g, &[&commit_f2]);
     assert!(rebaser.rebase_next().is_none());
     assert_eq!(rebaser.rebased().len(), 2);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            new_commit_c.id().clone(),
+            commit_d2.id().clone(),
+            commit_d3.id().clone(),
+            commit_e.id().clone(),
+            new_commit_g.id().clone(),
+        }
+    );
 
     tx.discard();
 }
@@ -645,6 +821,46 @@ fn test_rebase_descendants_basic_branch_update() {
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     tx.mut_repo()
         .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+        .write_to_repo(tx.mut_repo());
+    tx.mut_repo()
+        .create_descendant_rebaser(&settings)
+        .rebase_all();
+    assert_eq!(
+        tx.mut_repo().get_local_branch("main"),
+        Some(RefTarget::Normal(commit_b2.id().clone()))
+    );
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {repo.view().checkout().clone(), commit_b2.id().clone()}
+    );
+
+    tx.discard();
+}
+
+#[test]
+fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+
+    // Branch "main" points to branch B. B gets rewritten as B2. Branch main should
+    // be updated to point to B2. Remote branch main@origin and tag v1 should not
+    // get updated.
+    //
+    //                                B2 main
+    // B main main@origin v1          | B main@origin v1
+    // |                         =>   |/
+    // A                              A
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    tx.mut_repo()
+        .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
     tx.mut_repo().set_remote_branch(
         "main".to_string(),
         "origin".to_string(),
@@ -672,6 +888,49 @@ fn test_rebase_descendants_basic_branch_update() {
     assert_eq!(
         tx.mut_repo().get_tag("v1"),
         Some(RefTarget::Normal(commit_b.id().clone()))
+    );
+
+    // Commit B is still visible because the remote branch points to it
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {repo.view().checkout().clone(), commit_b.id().clone(), commit_b2.id().clone()}
+    );
+
+    tx.discard();
+}
+
+#[test]
+fn test_rebase_descendants_update_branch_after_abandon() {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+
+    // Branch "main" points to branch B. B is then abandoned. Branch main should
+    // be updated to point to A.
+    //
+    // B main
+    // |          =>   A main
+    // A
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    tx.mut_repo()
+        .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
+    tx.mut_repo()
+        .create_descendant_rebaser(&settings)
+        .rebase_all();
+    assert_eq!(
+        tx.mut_repo().get_local_branch("main"),
+        Some(RefTarget::Normal(commit_a.id().clone()))
+    );
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {repo.view().checkout().clone(), commit_a.id().clone()}
     );
 
     tx.discard();
@@ -722,6 +981,20 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
                 commit_b4.id().clone()
             ]
         })
+    );
+
+    // TODO: We should probably either hide B or indicate in the UI why it's still
+    // visible. Alternatively, we could redefine the view's heads to be only the
+    // desired anonymous heads.
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            commit_b.id().clone(),
+            commit_b2.id().clone(),
+            commit_b3.id().clone(),
+            commit_b4.id().clone(),
+        }
     );
 
     tx.discard();
@@ -782,6 +1055,20 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
         })
     );
 
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            commit_a.id().clone(),
+            commit_a2.id().clone(),
+            commit_a3.id().clone(),
+            commit_b.id().clone(),
+            commit_b2.id().clone(),
+            commit_b3.id().clone(),
+            commit_c.id().clone(),
+        }
+    );
+
     tx.discard();
 }
 
@@ -821,6 +1108,11 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         Some(RefTarget::Normal(commit_b2.id().clone()))
+    );
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {repo.view().checkout().clone(), commit_b2.id().clone()}
     );
 
     tx.discard();
