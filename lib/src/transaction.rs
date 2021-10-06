@@ -72,8 +72,7 @@ impl Transaction {
     /// That means that a repo can be loaded at the operation, but the
     /// operation will not be seen when loading the repo at head.
     pub fn write(mut self) -> UnpublishedOperation {
-        let mut mut_repo = self.repo.take().unwrap();
-        mut_repo.remove_hidden_heads();
+        let mut_repo = self.repo.take().unwrap();
         let base_repo = mut_repo.base_repo().clone();
         let (mut_index, view, maybe_mut_evolution) = mut_repo.consume();
         let maybe_evolution =

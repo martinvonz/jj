@@ -200,7 +200,6 @@ pub enum RevsetExpression {
     Branches,
     Tags,
     GitRefs,
-    NonObsoleteHeads(Rc<RevsetExpression>),
     ParentCount {
         candidates: Rc<RevsetExpression>,
         parent_count_range: Range<u32>,
@@ -253,11 +252,6 @@ impl RevsetExpression {
 
     pub fn git_refs() -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::GitRefs)
-    }
-
-    /// Non-obsolete heads among `self`.
-    pub fn non_obsolete_heads(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::NonObsoleteHeads(self.clone()))
     }
 
     /// Parents of `self`.
@@ -1074,10 +1068,6 @@ pub fn evaluate_expression<'repo>(
             index_entries.sort_by_key(|b| Reverse(b.position()));
             Ok(Box::new(EagerRevset { index_entries }))
         }
-        RevsetExpression::NonObsoleteHeads(base_expression) => {
-            let base_set = base_expression.evaluate(repo)?;
-            Ok(non_obsolete_heads(repo, base_set))
-        }
         RevsetExpression::ParentCount {
             candidates,
             parent_count_range,
@@ -1173,37 +1163,6 @@ pub fn evaluate_expression<'repo>(
             Ok(Box::new(DifferenceRevset { set1, set2 }))
         }
     }
-}
-
-fn non_obsolete_heads<'revset, 'repo: 'revset>(
-    repo: RepoRef<'repo>,
-    heads: Box<dyn Revset<'repo> + 'repo>,
-) -> Box<dyn Revset<'repo> + 'revset> {
-    let mut commit_ids = HashSet::new();
-    let mut work = heads.iter().collect_vec();
-    let evolution = repo.evolution();
-    while !work.is_empty() {
-        let index_entry = work.pop().unwrap();
-        let commit_id = index_entry.commit_id();
-        if commit_ids.contains(&commit_id) {
-            continue;
-        }
-        if !index_entry.is_pruned() && !evolution.is_obsolete(&commit_id) {
-            commit_ids.insert(commit_id);
-        } else {
-            for parent_entry in index_entry.parents() {
-                work.push(parent_entry);
-            }
-        }
-    }
-    let index = repo.index();
-    let commit_ids = index.heads(&commit_ids);
-    let mut index_entries = commit_ids
-        .iter()
-        .map(|id| index.entry_by_id(id).unwrap())
-        .collect_vec();
-    index_entries.sort_by_key(|b| Reverse(b.position()));
-    Box::new(EagerRevset { index_entries })
 }
 
 pub fn revset_for_commits<'revset, 'repo: 'revset>(

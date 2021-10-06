@@ -20,7 +20,6 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use itertools::Itertools;
 use thiserror::Error;
 
 use crate::backend::{Backend, BackendError, CommitId};
@@ -35,7 +34,6 @@ use crate::local_backend::LocalBackend;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget};
 use crate::operation::Operation;
-use crate::revset::RevsetExpression;
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_store::SimpleOpStore;
@@ -784,35 +782,6 @@ impl MutableRepo {
     pub fn remove_public_head(&mut self, head: &CommitId) {
         self.view.remove_public_head(head);
         self.invalidate_evolution();
-    }
-
-    pub fn remove_hidden_heads(&mut self) {
-        let mut view = self.view().store_view().clone();
-        let heads_expression =
-            RevsetExpression::commits(view.head_ids.iter().cloned().collect_vec())
-                .non_obsolete_heads();
-        let public_heads_expression =
-            RevsetExpression::commits(view.public_head_ids.iter().cloned().collect_vec())
-                .non_obsolete_heads();
-        view.head_ids.clear();
-        view.public_head_ids.clear();
-        for head_id in heads_expression
-            .evaluate(self.as_repo_ref())
-            .unwrap()
-            .iter()
-            .commit_ids()
-        {
-            view.head_ids.insert(head_id);
-        }
-        for head_id in public_heads_expression
-            .evaluate(self.as_repo_ref())
-            .unwrap()
-            .iter()
-            .commit_ids()
-        {
-            view.public_head_ids.insert(head_id);
-        }
-        self.set_view(view)
     }
 
     pub fn get_branch(&self, name: &str) -> Option<&BranchTarget> {
