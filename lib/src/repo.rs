@@ -653,15 +653,10 @@ impl MutableRepo {
         let current_checkout_id = self.view.checkout().clone();
         let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
         assert!(current_checkout.is_open(), "current checkout is closed");
-        if current_checkout.is_empty()
-            && !(current_checkout.is_pruned() || self.evolution().is_obsolete(&current_checkout_id))
-        {
+        if current_checkout.is_empty() {
             // Abandon the checkout we're leaving if it's empty.
             // TODO: Also abandon it if the only changes are conflicts that got
             // materialized.
-            CommitBuilder::for_rewrite_from(settings, self.store(), &current_checkout)
-                .set_pruned(true)
-                .write_to_repo(self);
             self.record_abandoned_commit(current_checkout_id);
         }
         let store = self.store();

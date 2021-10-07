@@ -76,6 +76,7 @@ impl CommitBuilder {
         let mut commit = predecessor.store_commit().clone();
         commit.predecessors = vec![predecessor.id().clone()];
         commit.committer = signature(settings);
+        commit.is_pruned = false;
         CommitBuilder {
             store: store.clone(),
             commit,
@@ -143,11 +144,6 @@ impl CommitBuilder {
         self
     }
 
-    pub fn set_pruned(mut self, is_pruned: bool) -> Self {
-        self.commit.is_pruned = is_pruned;
-        self
-    }
-
     pub fn set_author(mut self, author: Signature) -> Self {
         self.commit.author = author;
         self
@@ -166,7 +162,7 @@ impl CommitBuilder {
         }
         let mut rewrite_source_id = None;
         if let Some(rewrite_source) = self.rewrite_source {
-            if !self.commit.is_pruned && *rewrite_source.change_id() == self.commit.change_id {
+            if *rewrite_source.change_id() == self.commit.change_id {
                 rewrite_source_id.replace(rewrite_source.id().clone());
             }
         }

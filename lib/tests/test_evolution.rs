@@ -102,33 +102,6 @@ fn test_divergent(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
-fn test_divergent_pruned(use_git: bool) {
-    let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
-    let root_commit = repo.store().root_commit();
-    let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
-
-    let original = child_commit(&settings, &repo, &root_commit).write_to_repo(mut_repo);
-
-    // Pruned commits are also divergent (because it's unclear where descendants
-    // should be evolved to).
-    child_commit(&settings, &repo, &root_commit)
-        .set_predecessors(vec![original.id().clone()])
-        .set_change_id(original.change_id().clone())
-        .set_pruned(true)
-        .write_to_repo(mut_repo);
-    child_commit(&settings, &repo, &root_commit)
-        .set_predecessors(vec![original.id().clone()])
-        .set_change_id(original.change_id().clone())
-        .set_pruned(true)
-        .write_to_repo(mut_repo);
-    assert!(mut_repo.evolution().is_divergent(original.change_id()));
-    tx.discard();
-}
-
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
 fn test_divergent_duplicate(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);

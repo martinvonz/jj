@@ -200,13 +200,4 @@ fn test_commit_builder_descendants(use_git: bool) {
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     assert!(rebaser.rebase_next().is_none());
     tx.discard();
-
-    // Test with for_rewrite_from() but pruned
-    let mut tx = repo.start_transaction("test");
-    CommitBuilder::for_rewrite_from(&settings, &store, &commit2)
-        .set_pruned(true)
-        .write_to_repo(tx.mut_repo());
-    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
-    assert!(rebaser.rebase_next().is_none());
-    tx.discard();
 }

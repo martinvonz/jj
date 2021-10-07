@@ -198,7 +198,8 @@ fn test_checkout_previous_not_empty(use_git: bool) {
         .set_open(true)
         .write_to_repo(mut_repo);
     mut_repo.check_out(&settings, &new_checkout);
-    assert!(!mut_repo.evolution().is_obsolete(old_checkout.id()));
+    mut_repo.create_descendant_rebaser(&settings).rebase_all();
+    assert!(mut_repo.view().heads().contains(old_checkout.id()));
     tx.discard();
 }
 
@@ -228,71 +229,8 @@ fn test_checkout_previous_empty(use_git: bool) {
         .set_open(true)
         .write_to_repo(mut_repo);
     mut_repo.check_out(&settings, &new_checkout);
-    assert!(mut_repo.evolution().is_obsolete(old_checkout.id()));
-    tx.discard();
-}
-
-#[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
-fn test_checkout_previous_empty_and_obsolete(use_git: bool) {
-    // Test that MutableRepo::check_out() does not unnecessarily prune the previous
-    // commit if it was empty but already obsolete.
-    let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
-
-    let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
-    let old_checkout = CommitBuilder::for_open_commit(
-        &settings,
-        repo.store(),
-        repo.store().root_commit_id().clone(),
-        repo.store().empty_tree_id().clone(),
-    )
-    .write_to_repo(mut_repo);
-    let successor = CommitBuilder::for_rewrite_from(&settings, repo.store(), &old_checkout)
-        .write_to_repo(mut_repo);
-    mut_repo.check_out(&settings, &old_checkout);
-    let repo = tx.commit();
-
-    let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
-    let new_checkout = testutils::create_random_commit(&settings, &repo)
-        .set_open(true)
-        .write_to_repo(mut_repo);
-    mut_repo.check_out(&settings, &new_checkout);
-    let successors = mut_repo.evolution().successors(old_checkout.id());
-    assert_eq!(successors.len(), 1);
-    assert_eq!(successors.iter().next().unwrap(), successor.id());
-    tx.discard();
-}
-
-#[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
-fn test_checkout_previous_empty_and_pruned(use_git: bool) {
-    // Test that MutableRepo::check_out() does not unnecessarily prune the previous
-    // commit if it was empty but already obsolete.
-    let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
-
-    let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
-    let old_checkout = testutils::create_random_commit(&settings, &repo)
-        .set_open(true)
-        .set_pruned(true)
-        .write_to_repo(mut_repo);
-    mut_repo.check_out(&settings, &old_checkout);
-    let repo = tx.commit();
-
-    let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
-    let new_checkout = testutils::create_random_commit(&settings, &repo)
-        .set_open(true)
-        .write_to_repo(mut_repo);
-    mut_repo.check_out(&settings, &new_checkout);
-    assert!(mut_repo
-        .evolution()
-        .successors(old_checkout.id())
-        .is_empty());
+    mut_repo.create_descendant_rebaser(&settings).rebase_all();
+    assert!(!mut_repo.view().heads().contains(old_checkout.id()));
     tx.discard();
 }
 

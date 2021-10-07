@@ -2072,7 +2072,6 @@ fn cmd_abandon(
     for commit in &to_abandon {
         repo_command.check_rewriteable(commit)?;
     }
-    let repo = repo_command.repo();
     let transaction_description = if to_abandon.len() == 1 {
         format!("abandon commit {}", to_abandon[0].id().hex())
     } else {
@@ -2085,9 +2084,6 @@ fn cmd_abandon(
     let mut tx = repo_command.start_transaction(&transaction_description);
     for commit in to_abandon {
         tx.mut_repo().record_abandoned_commit(commit.id().clone());
-        CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
-            .set_pruned(true)
-            .write_to_repo(tx.mut_repo());
     }
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(ui.settings());
     rebaser.rebase_all();
@@ -2179,13 +2175,13 @@ from the source will be moved into the parent.
         .set_tree(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
         .write_to_repo(mut_repo);
-    // Commit the remainder on top of the new parent commit.
-    CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
-        .set_parents(vec![new_parent.id().clone()])
-        .set_pruned(abandon_child)
-        .write_to_repo(mut_repo);
     if abandon_child {
         mut_repo.record_abandoned_commit(commit.id().clone());
+    } else {
+        // Commit the remainder on top of the new parent commit.
+        CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
+            .set_parents(vec![new_parent.id().clone()])
+            .write_to_repo(mut_repo);
     }
     repo_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -2238,19 +2234,17 @@ aborted.
     }
     // Abandon the parent if it is now empty (always the case in the non-interactive
     // case).
-    let abandon_parent = &new_parent_tree_id == parent_base_tree.id();
-    let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), parent)
-        .set_tree(new_parent_tree_id)
-        .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
-        .set_pruned(abandon_parent)
-        .write_to_repo(mut_repo);
-    if abandon_parent {
+    if &new_parent_tree_id == parent_base_tree.id() {
         mut_repo.record_abandoned_commit(parent.id().clone());
         // Commit the new child on top of the parent's parents.
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_parents(parent.parent_ids())
             .write_to_repo(mut_repo);
     } else {
+        let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), parent)
+            .set_tree(new_parent_tree_id)
+            .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
+            .write_to_repo(mut_repo);
         // Commit the new child on top of the new parent.
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_parents(vec![new_parent.id().clone()])
