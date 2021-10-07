@@ -99,18 +99,26 @@ fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, Revse
 
 fn resolve_change_id(repo: RepoRef, change_id_prefix: &str) -> Result<Vec<CommitId>, RevsetError> {
     if let Some(hex_prefix) = HexPrefix::new(change_id_prefix.to_owned()) {
-        let evolution = repo.evolution();
-        match evolution.resolve_change_id_prefix(&hex_prefix) {
-            PrefixResolution::NoMatch => {
-                Err(RevsetError::NoSuchRevision(change_id_prefix.to_owned()))
-            }
-            PrefixResolution::AmbiguousMatch => Err(RevsetError::AmbiguousChangeIdPrefix(
-                change_id_prefix.to_owned(),
-            )),
-            PrefixResolution::SingleMatch(change_id) => {
-                Ok(evolution.non_obsoletes(&change_id).into_iter().collect())
+        let mut found_change_id = None;
+        let mut commit_ids = vec![];
+        // TODO: Create a persistent lookup from change id to (visible?) commit ids.
+        for index_entry in RevsetExpression::all().evaluate(repo).unwrap().iter() {
+            let change_id = index_entry.change_id();
+            if change_id.hex().starts_with(hex_prefix.hex()) {
+                if let Some(previous_change_id) = found_change_id.replace(change_id.clone()) {
+                    if previous_change_id != change_id {
+                        return Err(RevsetError::AmbiguousChangeIdPrefix(
+                            change_id_prefix.to_owned(),
+                        ));
+                    }
+                }
+                commit_ids.push(index_entry.commit_id());
             }
         }
+        if found_change_id.is_none() {
+            return Err(RevsetError::NoSuchRevision(change_id_prefix.to_owned()));
+        }
+        Ok(commit_ids)
     } else {
         Err(RevsetError::NoSuchRevision(change_id_prefix.to_owned()))
     }

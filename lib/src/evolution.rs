@@ -20,7 +20,6 @@ use itertools::Itertools;
 use crate::backend::{ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::dag_walk::{bfs, leaves};
-use crate::index::{HexPrefix, PrefixResolution};
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 
 // TODO: Combine some maps/sets and use a struct as value instead.
@@ -135,21 +134,6 @@ impl State {
         self.non_obsoletes_by_changeid
             .get(change_id)
             .map_or(false, |non_obsoletes| non_obsoletes.len() > 1)
-    }
-
-    // TODO: We should probably add a change id table to the commit index and move
-    // this there
-    fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<ChangeId> {
-        let mut result = PrefixResolution::NoMatch;
-        for change_id in self.non_obsoletes_by_changeid.keys() {
-            if change_id.hex().starts_with(prefix.hex()) {
-                if result != PrefixResolution::NoMatch {
-                    return PrefixResolution::AmbiguousMatch;
-                }
-                result = PrefixResolution::SingleMatch(change_id.clone());
-            }
-        }
-        result
     }
 
     fn non_obsoletes(&self, change_id: &ChangeId) -> HashSet<CommitId> {
@@ -359,13 +343,6 @@ impl EvolutionRef<'_> {
         }
     }
 
-    pub fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<ChangeId> {
-        match self {
-            EvolutionRef::Readonly(evolution) => evolution.resolve_change_id_prefix(prefix),
-            EvolutionRef::Mutable(evolution) => evolution.resolve_change_id_prefix(prefix),
-        }
-    }
-
     pub fn is_divergent(&self, change_id: &ChangeId) -> bool {
         match self {
             EvolutionRef::Readonly(evolution) => evolution.is_divergent(change_id),
@@ -414,10 +391,6 @@ impl ReadonlyEvolution {
         self.state.is_divergent(change_id)
     }
 
-    pub fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<ChangeId> {
-        self.state.resolve_change_id_prefix(prefix)
-    }
-
     pub fn non_obsoletes(&self, change_id: &ChangeId) -> HashSet<CommitId> {
         self.state.non_obsoletes(change_id)
     }
@@ -452,10 +425,6 @@ impl MutableEvolution {
 
     pub fn is_divergent(&self, change_id: &ChangeId) -> bool {
         self.state.is_divergent(change_id)
-    }
-
-    pub fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<ChangeId> {
-        self.state.resolve_change_id_prefix(prefix)
     }
 
     pub fn non_obsoletes(&self, change_id: &ChangeId) -> HashSet<CommitId> {
