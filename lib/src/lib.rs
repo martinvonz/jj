@@ -29,7 +29,6 @@ pub mod commit_builder;
 pub mod conflicts;
 pub mod dag_walk;
 pub mod diff;
-pub mod evolution;
 pub mod file_util;
 pub mod files;
 pub mod git;

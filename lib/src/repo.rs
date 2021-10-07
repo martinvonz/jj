@@ -26,7 +26,6 @@ use crate::backend::{Backend, BackendError, CommitId};
 use crate::commit::Commit;
 use crate::commit_builder::{new_change_id, signature, CommitBuilder};
 use crate::dag_walk::topo_order_reverse;
-use crate::evolution::{EvolutionRef, MutableEvolution, ReadonlyEvolution};
 use crate::git_backend::GitBackend;
 use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
@@ -98,13 +97,6 @@ impl<'a> RepoRef<'a> {
             RepoRef::Mutable(repo) => repo.view(),
         }
     }
-
-    pub fn evolution(&self) -> EvolutionRef {
-        match self {
-            RepoRef::Readonly(repo) => EvolutionRef::Readonly(repo.evolution()),
-            RepoRef::Mutable(repo) => EvolutionRef::Mutable(repo.evolution()),
-        }
-    }
 }
 
 pub struct ReadonlyRepo {
@@ -119,7 +111,6 @@ pub struct ReadonlyRepo {
     index: Mutex<Option<Arc<ReadonlyIndex>>>,
     working_copy: Arc<Mutex<WorkingCopy>>,
     view: View,
-    evolution: Mutex<Option<Arc<ReadonlyEvolution>>>,
 }
 
 impl Debug for ReadonlyRepo {
@@ -260,7 +251,6 @@ impl ReadonlyRepo {
             index: Mutex::new(None),
             working_copy: Arc::new(Mutex::new(working_copy)),
             view,
-            evolution: Mutex::new(None),
         };
         let repo = Arc::new(repo);
 
@@ -311,14 +301,6 @@ impl ReadonlyRepo {
 
     pub fn view(&self) -> &View {
         &self.view
-    }
-
-    pub fn evolution(&self) -> Arc<ReadonlyEvolution> {
-        let mut locked_evolution = self.evolution.lock().unwrap();
-        if locked_evolution.is_none() {
-            locked_evolution.replace(Arc::new(ReadonlyEvolution::new(self)));
-        }
-        locked_evolution.as_ref().unwrap().clone()
     }
 
     pub fn index(&self) -> &Arc<ReadonlyIndex> {
@@ -375,13 +357,7 @@ impl ReadonlyRepo {
     }
 
     pub fn start_transaction(self: &Arc<ReadonlyRepo>, description: &str) -> Transaction {
-        let locked_evolution = self.evolution.lock().unwrap();
-        let mut_repo = MutableRepo::new(
-            self.clone(),
-            self.index().clone(),
-            &self.view,
-            locked_evolution.as_ref(),
-        );
+        let mut_repo = MutableRepo::new(self.clone(), self.index().clone(), &self.view);
         Transaction::new(mut_repo, description)
     }
 
@@ -474,7 +450,6 @@ impl RepoLoader {
         view: View,
         working_copy: Arc<Mutex<WorkingCopy>>,
         index: Arc<ReadonlyIndex>,
-        evolution: Option<Arc<ReadonlyEvolution>>,
     ) -> Arc<ReadonlyRepo> {
         let repo = ReadonlyRepo {
             repo_path: self.repo_path.clone(),
@@ -488,7 +463,6 @@ impl RepoLoader {
             index: Mutex::new(Some(index)),
             working_copy,
             view,
-            evolution: Mutex::new(evolution),
         };
         Arc::new(repo)
     }
@@ -511,7 +485,6 @@ impl RepoLoader {
             index: Mutex::new(None),
             working_copy: Arc::new(Mutex::new(working_copy)),
             view,
-            evolution: Mutex::new(None),
         };
         Arc::new(repo)
     }
@@ -521,7 +494,6 @@ pub struct MutableRepo {
     base_repo: Arc<ReadonlyRepo>,
     index: MutableIndex,
     view: View,
-    evolution: Mutex<Option<MutableEvolution>>,
     rewritten_commits: HashMap<CommitId, HashSet<CommitId>>,
     abandoned_commits: HashSet<CommitId>,
 }
@@ -531,16 +503,13 @@ impl MutableRepo {
         base_repo: Arc<ReadonlyRepo>,
         index: Arc<ReadonlyIndex>,
         view: &View,
-        evolution: Option<&Arc<ReadonlyEvolution>>,
     ) -> MutableRepo {
         let mut_view = view.start_modification();
         let mut_index = MutableIndex::incremental(index);
-        let mut_evolution = evolution.map(|evolution| evolution.start_modification());
         MutableRepo {
             base_repo,
             index: mut_index,
             view: mut_view,
-            evolution: Mutex::new(mut_evolution),
             rewritten_commits: Default::default(),
             abandoned_commits: Default::default(),
         }
@@ -570,33 +539,8 @@ impl MutableRepo {
         &self.view
     }
 
-    pub fn consume(self) -> (MutableIndex, View, Option<MutableEvolution>) {
-        (self.index, self.view, self.evolution.lock().unwrap().take())
-    }
-
-    pub fn evolution(&self) -> &MutableEvolution {
-        let mut locked_evolution = self.evolution.lock().unwrap();
-        if locked_evolution.is_none() {
-            locked_evolution.replace(MutableEvolution::new(self));
-        }
-        let evolution = locked_evolution.as_ref().unwrap();
-        // Extend lifetime from lifetime of MutexGuard to lifetime of self. Safe because
-        // the value won't change again except for by invalidate_evolution(), which
-        // requires a mutable reference.
-        unsafe { std::mem::transmute(evolution) }
-    }
-
-    pub fn evolution_mut(&mut self) -> Option<&mut MutableEvolution> {
-        let mut locked_evolution = self.evolution.lock().unwrap();
-        let maybe_evolution = locked_evolution.as_mut();
-        // Extend lifetime from lifetime of MutexGuard to lifetime of self. Safe because
-        // the value won't change again except for by invalidate_evolution(), which
-        // requires a mutable reference.
-        unsafe { std::mem::transmute(maybe_evolution) }
-    }
-
-    pub fn invalidate_evolution(&mut self) {
-        self.evolution.lock().unwrap().take();
+    pub fn consume(self) -> (MutableIndex, View) {
+        (self.index, self.view)
     }
 
     pub fn write_commit(&mut self, commit: backend::Commit) -> Commit {
@@ -741,9 +685,6 @@ impl MutableRepo {
             for parent_id in head.parent_ids() {
                 self.view.remove_head(&parent_id);
             }
-            if let Some(evolution) = self.evolution_mut() {
-                evolution.add_commit(head)
-            }
         } else {
             let missing_commits = topo_order_reverse(
                 vec![head.clone()],
@@ -761,27 +702,21 @@ impl MutableRepo {
             }
             self.view.add_head(head.id());
             self.enforce_view_invariants();
-            self.invalidate_evolution();
         }
     }
 
     pub fn remove_head(&mut self, head: &CommitId) {
         self.view.remove_head(head);
         self.enforce_view_invariants();
-        self.invalidate_evolution();
     }
 
     pub fn add_public_head(&mut self, head: &Commit) {
         self.view.add_public_head(head.id());
         self.enforce_view_invariants();
-        if let Some(evolution) = self.evolution_mut() {
-            evolution.add_commit(head)
-        }
     }
 
     pub fn remove_public_head(&mut self, head: &CommitId) {
         self.view.remove_public_head(head);
-        self.invalidate_evolution();
     }
 
     pub fn get_branch(&self, name: &str) -> Option<&BranchTarget> {
@@ -843,7 +778,6 @@ impl MutableRepo {
     pub fn set_view(&mut self, data: op_store::View) {
         self.view.set_view(data);
         self.enforce_view_invariants();
-        self.invalidate_evolution();
     }
 
     pub fn merge(&mut self, base_repo: &ReadonlyRepo, other_repo: &ReadonlyRepo) {
@@ -857,8 +791,6 @@ impl MutableRepo {
         self.view
             .merge(self.index.as_index_ref(), &base_repo.view, &other_repo.view);
         self.enforce_view_invariants();
-
-        self.invalidate_evolution();
     }
 
     pub fn merge_single_ref(

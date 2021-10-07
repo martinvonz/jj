@@ -335,7 +335,6 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     assert!(mut_repo.index().has_id(initial.id()));
     assert!(mut_repo.index().has_id(rewritten.id()));
     assert!(mut_repo.index().has_id(child.id()));
-    assert!(mut_repo.evolution().is_obsolete(initial.id()));
     let index_stats = mut_repo.index().stats();
     assert_eq!(index_stats.num_heads, 3);
     assert_eq!(index_stats.num_commits, 5);

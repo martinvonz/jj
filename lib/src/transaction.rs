@@ -16,7 +16,6 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::backend::Timestamp;
-use crate::evolution::ReadonlyEvolution;
 use crate::index::ReadonlyIndex;
 use crate::op_store;
 use crate::op_store::{OperationId, OperationMetadata};
@@ -74,9 +73,7 @@ impl Transaction {
     pub fn write(mut self) -> UnpublishedOperation {
         let mut_repo = self.repo.take().unwrap();
         let base_repo = mut_repo.base_repo().clone();
-        let (mut_index, view, maybe_mut_evolution) = mut_repo.consume();
-        let maybe_evolution =
-            maybe_mut_evolution.map(|mut_evolution| Arc::new(mut_evolution.freeze()));
+        let (mut_index, view) = mut_repo.consume();
         let index = base_repo.index_store().write_index(mut_index).unwrap();
 
         let view_id = base_repo.op_store().write_view(view.store_view()).unwrap();
@@ -105,7 +102,6 @@ impl Transaction {
             view,
             base_repo.working_copy().clone(),
             index,
-            maybe_evolution,
         )
     }
 
@@ -127,7 +123,6 @@ struct NewRepoData {
     view: View,
     working_copy: Arc<Mutex<WorkingCopy>>,
     index: Arc<ReadonlyIndex>,
-    evolution: Option<Arc<ReadonlyEvolution>>,
 }
 
 pub struct UnpublishedOperation {
@@ -143,14 +138,12 @@ impl UnpublishedOperation {
         view: View,
         working_copy: Arc<Mutex<WorkingCopy>>,
         index: Arc<ReadonlyIndex>,
-        evolution: Option<Arc<ReadonlyEvolution>>,
     ) -> Self {
         let data = Some(NewRepoData {
             operation,
             view,
             working_copy,
             index,
-            evolution,
         });
         UnpublishedOperation {
             repo_loader,
@@ -168,26 +161,18 @@ impl UnpublishedOperation {
         self.repo_loader
             .op_heads_store()
             .update_op_heads(&data.operation);
-        let repo = self.repo_loader.create_from(
-            data.operation,
-            data.view,
-            data.working_copy,
-            data.index,
-            data.evolution,
-        );
+        let repo =
+            self.repo_loader
+                .create_from(data.operation, data.view, data.working_copy, data.index);
         self.closed = true;
         repo
     }
 
     pub fn leave_unpublished(mut self) -> Arc<ReadonlyRepo> {
         let data = self.data.take().unwrap();
-        let repo = self.repo_loader.create_from(
-            data.operation,
-            data.view,
-            data.working_copy,
-            data.index,
-            data.evolution,
-        );
+        let repo =
+            self.repo_loader
+                .create_from(data.operation, data.view, data.working_copy, data.index);
         self.closed = true;
         repo
     }

@@ -147,9 +147,6 @@ fn test_isolation(use_git: bool) {
     assert_heads(repo.as_repo_ref(), vec![&wc_id, initial.id()]);
     assert_heads(mut_repo1.as_repo_ref(), vec![&wc_id, initial.id()]);
     assert_heads(mut_repo2.as_repo_ref(), vec![&wc_id, initial.id()]);
-    assert!(!repo.evolution().is_obsolete(initial.id()));
-    assert!(!mut_repo1.evolution().is_obsolete(initial.id()));
-    assert!(!mut_repo2.evolution().is_obsolete(initial.id()));
 
     let rewrite1 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial)
         .set_description("rewrite1".to_string())
@@ -169,9 +166,6 @@ fn test_isolation(use_git: bool) {
         mut_repo2.as_repo_ref(),
         vec![&wc_id, initial.id(), rewrite2.id()],
     );
-    assert!(!repo.evolution().is_obsolete(initial.id()));
-    assert!(mut_repo1.evolution().is_obsolete(initial.id()));
-    assert!(mut_repo2.evolution().is_obsolete(initial.id()));
 
     // The base repo and tx2 don't see the commits from tx1.
     tx1.commit();
