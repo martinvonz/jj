@@ -119,7 +119,6 @@ impl Store {
             author: signature.clone(),
             committer: signature,
             is_open: false,
-            is_pruned: false,
         }
     }
 

@@ -179,7 +179,7 @@ fn write_conflict(store: &Arc<Store>, file_path: &RepoPath) -> ConflictId {
 #[test_case(false ; "local backend")]
 // #[test_case(true ; "git backend")]
 fn test_checkout_previous_not_empty(use_git: bool) {
-    // Test that MutableRepo::check_out() does not usually prune the previous
+    // Test that MutableRepo::check_out() does not usually abandon the previous
     // commit.
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
@@ -206,7 +206,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
 #[test_case(false ; "local backend")]
 // #[test_case(true ; "git backend")]
 fn test_checkout_previous_empty(use_git: bool) {
-    // Test that MutableRepo::check_out() prunes the previous commit if it was
+    // Test that MutableRepo::check_out() abandons the previous commit if it was
     // empty.
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);

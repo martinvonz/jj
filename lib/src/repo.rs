@@ -217,7 +217,6 @@ impl ReadonlyRepo {
             author: signature.clone(),
             committer: signature,
             is_open: true,
-            is_pruned: false,
         };
         let checkout_commit = store.write_commit(checkout_commit);
 

@@ -124,10 +124,6 @@ impl Commit {
         self.data.is_open
     }
 
-    pub fn is_pruned(&self) -> bool {
-        self.data.is_pruned
-    }
-
     pub fn is_empty(&self) -> bool {
         let parents = self.parents();
         // TODO: Perhaps the root commit should also be considered empty.

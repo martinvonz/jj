@@ -92,7 +92,6 @@ fn signature_to_git(signature: &Signature) -> git2::Signature {
 fn serialize_note(commit: &Commit) -> String {
     let mut proto = crate::protos::store::Commit::new();
     proto.is_open = commit.is_open;
-    proto.is_pruned = commit.is_pruned;
     proto.change_id = commit.change_id.0.to_vec();
     for predecessor in &commit.predecessors {
         proto.predecessors.push(predecessor.0.to_vec());
@@ -106,7 +105,6 @@ fn deserialize_note(commit: &mut Commit, note: &str) {
     let mut cursor = Cursor::new(bytes);
     let proto: crate::protos::store::Commit = Message::parse_from_reader(&mut cursor).unwrap();
     commit.is_open = proto.is_open;
-    commit.is_pruned = proto.is_pruned;
     commit.change_id = ChangeId(proto.change_id);
     for predecessor in &proto.predecessors {
         commit.predecessors.push(CommitId(predecessor.clone()));
@@ -353,7 +351,6 @@ impl Backend for GitBackend {
             author,
             committer,
             is_open: false,
-            is_pruned: false,
         };
 
         let maybe_note = locked_repo
@@ -564,7 +561,6 @@ mod tests {
         assert_eq!(commit.predecessors, vec![]);
         assert_eq!(commit.root_tree.0.as_slice(), root_tree_id.as_bytes());
         assert!(!commit.is_open);
-        assert!(!commit.is_pruned);
         assert_eq!(commit.description, "git commit message");
         assert_eq!(commit.author.name, "git author");
         assert_eq!(commit.author.email, "git.author@example.com");
@@ -641,7 +637,6 @@ mod tests {
             author: signature.clone(),
             committer: signature,
             is_open: false,
-            is_pruned: false,
         };
         let commit_id = store.write_commit(&commit).unwrap();
         let git_refs = git_repo
@@ -675,7 +670,6 @@ mod tests {
             author: signature.clone(),
             committer: signature,
             is_open: false,
-            is_pruned: false,
         };
         let commit_id1 = store.write_commit(&commit1).unwrap();
         let mut commit2 = commit1;

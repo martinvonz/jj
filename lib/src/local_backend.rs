@@ -253,7 +253,6 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::store::Commit {
     proto.set_author(signature_to_proto(&commit.author));
     proto.set_committer(signature_to_proto(&commit.committer));
     proto.set_is_open(commit.is_open);
-    proto.set_is_pruned(commit.is_pruned);
     proto
 }
 
@@ -276,7 +275,6 @@ fn commit_from_proto(proto: &crate::protos::store::Commit) -> Commit {
         author: signature_from_proto(proto.author.get_ref()),
         committer: signature_from_proto(proto.committer.get_ref()),
         is_open: proto.is_open,
-        is_pruned: proto.is_pruned,
     }
 }
 

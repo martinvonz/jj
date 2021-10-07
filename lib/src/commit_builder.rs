@@ -59,7 +59,6 @@ impl CommitBuilder {
             author: signature.clone(),
             committer: signature,
             is_open: false,
-            is_pruned: false,
         };
         CommitBuilder {
             store: store.clone(),
@@ -76,7 +75,6 @@ impl CommitBuilder {
         let mut commit = predecessor.store_commit().clone();
         commit.predecessors = vec![predecessor.id().clone()];
         commit.committer = signature(settings);
-        commit.is_pruned = false;
         CommitBuilder {
             store: store.clone(),
             commit,
@@ -100,7 +98,6 @@ impl CommitBuilder {
             author: signature.clone(),
             committer: signature,
             is_open: true,
-            is_pruned: false,
         };
         CommitBuilder {
             store: store.clone(),

@@ -162,7 +162,6 @@ pub struct Commit {
     pub author: Signature,
     pub committer: Signature,
     pub is_open: bool,
-    pub is_pruned: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
