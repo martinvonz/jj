@@ -13,13 +13,15 @@
 // limitations under the License.
 
 use std::borrow::BorrowMut;
+use std::collections::{HashMap, HashSet};
 use std::io;
-use std::ops::Add;
+use std::ops::{Add, AddAssign};
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{CommitId, Signature};
+use jujutsu_lib::backend::{ChangeId, CommitId, Signature};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::repo::RepoRef;
+use jujutsu_lib::revset::RevsetExpression;
 
 use crate::formatter::Formatter;
 
@@ -286,13 +288,34 @@ impl TemplateProperty<Commit, String> for GitRefsProperty<'_> {
     }
 }
 
-pub struct DivergentProperty<'a> {
-    pub repo: RepoRef<'a>,
+pub struct DivergentProperty {
+    divergent_changes: HashSet<ChangeId>,
 }
 
-impl TemplateProperty<Commit, bool> for DivergentProperty<'_> {
+impl DivergentProperty {
+    pub fn new(repo: RepoRef) -> Self {
+        // TODO: Create a persistent index from change id to commit ids. 
+        let mut commit_count_by_change: HashMap<ChangeId, i32> = HashMap::new();
+        for index_entry in RevsetExpression::all().evaluate(repo).unwrap().iter() {
+            let change_id = index_entry.change_id();
+            commit_count_by_change
+                .entry(change_id)
+                .or_default()
+                .add_assign(1);
+        }
+        let mut divergent_changes = HashSet::new();
+        for (change_id, count) in commit_count_by_change {
+            if count > 1 {
+                divergent_changes.insert(change_id);
+            }
+        }
+        Self { divergent_changes }
+    }
+}
+
+impl TemplateProperty<Commit, bool> for DivergentProperty {
     fn extract(&self, context: &Commit) -> bool {
-        self.repo.evolution().is_divergent(context.change_id())
+        self.divergent_changes.contains(context.change_id())
     }
 }
 

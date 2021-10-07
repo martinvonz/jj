@@ -242,7 +242,7 @@ fn parse_commit_keyword<'a>(repo: RepoRef<'a>, pair: Pair<Rule>) -> (Property<'a
         "branches" => Property::String(Box::new(BranchProperty { repo })),
         "tags" => Property::String(Box::new(TagProperty { repo })),
         "git_refs" => Property::String(Box::new(GitRefsProperty { repo })),
-        "divergent" => Property::Boolean(Box::new(DivergentProperty { repo })),
+        "divergent" => Property::Boolean(Box::new(DivergentProperty::new(repo))),
         "conflict" => Property::Boolean(Box::new(ConflictProperty)),
         name => panic!("unexpected identifier: {}", name),
     };
