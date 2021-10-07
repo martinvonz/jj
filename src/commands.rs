@@ -1719,9 +1719,6 @@ fn log_template(settings: &UserSettings) -> String {
             "branches: " branches "\n"
             "tags: " tags "\n"
             "open: " open "\n"
-            "abandoned: " abandoned "\n"
-            "obsolete: " obsolete "\n"
-            "orphan: " orphan "\n"
             "divergent: " divergent "\n"
             "has conflict: " conflict "\n"
             description "\n"
@@ -1734,7 +1731,7 @@ fn log_template(settings: &UserSettings) -> String {
 
 fn graph_log_template(settings: &UserSettings) -> String {
     // TODO: define a method on boolean values, so we can get auto-coloring
-    //       with e.g. `obsolete.then("obsolete")`
+    //       with e.g. `conflict.then("conflict")`
     let default_template = r#"
             label(if(open, "open"),
             commit_id.short()
@@ -1743,9 +1740,6 @@ fn graph_log_template(settings: &UserSettings) -> String {
             " " label("timestamp", author.timestamp())
             " " branches
             " " tags
-            if(abandoned, label("abandoned", " abandoned"))
-            if(obsolete, label("obsolete", " obsolete"))
-            if(orphan, label("orphan", " orphan"))
             if(divergent, label("divergent", " divergent"))
             if(conflict, label("conflict", " conflict"))
             "\n"

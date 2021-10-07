@@ -202,14 +202,6 @@ impl<'r> TemplateProperty<Commit, bool> for OpenProperty {
     }
 }
 
-pub struct PrunedProperty;
-
-impl TemplateProperty<Commit, bool> for PrunedProperty {
-    fn extract(&self, context: &Commit) -> bool {
-        context.is_pruned()
-    }
-}
-
 pub struct CurrentCheckoutProperty<'a> {
     pub repo: RepoRef<'a>,
 }
@@ -291,26 +283,6 @@ impl TemplateProperty<Commit, String> for GitRefsProperty<'_> {
             }
         }
         names.join(" ")
-    }
-}
-
-pub struct ObsoleteProperty<'a> {
-    pub repo: RepoRef<'a>,
-}
-
-impl TemplateProperty<Commit, bool> for ObsoleteProperty<'_> {
-    fn extract(&self, context: &Commit) -> bool {
-        self.repo.evolution().is_obsolete(context.id())
-    }
-}
-
-pub struct OrphanProperty<'a> {
-    pub repo: RepoRef<'a>,
-}
-
-impl TemplateProperty<Commit, bool> for OrphanProperty<'_> {
-    fn extract(&self, context: &Commit) -> bool {
-        self.repo.evolution().is_orphan(context.id())
     }
 }
 

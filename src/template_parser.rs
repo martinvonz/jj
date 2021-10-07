@@ -26,8 +26,8 @@ use crate::templater::{
     AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdKeyword, CommitterProperty,
     ConditionalTemplate, ConflictProperty, ConstantTemplateProperty, CurrentCheckoutProperty,
     DescriptionProperty, DivergentProperty, DynamicLabelTemplate, GitRefsProperty, LabelTemplate,
-    ListTemplate, LiteralTemplate, ObsoleteProperty, OpenProperty, OrphanProperty, PrunedProperty,
-    StringPropertyTemplate, TagProperty, Template, TemplateFunction, TemplateProperty,
+    ListTemplate, LiteralTemplate, OpenProperty, StringPropertyTemplate, TagProperty, Template,
+    TemplateFunction, TemplateProperty,
 };
 
 #[derive(Parser)]
@@ -238,13 +238,10 @@ fn parse_commit_keyword<'a>(repo: RepoRef<'a>, pair: Pair<Rule>) -> (Property<'a
         "author" => Property::Signature(Box::new(AuthorProperty)),
         "committer" => Property::Signature(Box::new(CommitterProperty)),
         "open" => Property::Boolean(Box::new(OpenProperty)),
-        "abandoned" => Property::Boolean(Box::new(PrunedProperty)),
         "current_checkout" => Property::Boolean(Box::new(CurrentCheckoutProperty { repo })),
         "branches" => Property::String(Box::new(BranchProperty { repo })),
         "tags" => Property::String(Box::new(TagProperty { repo })),
         "git_refs" => Property::String(Box::new(GitRefsProperty { repo })),
-        "obsolete" => Property::Boolean(Box::new(ObsoleteProperty { repo })),
-        "orphan" => Property::Boolean(Box::new(OrphanProperty { repo })),
         "divergent" => Property::Boolean(Box::new(DivergentProperty { repo })),
         "conflict" => Property::Boolean(Box::new(ConflictProperty)),
         name => panic!("unexpected identifier: {}", name),
