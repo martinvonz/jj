@@ -827,23 +827,6 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .short("i")
                 .help("Interactively unsquash part of the changes"),
         );
-    // TODO: This command is not very compatible with the current implementation of
-    // evolution. Once we've removed support for evolution (as I hope to do),
-    // this command will become equivalent to abandon (or perhaps it's the other
-    // way around).
-    let discard_command = SubCommand::with_name("discard")
-        .about("Discard a revision and its descendants (avoid command for now)")
-        .arg(
-            Arg::with_name("revision")
-                .index(1)
-                .default_value("@")
-                .help("The revision to discard"),
-        )
-        .arg(
-            Arg::with_name("public")
-                .long("public")
-                .help("Discard a public head"),
-        );
     let restore_command = SubCommand::with_name("restore")
         .about("Restore paths from another revision")
         .long_about(
@@ -1266,7 +1249,6 @@ It is possible to mutating commands when loading the repo at an earlier operatio
         new_command,
         squash_command,
         unsquash_command,
-        discard_command,
         restore_command,
         edit_command,
         split_command,
@@ -2245,29 +2227,6 @@ aborted.
             .write_to_repo(mut_repo);
     }
     repo_command.finish_transaction(ui, tx)?;
-    Ok(())
-}
-
-fn cmd_discard(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    sub_matches: &ArgMatches,
-) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(ui, sub_matches)?;
-    let mut tx = repo_command.start_transaction(&format!("discard commit {}", commit.id().hex()));
-    let mut_repo = tx.mut_repo();
-    if sub_matches.is_present("public") {
-        mut_repo.remove_public_head(commit.id());
-    } else {
-        mut_repo.remove_head(commit.id());
-    }
-    for parent in commit.parents() {
-        mut_repo.add_head(&parent);
-    }
-    // TODO: also remove descendants
-    tx.commit();
-    // TODO: check out parent/ancestor if the current commit got hidden
     Ok(())
 }
 
@@ -3553,8 +3512,6 @@ where
         cmd_squash(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("unsquash") {
         cmd_unsquash(&mut ui, &command_helper, sub_matches)
-    } else if let Some(sub_matches) = matches.subcommand_matches("discard") {
-        cmd_discard(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("restore") {
         cmd_restore(&mut ui, &command_helper, sub_matches)
     } else if let Some(sub_matches) = matches.subcommand_matches("edit") {
