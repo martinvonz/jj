@@ -14,7 +14,7 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use git2::FetchPrune;
+use git2::{FetchPrune, RemoteCallbacks};
 use itertools::Itertools;
 use thiserror::Error;
 
@@ -140,24 +140,18 @@ pub fn fetch(
                 }
                 _ => GitFetchError::InternalGitError(err),
             })?;
-    let mut callbacks = git2::RemoteCallbacks::new();
-    callbacks.credentials(|_url, username_from_url, _allowed_types| {
-        git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
-    });
     let mut fetch_options = git2::FetchOptions::new();
     let mut proxy_options = git2::ProxyOptions::new();
     proxy_options.auto();
     fetch_options.proxy_options(proxy_options);
+    let callbacks = create_remote_callbacks();
     fetch_options.remote_callbacks(callbacks);
     fetch_options.prune(FetchPrune::On);
     let refspec: &[&str] = &[];
     remote.download(refspec, Some(&mut fetch_options))?;
     // The FetchOptions above ate our RemoteCallbacks so it seems we need to create
     // a new instance.
-    let mut callbacks = git2::RemoteCallbacks::new();
-    callbacks.credentials(|_url, username_from_url, _allowed_types| {
-        git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
-    });
+    let mut callbacks = create_remote_callbacks();
     remote.update_tips(
         Some(&mut callbacks),
         false,
@@ -288,10 +282,7 @@ fn push_refs(
     let mut proxy_options = git2::ProxyOptions::new();
     proxy_options.auto();
     push_options.proxy_options(proxy_options);
-    let mut callbacks = git2::RemoteCallbacks::new();
-    callbacks.credentials(|_url, username_from_url, _allowed_types| {
-        git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
-    });
+    let mut callbacks = create_remote_callbacks();
     callbacks.push_update_reference(|refname, status| {
         // The status is Some if the ref update was rejected
         if status.is_none() {
@@ -320,4 +311,12 @@ fn push_refs(
                 .collect(),
         ))
     }
+}
+
+fn create_remote_callbacks() -> RemoteCallbacks<'static> {
+    let mut callbacks = git2::RemoteCallbacks::new();
+    callbacks.credentials(|_url, username_from_url, _allowed_types| {
+        git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
+    });
+    callbacks
 }
