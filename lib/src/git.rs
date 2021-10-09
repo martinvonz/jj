@@ -315,8 +315,21 @@ fn push_refs(
 
 fn create_remote_callbacks() -> RemoteCallbacks<'static> {
     let mut callbacks = git2::RemoteCallbacks::new();
-    callbacks.credentials(|_url, username_from_url, _allowed_types| {
-        git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
+    // TODO: We should expose the callbacks to the caller instead -- the library
+    // crate shouldn't look in $HOME etc.
+    callbacks.credentials(|_url, username_from_url, allowed_types| {
+        if allowed_types.contains(git2::CredentialType::SSH_KEY) {
+            if std::env::var("SSH_AGENT_PID").is_ok() {
+                return git2::Cred::ssh_key_from_agent(username_from_url.unwrap());
+            }
+            if let Ok(home_dir) = std::env::var("HOME") {
+                let key_path = std::path::Path::new(&home_dir).join(".ssh").join("id_rsa");
+                if key_path.is_file() {
+                    return git2::Cred::ssh_key(username_from_url.unwrap(), None, &key_path, None);
+                }
+            }
+        }
+        git2::Cred::default()
     });
     callbacks
 }
