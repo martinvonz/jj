@@ -145,6 +145,9 @@ pub fn fetch(
         git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
     });
     let mut fetch_options = git2::FetchOptions::new();
+    let mut proxy_options = git2::ProxyOptions::new();
+    proxy_options.auto();
+    fetch_options.proxy_options(proxy_options);
     fetch_options.remote_callbacks(callbacks);
     fetch_options.prune(FetchPrune::On);
     let refspec: &[&str] = &[];
@@ -282,6 +285,9 @@ fn push_refs(
             })?;
     let mut remaining_remote_refs: HashSet<_> = qualified_remote_refs.iter().copied().collect();
     let mut push_options = git2::PushOptions::new();
+    let mut proxy_options = git2::ProxyOptions::new();
+    proxy_options.auto();
+    push_options.proxy_options(proxy_options);
     let mut callbacks = git2::RemoteCallbacks::new();
     callbacks.credentials(|_url, username_from_url, _allowed_types| {
         git2::Cred::ssh_key_from_agent(username_from_url.unwrap())
