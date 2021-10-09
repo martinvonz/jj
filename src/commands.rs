@@ -53,7 +53,7 @@ use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, D
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
-use jujutsu_lib::tree::{Diff, DiffSummary};
+use jujutsu_lib::tree::{Diff, DiffSummary, TreeDiffIterator};
 use jujutsu_lib::working_copy::{CheckoutStats, WorkingCopy};
 use jujutsu_lib::{conflicts, files, git, revset};
 use maplit::{hashmap, hashset};
@@ -1477,131 +1477,140 @@ fn cmd_diff(
         let summary = from_tree.diff_summary(&to_tree, matcher.as_ref());
         show_diff_summary(ui, repo.working_copy_path(), &summary)?;
     } else {
-        let mut formatter = ui.stdout_formatter();
-        formatter.add_label(String::from("diff"))?;
-        for (path, diff) in from_tree.diff(&to_tree, matcher.as_ref()) {
-            let ui_path = ui.format_file_path(repo.working_copy_path(), &path);
-            match diff {
-                Diff::Added(TreeValue::Normal {
-                    id,
+        show_diff(ui, repo, from_tree.diff(&to_tree, matcher.as_ref()))?;
+    }
+    Ok(())
+}
+
+fn show_diff(
+    ui: &mut Ui,
+    repo: &Arc<ReadonlyRepo>,
+    tree_diff: TreeDiffIterator,
+) -> Result<(), CommandError> {
+    let mut formatter = ui.stdout_formatter();
+    formatter.add_label(String::from("diff"))?;
+    for (path, diff) in tree_diff {
+        let ui_path = ui.format_file_path(repo.working_copy_path(), &path);
+        match diff {
+            Diff::Added(TreeValue::Normal {
+                id,
+                executable: false,
+            }) => {
+                formatter.add_label(String::from("header"))?;
+                formatter.write_str(&format!("added file {}:\n", ui_path))?;
+                formatter.remove_label()?;
+                let mut file_reader = repo.store().read_file(&path, &id).unwrap();
+                formatter.write_from_reader(&mut file_reader)?;
+            }
+            Diff::Modified(
+                TreeValue::Normal {
+                    id: id_left,
+                    executable: left_executable,
+                },
+                TreeValue::Normal {
+                    id: id_right,
+                    executable: right_executable,
+                },
+            ) if left_executable == right_executable => {
+                formatter.add_label(String::from("header"))?;
+                if left_executable {
+                    formatter.write_str(&format!("modified executable file {}:\n", ui_path))?;
+                } else {
+                    formatter.write_str(&format!("modified file {}:\n", ui_path))?;
+                }
+                formatter.remove_label()?;
+
+                let mut file_reader_left = repo.store().read_file(&path, &id_left).unwrap();
+                let mut buffer_left = vec![];
+                file_reader_left.read_to_end(&mut buffer_left).unwrap();
+                let mut file_reader_right = repo.store().read_file(&path, &id_right).unwrap();
+                let mut buffer_right = vec![];
+                file_reader_right.read_to_end(&mut buffer_right).unwrap();
+
+                print_diff(
+                    buffer_left.as_slice(),
+                    buffer_right.as_slice(),
+                    formatter.as_mut(),
+                )?;
+            }
+            Diff::Modified(
+                TreeValue::Conflict(id_left),
+                TreeValue::Normal {
+                    id: id_right,
                     executable: false,
-                }) => {
-                    formatter.add_label(String::from("header"))?;
-                    formatter.write_str(&format!("added file {}:\n", ui_path))?;
-                    formatter.remove_label()?;
-                    let mut file_reader = repo.store().read_file(&path, &id).unwrap();
-                    formatter.write_from_reader(&mut file_reader)?;
-                }
-                Diff::Modified(
-                    TreeValue::Normal {
-                        id: id_left,
-                        executable: left_executable,
-                    },
-                    TreeValue::Normal {
-                        id: id_right,
-                        executable: right_executable,
-                    },
-                ) if left_executable == right_executable => {
-                    formatter.add_label(String::from("header"))?;
-                    if left_executable {
-                        formatter.write_str(&format!("modified executable file {}:\n", ui_path))?;
-                    } else {
-                        formatter.write_str(&format!("modified file {}:\n", ui_path))?;
-                    }
-                    formatter.remove_label()?;
+                },
+            ) => {
+                formatter.add_label(String::from("header"))?;
+                formatter.write_str(&format!("resolved conflict in file {}:\n", ui_path))?;
+                formatter.remove_label()?;
 
-                    let mut file_reader_left = repo.store().read_file(&path, &id_left).unwrap();
-                    let mut buffer_left = vec![];
-                    file_reader_left.read_to_end(&mut buffer_left).unwrap();
-                    let mut file_reader_right = repo.store().read_file(&path, &id_right).unwrap();
-                    let mut buffer_right = vec![];
-                    file_reader_right.read_to_end(&mut buffer_right).unwrap();
+                let conflict_left = repo.store().read_conflict(&id_left).unwrap();
+                let mut buffer_left = vec![];
+                conflicts::materialize_conflict(
+                    repo.store(),
+                    &path,
+                    &conflict_left,
+                    &mut buffer_left,
+                );
+                let mut file_reader_right = repo.store().read_file(&path, &id_right).unwrap();
+                let mut buffer_right = vec![];
+                file_reader_right.read_to_end(&mut buffer_right).unwrap();
 
-                    print_diff(
-                        buffer_left.as_slice(),
-                        buffer_right.as_slice(),
-                        formatter.as_mut(),
-                    )?;
-                }
-                Diff::Modified(
-                    TreeValue::Conflict(id_left),
-                    TreeValue::Normal {
-                        id: id_right,
-                        executable: false,
-                    },
-                ) => {
-                    formatter.add_label(String::from("header"))?;
-                    formatter.write_str(&format!("resolved conflict in file {}:\n", ui_path))?;
-                    formatter.remove_label()?;
-
-                    let conflict_left = repo.store().read_conflict(&id_left).unwrap();
-                    let mut buffer_left = vec![];
-                    conflicts::materialize_conflict(
-                        repo.store(),
-                        &path,
-                        &conflict_left,
-                        &mut buffer_left,
-                    );
-                    let mut file_reader_right = repo.store().read_file(&path, &id_right).unwrap();
-                    let mut buffer_right = vec![];
-                    file_reader_right.read_to_end(&mut buffer_right).unwrap();
-
-                    print_diff(
-                        buffer_left.as_slice(),
-                        buffer_right.as_slice(),
-                        formatter.as_mut(),
-                    )?;
-                }
-                Diff::Modified(
-                    TreeValue::Normal {
-                        id: id_left,
-                        executable: false,
-                    },
-                    TreeValue::Conflict(id_right),
-                ) => {
-                    formatter.add_label(String::from("header"))?;
-                    formatter.write_str(&format!("new conflict in file {}:\n", ui_path))?;
-                    formatter.remove_label()?;
-                    let mut file_reader_left = repo.store().read_file(&path, &id_left).unwrap();
-                    let mut buffer_left = vec![];
-                    file_reader_left.read_to_end(&mut buffer_left).unwrap();
-                    let conflict_right = repo.store().read_conflict(&id_right).unwrap();
-                    let mut buffer_right = vec![];
-                    conflicts::materialize_conflict(
-                        repo.store(),
-                        &path,
-                        &conflict_right,
-                        &mut buffer_right,
-                    );
-
-                    print_diff(
-                        buffer_left.as_slice(),
-                        buffer_right.as_slice(),
-                        formatter.as_mut(),
-                    )?;
-                }
-                Diff::Removed(TreeValue::Normal {
-                    id,
+                print_diff(
+                    buffer_left.as_slice(),
+                    buffer_right.as_slice(),
+                    formatter.as_mut(),
+                )?;
+            }
+            Diff::Modified(
+                TreeValue::Normal {
+                    id: id_left,
                     executable: false,
-                }) => {
-                    formatter.add_label(String::from("header"))?;
-                    formatter.write_str(&format!("removed file {}:\n", ui_path))?;
-                    formatter.remove_label()?;
+                },
+                TreeValue::Conflict(id_right),
+            ) => {
+                formatter.add_label(String::from("header"))?;
+                formatter.write_str(&format!("new conflict in file {}:\n", ui_path))?;
+                formatter.remove_label()?;
+                let mut file_reader_left = repo.store().read_file(&path, &id_left).unwrap();
+                let mut buffer_left = vec![];
+                file_reader_left.read_to_end(&mut buffer_left).unwrap();
+                let conflict_right = repo.store().read_conflict(&id_right).unwrap();
+                let mut buffer_right = vec![];
+                conflicts::materialize_conflict(
+                    repo.store(),
+                    &path,
+                    &conflict_right,
+                    &mut buffer_right,
+                );
 
-                    let mut file_reader = repo.store().read_file(&path, &id).unwrap();
-                    formatter.write_from_reader(&mut file_reader)?;
-                }
-                other => {
-                    writeln!(
-                        formatter,
-                        "unhandled diff case in path {:?}: {:?}",
-                        path, other
-                    )?;
-                }
+                print_diff(
+                    buffer_left.as_slice(),
+                    buffer_right.as_slice(),
+                    formatter.as_mut(),
+                )?;
+            }
+            Diff::Removed(TreeValue::Normal {
+                id,
+                executable: false,
+            }) => {
+                formatter.add_label(String::from("header"))?;
+                formatter.write_str(&format!("removed file {}:\n", ui_path))?;
+                formatter.remove_label()?;
+
+                let mut file_reader = repo.store().read_file(&path, &id).unwrap();
+                formatter.write_from_reader(&mut file_reader)?;
+            }
+            other => {
+                writeln!(
+                    formatter,
+                    "unhandled diff case in path {:?}: {:?}",
+                    path, other
+                )?;
             }
         }
-        formatter.remove_label()?;
     }
+    formatter.remove_label()?;
     Ok(())
 }
 
