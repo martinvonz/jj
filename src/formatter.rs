@@ -99,6 +99,11 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result.insert(String::from("conflict"), String::from("red"));
 
     result.insert(String::from("diff header"), String::from("yellow"));
+    result.insert(
+        String::from("diff file_header"),
+        String::from("bright white"),
+    );
+    result.insert(String::from("diff hunk_header"), String::from("cyan"));
     result.insert(String::from("diff left"), String::from("red"));
     result.insert(String::from("diff right"), String::from("green"));
 

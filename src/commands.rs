@@ -21,6 +21,7 @@ use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::rc::Rc;
@@ -35,7 +36,7 @@ use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::dag_walk::topo_order_reverse;
-use jujutsu_lib::diff::DiffHunk;
+use jujutsu_lib::diff::{Diff, DiffHunk};
 use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::git::{GitFetchError, GitRefUpdate};
 use jujutsu_lib::index::HexPrefix;
@@ -47,15 +48,16 @@ use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction};
 use jujutsu_lib::repo::{
     MutableRepo, ReadonlyRepo, RepoInitError, RepoLoadError, RepoLoader, RepoRef,
 };
+use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
-use jujutsu_lib::tree::{Diff, DiffSummary, TreeDiffIterator};
+use jujutsu_lib::tree::{DiffSummary, TreeDiffIterator};
 use jujutsu_lib::working_copy::{CheckoutStats, WorkingCopy};
-use jujutsu_lib::{conflicts, files, git, revset};
+use jujutsu_lib::{conflicts, diff, files, git, revset, tree};
 use maplit::{hashmap, hashset};
 use pest::Parser;
 
@@ -643,6 +645,12 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .long("summary")
                 .short("s")
                 .help("For each path, show only whether it was modified, added, or removed"),
+        )
+        .arg(
+            Arg::with_name("git")
+                .long("git")
+                .conflicts_with("summary")
+                .help("Show a Git-format diff"),
         )
         .arg(
             Arg::with_name("revision")
@@ -1476,6 +1484,8 @@ fn cmd_diff(
     if sub_matches.is_present("summary") {
         let summary = from_tree.diff_summary(&to_tree, matcher.as_ref());
         show_diff_summary(ui, repo.working_copy_path(), &summary)?;
+    } else if sub_matches.is_present("git") {
+        show_git_diff(ui, repo, from_tree.diff(&to_tree, matcher.as_ref()))?;
     } else {
         show_diff(ui, repo, from_tree.diff(&to_tree, matcher.as_ref()))?;
     }
@@ -1492,7 +1502,7 @@ fn show_diff(
     for (path, diff) in tree_diff {
         let ui_path = ui.format_file_path(repo.working_copy_path(), &path);
         match diff {
-            Diff::Added(TreeValue::Normal {
+            tree::Diff::Added(TreeValue::Normal {
                 id,
                 executable: false,
             }) => {
@@ -1502,7 +1512,7 @@ fn show_diff(
                 let mut file_reader = repo.store().read_file(&path, &id).unwrap();
                 formatter.write_from_reader(&mut file_reader)?;
             }
-            Diff::Modified(
+            tree::Diff::Modified(
                 TreeValue::Normal {
                     id: id_left,
                     executable: left_executable,
@@ -1533,7 +1543,7 @@ fn show_diff(
                     formatter.as_mut(),
                 )?;
             }
-            Diff::Modified(
+            tree::Diff::Modified(
                 TreeValue::Conflict(id_left),
                 TreeValue::Normal {
                     id: id_right,
@@ -1562,7 +1572,7 @@ fn show_diff(
                     formatter.as_mut(),
                 )?;
             }
-            Diff::Modified(
+            tree::Diff::Modified(
                 TreeValue::Normal {
                     id: id_left,
                     executable: false,
@@ -1590,7 +1600,7 @@ fn show_diff(
                     formatter.as_mut(),
                 )?;
             }
-            Diff::Removed(TreeValue::Normal {
+            tree::Diff::Removed(TreeValue::Normal {
                 id,
                 executable: false,
             }) => {
@@ -1607,6 +1617,281 @@ fn show_diff(
                     "unhandled diff case in path {:?}: {:?}",
                     path, other
                 )?;
+            }
+        }
+    }
+    formatter.remove_label()?;
+    Ok(())
+}
+
+struct GitDiffPart {
+    mode: String,
+    hash: String,
+    content: Vec<u8>,
+}
+
+fn git_diff_part(
+    repo: &Arc<ReadonlyRepo>,
+    path: &RepoPath,
+    value: &TreeValue,
+) -> Result<GitDiffPart, CommandError> {
+    let mode;
+    let hash;
+    let mut content = vec![];
+    match value {
+        TreeValue::Normal { id, executable } => {
+            mode = if *executable {
+                "100755".to_string()
+            } else {
+                "100644".to_string()
+            };
+            hash = id.hex();
+            let mut file_reader = repo.store().read_file(path, id).unwrap();
+            file_reader.read_to_end(&mut content)?;
+        }
+        TreeValue::Symlink(id) => {
+            mode = "120000".to_string();
+            hash = id.hex();
+            let target = repo.store().read_symlink(path, id)?;
+            content = target.into_bytes();
+        }
+        TreeValue::Tree(_) => {
+            panic!(
+                "Got an unexpected tree in a diff of path {}",
+                path.to_internal_file_string()
+            );
+        }
+        TreeValue::GitSubmodule(id) => {
+            // TODO: What should we actually do here?
+            mode = "040000".to_string();
+            hash = id.hex();
+        }
+        TreeValue::Conflict(id) => {
+            mode = "100644".to_string();
+            hash = id.hex();
+            let conflict = repo.store().read_conflict(id).unwrap();
+            conflicts::materialize_conflict(repo.store(), path, &conflict, &mut content);
+        }
+    }
+    let hash = hash[0..10].to_string();
+    Ok(GitDiffPart {
+        mode,
+        hash,
+        content,
+    })
+}
+
+#[derive(PartialEq)]
+enum DiffLineType {
+    Context,
+    Removed,
+    Added,
+}
+
+struct UnifiedDiffHunk<'content> {
+    left_line_range: Range<usize>,
+    right_line_range: Range<usize>,
+    lines: Vec<(DiffLineType, &'content [u8])>,
+}
+
+fn unified_diff_hunks<'content>(
+    left_content: &'content [u8],
+    right_content: &'content [u8],
+    num_context_lines: usize,
+) -> Vec<UnifiedDiffHunk<'content>> {
+    let mut hunks = vec![];
+    let mut current_hunk = UnifiedDiffHunk {
+        left_line_range: 1..1,
+        right_line_range: 1..1,
+        lines: vec![],
+    };
+    let mut show_context_after = false;
+    let diff = Diff::for_tokenizer(&[left_content, right_content], &diff::find_line_ranges);
+    for hunk in diff.hunks() {
+        match hunk {
+            DiffHunk::Matching(content) => {
+                let lines = content.split_inclusive(|b| *b == b'\n').collect_vec();
+                // TODO: Remove this statement once https://github.com/rust-lang/rust/issues/89716
+                // has been fixed and released for long enough.
+                let lines = if content.is_empty() { vec![] } else { lines };
+                // Number of context lines to print after the previous non-matching hunk.
+                let num_after_lines = lines.len().min(if show_context_after {
+                    num_context_lines
+                } else {
+                    0
+                });
+                current_hunk.left_line_range.end += num_after_lines;
+                current_hunk.right_line_range.end += num_after_lines;
+                for line in lines.iter().take(num_after_lines) {
+                    current_hunk.lines.push((DiffLineType::Context, line));
+                }
+                let num_skip_lines = lines
+                    .len()
+                    .saturating_sub(num_after_lines)
+                    .saturating_sub(num_context_lines);
+                if num_skip_lines > 0 {
+                    let left_start =
+                        current_hunk.left_line_range.end + num_after_lines + num_skip_lines;
+                    let right_start =
+                        current_hunk.right_line_range.end + num_after_lines + num_skip_lines;
+                    if !current_hunk.lines.is_empty() {
+                        hunks.push(current_hunk);
+                    }
+                    current_hunk = UnifiedDiffHunk {
+                        left_line_range: left_start..left_start,
+                        right_line_range: right_start..right_start,
+                        lines: vec![],
+                    };
+                }
+                let num_before_lines = lines.len() - num_after_lines - num_skip_lines;
+                current_hunk.left_line_range.end += num_before_lines;
+                current_hunk.right_line_range.end += num_before_lines;
+                for line in lines.iter().skip(num_after_lines + num_skip_lines) {
+                    current_hunk.lines.push((DiffLineType::Context, line));
+                }
+            }
+            DiffHunk::Different(content) => {
+                show_context_after = true;
+                let left_lines = content[0].split_inclusive(|b| *b == b'\n').collect_vec();
+                let right_lines = content[1].split_inclusive(|b| *b == b'\n').collect_vec();
+                // TODO: Remove these two statements once https://github.com/rust-lang/rust/issues/89716
+                // has been fixed and released for long enough.
+                let left_lines = if content[0].is_empty() {
+                    vec![]
+                } else {
+                    left_lines
+                };
+                let right_lines = if content[1].is_empty() {
+                    vec![]
+                } else {
+                    right_lines
+                };
+                if !left_lines.is_empty() {
+                    current_hunk.left_line_range.end += left_lines.len();
+                    for line in left_lines {
+                        current_hunk.lines.push((DiffLineType::Removed, line));
+                    }
+                }
+                if !right_lines.is_empty() {
+                    current_hunk.right_line_range.end += right_lines.len();
+                    for line in right_lines {
+                        current_hunk.lines.push((DiffLineType::Added, line));
+                    }
+                }
+            }
+        }
+    }
+    if !current_hunk
+        .lines
+        .iter()
+        .all(|(diff_type, _line)| *diff_type == DiffLineType::Context)
+    {
+        hunks.push(current_hunk);
+    }
+    hunks
+}
+
+fn show_unified_diff_hunks(
+    formatter: &mut dyn Formatter,
+    left_content: &[u8],
+    right_content: &[u8],
+) -> Result<(), CommandError> {
+    for hunk in unified_diff_hunks(left_content, right_content, 3) {
+        formatter.add_label(String::from("hunk_header"))?;
+        writeln!(
+            formatter,
+            "@@ -{},{} +{},{} @@",
+            hunk.left_line_range.start,
+            hunk.left_line_range.len(),
+            hunk.right_line_range.start,
+            hunk.right_line_range.len()
+        )?;
+        formatter.remove_label()?;
+        for (line_type, content) in hunk.lines {
+            match line_type {
+                DiffLineType::Context => {
+                    formatter.add_label(String::from("context"))?;
+                    formatter.write_str(" ")?;
+                    formatter.write_all(content)?;
+                    formatter.remove_label()?;
+                }
+                DiffLineType::Removed => {
+                    formatter.add_label(String::from("left"))?;
+                    formatter.write_str("-")?;
+                    formatter.write_all(content)?;
+                    formatter.remove_label()?;
+                }
+                DiffLineType::Added => {
+                    formatter.add_label(String::from("right"))?;
+                    formatter.write_str("+")?;
+                    formatter.write_all(content)?;
+                    formatter.remove_label()?;
+                }
+            }
+            if !content.ends_with(b"\n") {
+                formatter.write_str("\n\\ No newline at end of file\n")?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn show_git_diff(
+    ui: &mut Ui,
+    repo: &Arc<ReadonlyRepo>,
+    tree_diff: TreeDiffIterator,
+) -> Result<(), CommandError> {
+    let mut formatter = ui.stdout_formatter();
+    formatter.add_label(String::from("diff"))?;
+    for (path, diff) in tree_diff {
+        let path_string = path.to_internal_file_string();
+        formatter.add_label(String::from("file_header"))?;
+        writeln!(formatter, "diff --git a/{} b/{}", path_string, path_string)?;
+        match diff {
+            tree::Diff::Added(right_value) => {
+                let right_part = git_diff_part(repo, &path, &right_value)?;
+                writeln!(formatter, "new file mode {}", &right_part.mode)?;
+                writeln!(formatter, "index 0000000000..{}", &right_part.hash)?;
+                writeln!(formatter, "--- /dev/null")?;
+                writeln!(formatter, "+++ b/{}", path_string)?;
+                formatter.remove_label()?;
+                show_unified_diff_hunks(formatter.as_mut(), &[], &right_part.content)?;
+            }
+            tree::Diff::Modified(left_value, right_value) => {
+                let left_part = git_diff_part(repo, &path, &left_value)?;
+                let right_part = git_diff_part(repo, &path, &right_value)?;
+                if left_part.mode != right_part.mode {
+                    writeln!(formatter, "old mode {}", &left_part.mode)?;
+                    writeln!(formatter, "new mode {}", &right_part.mode)?;
+                    if left_part.hash != right_part.hash {
+                        writeln!(formatter, "index {}...{}", &left_part.hash, right_part.hash)?;
+                    }
+                } else if left_part.hash != right_part.hash {
+                    writeln!(
+                        formatter,
+                        "index {}...{} {}",
+                        &left_part.hash, right_part.hash, left_part.mode
+                    )?;
+                }
+                if left_part.content != right_part.content {
+                    writeln!(formatter, "--- a/{}", path_string)?;
+                    writeln!(formatter, "+++ b/{}", path_string)?;
+                }
+                formatter.remove_label()?;
+                show_unified_diff_hunks(
+                    formatter.as_mut(),
+                    &left_part.content,
+                    &right_part.content,
+                )?;
+            }
+            tree::Diff::Removed(left_value) => {
+                let left_part = git_diff_part(repo, &path, &left_value)?;
+                writeln!(formatter, "deleted file mode {}", &left_part.mode)?;
+                writeln!(formatter, "index {}..0000000000", &left_part.hash)?;
+                writeln!(formatter, "--- a/{}", path_string)?;
+                writeln!(formatter, "+++ /dev/null")?;
+                formatter.remove_label()?;
+                show_unified_diff_hunks(formatter.as_mut(), &left_part.content, &[])?;
             }
         }
     }
