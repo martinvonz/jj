@@ -392,11 +392,13 @@ impl<'input> Diff<'input> {
             .collect_vec();
         unchanged_regions.insert(BaseRange(base_input.len()..base_input.len()), offsets);
 
-        Self {
+        let mut diff = Self {
             base_input,
             other_inputs,
             unchanged_regions,
-        }
+        };
+        diff.compact_unchanged_regions();
+        diff
     }
 
     pub fn unrefined(inputs: &[&'input [u8]]) -> Self {
@@ -827,6 +829,23 @@ mod tests {
                 DiffHunk::Different(vec![b"b ", b"X ", b""]),
                 DiffHunk::Matching(b"c"),
                 DiffHunk::Different(vec![b"", b"", b" X"]),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_diff_for_tokenizer_compacted() {
+        // Tests that unchanged regions are compacted when using for_tokenizer()
+        let diff = Diff::for_tokenizer(
+            &[b"a\nb\nc\nd\ne\nf\ng", b"a\nb\nc\nX\ne\nf\ng"],
+            &find_line_ranges,
+        );
+        assert_eq!(
+            diff.hunks().collect_vec(),
+            vec![
+                DiffHunk::Matching(b"a\nb\nc\n"),
+                DiffHunk::Different(vec![b"d\n", b"X\n"]),
+                DiffHunk::Matching(b"e\nf\ng"),
             ]
         );
     }
