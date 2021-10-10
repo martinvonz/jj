@@ -196,6 +196,7 @@ pub enum RevsetExpression {
         heads: Rc<RevsetExpression>,
     },
     Heads,
+    HeadsOf(Rc<RevsetExpression>),
     PublicHeads,
     Branches,
     RemoteBranches,
@@ -259,6 +260,13 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::GitRefs)
     }
 
+    /// Commits in `self` that don't have descendants in `self`.
+    // TODO: Perhaps this should be renamed to just `heads()` and the current
+    // `heads()` should become `visible_heads()` or `current_heads()`.
+    pub fn heads_of(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::HeadsOf(self.clone()))
+    }
+
     /// Parents of `self`.
     pub fn parents(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Parents(self.clone()))
@@ -274,7 +282,7 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Children(self.clone()))
     }
 
-    /// Descendants of `self`.
+    /// Descendants of `self`, including `self`.
     pub fn descendants(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
         self.dag_range_to(&RevsetExpression::heads())
     }
@@ -575,10 +583,14 @@ fn parse_function_expression(
         "heads" => {
             if arg_count == 0 {
                 Ok(RevsetExpression::heads())
+            } else if arg_count == 1 {
+                let candidates =
+                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
+                Ok(candidates.heads_of())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
-                    message: "Expected 0 arguments".to_string(),
+                    message: "Expected 0 or 1 arguments".to_string(),
                 })
             }
         }
@@ -1089,6 +1101,14 @@ pub fn evaluate_expression<'repo>(
             repo,
             &repo.view().heads().iter().cloned().collect_vec(),
         )),
+        RevsetExpression::HeadsOf(candidates) => {
+            let candidate_set = candidates.evaluate(repo)?;
+            let candidate_ids = candidate_set.iter().commit_ids().collect_vec();
+            Ok(revset_for_commit_ids(
+                repo,
+                &repo.index().heads(&candidate_ids),
+            ))
+        }
         RevsetExpression::ParentCount {
             candidates,
             parent_count_range,
@@ -1209,6 +1229,10 @@ mod tests {
         assert_eq!(
             checkout_symbol,
             Rc::new(RevsetExpression::Symbol("@".to_string()))
+        );
+        assert_eq!(
+            checkout_symbol.heads_of(),
+            Rc::new(RevsetExpression::HeadsOf(checkout_symbol.clone()))
         );
         assert_eq!(
             checkout_symbol.parents(),

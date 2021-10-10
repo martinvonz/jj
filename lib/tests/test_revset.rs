@@ -421,6 +421,69 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
+fn test_evaluate_expression_heads_of(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let root_commit = repo.store().root_commit();
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+
+    // Heads of an empty set is an empty set
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "heads(none())"),
+        vec![]
+    );
+
+    // Heads of the root is the root
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "heads(root)"),
+        vec![root_commit.id().clone()]
+    );
+
+    // Heads of a single commit is that commit
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("heads({})", commit2.id().hex())
+        ),
+        vec![commit2.id().clone()]
+    );
+
+    // Heads of a parent and a child is the child
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("heads({} | {})", commit2.id().hex(), commit3.id().hex())
+        ),
+        vec![commit3.id().clone()]
+    );
+
+    // Heads of a grandparent and a grandchild is the grandchild (unlike Mercurial's
+    // heads() revset, which would include both)
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("heads({} | {})", commit1.id().hex(), commit3.id().hex())
+        ),
+        vec![commit3.id().clone()]
+    );
+
+    // Heads of all commits is the set of heads in the repo
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "heads(all())"),
+        resolve_commit_ids(mut_repo.as_repo_ref(), "heads()")
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_parents(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
