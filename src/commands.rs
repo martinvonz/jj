@@ -653,6 +653,13 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .help("Show a Git-format diff"),
         )
         .arg(
+            Arg::with_name("color-words")
+                .long("color-words")
+                .conflicts_with("summary")
+                .conflicts_with("git")
+                .help("Show a word-level diff with changes indicated only by color"),
+        )
+        .arg(
             Arg::with_name("revision")
                 .long("revision")
                 .short("r")
@@ -1481,13 +1488,38 @@ fn cmd_diff(
     let repo = repo_command.repo();
     let matcher =
         matcher_from_values(ui, repo.working_copy_path(), sub_matches.values_of("paths"))?;
-    if sub_matches.is_present("summary") {
-        let summary = from_tree.diff_summary(&to_tree, matcher.as_ref());
-        show_diff_summary(ui, repo.working_copy_path(), &summary)?;
-    } else if sub_matches.is_present("git") {
-        show_git_diff(ui, repo, from_tree.diff(&to_tree, matcher.as_ref()))?;
-    } else {
-        show_diff(ui, repo, from_tree.diff(&to_tree, matcher.as_ref()))?;
+    enum Format {
+        Summary,
+        Git,
+        ColorWords,
+    }
+    let format = {
+        if sub_matches.is_present("summary") {
+            Format::Summary
+        } else if sub_matches.is_present("git") {
+            Format::Git
+        } else if sub_matches.is_present("color-words") {
+            Format::ColorWords
+        } else {
+            match ui.settings().config().get_str("diff.format") {
+                Ok(value) if &value == "summary" => Format::Summary,
+                Ok(value) if &value == "git" => Format::Git,
+                Ok(value) if &value == "color-words" => Format::ColorWords,
+                _ => Format::ColorWords,
+            }
+        }
+    };
+    match format {
+        Format::Summary => {
+            let summary = from_tree.diff_summary(&to_tree, matcher.as_ref());
+            show_diff_summary(ui, repo.working_copy_path(), &summary)?;
+        }
+        Format::Git => {
+            show_git_diff(ui, repo, from_tree.diff(&to_tree, matcher.as_ref()))?;
+        }
+        Format::ColorWords => {
+            show_diff(ui, repo, from_tree.diff(&to_tree, matcher.as_ref()))?;
+        }
     }
     Ok(())
 }
