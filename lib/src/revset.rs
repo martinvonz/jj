@@ -198,6 +198,7 @@ pub enum RevsetExpression {
     Heads,
     PublicHeads,
     Branches,
+    RemoteBranches,
     Tags,
     GitRefs,
     ParentCount {
@@ -244,6 +245,10 @@ impl RevsetExpression {
 
     pub fn branches() -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Branches)
+    }
+
+    pub fn remote_branches() -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::RemoteBranches)
     }
 
     pub fn tags() -> Rc<RevsetExpression> {
@@ -570,6 +575,16 @@ fn parse_function_expression(
         "branches" => {
             if arg_count == 0 {
                 Ok(RevsetExpression::branches())
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 0 arguments".to_string(),
+                })
+            }
+        }
+        "remote_branches" => {
+            if arg_count == 0 {
+                Ok(RevsetExpression::remote_branches())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -1098,6 +1113,15 @@ pub fn evaluate_expression<'repo>(
                         index_entries.push(index.entry_by_id(&id).unwrap());
                     }
                 }
+            }
+            index_entries.sort_by_key(|b| Reverse(b.position()));
+            index_entries.dedup();
+            Ok(Box::new(EagerRevset { index_entries }))
+        }
+        RevsetExpression::RemoteBranches => {
+            let index = repo.index();
+            let mut index_entries = vec![];
+            for branch_target in repo.view().branches().values() {
                 for remote_target in branch_target.remote_targets.values() {
                     for id in remote_target.adds() {
                         index_entries.push(index.entry_by_id(&id).unwrap());

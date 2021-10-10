@@ -892,6 +892,151 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
+fn test_evaluate_expression_branches(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit4 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+
+    // Can get branches when there are none
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "branches()"),
+        vec![]
+    );
+    // Can get a few branches
+    mut_repo.set_local_branch(
+        "branch1".to_string(),
+        RefTarget::Normal(commit1.id().clone()),
+    );
+    mut_repo.set_local_branch(
+        "branch2".to_string(),
+        RefTarget::Normal(commit2.id().clone()),
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "branches()"),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    // Two branches pointing to the same commit does not result in a duplicate in
+    // the revset
+    mut_repo.set_local_branch(
+        "branch3".to_string(),
+        RefTarget::Normal(commit2.id().clone()),
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "branches()"),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    // Can get branches when there are conflicted refs
+    mut_repo.set_local_branch(
+        "branch1".to_string(),
+        RefTarget::Conflict {
+            removes: vec![commit1.id().clone()],
+            adds: vec![commit2.id().clone(), commit3.id().clone()],
+        },
+    );
+    mut_repo.set_local_branch(
+        "branch2".to_string(),
+        RefTarget::Conflict {
+            removes: vec![commit2.id().clone()],
+            adds: vec![commit3.id().clone(), commit4.id().clone()],
+        },
+    );
+    mut_repo.remove_local_branch("branch3");
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "branches()"),
+        vec![
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone()
+        ]
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_evaluate_expression_remote_branches(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit4 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+
+    // Can get branches when there are none
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches()"),
+        vec![]
+    );
+    // Can get a few branches
+    mut_repo.set_remote_branch(
+        "branch1".to_string(),
+        "origin".to_string(),
+        RefTarget::Normal(commit1.id().clone()),
+    );
+    mut_repo.set_remote_branch(
+        "branch2".to_string(),
+        "private".to_string(),
+        RefTarget::Normal(commit2.id().clone()),
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches()"),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    // Two branches pointing to the same commit does not result in a duplicate in
+    // the revset
+    mut_repo.set_remote_branch(
+        "branch3".to_string(),
+        "origin".to_string(),
+        RefTarget::Normal(commit2.id().clone()),
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches()"),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    // Can get branches when there are conflicted refs
+    mut_repo.set_remote_branch(
+        "branch1".to_string(),
+        "origin".to_string(),
+        RefTarget::Conflict {
+            removes: vec![commit1.id().clone()],
+            adds: vec![commit2.id().clone(), commit3.id().clone()],
+        },
+    );
+    mut_repo.set_remote_branch(
+        "branch2".to_string(),
+        "private".to_string(),
+        RefTarget::Conflict {
+            removes: vec![commit2.id().clone()],
+            adds: vec![commit3.id().clone(), commit4.id().clone()],
+        },
+    );
+    mut_repo.remove_remote_branch("branch3", "origin");
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches()"),
+        vec![
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone()
+        ]
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_merges(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
