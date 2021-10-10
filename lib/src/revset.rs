@@ -1002,15 +1002,7 @@ pub fn evaluate_expression<'repo>(
         RevsetExpression::None => Ok(Box::new(EagerRevset {
             index_entries: vec![],
         })),
-        RevsetExpression::Commits(commit_ids) => {
-            let index = repo.index();
-            let mut index_entries = commit_ids
-                .iter()
-                .map(|id| index.entry_by_id(id).unwrap())
-                .collect_vec();
-            index_entries.sort_by_key(|b| Reverse(b.position()));
-            Ok(Box::new(EagerRevset { index_entries }))
-        }
+        RevsetExpression::Commits(commit_ids) => Ok(revset_for_commit_ids(repo, commit_ids)),
         RevsetExpression::Symbol(symbol) => {
             let commit_ids = resolve_symbol(repo, symbol)?;
             evaluate_expression(repo, &RevsetExpression::Commits(commit_ids))
@@ -1073,16 +1065,10 @@ pub fn evaluate_expression<'repo>(
                 index_entries: result,
             }))
         }
-        RevsetExpression::Heads => {
-            let index = repo.index();
-            let heads = repo.view().heads();
-            let mut index_entries = heads
-                .iter()
-                .map(|id| index.entry_by_id(id).unwrap())
-                .collect_vec();
-            index_entries.sort_by_key(|b| Reverse(b.position()));
-            Ok(Box::new(EagerRevset { index_entries }))
-        }
+        RevsetExpression::Heads => Ok(revset_for_commit_ids(
+            repo,
+            &repo.view().heads().iter().cloned().collect_vec(),
+        )),
         RevsetExpression::ParentCount {
             candidates,
             parent_count_range,
@@ -1094,67 +1080,41 @@ pub fn evaluate_expression<'repo>(
                 predicate: Box::new(move |entry| parent_count_range.contains(&entry.num_parents())),
             }))
         }
-        RevsetExpression::PublicHeads => {
-            let index = repo.index();
-            let heads = repo.view().public_heads();
-            let mut index_entries = heads
-                .iter()
-                .map(|id| index.entry_by_id(id).unwrap())
-                .collect_vec();
-            index_entries.sort_by_key(|b| Reverse(b.position()));
-            Ok(Box::new(EagerRevset { index_entries }))
-        }
+        RevsetExpression::PublicHeads => Ok(revset_for_commit_ids(
+            repo,
+            &repo.view().public_heads().iter().cloned().collect_vec(),
+        )),
         RevsetExpression::Branches => {
-            let index = repo.index();
-            let mut index_entries = vec![];
+            let mut commit_ids = vec![];
             for branch_target in repo.view().branches().values() {
                 if let Some(local_target) = &branch_target.local_target {
-                    for id in local_target.adds() {
-                        index_entries.push(index.entry_by_id(&id).unwrap());
-                    }
+                    commit_ids.extend(local_target.adds());
                 }
             }
-            index_entries.sort_by_key(|b| Reverse(b.position()));
-            index_entries.dedup();
-            Ok(Box::new(EagerRevset { index_entries }))
+            Ok(revset_for_commit_ids(repo, &commit_ids))
         }
         RevsetExpression::RemoteBranches => {
-            let index = repo.index();
-            let mut index_entries = vec![];
+            let mut commit_ids = vec![];
             for branch_target in repo.view().branches().values() {
                 for remote_target in branch_target.remote_targets.values() {
-                    for id in remote_target.adds() {
-                        index_entries.push(index.entry_by_id(&id).unwrap());
-                    }
+                    commit_ids.extend(remote_target.adds());
                 }
             }
-            index_entries.sort_by_key(|b| Reverse(b.position()));
-            index_entries.dedup();
-            Ok(Box::new(EagerRevset { index_entries }))
+            Ok(revset_for_commit_ids(repo, &commit_ids))
         }
         RevsetExpression::Tags => {
-            let index = repo.index();
-            let mut index_entries = vec![];
+            let mut commit_ids = vec![];
             for ref_target in repo.view().tags().values() {
-                for id in ref_target.adds() {
-                    index_entries.push(index.entry_by_id(&id).unwrap());
-                }
+                commit_ids.extend(ref_target.adds());
             }
-            index_entries.sort_by_key(|b| Reverse(b.position()));
-            index_entries.dedup();
-            Ok(Box::new(EagerRevset { index_entries }))
+            Ok(revset_for_commit_ids(repo, &commit_ids))
         }
         RevsetExpression::GitRefs => {
-            let index = repo.index();
-            let mut index_entries = vec![];
+            let mut commit_ids = vec![];
             for ref_target in repo.view().git_refs().values() {
-                for id in ref_target.adds() {
-                    index_entries.push(index.entry_by_id(&id).unwrap());
-                }
+                commit_ids.extend(ref_target.adds());
             }
-            index_entries.sort_by_key(|b| Reverse(b.position()));
-            index_entries.dedup();
-            Ok(Box::new(EagerRevset { index_entries }))
+            Ok(revset_for_commit_ids(repo, &commit_ids))
         }
         RevsetExpression::Description { needle, candidates } => {
             let candidates = candidates.evaluate(repo)?;
@@ -1187,6 +1147,20 @@ pub fn evaluate_expression<'repo>(
             Ok(Box::new(DifferenceRevset { set1, set2 }))
         }
     }
+}
+
+fn revset_for_commit_ids<'revset, 'repo: 'revset>(
+    repo: RepoRef<'repo>,
+    commit_ids: &[CommitId],
+) -> Box<dyn Revset<'repo> + 'revset> {
+    let index = repo.index();
+    let mut index_entries = vec![];
+    for id in commit_ids {
+        index_entries.push(index.entry_by_id(id).unwrap());
+    }
+    index_entries.sort_by_key(|b| Reverse(b.position()));
+    index_entries.dedup();
+    Box::new(EagerRevset { index_entries })
 }
 
 pub fn revset_for_commits<'revset, 'repo: 'revset>(
