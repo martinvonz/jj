@@ -412,12 +412,11 @@ pub fn parse_commit_template<'a>(
     let first_pair = pairs.next().unwrap();
     assert!(pairs.next().is_none());
 
-    if first_pair.as_span().end() != template_text.len() {
-        panic!(
-            "failed to parse template past position {}",
-            first_pair.as_span().end()
-        );
-    }
+    assert!(
+        !(first_pair.as_span().end() != template_text.len()),
+        "failed to parse template past position {}",
+        first_pair.as_span().end()
+    );
 
     parse_commit_template_rule(repo, first_pair)
 }

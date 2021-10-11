@@ -254,7 +254,7 @@ fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
         let local_target = branch_proto
             .local_target
             .as_ref()
-            .map(|ref_target_proto| ref_target_from_proto(ref_target_proto));
+            .map(ref_target_from_proto);
 
         let mut remote_targets = BTreeMap::new();
         for remote_branch in branch_proto.remote_branches.iter() {

@@ -2242,9 +2242,7 @@ fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
         .arg(&description_file_path)
         .status()
         .expect("failed to run editor");
-    if !exit_status.success() {
-        panic!("failed to run editor");
-    }
+    assert!(exit_status.success(), "failed to run editor");
 
     let mut description_file = OpenOptions::new()
         .read(true)
