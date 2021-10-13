@@ -1149,7 +1149,7 @@ By default, all branches are pushed. Use `--branch` if you want to push only one
                 ),
         )
         .subcommand(
-            SubCommand::with_name("refresh")
+            SubCommand::with_name("import")
                 .about("Update repo with changes made in the underlying Git repo"),
         );
     let bench_command = SubCommand::with_name("bench")
@@ -3611,7 +3611,7 @@ fn cmd_git_push(
     Ok(())
 }
 
-fn cmd_git_refresh(
+fn cmd_git_import(
     ui: &mut Ui,
     command: &CommandHelper,
     _git_matches: &ArgMatches,
@@ -3640,8 +3640,8 @@ fn cmd_git(
         cmd_git_clone(ui, command, sub_matches, command_matches)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("push") {
         cmd_git_push(ui, command, sub_matches, command_matches)?;
-    } else if let Some(command_matches) = sub_matches.subcommand_matches("refresh") {
-        cmd_git_refresh(ui, command, sub_matches, command_matches)?;
+    } else if let Some(command_matches) = sub_matches.subcommand_matches("import") {
+        cmd_git_import(ui, command, sub_matches, command_matches)?;
     } else {
         panic!("unhandled command: {:#?}", command.root_matches());
     }
