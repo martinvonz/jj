@@ -1398,7 +1398,11 @@ fn cmd_files(
     Ok(())
 }
 
-fn print_diff(left: &[u8], right: &[u8], formatter: &mut dyn Formatter) -> io::Result<()> {
+fn show_color_words_diff_hunks(
+    left: &[u8],
+    right: &[u8],
+    formatter: &mut dyn Formatter,
+) -> io::Result<()> {
     let num_context_lines = 3;
     let mut context = VecDeque::new();
     // Have we printed "..." for any skipped context?
@@ -1416,7 +1420,7 @@ fn print_diff(left: &[u8], right: &[u8], formatter: &mut dyn Formatter) -> io::R
                 }
                 if !context_before {
                     for line in &context {
-                        print_diff_line(formatter, line)?;
+                        show_color_words_diff_line(formatter, line)?;
                     }
                     context.clear();
                     context_before = true;
@@ -1428,24 +1432,27 @@ fn print_diff(left: &[u8], right: &[u8], formatter: &mut dyn Formatter) -> io::R
             }
         } else {
             for line in &context {
-                print_diff_line(formatter, line)?;
+                show_color_words_diff_line(formatter, line)?;
             }
             context.clear();
-            print_diff_line(formatter, &diff_line)?;
+            show_color_words_diff_line(formatter, &diff_line)?;
             context_before = false;
             skipped_context = false;
         }
     }
     if !context_before {
         for line in &context {
-            print_diff_line(formatter, line)?;
+            show_color_words_diff_line(formatter, line)?;
         }
     }
 
     Ok(())
 }
 
-fn print_diff_line(formatter: &mut dyn Formatter, diff_line: &DiffLine) -> io::Result<()> {
+fn show_color_words_diff_line(
+    formatter: &mut dyn Formatter,
+    diff_line: &DiffLine,
+) -> io::Result<()> {
     if diff_line.has_left_content {
         formatter.add_label(String::from("left"))?;
         formatter.write_bytes(format!("{:>4}", diff_line.left_line_number).as_bytes())?;
@@ -1548,13 +1555,13 @@ fn cmd_diff(
             show_git_diff(ui, repo, from_tree.diff(&to_tree, matcher.as_ref()))?;
         }
         Format::ColorWords => {
-            show_diff(ui, repo, from_tree.diff(&to_tree, matcher.as_ref()))?;
+            show_color_words_diff(ui, repo, from_tree.diff(&to_tree, matcher.as_ref()))?;
         }
     }
     Ok(())
 }
 
-fn show_diff(
+fn show_color_words_diff(
     ui: &mut Ui,
     repo: &Arc<ReadonlyRepo>,
     tree_diff: TreeDiffIterator,
@@ -1599,7 +1606,7 @@ fn show_diff(
                 let mut buffer_right = vec![];
                 file_reader_right.read_to_end(&mut buffer_right).unwrap();
 
-                print_diff(
+                show_color_words_diff_hunks(
                     buffer_left.as_slice(),
                     buffer_right.as_slice(),
                     formatter.as_mut(),
@@ -1628,7 +1635,7 @@ fn show_diff(
                 let mut buffer_right = vec![];
                 file_reader_right.read_to_end(&mut buffer_right).unwrap();
 
-                print_diff(
+                show_color_words_diff_hunks(
                     buffer_left.as_slice(),
                     buffer_right.as_slice(),
                     formatter.as_mut(),
@@ -1656,7 +1663,7 @@ fn show_diff(
                     &mut buffer_right,
                 );
 
-                print_diff(
+                show_color_words_diff_hunks(
                     buffer_left.as_slice(),
                     buffer_right.as_slice(),
                     formatter.as_mut(),
