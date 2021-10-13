@@ -552,6 +552,16 @@ fn parse_function_expression(
                 })
             }
         }
+        "none" => {
+            if arg_count == 0 {
+                Ok(RevsetExpression::none())
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 0 arguments".to_string(),
+                })
+            }
+        }
         "heads" => {
             if arg_count == 0 {
                 Ok(RevsetExpression::heads())
