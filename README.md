@@ -80,6 +80,16 @@ workflows and setups different from what I personally use are not well
 supported. 
 
 
+## Installation
+
+```shell script
+# We need the "nightly" Rust toolchain. This command installs that without
+# changing your default.
+$ rustup install nightly
+$ cargo +nightly install --git https://github.com/martinvonz/jj.git
+```
+
+
 ## Getting started
 
 The best way to get started is probably to go through

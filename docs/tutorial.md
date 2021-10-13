@@ -4,16 +4,7 @@ This text assumes that the reader is familiar with Git.
 
 ## Setup
 
-First install Jujutsu:
-```shell script
-$ git clone https://github.com/martinvonz/jj.git jj-git
-$ cd jj-git
-# We need the "nightly" Rust toolchain. This command installs that without
-# changing your default.
-$ rustup install nightly
-$ cargo +nightly install --path .
-$ cd ..
-```
+First [install Jujutsu](../README.md#Installation).
 
 You may also want to configure your name and email so commits are made in your
 name. Create a `~/.jjconfig` file and make it look something like this:
@@ -30,10 +21,10 @@ Now let's clone the same repo using `jj`:
 ```shell script
 # Note the "git" before "clone" (there is no support for cloning native jj
 # repos yet)
-$ jj git clone https://github.com/martinvonz/jj.git jj-jj
-Fetching into new repo in "<dir>/jj-jj"
+$ jj git clone https://github.com/martinvonz/jj.git
+Fetching into new repo in "<dir>/jj"
 Working copy now at: 265ecf5cab2d
-$ cd jj-jj
+$ cd jj
 ```
 
 Running `jj st` (short for`jj status`) now yields something like this:
