@@ -79,21 +79,24 @@ remove existing files. To untrack a path, add it to your `.gitignore` and run
 
 To see the diff, run `jj diff`:
 ```shell script
-$ jj diff
-Modified regular file README.md:
-    ...
-   4    4: ## Disclaimer
-   5    5:
-   6    6: This is not a Google product. It is an experimental version-control system
-   7    7: (VCS). It is not ready for use. It was written by me, Martin von Zweigbergk
-   8    8: (martinvonz@google.com). It is my personal hobby project. It does not indicate
-   9    9: any commitment or direction from Google.
-  10   10:
-    ...
+$ jj diff --git  # Feel free to skip the `--git` flag
+diff --git a/README.md b/README.md
+index aa9b9e31a8...c30897997c 100644
+--- a/README.md
++++ b/README.md
+@@ -4,7 +4,7 @@
+ ## Disclaimer
+
+ This is not a Google product. It is an experimental version-control system
+-(VCS). It is not ready for use. It was written by me, Martin von Zweigbergk
++(VCS). It is ready for use. It was written by me, Martin von Zweigbergk
+ (martinvonz@google.com). It is my personal hobby project. It does not indicate
+ any commitment or direction from Google.
+
 ```
-Jujutsu's diff format currently only has inline coloring of the diff (like
-`git diff --color-words`), which makes the diff impossible to see in the
-un-colorized output above (the "not" in "not ready" is red).
+Jujutsu's diff format currently defaults to inline coloring of the diff (like
+`git diff --color-words`), so we used `--git` above to make the diff visible in
+this doc.
 
 As you may have noticed, the working copy commit's ID changed both when we
 edited the description and when we edited the README. However, the parent commit
