@@ -777,6 +777,37 @@ fn test_evaluate_expression_none(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
+fn test_evaluate_expression_all(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let root_commit = repo.store().root_commit();
+    let wc_commit = repo.working_copy_locked().current_commit();
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit2, &commit3]);
+
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "all()"),
+        vec![
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+            wc_commit.id().clone(),
+            root_commit.id().clone(),
+        ]
+    );
+
+    tx.discard();
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_heads(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
