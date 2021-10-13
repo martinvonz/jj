@@ -89,7 +89,7 @@ to say that you want an already added file to not be tracked
 To see the diff, run `jj diff`:
 ```shell script
 $ jj diff
-modified file README.md:
+Modified regular file at README.md:
     ...
    4    4: ## Disclaimer
    5    5:
@@ -400,7 +400,7 @@ the "D" line. Then close Meld. If we look the diff of the second commit, we
 now see that all three lines got capitalized:
 ```shell script
 $ jj diff -r ::@
-modified file file:
+Modified regular file at file:
    1    1: aA
    2    2: bB
    3    3: cC
