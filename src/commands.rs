@@ -1084,6 +1084,16 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
                                 .required(true)
                                 .help("The remote's URL"),
                         ),
+                )
+                .subcommand(
+                    SubCommand::with_name("remove")
+                        .about("Remove a Git remote and forget its branches")
+                        .arg(
+                            Arg::with_name("remote")
+                                .index(1)
+                                .required(true)
+                                .help("The remote's name"),
+                        ),
                 ),
         )
         .subcommand(
@@ -3344,6 +3354,8 @@ fn cmd_git_remote(
 ) -> Result<(), CommandError> {
     if let Some(command_matches) = remote_matches.subcommand_matches("add") {
         cmd_git_remote_add(ui, command, remote_matches, remote_matches, command_matches)?;
+    } else if let Some(command_matches) = remote_matches.subcommand_matches("remove") {
+        cmd_git_remote_remove(ui, command, remote_matches, remote_matches, command_matches)?;
     } else {
         panic!("unhandled command: {:#?}", command.root_matches());
     }
@@ -3368,6 +3380,39 @@ fn cmd_git_remote_add(
     git_repo
         .remote(remote_name, url)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
+    Ok(())
+}
+
+fn cmd_git_remote_remove(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _git_matches: &ArgMatches,
+    _remote_matches: &ArgMatches,
+    cmd_matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    let mut repo_command = command.repo_helper(ui)?;
+    let repo = repo_command.repo();
+    let git_repo = get_git_repo(repo.store())?;
+    let remote_name = cmd_matches.value_of("remote").unwrap();
+    if git_repo.find_remote(remote_name).is_err() {
+        return Err(CommandError::UserError("Remote doesn't exists".to_string()));
+    }
+    git_repo
+        .remote_delete(remote_name)
+        .map_err(|err| CommandError::UserError(err.to_string()))?;
+    let mut branches_to_delete = vec![];
+    for (branch, target) in repo.view().branches() {
+        if target.remote_targets.contains_key(remote_name) {
+            branches_to_delete.push(branch.clone());
+        }
+    }
+    if !branches_to_delete.is_empty() {
+        let mut tx = repo_command.start_transaction(&format!("remove git remote {}", remote_name));
+        for branch in branches_to_delete {
+            tx.mut_repo().remove_remote_branch(&branch, remote_name);
+        }
+        repo_command.finish_transaction(ui, tx)?;
+    }
     Ok(())
 }
 
