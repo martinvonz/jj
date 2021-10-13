@@ -84,8 +84,3 @@ supported.
 
 The best way to get started is probably to go through
 [the tutorial](docs/tutorial.md).
-
-
-## Future plans
-
-TODO
