@@ -85,44 +85,56 @@ impl<'a> Iterator for DiffLineIterator<'a> {
             self.current_pos += 1;
             match hunk {
                 diff::DiffHunk::Matching(text) => {
-                    let lines = text.split_inclusive(|b| *b == b'\n');
-                    for line in lines {
-                        self.current_line.has_left_content = true;
-                        self.current_line.has_right_content = true;
-                        self.current_line.hunks.push(DiffHunk::Matching(line));
-                        if line.ends_with(b"\n") {
-                            self.queued_lines.push_back(self.current_line.clone());
-                            self.current_line.left_line_number += 1;
-                            self.current_line.right_line_number += 1;
-                            self.current_line.reset_line();
+                    // TODO: Remove this check once https://github.com/rust-lang/rust/issues/89716
+                    // has been fixed and released for long enough.
+                    if !text.is_empty() {
+                        let lines = text.split_inclusive(|b| *b == b'\n');
+                        for line in lines {
+                            self.current_line.has_left_content = true;
+                            self.current_line.has_right_content = true;
+                            self.current_line.hunks.push(DiffHunk::Matching(line));
+                            if line.ends_with(b"\n") {
+                                self.queued_lines.push_back(self.current_line.clone());
+                                self.current_line.left_line_number += 1;
+                                self.current_line.right_line_number += 1;
+                                self.current_line.reset_line();
+                            }
                         }
                     }
                 }
                 diff::DiffHunk::Different(contents) => {
                     let left = contents[0];
                     let right = contents[1];
-                    let left_lines = left.split_inclusive(|b| *b == b'\n');
-                    for left_line in left_lines {
-                        self.current_line.has_left_content = true;
-                        self.current_line
-                            .hunks
-                            .push(DiffHunk::Different(vec![left_line, b""]));
-                        if left_line.ends_with(b"\n") {
-                            self.queued_lines.push_back(self.current_line.clone());
-                            self.current_line.left_line_number += 1;
-                            self.current_line.reset_line();
+                    // TODO: Remove this check once https://github.com/rust-lang/rust/issues/89716
+                    // has been fixed and released for long enough.
+                    if !left.is_empty() {
+                        let left_lines = left.split_inclusive(|b| *b == b'\n');
+                        for left_line in left_lines {
+                            self.current_line.has_left_content = true;
+                            self.current_line
+                                .hunks
+                                .push(DiffHunk::Different(vec![left_line, b""]));
+                            if left_line.ends_with(b"\n") {
+                                self.queued_lines.push_back(self.current_line.clone());
+                                self.current_line.left_line_number += 1;
+                                self.current_line.reset_line();
+                            }
                         }
                     }
-                    let right_lines = right.split_inclusive(|b| *b == b'\n');
-                    for right_line in right_lines {
-                        self.current_line.has_right_content = true;
-                        self.current_line
-                            .hunks
-                            .push(DiffHunk::Different(vec![b"", right_line]));
-                        if right_line.ends_with(b"\n") {
-                            self.queued_lines.push_back(self.current_line.clone());
-                            self.current_line.right_line_number += 1;
-                            self.current_line.reset_line();
+                    // TODO: Remove this check once https://github.com/rust-lang/rust/issues/89716
+                    // has been fixed and released for long enough.
+                    if !right.is_empty() {
+                        let right_lines = right.split_inclusive(|b| *b == b'\n');
+                        for right_line in right_lines {
+                            self.current_line.has_right_content = true;
+                            self.current_line
+                                .hunks
+                                .push(DiffHunk::Different(vec![b"", right_line]));
+                            if right_line.ends_with(b"\n") {
+                                self.queued_lines.push_back(self.current_line.clone());
+                                self.current_line.right_line_number += 1;
+                                self.current_line.reset_line();
+                            }
                         }
                     }
                 }

@@ -234,7 +234,6 @@ line 5
 
     let mut result: Vec<u8> = vec![];
     materialize_conflict(repo.store(), &path, &conflict, &mut result);
-    // TODO: There's an extra "+" after "-line 3".
     assert_eq!(
         String::from_utf8(result).unwrap().as_str(),
         "line 1
@@ -243,7 +242,7 @@ line 2
 -------
 +++++++
 -line 3
-++++++++
++++++++
 right
 >>>>>>>
 line 4
