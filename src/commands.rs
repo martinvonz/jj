@@ -1067,6 +1067,26 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
         )
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
+            SubCommand::with_name("remote")
+                .about("Manage Git remotes")
+                .subcommand(
+                    SubCommand::with_name("add")
+                        .about("Add a Git remote")
+                        .arg(
+                            Arg::with_name("remote")
+                                .index(1)
+                                .required(true)
+                                .help("The remote's name"),
+                        )
+                        .arg(
+                            Arg::with_name("url")
+                                .index(2)
+                                .required(true)
+                                .help("The remote's URL"),
+                        ),
+                ),
+        )
+        .subcommand(
             SubCommand::with_name("fetch")
                 .about("Fetch from a Git remote")
                 .arg(
@@ -3316,6 +3336,41 @@ fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     }
 }
 
+fn cmd_git_remote(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _git_matches: &ArgMatches,
+    remote_matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    if let Some(command_matches) = remote_matches.subcommand_matches("add") {
+        cmd_git_remote_add(ui, command, remote_matches, remote_matches, command_matches)?;
+    } else {
+        panic!("unhandled command: {:#?}", command.root_matches());
+    }
+    Ok(())
+}
+
+fn cmd_git_remote_add(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _git_matches: &ArgMatches,
+    _remote_matches: &ArgMatches,
+    cmd_matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    let repo_command = command.repo_helper(ui)?;
+    let repo = repo_command.repo();
+    let git_repo = get_git_repo(repo.store())?;
+    let remote_name = cmd_matches.value_of("remote").unwrap();
+    let url = cmd_matches.value_of("url").unwrap();
+    if git_repo.find_remote(remote_name).is_ok() {
+        return Err(CommandError::UserError("Remote already exists".to_string()));
+    }
+    git_repo
+        .remote(remote_name, url)
+        .map_err(|err| CommandError::UserError(err.to_string()))?;
+    Ok(())
+}
+
 fn cmd_git_fetch(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3526,7 +3581,9 @@ fn cmd_git(
     command: &CommandHelper,
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
-    if let Some(command_matches) = sub_matches.subcommand_matches("fetch") {
+    if let Some(command_matches) = sub_matches.subcommand_matches("remote") {
+        cmd_git_remote(ui, command, sub_matches, command_matches)?;
+    } else if let Some(command_matches) = sub_matches.subcommand_matches("fetch") {
         cmd_git_fetch(ui, command, sub_matches, command_matches)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("clone") {
         cmd_git_clone(ui, command, sub_matches, command_matches)?;
