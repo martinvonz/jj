@@ -16,7 +16,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -141,9 +141,7 @@ impl ReadonlyRepo {
         wc_path: PathBuf,
     ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
         let repo_path = ReadonlyRepo::init_repo_dir(&wc_path)?;
-        let store_path = repo_path.join("store");
-        fs::create_dir(&store_path).unwrap();
-        let backend = Box::new(LocalBackend::init(store_path));
+        let backend = Box::new(LocalBackend::init(repo_path.join("store")));
         Ok(ReadonlyRepo::init(settings, repo_path, wc_path, backend))
     }
 
@@ -153,13 +151,12 @@ impl ReadonlyRepo {
         wc_path: PathBuf,
     ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
         let repo_path = ReadonlyRepo::init_repo_dir(&wc_path)?;
-        let git_store_path = repo_path.join("git");
-        git2::Repository::init_bare(&git_store_path).unwrap();
         let store_path = repo_path.join("store");
-        let git_store_path = fs::canonicalize(git_store_path).unwrap();
-        let mut store_file = File::create(store_path).unwrap();
-        store_file.write_all(b"git: git").unwrap();
-        let backend = Box::new(GitBackend::load(&git_store_path));
+        let git_repo_path = store_path.join("git");
+        git2::Repository::init_bare(&git_repo_path).unwrap();
+        let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
+        git_target_file.write_all(b"git").unwrap();
+        let backend = Box::new(GitBackend::load(&git_repo_path));
         Ok(ReadonlyRepo::init(settings, repo_path, wc_path, backend))
     }
 
@@ -171,12 +168,12 @@ impl ReadonlyRepo {
     ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
         let repo_path = ReadonlyRepo::init_repo_dir(&wc_path)?;
         let store_path = repo_path.join("store");
-        let git_store_path = fs::canonicalize(git_store_path).unwrap();
-        let mut store_file = File::create(store_path).unwrap();
-        store_file
-            .write_all(format!("git: {}", git_store_path.to_str().unwrap()).as_bytes())
+        let git_repo_path = fs::canonicalize(git_store_path).unwrap();
+        let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
+        git_target_file
+            .write_all(git_repo_path.to_str().unwrap().as_bytes())
             .unwrap();
-        let backend = Box::new(GitBackend::load(&git_store_path));
+        let backend = Box::new(GitBackend::load(&git_repo_path));
         Ok(ReadonlyRepo::init(settings, repo_path, wc_path, backend))
     }
 
@@ -186,6 +183,7 @@ impl ReadonlyRepo {
             Err(RepoInitError::DestinationExists(repo_path))
         } else {
             fs::create_dir(&repo_path).unwrap();
+            fs::create_dir(repo_path.join("store")).unwrap();
             fs::create_dir(repo_path.join("working_copy")).unwrap();
             fs::create_dir(repo_path.join("view")).unwrap();
             fs::create_dir(repo_path.join("op_store")).unwrap();
@@ -400,7 +398,26 @@ impl RepoLoader {
     ) -> Result<RepoLoader, RepoLoadError> {
         let repo_path = find_repo_dir(&wc_path).ok_or(RepoLoadError::NoRepoHere(wc_path))?;
         let wc_path = repo_path.parent().unwrap().to_owned();
-        let store = Store::load_store(&repo_path);
+        let store_path = repo_path.join("store");
+        if store_path.is_file() {
+            // This is the old format. Let's be nice and upgrade any existing repos.
+            // TODO: Delete this in early 2022 or so
+            println!("The repo format has changed. Upgrading...");
+            let mut buf = vec![];
+            {
+                let mut store_file = File::open(&store_path).unwrap();
+                store_file.read_to_end(&mut buf).unwrap();
+            }
+            let contents = String::from_utf8(buf).unwrap();
+            assert!(contents.starts_with("git: "));
+            let git_backend_path_str = contents[5..].to_string();
+            fs::remove_file(&store_path).unwrap();
+            fs::create_dir(&store_path).unwrap();
+            fs::rename(repo_path.join("git"), store_path.join("git")).unwrap();
+            fs::write(store_path.join("git_target"), &git_backend_path_str).unwrap();
+            println!("Done. .jj/git is now .jj/store/git");
+        }
+        let store = Store::load_store(repo_path.join("store"));
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
         let op_heads_store = Arc::new(OpHeadsStore::load(repo_path.join("op_heads")));

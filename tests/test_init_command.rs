@@ -23,9 +23,16 @@ fn test_init_git_internal() {
     let repo_path = temp_dir.path().join("repo");
     assert!(repo_path.is_dir());
     assert!(repo_path.join(".jj").is_dir());
-    assert!(repo_path.join(".jj").join("git").is_dir());
-    let store_file_contents = std::fs::read_to_string(repo_path.join(".jj").join("store")).unwrap();
-    assert_eq!(store_file_contents, "git: git");
+    assert!(repo_path.join(".jj").join("store").is_dir());
+    assert!(repo_path.join(".jj").join("store").join("git").is_dir());
+    assert!(repo_path
+        .join(".jj")
+        .join("store")
+        .join("git_target")
+        .is_file());
+    let git_target_file_contents =
+        std::fs::read_to_string(repo_path.join(".jj").join("store").join("git_target")).unwrap();
+    assert_eq!(git_target_file_contents, "git");
     assert_eq!(
         output.stdout_string(),
         format!("Initialized repo in \"{}\"\n", repo_path.to_str().unwrap())
@@ -49,9 +56,10 @@ fn test_init_git_external() {
     let repo_path = temp_dir.path().join("repo");
     assert!(repo_path.is_dir());
     assert!(repo_path.join(".jj").is_dir());
-    let store_file_contents = std::fs::read_to_string(repo_path.join(".jj").join("store")).unwrap();
-    assert!(store_file_contents.starts_with("git: "));
-    assert!(store_file_contents
+    assert!(repo_path.join(".jj").join("store").is_dir());
+    let git_target_file_contents =
+        std::fs::read_to_string(repo_path.join(".jj").join("store").join("git_target")).unwrap();
+    assert!(git_target_file_contents
         .replace('\\', "/")
         .ends_with("/git-repo"));
     assert_eq!(

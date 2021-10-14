@@ -15,7 +15,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use crate::backend;
@@ -51,25 +51,20 @@ impl Store {
         })
     }
 
-    pub fn load_store(repo_path: &Path) -> Arc<Store> {
-        let store_path = repo_path.join("store");
+    pub fn load_store(store_path: PathBuf) -> Arc<Store> {
         let backend: Box<dyn Backend>;
-        // TODO: Perhaps .jj/store should always be a directory. Then .jj/git would live
-        // inside that directory and this function would not need to know the repo path
-        // (only the store path). Maybe there would be a .jj/store/format file
-        // indicating which kind of store it is?
-        if store_path.is_dir() {
-            backend = Box::new(LocalBackend::load(store_path));
-        } else {
-            let mut store_file = File::open(store_path).unwrap();
+        let git_target_path = store_path.join("git_target");
+        if git_target_path.is_file() {
+            let mut git_target_file = File::open(git_target_path).unwrap();
             let mut buf = Vec::new();
-            store_file.read_to_end(&mut buf).unwrap();
-            let contents = String::from_utf8(buf).unwrap();
-            assert!(contents.starts_with("git: "));
-            let git_backend_path_str = contents[5..].to_string();
+            git_target_file.read_to_end(&mut buf).unwrap();
+            let git_backend_path_str = String::from_utf8(buf).unwrap();
             let git_backend_path =
-                std::fs::canonicalize(repo_path.join(PathBuf::from(git_backend_path_str))).unwrap();
+                std::fs::canonicalize(store_path.join(PathBuf::from(git_backend_path_str)))
+                    .unwrap();
             backend = Box::new(GitBackend::load(&git_backend_path));
+        } else {
+            backend = Box::new(LocalBackend::load(store_path));
         }
         Store::new(backend)
     }
