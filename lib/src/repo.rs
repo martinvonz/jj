@@ -16,20 +16,18 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use thiserror::Error;
 
-use crate::backend::{Backend, BackendError, CommitId};
+use crate::backend::{BackendError, CommitId};
 use crate::commit::Commit;
 use crate::commit_builder::{new_change_id, signature, CommitBuilder};
 use crate::dag_walk::topo_order_reverse;
-use crate::git_backend::GitBackend;
 use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
-use crate::local_backend::LocalBackend;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget};
 use crate::operation::Operation;
@@ -141,8 +139,8 @@ impl ReadonlyRepo {
         wc_path: PathBuf,
     ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
         let repo_path = ReadonlyRepo::init_repo_dir(&wc_path)?;
-        let backend = Box::new(LocalBackend::init(repo_path.join("store")));
-        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, backend))
+        let store = Store::init_local(repo_path.join("store"));
+        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, store))
     }
 
     /// Initializes a repo with a new Git backend in .jj/git/ (bare Git repo)
@@ -151,30 +149,19 @@ impl ReadonlyRepo {
         wc_path: PathBuf,
     ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
         let repo_path = ReadonlyRepo::init_repo_dir(&wc_path)?;
-        let store_path = repo_path.join("store");
-        let git_repo_path = store_path.join("git");
-        git2::Repository::init_bare(&git_repo_path).unwrap();
-        let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
-        git_target_file.write_all(b"git").unwrap();
-        let backend = Box::new(GitBackend::load(&git_repo_path));
-        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, backend))
+        let store = Store::init_internal_git(repo_path.join("store"));
+        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, store))
     }
 
     /// Initializes a repo with an existing Git backend at the specified path
     pub fn init_external_git(
         settings: &UserSettings,
         wc_path: PathBuf,
-        git_store_path: PathBuf,
+        git_repo_path: PathBuf,
     ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
         let repo_path = ReadonlyRepo::init_repo_dir(&wc_path)?;
-        let store_path = repo_path.join("store");
-        let git_repo_path = fs::canonicalize(git_store_path).unwrap();
-        let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
-        git_target_file
-            .write_all(git_repo_path.to_str().unwrap().as_bytes())
-            .unwrap();
-        let backend = Box::new(GitBackend::load(&git_repo_path));
-        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, backend))
+        let store = Store::init_external_git(repo_path.join("store"), git_repo_path);
+        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, store))
     }
 
     fn init_repo_dir(wc_path: &Path) -> Result<PathBuf, RepoInitError> {
@@ -197,10 +184,9 @@ impl ReadonlyRepo {
         user_settings: &UserSettings,
         repo_path: PathBuf,
         wc_path: PathBuf,
-        backend: Box<dyn Backend>,
+        store: Arc<Store>,
     ) -> Arc<ReadonlyRepo> {
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
-        let store = Store::new(backend);
 
         let working_copy = WorkingCopy::init(
             store.clone(),

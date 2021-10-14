@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use std::collections::HashMap;
+use std::fs;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
@@ -41,7 +42,7 @@ pub struct Store {
 }
 
 impl Store {
-    pub fn new(backend: Box<dyn Backend>) -> Arc<Self> {
+    fn new(backend: Box<dyn Backend>) -> Arc<Self> {
         let root_commit_id = CommitId(vec![0; backend.hash_length()]);
         Arc::new(Store {
             backend,
@@ -49,6 +50,27 @@ impl Store {
             commit_cache: Default::default(),
             tree_cache: Default::default(),
         })
+    }
+
+    pub fn init_local(store_path: PathBuf) -> Arc<Self> {
+        Store::new(Box::new(LocalBackend::init(store_path)))
+    }
+
+    pub fn init_internal_git(store_path: PathBuf) -> Arc<Self> {
+        let git_repo_path = store_path.join("git");
+        git2::Repository::init_bare(&git_repo_path).unwrap();
+        let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
+        git_target_file.write_all(b"git").unwrap();
+        Store::new(Box::new(GitBackend::load(&git_repo_path)))
+    }
+
+    pub fn init_external_git(store_path: PathBuf, git_repo_path: PathBuf) -> Arc<Self> {
+        let git_repo_path = fs::canonicalize(git_repo_path).unwrap();
+        let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
+        git_target_file
+            .write_all(git_repo_path.to_str().unwrap().as_bytes())
+            .unwrap();
+        Store::new(Box::new(GitBackend::load(&git_repo_path)))
     }
 
     pub fn load_store(store_path: PathBuf) -> Arc<Store> {
