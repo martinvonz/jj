@@ -89,6 +89,15 @@ $ rustup install nightly
 $ cargo +nightly install --git https://github.com/martinvonz/jj.git
 ```
 
+You may also want to configure your name and email so commits are made in your
+name. Create a `~/.jjconfig` file and make it look something like this:
+```shell script
+$ cat ~/.jjconfig
+[user]
+name = "Martin von Zweigbergk"
+email = "martinvonz@google.com"
+```
+
 
 ## Getting started
 

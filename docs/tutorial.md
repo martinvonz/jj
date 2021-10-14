@@ -2,18 +2,10 @@
 
 This text assumes that the reader is familiar with Git.
 
-## Setup
+## Preparation
 
-First [install Jujutsu](../README.md#Installation).
-
-You may also want to configure your name and email so commits are made in your
-name. Create a `~/.jjconfig` file and make it look something like this:
-```shell script
-$ cat ~/.jjconfig
-[user]
-name = "Martin von Zweigbergk"
-email = "martinvonz@google.com"
-```
+If you haven't already, make sure you
+[install and configure Jujutsu](../README.md#Installation).
 
 ## Cloning a Git repo
 
