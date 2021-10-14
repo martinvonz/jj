@@ -89,6 +89,12 @@ $ rustup install nightly
 $ cargo +nightly install --git https://github.com/martinvonz/jj.git
 ```
 
+To set up command-line completion, source the output of 
+`jj debug completion --bash/--zsh/--fish`. For example, if you use Bash:
+```shell script
+$ source <(jj debug completion)  # --bash is the default
+```
+
 You may also want to configure your name and email so commits are made in your
 name. Create a `~/.jjconfig` file and make it look something like this:
 ```shell script
