@@ -399,7 +399,9 @@ impl RepoLoader {
             let git_backend_path_str = contents[5..].to_string();
             fs::remove_file(&store_path).unwrap();
             fs::create_dir(&store_path).unwrap();
-            fs::rename(repo_path.join("git"), store_path.join("git")).unwrap();
+            if repo_path.join("git").is_dir() {
+                fs::rename(repo_path.join("git"), store_path.join("git")).unwrap();
+            }
             fs::write(store_path.join("git_target"), &git_backend_path_str).unwrap();
             println!("Done. .jj/git is now .jj/store/git");
         }
