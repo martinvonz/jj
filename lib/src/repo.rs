@@ -186,6 +186,11 @@ impl ReadonlyRepo {
             Err(RepoInitError::DestinationExists(repo_path))
         } else {
             fs::create_dir(&repo_path).unwrap();
+            fs::create_dir(repo_path.join("working_copy")).unwrap();
+            fs::create_dir(repo_path.join("view")).unwrap();
+            fs::create_dir(repo_path.join("op_store")).unwrap();
+            fs::create_dir(repo_path.join("op_heads")).unwrap();
+            fs::create_dir(repo_path.join("index")).unwrap();
             Ok(repo_path)
         }
     }
@@ -199,14 +204,12 @@ impl ReadonlyRepo {
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
         let store = Store::new(backend);
 
-        fs::create_dir(repo_path.join("working_copy")).unwrap();
         let working_copy = WorkingCopy::init(
             store.clone(),
             wc_path.clone(),
             repo_path.join("working_copy"),
         );
 
-        fs::create_dir(repo_path.join("view")).unwrap();
         let signature = signature(user_settings);
         let checkout_commit = backend::Commit {
             parents: vec![],
@@ -220,20 +223,17 @@ impl ReadonlyRepo {
         };
         let checkout_commit = store.write_commit(checkout_commit);
 
-        std::fs::create_dir(repo_path.join("op_store")).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(repo_path.join("op_store")));
 
-        let op_heads_dir = repo_path.join("op_heads");
-        std::fs::create_dir(&op_heads_dir).unwrap();
         let mut root_view = op_store::View::new(checkout_commit.id().clone());
         root_view.head_ids.insert(checkout_commit.id().clone());
         root_view
             .public_head_ids
             .insert(store.root_commit_id().clone());
-        let (op_heads_store, init_op) = OpHeadsStore::init(op_heads_dir, &op_store, &root_view);
+        let (op_heads_store, init_op) =
+            OpHeadsStore::init(repo_path.join("op_heads"), &op_store, &root_view);
         let op_heads_store = Arc::new(op_heads_store);
 
-        fs::create_dir(repo_path.join("index")).unwrap();
         let index_store = Arc::new(IndexStore::init(repo_path.join("index")));
 
         let view = View::new(root_view);
