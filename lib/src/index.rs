@@ -151,7 +151,7 @@ struct CommitGraphEntry<'a> {
 // lowest set bit to determine which generation number the pointers point to.
 impl CommitGraphEntry<'_> {
     fn size(hash_length: usize) -> usize {
-        48 + hash_length
+        36 + hash_length
     }
 
     fn generation_number(&self) -> u32 {
@@ -170,18 +170,6 @@ impl CommitGraphEntry<'_> {
         (&self.data[16..]).read_u32::<LittleEndian>().unwrap()
     }
 
-    fn num_predecessors(&self) -> u32 {
-        (&self.data[20..]).read_u32::<LittleEndian>().unwrap()
-    }
-
-    fn predecessor1_pos(&self) -> IndexPosition {
-        IndexPosition((&self.data[24..]).read_u32::<LittleEndian>().unwrap())
-    }
-
-    fn predecessor2_overflow_pos(&self) -> u32 {
-        (&self.data[28..]).read_u32::<LittleEndian>().unwrap()
-    }
-
     // TODO: Consider storing the change ids in a separate table. That table could
     // be sorted by change id and have the end index into a list as value. That list
     // would be the concatenation of all index positions associated with the change.
@@ -189,11 +177,11 @@ impl CommitGraphEntry<'_> {
     // to better cache locality when walking it; ability to quickly find all
     // commits associated with a change id.
     fn change_id(&self) -> ChangeId {
-        ChangeId(self.data[32..48].to_vec())
+        ChangeId(self.data[20..36].to_vec())
     }
 
     fn commit_id(&self) -> CommitId {
-        CommitId(self.data[48..48 + self.hash_length].to_vec())
+        CommitId(self.data[36..36 + self.hash_length].to_vec())
     }
 }
 
@@ -256,7 +244,6 @@ pub struct ReadonlyIndex {
     graph: Vec<u8>,
     lookup: Vec<u8>,
     overflow_parent: Vec<u8>,
-    overflow_predecessor: Vec<u8>,
 }
 
 impl Debug for ReadonlyIndex {
@@ -331,7 +318,6 @@ struct MutableGraphEntry {
     change_id: ChangeId,
     generation_number: u32,
     parent_positions: Vec<IndexPosition>,
-    predecessor_positions: Vec<IndexPosition>,
 }
 
 pub struct MutableIndex {
@@ -374,7 +360,6 @@ impl MutableIndex {
             commit.id().clone(),
             commit.change_id().clone(),
             commit.parent_ids(),
-            commit.predecessor_ids(),
         );
     }
 
@@ -383,7 +368,6 @@ impl MutableIndex {
         commit_id: CommitId,
         change_id: ChangeId,
         parent_ids: Vec<CommitId>,
-        predecessor_ids: Vec<CommitId>,
     ) {
         if self.has_id(&commit_id) {
             return;
@@ -393,7 +377,6 @@ impl MutableIndex {
             change_id,
             generation_number: 0,
             parent_positions: vec![],
-            predecessor_positions: vec![],
         };
         for parent_id in parent_ids {
             let parent_entry = self
@@ -404,12 +387,6 @@ impl MutableIndex {
                 parent_entry.generation_number() + 1,
             );
             entry.parent_positions.push(parent_entry.pos);
-        }
-        for predecessor_id in predecessor_ids {
-            let predecessor_entry = self
-                .entry_by_id(&predecessor_id)
-                .expect("predecessor commit is not indexed");
-            entry.predecessor_positions.push(predecessor_entry.pos);
         }
         self.lookup.insert(
             entry.commit_id.clone(),
@@ -427,17 +404,7 @@ impl MutableIndex {
                 .iter()
                 .map(|entry| entry.commit_id())
                 .collect_vec();
-            let predecessor_ids = entry
-                .predecessors()
-                .iter()
-                .map(|entry| entry.commit_id())
-                .collect_vec();
-            self.add_commit_data(
-                entry.commit_id(),
-                entry.change_id(),
-                parent_ids,
-                predecessor_ids,
-            );
+            self.add_commit_data(entry.commit_id(), entry.change_id(), parent_ids);
         }
     }
 
@@ -491,12 +458,8 @@ impl MutableIndex {
         // We'll write the actual value later
         let parent_overflow_offset = buf.len();
         buf.write_u32::<LittleEndian>(0_u32).unwrap();
-        // We'll write the actual value later
-        let predecessor_overflow_offset = buf.len();
-        buf.write_u32::<LittleEndian>(0_u32).unwrap();
 
         let mut parent_overflow = vec![];
-        let mut predecessor_overflow = vec![];
         for entry in self.graph {
             let flags = 0;
             buf.write_u32::<LittleEndian>(flags).unwrap();
@@ -518,21 +481,6 @@ impl MutableIndex {
             buf.write_u32::<LittleEndian>(parent1_pos.0).unwrap();
             buf.write_u32::<LittleEndian>(parent_overflow_pos).unwrap();
 
-            buf.write_u32::<LittleEndian>(entry.predecessor_positions.len() as u32)
-                .unwrap();
-            let mut predecessor1_pos = IndexPosition(0);
-            let predecessor_overflow_pos = predecessor_overflow.len() as u32;
-            for (i, predecessor_pos) in entry.predecessor_positions.iter().enumerate() {
-                if i == 0 {
-                    predecessor1_pos = *predecessor_pos;
-                } else {
-                    predecessor_overflow.push(*predecessor_pos);
-                }
-            }
-            buf.write_u32::<LittleEndian>(predecessor1_pos.0).unwrap();
-            buf.write_u32::<LittleEndian>(predecessor_overflow_pos)
-                .unwrap();
-
             assert_eq!(entry.change_id.0.len(), 16);
             buf.write_all(entry.change_id.0.as_slice()).unwrap();
 
@@ -551,13 +499,6 @@ impl MutableIndex {
             .unwrap();
         for parent_pos in parent_overflow {
             buf.write_u32::<LittleEndian>(parent_pos.0).unwrap();
-        }
-        buf[predecessor_overflow_offset..predecessor_overflow_offset + 4]
-            .as_mut()
-            .write_u32::<LittleEndian>(predecessor_overflow.len() as u32)
-            .unwrap();
-        for predecessor_pos in predecessor_overflow {
-            buf.write_u32::<LittleEndian>(predecessor_pos.0).unwrap();
         }
 
         buf
@@ -708,10 +649,6 @@ trait IndexSegment {
     fn segment_num_parents(&self, local_pos: u32) -> u32;
 
     fn segment_parent_positions(&self, local_pos: u32) -> Vec<IndexPosition>;
-
-    fn segment_num_predecessors(&self, local_pos: u32) -> u32;
-
-    fn segment_predecessor_positions(&self, local_pos: u32) -> Vec<IndexPosition>;
 
     fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry;
 }
@@ -1201,26 +1138,6 @@ impl IndexSegment for ReadonlyIndex {
         parent_entries
     }
 
-    fn segment_num_predecessors(&self, local_pos: u32) -> u32 {
-        self.graph_entry(local_pos).num_predecessors()
-    }
-
-    fn segment_predecessor_positions(&self, local_pos: u32) -> Vec<IndexPosition> {
-        let graph_entry = self.graph_entry(local_pos);
-        let mut predecessor_entries = vec![];
-        if graph_entry.num_predecessors() >= 1 {
-            predecessor_entries.push(graph_entry.predecessor1_pos());
-        }
-        if graph_entry.num_predecessors() >= 2 {
-            let mut predecessor_overflow_pos = graph_entry.predecessor2_overflow_pos();
-            for _ in 1..graph_entry.num_predecessors() {
-                predecessor_entries.push(self.overflow_predecessor(predecessor_overflow_pos));
-                predecessor_overflow_pos += 1;
-            }
-        }
-        predecessor_entries
-    }
-
     fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry {
         IndexEntry {
             source: self,
@@ -1301,14 +1218,6 @@ impl IndexSegment for MutableIndex {
         self.graph[local_pos as usize].parent_positions.clone()
     }
 
-    fn segment_num_predecessors(&self, local_pos: u32) -> u32 {
-        self.graph[local_pos as usize].predecessor_positions.len() as u32
-    }
-
-    fn segment_predecessor_positions(&self, local_pos: u32) -> Vec<IndexPosition> {
-        self.graph[local_pos as usize].predecessor_positions.clone()
-    }
-
     fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry {
         IndexEntry {
             source: self,
@@ -1381,22 +1290,6 @@ impl<'a> IndexEntry<'a> {
             .map(|pos| composite.entry_by_pos(pos))
             .collect()
     }
-
-    pub fn num_predecessors(&self) -> u32 {
-        self.source.segment_num_predecessors(self.local_pos)
-    }
-
-    pub fn predecessor_positions(&self) -> Vec<IndexPosition> {
-        self.source.segment_predecessor_positions(self.local_pos)
-    }
-
-    pub fn predecessors(&self) -> Vec<IndexEntry<'a>> {
-        let composite = CompositeIndex(self.source);
-        self.predecessor_positions()
-            .into_iter()
-            .map(|pos| composite.entry_by_pos(pos))
-            .collect()
-    }
 }
 
 impl ReadonlyIndex {
@@ -1425,7 +1318,6 @@ impl ReadonlyIndex {
         };
         let num_commits = file.read_u32::<LittleEndian>()?;
         let num_parent_overflow_entries = file.read_u32::<LittleEndian>()?;
-        let num_predecessor_overflow_entries = file.read_u32::<LittleEndian>()?;
         let mut data = vec![];
         file.read_to_end(&mut data)?;
         let commit_graph_entry_size = CommitGraphEntry::size(hash_length);
@@ -1433,13 +1325,10 @@ impl ReadonlyIndex {
         let commit_lookup_entry_size = CommitLookupEntry::size(hash_length);
         let lookup_size = (num_commits as usize) * commit_lookup_entry_size;
         let parent_overflow_size = (num_parent_overflow_entries as usize) * 4;
-        let predecessor_overflow_size = (num_predecessor_overflow_entries as usize) * 4;
-        let expected_size =
-            graph_size + lookup_size + parent_overflow_size + predecessor_overflow_size;
+        let expected_size = graph_size + lookup_size + parent_overflow_size;
         if data.len() != expected_size {
             return Err(IndexLoadError::IndexCorrupt(name));
         }
-        let overflow_predecessor = data.split_off(graph_size + lookup_size + parent_overflow_size);
         let overflow_parent = data.split_off(graph_size + lookup_size);
         let lookup = data.split_off(graph_size);
         let graph = data;
@@ -1454,7 +1343,6 @@ impl ReadonlyIndex {
             graph,
             lookup,
             overflow_parent,
-            overflow_predecessor,
         }))
     }
 
@@ -1545,15 +1433,6 @@ impl ReadonlyIndex {
         )
     }
 
-    fn overflow_predecessor(&self, overflow_pos: u32) -> IndexPosition {
-        let offset = (overflow_pos as usize) * 4;
-        IndexPosition(
-            (&self.overflow_predecessor[offset..offset + 4])
-                .read_u32::<LittleEndian>()
-                .unwrap(),
-        )
-    }
-
     fn commit_id_byte_prefix_to_pos(&self, prefix: &CommitId) -> Option<IndexPosition> {
         if self.num_local_commits == 0 {
             // Avoid overflow when subtracting 1 below
@@ -1622,7 +1501,7 @@ mod tests {
         let mut index = MutableIndex::full(3);
         let id_0 = CommitId::from_hex("000000");
         let change_id0 = new_change_id();
-        index.add_commit_data(id_0.clone(), change_id0.clone(), vec![], vec![]);
+        index.add_commit_data(id_0.clone(), change_id0.clone(), vec![]);
         let mut _saved_index = None;
         let index = if on_disk {
             _saved_index = Some(index.save_in(temp_dir.path().to_owned()).unwrap());
@@ -1652,9 +1531,6 @@ mod tests {
         assert_eq!(entry.num_parents(), 0);
         assert_eq!(entry.parent_positions(), Vec::<IndexPosition>::new());
         assert_eq!(entry.parents(), Vec::<IndexEntry>::new());
-        assert_eq!(entry.num_predecessors(), 0);
-        assert_eq!(entry.predecessor_positions(), Vec::<IndexPosition>::new());
-        assert_eq!(entry.predecessors(), Vec::<IndexEntry>::new());
     }
 
     #[test]
@@ -1663,16 +1539,7 @@ mod tests {
         let mut index = MutableIndex::full(3);
         let id_0 = CommitId::from_hex("000000");
         let id_1 = CommitId::from_hex("111111");
-        index.add_commit_data(id_1, new_change_id(), vec![id_0], vec![]);
-    }
-
-    #[test]
-    #[should_panic(expected = "predecessor commit is not indexed")]
-    fn index_missing_predecessor_commit() {
-        let mut index = MutableIndex::full(3);
-        let id_0 = CommitId::from_hex("000000");
-        let id_1 = CommitId::from_hex("111111");
-        index.add_commit_data(id_1, new_change_id(), vec![], vec![id_0]);
+        index.add_commit_data(id_1, new_change_id(), vec![id_0]);
     }
 
     #[test_case(false, false; "full in memory")]
@@ -1695,9 +1562,9 @@ mod tests {
         let change_id1 = new_change_id();
         let id_2 = CommitId::from_hex("222222");
         let change_id2 = change_id1.clone();
-        index.add_commit_data(id_0.clone(), change_id0, vec![], vec![]);
-        index.add_commit_data(id_1.clone(), change_id1.clone(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_2.clone(), change_id2.clone(), vec![id_0.clone()], vec![]);
+        index.add_commit_data(id_0.clone(), change_id0, vec![]);
+        index.add_commit_data(id_1.clone(), change_id1.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), change_id2.clone(), vec![id_0.clone()]);
 
         // If testing incremental indexing, write the first three commits to one file
         // now and build the remainder as another segment on top.
@@ -1712,19 +1579,9 @@ mod tests {
         let change_id4 = new_change_id();
         let id_5 = CommitId::from_hex("555555");
         let change_id5 = change_id3.clone();
-        index.add_commit_data(id_3.clone(), change_id3.clone(), vec![id_2.clone()], vec![]);
-        index.add_commit_data(
-            id_4.clone(),
-            change_id4,
-            vec![id_1.clone()],
-            vec![id_2.clone(), id_3.clone()],
-        );
-        index.add_commit_data(
-            id_5.clone(),
-            change_id5,
-            vec![id_4.clone(), id_2.clone()],
-            vec![],
-        );
+        index.add_commit_data(id_3.clone(), change_id3.clone(), vec![id_2.clone()]);
+        index.add_commit_data(id_4.clone(), change_id4, vec![id_1.clone()]);
+        index.add_commit_data(id_5.clone(), change_id5, vec![id_4.clone(), id_2.clone()]);
         let mut _saved_index = None;
         let index = if on_disk {
             _saved_index = Some(index.save_in(temp_dir.path().to_owned()).unwrap());
@@ -1759,8 +1616,6 @@ mod tests {
         assert_eq!(entry_1.parent_positions(), vec![IndexPosition(0)]);
         assert_eq!(entry_1.parents().len(), 1);
         assert_eq!(entry_1.parents()[0].pos, IndexPosition(0));
-        assert_eq!(entry_1.num_predecessors(), 0);
-        assert_eq!(entry_1.predecessor_positions(), Vec::<IndexPosition>::new());
         assert_eq!(entry_2.pos, IndexPosition(2));
         assert_eq!(entry_2.commit_id(), id_2);
         assert_eq!(entry_2.change_id(), change_id2);
@@ -1774,14 +1629,6 @@ mod tests {
         assert_eq!(entry_4.generation_number(), 2);
         assert_eq!(entry_4.num_parents(), 1);
         assert_eq!(entry_4.parent_positions(), vec![IndexPosition(1)]);
-        assert_eq!(entry_4.num_predecessors(), 2);
-        assert_eq!(
-            entry_4.predecessor_positions(),
-            vec![IndexPosition(2), IndexPosition(3)]
-        );
-        assert_eq!(entry_4.predecessors().len(), 2);
-        assert_eq!(entry_4.predecessors()[0].pos, IndexPosition(2));
-        assert_eq!(entry_4.predecessors()[1].pos, IndexPosition(3));
         assert_eq!(entry_5.generation_number(), 3);
         assert_eq!(entry_5.num_parents(), 2);
         assert_eq!(
@@ -1791,8 +1638,6 @@ mod tests {
         assert_eq!(entry_5.parents().len(), 2);
         assert_eq!(entry_5.parents()[0].pos, IndexPosition(4));
         assert_eq!(entry_5.parents()[1].pos, IndexPosition(2));
-        assert_eq!(entry_5.num_predecessors(), 0);
-        assert_eq!(entry_5.predecessor_positions(), Vec::<IndexPosition>::new());
     }
 
     #[test_case(false; "in memory")]
@@ -1816,17 +1661,16 @@ mod tests {
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
         let id_6 = CommitId::from_hex("666666");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![], vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_5.clone(), new_change_id(), vec![id_0], vec![]);
+        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
+        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_5.clone(), new_change_id(), vec![id_0]);
         index.add_commit_data(
             id_6.clone(),
             new_change_id(),
             vec![id_1, id_2, id_3, id_4, id_5],
-            vec![],
         );
         let mut _saved_index = None;
         let index = if on_disk {
@@ -1869,9 +1713,9 @@ mod tests {
         let id_0 = CommitId::from_hex("000000");
         let id_1 = CommitId::from_hex("009999");
         let id_2 = CommitId::from_hex("055488");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![], vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![], vec![]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![], vec![]);
+        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
+        index.add_commit_data(id_1.clone(), new_change_id(), vec![]);
+        index.add_commit_data(id_2.clone(), new_change_id(), vec![]);
 
         // Write the first three commits to one file and build the remainder on top.
         let initial_file = index.save_in(temp_dir.path().to_owned()).unwrap();
@@ -1880,9 +1724,9 @@ mod tests {
         let id_3 = CommitId::from_hex("055444");
         let id_4 = CommitId::from_hex("055555");
         let id_5 = CommitId::from_hex("033333");
-        index.add_commit_data(id_3, new_change_id(), vec![], vec![]);
-        index.add_commit_data(id_4, new_change_id(), vec![], vec![]);
-        index.add_commit_data(id_5, new_change_id(), vec![], vec![]);
+        index.add_commit_data(id_3, new_change_id(), vec![]);
+        index.add_commit_data(id_4, new_change_id(), vec![]);
+        index.add_commit_data(id_5, new_change_id(), vec![]);
 
         // Can find commits given the full hex number
         assert_eq!(
@@ -1943,16 +1787,15 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![], vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_2.clone()], vec![]);
-        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_1.clone()], vec![]);
+        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
+        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_2.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_1.clone()]);
         index.add_commit_data(
             id_5.clone(),
             new_change_id(),
             vec![id_4.clone(), id_2.clone()],
-            vec![],
         );
 
         assert!(index.is_ancestor(&id_0, &id_0));
@@ -1985,16 +1828,15 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![], vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_1.clone()], vec![]);
+        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
+        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_1.clone()]);
         index.add_commit_data(
             id_5.clone(),
             new_change_id(),
             vec![id_4.clone(), id_2.clone()],
-            vec![],
         );
 
         assert_eq!(
@@ -2067,20 +1909,18 @@ mod tests {
         let id_2 = CommitId::from_hex("222222");
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![], vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0], vec![]);
+        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
+        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0]);
         index.add_commit_data(
             id_3.clone(),
             new_change_id(),
             vec![id_1.clone(), id_2.clone()],
-            vec![],
         );
         index.add_commit_data(
             id_4.clone(),
             new_change_id(),
             vec![id_1.clone(), id_2.clone()],
-            vec![],
         );
 
         let mut common_ancestors = index.common_ancestors(&[id_3], &[id_4]);
@@ -2102,22 +1942,16 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![], vec![]);
-        index.add_commit_data(id_1, new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_3, new_change_id(), vec![id_0.clone()], vec![]);
+        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
+        index.add_commit_data(id_1, new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_3, new_change_id(), vec![id_0.clone()]);
         index.add_commit_data(
             id_4.clone(),
             new_change_id(),
             vec![id_0.clone(), id_2.clone()],
-            vec![],
         );
-        index.add_commit_data(
-            id_5.clone(),
-            new_change_id(),
-            vec![id_0, id_2.clone()],
-            vec![],
-        );
+        index.add_commit_data(id_5.clone(), new_change_id(), vec![id_0, id_2.clone()]);
 
         let mut common_ancestors = index.common_ancestors(&[id_4], &[id_5]);
         common_ancestors.sort();
@@ -2140,16 +1974,15 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![], vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_2.clone()], vec![]);
-        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_1.clone()], vec![]);
+        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
+        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_2.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_1.clone()]);
         index.add_commit_data(
             id_5.clone(),
             new_change_id(),
             vec![id_4.clone(), id_2.clone()],
-            vec![],
         );
 
         let walk_commit_ids = |wanted: &[CommitId], unwanted: &[CommitId]| {
@@ -2223,16 +2056,15 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![], vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()], vec![]);
-        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_2.clone()], vec![]);
-        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_1.clone()], vec![]);
+        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
+        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_2.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_1.clone()]);
         index.add_commit_data(
             id_5.clone(),
             new_change_id(),
             vec![id_4.clone(), id_2.clone()],
-            vec![],
         );
 
         // Empty input
