@@ -26,7 +26,7 @@ use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::file_util::persist_content_addressed_temp_file;
-use crate::index::{MutableIndex, ReadonlyIndex};
+use crate::index::{IndexLoadError, MutableIndex, ReadonlyIndex};
 use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::store::Store;
@@ -54,8 +54,18 @@ impl IndexStore {
         let op_id_hex = op.id().hex();
         let op_id_file = self.dir.join("operations").join(&op_id_hex);
         if op_id_file.exists() {
-            self.load_index_at_operation(store.hash_length(), op.id())
-                .unwrap()
+            match self.load_index_at_operation(store.hash_length(), op.id()) {
+                Err(IndexLoadError::IndexCorrupt(_)) => {
+                    // If the index was corrupt (maybe it was written in a different format),
+                    // we just reindex.
+                    // TODO: Move this message to a callback or something.
+                    println!("The index was corrupt (maybe the format has changed). Reindexing...");
+                    std::fs::remove_dir_all(self.dir.join("operations")).unwrap();
+                    std::fs::create_dir(self.dir.join("operations")).unwrap();
+                    self.index_at_operation(store, op).unwrap()
+                }
+                result => result.unwrap(),
+            }
         } else {
             self.index_at_operation(store, op).unwrap()
         }
@@ -69,7 +79,7 @@ impl IndexStore {
         &self,
         hash_length: usize,
         op_id: &OperationId,
-    ) -> io::Result<Arc<ReadonlyIndex>> {
+    ) -> Result<Arc<ReadonlyIndex>, IndexLoadError> {
         let op_id_file = self.dir.join("operations").join(op_id.hex());
         let mut buf = vec![];
         File::open(op_id_file)

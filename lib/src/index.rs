@@ -29,6 +29,7 @@ use blake2::{Blake2b, Digest};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use itertools::Itertools;
 use tempfile::NamedTempFile;
+use thiserror::Error;
 
 use crate::backend::{ChangeId, CommitId};
 use crate::commit::Commit;
@@ -217,6 +218,14 @@ impl CommitLookupEntry<'_> {
                 .unwrap(),
         )
     }
+}
+
+#[derive(Error, Debug)]
+pub enum IndexLoadError {
+    #[error("Index file '{0}' is corrupt.")]
+    IndexCorrupt(String),
+    #[error("I/O error while loading index file: {0}")]
+    IoError(#[from] io::Error),
 }
 
 // File format:
@@ -612,7 +621,14 @@ impl MutableIndex {
         persist_content_addressed_temp_file(temp_file, &index_file_path)?;
 
         let mut cursor = Cursor::new(&buf);
-        ReadonlyIndex::load_from(&mut cursor, dir, index_file_id_hex, hash_length)
+        ReadonlyIndex::load_from(&mut cursor, dir, index_file_id_hex, hash_length).map_err(|err| {
+            match err {
+                IndexLoadError::IndexCorrupt(err) => {
+                    panic!("Just-created index file is corrupt: {}", err)
+                }
+                IndexLoadError::IoError(err) => err,
+            }
+        })
     }
 
     pub fn num_commits(&self) -> u32 {
@@ -1389,7 +1405,7 @@ impl ReadonlyIndex {
         dir: PathBuf,
         name: String,
         hash_length: usize,
-    ) -> io::Result<Arc<ReadonlyIndex>> {
+    ) -> Result<Arc<ReadonlyIndex>, IndexLoadError> {
         let parent_filename_len = file.read_u32::<LittleEndian>()?;
         let num_parent_commits;
         let maybe_parent_file;
@@ -1420,7 +1436,9 @@ impl ReadonlyIndex {
         let predecessor_overflow_size = (num_predecessor_overflow_entries as usize) * 4;
         let expected_size =
             graph_size + lookup_size + parent_overflow_size + predecessor_overflow_size;
-        assert_eq!(data.len(), expected_size);
+        if data.len() != expected_size {
+            return Err(IndexLoadError::IndexCorrupt(name));
+        }
         let overflow_predecessor = data.split_off(graph_size + lookup_size + parent_overflow_size);
         let overflow_parent = data.split_off(graph_size + lookup_size);
         let lookup = data.split_off(graph_size);
