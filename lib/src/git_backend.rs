@@ -15,12 +15,9 @@
 use std::fmt::{Debug, Error, Formatter};
 use std::fs::File;
 use std::io::{Cursor, Read, Write};
-use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use std::time::Duration;
 
-use backoff::{ExponentialBackoff, Operation};
 use git2::Oid;
 use itertools::Itertools;
 use protobuf::Message;
@@ -32,7 +29,9 @@ use crate::backend::{
     TreeValue,
 };
 use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::stacked_table::{TableSegment, TableStore};
 
+const HASH_LENGTH: usize = 20;
 /// Ref namespace used only for preventing GC.
 const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
 /// Notes ref for commit metadata
@@ -51,33 +50,41 @@ impl From<git2::Error> for BackendError {
 pub struct GitBackend {
     repo: Mutex<git2::Repository>,
     empty_tree_id: TreeId,
+    extra_metadata_store: TableStore,
 }
 
 impl GitBackend {
-    fn new(repo: git2::Repository) -> Self {
+    fn new(repo: git2::Repository, extra_metadata_store: TableStore) -> Self {
         let empty_tree_id =
             TreeId(hex::decode("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap());
         GitBackend {
             repo: Mutex::new(repo),
             empty_tree_id,
+            extra_metadata_store,
         }
     }
 
     pub fn init_internal(store_path: PathBuf) -> Self {
         let git_repo = git2::Repository::init_bare(&store_path.join("git")).unwrap();
+        let extra_path = store_path.join("extra");
+        std::fs::create_dir(&extra_path).unwrap();
         let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
         git_target_file.write_all(b"git").unwrap();
-        GitBackend::new(git_repo)
+        let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
+        GitBackend::new(git_repo, extra_metadata_store)
     }
 
     pub fn init_external(store_path: PathBuf, git_repo_path: PathBuf) -> Self {
         let git_repo_path = std::fs::canonicalize(git_repo_path).unwrap();
+        let extra_path = store_path.join("extra");
+        std::fs::create_dir(&extra_path).unwrap();
         let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
         git_target_file
             .write_all(git_repo_path.to_str().unwrap().as_bytes())
             .unwrap();
         let repo = git2::Repository::open(git_repo_path).unwrap();
-        GitBackend::new(repo)
+        let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
+        GitBackend::new(repo, extra_metadata_store)
     }
 
     pub fn load(store_path: PathBuf) -> Self {
@@ -87,7 +94,40 @@ impl GitBackend {
         let git_repo_path_str = String::from_utf8(buf).unwrap();
         let git_repo_path = std::fs::canonicalize(store_path.join(git_repo_path_str)).unwrap();
         let repo = git2::Repository::open(git_repo_path).unwrap();
-        GitBackend::new(repo)
+        // TODO: Delete this migration code in early 2022 or so
+        if let Ok(notes) = repo.notes(Some(COMMITS_NOTES_REF)) {
+            let extra_path = store_path.join("extra");
+            let extra_metadata_store = if std::fs::create_dir(&extra_path).is_ok() {
+                // It's fine if it already exists. That probably means that we have already done
+                // a migration but the user ran an old version in the repo
+                // afterwards, which resulted in more notes to migrate.
+                TableStore::init(extra_path, HASH_LENGTH)
+            } else {
+                TableStore::load(extra_path, HASH_LENGTH)
+            };
+            let mut mut_table = extra_metadata_store
+                .get_head()
+                .unwrap()
+                .start_modification();
+            println!(
+                "Found Git notes ref {}, migrating it to a new format...",
+                COMMITS_NOTES_REF
+            );
+            for note in notes {
+                let (note_id, commit_id) = note.unwrap();
+                let note = repo.find_blob(note_id).unwrap();
+                let note_bytes = hex::decode(note.content()).unwrap();
+                mut_table.add_entry(commit_id.as_bytes().to_vec(), note_bytes);
+            }
+            extra_metadata_store.save_table(mut_table).unwrap();
+            repo.find_reference(COMMITS_NOTES_REF)
+                .unwrap()
+                .delete()
+                .unwrap();
+            println!("Migration complete");
+        }
+        let extra_metadata_store = TableStore::load(store_path.join("extra"), HASH_LENGTH);
+        GitBackend::new(repo, extra_metadata_store)
     }
 }
 
@@ -116,19 +156,17 @@ fn signature_to_git(signature: &Signature) -> git2::Signature {
     git2::Signature::new(name, email, &time).unwrap()
 }
 
-fn serialize_note(commit: &Commit) -> String {
+fn serialize_extras(commit: &Commit) -> Vec<u8> {
     let mut proto = crate::protos::store::Commit::new();
     proto.is_open = commit.is_open;
     proto.change_id = commit.change_id.0.to_vec();
     for predecessor in &commit.predecessors {
         proto.predecessors.push(predecessor.0.to_vec());
     }
-    let bytes = proto.write_to_bytes().unwrap();
-    hex::encode(bytes)
+    proto.write_to_bytes().unwrap()
 }
 
-fn deserialize_note(commit: &mut Commit, note: &str) {
-    let bytes = hex::decode(note).unwrap();
+fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
     let mut cursor = Cursor::new(bytes);
     let proto: crate::protos::store::Commit = Message::parse_from_reader(&mut cursor).unwrap();
     commit.is_open = proto.is_open;
@@ -150,41 +188,6 @@ fn create_no_gc_ref() -> String {
     no_gc_ref
 }
 
-fn write_note(
-    git_repo: &git2::Repository,
-    committer: &git2::Signature,
-    notes_ref: &str,
-    oid: git2::Oid,
-    note: &str,
-) -> Result<(), git2::Error> {
-    // It seems that libgit2 doesn't retry when .git/refs/notes/jj/commits.lock
-    // already exists, so we do the retrying ourselves.
-    // TODO: Report this to libgit2.
-    let notes_ref_lock = format!("{}.lock", notes_ref);
-    let mut try_write_note = || {
-        let note_status = git_repo.note(committer, committer, Some(notes_ref), oid, note, false);
-        match note_status {
-            Err(err) if err.message().contains(&notes_ref_lock) => {
-                Err(backoff::Error::Transient(err))
-            }
-            Err(err) => Err(backoff::Error::Permanent(err)),
-            Ok(_) => Ok(()),
-        }
-    };
-    let mut backoff = ExponentialBackoff {
-        initial_interval: Duration::from_millis(1),
-        max_elapsed_time: Some(Duration::from_secs(10)),
-        ..Default::default()
-    };
-    try_write_note
-        .retry(&mut backoff)
-        .map_err(|err| match err {
-            backoff::Error::Permanent(err) => err,
-            backoff::Error::Transient(err) => err,
-        })?;
-    Ok(())
-}
-
 impl Debug for GitBackend {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         f.debug_struct("GitStore")
@@ -195,7 +198,7 @@ impl Debug for GitBackend {
 
 impl Backend for GitBackend {
     fn hash_length(&self) -> usize {
-        20
+        HASH_LENGTH
     }
 
     fn git_repo(&self) -> Option<git2::Repository> {
@@ -354,7 +357,7 @@ impl Backend for GitBackend {
         // leading 16 bytes to address that. We also reverse the bits to make it less
         // likely that users depend on any relationship between the two ids.
         let change_id = ChangeId(
-            id.0.clone().as_slice()[4..20]
+            id.0.clone().as_slice()[4..HASH_LENGTH]
                 .iter()
                 .rev()
                 .map(|b| b.reverse_bits())
@@ -380,11 +383,10 @@ impl Backend for GitBackend {
             is_open: false,
         };
 
-        let maybe_note = locked_repo
-            .find_note(Some(COMMITS_NOTES_REF), git_commit_id)
-            .ok();
-        if let Some(note) = maybe_note {
-            deserialize_note(&mut commit, note.message().unwrap());
+        let table = self.extra_metadata_store.get_head()?;
+        let maybe_extras = table.get_value(git_commit_id.as_bytes());
+        if let Some(extras) = maybe_extras {
+            deserialize_extras(&mut commit, extras);
         }
 
         Ok(commit)
@@ -415,18 +417,22 @@ impl Backend for GitBackend {
             &parent_refs,
         )?;
         let id = CommitId(git_id.as_bytes().to_vec());
-        let note = serialize_note(contents);
-
-        // TODO: Include the extra commit data in commit headers instead of a ref.
-        // Unfortunately, it doesn't seem like libgit2-rs supports that. Perhaps
-        // we'll have to serialize/deserialize the commit data ourselves.
-        write_note(
-            locked_repo.deref(),
-            &committer,
-            COMMITS_NOTES_REF,
-            git_id,
-            &note,
-        )?;
+        let extras = serialize_extras(contents);
+        let mut mut_table = self
+            .extra_metadata_store
+            .get_head()
+            .unwrap()
+            .start_modification();
+        if let Some(existing_extras) = mut_table.get_value(git_id.as_bytes()) {
+            if existing_extras != extras.as_slice() {
+                return Err(BackendError::Other(format!(
+                    "Git commit '{}' already exists with different associated non-Git meta-data",
+                    id.hex()
+                )));
+            }
+        }
+        mut_table.add_entry(git_id.as_bytes().to_vec(), extras);
+        self.extra_metadata_store.save_table(mut_table).unwrap();
         Ok(id)
     }
 
@@ -700,7 +706,7 @@ mod tests {
         let commit_id1 = store.write_commit(&commit1).unwrap();
         let mut commit2 = commit1;
         commit2.predecessors.push(commit_id1.clone());
-        let expected_error_message = format!("note for '{}' exists already", commit_id1.hex());
+        let expected_error_message = format!("Git commit '{}' already exists", commit_id1.hex());
         match store.write_commit(&commit2) {
             Ok(_) => {
                 panic!("expectedly successfully wrote two commits with the same git commit object")
