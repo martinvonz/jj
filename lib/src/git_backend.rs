@@ -13,9 +13,10 @@
 // limitations under the License.
 
 use std::fmt::{Debug, Error, Formatter};
-use std::io::{Cursor, Read};
+use std::fs::File;
+use std::io::{Cursor, Read, Write};
 use std::ops::Deref;
-use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -53,14 +54,40 @@ pub struct GitBackend {
 }
 
 impl GitBackend {
-    pub fn load(path: &Path) -> Self {
-        let repo = Mutex::new(git2::Repository::open(path).unwrap());
+    fn new(repo: git2::Repository) -> Self {
         let empty_tree_id =
             TreeId(hex::decode("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap());
         GitBackend {
-            repo,
+            repo: Mutex::new(repo),
             empty_tree_id,
         }
+    }
+
+    pub fn init_internal(store_path: PathBuf) -> Self {
+        let git_repo = git2::Repository::init_bare(&store_path.join("git")).unwrap();
+        let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
+        git_target_file.write_all(b"git").unwrap();
+        GitBackend::new(git_repo)
+    }
+
+    pub fn init_external(store_path: PathBuf, git_repo_path: PathBuf) -> Self {
+        let git_repo_path = std::fs::canonicalize(git_repo_path).unwrap();
+        let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
+        git_target_file
+            .write_all(git_repo_path.to_str().unwrap().as_bytes())
+            .unwrap();
+        let repo = git2::Repository::open(git_repo_path).unwrap();
+        GitBackend::new(repo)
+    }
+
+    pub fn load(store_path: PathBuf) -> Self {
+        let mut git_target_file = File::open(store_path.join("git_target")).unwrap();
+        let mut buf = Vec::new();
+        git_target_file.read_to_end(&mut buf).unwrap();
+        let git_repo_path_str = String::from_utf8(buf).unwrap();
+        let git_repo_path = std::fs::canonicalize(store_path.join(git_repo_path_str)).unwrap();
+        let repo = git2::Repository::open(git_repo_path).unwrap();
+        GitBackend::new(repo)
     }
 }
 
@@ -510,8 +537,9 @@ mod tests {
     #[test]
     fn read_plain_git_commit() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let git_repo_path = temp_dir.path();
-        let git_repo = git2::Repository::init(git_repo_path).unwrap();
+        let store_path = temp_dir.path().to_path_buf();
+        let git_repo_path = temp_dir.path().join("git");
+        let git_repo = git2::Repository::init(&git_repo_path).unwrap();
 
         // Add a commit with some files in
         let blob1 = git_repo.blob(b"content1").unwrap();
@@ -554,7 +582,7 @@ mod tests {
         // Check that the git commit above got the hash we expect
         assert_eq!(git_commit_id.as_bytes(), &commit_id.0);
 
-        let store = GitBackend::load(git_repo_path);
+        let store = GitBackend::init_external(store_path, git_repo_path);
         let commit = store.read_commit(&commit_id).unwrap();
         assert_eq!(&commit.change_id, &change_id);
         assert_eq!(commit.parents, vec![]);
@@ -617,9 +645,7 @@ mod tests {
     #[test]
     fn commit_has_ref() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let git_repo_path = temp_dir.path();
-        let git_repo = git2::Repository::init(git_repo_path).unwrap();
-        let store = GitBackend::load(git_repo_path);
+        let store = GitBackend::init_internal(temp_dir.path().to_path_buf());
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),
@@ -639,7 +665,9 @@ mod tests {
             is_open: false,
         };
         let commit_id = store.write_commit(&commit).unwrap();
-        let git_refs = git_repo
+        let git_refs = store
+            .git_repo()
+            .unwrap()
             .references_glob("refs/jj/keep/*")
             .unwrap()
             .map(|git_ref| git_ref.unwrap().target().unwrap())
@@ -650,9 +678,7 @@ mod tests {
     #[test]
     fn overlapping_git_commit_id() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let git_repo_path = temp_dir.path();
-        git2::Repository::init(git_repo_path).unwrap();
-        let store = GitBackend::load(git_repo_path);
+        let store = GitBackend::init_internal(temp_dir.path().to_path_buf());
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),

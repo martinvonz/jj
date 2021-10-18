@@ -13,9 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-use std::fs;
-use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
@@ -57,34 +55,21 @@ impl Store {
     }
 
     pub fn init_internal_git(store_path: PathBuf) -> Arc<Self> {
-        let git_repo_path = store_path.join("git");
-        git2::Repository::init_bare(&git_repo_path).unwrap();
-        let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
-        git_target_file.write_all(b"git").unwrap();
-        Store::new(Box::new(GitBackend::load(&git_repo_path)))
+        Store::new(Box::new(GitBackend::init_internal(store_path)))
     }
 
     pub fn init_external_git(store_path: PathBuf, git_repo_path: PathBuf) -> Arc<Self> {
-        let git_repo_path = fs::canonicalize(git_repo_path).unwrap();
-        let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
-        git_target_file
-            .write_all(git_repo_path.to_str().unwrap().as_bytes())
-            .unwrap();
-        Store::new(Box::new(GitBackend::load(&git_repo_path)))
+        Store::new(Box::new(GitBackend::init_external(
+            store_path,
+            git_repo_path,
+        )))
     }
 
     pub fn load_store(store_path: PathBuf) -> Arc<Store> {
         let backend: Box<dyn Backend>;
         let git_target_path = store_path.join("git_target");
         if git_target_path.is_file() {
-            let mut git_target_file = File::open(git_target_path).unwrap();
-            let mut buf = Vec::new();
-            git_target_file.read_to_end(&mut buf).unwrap();
-            let git_backend_path_str = String::from_utf8(buf).unwrap();
-            let git_backend_path =
-                std::fs::canonicalize(store_path.join(PathBuf::from(git_backend_path_str)))
-                    .unwrap();
-            backend = Box::new(GitBackend::load(&git_backend_path));
+            backend = Box::new(GitBackend::load(store_path));
         } else {
             backend = Box::new(LocalBackend::load(store_path));
         }
