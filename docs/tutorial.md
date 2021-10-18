@@ -9,7 +9,7 @@ If you haven't already, make sure you
 
 ## Cloning a Git repo
 
-Now let's clone the same repo using `jj`:
+Let's start by cloning the Jujutsu Git repo using `jj`:
 ```shell script
 # Note the "git" before "clone" (there is no support for cloning native jj
 # repos yet)
