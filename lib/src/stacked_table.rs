@@ -21,12 +21,12 @@
 extern crate byteorder;
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
 use std::io;
 use std::io::{Cursor, Read, Write};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use blake2::{Blake2b, Digest};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -369,12 +369,17 @@ impl TableSegment for MutableTable {
 pub struct TableStore {
     dir: PathBuf,
     key_size: usize,
+    cached_tables: RwLock<HashMap<String, Arc<ReadonlyTable>>>,
 }
 
 impl TableStore {
     pub fn init(dir: PathBuf, key_size: usize) -> Self {
         std::fs::create_dir(dir.join("heads")).unwrap();
-        TableStore { dir, key_size }
+        TableStore {
+            dir,
+            key_size,
+            cached_tables: Default::default(),
+        }
     }
 
     pub fn reinit(&self) {
@@ -387,7 +392,11 @@ impl TableStore {
     }
 
     pub fn load(dir: PathBuf, key_size: usize) -> Self {
-        TableStore { dir, key_size }
+        TableStore {
+            dir,
+            key_size,
+            cached_tables: Default::default(),
+        }
     }
 
     pub fn save_table(&self, mut_table: MutableTable) -> io::Result<Arc<ReadonlyTable>> {
@@ -396,6 +405,10 @@ impl TableStore {
         self.add_head(&table)?;
         if let Some(parent_table) = maybe_parent_table {
             self.remove_head(&parent_table);
+        }
+        {
+            let mut locked_cache = self.cached_tables.write().unwrap();
+            locked_cache.insert(table.name.clone(), table.clone());
         }
         Ok(table)
     }
@@ -417,10 +430,20 @@ impl TableStore {
     }
 
     fn load_table(&self, name: String) -> std::io::Result<Arc<ReadonlyTable>> {
-        // TODO: Add caching
+        {
+            let read_locked_cached = self.cached_tables.read().unwrap();
+            if let Some(table) = read_locked_cached.get(&name).cloned() {
+                return Ok(table);
+            }
+        }
         let table_file_path = self.dir.join(&name);
         let mut table_file = File::open(&table_file_path)?;
-        ReadonlyTable::load_from(&mut table_file, self, name, self.key_size)
+        let table = ReadonlyTable::load_from(&mut table_file, self, name, self.key_size)?;
+        {
+            let mut write_locked_cache = self.cached_tables.write().unwrap();
+            write_locked_cache.insert(table.name.clone(), table.clone());
+        }
+        Ok(table)
     }
 
     fn get_head_tables(&self) -> io::Result<Vec<Arc<ReadonlyTable>>> {
