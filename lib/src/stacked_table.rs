@@ -664,8 +664,9 @@ mod tests {
         assert_eq!(merged_table.get_value(b"abd"), Some(b"value 2".as_slice()));
         assert_eq!(merged_table.get_value(b"abe"), Some(b"value 4".as_slice()));
         // The caller shouldn't write two values for the same key, so it's undefined
-        // which wins, but let's test how it currently behaves.
-        assert_eq!(merged_table.get_value(b"mmm"), Some(b"side 1".as_slice()));
+        // which wins.
+        let value_mmm = merged_table.get_value(b"mmm");
+        assert!(value_mmm == Some(b"side 1".as_slice()) || value_mmm == Some(b"side 2".as_slice()));
         assert_eq!(merged_table.get_value(b"yyy"), Some(b"val5".as_slice()));
         assert_eq!(merged_table.get_value(b"zzz"), Some(b"val3".as_slice()));
         assert_eq!(merged_table.get_value(b"\xff\xff\xff"), None);
