@@ -80,7 +80,6 @@ fn test_import_refs() {
         commit_id(&commit5)
     };
     assert_eq!(*view.heads(), expected_heads);
-    assert_eq!(*view.public_heads(), hashset!(commit_id(&commit1)));
 
     let expected_main_branch = BranchTarget {
         local_target: Some(RefTarget::Normal(commit_id(&commit2))),

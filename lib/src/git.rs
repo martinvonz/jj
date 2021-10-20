@@ -75,11 +75,8 @@ pub fn import_refs(
         let id = CommitId(git_commit.id().as_bytes().to_vec());
         let commit = store.get_commit(&id).unwrap();
         mut_repo.add_head(&commit);
-        // For now, we consider all remotes "publishing".
-        // TODO: Make it configurable which remotes are publishing.
-        if git_ref.is_remote() {
-            mut_repo.add_public_head(&commit);
-        }
+        // TODO: Make it configurable which remotes are publishing and update public
+        // heads here.
         let full_name = git_ref.name().unwrap().to_string();
         mut_repo.set_git_ref(full_name.clone(), RefTarget::Normal(id.clone()));
         let old_target = existing_git_refs.remove(&full_name);
