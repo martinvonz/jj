@@ -3209,7 +3209,6 @@ fn format_timestamp(timestamp: &Timestamp) -> String {
 fn cmd_op_log(
     ui: &mut Ui,
     command: &CommandHelper,
-    _op_matches: &ArgMatches,
     _cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo_command = command.repo_helper(ui)?;
@@ -3283,7 +3282,6 @@ fn cmd_op_log(
 fn cmd_op_undo(
     ui: &mut Ui,
     command: &CommandHelper,
-    _op_matches: &ArgMatches,
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
@@ -3312,7 +3310,6 @@ fn cmd_op_undo(
 fn cmd_op_restore(
     ui: &mut Ui,
     command: &CommandHelper,
-    _op_matches: &ArgMatches,
     _cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
@@ -3332,11 +3329,11 @@ fn cmd_operation(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     if let Some(command_matches) = sub_matches.subcommand_matches("log") {
-        cmd_op_log(ui, command, sub_matches, command_matches)?;
+        cmd_op_log(ui, command, command_matches)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("undo") {
-        cmd_op_undo(ui, command, sub_matches, command_matches)?;
+        cmd_op_undo(ui, command, command_matches)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("restore") {
-        cmd_op_restore(ui, command, sub_matches, command_matches)?;
+        cmd_op_restore(ui, command, command_matches)?;
     } else {
         panic!("unhandled command: {:#?}", command.root_matches());
     }
@@ -3355,13 +3352,12 @@ fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
 fn cmd_git_remote(
     ui: &mut Ui,
     command: &CommandHelper,
-    _git_matches: &ArgMatches,
     remote_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     if let Some(command_matches) = remote_matches.subcommand_matches("add") {
-        cmd_git_remote_add(ui, command, remote_matches, remote_matches, command_matches)?;
+        cmd_git_remote_add(ui, command, command_matches)?;
     } else if let Some(command_matches) = remote_matches.subcommand_matches("remove") {
-        cmd_git_remote_remove(ui, command, remote_matches, remote_matches, command_matches)?;
+        cmd_git_remote_remove(ui, command, command_matches)?;
     } else {
         panic!("unhandled command: {:#?}", command.root_matches());
     }
@@ -3371,8 +3367,6 @@ fn cmd_git_remote(
 fn cmd_git_remote_add(
     ui: &mut Ui,
     command: &CommandHelper,
-    _git_matches: &ArgMatches,
-    _remote_matches: &ArgMatches,
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let repo_command = command.repo_helper(ui)?;
@@ -3392,8 +3386,6 @@ fn cmd_git_remote_add(
 fn cmd_git_remote_remove(
     ui: &mut Ui,
     command: &CommandHelper,
-    _git_matches: &ArgMatches,
-    _remote_matches: &ArgMatches,
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
@@ -3425,7 +3417,6 @@ fn cmd_git_remote_remove(
 fn cmd_git_fetch(
     ui: &mut Ui,
     command: &CommandHelper,
-    _git_matches: &ArgMatches,
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
@@ -3450,7 +3441,6 @@ fn clone_destination_for_source(source: &str) -> Option<&str> {
 fn cmd_git_clone(
     ui: &mut Ui,
     _command: &CommandHelper,
-    _git_matches: &ArgMatches,
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let source = cmd_matches.value_of("source").unwrap();
@@ -3507,7 +3497,6 @@ fn cmd_git_clone(
 fn cmd_git_push(
     ui: &mut Ui,
     command: &CommandHelper,
-    _git_matches: &ArgMatches,
     cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
@@ -3614,7 +3603,6 @@ fn cmd_git_push(
 fn cmd_git_import(
     ui: &mut Ui,
     command: &CommandHelper,
-    _git_matches: &ArgMatches,
     _cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
@@ -3633,15 +3621,15 @@ fn cmd_git(
     sub_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     if let Some(command_matches) = sub_matches.subcommand_matches("remote") {
-        cmd_git_remote(ui, command, sub_matches, command_matches)?;
+        cmd_git_remote(ui, command, command_matches)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("fetch") {
-        cmd_git_fetch(ui, command, sub_matches, command_matches)?;
+        cmd_git_fetch(ui, command, command_matches)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("clone") {
-        cmd_git_clone(ui, command, sub_matches, command_matches)?;
+        cmd_git_clone(ui, command, command_matches)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("push") {
-        cmd_git_push(ui, command, sub_matches, command_matches)?;
+        cmd_git_push(ui, command, command_matches)?;
     } else if let Some(command_matches) = sub_matches.subcommand_matches("import") {
-        cmd_git_import(ui, command, sub_matches, command_matches)?;
+        cmd_git_import(ui, command, command_matches)?;
     } else {
         panic!("unhandled command: {:#?}", command.root_matches());
     }
