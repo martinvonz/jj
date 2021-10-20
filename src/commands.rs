@@ -3284,11 +3284,11 @@ fn cmd_op_undo(
     ui: &mut Ui,
     command: &CommandHelper,
     _op_matches: &ArgMatches,
-    _cmd_matches: &ArgMatches,
+    cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
-    let bad_op = resolve_single_op(repo, _cmd_matches.value_of("operation").unwrap())?;
+    let bad_op = resolve_single_op(repo, cmd_matches.value_of("operation").unwrap())?;
     let parent_ops = bad_op.parents();
     if parent_ops.len() > 1 {
         return Err(CommandError::UserError(
