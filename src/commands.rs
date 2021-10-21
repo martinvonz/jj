@@ -1036,6 +1036,9 @@ List branches and their targets. A remote branch will be included only if its ta
 
 See `jj concepts branches` for information about branches.",
         );
+    let undo_command = SubCommand::with_name("undo")
+        .about("Undo an operation")
+        .arg(op_arg().help("The operation to undo"));
     let operation_command = SubCommand::with_name("operation")
         .alias("op")
         .about("Commands for working with the operation log")
@@ -1045,16 +1048,13 @@ See `jj concepts branches` for information about branches.",
         )
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(SubCommand::with_name("log").about("Show the operation log"))
-        .subcommand(
-            SubCommand::with_name("undo")
-                .about("Undo an operation")
-                .arg(op_arg().help("The operation to undo")),
-        )
+        .subcommand(undo_command.clone())
         .subcommand(
             SubCommand::with_name("restore")
                 .about("Restore to the state at an operation")
                 .arg(op_arg().help("The operation to restore to")),
         );
+    let undo_command = undo_command.about("Undo an operation (shortcut for `jj op undo`)");
     let git_command = SubCommand::with_name("git")
         .about("Commands for working with the underlying Git repo")
         .long_about(
@@ -1303,6 +1303,7 @@ It is possible to mutating commands when loading the repo at an earlier operatio
         branch_command,
         branches_command,
         operation_command,
+        undo_command,
         git_command,
         bench_command,
         debug_command,
@@ -3270,6 +3271,10 @@ fn cmd_operation(
     Ok(())
 }
 
+fn cmd_undo(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
+    cmd_op_undo(ui, command, args)
+}
+
 fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     match store.git_repo() {
         None => Err(CommandError::UserError(
@@ -3871,6 +3876,8 @@ where
         cmd_branches(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("operation") {
         cmd_operation(&mut ui, &command_helper, sub_args)
+    } else if let Some(sub_args) = matches.subcommand_matches("undo") {
+        cmd_undo(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("git") {
         cmd_git(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("bench") {
