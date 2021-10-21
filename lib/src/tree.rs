@@ -634,7 +634,17 @@ fn merge_tree_value(
                             value: side2.clone(),
                         });
                     }
-                    simplify_conflict(store, &conflict)?
+                    let conflict = simplify_conflict(store, &conflict)?;
+                    if conflict.adds.is_empty() {
+                        // If there are no values to add, then the path doesn't exist
+                        None
+                    } else if conflict.removes.is_empty() && conflict.adds.len() == 1 {
+                        // A single add means that the current state is that state.
+                        Some(conflict.adds[0].value.clone())
+                    } else {
+                        let conflict_id = store.write_conflict(&conflict)?;
+                        Some(TreeValue::Conflict(conflict_id))
+                    }
                 }
             }
         }
@@ -659,7 +669,7 @@ fn conflict_part_to_conflict(store: &Store, part: &ConflictPart) -> Result<Confl
 fn simplify_conflict(
     store: &Store,
     conflict: &Conflict,
-) -> Result<Option<TreeValue>, BackendError> {
+) -> Result<Conflict, BackendError> {
     // Important cases to simplify:
     //
     // D
@@ -738,20 +748,8 @@ fn simplify_conflict(
     // {+A+A}, that would become just {+A}. Similarly {+B-A+B} would be just
     // {+B-A}.
 
-    if new_adds.is_empty() {
-        // If there are no values to add, then the path doesn't exist (so return None to
-        // indicate that).
-        return Ok(None);
-    }
-
-    if new_removes.is_empty() && new_adds.len() == 1 {
-        // A single add means that the current state is that state.
-        return Ok(Some(new_adds[0].value.clone()));
-    }
-
-    let conflict_id = store.write_conflict(&Conflict {
+    Ok(Conflict {
         adds: new_adds,
         removes: new_removes,
-    })?;
-    Ok(Some(TreeValue::Conflict(conflict_id)))
+    })
 }
