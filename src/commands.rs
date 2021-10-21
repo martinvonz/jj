@@ -3310,11 +3310,11 @@ fn cmd_op_undo(
 fn cmd_op_restore(
     ui: &mut Ui,
     command: &CommandHelper,
-    _cmd_matches: &ArgMatches,
+    cmd_matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
     let repo = repo_command.repo();
-    let target_op = resolve_single_op(repo, _cmd_matches.value_of("operation").unwrap())?;
+    let target_op = resolve_single_op(repo, cmd_matches.value_of("operation").unwrap())?;
     let mut tx =
         repo_command.start_transaction(&format!("restore to operation {}", target_op.id().hex()));
     tx.mut_repo().set_view(target_op.view().take_store_view());
