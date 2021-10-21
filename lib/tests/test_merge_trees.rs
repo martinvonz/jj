@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![feature(assert_matches)]
+
+use std::assert_matches::assert_matches;
+
 use itertools::Itertools;
 use jujutsu_lib::backend::{ConflictPart, TreeValue};
+use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
+use jujutsu_lib::rewrite::rebase_commit;
 use jujutsu_lib::tree::Tree;
 use jujutsu_lib::{testutils, tree};
 use test_case::test_case;
@@ -558,3 +564,81 @@ fn test_simplify_conflict(use_git: bool) {
         _ => panic!("unexpected value"),
     };
 }
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+
+    // Set up a repo like this:
+    // D
+    // | C
+    // | B
+    // |/
+    // A
+    //
+    // Commit A has a file with 3 lines. B and D make conflicting changes to the
+    // first line. C changes the third line. We then rebase B and C onto D,
+    // which creates a conflict. We resolve the conflict in the first line and
+    // rebase C2 (the rebased C) onto the resolved conflict. C3 should not have
+    // a conflict since it changed an unrelated line.
+    let path = RepoPath::from_internal_string("dir/file");
+    let mut tx = repo.start_transaction("test");
+    let tree_a = testutils::create_tree(&repo, &[(&path, "abc\ndef\nghi\n")]);
+    let commit_a = CommitBuilder::for_new_commit(&settings, repo.store(), tree_a.id().clone())
+        .write_to_repo(tx.mut_repo());
+    let tree_b = testutils::create_tree(&repo, &[(&path, "Abc\ndef\nghi\n")]);
+    let commit_b = CommitBuilder::for_new_commit(&settings, repo.store(), tree_b.id().clone())
+        .set_parents(vec![commit_a.id().clone()])
+        .write_to_repo(tx.mut_repo());
+    let tree_c = testutils::create_tree(&repo, &[(&path, "Abc\ndef\nGhi\n")]);
+    let commit_c = CommitBuilder::for_new_commit(&settings, repo.store(), tree_c.id().clone())
+        .set_parents(vec![commit_b.id().clone()])
+        .write_to_repo(tx.mut_repo());
+    let tree_d = testutils::create_tree(&repo, &[(&path, "abC\ndef\nghi\n")]);
+    let commit_d = CommitBuilder::for_new_commit(&settings, repo.store(), tree_d.id().clone())
+        .set_parents(vec![commit_a.id().clone()])
+        .write_to_repo(tx.mut_repo());
+
+    let commit_b2 = rebase_commit(&settings, tx.mut_repo(), &commit_b, &[commit_d]);
+    let commit_c2 = rebase_commit(&settings, tx.mut_repo(), &commit_c, &[commit_b2.clone()]);
+
+    // Test the setup: Both B and C should have conflicts.
+    assert_matches!(
+        commit_b2.tree().path_value(&path),
+        Some(TreeValue::Conflict(_))
+    );
+    assert_matches!(
+        commit_c2.tree().path_value(&path),
+        Some(TreeValue::Conflict(_))
+    );
+
+    // Create the resolved B and rebase C on top.
+    let tree_b3 = testutils::create_tree(&repo, &[(&path, "AbC\ndef\nghi\n")]);
+    let commit_b3 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b2)
+        .set_tree(tree_b3.id().clone())
+        .write_to_repo(tx.mut_repo());
+    let commit_c3 = rebase_commit(&settings, tx.mut_repo(), &commit_c2, &[commit_b3]);
+    let repo = tx.commit();
+
+    // The conflict should now be resolved.
+    let resolved_value = commit_c3.tree().path_value(&path);
+    match resolved_value {
+        Some(TreeValue::Normal {
+            id,
+            executable: false,
+        }) => {
+            assert_eq!(
+                testutils::read_file(repo.store(), &path, &id).as_slice(),
+                b"AbC\ndef\nGhi\n"
+            );
+        }
+        other => {
+            panic!("unexpected value: {:#?}", other);
+        }
+    }
+}
+
+// TODO: Add tests for simplification of multi-way conflicts. Both the content
+// and the executable bit need testing.

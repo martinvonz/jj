@@ -14,7 +14,7 @@
 
 use std::fs;
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -61,6 +61,13 @@ pub fn init_repo(settings: &UserSettings, use_git: bool) -> (TempDir, Arc<Readon
     };
 
     (temp_dir, repo)
+}
+
+pub fn read_file(store: &Store, path: &RepoPath, id: &FileId) -> Vec<u8> {
+    let mut reader = store.read_file(path, id).unwrap();
+    let mut content = vec![];
+    reader.read_to_end(&mut content).unwrap();
+    content
 }
 
 pub fn write_file(store: &Store, path: &RepoPath, contents: &str) -> FileId {

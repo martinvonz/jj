@@ -19,6 +19,8 @@ use std::iter::Peekable;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use itertools::Itertools;
+
 use crate::backend::{
     BackendError, Conflict, ConflictId, ConflictPart, TreeEntriesNonRecursiveIter, TreeEntry,
     TreeId, TreeValue,
@@ -546,6 +548,7 @@ fn merge_tree_value(
     //   * try to resolve file conflicts by merging the file contents
     //   * leave other conflicts (e.g. file/dir conflicts, remove/modify conflicts)
     //     unresolved
+
     Ok(match (maybe_base, maybe_side1, maybe_side2) {
         (
             Some(TreeValue::Tree(base)),
@@ -565,90 +568,122 @@ fn merge_tree_value(
             }
         }
         _ => {
-            let maybe_merged = match (maybe_base, maybe_side1, maybe_side2) {
-                (
-                    Some(TreeValue::Normal {
-                        id: base_id,
-                        executable: base_executable,
-                    }),
-                    Some(TreeValue::Normal {
-                        id: side1_id,
-                        executable: side1_executable,
-                    }),
-                    Some(TreeValue::Normal {
-                        id: side2_id,
-                        executable: side2_executable,
-                    }),
-                ) => {
-                    let executable = if base_executable == side1_executable {
-                        *side2_executable
-                    } else if base_executable == side2_executable {
-                        *side1_executable
-                    } else {
-                        assert_eq!(side1_executable, side2_executable);
-                        *side1_executable
-                    };
-
-                    let filename = dir.join(basename);
-                    let mut base_content = vec![];
-                    store
-                        .read_file(&filename, base_id)?
-                        .read_to_end(&mut base_content)?;
-                    let mut side1_content = vec![];
-                    store
-                        .read_file(&filename, side1_id)?
-                        .read_to_end(&mut side1_content)?;
-                    let mut side2_content = vec![];
-                    store
-                        .read_file(&filename, side2_id)?
-                        .read_to_end(&mut side2_content)?;
-
-                    let merge_result =
-                        files::merge(&[&base_content], &[&side1_content, &side2_content]);
-                    match merge_result {
-                        MergeResult::Resolved(merged_content) => {
-                            let id = store.write_file(&filename, &mut merged_content.as_slice())?;
-                            Some(TreeValue::Normal { id, executable })
-                        }
-                        MergeResult::Conflict(_) => None,
-                    }
-                }
-                _ => None,
-            };
-            match maybe_merged {
-                Some(merged) => Some(merged),
-                None => {
-                    let mut conflict = Conflict::default();
-                    if let Some(base) = maybe_base {
-                        conflict.removes.push(ConflictPart {
-                            value: base.clone(),
-                        });
-                    }
-                    if let Some(side1) = maybe_side1 {
-                        conflict.adds.push(ConflictPart {
-                            value: side1.clone(),
-                        });
-                    }
-                    if let Some(side2) = maybe_side2 {
-                        conflict.adds.push(ConflictPart {
-                            value: side2.clone(),
-                        });
-                    }
-                    let conflict = simplify_conflict(store, &conflict)?;
-                    if conflict.adds.is_empty() {
-                        // If there are no values to add, then the path doesn't exist
-                        None
-                    } else if conflict.removes.is_empty() && conflict.adds.len() == 1 {
-                        // A single add means that the current state is that state.
-                        Some(conflict.adds[0].value.clone())
-                    } else {
-                        let conflict_id = store.write_conflict(&conflict)?;
-                        Some(TreeValue::Conflict(conflict_id))
-                    }
-                }
+            // Start by creating a Conflict object. Conflicts can cleanly represent a single
+            // resolved state, the absence of a state, or a conflicted state.
+            let mut conflict = Conflict::default();
+            if let Some(base) = maybe_base {
+                conflict.removes.push(ConflictPart {
+                    value: base.clone(),
+                });
+            }
+            if let Some(side1) = maybe_side1 {
+                conflict.adds.push(ConflictPart {
+                    value: side1.clone(),
+                });
+            }
+            if let Some(side2) = maybe_side2 {
+                conflict.adds.push(ConflictPart {
+                    value: side2.clone(),
+                });
+            }
+            let conflict = simplify_conflict(store, &conflict)?;
+            if conflict.adds.is_empty() {
+                // If there are no values to add, then the path doesn't exist
+                return Ok(None);
+            }
+            if conflict.removes.is_empty() && conflict.adds.len() == 1 {
+                // A single add means that the current state is that state.
+                return Ok(Some(conflict.adds[0].value.clone()));
+            }
+            let filename = dir.join(basename);
+            if let Some((merged_content, executable)) =
+                try_resolve_file_conflict(store, &filename, &conflict)?
+            {
+                let id = store.write_file(&filename, &mut merged_content.as_slice())?;
+                Some(TreeValue::Normal { id, executable })
+            } else {
+                let conflict_id = store.write_conflict(&conflict)?;
+                Some(TreeValue::Conflict(conflict_id))
             }
         }
     })
+}
+
+fn try_resolve_file_conflict(
+    store: &Store,
+    filename: &RepoPath,
+    conflict: &Conflict,
+) -> Result<Option<(Vec<u8>, bool)>, BackendError> {
+    // If there are any non-file parts in the conflict, we can't merge it. We check
+    // early so we don't waste time reading file contents if we can't merge them
+    // anyway. At the same time we determine whether the resulting file should
+    // be executable.
+    let mut exec_delta = 0;
+    let mut regular_delta = 0;
+    let mut removed_file_ids = vec![];
+    let mut added_file_ids = vec![];
+    for part in &conflict.removes {
+        match &part.value {
+            TreeValue::Normal { id, executable } => {
+                if *executable {
+                    exec_delta -= 1;
+                } else {
+                    regular_delta -= 1;
+                }
+                removed_file_ids.push(id.clone());
+            }
+            _ => {
+                return Ok(None);
+            }
+        }
+    }
+    for part in &conflict.adds {
+        match &part.value {
+            TreeValue::Normal { id, executable } => {
+                if *executable {
+                    exec_delta += 1;
+                } else {
+                    regular_delta += 1;
+                }
+                added_file_ids.push(id.clone());
+            }
+            _ => {
+                return Ok(None);
+            }
+        }
+    }
+    let executable = if exec_delta > 0 && regular_delta <= 0 {
+        true
+    } else if regular_delta > 0 && exec_delta <= 0 {
+        false
+    } else {
+        // We're unable to determine whether the result should be executable
+        return Ok(None);
+    };
+    let mut removed_contents = vec![];
+    let mut added_contents = vec![];
+    for file_id in removed_file_ids {
+        let mut content = vec![];
+        store
+            .read_file(filename, &file_id)?
+            .read_to_end(&mut content)?;
+        removed_contents.push(content);
+    }
+    for file_id in added_file_ids {
+        let mut content = vec![];
+        store
+            .read_file(filename, &file_id)?
+            .read_to_end(&mut content)?;
+        added_contents.push(content);
+    }
+    let merge_result = files::merge(
+        &removed_contents.iter().map(Vec::as_slice).collect_vec(),
+        &added_contents.iter().map(Vec::as_slice).collect_vec(),
+    );
+    match merge_result {
+        MergeResult::Resolved(merged_content) => Ok(Some((merged_content, executable))),
+        MergeResult::Conflict(_) => Ok(None),
+    }
 }
 
 fn conflict_part_to_conflict(store: &Store, part: &ConflictPart) -> Result<Conflict, BackendError> {
@@ -666,10 +701,7 @@ fn conflict_part_to_conflict(store: &Store, part: &ConflictPart) -> Result<Confl
     }
 }
 
-fn simplify_conflict(
-    store: &Store,
-    conflict: &Conflict,
-) -> Result<Conflict, BackendError> {
+fn simplify_conflict(store: &Store, conflict: &Conflict) -> Result<Conflict, BackendError> {
     // Important cases to simplify:
     //
     // D
