@@ -45,6 +45,13 @@ Features:
    changes (you can even check out a different commit while resolving merge
    conflicts).
 
+   <details>
+   <summary>Demo</summary>
+   <a href="https://asciinema.org/a/k2V5ePk89kQZg7HAGaELkl2qo" target="_blank">
+   <img src="https://asciinema.org/a/k2V5ePk89kQZg7HAGaELkl2qo.svg" />
+   </a>
+   </details>
+
  * **Operations update the repo first, then possibly the working copy**
 
    The working copy is only updated at the end of an operation, after all other
