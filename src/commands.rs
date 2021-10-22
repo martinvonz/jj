@@ -1324,7 +1324,7 @@ fn short_commit_description(commit: &Commit) -> String {
     format!("{} ({})", &commit.id().hex()[0..12], first_line)
 }
 
-fn cmd_init(ui: &mut Ui, _command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
+fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
     if args.is_present("git") && args.is_present("git-store") {
         return Err(CommandError::UserError(String::from(
             "--git cannot be used with --git-store",
@@ -1342,11 +1342,13 @@ fn cmd_init(ui: &mut Ui, _command: &CommandHelper, args: &ArgMatches) -> Result<
         let git_store_path = ui.cwd().join(git_store_str);
         let repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path, git_store_path)?;
         let git_repo = repo.store().git_repo().unwrap();
-        let mut tx = repo.start_transaction("import git refs");
+        let mut repo_command = command.for_loaded_repo(ui, repo);
+        let mut tx = repo_command.start_transaction("import git refs");
         git::import_refs(tx.mut_repo(), &git_repo).unwrap();
         // TODO: Check out a recent commit. Maybe one with the highest generation
         // number.
-        tx.commit()
+        repo_command.finish_transaction(ui, tx)?;
+        repo_command.repo
     } else if args.is_present("git") {
         ReadonlyRepo::init_internal_git(ui.settings(), wc_path)?
     } else {
@@ -2366,7 +2368,7 @@ fn cmd_duplicate(
     ui.write("Created: ")?;
     ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
     ui.write("\n")?;
-    tx.commit();
+    repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
