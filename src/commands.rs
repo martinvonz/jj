@@ -1617,7 +1617,7 @@ fn show_color_words_diff(
                 let right_content = diff_content(repo, &path, &right_value)?;
                 let description = basic_diff_file_type(&right_value);
                 formatter.add_label(String::from("header"))?;
-                formatter.write_str(&format!("Added {} at {}:\n", description, ui_path))?;
+                formatter.write_str(&format!("Added {} {}:\n", description, ui_path))?;
                 formatter.remove_label()?;
                 show_color_words_diff_hunks(&[], &right_content, formatter.as_mut())?;
             }
@@ -1638,27 +1638,27 @@ fn show_color_words_diff(
                         if left_executable && right_executable {
                             "Modified executable file".to_string()
                         } else if left_executable {
-                            "Executable file became non-executable".to_string()
+                            "Executable file became non-executable at".to_string()
                         } else if right_executable {
-                            "Non-executable file became executable".to_string()
+                            "Non-executable file became executable at".to_string()
                         } else {
                             "Modified regular file".to_string()
                         }
                     }
                     (TreeValue::Conflict(_), TreeValue::Conflict(_)) => {
-                        "Modified conflict".to_string()
+                        "Modified conflict in".to_string()
                     }
-                    (TreeValue::Conflict(_), _) => "Resolved conflict".to_string(),
-                    (_, TreeValue::Conflict(_)) => "Created conflict".to_string(),
+                    (TreeValue::Conflict(_), _) => "Resolved conflict in".to_string(),
+                    (_, TreeValue::Conflict(_)) => "Created conflict in".to_string(),
                     (TreeValue::Symlink(_), TreeValue::Symlink(_)) => {
-                        "Symlink target changed".to_string()
+                        "Symlink target changed at".to_string()
                     }
                     (left_value, right_value) => {
                         let left_type = basic_diff_file_type(&left_value);
                         let right_type = basic_diff_file_type(&right_value);
                         let (first, rest) = left_type.split_at(1);
                         format!(
-                            "{}{} became {}",
+                            "{}{} became {} at",
                             first.to_ascii_uppercase(),
                             rest,
                             right_type
@@ -1666,7 +1666,7 @@ fn show_color_words_diff(
                     }
                 };
                 formatter.add_label(String::from("header"))?;
-                formatter.write_str(&format!("{} at {}:\n", description, ui_path))?;
+                formatter.write_str(&format!("{} {}:\n", description, ui_path))?;
                 formatter.remove_label()?;
                 show_color_words_diff_hunks(&left_content, &right_content, formatter.as_mut())?;
             }
@@ -1674,7 +1674,7 @@ fn show_color_words_diff(
                 let left_content = diff_content(repo, &path, &left_value)?;
                 let description = basic_diff_file_type(&left_value);
                 formatter.add_label(String::from("header"))?;
-                formatter.write_str(&format!("Removed {} at {}:\n", description, ui_path))?;
+                formatter.write_str(&format!("Removed {} {}:\n", description, ui_path))?;
                 formatter.remove_label()?;
                 show_color_words_diff_hunks(&left_content, &[], formatter.as_mut())?;
             }
