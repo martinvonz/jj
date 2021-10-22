@@ -8,7 +8,7 @@ proc expect_prompt {} {
 proc run_command {cmd} {
     send -h "$cmd"
     send "\r"
-    expect -timeout 1
+    expect -timeout 5 "$ "
 }
 
 proc quit_and_dump_asciicast_path {} {
