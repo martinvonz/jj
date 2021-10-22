@@ -23,11 +23,18 @@ well-known).
 Features:
 
  * **Compatible with Git**
-
+   
    Jujutsu has two backends. One of them is a Git backend (the other is a
    native one). This lets you use Jujutsu as an alternative interface to Git.
    The commits you create will look like regular Git commits. You can always
    switch back to Git.
+   
+   <details>
+   <summary>Demo</summary>
+   <a href="https://asciinema.org/a/3LEDzGEmEGnf0sTsvyHm41Jgu" target="_blank">
+   <img src="https://asciinema.org/a/3LEDzGEmEGnf0sTsvyHm41Jgu.svg" />
+   </a>
+   </details>
 
  * **The working copy is automatically committed**
 
