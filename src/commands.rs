@@ -174,19 +174,24 @@ struct CommandHelper<'args> {
 }
 
 impl<'args> CommandHelper<'args> {
-    fn new(string_args: Vec<String>, root_matches: ArgMatches<'args>) -> Self {
+    fn new(string_args: Vec<String>, root_args: ArgMatches<'args>) -> Self {
         Self {
             string_args,
-            root_args: root_matches,
+            root_args,
         }
     }
 
-    fn root_matches(&self) -> &ArgMatches {
+    fn root_args(&self) -> &ArgMatches {
         &self.root_args
     }
 
     fn repo_helper(&self, ui: &Ui) -> Result<RepoCommandHelper, CommandError> {
-        RepoCommandHelper::new(ui, self.string_args.clone(), &self.root_args)
+        let repo = get_repo(ui, &self.root_args)?;
+        Ok(self.for_loaded_repo(ui, repo))
+    }
+
+    fn for_loaded_repo(&self, ui: &Ui, repo: Arc<ReadonlyRepo>) -> RepoCommandHelper {
+        RepoCommandHelper::for_loaded_repo(ui, self.string_args.clone(), &self.root_args, repo)
     }
 }
 
@@ -204,21 +209,21 @@ struct RepoCommandHelper {
 }
 
 impl RepoCommandHelper {
-    fn new(
+    fn for_loaded_repo(
         ui: &Ui,
         string_args: Vec<String>,
-        root_matches: &ArgMatches,
-    ) -> Result<Self, CommandError> {
-        let repo = get_repo(ui, root_matches)?;
-        let may_update_working_copy = root_matches.value_of("at_op").unwrap() == "@";
-        Ok(RepoCommandHelper {
+        root_args: &ArgMatches,
+        repo: Arc<ReadonlyRepo>,
+    ) -> Self {
+        let may_update_working_copy = root_args.value_of("at_op").unwrap() == "@";
+        Self {
             string_args,
             settings: ui.settings().clone(),
             repo,
             may_update_working_copy,
             working_copy_committed: false,
             rebase_descendants: true,
-        })
+        }
     }
 
     fn rebase_descendants(mut self, value: bool) -> Self {
@@ -3041,7 +3046,7 @@ fn cmd_debug(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
         let index = mut_repo.reindex();
         writeln!(ui, "Finished indexing {:?} commits.", index.num_commits())?;
     } else {
-        panic!("unhandled command: {:#?}", command.root_matches());
+        panic!("unhandled command: {:#?}", command.root_args());
     }
     Ok(())
 }
@@ -3122,7 +3127,7 @@ fn cmd_bench(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
         let routine = || index.resolve_prefix(&prefix);
         run_bench(ui, &format!("resolveprefix-{}", prefix.hex()), routine)?;
     } else {
-        panic!("unhandled command: {:#?}", command.root_matches());
+        panic!("unhandled command: {:#?}", command.root_args());
     };
     Ok(())
 }
@@ -3266,7 +3271,7 @@ fn cmd_operation(
     } else if let Some(command_matches) = args.subcommand_matches("restore") {
         cmd_op_restore(ui, command, command_matches)?;
     } else {
-        panic!("unhandled command: {:#?}", command.root_matches());
+        panic!("unhandled command: {:#?}", command.root_args());
     }
     Ok(())
 }
@@ -3294,7 +3299,7 @@ fn cmd_git_remote(
     } else if let Some(command_matches) = args.subcommand_matches("remove") {
         cmd_git_remote_remove(ui, command, command_matches)?;
     } else {
-        panic!("unhandled command: {:#?}", command.root_matches());
+        panic!("unhandled command: {:#?}", command.root_args());
     }
     Ok(())
 }
@@ -3375,7 +3380,7 @@ fn clone_destination_for_source(source: &str) -> Option<&str> {
 
 fn cmd_git_clone(
     ui: &mut Ui,
-    _command: &CommandHelper,
+    command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
     let source = args.value_of("source").unwrap();
@@ -3401,9 +3406,10 @@ fn cmd_git_clone(
         "Fetching into new repo in {:?}",
         repo.working_copy_path()
     )?;
+    let mut repo_command = command.for_loaded_repo(ui, repo);
     let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();
-    let mut tx = repo.start_transaction("fetch from git remote into empty repo");
+    let mut tx = repo_command.start_transaction("fetch from git remote into empty repo");
     let maybe_default_branch =
         git::fetch(tx.mut_repo(), &git_repo, remote_name).map_err(|err| match err {
             GitFetchError::NoSuchRemote(_) => {
@@ -3419,13 +3425,12 @@ fn cmd_git_clone(
             .view()
             .get_remote_branch(&default_branch, "origin");
         if let Some(RefTarget::Normal(commit_id)) = default_branch_target {
-            if let Ok(commit) = repo.store().get_commit(&commit_id) {
+            if let Ok(commit) = repo_command.repo().store().get_commit(&commit_id) {
                 tx.mut_repo().check_out(ui.settings(), &commit);
             }
         }
     }
-    let repo = tx.commit();
-    update_working_copy(ui, &repo, &repo.working_copy_locked())?;
+    repo_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
@@ -3562,7 +3567,7 @@ fn cmd_git(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
     } else if let Some(command_matches) = args.subcommand_matches("import") {
         cmd_git_import(ui, command, command_matches)?;
     } else {
-        panic!("unhandled command: {:#?}", command.root_matches());
+        panic!("unhandled command: {:#?}", command.root_args());
     }
     Ok(())
 }
@@ -3759,7 +3764,7 @@ As a top-level option, `--at-op`, it can be passed to any command. However, you 
              good reason to do that other than to simulate concurrent commands.",
         ));
     } else {
-        panic!("unhandled help concept: {:#?}", command.root_matches());
+        panic!("unhandled help concept: {:#?}", command.root_args());
     }
 
     let mut formatter = ui.stdout_formatter();
