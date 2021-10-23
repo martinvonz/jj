@@ -84,8 +84,8 @@ Features:
 
    <details>
    <summary>Demo</summary>
-   <a href="https://asciinema.org/a/AIZkWG7VFCklZZTfFw3jSqH7f" target="_blank">
-   <img src="https://asciinema.org/a/AIZkWG7VFCklZZTfFw3jSqH7f.svg" />
+   <a href="https://asciinema.org/a/lW2iMTrvyEEsf2VJiHuAiHxdW" target="_blank">
+   <img src="https://asciinema.org/a/lW2iMTrvyEEsf2VJiHuAiHxdW.svg" />
    </a>
    </details>
 
