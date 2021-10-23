@@ -65,6 +65,13 @@ Features:
    an earlier repo state, or to simply undo a particular operation (which does
    not necessarily have to be the most recent operation).
 
+   <details>
+   <summary>Demo</summary>
+   <a href="https://asciinema.org/a/JOYU6vHMAOS3zr4mfMIrA30CX" target="_blank">
+   <img src="https://asciinema.org/a/JOYU6vHMAOS3zr4mfMIrA30CX.svg" />
+   </a>
+   </details>
+
  * **Conflicts can be recorded in commits**
 
    If an operation results in conflicts, information about those conflicts will
