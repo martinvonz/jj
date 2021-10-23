@@ -45,14 +45,14 @@ new_tmp_dir() {
 
 run_demo() {
     local title="$1"
-    local expect_script="$2"
-    expect_script=$(printf "source $BASE_DIR/demo_helpers.tcl
+    local test_script="$2"
+    local expect_script="source $BASE_DIR/demo_helpers.tcl
 spawn asciinema rec -c \"PS1='$ ' bash --norc\" --title \"$title\"
 expect_prompt
-%s
+$test_script
 quit_and_dump_asciicast_path
-" "$expect_script")
-     
+"
+
     if [[ "$DEBUG" == true ]]; then
         echo "$expect_script" | /usr/bin/env expect
         return
