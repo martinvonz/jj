@@ -890,10 +890,11 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
         Some(RefTarget::Normal(commit_b.id().clone()))
     );
 
-    // Commit B is still visible because the remote branch points to it
+    // Commit B is no longer visible even though the remote branch points to it.
+    // (The user can still see it using e.g. the `remote_branches()` revset.)
     assert_eq!(
         *tx.mut_repo().view().heads(),
-        hashset! {repo.view().checkout().clone(), commit_b.id().clone(), commit_b2.id().clone()}
+        hashset! {repo.view().checkout().clone(), commit_b2.id().clone()}
     );
 
     tx.discard();
@@ -983,14 +984,10 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
         })
     );
 
-    // TODO: We should probably either hide B or indicate in the UI why it's still
-    // visible. Alternatively, we could redefine the view's heads to be only the
-    // desired anonymous heads.
     assert_eq!(
         *tx.mut_repo().view().heads(),
         hashset! {
             repo.view().checkout().clone(),
-            commit_b.id().clone(),
             commit_b2.id().clone(),
             commit_b3.id().clone(),
             commit_b4.id().clone(),
@@ -1059,10 +1056,8 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
         *tx.mut_repo().view().heads(),
         hashset! {
             repo.view().checkout().clone(),
-            commit_a.id().clone(),
             commit_a2.id().clone(),
             commit_a3.id().clone(),
-            commit_b.id().clone(),
             commit_b2.id().clone(),
             commit_b3.id().clone(),
             commit_c.id().clone(),

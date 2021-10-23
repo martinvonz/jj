@@ -1109,6 +1109,12 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
         resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
+    // The commits don't have to be in the current set of heads to be included.
+    mut_repo.remove_head(commit2.id());
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "remote_branches()"),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
     // Can get branches when there are conflicted refs
     mut_repo.set_remote_branch(
         "branch1".to_string(),

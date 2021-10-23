@@ -648,24 +648,6 @@ impl MutableRepo {
             .cloned()
             .collect();
         view.head_ids.extend(view.public_head_ids.iter().cloned());
-        for branch_target in view.branches.values() {
-            if let Some(ref_target) = &branch_target.local_target {
-                view.head_ids.extend(ref_target.removes());
-                view.head_ids.extend(ref_target.adds());
-            }
-            for ref_target in branch_target.remote_targets.values() {
-                view.head_ids.extend(ref_target.removes());
-                view.head_ids.extend(ref_target.adds());
-            }
-        }
-        for ref_target in view.tags.values() {
-            view.head_ids.extend(ref_target.removes());
-            view.head_ids.extend(ref_target.adds());
-        }
-        for ref_target in view.git_refs.values() {
-            view.head_ids.extend(ref_target.removes());
-            view.head_ids.extend(ref_target.adds());
-        }
         view.head_ids = self
             .index
             .heads(view.head_ids.iter())

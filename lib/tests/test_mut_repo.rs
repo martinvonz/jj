@@ -16,7 +16,6 @@ use std::sync::Arc;
 
 use jujutsu_lib::backend::{Conflict, ConflictId, ConflictPart, TreeValue};
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::testutils;
@@ -381,50 +380,6 @@ fn test_remove_head(use_git: bool) {
     assert!(repo.index().has_id(commit1.id()));
     assert!(repo.index().has_id(commit2.id()));
     assert!(repo.index().has_id(commit3.id()));
-}
-
-#[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
-fn test_remove_head_ancestor_git_ref(use_git: bool) {
-    // Test that MutableRepo::remove_head() does not leave the view with a git ref
-    // pointing to a commit that's not reachable by any head.
-    let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
-
-    let mut tx = repo.start_transaction("test");
-    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
-    let commit1 = graph_builder.initial_commit();
-    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
-    let commit3 = graph_builder.commit_with_parents(&[&commit1]);
-    let commit4 = graph_builder.commit_with_parents(&[&commit1]);
-    let commit5 = graph_builder.commit_with_parents(&[&commit2, &commit3, &commit4]);
-    tx.mut_repo().set_git_ref(
-        "refs/heads/main".to_string(),
-        RefTarget::Conflict {
-            removes: vec![commit2.id().clone()],
-            adds: vec![commit3.id().clone(), commit4.id().clone()],
-        },
-    );
-    let repo = tx.commit();
-
-    let mut tx = repo.start_transaction("test");
-    let mut_repo = tx.mut_repo();
-    let heads = mut_repo.view().heads().clone();
-    assert!(heads.contains(commit5.id()));
-    mut_repo.remove_head(commit5.id());
-    let heads = mut_repo.view().heads().clone();
-    assert!(!heads.contains(commit5.id()));
-    assert!(heads.contains(commit4.id()));
-    assert!(heads.contains(commit3.id()));
-    assert!(heads.contains(commit2.id()));
-    assert!(!heads.contains(commit1.id()));
-    let repo = tx.commit();
-    let heads = repo.view().heads().clone();
-    assert!(!heads.contains(commit5.id()));
-    assert!(heads.contains(commit4.id()));
-    assert!(heads.contains(commit3.id()));
-    assert!(heads.contains(commit2.id()));
-    assert!(!heads.contains(commit1.id()));
 }
 
 #[test_case(false ; "local backend")]
