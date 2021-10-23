@@ -5,7 +5,7 @@ parse_args "$@"
 
 new_tmp_dir
 
-run_demo '
+run_demo 'Clone a Git repo' '
 run_command "# Clone a Git repo:"
 run_command "jj git clone https://github.com/octocat/Hello-World"
 run_command "cd Hello-World"

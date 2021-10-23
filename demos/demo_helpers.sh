@@ -44,9 +44,10 @@ new_tmp_dir() {
 }
 
 run_demo() {
-    local expect_script="$1"
+    local title="$1"
+    local expect_script="$2"
     expect_script=$(printf "source $BASE_DIR/demo_helpers.tcl
-spawn asciinema rec -c \"PS1='$ ' bash --norc\"
+spawn asciinema rec -c \"PS1='$ ' bash --norc\" --title \"$title\"
 expect_prompt
 %s
 quit_and_dump_asciicast_path
