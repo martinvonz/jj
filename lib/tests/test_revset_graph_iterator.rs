@@ -17,7 +17,6 @@ use jujutsu_lib::revset::revset_for_commits;
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdge;
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::CommitGraphBuilder;
-use maplit::hashset;
 use test_case::test_case;
 
 #[test_case(false ; "keep transitive edges")]
@@ -57,8 +56,8 @@ fn test_graph_iterator_linearized(skip_transitive_edges: bool) {
     assert_eq!(commits.len(), 2);
     assert_eq!(commits[0].0.commit_id(), *commit_d.id());
     assert_eq!(commits[1].0.commit_id(), *commit_a.id());
-    assert_eq!(commits[0].1, hashset![RevsetGraphEdge::indirect(pos_a)]);
-    assert_eq!(commits[1].1, hashset![RevsetGraphEdge::missing(pos_root)]);
+    assert_eq!(commits[0].1, vec![RevsetGraphEdge::indirect(pos_a)]);
+    assert_eq!(commits[1].1, vec![RevsetGraphEdge::missing(pos_root)]);
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -109,15 +108,15 @@ fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
     assert_eq!(commits[3].0.commit_id(), *commit_a.id());
     assert_eq!(
         commits[0].1,
-        hashset![
-            RevsetGraphEdge::indirect(pos_a),
-            RevsetGraphEdge::indirect(pos_b),
+        vec![
             RevsetGraphEdge::indirect(pos_c),
+            RevsetGraphEdge::indirect(pos_b),
+            RevsetGraphEdge::indirect(pos_a),
         ]
     );
-    assert_eq!(commits[1].1, hashset![RevsetGraphEdge::missing(pos_root)]);
-    assert_eq!(commits[2].1, hashset![RevsetGraphEdge::missing(pos_root)]);
-    assert_eq!(commits[3].1, hashset![RevsetGraphEdge::missing(pos_root)]);
+    assert_eq!(commits[1].1, vec![RevsetGraphEdge::missing(pos_root)]);
+    assert_eq!(commits[2].1, vec![RevsetGraphEdge::missing(pos_root)]);
+    assert_eq!(commits[3].1, vec![RevsetGraphEdge::missing(pos_root)]);
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -162,9 +161,9 @@ fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
     assert_eq!(commits[0].0.commit_id(), *commit_e.id());
     assert_eq!(commits[1].0.commit_id(), *commit_c.id());
     assert_eq!(commits[2].0.commit_id(), *commit_a.id());
-    assert_eq!(commits[0].1, hashset![RevsetGraphEdge::indirect(pos_a)]);
-    assert_eq!(commits[1].1, hashset![RevsetGraphEdge::indirect(pos_a)]);
-    assert_eq!(commits[2].1, hashset![RevsetGraphEdge::missing(pos_root)]);
+    assert_eq!(commits[0].1, vec![RevsetGraphEdge::indirect(pos_a)]);
+    assert_eq!(commits[1].1, vec![RevsetGraphEdge::indirect(pos_a)]);
+    assert_eq!(commits[2].1, vec![RevsetGraphEdge::missing(pos_root)]);
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -211,13 +210,13 @@ fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
     assert_eq!(commits[1].0.commit_id(), *commit_b.id());
     assert_eq!(
         commits[0].1,
-        hashset![
-            RevsetGraphEdge::missing(pos_a),
-            RevsetGraphEdge::indirect(pos_b),
+        vec![
             RevsetGraphEdge::missing(pos_c),
+            RevsetGraphEdge::indirect(pos_b),
+            RevsetGraphEdge::missing(pos_a),
         ]
     );
-    assert_eq!(commits[1].1, hashset![RevsetGraphEdge::missing(pos_root)]);
+    assert_eq!(commits[1].1, vec![RevsetGraphEdge::missing(pos_root)]);
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -264,24 +263,24 @@ fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
     assert_eq!(commits[1].0.commit_id(), *commit_d.id());
     assert_eq!(commits[2].0.commit_id(), *commit_c.id());
     if skip_transitive_edges {
-        assert_eq!(commits[0].1, hashset![RevsetGraphEdge::direct(pos_d)]);
+        assert_eq!(commits[0].1, vec![RevsetGraphEdge::direct(pos_d)]);
     } else {
         assert_eq!(
             commits[0].1,
-            hashset![
+            vec![
+                RevsetGraphEdge::direct(pos_d),
                 RevsetGraphEdge::indirect(pos_c),
-                RevsetGraphEdge::direct(pos_d)
             ]
         );
     }
     assert_eq!(
         commits[1].1,
-        hashset![
+        vec![
+            RevsetGraphEdge::direct(pos_c),
             RevsetGraphEdge::missing(pos_b),
-            RevsetGraphEdge::direct(pos_c)
         ]
     );
-    assert_eq!(commits[2].1, hashset![RevsetGraphEdge::missing(pos_a)]);
+    assert_eq!(commits[2].1, vec![RevsetGraphEdge::missing(pos_a)]);
 }
 
 #[test_case(false ; "keep transitive edges")]
@@ -347,16 +346,16 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
     if skip_transitive_edges {
         assert_eq!(
             commits[0].1,
-            hashset![
+            vec![
                 RevsetGraphEdge::indirect(pos_h),
                 RevsetGraphEdge::direct(pos_g)
             ]
         );
-        assert_eq!(commits[1].1, hashset![RevsetGraphEdge::indirect(pos_d)]);
+        assert_eq!(commits[1].1, vec![RevsetGraphEdge::indirect(pos_d)]);
     } else {
         assert_eq!(
             commits[0].1,
-            hashset![
+            vec![
                 RevsetGraphEdge::indirect(pos_h),
                 RevsetGraphEdge::direct(pos_g),
                 RevsetGraphEdge::indirect(pos_d),
@@ -364,13 +363,13 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
         );
         assert_eq!(
             commits[1].1,
-            hashset![
+            vec![
                 RevsetGraphEdge::indirect(pos_d),
                 RevsetGraphEdge::indirect(pos_a)
             ]
         );
     }
-    assert_eq!(commits[2].1, hashset![RevsetGraphEdge::indirect(pos_a)]);
-    assert_eq!(commits[3].1, hashset![RevsetGraphEdge::indirect(pos_a)]);
-    assert_eq!(commits[4].1, hashset![RevsetGraphEdge::missing(pos_root)]);
+    assert_eq!(commits[2].1, vec![RevsetGraphEdge::indirect(pos_a)]);
+    assert_eq!(commits[3].1, vec![RevsetGraphEdge::indirect(pos_a)]);
+    assert_eq!(commits[4].1, vec![RevsetGraphEdge::missing(pos_root)]);
 }

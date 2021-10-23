@@ -290,7 +290,7 @@ impl<'revset, 'repo> RevsetGraphIterator<'revset, 'repo> {
 }
 
 impl<'revset, 'repo> Iterator for RevsetGraphIterator<'revset, 'repo> {
-    type Item = (IndexEntry<'repo>, HashSet<RevsetGraphEdge>);
+    type Item = (IndexEntry<'repo>, Vec<RevsetGraphEdge>);
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(index_entry) = self.next_index_entry() {
@@ -298,6 +298,8 @@ impl<'revset, 'repo> Iterator for RevsetGraphIterator<'revset, 'repo> {
             if self.skip_transitive_edges {
                 edges = self.remove_transitive_edges(edges);
             }
+            let mut edges : Vec<_> = edges.into_iter().collect();
+            edges.sort_by(|edge1, edge2| edge2.target.cmp(&edge1.target));
             Some((index_entry, edges))
         } else {
             None
