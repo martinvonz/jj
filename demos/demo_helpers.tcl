@@ -1,4 +1,4 @@
-set send_human {0.1 0.3 1 0.05 1}
+set send_human {0.05 0.1 1 0.05 1}
 set timeout 2
 
 proc expect_prompt {} {
