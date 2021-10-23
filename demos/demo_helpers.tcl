@@ -1,6 +1,10 @@
 set send_human {0.05 0.1 1 0.05 1}
 set timeout 2
 
+proc pause {duration} {
+    sleep $duration
+}
+
 proc expect_prompt {} {
     expect "$ "
 }

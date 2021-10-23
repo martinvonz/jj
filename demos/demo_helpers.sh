@@ -5,6 +5,7 @@ BASE_DIR=$(realpath "$(dirname "$0")")
 UPLOAD=false
 PREVIEW=false
 DEBUG=false
+FAST=false
 parse_args() {
     for arg in "$@"; do
         case "$arg" in
@@ -27,6 +28,9 @@ Arguments:
         --debug)
             DEBUG=true
             ;;
+        --fast)
+            FAST=true
+            ;;
         *)
             echo "Unrecognized argument: $arg"
             exit 1
@@ -46,7 +50,16 @@ new_tmp_dir() {
 run_demo() {
     local title="$1"
     local test_script="$2"
+    local fast=""
+    if [[ "$FAST" == true ]]; then
+      fast="set send_human {0.005 0.01 1 0.005 0.1}
+proc pause {duration} {
+    sleep [expr \$duration / 10.0]
+}
+"
+    fi
     local expect_script="source $BASE_DIR/demo_helpers.tcl
+$fast
 spawn asciinema rec -c \"PS1='$ ' bash --norc\" --title \"$title\"
 expect_prompt
 $test_script
