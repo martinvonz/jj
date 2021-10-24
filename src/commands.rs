@@ -1379,7 +1379,7 @@ fn cmd_checkout(
         None => ui.write("Already on that commit\n")?,
         Some(stats) => writeln!(
             ui,
-            "added {} files, modified {} files, removed {} files",
+            "Added {} files, modified {} files, removed {} files",
             stats.added_files, stats.updated_files, stats.removed_files
         )?,
     }

@@ -34,7 +34,7 @@ Let's check out a particular commit, so we get more predicable output:
 ```shell script
 $ jj co 080a9b37ff7e
 Working copy now at: 608c179a60df
-added 2 files, modified 57 files, removed 5 files
+Added 2 files, modified 57 files, removed 5 files
 $ jj st
 Parent commit: 080a9b37ff7e cli: make `jj st` show parent commit before working copy commit
 Working copy : 608c179a60df
@@ -199,7 +199,7 @@ commits:
 # Check out the grandparent of the working copy
 $ jj co ::@
 Working copy now at: 9164f1d6a011
-added 0 files, modified 1 files, removed 0 files
+Added 0 files, modified 1 files, removed 0 files
 $ echo a > file1; jj close -m A
 Working copy now at: 5be91b2b5b69
 $ echo b1 > file1; jj close -m B1
@@ -210,7 +210,7 @@ $ echo c > file2; jj close -m C
 Working copy now at: 4ae1e0587eef
 $ jj co ::::@
 Working copy now at: 9195b6d2e8dc
-added 0 files, modified 1 files, removed 1 files
+Added 0 files, modified 1 files, removed 1 files
 $ jj l
 @ 9195b6d2e8dc 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00
 |
@@ -259,7 +259,7 @@ B2. That might look like this:
 ```shell script
 $ jj co 5548374c0794  # Replace the hash by what you have for B2
 Working copy now at: 619f58d8a988
-added 0 files, modified 1 files, removed 0 files
+Added 0 files, modified 1 files, removed 0 files
 $ cat file1
 <<<<<<<
 -------
@@ -355,7 +355,7 @@ few more commits:
 ```shell script
 $ jj co origin/main
 Working copy now at: 61b0efa09dbe 
-added 0 files, modified 0 files, removed 1 files
+Added 0 files, modified 0 files, removed 1 files
 $ printf 'a\nb\nc\n' > file; jj close -m abc
 Working copy now at: f9147a088c0d 
 $ printf 'A\nB\nc\n' > file; jj close -m ABC
