@@ -298,7 +298,7 @@ impl<'revset, 'repo> Iterator for RevsetGraphIterator<'revset, 'repo> {
             if self.skip_transitive_edges {
                 edges = self.remove_transitive_edges(edges);
             }
-            let mut edges : Vec<_> = edges.into_iter().collect();
+            let mut edges: Vec<_> = edges.into_iter().collect();
             edges.sort_by(|edge1, edge2| edge2.target.cmp(&edge1.target));
             Some((index_entry, edges))
         } else {
