@@ -47,8 +47,8 @@ Features:
 
    <details>
    <summary>Demo</summary>
-   <a href="https://asciinema.org/a/k2V5ePk89kQZg7HAGaELkl2qo" target="_blank">
-   <img src="https://asciinema.org/a/k2V5ePk89kQZg7HAGaELkl2qo.svg" />
+   <a href="https://asciinema.org/a/AYSGSp4A8hNjBlN3kgv1Pl4F7" target="_blank">
+   <img src="https://asciinema.org/a/AYSGSp4A8hNjBlN3kgv1Pl4F7.svg" />
    </a>
    </details>
 
@@ -67,8 +67,8 @@ Features:
 
    <details>
    <summary>Demo</summary>
-   <a href="https://asciinema.org/a/JOYU6vHMAOS3zr4mfMIrA30CX" target="_blank">
-   <img src="https://asciinema.org/a/JOYU6vHMAOS3zr4mfMIrA30CX.svg" />
+   <a href="https://asciinema.org/a/udkBsxop3q29IK6LjgrjwlfcA" target="_blank">
+   <img src="https://asciinema.org/a/udkBsxop3q29IK6LjgrjwlfcA.svg" />
    </a>
    </details>
 
@@ -84,8 +84,8 @@ Features:
 
    <details>
    <summary>Demo</summary>
-   <a href="https://asciinema.org/a/lW2iMTrvyEEsf2VJiHuAiHxdW" target="_blank">
-   <img src="https://asciinema.org/a/lW2iMTrvyEEsf2VJiHuAiHxdW.svg" />
+   <a href="https://asciinema.org/a/mrx3HrirDdB5FjJIOa6ketwFm" target="_blank">
+   <img src="https://asciinema.org/a/mrx3HrirDdB5FjJIOa6ketwFm.svg" />
    </a>
    </details>
 
