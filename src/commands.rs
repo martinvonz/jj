@@ -1074,6 +1074,7 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
         .subcommand(
             SubCommand::with_name("remote")
                 .about("Manage Git remotes")
+                .setting(clap::AppSettings::SubcommandRequiredElseHelp)
                 .subcommand(
                     SubCommand::with_name("add")
                         .about("Add a Git remote")
