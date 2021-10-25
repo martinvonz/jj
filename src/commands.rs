@@ -1582,7 +1582,7 @@ fn diff_content(
         TreeValue::Conflict(id) => {
             let conflict = repo.store().read_conflict(id).unwrap();
             let mut content = vec![];
-            conflicts::materialize_conflict(repo.store(), path, &conflict, &mut content);
+            conflicts::materialize_conflict(repo.store(), path, &conflict, &mut content).unwrap();
             Ok(content)
         }
     }
@@ -1731,7 +1731,7 @@ fn git_diff_part(
             mode = "100644".to_string();
             hash = id.hex();
             let conflict = repo.store().read_conflict(id).unwrap();
-            conflicts::materialize_conflict(repo.store(), path, &conflict, &mut content);
+            conflicts::materialize_conflict(repo.store(), path, &conflict, &mut content).unwrap();
         }
     }
     let hash = hash[0..10].to_string();

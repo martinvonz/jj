@@ -139,14 +139,14 @@ pub fn materialize_conflict(
     path: &RepoPath,
     conflict: &Conflict,
     file: &mut dyn Write,
-) {
+) -> std::io::Result<()> {
     let file_adds = file_parts(&conflict.adds);
     let file_removes = file_parts(&conflict.removes);
     if file_adds.len() != conflict.adds.len() || file_removes.len() != conflict.removes.len() {
         // Unless all parts are regular files, we can't do much better than to try to
         // describe the conflict.
-        describe_conflict(conflict, file).unwrap();
-        return;
+        describe_conflict(conflict, file)?;
+        return Ok(());
     }
 
     let added_content = file_adds
@@ -166,39 +166,40 @@ pub fn materialize_conflict(
     let merge_result = files::merge(&removed_slices, &added_slices);
     match merge_result {
         MergeResult::Resolved(content) => {
-            file.write_all(&content).unwrap();
+            file.write_all(&content)?;
         }
         MergeResult::Conflict(hunks) => {
             for hunk in hunks {
                 match hunk {
                     MergeHunk::Resolved(content) => {
-                        file.write_all(&content).unwrap();
+                        file.write_all(&content)?;
                     }
                     MergeHunk::Conflict { removes, adds } => {
                         let num_diffs = min(removes.len(), adds.len());
 
                         // TODO: Pair up a remove with an add in a way that minimizes the size of
                         // the diff
-                        file.write_all(b"<<<<<<<\n").unwrap();
+                        file.write_all(b"<<<<<<<\n")?;
                         for i in 0..num_diffs {
-                            file.write_all(b"-------\n").unwrap();
-                            file.write_all(b"+++++++\n").unwrap();
-                            write_diff_hunks(&removes[i], &adds[i], file).unwrap();
+                            file.write_all(b"-------\n")?;
+                            file.write_all(b"+++++++\n")?;
+                            write_diff_hunks(&removes[i], &adds[i], file)?;
                         }
                         for slice in removes.iter().skip(num_diffs) {
-                            file.write_all(b"-------\n").unwrap();
-                            file.write_all(slice).unwrap();
+                            file.write_all(b"-------\n")?;
+                            file.write_all(slice)?;
                         }
                         for slice in adds.iter().skip(num_diffs) {
-                            file.write_all(b"+++++++\n").unwrap();
-                            file.write_all(slice).unwrap();
+                            file.write_all(b"+++++++\n")?;
+                            file.write_all(slice)?;
                         }
-                        file.write_all(b">>>>>>>\n").unwrap();
+                        file.write_all(b">>>>>>>\n")?;
                     }
                 }
             }
         }
     }
+    Ok(())
 }
 
 pub fn conflict_to_materialized_value(
@@ -207,7 +208,7 @@ pub fn conflict_to_materialized_value(
     conflict: &Conflict,
 ) -> TreeValue {
     let mut buf = vec![];
-    materialize_conflict(store, path, conflict, &mut buf);
+    materialize_conflict(store, path, conflict, &mut buf).unwrap();
     let file_id = store.write_file(path, &mut Cursor::new(&buf)).unwrap();
     TreeValue::Normal {
         id: file_id,

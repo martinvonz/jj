@@ -77,7 +77,7 @@ line 5
         ],
     };
     let mut result: Vec<u8> = vec![];
-    materialize_conflict(repo.store(), &path, &conflict, &mut result);
+    materialize_conflict(repo.store(), &path, &conflict, &mut result).unwrap();
     assert_eq!(
         String::from_utf8(result).unwrap().as_str(),
         "line 1
@@ -155,7 +155,7 @@ line 5
         ],
     };
     let mut result: Vec<u8> = vec![];
-    materialize_conflict(repo.store(), &path, &conflict, &mut result);
+    materialize_conflict(repo.store(), &path, &conflict, &mut result).unwrap();
     assert_eq!(
         String::from_utf8(result).unwrap().as_str(),
         "line 1
@@ -233,7 +233,7 @@ line 5
     };
 
     let mut result: Vec<u8> = vec![];
-    materialize_conflict(repo.store(), &path, &conflict, &mut result);
+    materialize_conflict(repo.store(), &path, &conflict, &mut result).unwrap();
     assert_eq!(
         String::from_utf8(result).unwrap().as_str(),
         "line 1
