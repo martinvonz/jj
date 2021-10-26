@@ -2871,10 +2871,26 @@ fn cmd_branch(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
     let mut repo_command = command.repo_helper(ui)?.rebase_descendants(false);
     let branch_name = args.value_of("name").unwrap();
     if args.is_present("delete") {
+        if repo_command
+            .repo()
+            .view()
+            .get_local_branch(branch_name)
+            .is_none()
+        {
+            return Err(CommandError::UserError("No such branch".to_string()));
+        }
         let mut tx = repo_command.start_transaction(&format!("delete branch {}", branch_name));
         tx.mut_repo().remove_local_branch(branch_name);
         repo_command.finish_transaction(ui, tx)?;
     } else if args.is_present("forget") {
+        if repo_command
+            .repo()
+            .view()
+            .get_local_branch(branch_name)
+            .is_none()
+        {
+            return Err(CommandError::UserError("No such branch".to_string()));
+        }
         let mut tx = repo_command.start_transaction(&format!("forget branch {}", branch_name));
         tx.mut_repo().remove_branch(branch_name);
         repo_command.finish_transaction(ui, tx)?;
