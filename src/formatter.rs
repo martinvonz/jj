@@ -151,6 +151,10 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
         String::from("checkout conflict"),
         String::from("bright red"),
     );
+    result.insert(
+        String::from("checkout description"),
+        String::from("bright white"),
+    );
 
     result.insert(String::from("diff header"), String::from("yellow"));
     result.insert(
