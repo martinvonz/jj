@@ -136,8 +136,8 @@ commit), but that's left out of the table to keep it simple. For example,
     </tr>
     <tr>
       <td>Reorder changes from A-B-C-D to A-C-B-D</td>
-      <td><code>jj rebase -r C -d A; rebase -s B -d C</code> (pass change ids,
-          not commit ids, to not have to look up commit id of rewritten C)</td>
+      <td><code>jj rebase -r C -d A; rebase -s B -d C</code> (pass change IDs,
+          not commit IDs, to not have to look up commit ID of rewritten C)</td>
       <td><code>git rebase -i A</code></td>
     </tr>
     <tr>
@@ -202,7 +202,7 @@ commit), but that's left out of the table to keep it simple. For example,
     </tr>
     <tr>
       <td>Undo an earlier operation</td>
-      <td><code>jj op undo -o &lt;operation id&gt;</code></td>
+      <td><code>jj op undo -o &lt;operation ID&gt;</code></td>
       <td>Not supported</td>
     </tr>
   </tbody>

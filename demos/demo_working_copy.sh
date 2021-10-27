@@ -17,7 +17,7 @@ pause 2
 run_command "# Now make some changes in the working copy:"
 run_command "echo \"Goodbye World!\" > README"
 run_command "echo stuff > new-file"
-run_command "# Our working copy commit id changed because we made changes:"
+run_command "# Our working copy'\''s commit ID changed because we made changes:"
 run_command "jj status"
 pause 5
 run_command "# Add a branch so we can easily refer to this commit:"

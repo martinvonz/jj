@@ -518,14 +518,14 @@ fn resolve_single_op_from_store(
     }
     if matches.is_empty() {
         Err(CommandError::UserError(format!(
-            "No operation id matching \"{}\"",
+            "No operation ID matching \"{}\"",
             op_str
         )))
     } else if matches.len() == 1 {
         Ok(matches.pop().unwrap())
     } else {
         Err(CommandError::UserError(format!(
-            "Operation id prefix \"{}\" is ambiguous",
+            "Operation ID prefix \"{}\" is ambiguous",
             op_str
         )))
     }
@@ -1184,7 +1184,7 @@ By default, all branches are pushed. Use `--branch` if you want to push only one
         )
         .subcommand(
             SubCommand::with_name("resolveprefix")
-                .about("Resolve a commit id prefix")
+                .about("Resolve a commit ID prefix")
                 .arg(Arg::with_name("prefix").index(1).required(true)),
         );
     let debug_command = SubCommand::with_name("debug")
@@ -1272,7 +1272,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
                      ID> st` will show you what `jj st` would have shown you when the given \
                      operation had just finished.
 
-Use `jj op log` to find the operation ID you want. Any unambiguous prefix of the operation id is \
+Use `jj op log` to find the operation ID you want. Any unambiguous prefix of the operation ID is \
                      enough.
 
 When loading the repo at an earlier operation, the working copy will not be automatically \
@@ -3795,7 +3795,7 @@ When you use `--at-op`, the automatic snapshotting of the working copy will not 
 
 As a top-level option, `--at-op`, it can be passed to any command. However, you will typically \
              only want to run read-only commands. For example, `jj log`, `jj st`, and `jj diff` \
-             all make sense. It's still possible to run e.g. `jj --at-op=<some operation id> \
+             all make sense. It's still possible to run e.g. `jj --at-op=<some operation ID> \
              describe`. That's equivalent to having started `jj describe` back when the specified \
              operation was the most recent operation and then let it run until now (which can be \
              done for that particular command by not closing the editor). There's practically no \

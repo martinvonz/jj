@@ -172,7 +172,7 @@ fn parse_commit_id_method<'a>(method: Pair<Rule>) -> Property<'a, CommitId> {
 
     let this_function = match name.as_str() {
         "short" => Property::String(Box::new(CommitIdShortest)),
-        name => panic!("no such commit id method: {}", name),
+        name => panic!("no such commit ID method: {}", name),
     };
     let chain_method = inner.last().unwrap();
     parse_method_chain(chain_method, this_function)
@@ -193,7 +193,7 @@ fn parse_signature_method<'a>(method: Pair<Rule>) -> Property<'a, Signature> {
         "name" => Property::String(Box::new(SignatureName)),
         "email" => Property::String(Box::new(SignatureEmail)),
         "timestamp" => Property::String(Box::new(SignatureTimestamp)),
-        name => panic!("no such commit id method: {}", name),
+        name => panic!("no such commit ID method: {}", name),
     };
     let chain_method = inner.last().unwrap();
     parse_method_chain(chain_method, this_function)

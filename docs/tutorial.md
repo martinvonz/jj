@@ -27,7 +27,7 @@ Working copy : 265ecf5cab2d
 The working copy is clean
 ```
 
-We can see from the output above that our working copy has a commit id
+We can see from the output above that our working copy has a commit ID
 (`265ecf5cab2d` in the example).
 
 Let's check out a particular commit, so we get more predicable output:
@@ -96,7 +96,7 @@ Jujutsu's diff format currently only has inline coloring of the diff (like
 `git diff --color-words`), which makes the diff impossible to see in the
 un-colorized output above (the "not" in "not ready" is red).
 
-As you may have noticed, the working copy commit's id changed both when we
+As you may have noticed, the working copy commit's ID changed both when we
 edited the description and when we edited the README. However, the parent commit
 stayed the same. Each change to the working copy commit amends the previous
 version. So how do we tell Jujutsu that we are done amending the working copy
@@ -117,7 +117,7 @@ Working copy : 192b456b024b
 The working copy is clean
 ```
 
-Note that a commit id printed in green indicates an open commit and blue
+Note that a commit ID printed in green indicates an open commit and blue
 indicates a closed commit.
 
 If we later realize that we want to make further changes, we can make them
@@ -145,7 +145,7 @@ o dcfc888f50b3 7eddf8dfc70d martinvonz@google.com 2021-05-23 22:07:40.000 -07:00
 ```
 
 The `@` indicates the working copy commit. The first hash on a line is the
-commit id. The second hash is a "change id", which is an id that follows the
+commit ID. The second hash is a "change ID", which is an ID that follows the
 commit as it's rewritten (similar to Gerrit's Change-Id). You can give either
 hash to commands that take revisions as arguments. We will generally prefer
 change ids because they stay the same when the commit is rewritten.
