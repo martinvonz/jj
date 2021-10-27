@@ -106,6 +106,7 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result.insert(String::from("diff hunk_header"), String::from("cyan"));
     result.insert(String::from("diff removed"), String::from("red"));
     result.insert(String::from("diff added"), String::from("green"));
+    result.insert(String::from("diff modified"), String::from("cyan"));
 
     result.insert(String::from("op-log id"), String::from("blue"));
     result.insert(String::from("op-log user"), String::from("yellow"));

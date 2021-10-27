@@ -55,7 +55,7 @@ use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, D
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
-use jujutsu_lib::tree::{DiffSummary, TreeDiffIterator};
+use jujutsu_lib::tree::TreeDiffIterator;
 use jujutsu_lib::working_copy::{CheckoutStats, WorkingCopy};
 use jujutsu_lib::{conflicts, diff, files, git, revset, tree};
 use maplit::{hashmap, hashset};
@@ -1539,16 +1539,16 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
             }
         }
     };
+    let diff_iterator = from_tree.diff(&to_tree, matcher.as_ref());
     match format {
         Format::Summary => {
-            let summary = from_tree.diff_summary(&to_tree, matcher.as_ref());
-            show_diff_summary(ui, repo.working_copy_path(), &summary)?;
+            show_diff_summary(ui, repo, diff_iterator)?;
         }
         Format::Git => {
-            show_git_diff(ui, repo, from_tree.diff(&to_tree, matcher.as_ref()))?;
+            show_git_diff(ui, repo, diff_iterator)?;
         }
         Format::ColorWords => {
-            show_color_words_diff(ui, repo, from_tree.diff(&to_tree, matcher.as_ref()))?;
+            show_color_words_diff(ui, repo, diff_iterator)?;
         }
     }
     Ok(())
@@ -1960,16 +1960,33 @@ fn show_git_diff(
     Ok(())
 }
 
-fn show_diff_summary(ui: &mut Ui, wc_path: &Path, summary: &DiffSummary) -> io::Result<()> {
-    for file in &summary.modified {
-        writeln!(ui, "M {}", ui.format_file_path(wc_path, file))?;
+fn show_diff_summary(
+    ui: &mut Ui,
+    repo: &Arc<ReadonlyRepo>,
+    tree_diff: TreeDiffIterator,
+) -> io::Result<()> {
+    let wc_path = repo.working_copy_path();
+    ui.stdout_formatter().add_label(String::from("diff"))?;
+    for (repo_path, diff) in tree_diff {
+        match diff {
+            tree::Diff::Modified(_, _) => {
+                ui.stdout_formatter().add_label(String::from("modified"))?;
+                writeln!(ui, "M {}", ui.format_file_path(wc_path, &repo_path))?;
+                ui.stdout_formatter().remove_label()?;
+            }
+            tree::Diff::Added(_) => {
+                ui.stdout_formatter().add_label(String::from("added"))?;
+                writeln!(ui, "A {}", ui.format_file_path(wc_path, &repo_path))?;
+                ui.stdout_formatter().remove_label()?;
+            }
+            tree::Diff::Removed(_) => {
+                ui.stdout_formatter().add_label(String::from("removed"))?;
+                writeln!(ui, "R {}", ui.format_file_path(wc_path, &repo_path))?;
+                ui.stdout_formatter().remove_label()?;
+            }
+        }
     }
-    for file in &summary.added {
-        writeln!(ui, "A {}", ui.format_file_path(wc_path, file))?;
-    }
-    for file in &summary.removed {
-        writeln!(ui, "R {}", ui.format_file_path(wc_path, file))?;
-    }
+    ui.stdout_formatter().remove_label()?;
     Ok(())
 }
 
@@ -2034,14 +2051,13 @@ fn cmd_status(
             "  Use `jj branches` to see details. Use `jj git pull` to resolve."
         )?;
     }
-    let summary = commit.parents()[0]
-        .tree()
-        .diff_summary(&commit.tree(), &EverythingMatcher);
-    if summary.is_empty() {
+    let parent_tree = commit.parents()[0].tree();
+    let tree = commit.tree();
+    if tree.id() == parent_tree.id() {
         ui.write("The working copy is clean\n")?;
     } else {
         ui.write("Working copy changes:\n")?;
-        show_diff_summary(ui, repo.working_copy_path(), &summary)?;
+        show_diff_summary(ui, repo, parent_tree.diff(&tree, &EverythingMatcher))?;
     }
     Ok(())
 }
