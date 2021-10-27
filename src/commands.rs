@@ -3216,9 +3216,10 @@ fn cmd_op_log(
             formatter.write_str(&metadata.description)?;
             formatter.remove_label()?;
             for (key, value) in &metadata.tags {
+                formatter.add_label("tags".to_string())?;
                 formatter.write_str(&format!("\n{}: {}", key, value))?;
+                formatter.remove_label()?;
             }
-
             Ok(())
         }
     }
@@ -3234,18 +3235,25 @@ fn cmd_op_log(
         for parent in op.parents() {
             edges.push(Edge::direct(parent.id().clone()));
         }
+        let is_head_op = op.id() == &head_op_id;
         let mut buffer = vec![];
         {
             let writer = Box::new(&mut buffer);
             let mut formatter = ui.new_formatter(writer);
             formatter.add_label("op-log".to_string())?;
+            if is_head_op {
+                formatter.add_label("head".to_string())?;
+            }
             template.format(&op, formatter.as_mut())?;
+            if is_head_op {
+                formatter.remove_label()?;
+            }
             formatter.remove_label()?;
         }
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
         }
-        let node_symbol = if op.id() == &head_op_id { b"@" } else { b"o" };
+        let node_symbol = if is_head_op { b"@" } else { b"o" };
         graph.add_node(op.id(), &edges, node_symbol, &buffer)?;
     }
 
