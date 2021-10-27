@@ -27,6 +27,7 @@ run_command "jj describe -m stuff"
 pause 2
 run_command "jj rebase -d test"
 pause 2
+run_command ""
 run_command "# We are now going to make another change off of"
 run_command "# master:"
 run_command "jj co master"
@@ -44,6 +45,7 @@ expect -re "o ..34m(.*?)..0m "
 set rebase_op $expect_out(1,string)
 expect_prompt
 pause 7
+run_command ""
 run_command "# Let'\''s undo that rebase operation:"
 run_command "jj undo -o $rebase_op"
 pause 3
@@ -58,6 +60,7 @@ pause 5
 run_command "# Looks nice, let'\''s go back to that point:"
 run_command "jj op restore -o $rebase_op"
 pause 2
+run_command ""
 run_command "# We'\''re now back to before the \"other stuff\""
 run_command "# change existed:"
 run_command "jj log"

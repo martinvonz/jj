@@ -18,12 +18,15 @@ run_command "jj describe -m \"README: say which world\""
 run_command "echo \"Hello Earth!\" > README"
 run_command "jj diff"
 pause 2
+run_command ""
 run_command "# We'\''re going to rebase it onto commit b1."
 run_command "# That commit looks like this:"
 run_command "jj diff -r b1"
 pause 2
+run_command ""
 run_command "# Now rebase:"
 run_command "jj rebase -d b1"
+run_command ""
 run_command "# Huh, that seemed to succeed. Let'\''s take a"
 run_command "# look at the repo:"
 pause 3
@@ -35,17 +38,21 @@ run_command "# conflict. The file in the working copy looks"
 run_command "# like this:"
 run_command "cat README"
 pause 5
+run_command ""
 run_command "# Now we will resolve the conflict:"
 run_command "echo \"Hello earth!\" > README"
 pause 2
+run_command ""
 run_command "# The diff of the conflict resolution looks"
 run_command "# like this:"
 run_command "jj diff"
 pause 5
+run_command ""
 run_command "# We now squash the conflict resolution into"
 run_command "# the conflicted parent change:"
 run_command "jj squash"
 pause 2
+run_command ""
 run_command "# Looks good now:"
 run_command "jj log"
 pause 3
