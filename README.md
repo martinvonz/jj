@@ -29,12 +29,9 @@ Features:
    The commits you create will look like regular Git commits. You can always
    switch back to Git.
    
-   <details>
-   <summary>Demo</summary>
    <a href="https://asciinema.org/a/C5TKUes95yHCiGvtzkisDNGsz" target="_blank">
-   <img src="https://asciinema.org/a/C5TKUes95yHCiGvtzkisDNGsz.svg" />
+     <img src="https://asciinema.org/a/C5TKUes95yHCiGvtzkisDNGsz.svg" />
    </a>
-   </details>
 
  * **The working copy is automatically committed**
 
@@ -45,12 +42,9 @@ Features:
    changes (you can even check out a different commit while resolving merge
    conflicts).
 
-   <details>
-   <summary>Demo</summary>
    <a href="https://asciinema.org/a/AYSGSp4A8hNjBlN3kgv1Pl4F7" target="_blank">
-   <img src="https://asciinema.org/a/AYSGSp4A8hNjBlN3kgv1Pl4F7.svg" />
+     <img src="https://asciinema.org/a/AYSGSp4A8hNjBlN3kgv1Pl4F7.svg" />
    </a>
-   </details>
 
  * **Operations update the repo first, then possibly the working copy**
 
@@ -65,12 +59,9 @@ Features:
    an earlier repo state, or to simply undo a particular operation (which does
    not necessarily have to be the most recent operation).
 
-   <details>
-   <summary>Demo</summary>
    <a href="https://asciinema.org/a/udkBsxop3q29IK6LjgrjwlfcA" target="_blank">
-   <img src="https://asciinema.org/a/udkBsxop3q29IK6LjgrjwlfcA.svg" />
+     <img src="https://asciinema.org/a/udkBsxop3q29IK6LjgrjwlfcA.svg" />
    </a>
-   </details>
 
  * **Conflicts can be recorded in commits**
 
@@ -82,12 +73,9 @@ Features:
    This design also lets Jujutsu rebase merge commits correctly (unlike both Git
    and Mercurial).
 
-   <details>
-   <summary>Demo</summary>
    <a href="https://asciinema.org/a/mrx3HrirDdB5FjJIOa6ketwFm" target="_blank">
-   <img src="https://asciinema.org/a/mrx3HrirDdB5FjJIOa6ketwFm.svg" />
+     <img src="https://asciinema.org/a/mrx3HrirDdB5FjJIOa6ketwFm.svg" />
    </a>
-   </details>
 
  * **Automatic rebase**
 
