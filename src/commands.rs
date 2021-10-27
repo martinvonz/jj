@@ -2159,20 +2159,23 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
                 graphlog_edges.push(Edge::Missing);
             }
             let mut buffer = vec![];
+            let is_checkout = index_entry.commit_id() == checkout_id;
             {
                 let writer = Box::new(&mut buffer);
                 let mut formatter = ui.new_formatter(writer);
+                if is_checkout {
+                    formatter.add_label("checkout".to_string())?;
+                }
                 let commit = store.get_commit(&index_entry.commit_id()).unwrap();
                 template.format(&commit, formatter.as_mut())?;
+                if is_checkout {
+                    formatter.remove_label()?;
+                }
             }
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            let node_symbol = if index_entry.commit_id() == checkout_id {
-                b"@"
-            } else {
-                b"o"
-            };
+            let node_symbol = if is_checkout { b"@" } else { b"o" };
             graph.add_node(
                 &index_entry.position(),
                 &graphlog_edges,

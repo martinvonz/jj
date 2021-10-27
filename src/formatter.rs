@@ -95,6 +95,63 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result.insert(String::from("divergent"), String::from("red"));
     result.insert(String::from("conflict"), String::from("red"));
 
+    // TODO: This near-duplication of the lines above is unfortunate. Should we
+    // allow adding and clearing the "bright" bit somehow? Or should we instead
+    // use a different background color? (We don't have support for background
+    // colors yet.)
+    result.insert(
+        String::from("checkout commit_id"),
+        String::from("bright blue"),
+    );
+    result.insert(
+        String::from("checkout commit_id open"),
+        String::from("bright green"),
+    );
+    result.insert(
+        String::from("checkout change_id"),
+        String::from("bright magenta"),
+    );
+    result.insert(
+        String::from("checkout author"),
+        String::from("bright yellow"),
+    );
+    result.insert(
+        String::from("checkout author timestamp"),
+        String::from("bright cyan"),
+    );
+    result.insert(
+        String::from("checkout committer"),
+        String::from("bright yellow"),
+    );
+    result.insert(
+        String::from("checkout committer timestamp"),
+        String::from("bright cyan"),
+    );
+    result.insert(
+        String::from("checkout branch"),
+        String::from("bright magenta"),
+    );
+    result.insert(
+        String::from("checkout branches"),
+        String::from("bright magenta"),
+    );
+    result.insert(
+        String::from("checkout tags"),
+        String::from("bright magenta"),
+    );
+    result.insert(
+        String::from("checkout git_refs"),
+        String::from("bright magenta"),
+    );
+    result.insert(
+        String::from("checkout divergent"),
+        String::from("bright red"),
+    );
+    result.insert(
+        String::from("checkout conflict"),
+        String::from("bright red"),
+    );
+
     result.insert(String::from("diff header"), String::from("yellow"));
     result.insert(
         String::from("diff file_header"),
