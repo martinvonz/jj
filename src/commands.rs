@@ -3194,8 +3194,6 @@ fn cmd_op_log(
     struct OpTemplate;
     impl Template<Operation> for OpTemplate {
         fn format(&self, op: &Operation, formatter: &mut dyn Formatter) -> io::Result<()> {
-            // TODO: why can't this label be applied outside of the template?
-            formatter.add_label("op-log".to_string())?;
             // TODO: Make this templated
             formatter.add_label("id".to_string())?;
             formatter.write_str(&op.id().hex()[0..12])?;
@@ -3220,7 +3218,6 @@ fn cmd_op_log(
             for (key, value) in &metadata.tags {
                 formatter.write_str(&format!("\n{}: {}", key, value))?;
             }
-            formatter.remove_label()?;
 
             Ok(())
         }
@@ -3241,7 +3238,9 @@ fn cmd_op_log(
         {
             let writer = Box::new(&mut buffer);
             let mut formatter = ui.new_formatter(writer);
+            formatter.add_label("op-log".to_string())?;
             template.format(&op, formatter.as_mut())?;
+            formatter.remove_label()?;
         }
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
