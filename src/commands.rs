@@ -1455,7 +1455,7 @@ fn show_color_words_diff_line(
     diff_line: &DiffLine,
 ) -> io::Result<()> {
     if diff_line.has_left_content {
-        formatter.add_label(String::from("left"))?;
+        formatter.add_label(String::from("removed"))?;
         formatter.write_bytes(format!("{:>4}", diff_line.left_line_number).as_bytes())?;
         formatter.remove_label()?;
         formatter.write_bytes(b" ")?;
@@ -1463,7 +1463,7 @@ fn show_color_words_diff_line(
         formatter.write_bytes(b"     ")?;
     }
     if diff_line.has_right_content {
-        formatter.add_label(String::from("right"))?;
+        formatter.add_label(String::from("added"))?;
         formatter.write_bytes(format!("{:>4}", diff_line.right_line_number).as_bytes())?;
         formatter.remove_label()?;
         formatter.write_bytes(b": ")?;
@@ -1479,12 +1479,12 @@ fn show_color_words_diff_line(
                 let before = data[0];
                 let after = data[1];
                 if !before.is_empty() {
-                    formatter.add_label(String::from("left"))?;
+                    formatter.add_label(String::from("removed"))?;
                     formatter.write_bytes(before)?;
                     formatter.remove_label()?;
                 }
                 if !after.is_empty() {
-                    formatter.add_label(String::from("right"))?;
+                    formatter.add_label(String::from("added"))?;
                     formatter.write_bytes(after)?;
                     formatter.remove_label()?;
                 }
@@ -1877,13 +1877,13 @@ fn show_unified_diff_hunks(
                     formatter.remove_label()?;
                 }
                 DiffLineType::Removed => {
-                    formatter.add_label(String::from("left"))?;
+                    formatter.add_label(String::from("removed"))?;
                     formatter.write_str("-")?;
                     formatter.write_all(content)?;
                     formatter.remove_label()?;
                 }
                 DiffLineType::Added => {
-                    formatter.add_label(String::from("right"))?;
+                    formatter.add_label(String::from("added"))?;
                     formatter.write_str("+")?;
                     formatter.write_all(content)?;
                     formatter.remove_label()?;
