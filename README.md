@@ -42,8 +42,8 @@ Features:
    changes (you can even check out a different commit while resolving merge
    conflicts).
 
-   <a href="https://asciinema.org/a/uu2yF0FzPiRigbYQYok2PHmX5" target="_blank">
-     <img src="https://asciinema.org/a/uu2yF0FzPiRigbYQYok2PHmX5.svg" />
+   <a href="https://asciinema.org/a/zWMv4ffmoXykBtrxvDY6ohEaZ" target="_blank">
+     <img src="https://asciinema.org/a/zWMv4ffmoXykBtrxvDY6ohEaZ.svg" />
    </a>
 
  * **Operations update the repo first, then possibly the working copy**
