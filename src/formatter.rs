@@ -172,10 +172,22 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result.insert(String::from("op-log tags"), String::from("white"));
 
     result.insert(String::from("op-log head id"), String::from("bright blue"));
-    result.insert(String::from("op-log head user"), String::from("bright yellow"));
-    result.insert(String::from("op-log head time"), String::from("bright magenta"));
-    result.insert(String::from("op-log head description"), String::from("bright white"));
-    result.insert(String::from("op-log head tags"), String::from("bright white"));
+    result.insert(
+        String::from("op-log head user"),
+        String::from("bright yellow"),
+    );
+    result.insert(
+        String::from("op-log head time"),
+        String::from("bright magenta"),
+    );
+    result.insert(
+        String::from("op-log head description"),
+        String::from("bright white"),
+    );
+    result.insert(
+        String::from("op-log head tags"),
+        String::from("bright white"),
+    );
 
     result.insert(String::from("concepts heading"), String::from("yellow"));
 
