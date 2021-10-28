@@ -11,14 +11,17 @@ from Google.
 
 ## Introduction
 
-I started the project mostly in order to test the viability of some UX ideas in
-practice. I continue to use it for that, but my short-term goal now is to make
-it useful as an alternative CLI for Git repos.
+Jujutsu is a Git-compatible
+[DVCS](https://en.wikipedia.org/wiki/Distributed_version_control). It combines
+features from Git (data model, speed), Mercurial (anonymous branching, simple
+CLI free from "the index",
+[revsets](https://www.mercurial-scm.org/repo/hg/help/revsets)), and Pijul/Darcs
+(first-class conflicts), with features not found in either of them
+(working-copy-as-a-commit, undo functionality, automatic rebase).
 
 The command-line tool is called `jj` for now because it's easy to type and easy
 to replace (rare in English). The project is called "Jujutsu" because it matches
-"jj" (I initially called it "Jujube", but changed since jujutsu is more
-well-known).
+"jj".
 
 Features:
 
