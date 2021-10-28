@@ -2063,26 +2063,6 @@ fn cmd_status(
 }
 
 fn log_template(settings: &UserSettings) -> String {
-    let default_template = r#"
-            label(if(open, "open"),
-            "commit: " commit_id "\n"
-            "change: " change_id "\n"
-            "author: " author.name() " <" author.email() "> " author.timestamp() "\n"
-            "committer: " committer.name() " <" committer.email() "> "  committer.timestamp() "\n"
-            "branches: " branches "\n"
-            "tags: " tags "\n"
-            "open: " open "\n"
-            "divergent: " divergent "\n"
-            "has conflict: " conflict "\n"
-            description "\n"
-            )"#;
-    settings
-        .config()
-        .get_str("template.log")
-        .unwrap_or_else(|_| String::from(default_template))
-}
-
-fn graph_log_template(settings: &UserSettings) -> String {
     // TODO: define a method on boolean values, so we can get auto-coloring
     //       with e.g. `conflict.then("conflict")`
     let default_template = r#"
@@ -2114,16 +2094,9 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
     let revset = revset_expression.evaluate(repo.as_repo_ref())?;
     let store = repo.store();
 
-    let use_graph = !args.is_present("no-graph");
     let template_string = match args.value_of("template") {
         Some(value) => value.to_string(),
-        None => {
-            if use_graph {
-                graph_log_template(ui.settings())
-            } else {
-                log_template(ui.settings())
-            }
-        }
+        None => log_template(ui.settings()),
     };
     let template =
         crate::template_parser::parse_commit_template(repo.as_repo_ref(), &template_string);
@@ -2132,7 +2105,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
     let mut formatter = formatter.as_mut();
     formatter.add_label(String::from("log"))?;
 
-    if use_graph {
+    if !args.is_present("no-graph") {
         let mut graph = AsciiGraphDrawer::new(&mut formatter);
         for (index_entry, edges) in revset.iter().graph() {
             let mut graphlog_edges = vec![];
@@ -2196,19 +2169,12 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
 fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
     let mut repo_command = command.repo_helper(ui)?;
 
-    let use_graph = !args.is_present("no-graph");
     let start_commit = repo_command.resolve_revision_arg(ui, args)?;
     let checkout_id = repo_command.repo().view().checkout().clone();
 
     let template_string = match args.value_of("template") {
         Some(value) => value.to_string(),
-        None => {
-            if use_graph {
-                graph_log_template(ui.settings())
-            } else {
-                log_template(ui.settings())
-            }
-        }
+        None => log_template(ui.settings()),
     };
     let template = crate::template_parser::parse_commit_template(
         repo_command.repo().as_repo_ref(),
@@ -2224,7 +2190,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
         Box::new(|commit: &Commit| commit.id().clone()),
         Box::new(|commit: &Commit| commit.predecessors()),
     );
-    if use_graph {
+    if !args.is_present("no-graph") {
         let mut graph = AsciiGraphDrawer::new(&mut formatter);
         for commit in commits {
             let mut edges = vec![];
