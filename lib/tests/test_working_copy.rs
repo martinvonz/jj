@@ -19,7 +19,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use jujutsu_lib::backend::TreeValue;
+use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
@@ -61,6 +61,7 @@ fn test_checkout_file_transitions(use_git: bool) {
         Missing,
         Normal,
         Executable,
+        Conflict,
         #[cfg_attr(windows, allow(dead_code))]
         Symlink,
         Tree,
@@ -101,6 +102,47 @@ fn test_checkout_file_transitions(use_git: bool) {
                     executable: true,
                 }
             }
+            Kind::Conflict => {
+                let base_file_id = testutils::write_file(
+                    store,
+                    &RepoPath::from_internal_string(path),
+                    "base file contents",
+                );
+                let left_file_id = testutils::write_file(
+                    store,
+                    &RepoPath::from_internal_string(path),
+                    "left file contents",
+                );
+                let right_file_id = testutils::write_file(
+                    store,
+                    &RepoPath::from_internal_string(path),
+                    "right file contents",
+                );
+                let conflict = Conflict {
+                    removes: vec![ConflictPart {
+                        value: TreeValue::Normal {
+                            id: base_file_id,
+                            executable: false,
+                        },
+                    }],
+                    adds: vec![
+                        ConflictPart {
+                            value: TreeValue::Normal {
+                                id: left_file_id,
+                                executable: false,
+                            },
+                        },
+                        ConflictPart {
+                            value: TreeValue::Normal {
+                                id: right_file_id,
+                                executable: false,
+                            },
+                        },
+                    ],
+                };
+                let conflict_id = store.write_conflict(&conflict).unwrap();
+                TreeValue::Conflict(conflict_id)
+            }
             Kind::Symlink => {
                 let id = store
                     .write_symlink(&RepoPath::from_internal_string(path), "target")
@@ -133,7 +175,13 @@ fn test_checkout_file_transitions(use_git: bool) {
         tree_builder.set(RepoPath::from_internal_string(path), value);
     }
 
-    let mut kinds = vec![Kind::Missing, Kind::Normal, Kind::Executable, Kind::Tree];
+    let mut kinds = vec![
+        Kind::Missing,
+        Kind::Normal,
+        Kind::Executable,
+        Kind::Conflict,
+        Kind::Tree,
+    ];
     #[cfg(unix)]
     kinds.push(Kind::Symlink);
     if use_git {
@@ -209,6 +257,18 @@ fn test_checkout_file_transitions(use_git: bool) {
                     metadata.permissions().mode() & 0o111,
                     0,
                     "{:?} should be executable",
+                    path
+                );
+            }
+            Kind::Conflict => {
+                assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
+                let metadata = maybe_metadata.unwrap();
+                assert!(metadata.is_file(), "{:?} should be a file", path);
+                #[cfg(unix)]
+                assert_eq!(
+                    metadata.permissions().mode() & 0o111,
+                    0,
+                    "{:?} should not be executable",
                     path
                 );
             }
