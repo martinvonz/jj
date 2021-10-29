@@ -32,9 +32,10 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::backend::{
-    BackendError, CommitId, FileId, MillisSinceEpoch, SymlinkId, TreeId, TreeValue,
+    BackendError, CommitId, ConflictId, FileId, MillisSinceEpoch, SymlinkId, TreeId, TreeValue,
 };
 use crate::commit::Commit;
+use crate::conflicts::{materialize_conflict, update_conflict_from_content};
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::matchers::EverythingMatcher;
@@ -47,6 +48,7 @@ use crate::tree_builder::TreeBuilder;
 pub enum FileType {
     Normal { executable: bool },
     Symlink,
+    Conflict { id: ConflictId },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -90,6 +92,10 @@ fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> File
         crate::protos::working_copy::FileType::Normal => FileType::Normal { executable: false },
         crate::protos::working_copy::FileType::Executable => FileType::Normal { executable: true },
         crate::protos::working_copy::FileType::Symlink => FileType::Symlink,
+        crate::protos::working_copy::FileType::Conflict => {
+            let id = ConflictId(proto.conflict_id.to_vec());
+            FileType::Conflict { id }
+        }
     };
     FileState {
         file_type,
@@ -104,6 +110,10 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
         FileType::Normal { executable: false } => crate::protos::working_copy::FileType::Normal,
         FileType::Normal { executable: true } => crate::protos::working_copy::FileType::Executable,
         FileType::Symlink => crate::protos::working_copy::FileType::Symlink,
+        FileType::Conflict { id } => {
+            proto.conflict_id = id.0.to_vec();
+            crate::protos::working_copy::FileType::Conflict
+        }
     };
     proto.file_type = file_type;
     proto.mtime_millis_since_epoch = file_state.mtime.0;
@@ -371,8 +381,8 @@ impl TreeState {
         git_ignore: &GitIgnoreFile,
         tree_builder: &mut TreeBuilder,
     ) {
-        let current_file_state = self.file_states.get_mut(&repo_path);
-        if current_file_state.is_none()
+        let maybe_current_file_state = self.file_states.get_mut(&repo_path);
+        if maybe_current_file_state.is_none()
             && git_ignore.matches_file(&repo_path.to_internal_file_string())
         {
             // If it wasn't already tracked and it matches the ignored paths, then
@@ -381,7 +391,7 @@ impl TreeState {
         }
         #[cfg_attr(unix, allow(unused_mut))]
         let mut new_file_state = file_state(&disk_path).unwrap();
-        match current_file_state {
+        match maybe_current_file_state {
             None => {
                 // untracked
                 let file_type = new_file_state.file_type.clone();
@@ -389,23 +399,66 @@ impl TreeState {
                 let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type);
                 tree_builder.set(repo_path, file_value);
             }
-            Some(current_entry) => {
+            Some(current_file_state) => {
                 #[cfg(windows)]
                 {
                     // On Windows, we preserve the state we had recorded
                     // when we wrote the file.
-                    new_file_state.mark_executable(current_entry.is_executable());
+                    new_file_state.mark_executable(current_file_state.is_executable());
                 }
                 // If the file's mtime was set at the same time as this state file's own mtime,
                 // then we don't know if the file was modified before or after this state file.
                 // We set the file's mtime to 0 to simplify later code.
-                if current_entry.mtime >= self.own_mtime {
-                    current_entry.mtime = MillisSinceEpoch(0);
+                if current_file_state.mtime >= self.own_mtime {
+                    current_file_state.mtime = MillisSinceEpoch(0);
                 }
-                let clean = current_entry == &new_file_state;
+                let mut clean = current_file_state == &new_file_state;
+                // Because the file system doesn't have a built-in way of indicating a conflict,
+                // we look at the current state instead. If that indicates that the path has a
+                // conflict and the contents are now a file, then we take interpret that as if
+                // it is still a conflict.
+                if !clean
+                    && matches!(current_file_state.file_type, FileType::Conflict { .. })
+                    && matches!(new_file_state.file_type, FileType::Normal { .. })
+                {
+                    // If the only change is that the type changed from conflict to regular file,
+                    // then we consider it clean (the same as a regular file being clean, it's
+                    // just that the file system doesn't have a conflict type).
+                    if new_file_state.mtime == current_file_state.mtime
+                        && new_file_state.size == current_file_state.size
+                    {
+                        clean = true;
+                    } else {
+                        // If the file contained a conflict before and is now a normal file on disk
+                        // (new_file_state cannot be a Conflict at this point), we try to parse
+                        // any conflict markers in the file into a conflict.
+                        if let (FileType::Conflict { id }, FileType::Normal { executable: _ }) =
+                            (&current_file_state.file_type, &new_file_state.file_type)
+                        {
+                            let mut file = File::open(&disk_path).unwrap();
+                            let mut content = vec![];
+                            file.read_to_end(&mut content).unwrap();
+                            if let Some(new_conflict_id) = update_conflict_from_content(
+                                self.store.as_ref(),
+                                &repo_path,
+                                id,
+                                &content,
+                            )
+                            .unwrap()
+                            {
+                                new_file_state.file_type = FileType::Conflict {
+                                    id: new_conflict_id.clone(),
+                                };
+                                *current_file_state = new_file_state;
+                                tree_builder.set(repo_path, TreeValue::Conflict(new_conflict_id));
+                                return;
+                            }
+                        }
+                    }
+                }
                 if !clean {
                     let file_type = new_file_state.file_type.clone();
-                    *current_entry = new_file_state;
+                    *current_file_state = new_file_state;
                     let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type);
                     tree_builder.set(repo_path, file_value);
                 }
@@ -428,6 +481,7 @@ impl TreeState {
                 let id = self.write_symlink_to_store(repo_path, disk_path);
                 TreeValue::Symlink(id)
             }
+            FileType::Conflict { .. } => panic!("conflicts should be handled by the caller"),
         }
     }
 
@@ -476,6 +530,25 @@ impl TreeState {
             symlink(target, disk_path).unwrap();
         }
         file_state(disk_path).unwrap()
+    }
+
+    fn write_conflict(&self, disk_path: &Path, path: &RepoPath, id: &ConflictId) -> FileState {
+        create_parent_dirs(disk_path);
+        let conflict = self.store.read_conflict(id).unwrap();
+        // TODO: Check that we're not overwriting an un-ignored file here (which might
+        // be created by a concurrent process).
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(disk_path)
+            .unwrap_or_else(|err| panic!("failed to open {:?} for write: {:?}", &disk_path, err));
+        materialize_conflict(self.store.as_ref(), path, &conflict, &mut file).unwrap();
+        // TODO: Set the executable bit correctly (when possible) and preserve that on
+        // Windows like we do with the executable bit for regular files.
+        let mut result = file_state(disk_path).unwrap();
+        result.file_type = FileType::Conflict { id: id.clone() };
+        result
     }
 
     #[cfg_attr(windows, allow(unused_variables))]
@@ -536,18 +609,13 @@ impl TreeState {
                             self.write_file(&disk_path, &path, &id, executable)
                         }
                         TreeValue::Symlink(id) => self.write_symlink(&disk_path, &path, &id),
+                        TreeValue::Conflict(id) => self.write_conflict(&disk_path, &path, &id),
                         TreeValue::GitSubmodule(_id) => {
                             println!("ignoring git submodule at {:?}", path);
                             continue;
                         }
                         TreeValue::Tree(_id) => {
                             panic!("unexpected tree entry in diff at {:?}", path);
-                        }
-                        TreeValue::Conflict(_id) => {
-                            panic!(
-                                "conflicts cannot be represented in the working copy: {:?}",
-                                path
-                            );
                         }
                     };
                     self.file_states.insert(path.clone(), file_state);
@@ -574,6 +642,7 @@ impl TreeState {
                             self.write_file(&disk_path, &path, &id, executable)
                         }
                         (_, TreeValue::Symlink(id)) => self.write_symlink(&disk_path, &path, &id),
+                        (_, TreeValue::Conflict(id)) => self.write_conflict(&disk_path, &path, &id),
                         (_, TreeValue::GitSubmodule(_id)) => {
                             println!("ignoring git submodule at {:?}", path);
                             self.file_states.remove(&path);
@@ -581,12 +650,6 @@ impl TreeState {
                         }
                         (_, TreeValue::Tree(_id)) => {
                             panic!("unexpected tree entry in diff at {:?}", path);
-                        }
-                        (_, TreeValue::Conflict(_id)) => {
-                            panic!(
-                                "conflicts cannot be represented in the working copy: {:?}",
-                                path
-                            );
                         }
                     };
 

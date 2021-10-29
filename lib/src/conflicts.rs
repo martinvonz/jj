@@ -17,7 +17,7 @@ use std::io::{Cursor, Write};
 
 use itertools::Itertools;
 
-use crate::backend::{Conflict, ConflictPart, TreeValue};
+use crate::backend::{BackendResult, Conflict, ConflictId, ConflictPart, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files;
 use crate::files::{MergeHunk, MergeResult};
@@ -143,14 +143,14 @@ pub fn materialize_conflict(
     store: &Store,
     path: &RepoPath,
     conflict: &Conflict,
-    file: &mut dyn Write,
+    output: &mut dyn Write,
 ) -> std::io::Result<()> {
     let file_adds = file_parts(&conflict.adds);
     let file_removes = file_parts(&conflict.removes);
     if file_adds.len() != conflict.adds.len() || file_removes.len() != conflict.removes.len() {
         // Unless all parts are regular files, we can't do much better than to try to
         // describe the conflict.
-        describe_conflict(conflict, file)?;
+        describe_conflict(conflict, output)?;
         return Ok(());
     }
 
@@ -171,34 +171,34 @@ pub fn materialize_conflict(
     let merge_result = files::merge(&removed_slices, &added_slices);
     match merge_result {
         MergeResult::Resolved(content) => {
-            file.write_all(&content)?;
+            output.write_all(&content)?;
         }
         MergeResult::Conflict(hunks) => {
             for hunk in hunks {
                 match hunk {
                     MergeHunk::Resolved(content) => {
-                        file.write_all(&content)?;
+                        output.write_all(&content)?;
                     }
                     MergeHunk::Conflict { removes, adds } => {
                         let num_diffs = min(removes.len(), adds.len());
 
                         // TODO: Pair up a remove with an add in a way that minimizes the size of
                         // the diff
-                        file.write_all(CONFLICT_START_LINE)?;
+                        output.write_all(CONFLICT_START_LINE)?;
                         for i in 0..num_diffs {
-                            file.write_all(CONFLICT_MINUS_LINE)?;
-                            file.write_all(CONFLICT_PLUS_LINE)?;
-                            write_diff_hunks(&removes[i], &adds[i], file)?;
+                            output.write_all(CONFLICT_MINUS_LINE)?;
+                            output.write_all(CONFLICT_PLUS_LINE)?;
+                            write_diff_hunks(&removes[i], &adds[i], output)?;
                         }
                         for slice in removes.iter().skip(num_diffs) {
-                            file.write_all(CONFLICT_MINUS_LINE)?;
-                            file.write_all(slice)?;
+                            output.write_all(CONFLICT_MINUS_LINE)?;
+                            output.write_all(slice)?;
                         }
                         for slice in adds.iter().skip(num_diffs) {
-                            file.write_all(CONFLICT_PLUS_LINE)?;
-                            file.write_all(slice)?;
+                            output.write_all(CONFLICT_PLUS_LINE)?;
+                            output.write_all(slice)?;
                         }
-                        file.write_all(CONFLICT_END_LINE)?;
+                        output.write_all(CONFLICT_END_LINE)?;
                     }
                 }
             }
@@ -316,4 +316,75 @@ fn parse_conflict_hunk(input: &[u8]) -> MergeHunk {
     }
 
     MergeHunk::Conflict { removes, adds }
+}
+
+pub fn update_conflict_from_content(
+    store: &Store,
+    path: &RepoPath,
+    conflict_id: &ConflictId,
+    content: &[u8],
+) -> BackendResult<Option<ConflictId>> {
+    let mut conflict = store.read_conflict(conflict_id)?;
+
+    // First check if the new content is unchanged compared to the old content. If
+    // it is, we don't need parse the content or write any new objects to the
+    // store. This is also a way of making sure that unchanged tree/file
+    // conflicts (for example) are not converted to regular files in the working
+    // copy.
+    let mut old_content = Vec::with_capacity(content.len());
+    materialize_conflict(store, path, &conflict, &mut old_content).unwrap();
+    if content == old_content {
+        return Ok(Some(conflict_id.clone()));
+    }
+
+    let mut removed_content = vec![vec![]; conflict.removes.len()];
+    let mut added_content = vec![vec![]; conflict.adds.len()];
+    if let Some(hunks) = parse_conflict(content, conflict.removes.len(), conflict.adds.len()) {
+        for hunk in hunks {
+            match hunk {
+                MergeHunk::Resolved(slice) => {
+                    for buf in &mut removed_content {
+                        buf.extend_from_slice(&slice);
+                    }
+                    for buf in &mut added_content {
+                        buf.extend_from_slice(&slice);
+                    }
+                }
+                MergeHunk::Conflict { removes, adds } => {
+                    for (i, buf) in removes.iter().enumerate() {
+                        removed_content[i].extend_from_slice(buf);
+                    }
+                    for (i, buf) in adds.iter().enumerate() {
+                        added_content[i].extend_from_slice(buf);
+                    }
+                }
+            }
+        }
+        // Now write the new files contents we found by parsing the file
+        // with conflict markers. Update the Conflict object with the new
+        // FileIds.
+        for (i, buf) in removed_content.iter().enumerate() {
+            let file_id = store.write_file(path, &mut Cursor::new(buf))?;
+            if let TreeValue::Normal { id, executable: _ } = &mut conflict.removes[i].value {
+                *id = file_id;
+            } else {
+                // TODO: This can actually happen. We should check earlier
+                // that the we only attempt to parse the conflicts if it's a
+                // file-only conflict.
+                panic!("Found conflict markers in merge of non-files");
+            }
+        }
+        for (i, buf) in added_content.iter().enumerate() {
+            let file_id = store.write_file(path, &mut Cursor::new(buf))?;
+            if let TreeValue::Normal { id, executable: _ } = &mut conflict.adds[i].value {
+                *id = file_id;
+            } else {
+                panic!("Found conflict markers in merge of non-files");
+            }
+        }
+        let new_conflict_id = store.write_conflict(&conflict)?;
+        Ok(Some(new_conflict_id))
+    } else {
+        Ok(None)
+    }
 }

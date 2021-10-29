@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
-use jujutsu_lib::conflicts::{materialize_conflict, parse_conflict};
+use jujutsu_lib::conflicts::{materialize_conflict, parse_conflict, update_conflict_from_content};
 use jujutsu_lib::files::MergeHunk;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::testutils;
@@ -414,5 +414,95 @@ line 5
             2
         ),
         None
+    )
+}
+
+#[test]
+fn test_update_conflict_from_content() {
+    let settings = testutils::user_settings();
+    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+
+    let path = RepoPath::from_internal_string("dir/file");
+    let base_file_id = testutils::write_file(repo.store(), &path, "line 1\nline 2\nline 3\n");
+    let left_file_id = testutils::write_file(repo.store(), &path, "left 1\nline 2\nleft 3\n");
+    let right_file_id = testutils::write_file(repo.store(), &path, "right 1\nline 2\nright 3\n");
+    let conflict = Conflict {
+        removes: vec![ConflictPart {
+            value: TreeValue::Normal {
+                id: base_file_id,
+                executable: false,
+            },
+        }],
+        adds: vec![
+            ConflictPart {
+                value: TreeValue::Normal {
+                    id: left_file_id,
+                    executable: false,
+                },
+            },
+            ConflictPart {
+                value: TreeValue::Normal {
+                    id: right_file_id,
+                    executable: false,
+                },
+            },
+        ],
+    };
+    let conflict_id = repo.store().write_conflict(&conflict).unwrap();
+
+    // If the content is unchanged compared to the materialized value, we get the
+    // old conflict id back.
+    let mut materialized = vec![];
+    materialize_conflict(repo.store(), &path, &conflict, &mut materialized).unwrap();
+    let result =
+        update_conflict_from_content(repo.store(), &path, &conflict_id, &materialized).unwrap();
+    assert_eq!(result, Some(conflict_id.clone()));
+
+    // If the conflict is resolved, we None back to indicate that.
+    let result = update_conflict_from_content(
+        repo.store(),
+        &path,
+        &conflict_id,
+        b"resolved 1\nline 2\nresolved 3\n",
+    )
+    .unwrap();
+    assert_eq!(result, None);
+
+    // If the conflict is partially resolved, we get a new conflict back.
+    let result = update_conflict_from_content(repo.store(), &path, &conflict_id, b"resolved 1\nline 2\n<<<<<<<\n-------\n+++++++\n-line 3\n+left 3\n+++++++\nright 3\n>>>>>>>\n").unwrap();
+    assert_ne!(result, None);
+    assert_ne!(result, Some(conflict_id));
+    let new_conflict = repo.store().read_conflict(&result.unwrap()).unwrap();
+    // Calculate expected new FileIds
+    let new_base_file_id =
+        testutils::write_file(repo.store(), &path, "resolved 1\nline 2\nline 3\n");
+    let new_left_file_id =
+        testutils::write_file(repo.store(), &path, "resolved 1\nline 2\nleft 3\n");
+    let new_right_file_id =
+        testutils::write_file(repo.store(), &path, "resolved 1\nline 2\nright 3\n");
+    assert_eq!(
+        new_conflict,
+        Conflict {
+            removes: vec![ConflictPart {
+                value: TreeValue::Normal {
+                    id: new_base_file_id,
+                    executable: false
+                }
+            }],
+            adds: vec![
+                ConflictPart {
+                    value: TreeValue::Normal {
+                        id: new_left_file_id,
+                        executable: false
+                    }
+                },
+                ConflictPart {
+                    value: TreeValue::Normal {
+                        id: new_right_file_id,
+                        executable: false
+                    }
+                }
+            ]
+        }
     )
 }

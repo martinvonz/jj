@@ -18,12 +18,15 @@ enum FileType {
   Normal = 0;
   Symlink = 1;
   Executable = 2;
+  Conflict = 3;
 }
 
 message FileState {
   uint64 mtime_millis_since_epoch = 1;
   uint64 size = 2;
   FileType file_type = 3;
+  // Set only if file_type is Conflict
+  bytes conflict_id = 4;
 }
 
 message TreeState {
