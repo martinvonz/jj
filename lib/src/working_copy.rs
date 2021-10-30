@@ -346,17 +346,21 @@ impl TreeState {
                 } else {
                     let disk_file = disk_dir.join(file_name);
                     deleted_files.remove(&sub_path);
+                    let current_file_state = self.file_states.get(&sub_path);
+                    if current_file_state.is_none()
+                        && git_ignore.matches_file(&sub_path.to_internal_file_string())
+                    {
+                        // If it wasn't already tracked and it matches the ignored paths, then
+                        // ignore it.
+                        continue;
+                    }
                     let new_file_state = self.file_state(&entry.path()).unwrap();
                     let clean;
                     let executable;
-                    match self.file_states.get(&sub_path) {
+                    match current_file_state {
                         None => {
                             // untracked
-                            if git_ignore.matches_file(&sub_path.to_internal_file_string()) {
-                                continue;
-                            }
                             clean = false;
-
                             executable = new_file_state.file_type == FileType::Executable;
                         }
                         Some(current_entry) => {
