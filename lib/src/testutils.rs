@@ -75,7 +75,7 @@ pub fn write_file(store: &Store, path: &RepoPath, contents: &str) -> FileId {
 }
 
 pub fn write_normal_file(tree_builder: &mut TreeBuilder, path: &RepoPath, contents: &str) {
-    let id = write_file(tree_builder.repo(), path, contents);
+    let id = write_file(tree_builder.store(), path, contents);
     tree_builder.set(
         path.clone(),
         TreeValue::Normal {
@@ -86,7 +86,7 @@ pub fn write_normal_file(tree_builder: &mut TreeBuilder, path: &RepoPath, conten
 }
 
 pub fn write_executable_file(tree_builder: &mut TreeBuilder, path: &RepoPath, contents: &str) {
-    let id = write_file(tree_builder.repo(), path, contents);
+    let id = write_file(tree_builder.store(), path, contents);
     tree_builder.set(
         path.clone(),
         TreeValue::Normal {
@@ -97,7 +97,7 @@ pub fn write_executable_file(tree_builder: &mut TreeBuilder, path: &RepoPath, co
 }
 
 pub fn write_symlink(tree_builder: &mut TreeBuilder, path: &RepoPath, target: &str) {
-    let id = tree_builder.repo().write_symlink(path, target).unwrap();
+    let id = tree_builder.store().write_symlink(path, target).unwrap();
     tree_builder.set(path.clone(), TreeValue::Symlink(id));
 }
 
