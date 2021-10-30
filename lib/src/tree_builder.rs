@@ -44,7 +44,7 @@ impl TreeBuilder {
         }
     }
 
-    pub fn repo(&self) -> &Store {
+    pub fn store(&self) -> &Store {
         self.store.as_ref()
     }
 
