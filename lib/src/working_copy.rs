@@ -44,8 +44,7 @@ use crate::tree::Diff;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FileType {
-    Normal,
-    Executable,
+    Normal { executable: bool },
     Symlink,
 }
 
@@ -62,17 +61,15 @@ pub struct FileState {
 impl FileState {
     fn null() -> FileState {
         FileState {
-            file_type: FileType::Normal,
+            file_type: FileType::Normal { executable: false },
             mtime: MillisSinceEpoch(0),
             size: 0,
         }
     }
 
     fn mark_executable(&mut self, executable: bool) {
-        match (&self.file_type, executable) {
-            (FileType::Normal, true) => self.file_type = FileType::Executable,
-            (FileType::Executable, false) => self.file_type = FileType::Normal,
-            _ => {}
+        if let FileType::Normal { .. } = &self.file_type {
+            self.file_type = FileType::Normal { executable }
         }
     }
 }
@@ -88,9 +85,9 @@ pub struct TreeState {
 
 fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> FileState {
     let file_type = match proto.file_type {
-        crate::protos::working_copy::FileType::Normal => FileType::Normal,
+        crate::protos::working_copy::FileType::Normal => FileType::Normal { executable: false },
+        crate::protos::working_copy::FileType::Executable => FileType::Normal { executable: true },
         crate::protos::working_copy::FileType::Symlink => FileType::Symlink,
-        crate::protos::working_copy::FileType::Executable => FileType::Executable,
     };
     FileState {
         file_type,
@@ -102,9 +99,9 @@ fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> File
 fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::FileState {
     let mut proto = crate::protos::working_copy::FileState::new();
     let file_type = match &file_state.file_type {
-        FileType::Normal => crate::protos::working_copy::FileType::Normal,
+        FileType::Normal { executable: false } => crate::protos::working_copy::FileType::Normal,
+        FileType::Normal { executable: true } => crate::protos::working_copy::FileType::Executable,
         FileType::Symlink => crate::protos::working_copy::FileType::Symlink,
-        FileType::Executable => crate::protos::working_copy::FileType::Executable,
     };
     proto.file_type = file_type;
     proto.mtime_millis_since_epoch = file_state.mtime.0;
@@ -248,9 +245,9 @@ impl TreeState {
             #[cfg(windows)]
             let mode = 0;
             if mode & 0o111 != 0 {
-                FileType::Executable
+                FileType::Normal { executable: true }
             } else {
-                FileType::Normal
+                FileType::Normal { executable: false }
             }
         };
         Some(FileState {
@@ -361,7 +358,8 @@ impl TreeState {
                         None => {
                             // untracked
                             clean = false;
-                            executable = new_file_state.file_type == FileType::Executable;
+                            executable =
+                                new_file_state.file_type == FileType::Normal { executable: true };
                         }
                         Some(current_entry) => {
                             clean = current_entry == &new_file_state
@@ -370,17 +368,19 @@ impl TreeState {
                             {
                                 // On Windows, we preserve the state we had recorded
                                 // when we wrote the file.
-                                executable = current_entry.file_type == FileType::Executable
+                                executable =
+                                    current_entry.file_type == FileType::Normal { executable: true }
                             }
                             #[cfg(unix)]
                             {
-                                executable = new_file_state.file_type == FileType::Executable
+                                executable = new_file_state.file_type
+                                    == FileType::Normal { executable: true }
                             }
                         }
                     };
                     if !clean {
                         let file_value = match new_file_state.file_type {
-                            FileType::Normal | FileType::Executable => {
+                            FileType::Normal { .. } => {
                                 let id = self.write_file_to_store(&sub_path, &disk_file);
                                 TreeValue::Normal { id, executable }
                             }
