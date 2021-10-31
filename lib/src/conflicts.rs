@@ -24,6 +24,11 @@ use crate::files::{MergeHunk, MergeResult};
 use crate::repo_path::RepoPath;
 use crate::store::Store;
 
+const CONFLICT_START_LINE: &[u8] = b"<<<<<<<\n";
+const CONFLICT_END_LINE: &[u8] = b">>>>>>>\n";
+const CONFLICT_MINUS_LINE: &[u8] = b"-------\n";
+const CONFLICT_PLUS_LINE: &[u8] = b"+++++++\n";
+
 fn describe_conflict_part(part: &ConflictPart) -> String {
     match &part.value {
         TreeValue::Normal {
@@ -179,21 +184,21 @@ pub fn materialize_conflict(
 
                         // TODO: Pair up a remove with an add in a way that minimizes the size of
                         // the diff
-                        file.write_all(b"<<<<<<<\n")?;
+                        file.write_all(CONFLICT_START_LINE)?;
                         for i in 0..num_diffs {
-                            file.write_all(b"-------\n")?;
-                            file.write_all(b"+++++++\n")?;
+                            file.write_all(CONFLICT_MINUS_LINE)?;
+                            file.write_all(CONFLICT_PLUS_LINE)?;
                             write_diff_hunks(&removes[i], &adds[i], file)?;
                         }
                         for slice in removes.iter().skip(num_diffs) {
-                            file.write_all(b"-------\n")?;
+                            file.write_all(CONFLICT_MINUS_LINE)?;
                             file.write_all(slice)?;
                         }
                         for slice in adds.iter().skip(num_diffs) {
-                            file.write_all(b"+++++++\n")?;
+                            file.write_all(CONFLICT_PLUS_LINE)?;
                             file.write_all(slice)?;
                         }
-                        file.write_all(b">>>>>>>\n")?;
+                        file.write_all(CONFLICT_END_LINE)?;
                     }
                 }
             }
@@ -214,4 +219,101 @@ pub fn conflict_to_materialized_value(
         id: file_id,
         executable: false,
     }
+}
+
+/// Parses conflict markers from a slice. Returns None if there were no valid
+/// conflict markers. The caller has to provide the expected number of removed
+/// and added inputs to the conflicts. Conflict markers that are otherwise valid
+/// will be considered invalid if they don't have the expected arity.
+// TODO: "parse" is not usually the opposite of "materialize", so maybe we
+// should rename them to "serialize" and "deserialize"?
+pub fn parse_conflict(input: &[u8], num_removes: usize, num_adds: usize) -> Option<Vec<MergeHunk>> {
+    if input.is_empty() {
+        return None;
+    }
+    let mut hunks = vec![];
+    let mut pos = 0;
+    let mut resolved_start = 0;
+    let mut conflict_start = None;
+    for line in input.split_inclusive(|b| *b == b'\n') {
+        if line == CONFLICT_START_LINE {
+            conflict_start = Some(pos);
+        } else if conflict_start.is_some() && line == CONFLICT_END_LINE {
+            let conflict_body = &input[conflict_start.unwrap() + CONFLICT_START_LINE.len()..pos];
+            let hunk = parse_conflict_hunk(conflict_body);
+            match &hunk {
+                MergeHunk::Conflict { removes, adds }
+                    if removes.len() == num_removes && adds.len() == num_adds =>
+                {
+                    let resolved_slice = &input[resolved_start..conflict_start.unwrap()];
+                    if !resolved_slice.is_empty() {
+                        hunks.push(MergeHunk::Resolved(resolved_slice.to_vec()));
+                    }
+                    hunks.push(hunk);
+                    resolved_start = pos + line.len();
+                }
+                _ => {}
+            }
+            conflict_start = None;
+        }
+        pos += line.len();
+    }
+
+    if hunks.is_empty() {
+        None
+    } else {
+        if resolved_start < input.len() {
+            hunks.push(MergeHunk::Resolved(input[resolved_start..].to_vec()));
+        }
+        Some(hunks)
+    }
+}
+
+fn parse_conflict_hunk(input: &[u8]) -> MergeHunk {
+    let mut minus_seen = false;
+    let mut plus_seen = false;
+    let mut body_seen = false;
+    let mut removes = vec![];
+    let mut adds = vec![];
+    for line in input.split_inclusive(|b| *b == b'\n') {
+        if line == CONFLICT_MINUS_LINE {
+            minus_seen = true;
+            if body_seen {
+                plus_seen = false;
+                body_seen = false;
+            }
+            removes.push(vec![]);
+        } else if line == CONFLICT_PLUS_LINE {
+            plus_seen = true;
+            if body_seen {
+                minus_seen = false;
+                body_seen = false;
+            }
+            adds.push(vec![]);
+        } else if minus_seen && plus_seen {
+            body_seen = true;
+            if let Some(rest) = line.strip_prefix(b"-") {
+                removes.last_mut().unwrap().extend_from_slice(rest);
+            } else if let Some(rest) = line.strip_prefix(b"+") {
+                adds.last_mut().unwrap().extend_from_slice(rest);
+            } else if let Some(rest) = line.strip_prefix(b" ") {
+                removes.last_mut().unwrap().extend_from_slice(rest);
+                adds.last_mut().unwrap().extend_from_slice(rest);
+            } else {
+                // Doesn't look like a conflict
+                return MergeHunk::Resolved(vec![]);
+            }
+        } else if minus_seen {
+            body_seen = true;
+            removes.last_mut().unwrap().extend_from_slice(line);
+        } else if plus_seen {
+            body_seen = true;
+            adds.last_mut().unwrap().extend_from_slice(line);
+        } else {
+            // Doesn't look like a conflict
+            return MergeHunk::Resolved(vec![]);
+        }
+    }
+
+    MergeHunk::Conflict { removes, adds }
 }

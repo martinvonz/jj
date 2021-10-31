@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
-use jujutsu_lib::conflicts::materialize_conflict;
+use jujutsu_lib::conflicts::{materialize_conflict, parse_conflict};
+use jujutsu_lib::files::MergeHunk;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::testutils;
 
@@ -249,4 +250,169 @@ line 4
 line 5
 "
     );
+}
+
+#[test]
+fn test_parse_conflict_resolved() {
+    assert_eq!(
+        parse_conflict(
+            b"line 1
+line 2
+line 3
+line 4
+line 5
+",
+            1,
+            2
+        ),
+        None
+    )
+}
+
+#[test]
+fn test_parse_conflict_simple() {
+    assert_eq!(
+        parse_conflict(
+            b"line 1
+<<<<<<<
+-------
++++++++
+ line 2
+-line 3
++left
+ line 4
++++++++
+right
+>>>>>>>
+line 5
+",
+            1,
+            2
+        ),
+        Some(vec![
+            MergeHunk::Resolved(b"line 1\n".to_vec()),
+            MergeHunk::Conflict {
+                removes: vec![b"line 2\nline 3\nline 4\n".to_vec()],
+                adds: vec![b"line 2\nleft\nline 4\n".to_vec(), b"right\n".to_vec()]
+            },
+            MergeHunk::Resolved(b"line 5\n".to_vec())
+        ])
+    )
+}
+
+#[test]
+fn test_parse_conflict_multi_way() {
+    assert_eq!(
+        parse_conflict(
+            b"line 1
+<<<<<<<
+-------
++++++++
+ line 2
+-line 3
++left
+ line 4
++++++++
+right
+-------
++++++++
+ line 2
++forward
+ line 3
+ line 4
+>>>>>>>
+line 5
+",
+            2,
+            3
+        ),
+        Some(vec![
+            MergeHunk::Resolved(b"line 1\n".to_vec()),
+            MergeHunk::Conflict {
+                removes: vec![
+                    b"line 2\nline 3\nline 4\n".to_vec(),
+                    b"line 2\nline 3\nline 4\n".to_vec()
+                ],
+                adds: vec![
+                    b"line 2\nleft\nline 4\n".to_vec(),
+                    b"right\n".to_vec(),
+                    b"line 2\nforward\nline 3\nline 4\n".to_vec()
+                ]
+            },
+            MergeHunk::Resolved(b"line 5\n".to_vec())
+        ])
+    )
+}
+
+#[test]
+fn test_parse_conflict_different_wrong_arity() {
+    assert_eq!(
+        parse_conflict(
+            b"line 1
+<<<<<<<
+-------
++++++++
+ line 2
+-line 3
++left
+ line 4
++++++++
+right
+>>>>>>>
+line 5
+",
+            2,
+            3
+        ),
+        None
+    )
+}
+
+#[test]
+fn test_parse_conflict_malformed_marker() {
+    // The conflict marker is missing `-------` and `+++++++` (it needs at least one
+    // of them)
+    assert_eq!(
+        parse_conflict(
+            b"line 1
+<<<<<<<
+ line 2
+-line 3
++left
+ line 4
++++++++
+right
+>>>>>>>
+line 5
+",
+            1,
+            2
+        ),
+        None
+    )
+}
+
+#[test]
+fn test_parse_conflict_malformed_diff() {
+    // The diff part is invalid (missing space before "line 4")
+    assert_eq!(
+        parse_conflict(
+            b"line 1
+<<<<<<<
+-------
++++++++
+ line 2
+-line 3
++left
+line 4
++++++++
+right
+>>>>>>>
+line 5
+",
+            1,
+            2
+        ),
+        None
+    )
 }
