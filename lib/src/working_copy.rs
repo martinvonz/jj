@@ -396,8 +396,13 @@ impl TreeState {
                     // when we wrote the file.
                     new_file_state.mark_executable(current_entry.is_executable());
                 }
-                let clean =
-                    current_entry == &new_file_state && current_entry.mtime < self.own_mtime;
+                // If the file's mtime was set at the same time as this state file's own mtime,
+                // then we don't know if the file was modified before or after this state file.
+                // We set the file's mtime to 0 to simplify later code.
+                if current_entry.mtime >= self.own_mtime {
+                    current_entry.mtime = MillisSinceEpoch(0);
+                }
+                let clean = current_entry == &new_file_state;
                 if !clean {
                     let file_type = new_file_state.file_type.clone();
                     *current_entry = new_file_state;
