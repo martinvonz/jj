@@ -192,10 +192,22 @@ impl Debug for MergeHunk {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone)]
 pub enum MergeResult {
     Resolved(Vec<u8>),
     Conflict(Vec<MergeHunk>),
+}
+
+impl Debug for MergeResult {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        match self {
+            MergeResult::Resolved(data) => f
+                .debug_tuple("Resolved")
+                .field(&String::from_utf8_lossy(data))
+                .finish(),
+            MergeResult::Conflict(hunks) => f.debug_tuple("Conflict").field(hunks).finish(),
+        }
+    }
 }
 
 /// A region where the base and two sides match.
