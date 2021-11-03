@@ -251,10 +251,10 @@ impl TreeState {
         }
 
         let mut temp_file = NamedTempFile::new_in(&self.state_path).unwrap();
-        // update read time while we still have the file open for writes, so we know
+        proto.write_to_writer(temp_file.as_file_mut()).unwrap();
+        // update own write time while we before we rename it, so we know
         // there is no unknown data in it
         self.update_own_mtime();
-        proto.write_to_writer(temp_file.as_file_mut()).unwrap();
         // TODO: Retry if persisting fails (it will on Windows if the file happened to
         // be open for read).
         temp_file
