@@ -59,14 +59,6 @@ pub struct FileState {
 }
 
 impl FileState {
-    fn null() -> FileState {
-        FileState {
-            file_type: FileType::Normal { executable: false },
-            mtime: MillisSinceEpoch(0),
-            size: 0,
-        }
-    }
-
     fn mark_executable(&mut self, executable: bool) {
         if let FileType::Normal { .. } = &self.file_type {
             self.file_type = FileType::Normal { executable }
@@ -192,10 +184,13 @@ impl TreeState {
     }
 
     fn update_read_time(&mut self) {
-        let own_file_state = self
-            .file_state(&self.state_path.join("tree_state"))
-            .unwrap_or_else(FileState::null);
-        self.read_time = own_file_state.mtime;
+        if let Ok(metadata) = self.state_path.join("tree_state").symlink_metadata() {
+            let time = metadata.modified().unwrap();
+            let since_epoch = time.duration_since(UNIX_EPOCH).unwrap();
+            self.read_time = MillisSinceEpoch(since_epoch.as_millis().try_into().unwrap());
+        } else {
+            self.read_time = MillisSinceEpoch(0);
+        }
     }
 
     fn read(&mut self, mut file: File) {
