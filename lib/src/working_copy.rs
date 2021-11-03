@@ -333,10 +333,9 @@ impl TreeState {
                             }
                         }
                     }
-                    let disk_subdir = disk_dir.join(file_name);
-                    work.push((sub_path, disk_subdir, git_ignore.clone()));
+                    work.push((sub_path, entry.path(), git_ignore.clone()));
                 } else {
-                    let disk_file = disk_dir.join(file_name);
+                    let disk_file = entry.path();
                     deleted_files.remove(&sub_path);
                     let current_file_state = self.file_states.get(&sub_path);
                     if current_file_state.is_none()
@@ -346,7 +345,7 @@ impl TreeState {
                         // ignore it.
                         continue;
                     }
-                    let new_file_state = self.file_state(&entry.path()).unwrap();
+                    let new_file_state = self.file_state(&disk_file).unwrap();
                     let clean;
                     let executable;
                     match current_file_state {
