@@ -41,6 +41,7 @@ use crate::matchers::EverythingMatcher;
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::Diff;
+use crate::tree_builder::TreeBuilder;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FileType {
@@ -130,9 +131,9 @@ fn file_state(path: &Path) -> Option<FileState> {
         FileType::Symlink
     } else {
         #[cfg(unix)]
-            let mode = metadata.permissions().mode();
+        let mode = metadata.permissions().mode();
         #[cfg(windows)]
-            let mode = 0;
+        let mode = 0;
         if mode & 0o111 != 0 {
             FileType::Normal { executable: true }
         } else {
@@ -298,8 +299,7 @@ impl TreeState {
 
         let mut work = vec![(RepoPath::root(), self.working_copy_path.clone(), git_ignore)];
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
-        let mut deleted_files: HashSet<&RepoPath> = self.file_states.keys().collect();
-        let mut modified_files = BTreeMap::new();
+        let mut deleted_files: HashSet<_> = self.file_states.keys().cloned().collect();
         while !work.is_empty() {
             let (dir, disk_dir, git_ignore) = work.pop().unwrap();
             let git_ignore = TreeState::try_chain_gitignore(
@@ -335,73 +335,78 @@ impl TreeState {
                     }
                     work.push((sub_path, entry.path(), git_ignore.clone()));
                 } else {
-                    let disk_file = entry.path();
                     deleted_files.remove(&sub_path);
-                    let current_file_state = self.file_states.get(&sub_path);
-                    if current_file_state.is_none()
-                        && git_ignore.matches_file(&sub_path.to_internal_file_string())
-                    {
-                        // If it wasn't already tracked and it matches the ignored paths, then
-                        // ignore it.
-                        continue;
-                    }
-                    let new_file_state = file_state(&disk_file).unwrap();
-                    let clean;
-                    let executable;
-                    match current_file_state {
-                        None => {
-                            // untracked
-                            clean = false;
-                            executable =
-                                new_file_state.file_type == FileType::Normal { executable: true };
-                        }
-                        Some(current_entry) => {
-                            clean = current_entry == &new_file_state
-                                && current_entry.mtime < self.read_time;
-                            #[cfg(windows)]
-                            {
-                                // On Windows, we preserve the state we had recorded
-                                // when we wrote the file.
-                                executable =
-                                    current_entry.file_type == FileType::Normal { executable: true }
-                            }
-                            #[cfg(unix)]
-                            {
-                                executable = new_file_state.file_type
-                                    == FileType::Normal { executable: true }
-                            }
-                        }
-                    };
-                    if !clean {
-                        let file_value = match new_file_state.file_type {
-                            FileType::Normal { .. } => {
-                                let id = self.write_file_to_store(&sub_path, &disk_file);
-                                TreeValue::Normal { id, executable }
-                            }
-                            FileType::Symlink => {
-                                let id = self.write_symlink_to_store(&sub_path, &disk_file);
-                                TreeValue::Symlink(id)
-                            }
-                        };
-                        tree_builder.set(sub_path.clone(), file_value);
-                        modified_files.insert(sub_path, new_file_state);
-                    }
+                    self.update_file_state(
+                        sub_path,
+                        entry.path(),
+                        git_ignore.as_ref(),
+                        &mut tree_builder,
+                    );
                 }
             }
         }
-
-        let deleted_files: Vec<RepoPath> = deleted_files.iter().cloned().cloned().collect();
 
         for file in &deleted_files {
             self.file_states.remove(file);
             tree_builder.remove(file.clone());
         }
-        for (file, file_state) in modified_files {
-            self.file_states.insert(file, file_state);
-        }
         self.tree_id = tree_builder.write_tree();
         self.save();
         &self.tree_id
+    }
+
+    fn update_file_state(
+        &mut self,
+        repo_path: RepoPath,
+        disk_path: PathBuf,
+        git_ignore: &GitIgnoreFile,
+        tree_builder: &mut TreeBuilder,
+    ) {
+        let current_file_state = self.file_states.get(&repo_path);
+        if current_file_state.is_none()
+            && git_ignore.matches_file(&repo_path.to_internal_file_string())
+        {
+            // If it wasn't already tracked and it matches the ignored paths, then
+            // ignore it.
+            return;
+        }
+        let new_file_state = file_state(&disk_path).unwrap();
+        let clean;
+        let executable;
+        match current_file_state {
+            None => {
+                // untracked
+                clean = false;
+                executable = new_file_state.file_type == FileType::Normal { executable: true };
+            }
+            Some(current_entry) => {
+                clean = current_entry == &new_file_state && current_entry.mtime < self.read_time;
+                #[cfg(windows)]
+                {
+                    // On Windows, we preserve the state we had recorded
+                    // when we wrote the file.
+                    executable = current_entry.file_type == FileType::Normal { executable: true }
+                }
+                #[cfg(unix)]
+                {
+                    executable = new_file_state.file_type == FileType::Normal { executable: true }
+                }
+            }
+        };
+        if !clean {
+            let file_value = match new_file_state.file_type {
+                FileType::Normal { .. } => {
+                    let id = self.write_file_to_store(&repo_path, &disk_path);
+                    TreeValue::Normal { id, executable }
+                }
+                FileType::Symlink => {
+                    let id = self.write_symlink_to_store(&repo_path, &disk_path);
+                    TreeValue::Symlink(id)
+                }
+            };
+            tree_builder.set(repo_path.clone(), file_value);
+            self.file_states.insert(repo_path, new_file_state);
+        }
     }
 
     fn write_file(
