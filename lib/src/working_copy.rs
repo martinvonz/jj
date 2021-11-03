@@ -82,7 +82,7 @@ pub struct TreeState {
     state_path: PathBuf,
     tree_id: TreeId,
     file_states: BTreeMap<RepoPath, FileState>,
-    read_time: MillisSinceEpoch,
+    own_mtime: MillisSinceEpoch,
 }
 
 fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> FileState {
@@ -204,7 +204,7 @@ impl TreeState {
             state_path,
             tree_id,
             file_states: BTreeMap::new(),
-            read_time: MillisSinceEpoch(0),
+            own_mtime: MillisSinceEpoch(0),
         }
     }
 
@@ -222,18 +222,18 @@ impl TreeState {
         wc
     }
 
-    fn update_read_time(&mut self) {
+    fn update_own_mtime(&mut self) {
         if let Ok(metadata) = self.state_path.join("tree_state").symlink_metadata() {
             let time = metadata.modified().unwrap();
             let since_epoch = time.duration_since(UNIX_EPOCH).unwrap();
-            self.read_time = MillisSinceEpoch(since_epoch.as_millis().try_into().unwrap());
+            self.own_mtime = MillisSinceEpoch(since_epoch.as_millis().try_into().unwrap());
         } else {
-            self.read_time = MillisSinceEpoch(0);
+            self.own_mtime = MillisSinceEpoch(0);
         }
     }
 
     fn read(&mut self, mut file: File) {
-        self.update_read_time();
+        self.update_own_mtime();
         let proto: crate::protos::working_copy::TreeState =
             Message::parse_from_reader(&mut file).unwrap();
         self.tree_id = TreeId(proto.tree_id.clone());
@@ -253,7 +253,7 @@ impl TreeState {
         let mut temp_file = NamedTempFile::new_in(&self.state_path).unwrap();
         // update read time while we still have the file open for writes, so we know
         // there is no unknown data in it
-        self.update_read_time();
+        self.update_own_mtime();
         proto.write_to_writer(temp_file.as_file_mut()).unwrap();
         // TODO: Retry if persisting fails (it will on Windows if the file happened to
         // be open for read).
@@ -397,7 +397,7 @@ impl TreeState {
                     new_file_state.mark_executable(current_entry.is_executable());
                 }
                 let clean =
-                    current_entry == &new_file_state && current_entry.mtime < self.read_time;
+                    current_entry == &new_file_state && current_entry.mtime < self.own_mtime;
                 if !clean {
                     let file_type = new_file_state.file_type.clone();
                     *current_entry = new_file_state;
