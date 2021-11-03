@@ -117,6 +117,35 @@ fn create_parent_dirs(disk_path: &Path) {
         .unwrap_or_else(|_| panic!("failed to create parent directories for {:?}", &disk_path));
 }
 
+fn file_state(path: &Path) -> Option<FileState> {
+    let metadata = path.symlink_metadata().ok()?;
+    let time = metadata.modified().unwrap();
+    let since_epoch = time.duration_since(UNIX_EPOCH).unwrap();
+    let mtime = MillisSinceEpoch(since_epoch.as_millis().try_into().unwrap());
+    let size = metadata.len();
+    let metadata_file_type = metadata.file_type();
+    let file_type = if metadata_file_type.is_dir() {
+        panic!("expected file, not directory: {:?}", path);
+    } else if metadata_file_type.is_symlink() {
+        FileType::Symlink
+    } else {
+        #[cfg(unix)]
+            let mode = metadata.permissions().mode();
+        #[cfg(windows)]
+            let mode = 0;
+        if mode & 0o111 != 0 {
+            FileType::Normal { executable: true }
+        } else {
+            FileType::Normal { executable: false }
+        }
+    };
+    Some(FileState {
+        file_type,
+        mtime,
+        size,
+    })
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CheckoutStats {
     pub updated_files: u32,
@@ -223,35 +252,6 @@ impl TreeState {
             .unwrap();
     }
 
-    fn file_state(&self, path: &Path) -> Option<FileState> {
-        let metadata = path.symlink_metadata().ok()?;
-        let time = metadata.modified().unwrap();
-        let since_epoch = time.duration_since(UNIX_EPOCH).unwrap();
-        let mtime = MillisSinceEpoch(since_epoch.as_millis().try_into().unwrap());
-        let size = metadata.len();
-        let metadata_file_type = metadata.file_type();
-        let file_type = if metadata_file_type.is_dir() {
-            panic!("expected file, not directory: {:?}", path);
-        } else if metadata_file_type.is_symlink() {
-            FileType::Symlink
-        } else {
-            #[cfg(unix)]
-            let mode = metadata.permissions().mode();
-            #[cfg(windows)]
-            let mode = 0;
-            if mode & 0o111 != 0 {
-                FileType::Normal { executable: true }
-            } else {
-                FileType::Normal { executable: false }
-            }
-        };
-        Some(FileState {
-            file_type,
-            mtime,
-            size,
-        })
-    }
-
     fn write_file_to_store(&self, path: &RepoPath, disk_path: &Path) -> FileId {
         let file = File::open(disk_path).unwrap();
         self.store.write_file(path, &mut Box::new(file)).unwrap()
@@ -345,7 +345,7 @@ impl TreeState {
                         // ignore it.
                         continue;
                     }
-                    let new_file_state = self.file_state(&disk_file).unwrap();
+                    let new_file_state = file_state(&disk_file).unwrap();
                     let clean;
                     let executable;
                     match current_file_state {
@@ -427,7 +427,7 @@ impl TreeState {
         // the file exists, and the stat information is most likely accurate,
         // except for other processes modifying the file concurrently (The mtime is set
         // at write time and won't change when we close the file.)
-        let mut file_state = self.file_state(disk_path).unwrap();
+        let mut file_state = file_state(disk_path).unwrap();
         // Make sure the state we record is what we tried to set above. This is mostly
         // for Windows, since the executable bit is not reflected in the file system
         // there.
@@ -448,7 +448,7 @@ impl TreeState {
             let target = PathBuf::from(&target);
             symlink(target, disk_path).unwrap();
         }
-        self.file_state(disk_path).unwrap()
+        file_state(disk_path).unwrap()
     }
 
     #[cfg_attr(windows, allow(unused_variables))]
