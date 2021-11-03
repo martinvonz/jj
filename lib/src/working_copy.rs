@@ -60,6 +60,15 @@ pub struct FileState {
 }
 
 impl FileState {
+    #[cfg_attr(unix, allow(dead_code))]
+    fn is_executable(&mut self) -> bool {
+        if let FileType::Normal { executable } = &self.file_type {
+            *executable
+        } else {
+            false
+        }
+    }
+
     fn mark_executable(&mut self, executable: bool) {
         if let FileType::Normal { .. } = &self.file_type {
             self.file_type = FileType::Normal { executable }
@@ -362,7 +371,7 @@ impl TreeState {
         git_ignore: &GitIgnoreFile,
         tree_builder: &mut TreeBuilder,
     ) {
-        let current_file_state = self.file_states.get(&repo_path);
+        let current_file_state = self.file_states.get_mut(&repo_path);
         if current_file_state.is_none()
             && git_ignore.matches_file(&repo_path.to_internal_file_string())
         {
@@ -370,42 +379,50 @@ impl TreeState {
             // ignore it.
             return;
         }
-        let new_file_state = file_state(&disk_path).unwrap();
-        let clean;
-        let executable;
+        #[cfg_attr(unix, allow(unused_mut))]
+        let mut new_file_state = file_state(&disk_path).unwrap();
         match current_file_state {
             None => {
                 // untracked
-                clean = false;
-                executable = new_file_state.file_type == FileType::Normal { executable: true };
+                let file_type = new_file_state.file_type.clone();
+                self.file_states.insert(repo_path.clone(), new_file_state);
+                let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type);
+                tree_builder.set(repo_path, file_value);
             }
             Some(current_entry) => {
-                clean = current_entry == &new_file_state && current_entry.mtime < self.read_time;
                 #[cfg(windows)]
                 {
                     // On Windows, we preserve the state we had recorded
                     // when we wrote the file.
-                    executable = current_entry.file_type == FileType::Normal { executable: true }
+                    new_file_state.mark_executable(current_entry.is_executable());
                 }
-                #[cfg(unix)]
-                {
-                    executable = new_file_state.file_type == FileType::Normal { executable: true }
+                let clean =
+                    current_entry == &new_file_state && current_entry.mtime < self.read_time;
+                if !clean {
+                    let file_type = new_file_state.file_type.clone();
+                    *current_entry = new_file_state;
+                    let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type);
+                    tree_builder.set(repo_path, file_value);
                 }
             }
         };
-        if !clean {
-            let file_value = match new_file_state.file_type {
-                FileType::Normal { .. } => {
-                    let id = self.write_file_to_store(&repo_path, &disk_path);
-                    TreeValue::Normal { id, executable }
-                }
-                FileType::Symlink => {
-                    let id = self.write_symlink_to_store(&repo_path, &disk_path);
-                    TreeValue::Symlink(id)
-                }
-            };
-            tree_builder.set(repo_path.clone(), file_value);
-            self.file_states.insert(repo_path, new_file_state);
+    }
+
+    fn write_path_to_store(
+        &self,
+        repo_path: &RepoPath,
+        disk_path: &Path,
+        file_type: FileType,
+    ) -> TreeValue {
+        match file_type {
+            FileType::Normal { executable } => {
+                let id = self.write_file_to_store(repo_path, disk_path);
+                TreeValue::Normal { id, executable }
+            }
+            FileType::Symlink => {
+                let id = self.write_symlink_to_store(repo_path, disk_path);
+                TreeValue::Symlink(id)
+            }
         }
     }
 
