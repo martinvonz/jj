@@ -12,12 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
-use jujutsu_lib::backend::{Conflict, ConflictId, ConflictPart, TreeValue};
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::store::Store;
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::{assert_rebased, CommitGraphBuilder};
 use test_case::test_case;
@@ -66,113 +61,6 @@ fn test_checkout_closed(use_git: bool) {
     assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
     let repo = tx.commit();
     assert_eq!(repo.view().checkout(), actual_checkout.id());
-}
-
-#[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
-fn test_checkout_open_with_conflict(use_git: bool) {
-    // Test that MutableRepo::check_out() creates a child if the requested
-    // commit is open and has conflicts
-    let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
-    let store = repo.store();
-
-    let file_path = RepoPath::from_internal_string("file");
-    let conflict_id = write_conflict(store, &file_path);
-    let mut tree_builder = repo
-        .store()
-        .tree_builder(repo.store().empty_tree_id().clone());
-    tree_builder.set(file_path.clone(), TreeValue::Conflict(conflict_id));
-    let tree_id = tree_builder.write_tree();
-
-    let mut tx = repo.start_transaction("test");
-    let requested_checkout = CommitBuilder::for_new_commit(&settings, store, tree_id)
-        .set_open(true)
-        .write_to_repo(tx.mut_repo());
-    let repo = tx.commit();
-
-    let mut tx = repo.start_transaction("test");
-    let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
-    let file_value = actual_checkout.tree().path_value(&file_path);
-    match file_value {
-        Some(TreeValue::Normal {
-            id: _,
-            executable: false,
-        }) => {}
-        _ => panic!("unexpected tree value: {:?}", file_value),
-    }
-    assert_eq!(actual_checkout.parents().len(), 1);
-    assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
-    let repo = tx.commit();
-    assert_eq!(repo.view().checkout(), actual_checkout.id());
-}
-
-#[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
-fn test_checkout_closed_with_conflict(use_git: bool) {
-    // Test that MutableRepo::check_out() creates a child if the requested commit is
-    // closed and has conflicts
-    let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
-    let store = repo.store();
-
-    let file_path = RepoPath::from_internal_string("file");
-    let conflict_id = write_conflict(store, &file_path);
-    let mut tree_builder = repo
-        .store()
-        .tree_builder(repo.store().empty_tree_id().clone());
-    tree_builder.set(file_path.clone(), TreeValue::Conflict(conflict_id));
-    let tree_id = tree_builder.write_tree();
-
-    let mut tx = repo.start_transaction("test");
-    let requested_checkout = CommitBuilder::for_new_commit(&settings, store, tree_id)
-        .set_open(false)
-        .write_to_repo(tx.mut_repo());
-    let repo = tx.commit();
-
-    let mut tx = repo.start_transaction("test");
-    let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
-    let file_value = actual_checkout.tree().path_value(&file_path);
-    match file_value {
-        Some(TreeValue::Normal {
-            id: _,
-            executable: false,
-        }) => {}
-        _ => panic!("unexpected tree value: {:?}", file_value),
-    }
-    assert_eq!(actual_checkout.parents().len(), 1);
-    assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
-    let repo = tx.commit();
-    assert_eq!(repo.view().checkout(), actual_checkout.id());
-}
-
-fn write_conflict(store: &Arc<Store>, file_path: &RepoPath) -> ConflictId {
-    let file_id1 = testutils::write_file(store, file_path, "a\n");
-    let file_id2 = testutils::write_file(store, file_path, "b\n");
-    let file_id3 = testutils::write_file(store, file_path, "c\n");
-    let conflict = Conflict {
-        removes: vec![ConflictPart {
-            value: TreeValue::Normal {
-                id: file_id1,
-                executable: false,
-            },
-        }],
-        adds: vec![
-            ConflictPart {
-                value: TreeValue::Normal {
-                    id: file_id2,
-                    executable: false,
-                },
-            },
-            ConflictPart {
-                value: TreeValue::Normal {
-                    id: file_id3,
-                    executable: false,
-                },
-            },
-        ],
-    };
-    store.write_conflict(&conflict).unwrap()
 }
 
 #[test_case(false ; "local backend")]

@@ -38,7 +38,7 @@ use crate::store::Store;
 use crate::transaction::Transaction;
 use crate::view::{RefName, View};
 use crate::working_copy::WorkingCopy;
-use crate::{backend, conflicts, op_store};
+use crate::{backend, op_store};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum RepoError {
@@ -601,34 +601,20 @@ impl MutableRepo {
         assert!(current_checkout.is_open(), "current checkout is closed");
         if current_checkout.is_empty() {
             // Abandon the checkout we're leaving if it's empty.
-            // TODO: Also abandon it if the only changes are conflicts that got
-            // materialized.
             self.record_abandoned_commit(current_checkout_id);
         }
-        let store = self.store();
-        // Create a new tree with any conflicts resolved.
-        let mut tree_builder = store.tree_builder(commit.tree().id().clone());
-        for (path, conflict_id) in commit.tree().conflicts() {
-            let conflict = store.read_conflict(&conflict_id).unwrap();
-            let materialized_value =
-                conflicts::conflict_to_materialized_value(store, &path, &conflict);
-            tree_builder.set(path, materialized_value);
-        }
-        let tree_id = tree_builder.write_tree();
         let open_commit;
-        if !commit.is_open() || &tree_id != commit.tree().id() {
-            // If the commit is closed, or if it had conflicts, create a new open commit on
-            // top
+        if !commit.is_open() {
+            // If the commit is closed, create a new open commit on top
             open_commit = CommitBuilder::for_open_commit(
                 settings,
                 self.store(),
                 commit.id().clone(),
-                tree_id,
+                commit.tree().id().clone(),
             )
             .write_to_repo(self);
         } else {
-            // Otherwise the commit was open and didn't have any conflicts, so just use
-            // that commit as is.
+            // Otherwise the commit was open, so just use that commit as is.
             open_commit = commit.clone();
         }
         let id = open_commit.id().clone();
