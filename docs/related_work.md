@@ -15,3 +15,6 @@ Similar tools:
   we do simply as a consequence of making the working copy a commit).
 * [Pijul](https://pijul.org/): Architecturally quite different from Jujutsu,
   but its "first-class conflicts" feature seems quite similar to ours.
+* [Breezy](https://www.breezy-vcs.org/): Another VCS that's similar in that it
+  has multiple storage backends, including its own format as well as .git
+  support.
