@@ -76,8 +76,8 @@ Features:
    This design also lets Jujutsu rebase merge commits correctly (unlike both Git
    and Mercurial).
 
-   <a href="https://asciinema.org/a/hZ30l6TxYrEzH4n2f7sEfa9jq" target="_blank">
-     <img src="https://asciinema.org/a/hZ30l6TxYrEzH4n2f7sEfa9jq.svg" />
+   <a href="https://asciinema.org/a/MWQz2nAprRXevQEYtaHScN2tJ" target="_blank">
+     <img src="https://asciinema.org/a/MWQz2nAprRXevQEYtaHScN2tJ.svg" />
    </a>
 
  * **Automatic rebase**
