@@ -104,8 +104,7 @@ commit? The answer is that we need to "close" the commit. When we close a
 commit, we indicate that we're done making changes to the commit. As described
 earlier, when we check out a commit, a new working copy commit is created on
 top. However, that is only true for closed commits. If the commit is open, then
-that commit itself will be checked out instead. (There's still more nuance to
-this. We'll get back to that when we talk about conflicts.)
+that commit itself will be checked out instead.
 
 So, let's say we're now done with this commit, so we close it:
 ```shell script
@@ -208,35 +207,32 @@ $ echo b2 > file1; jj close -m B2
 Working copy now at: fd571967346e
 $ echo c > file2; jj close -m C
 Working copy now at: 4ae1e0587eef
-$ jj co ::::@
-Working copy now at: 9195b6d2e8dc
-Added 0 files, modified 1 files, removed 1 files
 $ jj l
-@ 9195b6d2e8dc 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00
+@ 4ae1e0587eef 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00
 |
-| o 1769bdaa8d6d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00
-| | C
-| o de5690380f40 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00
-| | B2
-| o 47e336632333 ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00
-|/  B1
+o 1769bdaa8d6d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00
+| C
+o de5690380f40 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00
+| B2
+o 47e336632333 ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00
+| B1
 o 661432c51c08 cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00
 ~ A
 ```
 
 We now have a few commits, where A, B1, and B2 modify the same file, while C
-modifies a different file. We checked out A in order to simplify the next steps.
-Let's now rebase B2 directly onto A:
+modifies a different file. Let's now rebase B2 directly onto A:
 ```shell script
 $ jj rebase -s 5548374c0794 -d cf49e6bec410
-Rebased 2 commits
+Rebased 3 commits
+Working copy now at: 9195b6d2e8dc
 $ jj l
+@ 9195b6d2e8dc 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00 conflict
+|
 o 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00  conflict
 | C
 o 0c305a9e6b27 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00  conflict
 | B2
-| @ 9195b6d2e8dc 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00
-|/
 | o 47e336632333 ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00
 |/  B1
 o 661432c51c08 cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00
@@ -244,22 +240,27 @@ o 661432c51c08 cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00
 ```
 
 There are several things worth noting here. First, the `jj rebase` command said
-"Rebased 2 commits". That's because we asked it to rebase commit B2 with the
-`-s` option, which also rebases descendants (commit C in this case). Second,
-because B2 modified the same file (and word) as B1, rebasing it resulted in
-conflicts, as the `jj l` output indicates. Third, the conflicts did not prevent
-the rebase from completing successfully, nor did it prevent C from getting
-rebased on top.
+"Rebased 3 commits". That's because we asked it to rebase commit B2 with the
+`-s` option, which also rebases descendants (commit C and the working copy in
+this case). Second, because B2 modified the same file (and word) as B1, rebasing
+it resulted in conflicts, as the `jj l` output indicates. Third, the conflicts
+did not prevent the rebase from completing successfully, nor did it prevent C
+and the working copy from getting rebased on top.
 
 Now let's resolve the conflict in B2. We'll do that by checking out B2, which
-will create a new commit on top (even if B2 had been an open commit). That way
-the conflict resolution doesn't get mixed in with the changes in B2. Once we've
-resolved the conflict, we'll squash the conflict resolution into the conflicted
-B2. That might look like this:
+will create a new commit on top because B2 is closed. Once we've resolved the
+conflict, we'll squash the conflict resolution into the conflicted B2. That
+might look like this:
 ```shell script
 $ jj co 5548374c0794  # Replace the hash by what you have for B2
 Working copy now at: 619f58d8a988
 Added 0 files, modified 1 files, removed 0 files
+$ jj st
+Parent commit: 5548374c0794 B2
+Working copy : 619f58d8a988
+The working copy is clean
+There are unresolved conflicts at these paths:
+file1
 $ cat file1
 <<<<<<<
 -------
