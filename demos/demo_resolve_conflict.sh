@@ -29,11 +29,12 @@ run_command "jj rebase -d b1"
 run_command ""
 run_command "# Huh, that seemed to succeed. Let'\''s take a"
 run_command "# look at the repo:"
-pause 3
+pause 2
 run_command "jj log"
-pause 5
+pause 4
+run_command "jj status"
+pause 3
 run_command "# As you can see, the rebased commit has a"
-run_command "# conflict. The working copy is on top of the"
 run_command "# conflict. The file in the working copy looks"
 run_command "# like this:"
 run_command "cat README"
@@ -43,18 +44,7 @@ run_command "# Now we will resolve the conflict:"
 run_command "echo \"Hello earth!\" > README"
 pause 2
 run_command ""
-run_command "# The diff of the conflict resolution looks"
-run_command "# like this:"
-run_command "jj diff"
-pause 5
-run_command ""
-run_command "# We now squash the conflict resolution into"
-run_command "# the conflicted parent change:"
-run_command "jj squash"
+run_command "# The status command no longer reports it:"
+run_command "jj status"
 pause 2
-run_command ""
-run_command "# Looks good now:"
-run_command "jj log"
-pause 3
-run_command "jj diff"
 '
