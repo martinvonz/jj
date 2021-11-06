@@ -18,12 +18,11 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
-use jujutsu_lib::backend::{BackendError, TreeId, TreeValue};
+use jujutsu_lib::backend::{BackendError, TreeId};
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::tree::{merge_trees, Tree};
-use jujutsu_lib::tree_builder::TreeBuilder;
 use jujutsu_lib::working_copy::{CheckoutError, TreeState};
 use tempfile::tempdir;
 use thiserror::Error;
@@ -50,26 +49,6 @@ impl From<BackendError> for DiffEditError {
     fn from(err: BackendError) -> Self {
         DiffEditError::InternalBackendError(err)
     }
-}
-
-fn add_to_tree(
-    store: &Store,
-    tree_builder: &mut TreeBuilder,
-    repo_path: &RepoPath,
-    value: &TreeValue,
-) -> Result<(), BackendError> {
-    match value {
-        TreeValue::Conflict(conflict_id) => {
-            let conflict = store.read_conflict(conflict_id)?;
-            let materialized_value =
-                jujutsu_lib::conflicts::conflict_to_materialized_value(store, repo_path, &conflict);
-            tree_builder.set(repo_path.clone(), materialized_value);
-        }
-        _ => {
-            tree_builder.set(repo_path.clone(), (*value).clone());
-        }
-    }
-    Ok(())
 }
 
 fn check_out(
@@ -110,10 +89,10 @@ pub fn edit_diff(
     for (file_path, diff) in left_tree.diff(right_tree, &EverythingMatcher) {
         let (left_value, right_value) = diff.as_options();
         if let Some(value) = left_value {
-            add_to_tree(store, &mut left_tree_builder, &file_path, value).unwrap();
+            left_tree_builder.set(file_path.clone(), value.clone());
         }
         if let Some(value) = right_value {
-            add_to_tree(store, &mut right_tree_builder, &file_path, value).unwrap();
+            right_tree_builder.set(file_path.clone(), value.clone());
         }
     }
     let left_partial_tree_id = left_tree_builder.write_tree();
