@@ -2005,6 +2005,7 @@ fn cmd_status(
     ui.write("Working copy : ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
     ui.write("\n")?;
+    
     let mut conflicted_local_branches = vec![];
     let mut conflicted_remote_branches = vec![];
     for (branch_name, branch_target) in repo.view().branches() {
@@ -2051,6 +2052,7 @@ fn cmd_status(
             "  Use `jj branches` to see details. Use `jj git pull` to resolve."
         )?;
     }
+
     let parent_tree = commit.parents()[0].tree();
     let tree = commit.tree();
     if tree.id() == parent_tree.id() {
@@ -2059,6 +2061,21 @@ fn cmd_status(
         ui.write("Working copy changes:\n")?;
         show_diff_summary(ui, repo, parent_tree.diff(&tree, &EverythingMatcher))?;
     }
+
+    let conflicts = tree.conflicts();
+    if !conflicts.is_empty() {
+        ui.stdout_formatter().add_label("conflict".to_string())?;
+        writeln!(ui, "There are unresolved conflicts at these paths:")?;
+        ui.stdout_formatter().remove_label()?;
+        for (path, _) in conflicts {
+            writeln!(
+                ui,
+                "{}",
+                &ui.format_file_path(repo.working_copy_path(), &path)
+            )?;
+        }
+    }
+
     Ok(())
 }
 
