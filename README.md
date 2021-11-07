@@ -76,8 +76,13 @@ Features:
    This design also lets Jujutsu rebase merge commits correctly (unlike both Git
    and Mercurial).
 
+   Basic conflict resolution:
    <a href="https://asciinema.org/a/MWQz2nAprRXevQEYtaHScN2tJ" target="_blank">
      <img src="https://asciinema.org/a/MWQz2nAprRXevQEYtaHScN2tJ.svg" />
+   </a>
+   Juggling conflicts:
+   <a href="https://asciinema.org/a/HqYA9SL2tzarPAErpYs684GGR" target="_blank">
+     <img src="https://asciinema.org/a/HqYA9SL2tzarPAErpYs684GGR.svg" />
    </a>
 
  * **Automatic rebase**
