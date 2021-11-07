@@ -2005,7 +2005,7 @@ fn cmd_status(
     ui.write("Working copy : ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
     ui.write("\n")?;
-    
+
     let mut conflicted_local_branches = vec![];
     let mut conflicted_remote_branches = vec![];
     for (branch_name, branch_target) in repo.view().branches() {
