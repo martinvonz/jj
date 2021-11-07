@@ -146,15 +146,7 @@ pub fn fetch(
     fetch_options.prune(FetchPrune::On);
     let refspec: &[&str] = &[];
     remote.download(refspec, Some(&mut fetch_options))?;
-    // The FetchOptions above ate our RemoteCallbacks so it seems we need to create
-    // a new instance.
-    let mut callbacks = create_remote_callbacks();
-    remote.update_tips(
-        Some(&mut callbacks),
-        false,
-        git2::AutotagOption::Unspecified,
-        None,
-    )?;
+    remote.update_tips(None, false, git2::AutotagOption::Unspecified, None)?;
     // TODO: We could make it optional to get the default branch since we only care
     // about it on clone.
     let mut default_branch = None;
