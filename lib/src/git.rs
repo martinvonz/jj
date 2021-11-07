@@ -14,7 +14,7 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use git2::{FetchPrune, RemoteCallbacks};
+use git2::RemoteCallbacks;
 use itertools::Itertools;
 use thiserror::Error;
 
@@ -143,10 +143,10 @@ pub fn fetch(
     fetch_options.proxy_options(proxy_options);
     let callbacks = create_remote_callbacks();
     fetch_options.remote_callbacks(callbacks);
-    fetch_options.prune(FetchPrune::On);
     let refspec: &[&str] = &[];
     remote.download(refspec, Some(&mut fetch_options))?;
     remote.update_tips(None, false, git2::AutotagOption::Unspecified, None)?;
+    remote.prune(None)?;
     // TODO: We could make it optional to get the default branch since we only care
     // about it on clone.
     let mut default_branch = None;

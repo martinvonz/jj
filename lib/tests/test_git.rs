@@ -328,6 +328,37 @@ fn test_fetch_success() {
 }
 
 #[test]
+fn test_fetch_prune_deleted_ref() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let source_repo_dir = temp_dir.path().join("source");
+    let clone_repo_dir = temp_dir.path().join("clone");
+    let jj_repo_dir = temp_dir.path().join("jj");
+    let source_git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
+    empty_git_commit(&source_git_repo, "refs/heads/main", &[]);
+    let clone_git_repo =
+        git2::Repository::clone(source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
+    std::fs::create_dir(&jj_repo_dir).unwrap();
+    let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, clone_repo_dir).unwrap();
+
+    let mut tx = jj_repo.start_transaction("test");
+    git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
+    // Test the setup
+    assert!(tx.mut_repo().get_branch("main").is_some());
+
+    // After re-fetching, the branch should be deleted
+    source_git_repo
+        .find_reference("refs/heads/main")
+        .unwrap()
+        .delete()
+        .unwrap();
+    git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
+    assert!(tx.mut_repo().get_branch("main").is_none());
+
+    tx.discard();
+}
+
+#[test]
 fn test_fetch_no_default_branch() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
