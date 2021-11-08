@@ -62,8 +62,8 @@ Features:
    an earlier repo state, or to simply undo a particular operation (which does
    not necessarily have to be the most recent operation).
 
-   <a href="https://asciinema.org/a/dRLTHshPSPtKq5I8F7ZS06XsP" target="_blank">
-     <img src="https://asciinema.org/a/dRLTHshPSPtKq5I8F7ZS06XsP.svg" />
+   <a href="https://asciinema.org/a/OFOTcm2XlZ09LLEI5bHYM8Alw" target="_blank">
+     <img src="https://asciinema.org/a/OFOTcm2XlZ09LLEI5bHYM8Alw.svg" />
    </a>
 
  * **Conflicts can be recorded in commits**
