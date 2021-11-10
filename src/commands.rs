@@ -758,6 +758,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .help("Read the change description from stdin"),
         );
     let close_command = SubCommand::with_name("close")
+        .alias("commit")
         .about("Mark a revision closed")
         .long_about(
             "Mark a revision closed. See `jj concepts working-copy` for information about \
@@ -772,6 +773,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         .arg(message_arg().help("The change description to use (don't open editor)"));
     let open_command = SubCommand::with_name("open")
         .about("Mark a revision open")
+        .alias("uncommit")
         .long_about(
             "Mark a revision open. See `jj concepts working-copy` for information about \
              open/closed revisions.",
@@ -822,6 +824,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 ),
         );
     let squash_command = SubCommand::with_name("squash")
+        .alias("amend")
         .about("Move changes from a revision into its parent")
         .long_about(
             "Move changes from a revision into its parent. After moving the changes into the \
@@ -839,6 +842,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
     // TODO: It doesn't make much sense to run this without -i. We should make that
     // the default. We should also abandon the parent commit if that becomes empty.
     let unsquash_command = SubCommand::with_name("unsquash")
+        .alias("unamend")
         .about("Move changes from a revision's parent into the revision")
         .arg(rev_arg())
         .arg(
