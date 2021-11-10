@@ -630,7 +630,7 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
             executable: false,
         }) => {
             assert_eq!(
-                testutils::read_file(repo.store(), &path, &id).as_slice(),
+                testutils::read_file(repo.store(), &path, &id),
                 b"AbC\ndef\nGhi\n"
             );
         }

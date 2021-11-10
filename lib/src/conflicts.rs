@@ -164,9 +164,9 @@ pub fn materialize_conflict(
         .collect_vec();
     let removed_slices = removed_content
         .iter()
-        .map(|vec| vec.as_slice())
+        .map(Vec::as_slice)
         .collect_vec();
-    let added_slices = added_content.iter().map(|vec| vec.as_slice()).collect_vec();
+    let added_slices = added_content.iter().map(Vec::as_slice).collect_vec();
 
     let merge_result = files::merge(&removed_slices, &added_slices);
     match merge_result {

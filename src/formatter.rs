@@ -31,7 +31,7 @@ pub trait Formatter: Write {
     fn write_from_reader(&mut self, reader: &mut dyn Read) -> io::Result<()> {
         let mut buffer = vec![];
         reader.read_to_end(&mut buffer).unwrap();
-        self.write_all(buffer.as_slice())
+        self.write_all(&buffer)
     }
 
     fn add_label(&mut self, label: String) -> io::Result<()>;

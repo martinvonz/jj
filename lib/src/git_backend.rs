@@ -222,7 +222,7 @@ impl Backend for GitBackend {
         let mut bytes = Vec::new();
         contents.read_to_end(&mut bytes).unwrap();
         let locked_repo = self.repo.lock().unwrap();
-        let oid = locked_repo.blob(bytes.as_slice()).unwrap();
+        let oid = locked_repo.blob(&bytes).unwrap();
         Ok(FileId::new(oid.as_bytes().to_vec()))
     }
 
@@ -428,7 +428,7 @@ impl Backend for GitBackend {
             .unwrap()
             .start_modification();
         if let Some(existing_extras) = mut_table.get_value(git_id.as_bytes()) {
-            if existing_extras != extras.as_slice() {
+            if existing_extras != &extras {
                 return Err(BackendError::Other(format!(
                     "Git commit '{}' already exists with different associated non-Git meta-data",
                     id.hex()
