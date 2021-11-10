@@ -75,7 +75,7 @@ impl Tree {
         Tree {
             store,
             dir,
-            id: TreeId(vec![]),
+            id: TreeId::new(vec![]),
             data: Arc::new(backend::Tree::default()),
         }
     }

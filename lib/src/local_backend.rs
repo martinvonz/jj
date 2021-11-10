@@ -70,7 +70,7 @@ impl LocalBackend {
     }
 
     pub fn load(store_path: PathBuf) -> Self {
-        let empty_tree_id = TreeId(hex::decode("786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce").unwrap());
+        let empty_tree_id = TreeId::new(hex::decode("786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce").unwrap());
         LocalBackend {
             path: store_path,
             empty_tree_id,
@@ -140,7 +140,7 @@ impl Backend for LocalBackend {
             hasher.update(&buff);
         }
         encoder.finish()?;
-        let id = FileId(hasher.finalize().to_vec());
+        let id = FileId::new(hasher.finalize().to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.file_path(&id))?;
         Ok(id)
@@ -159,7 +159,7 @@ impl Backend for LocalBackend {
         temp_file.write_all(target.as_bytes())?;
         let mut hasher = Blake2b::new();
         hasher.update(&target.as_bytes());
-        let id = SymlinkId(hasher.finalize().to_vec());
+        let id = SymlinkId::new(hasher.finalize().to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.symlink_path(&id))?;
         Ok(id)
@@ -186,7 +186,7 @@ impl Backend for LocalBackend {
 
         temp_file.as_file().write_all(&proto_bytes)?;
 
-        let id = TreeId(Blake2b::digest(&proto_bytes).to_vec());
+        let id = TreeId::new(Blake2b::digest(&proto_bytes).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.tree_path(&id))?;
         Ok(id)
@@ -209,7 +209,7 @@ impl Backend for LocalBackend {
 
         temp_file.as_file().write_all(&proto_bytes)?;
 
-        let id = CommitId(Blake2b::digest(&proto_bytes).to_vec());
+        let id = CommitId::new(Blake2b::digest(&proto_bytes).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.commit_path(&id))?;
         Ok(id)
@@ -232,7 +232,7 @@ impl Backend for LocalBackend {
 
         temp_file.as_file().write_all(&proto_bytes)?;
 
-        let id = ConflictId(Blake2b::digest(&proto_bytes).to_vec());
+        let id = ConflictId::new(Blake2b::digest(&proto_bytes).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.conflict_path(&id))?;
         Ok(id)
@@ -242,13 +242,13 @@ impl Backend for LocalBackend {
 pub fn commit_to_proto(commit: &Commit) -> crate::protos::store::Commit {
     let mut proto = crate::protos::store::Commit::new();
     for parent in &commit.parents {
-        proto.parents.push(parent.0.clone());
+        proto.parents.push(parent.as_bytes().to_vec());
     }
     for predecessor in &commit.predecessors {
-        proto.predecessors.push(predecessor.0.clone());
+        proto.predecessors.push(predecessor.as_bytes().to_vec());
     }
-    proto.set_root_tree(commit.root_tree.0.clone());
-    proto.set_change_id(commit.change_id.0.clone());
+    proto.set_root_tree(commit.root_tree.as_bytes().to_vec());
+    proto.set_change_id(commit.change_id.as_bytes().to_vec());
     proto.set_description(commit.description.clone());
     proto.set_author(signature_to_proto(&commit.author));
     proto.set_committer(signature_to_proto(&commit.committer));
@@ -257,15 +257,15 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::store::Commit {
 }
 
 fn commit_from_proto(proto: &crate::protos::store::Commit) -> Commit {
-    let commit_id_from_proto = |parent: &Vec<u8>| CommitId(parent.clone());
+    let commit_id_from_proto = |parent: &Vec<u8>| CommitId::new(parent.clone());
     let parents = proto.parents.iter().map(commit_id_from_proto).collect();
     let predecessors = proto
         .predecessors
         .iter()
         .map(commit_id_from_proto)
         .collect();
-    let root_tree = TreeId(proto.root_tree.to_vec());
-    let change_id = ChangeId(proto.change_id.to_vec());
+    let root_tree = TreeId::new(proto.root_tree.to_vec());
+    let change_id = ChangeId::new(proto.change_id.to_vec());
     Commit {
         parents,
         predecessors,
@@ -303,21 +303,21 @@ fn tree_value_to_proto(value: &TreeValue) -> crate::protos::store::TreeValue {
     match value {
         TreeValue::Normal { id, executable } => {
             let mut file = crate::protos::store::TreeValue_NormalFile::new();
-            file.set_id(id.0.clone());
+            file.set_id(id.as_bytes().to_vec());
             file.set_executable(*executable);
             proto.set_normal_file(file);
         }
         TreeValue::Symlink(id) => {
-            proto.set_symlink_id(id.0.clone());
+            proto.set_symlink_id(id.as_bytes().to_vec());
         }
         TreeValue::GitSubmodule(_id) => {
             panic!("cannot store git submodules");
         }
         TreeValue::Tree(id) => {
-            proto.set_tree_id(id.0.clone());
+            proto.set_tree_id(id.as_bytes().to_vec());
         }
         TreeValue::Conflict(id) => {
-            proto.set_conflict_id(id.0.clone());
+            proto.set_conflict_id(id.as_bytes().to_vec());
         }
     };
     proto
@@ -326,19 +326,19 @@ fn tree_value_to_proto(value: &TreeValue) -> crate::protos::store::TreeValue {
 fn tree_value_from_proto(proto: &crate::protos::store::TreeValue) -> TreeValue {
     match proto.value.as_ref().unwrap() {
         crate::protos::store::TreeValue_oneof_value::tree_id(id) => {
-            TreeValue::Tree(TreeId(id.clone()))
+            TreeValue::Tree(TreeId::new(id.clone()))
         }
         crate::protos::store::TreeValue_oneof_value::normal_file(
             crate::protos::store::TreeValue_NormalFile { id, executable, .. },
         ) => TreeValue::Normal {
-            id: FileId(id.clone()),
+            id: FileId::new(id.clone()),
             executable: *executable,
         },
         crate::protos::store::TreeValue_oneof_value::symlink_id(id) => {
-            TreeValue::Symlink(SymlinkId(id.clone()))
+            TreeValue::Symlink(SymlinkId::new(id.clone()))
         }
         crate::protos::store::TreeValue_oneof_value::conflict_id(id) => {
-            TreeValue::Conflict(ConflictId(id.clone()))
+            TreeValue::Conflict(ConflictId::new(id.clone()))
         }
     }
 }

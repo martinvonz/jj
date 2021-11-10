@@ -177,7 +177,7 @@ impl CommitGraphEntry<'_> {
     // to better cache locality when walking it; ability to quickly find all
     // commits associated with a change id.
     fn change_id(&self) -> ChangeId {
-        ChangeId(self.data[20..36].to_vec())
+        ChangeId::new(self.data[20..36].to_vec())
     }
 
     fn commit_id(&self) -> CommitId {
@@ -481,15 +481,15 @@ impl MutableIndex {
             buf.write_u32::<LittleEndian>(parent1_pos.0).unwrap();
             buf.write_u32::<LittleEndian>(parent_overflow_pos).unwrap();
 
-            assert_eq!(entry.change_id.0.len(), 16);
-            buf.write_all(entry.change_id.0.as_slice()).unwrap();
+            assert_eq!(entry.change_id.as_bytes().len(), 16);
+            buf.write_all(entry.change_id.as_bytes()).unwrap();
 
-            assert_eq!(entry.commit_id.0.len(), self.hash_length);
-            buf.write_all(entry.commit_id.0.as_slice()).unwrap();
+            assert_eq!(entry.commit_id.as_bytes().len(), self.hash_length);
+            buf.write_all(entry.commit_id.as_bytes()).unwrap();
         }
 
         for (commit_id, pos) in self.lookup {
-            buf.write_all(commit_id.0.as_slice()).unwrap();
+            buf.write_all(commit_id.as_bytes()).unwrap();
             buf.write_u32::<LittleEndian>(pos.0).unwrap();
         }
 
@@ -1440,7 +1440,7 @@ impl ReadonlyIndex {
         }
         let mut low = 0;
         let mut high = self.num_local_commits - 1;
-        let prefix_len = prefix.0.len();
+        let prefix_len = prefix.as_bytes().len();
 
         // binary search for the commit id
         loop {
@@ -1451,7 +1451,7 @@ impl ReadonlyIndex {
             if high == low {
                 return Some(IndexPosition(mid));
             }
-            if entry_prefix < prefix.0.as_slice() {
+            if entry_prefix < prefix.as_bytes() {
                 low = mid + 1;
             } else {
                 high = mid;

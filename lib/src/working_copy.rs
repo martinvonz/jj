@@ -93,7 +93,7 @@ fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> File
         crate::protos::working_copy::FileType::Executable => FileType::Normal { executable: true },
         crate::protos::working_copy::FileType::Symlink => FileType::Symlink,
         crate::protos::working_copy::FileType::Conflict => {
-            let id = ConflictId(proto.conflict_id.to_vec());
+            let id = ConflictId::new(proto.conflict_id.to_vec());
             FileType::Conflict { id }
         }
     };
@@ -111,7 +111,7 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
         FileType::Normal { executable: true } => crate::protos::working_copy::FileType::Executable,
         FileType::Symlink => crate::protos::working_copy::FileType::Symlink,
         FileType::Conflict { id } => {
-            proto.conflict_id = id.0.to_vec();
+            proto.conflict_id = id.as_bytes().to_vec();
             crate::protos::working_copy::FileType::Conflict
         }
     };
@@ -246,13 +246,13 @@ impl TreeState {
         self.update_own_mtime();
         let proto: crate::protos::working_copy::TreeState =
             Message::parse_from_reader(&mut file).unwrap();
-        self.tree_id = TreeId(proto.tree_id.clone());
+        self.tree_id = TreeId::new(proto.tree_id.clone());
         self.file_states = file_states_from_proto(&proto);
     }
 
     fn save(&mut self) {
         let mut proto = crate::protos::working_copy::TreeState::new();
-        proto.tree_id = self.tree_id.0.clone();
+        proto.tree_id = self.tree_id.as_bytes().to_vec();
         for (file, file_state) in &self.file_states {
             proto.file_states.insert(
                 file.to_internal_file_string(),

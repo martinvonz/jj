@@ -56,7 +56,7 @@ pub struct GitBackend {
 impl GitBackend {
     fn new(repo: git2::Repository, extra_metadata_store: TableStore) -> Self {
         let empty_tree_id =
-            TreeId(hex::decode("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap());
+            TreeId::new(hex::decode("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap());
         GitBackend {
             repo: Mutex::new(repo),
             empty_tree_id,
@@ -159,9 +159,9 @@ fn signature_to_git(signature: &Signature) -> git2::Signature {
 fn serialize_extras(commit: &Commit) -> Vec<u8> {
     let mut proto = crate::protos::store::Commit::new();
     proto.is_open = commit.is_open;
-    proto.change_id = commit.change_id.0.to_vec();
+    proto.change_id = commit.change_id.as_bytes().to_vec();
     for predecessor in &commit.predecessors {
-        proto.predecessors.push(predecessor.0.to_vec());
+        proto.predecessors.push(predecessor.as_bytes().to_vec());
     }
     proto.write_to_bytes().unwrap()
 }
@@ -170,7 +170,7 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
     let mut cursor = Cursor::new(bytes);
     let proto: crate::protos::store::Commit = Message::parse_from_reader(&mut cursor).unwrap();
     commit.is_open = proto.is_open;
-    commit.change_id = ChangeId(proto.change_id);
+    commit.change_id = ChangeId::new(proto.change_id);
     for predecessor in &proto.predecessors {
         commit.predecessors.push(CommitId(predecessor.clone()));
     }
@@ -207,12 +207,12 @@ impl Backend for GitBackend {
     }
 
     fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
-        if id.0.len() != self.hash_length() {
+        if id.as_bytes().len() != self.hash_length() {
             return Err(BackendError::NotFound);
         }
         let locked_repo = self.repo.lock().unwrap();
         let blob = locked_repo
-            .find_blob(Oid::from_bytes(id.0.as_slice()).unwrap())
+            .find_blob(Oid::from_bytes(id.as_bytes()).unwrap())
             .unwrap();
         let content = blob.content().to_owned();
         Ok(Box::new(Cursor::new(content)))
@@ -223,16 +223,16 @@ impl Backend for GitBackend {
         contents.read_to_end(&mut bytes).unwrap();
         let locked_repo = self.repo.lock().unwrap();
         let oid = locked_repo.blob(bytes.as_slice()).unwrap();
-        Ok(FileId(oid.as_bytes().to_vec()))
+        Ok(FileId::new(oid.as_bytes().to_vec()))
     }
 
     fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
-        if id.0.len() != self.hash_length() {
+        if id.as_bytes().len() != self.hash_length() {
             return Err(BackendError::NotFound);
         }
         let locked_repo = self.repo.lock().unwrap();
         let blob = locked_repo
-            .find_blob(Oid::from_bytes(id.0.as_slice()).unwrap())
+            .find_blob(Oid::from_bytes(id.as_bytes()).unwrap())
             .unwrap();
         let target = String::from_utf8(blob.content().to_owned()).unwrap();
         Ok(target)
@@ -241,7 +241,7 @@ impl Backend for GitBackend {
     fn write_symlink(&self, _path: &RepoPath, target: &str) -> Result<SymlinkId, BackendError> {
         let locked_repo = self.repo.lock().unwrap();
         let oid = locked_repo.blob(target.as_bytes()).unwrap();
-        Ok(SymlinkId(oid.as_bytes().to_vec()))
+        Ok(SymlinkId::new(oid.as_bytes().to_vec()))
     }
 
     fn empty_tree_id(&self) -> &TreeId {
@@ -252,29 +252,31 @@ impl Backend for GitBackend {
         if id == &self.empty_tree_id {
             return Ok(Tree::default());
         }
-        if id.0.len() != self.hash_length() {
+        if id.as_bytes().len() != self.hash_length() {
             return Err(BackendError::NotFound);
         }
 
         let locked_repo = self.repo.lock().unwrap();
         let git_tree = locked_repo
-            .find_tree(Oid::from_bytes(id.0.as_slice()).unwrap())
+            .find_tree(Oid::from_bytes(id.as_bytes()).unwrap())
             .unwrap();
         let mut tree = Tree::default();
         for entry in git_tree.iter() {
             let name = entry.name().unwrap();
             let (name, value) = match entry.kind().unwrap() {
                 git2::ObjectType::Tree => {
-                    let id = TreeId(entry.id().as_bytes().to_vec());
+                    let id = TreeId::new(entry.id().as_bytes().to_vec());
                     (entry.name().unwrap(), TreeValue::Tree(id))
                 }
                 git2::ObjectType::Blob => match entry.filemode() {
                     0o100644 => {
-                        let id = FileId(entry.id().as_bytes().to_vec());
+                        let id = FileId::new(entry.id().as_bytes().to_vec());
                         if name.ends_with(CONFLICT_SUFFIX) {
                             (
                                 &name[0..name.len() - CONFLICT_SUFFIX.len()],
-                                TreeValue::Conflict(ConflictId(entry.id().as_bytes().to_vec())),
+                                TreeValue::Conflict(ConflictId::new(
+                                    entry.id().as_bytes().to_vec(),
+                                )),
                             )
                         } else {
                             (
@@ -287,7 +289,7 @@ impl Backend for GitBackend {
                         }
                     }
                     0o100755 => {
-                        let id = FileId(entry.id().as_bytes().to_vec());
+                        let id = FileId::new(entry.id().as_bytes().to_vec());
                         (
                             name,
                             TreeValue::Normal {
@@ -297,7 +299,7 @@ impl Backend for GitBackend {
                         )
                     }
                     0o120000 => {
-                        let id = SymlinkId(entry.id().as_bytes().to_vec());
+                        let id = SymlinkId::new(entry.id().as_bytes().to_vec());
                         (name, TreeValue::Symlink(id))
                     }
                     mode => panic!("unexpected file mode {:?}", mode),
@@ -322,33 +324,35 @@ impl Backend for GitBackend {
                 TreeValue::Normal {
                     id,
                     executable: false,
-                } => (name, &id.0, 0o100644),
+                } => (name, id.as_bytes(), 0o100644),
                 TreeValue::Normal {
                     id,
                     executable: true,
-                } => (name, &id.0, 0o100755),
-                TreeValue::Symlink(id) => (name, &id.0, 0o120000),
-                TreeValue::Tree(id) => (name, &id.0, 0o040000),
-                TreeValue::GitSubmodule(id) => (name, &id.0, 0o160000),
-                TreeValue::Conflict(id) => {
-                    (entry.name().string() + CONFLICT_SUFFIX, &id.0, 0o100644)
-                }
+                } => (name, id.as_bytes(), 0o100755),
+                TreeValue::Symlink(id) => (name, id.as_bytes(), 0o120000),
+                TreeValue::Tree(id) => (name, id.as_bytes(), 0o040000),
+                TreeValue::GitSubmodule(id) => (name, id.as_bytes(), 0o160000),
+                TreeValue::Conflict(id) => (
+                    entry.name().string() + CONFLICT_SUFFIX,
+                    id.as_bytes(),
+                    0o100644,
+                ),
             };
             builder
                 .insert(name, Oid::from_bytes(id).unwrap(), filemode)
                 .unwrap();
         }
         let oid = builder.write().unwrap();
-        Ok(TreeId(oid.as_bytes().to_vec()))
+        Ok(TreeId::new(oid.as_bytes().to_vec()))
     }
 
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
-        if id.0.len() != self.hash_length() {
+        if id.as_bytes().len() != self.hash_length() {
             return Err(BackendError::NotFound);
         }
 
         let locked_repo = self.repo.lock().unwrap();
-        let git_commit_id = Oid::from_bytes(id.0.as_slice())?;
+        let git_commit_id = Oid::from_bytes(id.as_bytes())?;
         let commit = locked_repo.find_commit(git_commit_id)?;
         // We reverse the bits of the commit id to create the change id. We don't want
         // to use the first bytes unmodified because then it would be ambiguous
@@ -356,8 +360,8 @@ impl Backend for GitBackend {
         // would have been enough to pick the last 16 bytes instead of the
         // leading 16 bytes to address that. We also reverse the bits to make it less
         // likely that users depend on any relationship between the two ids.
-        let change_id = ChangeId(
-            id.0.clone().as_slice()[4..HASH_LENGTH]
+        let change_id = ChangeId::new(
+            id.as_bytes()[4..HASH_LENGTH]
                 .iter()
                 .rev()
                 .map(|b| b.reverse_bits())
@@ -365,9 +369,9 @@ impl Backend for GitBackend {
         );
         let parents = commit
             .parent_ids()
-            .map(|oid| CommitId(oid.as_bytes().to_vec()))
+            .map(|oid| CommitId::new(oid.as_bytes().to_vec()))
             .collect_vec();
-        let tree_id = TreeId(commit.tree_id().as_bytes().to_vec());
+        let tree_id = TreeId::new(commit.tree_id().as_bytes().to_vec());
         let description = commit.message().unwrap_or("<no message>").to_owned();
         let author = signature_from_git(commit.author());
         let committer = signature_from_git(commit.committer());
@@ -396,7 +400,7 @@ impl Backend for GitBackend {
         // TODO: We shouldn't have to create an in-memory index just to write an
         // object...
         let locked_repo = self.repo.lock().unwrap();
-        let git_tree = locked_repo.find_tree(Oid::from_bytes(contents.root_tree.0.as_slice())?)?;
+        let git_tree = locked_repo.find_tree(Oid::from_bytes(contents.root_tree.as_bytes())?)?;
         let author = signature_to_git(&contents.author);
         let committer = signature_to_git(&contents.committer);
         let message = &contents.description;
@@ -404,7 +408,7 @@ impl Backend for GitBackend {
         let mut parents = vec![];
         for parent_id in &contents.parents {
             let parent_git_commit =
-                locked_repo.find_commit(Oid::from_bytes(parent_id.0.as_slice())?)?;
+                locked_repo.find_commit(Oid::from_bytes(parent_id.as_bytes())?)?;
             parents.push(parent_git_commit);
         }
         let parent_refs = parents.iter().collect_vec();
@@ -439,7 +443,7 @@ impl Backend for GitBackend {
     fn read_conflict(&self, id: &ConflictId) -> BackendResult<Conflict> {
         let mut file = self.read_file(
             &RepoPath::from_internal_string("unused"),
-            &FileId(id.0.clone()),
+            &FileId::new(id.as_bytes().to_vec()),
         )?;
         let mut data = String::new();
         file.read_to_string(&mut data)?;
@@ -459,7 +463,7 @@ impl Backend for GitBackend {
         let bytes = json_string.as_bytes();
         let locked_repo = self.repo.lock().unwrap();
         let oid = locked_repo.blob(bytes).unwrap();
-        Ok(ConflictId(oid.as_bytes().to_vec()))
+        Ok(ConflictId::new(oid.as_bytes().to_vec()))
     }
 }
 
@@ -514,17 +518,17 @@ fn tree_value_to_json(value: &TreeValue) -> serde_json::Value {
 fn tree_value_from_json(json: &serde_json::Value) -> TreeValue {
     if let Some(json_file) = json.get("file") {
         TreeValue::Normal {
-            id: FileId(bytes_vec_from_json(json_file.get("id").unwrap())),
+            id: FileId::new(bytes_vec_from_json(json_file.get("id").unwrap())),
             executable: json_file.get("executable").unwrap().as_bool().unwrap(),
         }
     } else if let Some(json_id) = json.get("symlink_id") {
-        TreeValue::Symlink(SymlinkId(bytes_vec_from_json(json_id)))
+        TreeValue::Symlink(SymlinkId::new(bytes_vec_from_json(json_id)))
     } else if let Some(json_id) = json.get("tree_id") {
-        TreeValue::Tree(TreeId(bytes_vec_from_json(json_id)))
+        TreeValue::Tree(TreeId::new(bytes_vec_from_json(json_id)))
     } else if let Some(json_id) = json.get("submodule_id") {
-        TreeValue::GitSubmodule(CommitId(bytes_vec_from_json(json_id)))
+        TreeValue::GitSubmodule(CommitId::new(bytes_vec_from_json(json_id)))
     } else if let Some(json_id) = json.get("conflict_id") {
-        TreeValue::Conflict(ConflictId(bytes_vec_from_json(json_id)))
+        TreeValue::Conflict(ConflictId::new(bytes_vec_from_json(json_id)))
     } else {
         panic!("unexpected json value in conflict: {:#?}", json);
     }
@@ -593,7 +597,7 @@ mod tests {
         assert_eq!(&commit.change_id, &change_id);
         assert_eq!(commit.parents, vec![]);
         assert_eq!(commit.predecessors, vec![]);
-        assert_eq!(commit.root_tree.0.as_slice(), root_tree_id.as_bytes());
+        assert_eq!(commit.root_tree.as_bytes(), root_tree_id.as_bytes());
         assert!(!commit.is_open);
         assert_eq!(commit.description, "git commit message");
         assert_eq!(commit.author.name, "git author");
@@ -612,7 +616,10 @@ mod tests {
         assert_eq!(commit.committer.timestamp.tz_offset, -480);
 
         let root_tree = store
-            .read_tree(&RepoPath::root(), &TreeId(root_tree_id.as_bytes().to_vec()))
+            .read_tree(
+                &RepoPath::root(),
+                &TreeId::new(root_tree_id.as_bytes().to_vec()),
+            )
             .unwrap();
         let mut root_entries = root_tree.entries();
         let dir = root_entries.next().unwrap();
@@ -620,13 +627,13 @@ mod tests {
         assert_eq!(dir.name().as_str(), "dir");
         assert_eq!(
             dir.value(),
-            &TreeValue::Tree(TreeId(dir_tree_id.as_bytes().to_vec()))
+            &TreeValue::Tree(TreeId::new(dir_tree_id.as_bytes().to_vec()))
         );
 
         let dir_tree = store
             .read_tree(
                 &RepoPath::from_internal_string("dir"),
-                &TreeId(dir_tree_id.as_bytes().to_vec()),
+                &TreeId::new(dir_tree_id.as_bytes().to_vec()),
             )
             .unwrap();
         let mut files = dir_tree.entries();
@@ -637,14 +644,14 @@ mod tests {
         assert_eq!(
             normal_file.value(),
             &TreeValue::Normal {
-                id: FileId(blob1.as_bytes().to_vec()),
+                id: FileId::new(blob1.as_bytes().to_vec()),
                 executable: false
             }
         );
         assert_eq!(symlink.name().as_str(), "symlink");
         assert_eq!(
             symlink.value(),
-            &TreeValue::Symlink(SymlinkId(blob2.as_bytes().to_vec()))
+            &TreeValue::Symlink(SymlinkId::new(blob2.as_bytes().to_vec()))
         );
     }
 
@@ -664,7 +671,7 @@ mod tests {
             parents: vec![],
             predecessors: vec![],
             root_tree: store.empty_tree_id().clone(),
-            change_id: ChangeId(vec![]),
+            change_id: ChangeId::new(vec![]),
             description: "initial".to_string(),
             author: signature.clone(),
             committer: signature,
@@ -697,7 +704,7 @@ mod tests {
             parents: vec![],
             predecessors: vec![],
             root_tree: store.empty_tree_id().clone(),
-            change_id: ChangeId(vec![]),
+            change_id: ChangeId::new(vec![]),
             description: "initial".to_string(),
             author: signature.clone(),
             committer: signature,

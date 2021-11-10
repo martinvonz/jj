@@ -32,8 +32,20 @@ impl Debug for CommitId {
 }
 
 impl CommitId {
+    pub fn new(value: Vec<u8>) -> Self {
+        Self(value)
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        Self(bytes.to_vec())
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
     pub fn from_hex(hex: &str) -> Self {
-        CommitId(hex::decode(hex).unwrap())
+        Self(hex::decode(hex).unwrap())
     }
 
     pub fn hex(&self) -> String {
@@ -42,7 +54,7 @@ impl CommitId {
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct ChangeId(pub Vec<u8>);
+pub struct ChangeId(Vec<u8>);
 
 impl Debug for ChangeId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -51,8 +63,20 @@ impl Debug for ChangeId {
 }
 
 impl ChangeId {
+    pub fn new(value: Vec<u8>) -> Self {
+        Self(value)
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        Self(bytes.to_vec())
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
     pub fn from_hex(hex: &str) -> Self {
-        ChangeId(hex::decode(hex).unwrap())
+        Self(hex::decode(hex).unwrap())
     }
 
     pub fn hex(&self) -> String {
@@ -61,7 +85,7 @@ impl ChangeId {
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct TreeId(pub Vec<u8>);
+pub struct TreeId(Vec<u8>);
 
 impl Debug for TreeId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -70,13 +94,21 @@ impl Debug for TreeId {
 }
 
 impl TreeId {
+    pub fn new(value: Vec<u8>) -> Self {
+        Self(value)
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
     pub fn hex(&self) -> String {
         hex::encode(&self.0)
     }
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct FileId(pub Vec<u8>);
+pub struct FileId(Vec<u8>);
 
 impl Debug for FileId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -85,13 +117,21 @@ impl Debug for FileId {
 }
 
 impl FileId {
+    pub fn new(value: Vec<u8>) -> Self {
+        Self(value)
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
     pub fn hex(&self) -> String {
         hex::encode(&self.0)
     }
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct SymlinkId(pub Vec<u8>);
+pub struct SymlinkId(Vec<u8>);
 
 impl Debug for SymlinkId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -100,13 +140,21 @@ impl Debug for SymlinkId {
 }
 
 impl SymlinkId {
+    pub fn new(value: Vec<u8>) -> Self {
+        Self(value)
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
     pub fn hex(&self) -> String {
         hex::encode(&self.0)
     }
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct ConflictId(pub Vec<u8>);
+pub struct ConflictId(Vec<u8>);
 
 impl Debug for ConflictId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -115,6 +163,14 @@ impl Debug for ConflictId {
 }
 
 impl ConflictId {
+    pub fn new(value: Vec<u8>) -> Self {
+        Self(value)
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
     pub fn hex(&self) -> String {
         hex::encode(&self.0)
     }

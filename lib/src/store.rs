@@ -111,7 +111,7 @@ impl Store {
             email: String::new(),
             timestamp,
         };
-        let change_id = ChangeId(vec![0; 16]);
+        let change_id = ChangeId::new(vec![0; 16]);
         backend::Commit {
             parents: vec![],
             predecessors: vec![],
