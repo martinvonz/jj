@@ -428,7 +428,7 @@ impl Backend for GitBackend {
             .unwrap()
             .start_modification();
         if let Some(existing_extras) = mut_table.get_value(git_id.as_bytes()) {
-            if existing_extras != &extras {
+            if existing_extras != extras {
                 return Err(BackendError::Other(format!(
                     "Git commit '{}' already exists with different associated non-Git meta-data",
                     id.hex()
