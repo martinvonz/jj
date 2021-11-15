@@ -38,7 +38,7 @@ use crate::commit::Commit;
 use crate::conflicts::{materialize_conflict, update_conflict_from_content};
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
-use crate::matchers::EverythingMatcher;
+use crate::matchers::{EverythingMatcher, Matcher};
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::Diff;
@@ -185,6 +185,16 @@ pub enum CheckoutError {
     // working copy was read by the current process).
     #[error("Concurrent checkout")]
     ConcurrentCheckout,
+    #[error("Internal error: {0:?}")]
+    InternalBackendError(BackendError),
+}
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum UntrackError {
+    // The current checkout was deleted, maybe by an overly aggressive GC that happened while
+    // the current process was running.
+    #[error("Current checkout not found")]
+    SourceNotFound,
     #[error("Internal error: {0:?}")]
     InternalBackendError(BackendError),
 }
@@ -662,6 +672,25 @@ impl TreeState {
         self.save();
         Ok(stats)
     }
+
+    pub fn untrack(&mut self, matcher: &dyn Matcher) -> Result<(), UntrackError> {
+        let tree = self
+            .store
+            .get_tree(&RepoPath::root(), &self.tree_id)
+            .map_err(|err| match err {
+                BackendError::NotFound => UntrackError::SourceNotFound,
+                other => UntrackError::InternalBackendError(other),
+            })?;
+
+        let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
+        for (path, _value) in tree.entries_matching(matcher) {
+            self.file_states.remove(&path);
+            tree_builder.remove(path);
+        }
+        self.tree_id = tree_builder.write_tree();
+        self.save();
+        Ok(())
+    }
 }
 
 pub struct WorkingCopy {
@@ -830,6 +859,19 @@ impl WorkingCopy {
             lock,
             closed: false,
         }
+    }
+
+    pub fn untrack(&self, matcher: &dyn Matcher) -> Result<LockedWorkingCopy, UntrackError> {
+        let lock_path = self.state_path.join("working_copy.lock");
+        let lock = FileLock::lock(lock_path);
+
+        self.tree_state().as_mut().unwrap().untrack(matcher)?;
+
+        Ok(LockedWorkingCopy {
+            wc: self,
+            lock,
+            closed: false,
+        })
     }
 }
 
