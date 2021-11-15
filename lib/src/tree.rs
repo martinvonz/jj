@@ -100,8 +100,15 @@ impl Tree {
         self.data.entries()
     }
 
-    pub fn entries(&self) -> TreeEntriesIterator {
-        TreeEntriesIterator::new(self.clone())
+    pub fn entries(&self) -> TreeEntriesIterator<'static> {
+        TreeEntriesIterator::new(self.clone(), &EverythingMatcher)
+    }
+
+    pub fn entries_matching<'matcher>(
+        &self,
+        matcher: &'matcher dyn Matcher,
+    ) -> TreeEntriesIterator<'matcher> {
+        TreeEntriesIterator::new(self.clone(), matcher)
     }
 
     pub fn entry(&self, basename: &RepoPathComponent) -> Option<TreeEntry> {
@@ -206,15 +213,17 @@ impl Tree {
     }
 }
 
-pub struct TreeEntriesIterator {
+pub struct TreeEntriesIterator<'matcher> {
     tree: Pin<Box<Tree>>,
     entry_iterator: TreeEntriesNonRecursiveIterator<'static>,
-    subdir_iterator: Option<Box<TreeEntriesIterator>>,
+    subdir_iterator: Option<Box<TreeEntriesIterator<'matcher>>>,
+    matcher: &'matcher dyn Matcher,
 }
 
-impl TreeEntriesIterator {
-    fn new(tree: Tree) -> Self {
+impl<'matcher> TreeEntriesIterator<'matcher> {
+    fn new(tree: Tree, matcher: &'matcher dyn Matcher) -> Self {
         let tree = Box::pin(tree);
+        // TODO: Restrict walk according to Matcher::visit()
         let entry_iterator = tree.entries_non_recursive();
         let entry_iterator: TreeEntriesNonRecursiveIterator<'static> =
             unsafe { std::mem::transmute(entry_iterator) };
@@ -222,11 +231,12 @@ impl TreeEntriesIterator {
             tree,
             entry_iterator,
             subdir_iterator: None,
+            matcher,
         }
     }
 }
 
-impl Iterator for TreeEntriesIterator {
+impl Iterator for TreeEntriesIterator<'_> {
     type Item = (RepoPath, TreeValue);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -242,10 +252,14 @@ impl Iterator for TreeEntriesIterator {
                 match entry.value() {
                     TreeValue::Tree(id) => {
                         let subtree = self.tree.known_sub_tree(entry.name(), id);
-                        self.subdir_iterator = Some(Box::new(TreeEntriesIterator::new(subtree)));
+                        self.subdir_iterator =
+                            Some(Box::new(TreeEntriesIterator::new(subtree, self.matcher)));
                     }
                     other => {
                         let path = self.tree.dir().join(entry.name());
+                        if !self.matcher.matches(&path) {
+                            continue;
+                        }
                         return Some((path, other.clone()));
                     }
                 };
