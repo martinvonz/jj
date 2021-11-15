@@ -628,6 +628,9 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
                 .required(true)
                 .help("The revision to update to"),
         );
+    let untrack_command = SubCommand::with_name("untrack")
+        .about("Stop tracking specified paths in the working copy")
+        .arg(paths_arg());
     let files_command = SubCommand::with_name("files")
         .about("List files in a revision")
         .arg(rev_arg().help("The revision to list files in"));
@@ -1291,6 +1294,7 @@ It is possible to mutating commands when loading the repo at an earlier operatio
     for subcommand in [
         init_command,
         checkout_command,
+        untrack_command,
         files_command,
         diff_command,
         status_command,
@@ -1386,6 +1390,52 @@ fn cmd_checkout(
             "Added {} files, modified {} files, removed {} files",
             stats.added_files, stats.updated_files, stats.removed_files
         )?,
+    }
+    Ok(())
+}
+
+fn cmd_untrack(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &ArgMatches,
+) -> Result<(), CommandError> {
+    // TODO: We should probably check that the repo was loaded at head.
+    let mut repo_command = command.repo_helper(ui)?;
+    repo_command.maybe_commit_working_copy(ui)?;
+    let base_repo = repo_command.repo().clone();
+    let matcher = matcher_from_values(
+        ui,
+        repo_command.repo().working_copy_path(),
+        args.values_of("paths"),
+    )?;
+    let mut tx = repo_command.start_transaction("untrack paths");
+    let locked_working_copy = base_repo.working_copy_locked();
+    let old_commit = locked_working_copy.current_commit();
+    let unfinished_write = locked_working_copy
+        .untrack(matcher.as_ref())
+        .map_err(|err| CommandError::InternalError(format!("Failed to untrack paths: {}", err)))?;
+    let new_tree_id = unfinished_write.new_tree_id();
+    let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), base_repo.store(), &old_commit)
+        .set_tree(new_tree_id)
+        .write_to_repo(tx.mut_repo());
+    tx.mut_repo().set_checkout(new_commit.id().clone());
+    let repo = tx.commit();
+    unfinished_write.finish(new_commit);
+    drop(locked_working_copy);
+    repo_command.repo_mut().reload_at(repo.operation());
+
+    // TODO: Is it better to have WorkingCopy::untrack() report if any matching
+    // files exist on disk? That would make the command have no effect rather
+    // than partially succeeding, for better or worse.
+    repo_command.maybe_commit_working_copy(ui)?;
+    let new_commit = repo_command.repo().working_copy_locked().current_commit();
+    if let Some((path, _value)) = new_commit.tree().entries_matching(matcher.as_ref()).next() {
+        let ui_path = ui.format_file_path(base_repo.working_copy_path(), &path);
+        return Err(CommandError::UserError(format!(
+            "At least '{}' was added back because it is not ignored. Make sure it's ignored, then \
+             try again.",
+            ui_path
+        )));
     }
     Ok(())
 }
@@ -3869,6 +3919,8 @@ where
         cmd_init(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("checkout") {
         cmd_checkout(&mut ui, &command_helper, sub_args)
+    } else if let Some(sub_args) = matches.subcommand_matches("untrack") {
+        cmd_untrack(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("files") {
         cmd_files(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("diff") {
