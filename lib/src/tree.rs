@@ -22,7 +22,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use crate::backend::{
-    BackendError, Conflict, ConflictId, ConflictPart, TreeEntriesNonRecursiveIter, TreeEntry,
+    BackendError, Conflict, ConflictId, ConflictPart, TreeEntriesNonRecursiveIterator, TreeEntry,
     TreeId, TreeValue,
 };
 use crate::files::MergeResult;
@@ -96,12 +96,12 @@ impl Tree {
         &self.data
     }
 
-    pub fn entries_non_recursive(&self) -> TreeEntriesNonRecursiveIter {
+    pub fn entries_non_recursive(&self) -> TreeEntriesNonRecursiveIterator {
         self.data.entries()
     }
 
-    pub fn entries(&self) -> TreeEntriesIter {
-        TreeEntriesIter::new(self.clone())
+    pub fn entries(&self) -> TreeEntriesIterator {
+        TreeEntriesIterator::new(self.clone())
     }
 
     pub fn entry(&self, basename: &RepoPathComponent) -> Option<TreeEntry> {
@@ -206,51 +206,53 @@ impl Tree {
     }
 }
 
-pub struct TreeEntriesIter {
-    stack: Vec<(Pin<Box<Tree>>, TreeEntriesNonRecursiveIter<'static>)>,
+pub struct TreeEntriesIterator {
+    tree: Pin<Box<Tree>>,
+    entry_iterator: TreeEntriesNonRecursiveIterator<'static>,
+    subdir_iterator: Option<Box<TreeEntriesIterator>>,
 }
 
-impl TreeEntriesIter {
+impl TreeEntriesIterator {
     fn new(tree: Tree) -> Self {
         let tree = Box::pin(tree);
-        let iter = tree.entries_non_recursive();
-        let iter: TreeEntriesNonRecursiveIter<'static> = unsafe { std::mem::transmute(iter) };
+        let entry_iterator = tree.entries_non_recursive();
+        let entry_iterator: TreeEntriesNonRecursiveIterator<'static> =
+            unsafe { std::mem::transmute(entry_iterator) };
         Self {
-            stack: vec![(tree, iter)],
+            tree,
+            entry_iterator,
+            subdir_iterator: None,
         }
     }
 }
 
-impl Iterator for TreeEntriesIter {
+impl Iterator for TreeEntriesIterator {
     type Item = (RepoPath, TreeValue);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while !self.stack.is_empty() {
-            let (tree, iter) = self.stack.last_mut().unwrap();
-            match iter.next() {
-                None => {
-                    // No more entries in this directory
-                    self.stack.pop().unwrap();
+        loop {
+            // First return results from any subdirectory we're currently visiting.
+            if let Some(subdir_iter) = &mut self.subdir_iterator {
+                if let Some(item) = subdir_iter.next() {
+                    return Some(item);
                 }
-                Some(entry) => {
-                    match entry.value() {
-                        TreeValue::Tree(id) => {
-                            let subtree = tree.known_sub_tree(entry.name(), id);
-                            let subtree = Box::pin(subtree);
-                            let iter = subtree.entries_non_recursive();
-                            let subtree_iter: TreeEntriesNonRecursiveIter<'static> =
-                                unsafe { std::mem::transmute(iter) };
-                            self.stack.push((subtree, subtree_iter));
-                        }
-                        other => {
-                            let path = tree.dir().join(entry.name());
-                            return Some((path, other.clone()));
-                        }
-                    };
-                }
+                self.subdir_iterator = None;
+            }
+            if let Some(entry) = self.entry_iterator.next() {
+                match entry.value() {
+                    TreeValue::Tree(id) => {
+                        let subtree = self.tree.known_sub_tree(entry.name(), id);
+                        self.subdir_iterator = Some(Box::new(TreeEntriesIterator::new(subtree)));
+                    }
+                    other => {
+                        let path = self.tree.dir().join(entry.name());
+                        return Some((path, other.clone()));
+                    }
+                };
+            } else {
+                return None;
             }
         }
-        None
     }
 }
 
@@ -280,8 +282,8 @@ impl<T> Diff<T> {
 }
 
 struct TreeEntryDiffIterator<'trees, 'matcher> {
-    it1: Peekable<TreeEntriesNonRecursiveIter<'trees>>,
-    it2: Peekable<TreeEntriesNonRecursiveIter<'trees>>,
+    it1: Peekable<TreeEntriesNonRecursiveIterator<'trees>>,
+    it2: Peekable<TreeEntriesNonRecursiveIterator<'trees>>,
     // TODO: Restrict walk according to Matcher::visit()
     _matcher: &'matcher dyn Matcher,
 }
@@ -420,6 +422,7 @@ impl Iterator for TreeDiffIterator<'_> {
                 if let Some(element) = subdir_iterator.next() {
                     return Some(element);
                 }
+                self.subdir_iterator = None;
             }
 
             if let Some((name, value)) = self.added_file.take() {
