@@ -41,7 +41,7 @@ pub struct Store {
 
 impl Store {
     fn new(backend: Box<dyn Backend>) -> Arc<Self> {
-        let root_commit_id = CommitId(vec![0; backend.hash_length()]);
+        let root_commit_id = CommitId::new(vec![0; backend.hash_length()]);
         Arc::new(Store {
             backend,
             root_commit_id,

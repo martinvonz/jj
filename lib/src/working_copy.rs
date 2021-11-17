@@ -111,7 +111,7 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
         FileType::Normal { executable: true } => crate::protos::working_copy::FileType::Executable,
         FileType::Symlink => crate::protos::working_copy::FileType::Symlink,
         FileType::Conflict { id } => {
-            proto.conflict_id = id.as_bytes().to_vec();
+            proto.conflict_id = id.to_bytes();
             crate::protos::working_copy::FileType::Conflict
         }
     };
@@ -262,7 +262,7 @@ impl TreeState {
 
     fn save(&mut self) {
         let mut proto = crate::protos::working_copy::TreeState::new();
-        proto.tree_id = self.tree_id.as_bytes().to_vec();
+        proto.tree_id = self.tree_id.to_bytes();
         for (file, file_state) in &self.file_states {
             proto.file_states.insert(
                 file.to_internal_file_string(),
@@ -755,7 +755,7 @@ impl WorkingCopy {
     pub fn current_commit_id(&self) -> CommitId {
         if self.commit_id.borrow().is_none() {
             let proto = self.read_proto();
-            let commit_id = CommitId(proto.commit_id);
+            let commit_id = CommitId::new(proto.commit_id);
             self.commit_id.replace(Some(commit_id));
         }
 
@@ -804,7 +804,7 @@ impl WorkingCopy {
 
     fn save(&mut self) {
         let mut proto = crate::protos::working_copy::Checkout::new();
-        proto.commit_id = self.current_commit_id().0;
+        proto.commit_id = self.current_commit_id().to_bytes();
         self.write_proto(proto);
     }
 
@@ -826,7 +826,7 @@ impl WorkingCopy {
         // need for it.
         let current_proto = self.read_proto();
         if let Some(commit_id_at_read_time) = self.commit_id.borrow().as_ref() {
-            if current_proto.commit_id != commit_id_at_read_time.0 {
+            if current_proto.commit_id != commit_id_at_read_time.as_bytes() {
                 return Err(CheckoutError::ConcurrentCheckout);
             }
         }
@@ -851,7 +851,7 @@ impl WorkingCopy {
 
         let current_proto = self.read_proto();
         self.commit_id
-            .replace(Some(CommitId(current_proto.commit_id)));
+            .replace(Some(CommitId::new(current_proto.commit_id)));
         self.tree_state().as_mut().unwrap().write_tree();
 
         LockedWorkingCopy {

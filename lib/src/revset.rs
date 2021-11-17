@@ -74,7 +74,7 @@ fn resolve_branch(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetEr
 fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetError> {
     // First check if it's a full commit id.
     if let Ok(binary_commit_id) = hex::decode(symbol) {
-        let commit_id = CommitId(binary_commit_id);
+        let commit_id = CommitId::new(binary_commit_id);
         match repo.store().get_commit(&commit_id) {
             Ok(_) => return Ok(vec![commit_id]),
             Err(BackendError::NotFound) => {} // fall through

@@ -242,13 +242,13 @@ impl Backend for LocalBackend {
 pub fn commit_to_proto(commit: &Commit) -> crate::protos::store::Commit {
     let mut proto = crate::protos::store::Commit::new();
     for parent in &commit.parents {
-        proto.parents.push(parent.as_bytes().to_vec());
+        proto.parents.push(parent.to_bytes());
     }
     for predecessor in &commit.predecessors {
-        proto.predecessors.push(predecessor.as_bytes().to_vec());
+        proto.predecessors.push(predecessor.to_bytes());
     }
-    proto.set_root_tree(commit.root_tree.as_bytes().to_vec());
-    proto.set_change_id(commit.change_id.as_bytes().to_vec());
+    proto.set_root_tree(commit.root_tree.to_bytes());
+    proto.set_change_id(commit.change_id.to_bytes());
     proto.set_description(commit.description.clone());
     proto.set_author(signature_to_proto(&commit.author));
     proto.set_committer(signature_to_proto(&commit.committer));
@@ -303,21 +303,21 @@ fn tree_value_to_proto(value: &TreeValue) -> crate::protos::store::TreeValue {
     match value {
         TreeValue::Normal { id, executable } => {
             let mut file = crate::protos::store::TreeValue_NormalFile::new();
-            file.set_id(id.as_bytes().to_vec());
+            file.set_id(id.to_bytes());
             file.set_executable(*executable);
             proto.set_normal_file(file);
         }
         TreeValue::Symlink(id) => {
-            proto.set_symlink_id(id.as_bytes().to_vec());
+            proto.set_symlink_id(id.to_bytes());
         }
         TreeValue::GitSubmodule(_id) => {
             panic!("cannot store git submodules");
         }
         TreeValue::Tree(id) => {
-            proto.set_tree_id(id.as_bytes().to_vec());
+            proto.set_tree_id(id.to_bytes());
         }
         TreeValue::Conflict(id) => {
-            proto.set_conflict_id(id.as_bytes().to_vec());
+            proto.set_conflict_id(id.to_bytes());
         }
     };
     proto

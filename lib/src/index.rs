@@ -181,7 +181,7 @@ impl CommitGraphEntry<'_> {
     }
 
     fn commit_id(&self) -> CommitId {
-        CommitId(self.data[36..36 + self.hash_length].to_vec())
+        CommitId::from_bytes(&self.data[36..36 + self.hash_length])
     }
 }
 
@@ -196,7 +196,7 @@ impl CommitLookupEntry<'_> {
     }
 
     fn commit_id(&self) -> CommitId {
-        CommitId(self.data[0..self.hash_length].to_vec())
+        CommitId::from_bytes(&self.data[0..self.hash_length])
     }
 
     fn pos(&self) -> IndexPosition {
@@ -278,16 +278,16 @@ impl HexPrefix {
     pub fn bytes_prefixes(&self) -> (CommitId, CommitId) {
         if self.0.len() % 2 == 0 {
             let bytes = hex::decode(&self.0).unwrap();
-            (CommitId(bytes.clone()), CommitId(bytes))
+            (CommitId::new(bytes.clone()), CommitId::new(bytes))
         } else {
             let min_bytes = hex::decode(&(self.0.clone() + "0")).unwrap();
             let prefix = min_bytes[0..min_bytes.len() - 1].to_vec();
-            (CommitId(prefix), CommitId(min_bytes))
+            (CommitId::new(prefix), CommitId::new(min_bytes))
         }
     }
 
     pub fn matches(&self, id: &CommitId) -> bool {
-        hex::encode(&id.0).starts_with(&self.0)
+        id.hex().starts_with(&self.0)
     }
 }
 
@@ -1088,7 +1088,7 @@ impl IndexSegment for ReadonlyIndex {
                 for i in lookup_pos.0..self.num_local_commits as u32 {
                     let entry = self.lookup_entry(i);
                     let id = entry.commit_id();
-                    if !id.0.starts_with(&bytes_prefix.0) {
+                    if !id.as_bytes().starts_with(bytes_prefix.as_bytes()) {
                         break;
                     }
                     if prefix.matches(&id) {
@@ -1180,7 +1180,7 @@ impl IndexSegment for MutableIndex {
                     break;
                 }
                 Some((id, _pos)) => {
-                    if !id.0.starts_with(&bytes_prefix.0) {
+                    if !id.as_bytes().starts_with(bytes_prefix.as_bytes()) {
                         break;
                     }
                     if prefix.matches(id) {
@@ -1447,7 +1447,7 @@ impl ReadonlyIndex {
             let mid = (low + high) / 2;
             let entry = self.lookup_entry(mid);
             let entry_commit_id = entry.commit_id();
-            let entry_prefix = &entry_commit_id.0[0..prefix_len];
+            let entry_prefix = &entry_commit_id.as_bytes()[0..prefix_len];
             if high == low {
                 return Some(IndexPosition(mid));
             }

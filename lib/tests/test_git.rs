@@ -49,7 +49,7 @@ fn empty_git_commit<'r>(
 }
 
 fn commit_id(commit: &git2::Commit) -> CommitId {
-    CommitId(commit.id().as_bytes().to_vec())
+    CommitId::from_bytes(commit.id().as_bytes())
 }
 
 #[test]
@@ -454,7 +454,7 @@ fn test_push_updates_success() {
         .find_reference("refs/heads/main")
         .unwrap()
         .target();
-    let new_oid = Oid::from_bytes(&setup.new_commit.id().0).unwrap();
+    let new_oid = Oid::from_bytes(setup.new_commit.id().as_bytes()).unwrap();
     assert_eq!(new_target, Some(new_oid));
 
     // Check that the ref got updated in the cloned repo. This just tests our
@@ -530,7 +530,7 @@ fn test_push_updates_mixed_deletion_and_addition() {
         .find_reference("refs/heads/topic")
         .unwrap()
         .target();
-    let new_oid = Oid::from_bytes(&setup.new_commit.id().0).unwrap();
+    let new_oid = Oid::from_bytes(setup.new_commit.id().as_bytes()).unwrap();
     assert_eq!(new_target, Some(new_oid));
 
     // Check that the main ref got deleted in the source repo
@@ -584,7 +584,7 @@ fn test_push_updates_not_fast_forward_with_force() {
         .find_reference("refs/heads/main")
         .unwrap()
         .target();
-    let new_oid = Oid::from_bytes(&new_commit.id().0).unwrap();
+    let new_oid = Oid::from_bytes(new_commit.id().as_bytes()).unwrap();
     assert_eq!(new_target, Some(new_oid));
 }
 

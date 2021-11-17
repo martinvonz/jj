@@ -23,7 +23,7 @@ use thiserror::Error;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct CommitId(pub Vec<u8>);
+pub struct CommitId(Vec<u8>);
 
 impl Debug for CommitId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -42,6 +42,10 @@ impl CommitId {
 
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.clone()
     }
 
     pub fn from_hex(hex: &str) -> Self {
@@ -75,6 +79,10 @@ impl ChangeId {
         &self.0
     }
 
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.clone()
+    }
+
     pub fn from_hex(hex: &str) -> Self {
         Self(hex::decode(hex).unwrap())
     }
@@ -98,8 +106,16 @@ impl TreeId {
         Self(value)
     }
 
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        Self(bytes.to_vec())
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.clone()
     }
 
     pub fn hex(&self) -> String {
@@ -121,8 +137,16 @@ impl FileId {
         Self(value)
     }
 
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        Self(bytes.to_vec())
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.clone()
     }
 
     pub fn hex(&self) -> String {
@@ -144,8 +168,16 @@ impl SymlinkId {
         Self(value)
     }
 
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        Self(bytes.to_vec())
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.clone()
     }
 
     pub fn hex(&self) -> String {
@@ -167,8 +199,16 @@ impl ConflictId {
         Self(value)
     }
 
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        Self(bytes.to_vec())
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.clone()
     }
 
     pub fn hex(&self) -> String {

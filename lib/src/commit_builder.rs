@@ -31,8 +31,9 @@ pub struct CommitBuilder {
 }
 
 pub fn new_change_id() -> ChangeId {
-    ChangeId::new(Uuid::new_v4().as_bytes().to_vec())
+    ChangeId::from_bytes(Uuid::new_v4().as_bytes())
 }
+
 pub fn signature(settings: &UserSettings) -> Signature {
     // TODO: check if it's slow to get the timezone etc for every signature
     let timestamp = Timestamp::now();

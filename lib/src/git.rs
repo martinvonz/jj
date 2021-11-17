@@ -72,7 +72,7 @@ pub fn import_refs(
                 continue;
             }
         };
-        let id = CommitId(git_commit.id().as_bytes().to_vec());
+        let id = CommitId::from_bytes(git_commit.id().as_bytes());
         let commit = store.get_commit(&id).unwrap();
         mut_repo.add_head(&commit);
         // TODO: Make it configurable which remotes are publishing and update public
@@ -225,7 +225,7 @@ pub fn push_updates(
             let temp_ref_name = format!("refs/jj/git-push/{}", new_target.hex());
             temp_refs.push(git_repo.reference(
                 &temp_ref_name,
-                git2::Oid::from_bytes(&new_target.0).unwrap(),
+                git2::Oid::from_bytes(new_target.as_bytes()).unwrap(),
                 true,
                 "temporary reference for git push",
             )?);

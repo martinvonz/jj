@@ -200,12 +200,12 @@ fn operation_from_proto(proto: &crate::protos::op_store::Operation) -> Operation
 
 fn view_to_proto(view: &View) -> crate::protos::op_store::View {
     let mut proto = crate::protos::op_store::View::new();
-    proto.checkout = view.checkout.0.clone();
+    proto.checkout = view.checkout.to_bytes();
     for head_id in &view.head_ids {
-        proto.head_ids.push(head_id.0.clone());
+        proto.head_ids.push(head_id.to_bytes());
     }
     for head_id in &view.public_head_ids {
-        proto.public_head_ids.push(head_id.0.clone());
+        proto.public_head_ids.push(head_id.to_bytes());
     }
 
     for (name, target) in &view.branches {
@@ -241,13 +241,13 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
 }
 
 fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
-    let mut view = View::new(CommitId(proto.checkout.clone()));
+    let mut view = View::new(CommitId::new(proto.checkout.clone()));
     for head_id_bytes in proto.head_ids.iter() {
-        view.head_ids.insert(CommitId(head_id_bytes.to_vec()));
+        view.head_ids.insert(CommitId::from_bytes(head_id_bytes));
     }
     for head_id_bytes in proto.public_head_ids.iter() {
         view.public_head_ids
-            .insert(CommitId(head_id_bytes.to_vec()));
+            .insert(CommitId::from_bytes(head_id_bytes));
     }
 
     for branch_proto in proto.branches.iter() {
@@ -290,7 +290,7 @@ fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
             // Legacy format
             view.git_refs.insert(
                 git_ref.name.clone(),
-                RefTarget::Normal(CommitId(git_ref.commit_id.to_vec())),
+                RefTarget::Normal(CommitId::new(git_ref.commit_id.clone())),
             );
         }
     }
@@ -302,15 +302,15 @@ fn ref_target_to_proto(value: &RefTarget) -> crate::protos::op_store::RefTarget 
     let mut proto = crate::protos::op_store::RefTarget::new();
     match value {
         RefTarget::Normal(id) => {
-            proto.set_commit_id(id.0.clone());
+            proto.set_commit_id(id.to_bytes());
         }
         RefTarget::Conflict { removes, adds } => {
             let mut ref_conflict_proto = crate::protos::op_store::RefConflict::new();
             for id in removes {
-                ref_conflict_proto.removes.push(id.0.clone());
+                ref_conflict_proto.removes.push(id.to_bytes());
             }
             for id in adds {
-                ref_conflict_proto.adds.push(id.0.clone());
+                ref_conflict_proto.adds.push(id.to_bytes());
             }
             proto.set_conflict(ref_conflict_proto);
         }
@@ -321,18 +321,18 @@ fn ref_target_to_proto(value: &RefTarget) -> crate::protos::op_store::RefTarget 
 fn ref_target_from_proto(proto: &crate::protos::op_store::RefTarget) -> RefTarget {
     match proto.value.as_ref().unwrap() {
         crate::protos::op_store::RefTarget_oneof_value::commit_id(id) => {
-            RefTarget::Normal(CommitId(id.to_vec()))
+            RefTarget::Normal(CommitId::from_bytes(id))
         }
         crate::protos::op_store::RefTarget_oneof_value::conflict(conflict) => {
             let removes = conflict
                 .removes
                 .iter()
-                .map(|id_bytes| CommitId(id_bytes.to_vec()))
+                .map(|id_bytes| CommitId::from_bytes(id_bytes))
                 .collect_vec();
             let adds = conflict
                 .adds
                 .iter()
-                .map(|id_bytes| CommitId(id_bytes.to_vec()))
+                .map(|id_bytes| CommitId::from_bytes(id_bytes))
                 .collect_vec();
             RefTarget::Conflict { removes, adds }
         }
@@ -349,20 +349,20 @@ mod tests {
     fn test_read_write_view() {
         let temp_dir = TempDir::new().unwrap();
         let store = SimpleOpStore::init(temp_dir.path().to_owned());
-        let head_id1 = CommitId(b"aaa111".to_vec());
-        let head_id2 = CommitId(b"aaa222".to_vec());
-        let public_head_id1 = CommitId(b"bbb444".to_vec());
-        let public_head_id2 = CommitId(b"bbb555".to_vec());
-        let branch_main_local_target = RefTarget::Normal(CommitId(b"ccc111".to_vec()));
-        let branch_main_origin_target = RefTarget::Normal(CommitId(b"ccc222".to_vec()));
-        let branch_deleted_origin_target = RefTarget::Normal(CommitId(b"ccc333".to_vec()));
-        let tag_v1_target = RefTarget::Normal(CommitId(b"ddd111".to_vec()));
-        let git_refs_main_target = RefTarget::Normal(CommitId(b"fff111".to_vec()));
+        let head_id1 = CommitId::from_hex("aaa111");
+        let head_id2 = CommitId::from_hex("aaa222");
+        let public_head_id1 = CommitId::from_hex("bbb444");
+        let public_head_id2 = CommitId::from_hex("bbb555");
+        let branch_main_local_target = RefTarget::Normal(CommitId::from_hex("ccc111"));
+        let branch_main_origin_target = RefTarget::Normal(CommitId::from_hex("ccc222"));
+        let branch_deleted_origin_target = RefTarget::Normal(CommitId::from_hex("ccc333"));
+        let tag_v1_target = RefTarget::Normal(CommitId::from_hex("ddd111"));
+        let git_refs_main_target = RefTarget::Normal(CommitId::from_hex("fff111"));
         let git_refs_feature_target = RefTarget::Conflict {
-            removes: vec![CommitId(b"fff111".to_vec())],
-            adds: vec![CommitId(b"fff222".to_vec()), CommitId(b"fff333".to_vec())],
+            removes: vec![CommitId::from_hex("fff111")],
+            adds: vec![CommitId::from_hex("fff222"), CommitId::from_hex("fff333")],
         };
-        let checkout_id = CommitId(b"abc111".to_vec());
+        let checkout_id = CommitId::from_hex("abc111");
         let view = View {
             head_ids: hashset! {head_id1, head_id2},
             public_head_ids: hashset! {public_head_id1, public_head_id2},

@@ -159,9 +159,9 @@ fn signature_to_git(signature: &Signature) -> git2::Signature {
 fn serialize_extras(commit: &Commit) -> Vec<u8> {
     let mut proto = crate::protos::store::Commit::new();
     proto.is_open = commit.is_open;
-    proto.change_id = commit.change_id.as_bytes().to_vec();
+    proto.change_id = commit.change_id.to_bytes();
     for predecessor in &commit.predecessors {
-        proto.predecessors.push(predecessor.as_bytes().to_vec());
+        proto.predecessors.push(predecessor.to_bytes());
     }
     proto.write_to_bytes().unwrap()
 }
@@ -172,7 +172,7 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
     commit.is_open = proto.is_open;
     commit.change_id = ChangeId::new(proto.change_id);
     for predecessor in &proto.predecessors {
-        commit.predecessors.push(CommitId(predecessor.clone()));
+        commit.predecessors.push(CommitId::from_bytes(predecessor));
     }
 }
 
@@ -265,18 +265,16 @@ impl Backend for GitBackend {
             let name = entry.name().unwrap();
             let (name, value) = match entry.kind().unwrap() {
                 git2::ObjectType::Tree => {
-                    let id = TreeId::new(entry.id().as_bytes().to_vec());
+                    let id = TreeId::from_bytes(entry.id().as_bytes());
                     (entry.name().unwrap(), TreeValue::Tree(id))
                 }
                 git2::ObjectType::Blob => match entry.filemode() {
                     0o100644 => {
-                        let id = FileId::new(entry.id().as_bytes().to_vec());
+                        let id = FileId::from_bytes(entry.id().as_bytes());
                         if name.ends_with(CONFLICT_SUFFIX) {
                             (
                                 &name[0..name.len() - CONFLICT_SUFFIX.len()],
-                                TreeValue::Conflict(ConflictId::new(
-                                    entry.id().as_bytes().to_vec(),
-                                )),
+                                TreeValue::Conflict(ConflictId::from_bytes(entry.id().as_bytes())),
                             )
                         } else {
                             (
@@ -289,7 +287,7 @@ impl Backend for GitBackend {
                         }
                     }
                     0o100755 => {
-                        let id = FileId::new(entry.id().as_bytes().to_vec());
+                        let id = FileId::from_bytes(entry.id().as_bytes());
                         (
                             name,
                             TreeValue::Normal {
@@ -299,13 +297,13 @@ impl Backend for GitBackend {
                         )
                     }
                     0o120000 => {
-                        let id = SymlinkId::new(entry.id().as_bytes().to_vec());
+                        let id = SymlinkId::from_bytes(entry.id().as_bytes());
                         (name, TreeValue::Symlink(id))
                     }
                     mode => panic!("unexpected file mode {:?}", mode),
                 },
                 git2::ObjectType::Commit => {
-                    let id = CommitId(entry.id().as_bytes().to_vec());
+                    let id = CommitId::from_bytes(entry.id().as_bytes());
                     (name, TreeValue::GitSubmodule(id))
                 }
                 kind => panic!("unexpected object type {:?}", kind),
@@ -343,7 +341,7 @@ impl Backend for GitBackend {
                 .unwrap();
         }
         let oid = builder.write().unwrap();
-        Ok(TreeId::new(oid.as_bytes().to_vec()))
+        Ok(TreeId::from_bytes(oid.as_bytes()))
     }
 
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
@@ -369,9 +367,9 @@ impl Backend for GitBackend {
         );
         let parents = commit
             .parent_ids()
-            .map(|oid| CommitId::new(oid.as_bytes().to_vec()))
+            .map(|oid| CommitId::from_bytes(oid.as_bytes()))
             .collect_vec();
-        let tree_id = TreeId::new(commit.tree_id().as_bytes().to_vec());
+        let tree_id = TreeId::from_bytes(commit.tree_id().as_bytes());
         let description = commit.message().unwrap_or("<no message>").to_owned();
         let author = signature_from_git(commit.author());
         let committer = signature_from_git(commit.committer());
@@ -420,7 +418,7 @@ impl Backend for GitBackend {
             &git_tree,
             &parent_refs,
         )?;
-        let id = CommitId(git_id.as_bytes().to_vec());
+        let id = CommitId::from_bytes(git_id.as_bytes());
         let extras = serialize_extras(contents);
         let mut mut_table = self
             .extra_metadata_store
@@ -443,7 +441,7 @@ impl Backend for GitBackend {
     fn read_conflict(&self, id: &ConflictId) -> BackendResult<Conflict> {
         let mut file = self.read_file(
             &RepoPath::from_internal_string("unused"),
-            &FileId::new(id.as_bytes().to_vec()),
+            &FileId::new(id.to_bytes()),
         )?;
         let mut data = String::new();
         file.read_to_string(&mut data)?;
@@ -463,7 +461,7 @@ impl Backend for GitBackend {
         let bytes = json_string.as_bytes();
         let locked_repo = self.repo.lock().unwrap();
         let oid = locked_repo.blob(bytes).unwrap();
-        Ok(ConflictId::new(oid.as_bytes().to_vec()))
+        Ok(ConflictId::from_bytes(oid.as_bytes()))
     }
 }
 
@@ -590,7 +588,7 @@ mod tests {
         // The change id is the leading reverse bits of the commit id
         let change_id = ChangeId::from_hex("c64ee0b6e16777fe53991f9281a6cd25");
         // Check that the git commit above got the hash we expect
-        assert_eq!(git_commit_id.as_bytes(), &commit_id.0);
+        assert_eq!(git_commit_id.as_bytes(), commit_id.as_bytes());
 
         let store = GitBackend::init_external(store_path, git_repo_path);
         let commit = store.read_commit(&commit_id).unwrap();
@@ -618,7 +616,7 @@ mod tests {
         let root_tree = store
             .read_tree(
                 &RepoPath::root(),
-                &TreeId::new(root_tree_id.as_bytes().to_vec()),
+                &TreeId::from_bytes(root_tree_id.as_bytes()),
             )
             .unwrap();
         let mut root_entries = root_tree.entries();
@@ -627,13 +625,13 @@ mod tests {
         assert_eq!(dir.name().as_str(), "dir");
         assert_eq!(
             dir.value(),
-            &TreeValue::Tree(TreeId::new(dir_tree_id.as_bytes().to_vec()))
+            &TreeValue::Tree(TreeId::from_bytes(dir_tree_id.as_bytes()))
         );
 
         let dir_tree = store
             .read_tree(
                 &RepoPath::from_internal_string("dir"),
-                &TreeId::new(dir_tree_id.as_bytes().to_vec()),
+                &TreeId::from_bytes(dir_tree_id.as_bytes()),
             )
             .unwrap();
         let mut files = dir_tree.entries();
@@ -644,14 +642,14 @@ mod tests {
         assert_eq!(
             normal_file.value(),
             &TreeValue::Normal {
-                id: FileId::new(blob1.as_bytes().to_vec()),
+                id: FileId::from_bytes(blob1.as_bytes()),
                 executable: false
             }
         );
         assert_eq!(symlink.name().as_str(), "symlink");
         assert_eq!(
             symlink.value(),
-            &TreeValue::Symlink(SymlinkId::new(blob2.as_bytes().to_vec()))
+            &TreeValue::Symlink(SymlinkId::from_bytes(blob2.as_bytes()))
         );
     }
 
@@ -685,7 +683,10 @@ mod tests {
             .unwrap()
             .map(|git_ref| git_ref.unwrap().target().unwrap())
             .collect_vec();
-        assert_eq!(git_refs, vec![Oid::from_bytes(&commit_id.0).unwrap()]);
+        assert_eq!(
+            git_refs,
+            vec![Oid::from_bytes(commit_id.as_bytes()).unwrap()]
+        );
     }
 
     #[test]
