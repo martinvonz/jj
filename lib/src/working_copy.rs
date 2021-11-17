@@ -802,13 +802,13 @@ impl WorkingCopy {
         self.tree_state().as_ref().unwrap().file_states().clone()
     }
 
-    fn save(&self) {
+    fn save(&mut self) {
         let mut proto = crate::protos::working_copy::Checkout::new();
         proto.commit_id = self.current_commit_id().0;
         self.write_proto(proto);
     }
 
-    pub fn check_out(&self, commit: Commit) -> Result<CheckoutStats, CheckoutError> {
+    pub fn check_out(&mut self, commit: Commit) -> Result<CheckoutStats, CheckoutError> {
         assert!(commit.is_open());
         let lock_path = self.state_path.join("working_copy.lock");
         let _lock = FileLock::lock(lock_path);
@@ -845,7 +845,7 @@ impl WorkingCopy {
         Ok(stats)
     }
 
-    pub fn write_tree(&self) -> LockedWorkingCopy {
+    pub fn write_tree(&mut self) -> LockedWorkingCopy {
         let lock_path = self.state_path.join("working_copy.lock");
         let lock = FileLock::lock(lock_path);
 
@@ -861,7 +861,7 @@ impl WorkingCopy {
         }
     }
 
-    pub fn untrack(&self, matcher: &dyn Matcher) -> Result<LockedWorkingCopy, UntrackError> {
+    pub fn untrack(&mut self, matcher: &dyn Matcher) -> Result<LockedWorkingCopy, UntrackError> {
         let lock_path = self.state_path.join("working_copy.lock");
         let lock = FileLock::lock(lock_path);
 
@@ -878,7 +878,7 @@ impl WorkingCopy {
 // A working copy that's locked on disk. The tree state has already been
 // updated.
 pub struct LockedWorkingCopy<'a> {
-    wc: &'a WorkingCopy,
+    wc: &'a mut WorkingCopy,
     #[allow(dead_code)]
     lock: FileLock,
     closed: bool,

@@ -343,7 +343,7 @@ impl RepoCommandHelper {
     fn maybe_commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             let repo = self.repo.clone();
-            let wc = repo.working_copy_locked();
+            let mut wc = repo.working_copy_locked();
             let locked_wc = wc.write_tree();
             let old_commit = locked_wc.old_commit();
             // Check if the current checkout has changed on disk after we read it. It's fine
@@ -427,7 +427,7 @@ impl RepoCommandHelper {
             }
         }
         self.repo = tx.commit();
-        update_working_copy(ui, &self.repo, &self.repo.working_copy_locked())
+        update_working_copy(ui, &self.repo, &mut self.repo.working_copy_locked())
     }
 }
 
@@ -559,7 +559,7 @@ fn matcher_from_values(
 fn update_working_copy(
     ui: &mut Ui,
     repo: &Arc<ReadonlyRepo>,
-    wc: &WorkingCopy,
+    wc: &mut WorkingCopy,
 ) -> Result<Option<CheckoutStats>, CommandError> {
     let old_commit = wc.current_commit();
     let new_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
@@ -1409,7 +1409,7 @@ fn cmd_untrack(
         args.values_of("paths"),
     )?;
     let mut tx = repo_command.start_transaction("untrack paths");
-    let locked_working_copy = base_repo.working_copy_locked();
+    let mut locked_working_copy = base_repo.working_copy_locked();
     let old_commit = locked_working_copy.current_commit();
     let unfinished_write = locked_working_copy
         .untrack(matcher.as_ref())

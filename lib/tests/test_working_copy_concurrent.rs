@@ -44,7 +44,7 @@ fn test_concurrent_checkout(use_git: bool) {
     tx1.commit();
 
     // Check out commit1
-    let wc1 = repo1.working_copy_locked();
+    let mut wc1 = repo1.working_copy_locked();
     wc1.check_out(commit1).unwrap();
 
     // Check out commit2 from another process (simulated by another repo instance)
@@ -112,7 +112,7 @@ fn test_checkout_parallel(use_git: bool) {
         let handle = thread::spawn(move || {
             let repo = ReadonlyRepo::load(&settings, working_copy_path).unwrap();
             let owned_wc = repo.working_copy().clone();
-            let wc = owned_wc.lock().unwrap();
+            let mut wc = owned_wc.lock().unwrap();
             let commit = repo.store().get_commit(&commit_id).unwrap();
             let stats = wc.check_out(commit).unwrap();
             assert_eq!(stats.updated_files, 0);
