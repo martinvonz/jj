@@ -84,7 +84,7 @@ impl OpHeadsStore {
             let op_head_file_name = op_head_entry.unwrap().file_name();
             let op_head_file_name = op_head_file_name.to_str().unwrap();
             if let Ok(op_head) = hex::decode(op_head_file_name) {
-                op_heads.push(OperationId(op_head));
+                op_heads.push(OperationId::new(op_head));
             }
         }
         op_heads

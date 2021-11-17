@@ -18,7 +18,7 @@ use std::fmt::{Debug, Error, Formatter};
 use crate::backend::{CommitId, Timestamp};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct ViewId(pub Vec<u8>);
+pub struct ViewId(Vec<u8>);
 
 impl Debug for ViewId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -27,13 +27,29 @@ impl Debug for ViewId {
 }
 
 impl ViewId {
+    pub fn new(value: Vec<u8>) -> Self {
+        Self(value)
+    }
+
+    pub fn from_hex(hex: &str) -> Self {
+        Self(hex::decode(hex).unwrap())
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.clone()
+    }
+
     pub fn hex(&self) -> String {
         hex::encode(&self.0)
     }
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct OperationId(pub Vec<u8>);
+pub struct OperationId(Vec<u8>);
 
 impl Debug for OperationId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -42,6 +58,22 @@ impl Debug for OperationId {
 }
 
 impl OperationId {
+    pub fn new(value: Vec<u8>) -> Self {
+        Self(value)
+    }
+
+    pub fn from_hex(hex: &str) -> Self {
+        Self(hex::decode(hex).unwrap())
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.0.clone()
+    }
+
     pub fn hex(&self) -> String {
         hex::encode(&self.0)
     }

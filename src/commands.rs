@@ -504,7 +504,7 @@ fn resolve_single_op_from_store(
     op_str: &str,
 ) -> Result<Operation, CommandError> {
     if let Ok(binary_op_id) = hex::decode(op_str) {
-        let op_id = OperationId(binary_op_id);
+        let op_id = OperationId::new(binary_op_id);
         match op_store.read_operation(&op_id) {
             Ok(operation) => {
                 return Ok(Operation::new(op_store.clone(), op_id, operation));

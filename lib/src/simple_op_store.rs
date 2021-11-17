@@ -100,7 +100,7 @@ impl OpStore for SimpleOpStore {
 
         temp_file.as_file().write_all(&proto_bytes)?;
 
-        let id = ViewId(Blake2b::digest(&proto_bytes).to_vec());
+        let id = ViewId::new(Blake2b::digest(&proto_bytes).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.view_path(&id))?;
         Ok(id)
@@ -123,7 +123,7 @@ impl OpStore for SimpleOpStore {
 
         temp_file.as_file().write_all(&proto_bytes)?;
 
-        let id = OperationId(Blake2b::digest(&proto_bytes).to_vec());
+        let id = OperationId::new(Blake2b::digest(&proto_bytes).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.operation_path(&id))?;
         Ok(id)
@@ -178,18 +178,18 @@ fn operation_metadata_from_proto(
 
 fn operation_to_proto(operation: &Operation) -> crate::protos::op_store::Operation {
     let mut proto = crate::protos::op_store::Operation::new();
-    proto.set_view_id(operation.view_id.0.clone());
+    proto.set_view_id(operation.view_id.as_bytes().to_vec());
     for parent in &operation.parents {
-        proto.parents.push(parent.0.clone());
+        proto.parents.push(parent.to_bytes());
     }
     proto.set_metadata(operation_metadata_to_proto(&operation.metadata));
     proto
 }
 
 fn operation_from_proto(proto: &crate::protos::op_store::Operation) -> Operation {
-    let operation_id_from_proto = |parent: &Vec<u8>| OperationId(parent.clone());
+    let operation_id_from_proto = |parent: &Vec<u8>| OperationId::new(parent.clone());
     let parents = proto.parents.iter().map(operation_id_from_proto).collect();
-    let view_id = ViewId(proto.view_id.to_vec());
+    let view_id = ViewId::new(proto.view_id.clone());
     let metadata = operation_metadata_from_proto(proto.get_metadata());
     Operation {
         view_id,
@@ -399,10 +399,10 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let store = SimpleOpStore::init(temp_dir.path().to_owned());
         let operation = Operation {
-            view_id: ViewId(b"aaa111".to_vec()),
+            view_id: ViewId::from_hex("aaa111"),
             parents: vec![
-                OperationId(b"bbb111".to_vec()),
-                OperationId(b"bbb222".to_vec()),
+                OperationId::from_hex("bbb111"),
+                OperationId::from_hex("bbb222"),
             ],
             metadata: OperationMetadata {
                 start_time: Timestamp {
