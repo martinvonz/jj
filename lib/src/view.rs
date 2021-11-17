@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, HashSet};
 use crate::backend::CommitId;
 use crate::index::IndexRef;
 use crate::op_store;
-use crate::op_store::{BranchTarget, RefTarget};
+use crate::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use crate::refs::merge_ref_targets;
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
@@ -40,8 +40,13 @@ impl View {
         }
     }
 
+    // TODO: Delete this function
     pub fn checkout(&self) -> &CommitId {
-        &self.data.checkout
+        self.get_checkout(&WorkspaceId::default()).unwrap()
+    }
+
+    pub fn get_checkout(&self, workspace_id: &WorkspaceId) -> Option<&CommitId> {
+        self.data.checkouts.get(workspace_id)
     }
 
     pub fn heads(&self) -> &HashSet<CommitId> {
@@ -68,8 +73,9 @@ impl View {
         self.data.git_head.clone()
     }
 
+    // TODO: Pass in workspace id here
     pub fn set_checkout(&mut self, id: CommitId) {
-        self.data.checkout = id;
+        self.data.checkouts.insert(WorkspaceId::default(), id);
     }
 
     pub fn add_head(&mut self, head_id: &CommitId) {

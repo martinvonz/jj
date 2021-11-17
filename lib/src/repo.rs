@@ -31,7 +31,7 @@ use crate::dag_walk::topo_order_reverse;
 use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
 use crate::op_heads_store::OpHeadsStore;
-use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget};
+use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
 use crate::operation::Operation;
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
@@ -177,10 +177,14 @@ impl ReadonlyRepo {
             is_open: true,
         };
         let checkout_commit = store.write_commit(checkout_commit);
+        let workspace_id = WorkspaceId::default();
 
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(repo_path.join("op_store")));
 
-        let mut root_view = op_store::View::new(checkout_commit.id().clone());
+        let mut root_view = op_store::View::default();
+        root_view
+            .checkouts
+            .insert(workspace_id, checkout_commit.id().clone());
         root_view.head_ids.insert(checkout_commit.id().clone());
         root_view
             .public_head_ids

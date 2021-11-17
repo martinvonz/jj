@@ -28,7 +28,7 @@ use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
     BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
-    RefTarget, View, ViewId,
+    RefTarget, View, ViewId, WorkspaceId,
 };
 
 impl From<std::io::Error> for OpStoreError {
@@ -200,7 +200,11 @@ fn operation_from_proto(proto: &crate::protos::op_store::Operation) -> Operation
 
 fn view_to_proto(view: &View) -> crate::protos::op_store::View {
     let mut proto = crate::protos::op_store::View::new();
-    proto.checkout = view.checkout.to_bytes();
+    for (workspace_id, commit_id) in &view.checkouts {
+        proto
+            .checkouts
+            .insert(workspace_id.as_str().to_string(), commit_id.to_bytes());
+    }
     for head_id in &view.head_ids {
         proto.head_ids.push(head_id.to_bytes());
     }
@@ -245,7 +249,21 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
 }
 
 fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
-    let mut view = View::new(CommitId::new(proto.checkout.clone()));
+    let mut view = View::default();
+    // For compatibility with old repos before we had support for multiple working
+    // copies
+    if !proto.checkout.is_empty() {
+        view.checkouts.insert(
+            WorkspaceId::default(),
+            CommitId::new(proto.checkout.clone()),
+        );
+    }
+    for (workspace_id, commit_id) in &proto.checkouts {
+        view.checkouts.insert(
+            WorkspaceId::new(workspace_id.clone()),
+            CommitId::new(commit_id.clone()),
+        );
+    }
     for head_id_bytes in proto.head_ids.iter() {
         view.head_ids.insert(CommitId::from_bytes(head_id_bytes));
     }
@@ -370,7 +388,8 @@ mod tests {
             removes: vec![CommitId::from_hex("fff111")],
             adds: vec![CommitId::from_hex("fff222"), CommitId::from_hex("fff333")],
         };
-        let checkout_id = CommitId::from_hex("abc111");
+        let default_checkout_id = CommitId::from_hex("abc111");
+        let test_checkout_id = CommitId::from_hex("abc222");
         let view = View {
             head_ids: hashset! {head_id1, head_id2},
             public_head_ids: hashset! {public_head_id1, public_head_id2},
@@ -396,7 +415,10 @@ mod tests {
                 "refs/heads/feature".to_string() => git_refs_feature_target
             },
             git_head: Some(CommitId::from_hex("fff111")),
-            checkout: checkout_id,
+            checkouts: hashmap! {
+                WorkspaceId::default() => default_checkout_id,
+                WorkspaceId::new("test".to_string()) => test_checkout_id,
+            },
         };
         let view_id = store.write_view(&view).unwrap();
         let read_view = store.read_view(&view_id).unwrap();

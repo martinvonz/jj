@@ -18,6 +18,29 @@ use std::fmt::{Debug, Error, Formatter};
 use crate::backend::{CommitId, Timestamp};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+pub struct WorkspaceId(String);
+
+impl Debug for WorkspaceId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        f.debug_tuple("WorkspaceId").field(&self.0).finish()
+    }
+}
+
+impl WorkspaceId {
+    pub fn new(value: String) -> Self {
+        Self(value)
+    }
+
+    pub fn default() -> Self {
+        Self("default".to_string())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct ViewId(Vec<u8>);
 
 impl Debug for ViewId {
@@ -133,7 +156,7 @@ pub struct BranchTarget {
 
 /// Represents the way the repo looks at a given time, just like how a Tree
 /// object represents how the file system looks at a given time.
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Default)]
 pub struct View {
     /// All head commits
     pub head_ids: HashSet<CommitId>,
@@ -146,25 +169,10 @@ pub struct View {
     // TODO: Support multiple Git worktrees?
     // TODO: Do we want to store the current branch name too?
     pub git_head: Option<CommitId>,
-    // The commit that *should be* checked out in the (default) working copy. Note that the
-    // working copy (.jj/working_copy/) has the source of truth about which commit *is* checked out
-    // (to be precise: the commit to which we most recently completed a checkout to).
-    // TODO: Allow multiple working copies
-    pub checkout: CommitId,
-}
-
-impl View {
-    pub fn new(checkout: CommitId) -> Self {
-        Self {
-            head_ids: HashSet::new(),
-            public_head_ids: HashSet::new(),
-            branches: BTreeMap::new(),
-            tags: BTreeMap::new(),
-            git_refs: BTreeMap::new(),
-            git_head: None,
-            checkout,
-        }
-    }
+    // The commit that *should be* checked out in the workspace. Note that the working copy
+    // (.jj/working_copy/) has the source of truth about which commit *is* checked out (to be
+    // precise: the commit to which we most recently completed a checkout to).
+    pub checkouts: HashMap<WorkspaceId, CommitId>,
 }
 
 /// Represents an operation (transaction) on the repo view, just like how a

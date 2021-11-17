@@ -59,7 +59,8 @@ message Tag {
 message View {
   repeated bytes head_ids = 1;
   repeated bytes public_head_ids = 4;
-  bytes checkout = 2;
+  bytes checkout = 2 [deprecated = true];
+  map<string, bytes> checkouts = 8;
   repeated Branch branches = 5;
   repeated Tag tags = 6;
   // Only a subset of the refs. For example, does not include refs/notes/.
