@@ -74,18 +74,22 @@ fn test_init_no_config_set(use_git: bool) {
     // Test that we can create a repo without setting any config
     let settings = UserSettings::from_config(config::Config::new());
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
-    let wc_commit = repo.working_copy_locked().current_commit();
-    assert_eq!(wc_commit.author().name, "(no name configured)".to_string());
+    let checkout_id = repo.view().checkout();
+    let checkout_commit = repo.store().get_commit(checkout_id).unwrap();
     assert_eq!(
-        wc_commit.author().email,
-        "(no email configured)".to_string()
-    );
-    assert_eq!(
-        wc_commit.committer().name,
+        checkout_commit.author().name,
         "(no name configured)".to_string()
     );
     assert_eq!(
-        wc_commit.committer().email,
+        checkout_commit.author().email,
+        "(no email configured)".to_string()
+    );
+    assert_eq!(
+        checkout_commit.committer().name,
+        "(no name configured)".to_string()
+    );
+    assert_eq!(
+        checkout_commit.committer().email,
         "(no email configured)".to_string()
     );
 }

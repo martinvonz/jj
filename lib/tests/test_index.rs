@@ -53,13 +53,7 @@ fn test_index_commits_empty_repo(use_git: bool) {
         generation_number(index.as_ref(), repo.store().root_commit_id()),
         0
     );
-    assert_eq!(
-        generation_number(
-            index.as_ref(),
-            &repo.working_copy_locked().current_commit_id()
-        ),
-        1
-    );
+    assert_eq!(generation_number(index.as_ref(), repo.view().checkout()), 1);
 }
 
 #[test_case(false ; "local backend")]
@@ -82,8 +76,8 @@ fn test_index_commits_standard_cases(use_git: bool) {
     // |/
     // o root
 
-    let root_commit = repo.store().root_commit();
-    let wc_commit = repo.working_copy_locked().current_commit();
+    let root_commit_id = repo.store().root_commit_id();
+    let checkout_id = repo.view().checkout().clone();
     let mut tx = repo.start_transaction("test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
@@ -106,8 +100,8 @@ fn test_index_commits_standard_cases(use_git: bool) {
     assert_eq!(stats.num_merges, 1);
     assert_eq!(stats.max_generation_number, 6);
 
-    assert_eq!(generation_number(index.as_ref(), root_commit.id()), 0);
-    assert_eq!(generation_number(index.as_ref(), wc_commit.id()), 1);
+    assert_eq!(generation_number(index.as_ref(), root_commit_id), 0);
+    assert_eq!(generation_number(index.as_ref(), &checkout_id), 1);
     assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
     assert_eq!(generation_number(index.as_ref(), commit_b.id()), 2);
     assert_eq!(generation_number(index.as_ref(), commit_c.id()), 2);
@@ -117,11 +111,11 @@ fn test_index_commits_standard_cases(use_git: bool) {
     assert_eq!(generation_number(index.as_ref(), commit_g.id()), 6);
     assert_eq!(generation_number(index.as_ref(), commit_h.id()), 5);
 
-    assert!(index.is_ancestor(root_commit.id(), commit_a.id()));
-    assert!(!index.is_ancestor(commit_a.id(), root_commit.id()));
+    assert!(index.is_ancestor(root_commit_id, commit_a.id()));
+    assert!(!index.is_ancestor(commit_a.id(), root_commit_id));
 
-    assert!(index.is_ancestor(root_commit.id(), commit_b.id()));
-    assert!(!index.is_ancestor(commit_b.id(), root_commit.id()));
+    assert!(index.is_ancestor(root_commit_id, commit_b.id()));
+    assert!(!index.is_ancestor(commit_b.id(), root_commit_id));
 
     assert!(!index.is_ancestor(commit_b.id(), commit_c.id()));
 

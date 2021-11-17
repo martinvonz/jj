@@ -553,7 +553,7 @@ fn test_evaluate_expression_children(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let wc_commit = repo.working_copy_locked().current_commit();
+    let checkout_id = repo.view().checkout().clone();
     let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     let commit2 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit1.id().clone()])
@@ -571,7 +571,7 @@ fn test_evaluate_expression_children(use_git: bool) {
     // Can find children of the root commit
     assert_eq!(
         resolve_commit_ids(mut_repo.as_repo_ref(), "root:"),
-        vec![commit1.id().clone(), wc_commit.id().clone()]
+        vec![commit1.id().clone(), checkout_id]
     );
 
     // Children of all commits in input are returned, including those already in the
@@ -707,7 +707,7 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    let root_commit = repo.store().root_commit();
+    let root_commit_id = repo.store().root_commit_id().clone();
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
@@ -720,20 +720,16 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
     // Can get DAG range of just the root commit
     assert_eq!(
         resolve_commit_ids(mut_repo.as_repo_ref(), "root,,root"),
-        vec![root_commit.id().clone(),]
+        vec![root_commit_id.clone()]
     );
 
     // Linear range
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("{},,{}", root_commit.id().hex(), commit2.id().hex())
+            &format!("{},,{}", root_commit_id.hex(), commit2.id().hex())
         ),
-        vec![
-            commit2.id().clone(),
-            commit1.id().clone(),
-            root_commit.id().clone(),
-        ]
+        vec![commit2.id().clone(), commit1.id().clone(), root_commit_id,]
     );
 
     // Empty range
@@ -785,8 +781,8 @@ fn test_evaluate_expression_descendants(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let root_commit = repo.store().root_commit();
-    let wc_commit = repo.working_copy_locked().current_commit();
+    let root_commit_id = repo.store().root_commit_id().clone();
+    let checkout_id = repo.view().checkout().clone();
     let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     let commit2 = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![commit1.id().clone()])
@@ -810,8 +806,8 @@ fn test_evaluate_expression_descendants(use_git: bool) {
             commit3.id().clone(),
             commit2.id().clone(),
             commit1.id().clone(),
-            wc_commit.id().clone(),
-            root_commit.id().clone(),
+            checkout_id,
+            root_commit_id,
         ]
     );
 
@@ -846,8 +842,8 @@ fn test_evaluate_expression_all(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let root_commit = repo.store().root_commit();
-    let wc_commit = repo.working_copy_locked().current_commit();
+    let root_commit_id = repo.store().root_commit_id().clone();
+    let checkout_id = repo.view().checkout().clone();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -861,8 +857,8 @@ fn test_evaluate_expression_all(use_git: bool) {
             commit3.id().clone(),
             commit2.id().clone(),
             commit1.id().clone(),
-            wc_commit.id().clone(),
-            root_commit.id().clone(),
+            checkout_id,
+            root_commit_id,
         ]
     );
 
@@ -877,14 +873,14 @@ fn test_evaluate_expression_heads(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let wc_commit = repo.working_copy_locked().current_commit();
+    let checkout_id = repo.view().checkout().clone();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
 
     assert_eq!(
         resolve_commit_ids(mut_repo.as_repo_ref(), "heads()"),
-        vec![commit2.id().clone(), wc_commit.id().clone()]
+        vec![commit2.id().clone(), checkout_id]
     );
 
     tx.discard();

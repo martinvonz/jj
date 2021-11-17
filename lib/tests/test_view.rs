@@ -24,8 +24,10 @@ fn test_heads_empty(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    let wc = repo.working_copy_locked();
-    assert_eq!(*repo.view().heads(), hashset! {wc.current_commit_id()});
+    assert_eq!(
+        *repo.view().heads(),
+        hashset! {repo.view().checkout().clone()}
+    );
     assert_eq!(
         *repo.view().public_heads(),
         hashset! {repo.store().root_commit_id().clone()}
@@ -45,11 +47,10 @@ fn test_heads_fork(use_git: bool) {
     let child2 = graph_builder.commit_with_parents(&[&initial]);
     let repo = tx.commit();
 
-    let wc = repo.working_copy_locked();
     assert_eq!(
         *repo.view().heads(),
         hashset! {
-            wc.current_commit_id(),
+            repo.view().checkout().clone(),
             child1.id().clone(),
             child2.id().clone(),
         }
@@ -70,10 +71,9 @@ fn test_heads_merge(use_git: bool) {
     let merge = graph_builder.commit_with_parents(&[&child1, &child2]);
     let repo = tx.commit();
 
-    let wc = repo.working_copy_locked();
     assert_eq!(
         *repo.view().heads(),
-        hashset! {wc.current_commit_id(), merge.id().clone()}
+        hashset! {repo.view().checkout().clone(), merge.id().clone()}
     );
 }
 
