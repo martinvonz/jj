@@ -18,7 +18,7 @@ use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 
 use thiserror::Error;
 
@@ -107,7 +107,6 @@ pub struct ReadonlyRepo {
     settings: RepoSettings,
     index_store: Arc<IndexStore>,
     index: Mutex<Option<Arc<ReadonlyIndex>>>,
-    working_copy: Arc<Mutex<WorkingCopy>>,
     view: View,
 }
 
@@ -236,7 +235,6 @@ impl ReadonlyRepo {
             settings: repo_settings,
             index_store,
             index: Mutex::new(None),
-            working_copy: Arc::new(Mutex::new(working_copy)),
             view,
         })
     }
@@ -309,12 +307,12 @@ impl ReadonlyRepo {
         self.index()
     }
 
-    pub fn working_copy(&self) -> &Arc<Mutex<WorkingCopy>> {
-        &self.working_copy
-    }
-
-    pub fn working_copy_locked(&self) -> MutexGuard<WorkingCopy> {
-        self.working_copy.as_ref().lock().unwrap()
+    pub fn working_copy(&self) -> WorkingCopy {
+        WorkingCopy::load(
+            self.store.clone(),
+            self.wc_path.clone(),
+            self.repo_path.join("working_copy"),
+        )
     }
 
     pub fn store(&self) -> &Arc<Store> {
@@ -458,7 +456,6 @@ impl RepoLoader {
         &self,
         operation: Operation,
         view: View,
-        working_copy: Arc<Mutex<WorkingCopy>>,
         index: Arc<ReadonlyIndex>,
     ) -> Arc<ReadonlyRepo> {
         let repo = ReadonlyRepo {
@@ -471,18 +468,12 @@ impl RepoLoader {
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
             index: Mutex::new(Some(index)),
-            working_copy,
             view,
         };
         Arc::new(repo)
     }
 
     fn _finish_load(&self, operation: Operation, view: View) -> Arc<ReadonlyRepo> {
-        let working_copy = WorkingCopy::load(
-            self.store.clone(),
-            self.wc_path.clone(),
-            self.repo_path.join("working_copy"),
-        );
         let repo = ReadonlyRepo {
             repo_path: self.repo_path.clone(),
             wc_path: self.wc_path.clone(),
@@ -493,7 +484,6 @@ impl RepoLoader {
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
             index: Mutex::new(None),
-            working_copy: Arc::new(Mutex::new(working_copy)),
             view,
         };
         Arc::new(repo)

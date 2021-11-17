@@ -16,6 +16,7 @@ use std::path::PathBuf;
 
 use crate::repo::{RepoLoadError, RepoLoader};
 use crate::settings::UserSettings;
+use crate::working_copy::WorkingCopy;
 
 /// Represents a workspace, i.e. what's typically the .jj/ directory and its
 /// parent.
@@ -24,6 +25,7 @@ pub struct Workspace {
     // working copy files live.
     workspace_root: PathBuf,
     repo_loader: RepoLoader,
+    working_copy: WorkingCopy,
 }
 
 impl Workspace {
@@ -34,9 +36,16 @@ impl Workspace {
         // TODO: Move the find_repo_dir() call from RepoLoader::init() to here
         let repo_loader = RepoLoader::init(user_settings, workspace_root)?;
         let workspace_root = repo_loader.working_copy_path().clone();
+        let working_copy_state_path = repo_path.join("working_copy");
+        let working_copy = WorkingCopy::load(
+            repo_loader.store().clone(),
+            workspace_root.clone(),
+            working_copy_state_path,
+        );
         Ok(Self {
             workspace_root,
             repo_loader,
+            working_copy,
         })
     }
 
@@ -50,5 +59,13 @@ impl Workspace {
 
     pub fn repo_loader(&self) -> &RepoLoader {
         &self.repo_loader
+    }
+
+    pub fn working_copy(&self) -> &WorkingCopy {
+        &self.working_copy
+    }
+
+    pub fn working_copy_mut(&mut self) -> &mut WorkingCopy {
+        &mut self.working_copy
     }
 }

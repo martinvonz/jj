@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::backend::Timestamp;
 use crate::index::ReadonlyIndex;
@@ -22,7 +22,6 @@ use crate::op_store::{OperationId, OperationMetadata};
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoLoader};
 use crate::view::View;
-use crate::working_copy::WorkingCopy;
 
 pub struct Transaction {
     repo: Option<MutableRepo>,
@@ -96,13 +95,7 @@ impl Transaction {
             .associate_file_with_operation(&index, operation.id())
             .unwrap();
         self.closed = true;
-        UnpublishedOperation::new(
-            base_repo.loader(),
-            operation,
-            view,
-            base_repo.working_copy().clone(),
-            index,
-        )
+        UnpublishedOperation::new(base_repo.loader(), operation, view, index)
     }
 
     pub fn discard(mut self) {
@@ -121,7 +114,6 @@ impl Drop for Transaction {
 struct NewRepoData {
     operation: Operation,
     view: View,
-    working_copy: Arc<Mutex<WorkingCopy>>,
     index: Arc<ReadonlyIndex>,
 }
 
@@ -136,13 +128,11 @@ impl UnpublishedOperation {
         repo_loader: RepoLoader,
         operation: Operation,
         view: View,
-        working_copy: Arc<Mutex<WorkingCopy>>,
         index: Arc<ReadonlyIndex>,
     ) -> Self {
         let data = Some(NewRepoData {
             operation,
             view,
-            working_copy,
             index,
         });
         UnpublishedOperation {
@@ -161,18 +151,18 @@ impl UnpublishedOperation {
         self.repo_loader
             .op_heads_store()
             .update_op_heads(&data.operation);
-        let repo =
-            self.repo_loader
-                .create_from(data.operation, data.view, data.working_copy, data.index);
+        let repo = self
+            .repo_loader
+            .create_from(data.operation, data.view, data.index);
         self.closed = true;
         repo
     }
 
     pub fn leave_unpublished(mut self) -> Arc<ReadonlyRepo> {
         let data = self.data.take().unwrap();
-        let repo =
-            self.repo_loader
-                .create_from(data.operation, data.view, data.working_copy, data.index);
+        let repo = self
+            .repo_loader
+            .create_from(data.operation, data.view, data.index);
         self.closed = true;
         repo
     }

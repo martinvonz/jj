@@ -187,11 +187,22 @@ jj init --git-store={} <path to new jj repo>",
             )?;
             repo_loader.load_at(&op)
         };
-        Ok(self.for_loaded_repo(ui, repo))
+        Ok(self.for_loaded_repo(ui, workspace, repo))
     }
 
-    fn for_loaded_repo(&self, ui: &Ui, repo: Arc<ReadonlyRepo>) -> WorkspaceCommandHelper {
-        WorkspaceCommandHelper::for_loaded_repo(ui, self.string_args.clone(), &self.root_args, repo)
+    fn for_loaded_repo(
+        &self,
+        ui: &Ui,
+        workspace: Workspace,
+        repo: Arc<ReadonlyRepo>,
+    ) -> WorkspaceCommandHelper {
+        WorkspaceCommandHelper::for_loaded_repo(
+            ui,
+            workspace,
+            self.string_args.clone(),
+            &self.root_args,
+            repo,
+        )
     }
 }
 
@@ -200,6 +211,7 @@ jj init --git-store={} <path to new jj repo>",
 struct WorkspaceCommandHelper {
     string_args: Vec<String>,
     settings: UserSettings,
+    workspace: Workspace,
     repo: Arc<ReadonlyRepo>,
     may_update_working_copy: bool,
     working_copy_committed: bool,
@@ -211,6 +223,7 @@ struct WorkspaceCommandHelper {
 impl WorkspaceCommandHelper {
     fn for_loaded_repo(
         ui: &Ui,
+        workspace: Workspace,
         string_args: Vec<String>,
         root_args: &ArgMatches,
         repo: Arc<ReadonlyRepo>,
@@ -219,6 +232,7 @@ impl WorkspaceCommandHelper {
         Self {
             string_args,
             settings: ui.settings().clone(),
+            workspace,
             repo,
             may_update_working_copy,
             working_copy_committed: false,
@@ -237,6 +251,14 @@ impl WorkspaceCommandHelper {
 
     fn repo_mut(&mut self) -> &mut Arc<ReadonlyRepo> {
         &mut self.repo
+    }
+
+    fn working_copy(&self) -> &WorkingCopy {
+        self.workspace.working_copy()
+    }
+
+    fn working_copy_mut(&mut self) -> &mut WorkingCopy {
+        self.workspace.working_copy_mut()
     }
 
     fn resolve_revision_arg(
@@ -343,8 +365,7 @@ impl WorkspaceCommandHelper {
     fn maybe_commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             let repo = self.repo.clone();
-            let mut wc = repo.working_copy_locked();
-            let locked_wc = wc.write_tree();
+            let locked_wc = self.workspace.working_copy_mut().write_tree();
             let old_commit = locked_wc.old_commit();
             // Check if the current checkout has changed on disk after we read it. It's fine
             // if it has, but we'll need to reload the repo so the new commit is
@@ -427,7 +448,7 @@ impl WorkspaceCommandHelper {
             }
         }
         self.repo = tx.commit();
-        let stats = update_working_copy(ui, &self.repo, &mut self.repo.working_copy_locked())?;
+        let stats = update_working_copy(ui, &self.repo, self.workspace.working_copy_mut())?;
         if let Some(stats) = &stats {
             if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
                 writeln!(
@@ -1359,9 +1380,10 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
 
     let repo = if let Some(git_store_str) = args.value_of("git-store") {
         let git_store_path = ui.cwd().join(git_store_str);
-        let repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path, git_store_path)?;
+        let repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path.clone(), git_store_path)?;
         let git_repo = repo.store().git_repo().unwrap();
-        let mut workspace_command = command.for_loaded_repo(ui, repo);
+        let workspace = Workspace::load(ui.settings(), wc_path).unwrap();
+        let mut workspace_command = command.for_loaded_repo(ui, workspace, repo);
         let mut tx = workspace_command.start_transaction("import git refs");
         git::import_refs(tx.mut_repo(), &git_repo).unwrap();
         // TODO: Check out a recent commit. Maybe one with the highest generation
@@ -1414,9 +1436,9 @@ fn cmd_untrack(
         args.values_of("paths"),
     )?;
     let mut tx = workspace_command.start_transaction("untrack paths");
-    let mut locked_working_copy = base_repo.working_copy_locked();
-    let old_commit = locked_working_copy.current_commit();
-    let unfinished_write = locked_working_copy
+    let old_commit = workspace_command.working_copy_mut().current_commit();
+    let unfinished_write = workspace_command
+        .working_copy_mut()
         .untrack(matcher.as_ref())
         .map_err(|err| CommandError::InternalError(format!("Failed to untrack paths: {}", err)))?;
     let new_tree_id = unfinished_write.new_tree_id();
@@ -1426,17 +1448,13 @@ fn cmd_untrack(
     tx.mut_repo().set_checkout(new_commit.id().clone());
     let repo = tx.commit();
     unfinished_write.finish(new_commit);
-    drop(locked_working_copy);
     workspace_command.repo_mut().reload_at(repo.operation());
 
     // TODO: Is it better to have WorkingCopy::untrack() report if any matching
     // files exist on disk? That would make the command have no effect rather
     // than partially succeeding, for better or worse.
     workspace_command.maybe_commit_working_copy(ui)?;
-    let new_commit = workspace_command
-        .repo()
-        .working_copy_locked()
-        .current_commit();
+    let new_commit = workspace_command.working_copy().current_commit();
     if let Some((path, _value)) = new_commit.tree().entries_matching(matcher.as_ref()).next() {
         let ui_path = ui.format_file_path(base_repo.working_copy_path(), &path);
         return Err(CommandError::UserError(format!(
@@ -3100,7 +3118,7 @@ fn cmd_debug(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
         writeln!(ui, "{}", commit.id().hex())?;
     } else if let Some(_wc_matches) = args.subcommand_matches("workingcopy") {
         let workspace_command = command.workspace_helper(ui)?;
-        let wc = workspace_command.repo().working_copy_locked();
+        let wc = workspace_command.working_copy();
         writeln!(ui, "Current commit: {:?}", wc.current_commit_id())?;
         writeln!(ui, "Current tree: {:?}", wc.current_tree_id())?;
         for (file, state) in wc.file_states().iter() {
@@ -3499,14 +3517,15 @@ fn cmd_git_clone(
         fs::create_dir(&wc_path).unwrap();
     }
 
-    let repo = ReadonlyRepo::init_internal_git(ui.settings(), wc_path)?;
+    let repo = ReadonlyRepo::init_internal_git(ui.settings(), wc_path.clone())?;
     let git_repo = get_git_repo(repo.store())?;
     writeln!(
         ui,
         "Fetching into new repo in {:?}",
         repo.working_copy_path()
     )?;
-    let mut workspace_command = command.for_loaded_repo(ui, repo);
+    let workspace = Workspace::load(ui.settings(), wc_path).unwrap();
+    let mut workspace_command = command.for_loaded_repo(ui, workspace, repo);
     let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();
     let mut tx = workspace_command.start_transaction("fetch from git remote into empty repo");

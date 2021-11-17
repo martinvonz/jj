@@ -37,8 +37,7 @@ fn test_root(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    let owned_wc = repo.working_copy().clone();
-    let mut wc = owned_wc.lock().unwrap();
+    let mut wc = repo.working_copy();
     let locked_wc = wc.write_tree();
     let new_tree_id = locked_wc.new_tree_id();
     locked_wc.discard();
@@ -220,8 +219,7 @@ fn test_checkout_file_transitions(use_git: bool) {
         .write_to_repo(tx.mut_repo());
     tx.commit();
 
-    let owned_wc = repo.working_copy().clone();
-    let mut wc = owned_wc.lock().unwrap();
+    let mut wc = repo.working_copy();
     wc.check_out(left_commit).unwrap();
     wc.check_out(right_commit.clone()).unwrap();
 
@@ -323,16 +321,13 @@ fn test_untrack() {
     )
     .write_to_repo(tx.mut_repo());
     let repo = tx.commit();
-    let working_copy = repo.working_copy().clone();
-    let mut locked_working_copy = working_copy.lock().unwrap();
-    locked_working_copy
-        .check_out(initial_commit.clone())
-        .unwrap();
+    let mut wc = repo.working_copy();
+    wc.check_out(initial_commit.clone()).unwrap();
 
     // Now we untrack the file called "unwanted"
     let mut tx = repo.start_transaction("test");
     let matcher = FilesMatcher::new(HashSet::from([unwanted_path.clone()]));
-    let unfinished_write = locked_working_copy.untrack(&matcher).unwrap();
+    let unfinished_write = wc.untrack(&matcher).unwrap();
     let new_commit = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial_commit)
         .set_tree(unfinished_write.new_tree_id())
         .write_to_repo(tx.mut_repo());
@@ -352,7 +347,7 @@ fn test_untrack() {
 
     // It should not get re-added if we write a new tree since we also added it
     // to the .gitignore file.
-    let unfinished_write = locked_working_copy.write_tree();
+    let unfinished_write = wc.write_tree();
     let new_tree_id = unfinished_write.new_tree_id();
     assert_eq!(new_tree_id, *new_commit.tree().id());
     unfinished_write.discard();
@@ -369,8 +364,7 @@ fn test_commit_racy_timestamps(use_git: bool) {
 
     let file_path = repo.working_copy_path().join("file");
     let mut previous_tree_id = repo.store().empty_tree_id().clone();
-    let owned_wc = repo.working_copy().clone();
-    let mut wc = owned_wc.lock().unwrap();
+    let mut wc = repo.working_copy();
     for i in 0..100 {
         {
             let mut file = OpenOptions::new()
@@ -412,8 +406,7 @@ fn test_gitignores(use_git: bool) {
     std::fs::create_dir(repo.working_copy_path().join("dir")).unwrap();
     testutils::write_working_copy_file(&repo, &subdir_modified_path, "1");
 
-    let owned_wc = repo.working_copy().clone();
-    let mut wc = owned_wc.lock().unwrap();
+    let mut wc = repo.working_copy();
     let locked_wc = wc.write_tree();
     let new_tree_id1 = locked_wc.new_tree_id();
     locked_wc.discard();
@@ -491,7 +484,8 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     // Now check out the commit that adds the file "modified" with contents
     // "contents". The exiting contents ("garbage") should be replaced in the
     // working copy.
-    repo.working_copy_locked().check_out(commit).unwrap();
+    let mut wc = repo.working_copy();
+    wc.check_out(commit).unwrap();
 
     // Check that the new contents are in the working copy
     let path = repo.working_copy_path().join("modified");
@@ -502,7 +496,6 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     assert_eq!(buf, b"contents");
 
     // Check that the file is in the tree created by committing the working copy
-    let mut wc = repo.working_copy_locked();
     let locked_wc = wc.write_tree();
     let new_tree_id = locked_wc.new_tree_id();
     locked_wc.discard();
@@ -544,11 +537,11 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     let repo = tx.commit();
 
     // Check out the commit with the file in ignored/
-    repo.working_copy_locked().check_out(commit).unwrap();
+    let mut wc = repo.working_copy();
+    wc.check_out(commit).unwrap();
 
     // Check that the file is still in the tree created by committing the working
     // copy (that it didn't get removed because the directory is ignored)
-    let mut wc = repo.working_copy_locked();
     let locked_wc = wc.write_tree();
     let new_tree_id = locked_wc.new_tree_id();
     locked_wc.discard();
@@ -569,7 +562,7 @@ fn test_dotgit_ignored(use_git: bool) {
     let settings = testutils::user_settings();
     let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
 
-    let mut wc = repo.working_copy_locked();
+    let mut wc = repo.working_copy();
 
     // Test with a .git/ directory (with a file in, since we don't write empty
     // trees)

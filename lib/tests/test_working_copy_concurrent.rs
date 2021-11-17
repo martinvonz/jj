@@ -44,15 +44,12 @@ fn test_concurrent_checkout(use_git: bool) {
     tx1.commit();
 
     // Check out commit1
-    let mut wc1 = repo1.working_copy_locked();
+    let mut wc1 = repo1.working_copy();
     wc1.check_out(commit1).unwrap();
 
     // Check out commit2 from another process (simulated by another repo instance)
     let repo2 = ReadonlyRepo::load(&settings, repo1.working_copy_path().clone()).unwrap();
-    repo2
-        .working_copy_locked()
-        .check_out(commit2.clone())
-        .unwrap();
+    repo2.working_copy().check_out(commit2.clone()).unwrap();
 
     // Checking out another commit (via the first repo instance) should now fail.
     assert_eq!(
@@ -63,7 +60,7 @@ fn test_concurrent_checkout(use_git: bool) {
     // Check that the commit2 is still checked out on disk.
     let repo3 = ReadonlyRepo::load(&settings, repo1.working_copy_path().clone()).unwrap();
     assert_eq!(
-        repo3.working_copy_locked().current_tree_id(),
+        repo3.working_copy().current_tree_id(),
         commit2.tree().id().clone()
     );
 }
@@ -100,8 +97,8 @@ fn test_checkout_parallel(use_git: bool) {
     let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())
         .set_open(true)
         .write_to_repo(tx.mut_repo());
-    repo.working_copy_locked().check_out(commit).unwrap();
     tx.commit();
+    repo.working_copy().check_out(commit).unwrap();
 
     let mut threads = vec![];
     for commit_id in &commit_ids {
@@ -111,8 +108,7 @@ fn test_checkout_parallel(use_git: bool) {
         let working_copy_path = repo.working_copy_path().clone();
         let handle = thread::spawn(move || {
             let repo = ReadonlyRepo::load(&settings, working_copy_path).unwrap();
-            let owned_wc = repo.working_copy().clone();
-            let mut wc = owned_wc.lock().unwrap();
+            let mut wc = repo.working_copy();
             let commit = repo.store().get_commit(&commit_id).unwrap();
             let stats = wc.check_out(commit).unwrap();
             assert_eq!(stats.updated_files, 0);
