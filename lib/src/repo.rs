@@ -188,7 +188,7 @@ impl ReadonlyRepo {
     ) -> Arc<ReadonlyRepo> {
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
 
-        let working_copy = WorkingCopy::init(
+        let mut working_copy = WorkingCopy::init(
             store.clone(),
             wc_path.clone(),
             repo_path.join("working_copy"),
@@ -222,7 +222,11 @@ impl ReadonlyRepo {
 
         let view = View::new(root_view);
 
-        let repo = ReadonlyRepo {
+        working_copy
+            .check_out(checkout_commit)
+            .expect("failed to check out root commit");
+
+        Arc::new(ReadonlyRepo {
             repo_path,
             wc_path,
             store,
@@ -234,13 +238,7 @@ impl ReadonlyRepo {
             index: Mutex::new(None),
             working_copy: Arc::new(Mutex::new(working_copy)),
             view,
-        };
-        let repo = Arc::new(repo);
-
-        repo.working_copy_locked()
-            .check_out(checkout_commit)
-            .expect("failed to check out root commit");
-        repo
+        })
     }
 
     pub fn load(
