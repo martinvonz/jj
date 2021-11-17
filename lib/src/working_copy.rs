@@ -39,7 +39,7 @@ use crate::conflicts::{materialize_conflict, update_conflict_from_content};
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::matchers::EverythingMatcher;
-use crate::op_store::OperationId;
+use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::{Diff, Tree};
@@ -719,6 +719,7 @@ pub struct WorkingCopy {
     working_copy_path: PathBuf,
     state_path: PathBuf,
     operation_id: RefCell<Option<OperationId>>,
+    workspace_id: RefCell<Option<WorkspaceId>>,
     commit_id: RefCell<Option<CommitId>>,
     tree_state: RefCell<Option<TreeState>>,
 }
@@ -734,6 +735,7 @@ impl WorkingCopy {
         working_copy_path: PathBuf,
         state_path: PathBuf,
         operation_id: OperationId,
+        workspace_id: WorkspaceId,
         commit_id: CommitId,
     ) -> WorkingCopy {
         let mut proto = crate::protos::working_copy::Checkout::new();
@@ -748,8 +750,9 @@ impl WorkingCopy {
             store,
             working_copy_path,
             state_path,
-            commit_id: RefCell::new(Some(commit_id)),
             operation_id: RefCell::new(Some(operation_id)),
+            workspace_id: RefCell::new(Some(workspace_id)),
+            commit_id: RefCell::new(Some(commit_id)),
             tree_state: RefCell::new(None),
         }
     }
@@ -760,6 +763,7 @@ impl WorkingCopy {
             working_copy_path,
             state_path,
             operation_id: RefCell::new(None),
+            workspace_id: RefCell::new(None),
             commit_id: RefCell::new(None),
             tree_state: RefCell::new(None),
         }
@@ -779,6 +783,14 @@ impl WorkingCopy {
             Message::parse_from_reader(&mut file).unwrap();
         self.operation_id
             .replace(Some(OperationId::new(proto.operation_id)));
+        let workspace_id = if proto.workspace_id.is_empty() {
+            // For compatibility with old working copies.
+            // TODO: Delete in mid 2022 or so
+            WorkspaceId::default()
+        } else {
+            WorkspaceId::new(proto.workspace_id)
+        };
+        self.workspace_id.replace(Some(workspace_id));
         self.commit_id.replace(Some(CommitId::new(proto.commit_id)));
     }
 
@@ -788,6 +800,14 @@ impl WorkingCopy {
         }
 
         self.operation_id.borrow().as_ref().unwrap().clone()
+    }
+
+    pub fn workspace_id(&self) -> WorkspaceId {
+        if self.workspace_id.borrow().is_none() {
+            self.load_proto();
+        }
+
+        self.workspace_id.borrow().as_ref().unwrap().clone()
     }
 
     /// The id of the commit that's currently checked out in the working copy.
@@ -828,6 +848,7 @@ impl WorkingCopy {
     fn save(&mut self) {
         let mut proto = crate::protos::working_copy::Checkout::new();
         proto.operation_id = self.operation_id().to_bytes();
+        proto.workspace_id = self.workspace_id().as_str().to_string();
         proto.commit_id = self.current_commit_id().to_bytes();
         self.write_proto(proto);
     }

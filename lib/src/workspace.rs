@@ -17,6 +17,7 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
+use crate::op_store::WorkspaceId;
 use crate::repo::{ReadonlyRepo, RepoLoader};
 use crate::settings::UserSettings;
 use crate::working_copy::WorkingCopy;
@@ -60,11 +61,13 @@ fn init_working_copy(
 ) -> WorkingCopy {
     let working_copy_state_path = jj_dir.join("working_copy");
     std::fs::create_dir(&working_copy_state_path).unwrap();
+    let workspace_id = WorkspaceId::default();
     WorkingCopy::init(
         repo.store().clone(),
         workspace_root.to_path_buf(),
         working_copy_state_path,
         repo.op_id().clone(),
+        workspace_id,
         repo.view().checkout().clone(),
     )
 }
@@ -157,6 +160,10 @@ impl Workspace {
 
     pub fn workspace_root(&self) -> &PathBuf {
         &self.workspace_root
+    }
+
+    pub fn workspace_id(&self) -> WorkspaceId {
+        self.working_copy.workspace_id()
     }
 
     pub fn repo_path(&self) -> &PathBuf {
