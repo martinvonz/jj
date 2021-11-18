@@ -427,7 +427,15 @@ impl RepoCommandHelper {
             }
         }
         self.repo = tx.commit();
-        update_working_copy(ui, &self.repo, &mut self.repo.working_copy_locked())
+        let stats = update_working_copy(ui, &self.repo, &mut self.repo.working_copy_locked())?;
+        if let Some(stats) = &stats {
+            writeln!(
+                ui,
+                "Added {} files, modified {} files, removed {} files",
+                stats.added_files, stats.updated_files, stats.removed_files
+            )?;
+        }
+        Ok(stats)
     }
 }
 
@@ -1383,13 +1391,8 @@ fn cmd_checkout(
         repo_command.start_transaction(&format!("check out commit {}", new_commit.id().hex()));
     tx.mut_repo().check_out(ui.settings(), &new_commit);
     let stats = repo_command.finish_transaction(ui, tx)?;
-    match stats {
-        None => ui.write("Already on that commit\n")?,
-        Some(stats) => writeln!(
-            ui,
-            "Added {} files, modified {} files, removed {} files",
-            stats.added_files, stats.updated_files, stats.removed_files
-        )?,
+    if stats.is_none() {
+        ui.write("Already on that commit\n")?;
     }
     Ok(())
 }
