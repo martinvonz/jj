@@ -45,9 +45,7 @@ use jujutsu_lib::op_heads_store::OpHeadsStore;
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction};
-use jujutsu_lib::repo::{
-    MutableRepo, ReadonlyRepo, RepoInitError, RepoLoadError, RepoLoader, RepoRef,
-};
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoInitError, RepoLoadError, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
@@ -57,6 +55,7 @@ use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::TreeDiffIterator;
 use jujutsu_lib::working_copy::{CheckoutStats, WorkingCopy};
+use jujutsu_lib::workspace::Workspace;
 use jujutsu_lib::{conflicts, diff, files, git, revset, tree};
 use maplit::{hashmap, hashset};
 use pest::Parser;
@@ -133,41 +132,6 @@ impl From<FilePathParseError> for CommandError {
     }
 }
 
-fn get_repo(ui: &Ui, matches: &ArgMatches) -> Result<Arc<ReadonlyRepo>, CommandError> {
-    let wc_path_str = matches.value_of("repository").unwrap();
-    let wc_path = ui.cwd().join(wc_path_str);
-    let loader = match RepoLoader::init(ui.settings(), wc_path) {
-        Ok(loader) => loader,
-        Err(RepoLoadError::NoRepoHere(wc_path)) => {
-            let mut message = format!("There is no jj repo in \"{}\"", wc_path_str);
-            let git_dir = wc_path.join(".git");
-            if git_dir.is_dir() {
-                // TODO: Make this hint separate from the error, so the caller can format
-                // it differently.
-                let git_dir_str = PathBuf::from(wc_path_str)
-                    .join(".git")
-                    .to_str()
-                    .unwrap()
-                    .to_owned();
-                message += &format!(
-                    "
-It looks like this is a git repo. You can create a jj repo backed by it by running this:
-jj init --git-store={} <path to new jj repo>",
-                    git_dir_str
-                );
-            }
-            return Err(CommandError::UserError(message));
-        }
-    };
-    let op_str = matches.value_of("at_op").unwrap();
-    if op_str == "@" {
-        Ok(loader.load_at_head())
-    } else {
-        let op = resolve_single_op_from_store(loader.op_store(), loader.op_heads_store(), op_str)?;
-        Ok(loader.load_at(&op))
-    }
-}
-
 struct CommandHelper<'args> {
     string_args: Vec<String>,
     root_args: ArgMatches<'args>,
@@ -185,19 +149,55 @@ impl<'args> CommandHelper<'args> {
         &self.root_args
     }
 
-    fn repo_helper(&self, ui: &Ui) -> Result<RepoCommandHelper, CommandError> {
-        let repo = get_repo(ui, &self.root_args)?;
+    fn workspace_helper(&self, ui: &Ui) -> Result<WorkspaceCommandHelper, CommandError> {
+        let wc_path_str = self.root_args.value_of("repository").unwrap();
+        let wc_path = ui.cwd().join(wc_path_str);
+        let workspace = match Workspace::load(ui.settings(), wc_path) {
+            Ok(workspace) => workspace,
+            Err(RepoLoadError::NoRepoHere(wc_path)) => {
+                let mut message = format!("There is no jj repo in \"{}\"", wc_path_str);
+                let git_dir = wc_path.join(".git");
+                if git_dir.is_dir() {
+                    // TODO: Make this hint separate from the error, so the caller can format
+                    // it differently.
+                    let git_dir_str = PathBuf::from(wc_path_str)
+                        .join(".git")
+                        .to_str()
+                        .unwrap()
+                        .to_owned();
+                    message += &format!(
+                        "
+It looks like this is a git repo. You can create a jj repo backed by it by running this:
+jj init --git-store={} <path to new jj repo>",
+                        git_dir_str
+                    );
+                }
+                return Err(CommandError::UserError(message));
+            }
+        };
+        let repo_loader = workspace.repo_loader();
+        let op_str = self.root_args.value_of("at_op").unwrap();
+        let repo = if op_str == "@" {
+            repo_loader.load_at_head()
+        } else {
+            let op = resolve_single_op_from_store(
+                repo_loader.op_store(),
+                repo_loader.op_heads_store(),
+                op_str,
+            )?;
+            repo_loader.load_at(&op)
+        };
         Ok(self.for_loaded_repo(ui, repo))
     }
 
-    fn for_loaded_repo(&self, ui: &Ui, repo: Arc<ReadonlyRepo>) -> RepoCommandHelper {
-        RepoCommandHelper::for_loaded_repo(ui, self.string_args.clone(), &self.root_args, repo)
+    fn for_loaded_repo(&self, ui: &Ui, repo: Arc<ReadonlyRepo>) -> WorkspaceCommandHelper {
+        WorkspaceCommandHelper::for_loaded_repo(ui, self.string_args.clone(), &self.root_args, repo)
     }
 }
 
-// Provides utilities for writing a command that works on a repo (like most
+// Provides utilities for writing a command that works on a workspace (like most
 // commands do).
-struct RepoCommandHelper {
+struct WorkspaceCommandHelper {
     string_args: Vec<String>,
     settings: UserSettings,
     repo: Arc<ReadonlyRepo>,
@@ -208,7 +208,7 @@ struct RepoCommandHelper {
     rebase_descendants: bool,
 }
 
-impl RepoCommandHelper {
+impl WorkspaceCommandHelper {
     fn for_loaded_repo(
         ui: &Ui,
         string_args: Vec<String>,
@@ -1361,13 +1361,13 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
         let git_store_path = ui.cwd().join(git_store_str);
         let repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path, git_store_path)?;
         let git_repo = repo.store().git_repo().unwrap();
-        let mut repo_command = command.for_loaded_repo(ui, repo);
-        let mut tx = repo_command.start_transaction("import git refs");
+        let mut workspace_command = command.for_loaded_repo(ui, repo);
+        let mut tx = workspace_command.start_transaction("import git refs");
         git::import_refs(tx.mut_repo(), &git_repo).unwrap();
         // TODO: Check out a recent commit. Maybe one with the highest generation
         // number.
-        repo_command.finish_transaction(ui, tx)?;
-        repo_command.repo
+        workspace_command.finish_transaction(ui, tx)?;
+        workspace_command.repo
     } else if args.is_present("git") {
         ReadonlyRepo::init_internal_git(ui.settings(), wc_path)?
     } else {
@@ -1386,13 +1386,13 @@ fn cmd_checkout(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let new_commit = repo_command.resolve_revision_arg(ui, args)?;
-    repo_command.commit_working_copy(ui)?;
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let new_commit = workspace_command.resolve_revision_arg(ui, args)?;
+    workspace_command.commit_working_copy(ui)?;
     let mut tx =
-        repo_command.start_transaction(&format!("check out commit {}", new_commit.id().hex()));
+        workspace_command.start_transaction(&format!("check out commit {}", new_commit.id().hex()));
     tx.mut_repo().check_out(ui.settings(), &new_commit);
-    let stats = repo_command.finish_transaction(ui, tx)?;
+    let stats = workspace_command.finish_transaction(ui, tx)?;
     if stats.is_none() {
         ui.write("Already on that commit\n")?;
     }
@@ -1405,15 +1405,15 @@ fn cmd_untrack(
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
     // TODO: We should probably check that the repo was loaded at head.
-    let mut repo_command = command.repo_helper(ui)?;
-    repo_command.maybe_commit_working_copy(ui)?;
-    let base_repo = repo_command.repo().clone();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    workspace_command.maybe_commit_working_copy(ui)?;
+    let base_repo = workspace_command.repo().clone();
     let matcher = matcher_from_values(
         ui,
-        repo_command.repo().working_copy_path(),
+        workspace_command.repo().working_copy_path(),
         args.values_of("paths"),
     )?;
-    let mut tx = repo_command.start_transaction("untrack paths");
+    let mut tx = workspace_command.start_transaction("untrack paths");
     let mut locked_working_copy = base_repo.working_copy_locked();
     let old_commit = locked_working_copy.current_commit();
     let unfinished_write = locked_working_copy
@@ -1427,13 +1427,16 @@ fn cmd_untrack(
     let repo = tx.commit();
     unfinished_write.finish(new_commit);
     drop(locked_working_copy);
-    repo_command.repo_mut().reload_at(repo.operation());
+    workspace_command.repo_mut().reload_at(repo.operation());
 
     // TODO: Is it better to have WorkingCopy::untrack() report if any matching
     // files exist on disk? That would make the command have no effect rather
     // than partially succeeding, for better or worse.
-    repo_command.maybe_commit_working_copy(ui)?;
-    let new_commit = repo_command.repo().working_copy_locked().current_commit();
+    workspace_command.maybe_commit_working_copy(ui)?;
+    let new_commit = workspace_command
+        .repo()
+        .working_copy_locked()
+        .current_commit();
     if let Some((path, _value)) = new_commit.tree().entries_matching(matcher.as_ref()).next() {
         let ui_path = ui.format_file_path(base_repo.working_copy_path(), &path);
         return Err(CommandError::UserError(format!(
@@ -1446,13 +1449,13 @@ fn cmd_untrack(
 }
 
 fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(ui, args)?;
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_revision_arg(ui, args)?;
     for (name, _value) in commit.tree().entries() {
         writeln!(
             ui,
             "{}",
-            &ui.format_file_path(repo_command.repo().working_copy_path(), &name)
+            &ui.format_file_path(workspace_command.repo().working_copy_path(), &name)
         )?;
     }
     Ok(())
@@ -1560,22 +1563,23 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
             "--revision cannot be used with --from or --to",
         )));
     }
-    let mut repo_command = command.repo_helper(ui)?;
+    let mut workspace_command = command.workspace_helper(ui)?;
     let from_tree;
     let to_tree;
     if args.is_present("from") || args.is_present("to") {
-        let from = repo_command.resolve_single_rev(ui, args.value_of("from").unwrap_or("@"))?;
+        let from =
+            workspace_command.resolve_single_rev(ui, args.value_of("from").unwrap_or("@"))?;
         from_tree = from.tree();
-        let to = repo_command.resolve_single_rev(ui, args.value_of("to").unwrap_or("@"))?;
+        let to = workspace_command.resolve_single_rev(ui, args.value_of("to").unwrap_or("@"))?;
         to_tree = to.tree();
     } else {
         let commit =
-            repo_command.resolve_single_rev(ui, args.value_of("revision").unwrap_or("@"))?;
+            workspace_command.resolve_single_rev(ui, args.value_of("revision").unwrap_or("@"))?;
         let parents = commit.parents();
-        from_tree = merge_commit_trees(repo_command.repo().as_repo_ref(), &parents);
+        from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
         to_tree = commit.tree()
     }
-    let repo = repo_command.repo();
+    let repo = workspace_command.repo();
     let matcher = matcher_from_values(ui, repo.working_copy_path(), args.values_of("paths"))?;
     enum Format {
         Summary,
@@ -2054,9 +2058,9 @@ fn cmd_status(
     command: &CommandHelper,
     _args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    repo_command.maybe_commit_working_copy(ui)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    workspace_command.maybe_commit_working_copy(ui)?;
+    let repo = workspace_command.repo();
     let commit = repo.store().get_commit(repo.view().checkout()).unwrap();
     ui.write("Parent commit: ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &commit.parents()[0])?;
@@ -2162,10 +2166,11 @@ fn log_template(settings: &UserSettings) -> String {
 }
 
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
+    let mut workspace_command = command.workspace_helper(ui)?;
 
-    let revset_expression = repo_command.parse_revset(ui, args.value_of("revisions").unwrap())?;
-    let repo = repo_command.repo();
+    let revset_expression =
+        workspace_command.parse_revset(ui, args.value_of("revisions").unwrap())?;
+    let repo = workspace_command.repo();
     let checkout_id = repo.view().checkout().clone();
     let revset = revset_expression.evaluate(repo.as_repo_ref())?;
     let store = repo.store();
@@ -2243,17 +2248,17 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
 }
 
 fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
+    let mut workspace_command = command.workspace_helper(ui)?;
 
-    let start_commit = repo_command.resolve_revision_arg(ui, args)?;
-    let checkout_id = repo_command.repo().view().checkout().clone();
+    let start_commit = workspace_command.resolve_revision_arg(ui, args)?;
+    let checkout_id = workspace_command.repo().view().checkout().clone();
 
     let template_string = match args.value_of("template") {
         Some(value) => value.to_string(),
         None => log_template(ui.settings()),
     };
     let template = crate::template_parser::parse_commit_template(
-        repo_command.repo().as_repo_ref(),
+        workspace_command.repo().as_repo_ref(),
         &template_string,
     );
 
@@ -2351,10 +2356,10 @@ fn cmd_describe(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(ui, args)?;
-    repo_command.check_rewriteable(&commit)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_revision_arg(ui, args)?;
+    workspace_command.check_rewriteable(&commit)?;
+    let repo = workspace_command.repo();
     let description;
     if args.is_present("stdin") {
         let mut buffer = String::new();
@@ -2369,33 +2374,33 @@ fn cmd_describe(
         ui.write("Nothing changed.\n")?;
     } else {
         let mut tx =
-            repo_command.start_transaction(&format!("describe commit {}", commit.id().hex()));
+            workspace_command.start_transaction(&format!("describe commit {}", commit.id().hex()));
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_description(description)
             .write_to_repo(tx.mut_repo());
-        repo_command.finish_transaction(ui, tx)?;
+        workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())
 }
 
 fn cmd_open(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(ui, args)?;
-    repo_command.check_rewriteable(&commit)?;
-    let repo = repo_command.repo();
-    let mut tx = repo_command.start_transaction(&format!("open commit {}", commit.id().hex()));
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_revision_arg(ui, args)?;
+    workspace_command.check_rewriteable(&commit)?;
+    let repo = workspace_command.repo();
+    let mut tx = workspace_command.start_transaction(&format!("open commit {}", commit.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
         .set_open(true)
         .write_to_repo(tx.mut_repo());
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
 fn cmd_close(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(ui, args)?;
-    repo_command.check_rewriteable(&commit)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_revision_arg(ui, args)?;
+    workspace_command.check_rewriteable(&commit)?;
+    let repo = workspace_command.repo();
     let mut commit_builder =
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit).set_open(false);
     let description;
@@ -2407,9 +2412,10 @@ fn cmd_close(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
         description = commit.description().to_string();
     }
     commit_builder = commit_builder.set_description(description);
-    let mut tx = repo_command.start_transaction(&format!("close commit {}", commit.id().hex()));
+    let mut tx =
+        workspace_command.start_transaction(&format!("close commit {}", commit.id().hex()));
     commit_builder.write_to_repo(tx.mut_repo());
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
@@ -2418,11 +2424,11 @@ fn cmd_duplicate(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let predecessor = repo_command.resolve_revision_arg(ui, args)?;
-    let repo = repo_command.repo();
-    let mut tx =
-        repo_command.start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let predecessor = workspace_command.resolve_revision_arg(ui, args)?;
+    let repo = workspace_command.repo();
+    let mut tx = workspace_command
+        .start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
     let mut_repo = tx.mut_repo();
     let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &predecessor)
         .generate_new_change_id()
@@ -2430,7 +2436,7 @@ fn cmd_duplicate(
     ui.write("Created: ")?;
     ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
     ui.write("\n")?;
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
@@ -2439,11 +2445,11 @@ fn cmd_abandon(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let to_abandon = repo_command.resolve_revset(ui, args.value_of("revision").unwrap())?;
-    repo_command.check_non_empty(&to_abandon)?;
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let to_abandon = workspace_command.resolve_revset(ui, args.value_of("revision").unwrap())?;
+    workspace_command.check_non_empty(&to_abandon)?;
     for commit in &to_abandon {
-        repo_command.check_rewriteable(commit)?;
+        workspace_command.check_rewriteable(commit)?;
     }
     let transaction_description = if to_abandon.len() == 1 {
         format!("abandon commit {}", to_abandon[0].id().hex())
@@ -2454,7 +2460,7 @@ fn cmd_abandon(
             to_abandon.len() - 1
         )
     };
-    let mut tx = repo_command.start_transaction(&transaction_description);
+    let mut tx = workspace_command.start_transaction(&transaction_description);
     for commit in to_abandon {
         tx.mut_repo().record_abandoned_commit(commit.id().clone());
     }
@@ -2468,35 +2474,35 @@ fn cmd_abandon(
             num_rebased
         )?;
     }
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
 fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let parent = repo_command.resolve_revision_arg(ui, args)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let parent = workspace_command.resolve_revision_arg(ui, args)?;
+    let repo = workspace_command.repo();
     let commit_builder = CommitBuilder::for_open_commit(
         ui.settings(),
         repo.store(),
         parent.id().clone(),
         parent.tree().id().clone(),
     );
-    let mut tx = repo_command.start_transaction("new empty commit");
+    let mut tx = workspace_command.start_transaction("new empty commit");
     let mut_repo = tx.mut_repo();
     let new_commit = commit_builder.write_to_repo(mut_repo);
     if mut_repo.view().checkout() == parent.id() {
         mut_repo.check_out(ui.settings(), &new_commit);
     }
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
 fn cmd_squash(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(ui, args)?;
-    repo_command.check_rewriteable(&commit)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_revision_arg(ui, args)?;
+    workspace_command.check_rewriteable(&commit)?;
+    let repo = workspace_command.repo();
     let parents = commit.parents();
     if parents.len() != 1 {
         return Err(CommandError::UserError(String::from(
@@ -2504,8 +2510,9 @@ fn cmd_squash(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
         )));
     }
     let parent = &parents[0];
-    repo_command.check_rewriteable(parent)?;
-    let mut tx = repo_command.start_transaction(&format!("squash commit {}", commit.id().hex()));
+    workspace_command.check_rewriteable(parent)?;
+    let mut tx =
+        workspace_command.start_transaction(&format!("squash commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
     let new_parent_tree_id;
     if args.is_present("interactive") {
@@ -2548,7 +2555,7 @@ from the source will be moved into the parent.
             .set_parents(vec![new_parent.id().clone()])
             .write_to_repo(mut_repo);
     }
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
@@ -2557,10 +2564,10 @@ fn cmd_unsquash(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(ui, args)?;
-    repo_command.check_rewriteable(&commit)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_revision_arg(ui, args)?;
+    workspace_command.check_rewriteable(&commit)?;
+    let repo = workspace_command.repo();
     let parents = commit.parents();
     if parents.len() != 1 {
         return Err(CommandError::UserError(String::from(
@@ -2568,8 +2575,9 @@ fn cmd_unsquash(
         )));
     }
     let parent = &parents[0];
-    repo_command.check_rewriteable(parent)?;
-    let mut tx = repo_command.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
+    workspace_command.check_rewriteable(parent)?;
+    let mut tx =
+        workspace_command.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
     let parent_base_tree = merge_commit_trees(repo.as_repo_ref(), &parent.parents());
     let new_parent_tree_id;
@@ -2615,7 +2623,7 @@ aborted.
             .set_parents(vec![new_parent.id().clone()])
             .write_to_repo(mut_repo);
     }
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
@@ -2624,11 +2632,11 @@ fn cmd_restore(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let from_commit = repo_command.resolve_single_rev(ui, args.value_of("from").unwrap())?;
-    let to_commit = repo_command.resolve_single_rev(ui, args.value_of("to").unwrap())?;
-    repo_command.check_rewriteable(&to_commit)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let from_commit = workspace_command.resolve_single_rev(ui, args.value_of("from").unwrap())?;
+    let to_commit = workspace_command.resolve_single_rev(ui, args.value_of("to").unwrap())?;
+    workspace_command.check_rewriteable(&to_commit)?;
+    let repo = workspace_command.repo();
     let tree_id;
     if args.is_present("interactive") {
         if args.is_present("paths") {
@@ -2673,7 +2681,7 @@ side. If you don't make any changes, then the operation will be aborted.
     if &tree_id == to_commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {
-        let mut tx = repo_command
+        let mut tx = workspace_command
             .start_transaction(&format!("restore into commit {}", to_commit.id().hex()));
         let mut_repo = tx.mut_repo();
         let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &to_commit)
@@ -2682,16 +2690,16 @@ side. If you don't make any changes, then the operation will be aborted.
         ui.write("Created ")?;
         ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
         ui.write("\n")?;
-        repo_command.finish_transaction(ui, tx)?;
+        workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())
 }
 
 fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let commit = repo_command.resolve_revision_arg(ui, args)?;
-    repo_command.check_rewriteable(&commit)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_revision_arg(ui, args)?;
+    workspace_command.check_rewriteable(&commit)?;
+    let repo = workspace_command.repo();
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let instructions = format!(
         "\
@@ -2707,7 +2715,8 @@ don't make any changes, then the operation will be aborted.",
     if &tree_id == commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {
-        let mut tx = repo_command.start_transaction(&format!("edit commit {}", commit.id().hex()));
+        let mut tx =
+            workspace_command.start_transaction(&format!("edit commit {}", commit.id().hex()));
         let mut_repo = tx.mut_repo();
         let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_tree(tree_id)
@@ -2715,16 +2724,16 @@ don't make any changes, then the operation will be aborted.",
         ui.write("Created ")?;
         ui.write_commit_summary(mut_repo.as_repo_ref(), &new_commit)?;
         ui.write("\n")?;
-        repo_command.finish_transaction(ui, tx)?;
+        workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())
 }
 
 fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?.rebase_descendants(false);
-    let commit = repo_command.resolve_revision_arg(ui, args)?;
-    repo_command.check_rewriteable(&commit)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?.rebase_descendants(false);
+    let commit = workspace_command.resolve_revision_arg(ui, args)?;
+    workspace_command.check_rewriteable(&commit)?;
+    let repo = workspace_command.repo();
     let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
     let instructions = format!(
         "\
@@ -2742,7 +2751,8 @@ any changes, then the operation will be aborted.
     if &tree_id == commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {
-        let mut tx = repo_command.start_transaction(&format!("split commit {}", commit.id().hex()));
+        let mut tx =
+            workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
         let mut_repo = tx.mut_repo();
         let first_description = edit_description(
             repo,
@@ -2780,13 +2790,13 @@ any changes, then the operation will be aborted.
         ui.write("\nSecond part: ")?;
         ui.write_commit_summary(mut_repo.as_repo_ref(), &second_commit)?;
         ui.write("\n")?;
-        repo_command.finish_transaction(ui, tx)?;
+        workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())
 }
 
 fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
+    let mut workspace_command = command.workspace_helper(ui)?;
     let revision_args = args.values_of("revisions").unwrap();
     if revision_args.len() < 2 {
         return Err(CommandError::UserError(String::from(
@@ -2799,11 +2809,11 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
         // TODO: Should we allow each argument to resolve to multiple revisions?
         // It would be neat to be able to do `jj merge main` when `main` is conflicted,
         // but I'm not sure it would actually be useful.
-        let commit = repo_command.resolve_single_rev(ui, revision_arg)?;
+        let commit = workspace_command.resolve_single_rev(ui, revision_arg)?;
         parent_ids.push(commit.id().clone());
         commits.push(commit);
     }
-    let repo = repo_command.repo();
+    let repo = workspace_command.repo();
     let description;
     if args.is_present("message") {
         description = args.value_of("message").unwrap().to_string();
@@ -2814,22 +2824,22 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
         );
     }
     let merged_tree = merge_commit_trees(repo.as_repo_ref(), &commits);
-    let mut tx = repo_command.start_transaction("merge commits");
+    let mut tx = workspace_command.start_transaction("merge commits");
     CommitBuilder::for_new_commit(ui.settings(), repo.store(), merged_tree.id().clone())
         .set_parents(parent_ids)
         .set_description(description)
         .set_open(false)
         .write_to_repo(tx.mut_repo());
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
 
     Ok(())
 }
 
 fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?.rebase_descendants(false);
+    let mut workspace_command = command.workspace_helper(ui)?.rebase_descendants(false);
     let mut parents = vec![];
     for revision_str in args.values_of("destination").unwrap() {
-        let destination = repo_command.resolve_single_rev(ui, revision_str)?;
+        let destination = workspace_command.resolve_single_rev(ui, revision_str)?;
         parents.push(destination);
     }
     // TODO: Unless we want to allow both --revision and --source, is it better to
@@ -2840,33 +2850,33 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
         )));
     }
     if let Some(source_str) = args.value_of("source") {
-        let old_commit = repo_command.resolve_single_rev(ui, source_str)?;
-        let mut tx = repo_command.start_transaction(&format!(
+        let old_commit = workspace_command.resolve_single_rev(ui, source_str)?;
+        let mut tx = workspace_command.start_transaction(&format!(
             "rebase commit {} and descendants",
             old_commit.id().hex()
         ));
-        repo_command.check_rewriteable(&old_commit)?;
+        workspace_command.check_rewriteable(&old_commit)?;
         rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &parents);
         let mut rebaser = tx.mut_repo().create_descendant_rebaser(ui.settings());
         rebaser.rebase_all();
         let num_rebased = rebaser.rebased().len() + 1;
         writeln!(ui, "Rebased {} commits", num_rebased)?;
-        repo_command.finish_transaction(ui, tx)?;
+        workspace_command.finish_transaction(ui, tx)?;
     } else {
         let old_commit =
-            repo_command.resolve_single_rev(ui, args.value_of("revision").unwrap_or("@"))?;
-        let mut tx =
-            repo_command.start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
-        repo_command.check_rewriteable(&old_commit)?;
+            workspace_command.resolve_single_rev(ui, args.value_of("revision").unwrap_or("@"))?;
+        let mut tx = workspace_command
+            .start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
+        workspace_command.check_rewriteable(&old_commit)?;
         rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &parents);
         // Manually rebase children because we don't want to rebase them onto the
         // rewritten commit. (But we still want to record the commit as rewritten so
         // branches and the working copy get updated to the rewritten commit.)
         let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
         let mut num_rebased_descendants = 0;
-        let store = repo_command.repo.store();
+        let store = workspace_command.repo.store();
         for child_commit in children_expression
-            .evaluate(repo_command.repo().as_repo_ref())
+            .evaluate(workspace_command.repo().as_repo_ref())
             .unwrap()
             .iter()
             .commits(store)
@@ -2889,7 +2899,7 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
                 num_rebased_descendants
             )?;
         }
-        repo_command.finish_transaction(ui, tx)?;
+        workspace_command.finish_transaction(ui, tx)?;
     }
 
     Ok(())
@@ -2900,19 +2910,19 @@ fn cmd_backout(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let commit_to_back_out = repo_command.resolve_revision_arg(ui, args)?;
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let commit_to_back_out = workspace_command.resolve_revision_arg(ui, args)?;
     let mut parents = vec![];
     for revision_str in args.values_of("destination").unwrap() {
-        let destination = repo_command.resolve_single_rev(ui, revision_str)?;
+        let destination = workspace_command.resolve_single_rev(ui, revision_str)?;
         parents.push(destination);
     }
-    let mut tx = repo_command.start_transaction(&format!(
+    let mut tx = workspace_command.start_transaction(&format!(
         "back out commit {}",
         commit_to_back_out.id().hex()
     ));
     back_out_commit(ui.settings(), tx.mut_repo(), &commit_to_back_out, &parents);
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
 
     Ok(())
 }
@@ -2929,10 +2939,10 @@ fn is_fast_forward(repo: RepoRef, branch_name: &str, new_target_id: &CommitId) -
 }
 
 fn cmd_branch(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?.rebase_descendants(false);
+    let mut workspace_command = command.workspace_helper(ui)?.rebase_descendants(false);
     let branch_name = args.value_of("name").unwrap();
     if args.is_present("delete") {
-        if repo_command
+        if workspace_command
             .repo()
             .view()
             .get_local_branch(branch_name)
@@ -2940,11 +2950,11 @@ fn cmd_branch(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
         {
             return Err(CommandError::UserError("No such branch".to_string()));
         }
-        let mut tx = repo_command.start_transaction(&format!("delete branch {}", branch_name));
+        let mut tx = workspace_command.start_transaction(&format!("delete branch {}", branch_name));
         tx.mut_repo().remove_local_branch(branch_name);
-        repo_command.finish_transaction(ui, tx)?;
+        workspace_command.finish_transaction(ui, tx)?;
     } else if args.is_present("forget") {
-        if repo_command
+        if workspace_command
             .repo()
             .view()
             .get_local_branch(branch_name)
@@ -2952,14 +2962,14 @@ fn cmd_branch(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
         {
             return Err(CommandError::UserError("No such branch".to_string()));
         }
-        let mut tx = repo_command.start_transaction(&format!("forget branch {}", branch_name));
+        let mut tx = workspace_command.start_transaction(&format!("forget branch {}", branch_name));
         tx.mut_repo().remove_branch(branch_name);
-        repo_command.finish_transaction(ui, tx)?;
+        workspace_command.finish_transaction(ui, tx)?;
     } else {
-        let target_commit = repo_command.resolve_revision_arg(ui, args)?;
+        let target_commit = workspace_command.resolve_revision_arg(ui, args)?;
         if !args.is_present("allow-backwards")
             && !is_fast_forward(
-                repo_command.repo().as_repo_ref(),
+                workspace_command.repo().as_repo_ref(),
                 branch_name,
                 target_commit.id(),
             )
@@ -2968,7 +2978,7 @@ fn cmd_branch(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
                 "Use --allow-backwards to allow moving a branch backwards or sideways".to_string(),
             ));
         }
-        let mut tx = repo_command.start_transaction(&format!(
+        let mut tx = workspace_command.start_transaction(&format!(
             "point branch {} to commit {}",
             branch_name,
             target_commit.id().hex()
@@ -2977,7 +2987,7 @@ fn cmd_branch(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
             branch_name.to_string(),
             RefTarget::Normal(target_commit.id().clone()),
         );
-        repo_command.finish_transaction(ui, tx)?;
+        workspace_command.finish_transaction(ui, tx)?;
     }
 
     Ok(())
@@ -2988,8 +2998,8 @@ fn cmd_branches(
     command: &CommandHelper,
     _args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let repo_command = command.repo_helper(ui)?;
-    let repo = repo_command.repo();
+    let workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
 
     let print_branch_target =
         |ui: &mut Ui, target: Option<&RefTarget>| -> Result<(), CommandError> {
@@ -3085,12 +3095,12 @@ fn cmd_debug(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
         app.gen_completions_to("jj", shell, &mut buf);
         ui.stdout_formatter().write_all(&buf)?;
     } else if let Some(resolve_matches) = args.subcommand_matches("resolverev") {
-        let mut repo_command = command.repo_helper(ui)?;
-        let commit = repo_command.resolve_revision_arg(ui, resolve_matches)?;
+        let mut workspace_command = command.workspace_helper(ui)?;
+        let commit = workspace_command.resolve_revision_arg(ui, resolve_matches)?;
         writeln!(ui, "{}", commit.id().hex())?;
     } else if let Some(_wc_matches) = args.subcommand_matches("workingcopy") {
-        let repo_command = command.repo_helper(ui)?;
-        let wc = repo_command.repo().working_copy_locked();
+        let workspace_command = command.workspace_helper(ui)?;
+        let wc = workspace_command.repo().working_copy_locked();
         writeln!(ui, "Current commit: {:?}", wc.current_commit_id())?;
         writeln!(ui, "Current tree: {:?}", wc.current_tree_id())?;
         for (file, state) in wc.file_states().iter() {
@@ -3107,8 +3117,8 @@ fn cmd_debug(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
         );
         writeln!(ui, "{:?}", parse)?;
     } else if let Some(_reindex_matches) = args.subcommand_matches("index") {
-        let repo_command = command.repo_helper(ui)?;
-        let stats = repo_command.repo().index().stats();
+        let workspace_command = command.workspace_helper(ui)?;
+        let stats = workspace_command.repo().index().stats();
         writeln!(ui, "Number of commits: {}", stats.num_commits)?;
         writeln!(ui, "Number of merges: {}", stats.num_merges)?;
         writeln!(ui, "Max generation number: {}", stats.max_generation_number)?;
@@ -3121,8 +3131,8 @@ fn cmd_debug(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
             writeln!(ui, "    Name: {}", level.name.as_ref().unwrap())?;
         }
     } else if let Some(_reindex_matches) = args.subcommand_matches("reindex") {
-        let mut repo_command = command.repo_helper(ui)?;
-        let mut_repo = Arc::get_mut(repo_command.repo_mut()).unwrap();
+        let mut workspace_command = command.workspace_helper(ui)?;
+        let mut_repo = Arc::get_mut(workspace_command.repo_mut()).unwrap();
         let index = mut_repo.reindex();
         writeln!(ui, "Finished indexing {:?} commits.", index.num_commits())?;
     } else {
@@ -3154,12 +3164,12 @@ where
 
 fn cmd_bench(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
     if let Some(command_matches) = args.subcommand_matches("commonancestors") {
-        let mut repo_command = command.repo_helper(ui)?;
+        let mut workspace_command = command.workspace_helper(ui)?;
         let revision1_str = command_matches.value_of("revision1").unwrap();
-        let commit1 = repo_command.resolve_single_rev(ui, revision1_str)?;
+        let commit1 = workspace_command.resolve_single_rev(ui, revision1_str)?;
         let revision2_str = command_matches.value_of("revision2").unwrap();
-        let commit2 = repo_command.resolve_single_rev(ui, revision2_str)?;
-        let index = repo_command.repo().index();
+        let commit2 = workspace_command.resolve_single_rev(ui, revision2_str)?;
+        let index = workspace_command.repo().index();
         let routine = || index.common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()]);
         run_bench(
             ui,
@@ -3167,12 +3177,12 @@ fn cmd_bench(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
             routine,
         )?;
     } else if let Some(command_matches) = args.subcommand_matches("isancestor") {
-        let mut repo_command = command.repo_helper(ui)?;
+        let mut workspace_command = command.workspace_helper(ui)?;
         let ancestor_str = command_matches.value_of("ancestor").unwrap();
-        let ancestor_commit = repo_command.resolve_single_rev(ui, ancestor_str)?;
+        let ancestor_commit = workspace_command.resolve_single_rev(ui, ancestor_str)?;
         let descendants_str = command_matches.value_of("descendant").unwrap();
-        let descendant_commit = repo_command.resolve_single_rev(ui, descendants_str)?;
-        let index = repo_command.repo().index();
+        let descendant_commit = workspace_command.resolve_single_rev(ui, descendants_str)?;
+        let index = workspace_command.repo().index();
         let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
         run_bench(
             ui,
@@ -3180,12 +3190,12 @@ fn cmd_bench(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
             routine,
         )?;
     } else if let Some(command_matches) = args.subcommand_matches("walkrevs") {
-        let mut repo_command = command.repo_helper(ui)?;
+        let mut workspace_command = command.workspace_helper(ui)?;
         let unwanted_str = command_matches.value_of("unwanted").unwrap();
-        let unwanted_commit = repo_command.resolve_single_rev(ui, unwanted_str)?;
+        let unwanted_commit = workspace_command.resolve_single_rev(ui, unwanted_str)?;
         let wanted_str = command_matches.value_of("wanted");
-        let wanted_commit = repo_command.resolve_single_rev(ui, wanted_str.unwrap())?;
-        let index = repo_command.repo().index();
+        let wanted_commit = workspace_command.resolve_single_rev(ui, wanted_str.unwrap())?;
+        let index = workspace_command.repo().index();
         let routine = || {
             index
                 .walk_revs(
@@ -3200,10 +3210,10 @@ fn cmd_bench(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
             routine,
         )?;
     } else if let Some(command_matches) = args.subcommand_matches("resolveprefix") {
-        let repo_command = command.repo_helper(ui)?;
+        let workspace_command = command.workspace_helper(ui)?;
         let prefix =
             HexPrefix::new(command_matches.value_of("prefix").unwrap().to_string()).unwrap();
-        let index = repo_command.repo().index();
+        let index = workspace_command.repo().index();
         let routine = || index.resolve_prefix(&prefix);
         run_bench(ui, &format!("resolveprefix-{}", prefix.hex()), routine)?;
     } else {
@@ -3227,8 +3237,8 @@ fn cmd_op_log(
     command: &CommandHelper,
     _args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let repo_command = command.repo_helper(ui)?;
-    let repo = repo_command.repo();
+    let workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
     let head_op = repo.operation().clone();
     let head_op_id = head_op.id().clone();
     let mut formatter = ui.stdout_formatter();
@@ -3307,8 +3317,8 @@ fn cmd_op_undo(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
     let bad_op = resolve_single_op(repo, args.value_of("operation").unwrap())?;
     let parent_ops = bad_op.parents();
     if parent_ops.len() > 1 {
@@ -3322,11 +3332,12 @@ fn cmd_op_undo(
         ));
     }
 
-    let mut tx = repo_command.start_transaction(&format!("undo operation {}", bad_op.id().hex()));
+    let mut tx =
+        workspace_command.start_transaction(&format!("undo operation {}", bad_op.id().hex()));
     let bad_repo = repo.loader().load_at(&bad_op);
     let parent_repo = repo.loader().load_at(&parent_ops[0]);
     tx.mut_repo().merge(&bad_repo, &parent_repo);
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
 
     Ok(())
 }
@@ -3335,13 +3346,13 @@ fn cmd_op_restore(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
     let target_op = resolve_single_op(repo, args.value_of("operation").unwrap())?;
-    let mut tx =
-        repo_command.start_transaction(&format!("restore to operation {}", target_op.id().hex()));
+    let mut tx = workspace_command
+        .start_transaction(&format!("restore to operation {}", target_op.id().hex()));
     tx.mut_repo().set_view(target_op.view().take_store_view());
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
 
     Ok(())
 }
@@ -3396,8 +3407,8 @@ fn cmd_git_remote_add(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let repo_command = command.repo_helper(ui)?;
-    let repo = repo_command.repo();
+    let workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     let remote_name = args.value_of("remote").unwrap();
     let url = args.value_of("url").unwrap();
@@ -3415,8 +3426,8 @@ fn cmd_git_remote_remove(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     let remote_name = args.value_of("remote").unwrap();
     if git_repo.find_remote(remote_name).is_err() {
@@ -3432,11 +3443,12 @@ fn cmd_git_remote_remove(
         }
     }
     if !branches_to_delete.is_empty() {
-        let mut tx = repo_command.start_transaction(&format!("remove git remote {}", remote_name));
+        let mut tx =
+            workspace_command.start_transaction(&format!("remove git remote {}", remote_name));
         for branch in branches_to_delete {
             tx.mut_repo().remove_remote_branch(&branch, remote_name);
         }
-        repo_command.finish_transaction(ui, tx)?;
+        workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())
 }
@@ -3446,14 +3458,15 @@ fn cmd_git_fetch(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     let remote_name = args.value_of("remote").unwrap();
-    let mut tx = repo_command.start_transaction(&format!("fetch from git remote {}", remote_name));
+    let mut tx =
+        workspace_command.start_transaction(&format!("fetch from git remote {}", remote_name));
     git::fetch(tx.mut_repo(), &git_repo, remote_name)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
@@ -3493,10 +3506,10 @@ fn cmd_git_clone(
         "Fetching into new repo in {:?}",
         repo.working_copy_path()
     )?;
-    let mut repo_command = command.for_loaded_repo(ui, repo);
+    let mut workspace_command = command.for_loaded_repo(ui, repo);
     let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();
-    let mut tx = repo_command.start_transaction("fetch from git remote into empty repo");
+    let mut tx = workspace_command.start_transaction("fetch from git remote into empty repo");
     let maybe_default_branch =
         git::fetch(tx.mut_repo(), &git_repo, remote_name).map_err(|err| match err {
             GitFetchError::NoSuchRemote(_) => {
@@ -3512,12 +3525,12 @@ fn cmd_git_clone(
             .view()
             .get_remote_branch(&default_branch, "origin");
         if let Some(RefTarget::Normal(commit_id)) = default_branch_target {
-            if let Ok(commit) = repo_command.repo().store().get_commit(&commit_id) {
+            if let Ok(commit) = workspace_command.repo().store().get_commit(&commit_id) {
                 tx.mut_repo().check_out(ui.settings(), &commit);
             }
         }
     }
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
@@ -3526,8 +3539,8 @@ fn cmd_git_push(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
     let remote_name = args.value_of("remote").unwrap();
 
     let mut branch_updates = HashMap::new();
@@ -3620,10 +3633,10 @@ fn cmd_git_push(
     let git_repo = get_git_repo(repo.store())?;
     git::push_updates(&git_repo, remote_name, &ref_updates)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
-    let mut tx = repo_command.start_transaction("import git refs");
+    let mut tx = workspace_command.start_transaction("import git refs");
     git::import_refs(tx.mut_repo(), &git_repo)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
@@ -3632,13 +3645,13 @@ fn cmd_git_import(
     command: &CommandHelper,
     _args: &ArgMatches,
 ) -> Result<(), CommandError> {
-    let mut repo_command = command.repo_helper(ui)?;
-    let repo = repo_command.repo();
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
-    let mut tx = repo_command.start_transaction("import git refs");
+    let mut tx = workspace_command.start_transaction("import git refs");
     git::import_refs(tx.mut_repo(), &git_repo)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
-    repo_command.finish_transaction(ui, tx)?;
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 

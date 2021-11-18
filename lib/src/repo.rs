@@ -419,6 +419,14 @@ impl RepoLoader {
         })
     }
 
+    pub fn repo_path(&self) -> &PathBuf {
+        &self.repo_path
+    }
+
+    pub fn working_copy_path(&self) -> &PathBuf {
+        &self.wc_path
+    }
+
     pub fn store(&self) -> &Arc<Store> {
         &self.store
     }
