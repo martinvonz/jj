@@ -141,7 +141,9 @@ email = "martinvonz@google.com"
 ## Getting started
 
 The best way to get started is probably to go through
-[the tutorial](docs/tutorial.md).
+[the tutorial](docs/tutorial.md). Also see the
+[Git comparison](docs/git-comparison.md), which includes a table of
+`jj` vs. `git` commands.
 
 
 ## Related work
