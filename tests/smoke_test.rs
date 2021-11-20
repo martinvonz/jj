@@ -90,7 +90,12 @@ $",
         testutils::CommandRunner::new(&repo_path).run(vec!["describe", "-m", "add some files"]);
     assert_eq!(output.status, 0);
     let stdout_string = output.stdout_string();
-    let output_regex = Regex::new("^Working copy now at: [[:xdigit:]]+ add some files\n$").unwrap();
+    let output_regex = Regex::new(
+        "^Working copy now at: [[:xdigit:]]+ add some files
+Added 0 files, modified 0 files, removed 0 files
+$",
+    )
+    .unwrap();
     assert!(
         output_regex.is_match(&stdout_string),
         "output was: {}",
@@ -101,7 +106,12 @@ $",
     let output = testutils::CommandRunner::new(&repo_path).run(vec!["close"]);
     assert_eq!(output.status, 0);
     let stdout_string = output.stdout_string();
-    let output_regex = Regex::new("^Working copy now at: [[:xdigit:]]+ \n$").unwrap();
+    let output_regex = Regex::new(
+        "^Working copy now at: [[:xdigit:]]+ 
+Added 0 files, modified 0 files, removed 0 files
+$",
+    )
+    .unwrap();
     assert!(
         output_regex.is_match(&stdout_string),
         "output was: {}",
