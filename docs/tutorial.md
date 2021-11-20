@@ -317,10 +317,10 @@ o 401652a2f61e martinvonz@<hostname> 2021-05-26 12:44:51.872 -07:00 - 2021-05-26
 [many more lines]
 ```
 
-The most useful command is `jj op undo`, which will undo an operation. By
-default, it will undo the most recent operation. Let's try it:
+The most useful command is `jj undo` (alias for `jj op undo`), which will undo
+an operation. By default, it will undo the most recent operation. Let's try it:
 ```shell script
-$ jj op undo
+$ jj undo
 Working copy now at: 41f0d2289b56
 $ jj l
 @ 41f0d2289b56 b1e3a4afde5e martinvonz@google.com 2021-05-26 12:52:39.000 -07:00

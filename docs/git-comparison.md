@@ -203,7 +203,9 @@ parent.
     </tr>
     <tr>
       <td>Undo an earlier operation</td>
-      <td><code>jj op undo -o &lt;operation ID&gt;</code></td>
+      <td><code>jj [op] undo -o &lt;operation ID&gt;</code>
+          (<code>jj undo</code> is an alias for <code>jj op undo</code>)
+      </td>
       <td>Not supported</td>
     </tr>
   </tbody>
