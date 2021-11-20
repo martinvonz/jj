@@ -16,6 +16,7 @@ Let's start by cloning the Jujutsu Git repo using `jj`:
 $ jj git clone https://github.com/martinvonz/jj.git
 Fetching into new repo in "<dir>/jj"
 Working copy now at: 265ecf5cab2d
+Added 98 files, modified 0 files, removed 0 files
 $ cd jj
 ```
 
@@ -34,7 +35,7 @@ Let's check out a particular commit, so we get more predicable output:
 ```shell script
 $ jj co 080a9b37ff7e
 Working copy now at: 608c179a60df
-Added 2 files, modified 57 files, removed 5 files
+Added 7 files, modified 65 files, removed 21 files
 $ jj st
 Parent commit: 080a9b37ff7e cli: make `jj st` show parent commit before working copy commit
 Working copy : 608c179a60df
@@ -226,6 +227,7 @@ modifies a different file. Let's now rebase B2 directly onto A:
 $ jj rebase -s 5548374c0794 -d cf49e6bec410
 Rebased 3 commits
 Working copy now at: 9195b6d2e8dc
+Added 0 files, modified 1 files, removed 0 files
 $ jj l
 @ 9195b6d2e8dc 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00 conflict
 |
@@ -411,6 +413,7 @@ $ jj edit -r ::@
 Created 2423c134ea70 ABC
 Rebased 2 descendant commits
 Working copy now at: d31c52e8ca41 
+Added 0 files, modified 1 files, removed 0 files
 ```
 When Meld starts, edit the right side by e.g. adding something to the first
 line. Then close Meld. You can now inspect the rewritten commit with

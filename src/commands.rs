@@ -429,11 +429,13 @@ impl RepoCommandHelper {
         self.repo = tx.commit();
         let stats = update_working_copy(ui, &self.repo, &mut self.repo.working_copy_locked())?;
         if let Some(stats) = &stats {
-            writeln!(
-                ui,
-                "Added {} files, modified {} files, removed {} files",
-                stats.added_files, stats.updated_files, stats.removed_files
-            )?;
+            if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
+                writeln!(
+                    ui,
+                    "Added {} files, modified {} files, removed {} files",
+                    stats.added_files, stats.updated_files, stats.removed_files
+                )?;
+            }
         }
         Ok(stats)
     }

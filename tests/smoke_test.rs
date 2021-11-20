@@ -92,7 +92,6 @@ $",
     let stdout_string = output.stdout_string();
     let output_regex = Regex::new(
         "^Working copy now at: [[:xdigit:]]+ add some files
-Added 0 files, modified 0 files, removed 0 files
 $",
     )
     .unwrap();
@@ -108,7 +107,6 @@ $",
     let stdout_string = output.stdout_string();
     let output_regex = Regex::new(
         "^Working copy now at: [[:xdigit:]]+ 
-Added 0 files, modified 0 files, removed 0 files
 $",
     )
     .unwrap();
