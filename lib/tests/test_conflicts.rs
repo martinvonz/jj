@@ -22,11 +22,11 @@ use jujutsu_lib::testutils;
 fn test_materialize_conflict_basic() {
     let settings = testutils::user_settings();
     let test_workspace = testutils::init_repo(&settings, false);
-    let repo = &test_workspace.repo;
+    let store = test_workspace.repo.store();
 
     let path = RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
-        repo.store(),
+        store,
         &path,
         "line 1
 line 2
@@ -36,7 +36,7 @@ line 5
 ",
     );
     let left_id = testutils::write_file(
-        repo.store(),
+        store,
         &path,
         "line 1
 line 2
@@ -46,7 +46,7 @@ line 5
 ",
     );
     let right_id = testutils::write_file(
-        repo.store(),
+        store,
         &path,
         "line 1
 line 2
@@ -79,7 +79,7 @@ line 5
         ],
     };
     let mut result: Vec<u8> = vec![];
-    materialize_conflict(repo.store(), &path, &conflict, &mut result).unwrap();
+    materialize_conflict(store, &path, &conflict, &mut result).unwrap();
     assert_eq!(
         String::from_utf8(result).unwrap().as_str(),
         "line 1
@@ -102,11 +102,11 @@ line 5
 fn test_materialize_conflict_modify_delete() {
     let settings = testutils::user_settings();
     let test_workspace = testutils::init_repo(&settings, false);
-    let repo = &test_workspace.repo;
+    let store = test_workspace.repo.store();
 
     let path = RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
-        repo.store(),
+        store,
         &path,
         "line 1
 line 2
@@ -116,7 +116,7 @@ line 5
 ",
     );
     let left_id = testutils::write_file(
-        repo.store(),
+        store,
         &path,
         "line 1
 line 2
@@ -126,7 +126,7 @@ line 5
 ",
     );
     let right_id = testutils::write_file(
-        repo.store(),
+        store,
         &path,
         "line 1
 line 2
@@ -158,7 +158,7 @@ line 5
         ],
     };
     let mut result: Vec<u8> = vec![];
-    materialize_conflict(repo.store(), &path, &conflict, &mut result).unwrap();
+    materialize_conflict(store, &path, &conflict, &mut result).unwrap();
     assert_eq!(
         String::from_utf8(result).unwrap().as_str(),
         "line 1
@@ -180,11 +180,11 @@ line 5
 fn test_materialize_conflict_delete_modify() {
     let settings = testutils::user_settings();
     let test_workspace = testutils::init_repo(&settings, false);
-    let repo = &test_workspace.repo;
+    let store = test_workspace.repo.store();
 
     let path = RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
-        repo.store(),
+        store,
         &path,
         "line 1
 line 2
@@ -194,7 +194,7 @@ line 5
 ",
     );
     let left_id = testutils::write_file(
-        repo.store(),
+        store,
         &path,
         "line 1
 line 2
@@ -203,7 +203,7 @@ line 5
 ",
     );
     let right_id = testutils::write_file(
-        repo.store(),
+        store,
         &path,
         "line 1
 line 2
@@ -237,7 +237,7 @@ line 5
     };
 
     let mut result: Vec<u8> = vec![];
-    materialize_conflict(repo.store(), &path, &conflict, &mut result).unwrap();
+    materialize_conflict(store, &path, &conflict, &mut result).unwrap();
     assert_eq!(
         String::from_utf8(result).unwrap().as_str(),
         "line 1
@@ -424,12 +424,12 @@ line 5
 fn test_update_conflict_from_content() {
     let settings = testutils::user_settings();
     let test_workspace = testutils::init_repo(&settings, false);
-    let repo = &test_workspace.repo;
+    let store = test_workspace.repo.store();
 
     let path = RepoPath::from_internal_string("dir/file");
-    let base_file_id = testutils::write_file(repo.store(), &path, "line 1\nline 2\nline 3\n");
-    let left_file_id = testutils::write_file(repo.store(), &path, "left 1\nline 2\nleft 3\n");
-    let right_file_id = testutils::write_file(repo.store(), &path, "right 1\nline 2\nright 3\n");
+    let base_file_id = testutils::write_file(store, &path, "line 1\nline 2\nline 3\n");
+    let left_file_id = testutils::write_file(store, &path, "left 1\nline 2\nleft 3\n");
+    let right_file_id = testutils::write_file(store, &path, "right 1\nline 2\nright 3\n");
     let conflict = Conflict {
         removes: vec![ConflictPart {
             value: TreeValue::Normal {
@@ -452,19 +452,18 @@ fn test_update_conflict_from_content() {
             },
         ],
     };
-    let conflict_id = repo.store().write_conflict(&conflict).unwrap();
+    let conflict_id = store.write_conflict(&conflict).unwrap();
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
     let mut materialized = vec![];
-    materialize_conflict(repo.store(), &path, &conflict, &mut materialized).unwrap();
-    let result =
-        update_conflict_from_content(repo.store(), &path, &conflict_id, &materialized).unwrap();
+    materialize_conflict(store, &path, &conflict, &mut materialized).unwrap();
+    let result = update_conflict_from_content(store, &path, &conflict_id, &materialized).unwrap();
     assert_eq!(result, Some(conflict_id.clone()));
 
     // If the conflict is resolved, we None back to indicate that.
     let result = update_conflict_from_content(
-        repo.store(),
+        store,
         &path,
         &conflict_id,
         b"resolved 1\nline 2\nresolved 3\n",
@@ -473,17 +472,14 @@ fn test_update_conflict_from_content() {
     assert_eq!(result, None);
 
     // If the conflict is partially resolved, we get a new conflict back.
-    let result = update_conflict_from_content(repo.store(), &path, &conflict_id, b"resolved 1\nline 2\n<<<<<<<\n-------\n+++++++\n-line 3\n+left 3\n+++++++\nright 3\n>>>>>>>\n").unwrap();
+    let result = update_conflict_from_content(store, &path, &conflict_id, b"resolved 1\nline 2\n<<<<<<<\n-------\n+++++++\n-line 3\n+left 3\n+++++++\nright 3\n>>>>>>>\n").unwrap();
     assert_ne!(result, None);
     assert_ne!(result, Some(conflict_id));
-    let new_conflict = repo.store().read_conflict(&result.unwrap()).unwrap();
+    let new_conflict = store.read_conflict(&result.unwrap()).unwrap();
     // Calculate expected new FileIds
-    let new_base_file_id =
-        testutils::write_file(repo.store(), &path, "resolved 1\nline 2\nline 3\n");
-    let new_left_file_id =
-        testutils::write_file(repo.store(), &path, "resolved 1\nline 2\nleft 3\n");
-    let new_right_file_id =
-        testutils::write_file(repo.store(), &path, "resolved 1\nline 2\nright 3\n");
+    let new_base_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nline 3\n");
+    let new_left_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nleft 3\n");
+    let new_right_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nright 3\n");
     assert_eq!(
         new_conflict,
         Conflict {
