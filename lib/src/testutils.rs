@@ -15,6 +15,7 @@
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
+use std::path::Path;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -142,12 +143,12 @@ pub fn create_random_commit(settings: &UserSettings, repo: &ReadonlyRepo) -> Com
         .set_description(format!("random commit {}", number))
 }
 
-pub fn write_working_copy_file(repo: &ReadonlyRepo, path: &RepoPath, contents: &str) {
+pub fn write_working_copy_file(workspace_root: &Path, path: &RepoPath, contents: &str) {
     let mut file = OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
-        .open(path.to_fs_path(repo.working_copy_path()))
+        .open(path.to_fs_path(workspace_root))
         .unwrap();
     file.write_all(contents.as_bytes()).unwrap();
 }
