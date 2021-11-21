@@ -12,12 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::repo::{ReadonlyRepo, RepoInitError, RepoLoadError, RepoLoader};
+use thiserror::Error;
+
+use crate::repo::{ReadonlyRepo, RepoInitError, RepoLoader};
 use crate::settings::UserSettings;
 use crate::working_copy::WorkingCopy;
+
+#[derive(Error, Debug, PartialEq)]
+pub enum WorkspaceLoadError {
+    #[error("There is no Jujutsu repo in {0}")]
+    NoWorkspaceHere(PathBuf),
+}
 
 /// Represents a workspace, i.e. what's typically the .jj/ directory and its
 /// parent.
@@ -64,11 +72,12 @@ impl Workspace {
 
     pub fn load(
         user_settings: &UserSettings,
-        workspace_root: PathBuf,
-    ) -> Result<Self, RepoLoadError> {
-        // TODO: Move the find_repo_dir() call from RepoLoader::init() to here
-        let repo_loader = RepoLoader::init(user_settings, workspace_root)?;
-        let workspace_root = repo_loader.working_copy_path().clone();
+        workspace_path: PathBuf,
+    ) -> Result<Self, WorkspaceLoadError> {
+        let repo_path = find_repo_dir(&workspace_path)
+            .ok_or(WorkspaceLoadError::NoWorkspaceHere(workspace_path))?;
+        let workspace_root = repo_path.parent().unwrap().to_owned();
+        let repo_loader = RepoLoader::init(user_settings, repo_path);
         Ok(Self::from_repo_loader(workspace_root, repo_loader))
     }
 
@@ -104,5 +113,19 @@ impl Workspace {
 
     pub fn working_copy_mut(&mut self) -> &mut WorkingCopy {
         &mut self.working_copy
+    }
+}
+
+fn find_repo_dir(mut workspace_root: &Path) -> Option<PathBuf> {
+    loop {
+        let repo_path = workspace_root.join(".jj");
+        if repo_path.is_dir() {
+            return Some(repo_path);
+        }
+        if let Some(wc_dir_parent) = workspace_root.parent() {
+            workspace_root = wc_dir_parent;
+        } else {
+            return None;
+        }
     }
 }

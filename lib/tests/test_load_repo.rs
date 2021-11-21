@@ -12,36 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::repo::{ReadonlyRepo, RepoLoadError, RepoLoader};
+use jujutsu_lib::repo::RepoLoader;
 use jujutsu_lib::testutils;
 use test_case::test_case;
-
-#[test]
-fn test_load_bad_path() {
-    let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
-    let wc_path = temp_dir.path().to_owned();
-    // We haven't created a repo in the wc_path, so it should fail to load.
-    let result = ReadonlyRepo::load(&settings, wc_path.clone());
-    assert_eq!(result.err(), Some(RepoLoadError::NoRepoHere(wc_path)));
-}
-
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_load_from_subdir(use_git: bool) {
-    let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
-    let repo = &test_workspace.repo;
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
-
-    let subdir = workspace_root.join("dir").join("subdir");
-    std::fs::create_dir_all(subdir.clone()).unwrap();
-    let same_repo = ReadonlyRepo::load(&settings, subdir);
-    assert!(same_repo.is_ok());
-    let same_repo = same_repo.unwrap();
-    assert_eq!(same_repo.repo_path(), repo.repo_path());
-    assert_eq!(same_repo.working_copy_path(), repo.working_copy_path());
-}
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -60,13 +33,13 @@ fn test_load_at_operation(use_git: bool) {
 
     // If we load the repo at head, we should not see the commit since it was
     // removed
-    let loader = RepoLoader::init(&settings, repo.repo_path().clone()).unwrap();
+    let loader = RepoLoader::init(&settings, repo.repo_path().clone());
     let head_repo = loader.load_at_head();
     assert!(!head_repo.view().heads().contains(commit.id()));
 
     // If we load the repo at the previous operation, we should see the commit since
     // it has not been removed yet
-    let loader = RepoLoader::init(&settings, repo.repo_path().clone()).unwrap();
+    let loader = RepoLoader::init(&settings, repo.repo_path().clone());
     let old_repo = loader.load_at(repo.operation());
     assert!(old_repo.view().heads().contains(commit.id()));
 }

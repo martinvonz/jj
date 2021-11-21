@@ -45,7 +45,7 @@ use jujutsu_lib::op_heads_store::OpHeadsStore;
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction};
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoInitError, RepoLoadError, RepoRef};
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoInitError, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
@@ -55,7 +55,7 @@ use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::TreeDiffIterator;
 use jujutsu_lib::working_copy::{CheckoutStats, WorkingCopy};
-use jujutsu_lib::workspace::Workspace;
+use jujutsu_lib::workspace::{Workspace, WorkspaceLoadError};
 use jujutsu_lib::{conflicts, diff, files, git, revset, tree};
 use maplit::{hashmap, hashset};
 use pest::Parser;
@@ -154,7 +154,7 @@ impl<'args> CommandHelper<'args> {
         let wc_path = ui.cwd().join(wc_path_str);
         let workspace = match Workspace::load(ui.settings(), wc_path) {
             Ok(workspace) => workspace,
-            Err(RepoLoadError::NoRepoHere(wc_path)) => {
+            Err(WorkspaceLoadError::NoWorkspaceHere(wc_path)) => {
                 let mut message = format!("There is no jj repo in \"{}\"", wc_path_str);
                 let git_dir = wc_path.join(".git");
                 if git_dir.is_dir() {

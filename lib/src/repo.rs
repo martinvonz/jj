@@ -126,12 +126,6 @@ pub enum RepoInitError {
     DestinationExists(PathBuf),
 }
 
-#[derive(Error, Debug, PartialEq)]
-pub enum RepoLoadError {
-    #[error("There is no Jujutsu repo in {0}")]
-    NoRepoHere(PathBuf),
-}
-
 impl ReadonlyRepo {
     pub fn init_local(
         settings: &UserSettings,
@@ -239,11 +233,8 @@ impl ReadonlyRepo {
         })
     }
 
-    pub fn load(
-        user_settings: &UserSettings,
-        wc_path: PathBuf,
-    ) -> Result<Arc<ReadonlyRepo>, RepoLoadError> {
-        Ok(RepoLoader::init(user_settings, wc_path)?.load_at_head())
+    pub fn load(user_settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
+        RepoLoader::init(user_settings, repo_path).load_at_head()
     }
 
     pub fn loader(&self) -> RepoLoader {
@@ -351,26 +342,8 @@ pub struct RepoLoader {
     index_store: Arc<IndexStore>,
 }
 
-fn find_repo_dir(mut wc_dir: &Path) -> Option<PathBuf> {
-    loop {
-        let repo_path = wc_dir.join(".jj");
-        if repo_path.is_dir() {
-            return Some(repo_path);
-        }
-        if let Some(wc_dir_parent) = wc_dir.parent() {
-            wc_dir = wc_dir_parent;
-        } else {
-            return None;
-        }
-    }
-}
-
 impl RepoLoader {
-    pub fn init(
-        user_settings: &UserSettings,
-        wc_path: PathBuf,
-    ) -> Result<RepoLoader, RepoLoadError> {
-        let repo_path = find_repo_dir(&wc_path).ok_or(RepoLoadError::NoRepoHere(wc_path))?;
+    pub fn init(user_settings: &UserSettings, repo_path: PathBuf) -> Self {
         let wc_path = repo_path.parent().unwrap().to_owned();
         let store_path = repo_path.join("store");
         if store_path.is_file() {
@@ -398,7 +371,7 @@ impl RepoLoader {
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
         let op_heads_store = Arc::new(OpHeadsStore::load(repo_path.join("op_heads")));
         let index_store = Arc::new(IndexStore::load(repo_path.join("index")));
-        Ok(RepoLoader {
+        Self {
             wc_path,
             repo_path,
             repo_settings,
@@ -406,7 +379,7 @@ impl RepoLoader {
             op_store,
             op_heads_store,
             index_store,
-        })
+        }
     }
 
     pub fn repo_path(&self) -> &PathBuf {
