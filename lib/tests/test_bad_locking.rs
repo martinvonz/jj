@@ -96,6 +96,7 @@ fn test_bad_locking_children(use_git: bool) {
     let settings = testutils::user_settings();
     let test_workspace = testutils::init_repo(&settings, use_git);
     let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root();
 
     let mut tx = repo.start_transaction("test");
     let initial = testutils::create_random_commit(&settings, repo)
@@ -104,9 +105,9 @@ fn test_bad_locking_children(use_git: bool) {
     tx.commit();
 
     // Simulate a write of a commit that happens on one machine
-    let machine1_path = TempDir::new().unwrap().into_path();
-    copy_directory(repo.working_copy_path(), &machine1_path);
-    let machine1_repo = ReadonlyRepo::load(&settings, machine1_path).unwrap();
+    let machine1_root = TempDir::new().unwrap().into_path();
+    copy_directory(workspace_root, &machine1_root);
+    let machine1_repo = ReadonlyRepo::load(&settings, machine1_root.clone()).unwrap();
     let mut machine1_tx = machine1_repo.start_transaction("test");
     let child1 = testutils::create_random_commit(&settings, &machine1_repo)
         .set_parents(vec![initial.id().clone()])
@@ -114,9 +115,9 @@ fn test_bad_locking_children(use_git: bool) {
     machine1_tx.commit();
 
     // Simulate a write of a commit that happens on another machine
-    let machine2_path = TempDir::new().unwrap().into_path();
-    copy_directory(repo.working_copy_path(), &machine2_path);
-    let machine2_repo = ReadonlyRepo::load(&settings, machine2_path).unwrap();
+    let machine2_root = TempDir::new().unwrap().into_path();
+    copy_directory(workspace_root, &machine2_root);
+    let machine2_repo = ReadonlyRepo::load(&settings, machine2_root.clone()).unwrap();
     let mut machine2_tx = machine2_repo.start_transaction("test");
     let child2 = testutils::create_random_commit(&settings, &machine2_repo)
         .set_parents(vec![initial.id().clone()])
@@ -126,12 +127,7 @@ fn test_bad_locking_children(use_git: bool) {
     // Simulate that the distributed file system now has received the changes from
     // both machines
     let merged_path = TempDir::new().unwrap().into_path();
-    merge_directories(
-        machine1_repo.working_copy_path(),
-        repo.working_copy_path(),
-        machine2_repo.working_copy_path(),
-        &merged_path,
-    );
+    merge_directories(&machine1_root, workspace_root, &machine2_root, &merged_path);
     let merged_repo = ReadonlyRepo::load(&settings, merged_path).unwrap();
     assert!(merged_repo.view().heads().contains(child1.id()));
     assert!(merged_repo.view().heads().contains(child2.id()));
