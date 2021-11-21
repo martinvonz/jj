@@ -307,14 +307,6 @@ impl ReadonlyRepo {
         self.index()
     }
 
-    pub fn working_copy(&self) -> WorkingCopy {
-        WorkingCopy::load(
-            self.store.clone(),
-            self.wc_path.clone(),
-            self.repo_path.join("working_copy"),
-        )
-    }
-
     pub fn store(&self) -> &Arc<Store> {
         &self.store
     }

@@ -17,10 +17,10 @@ use std::collections::HashSet;
 use std::thread;
 
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::testutils;
 use jujutsu_lib::working_copy::CheckoutError;
+use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
 
 #[test_case(false ; "local backend")]
@@ -29,28 +29,33 @@ fn test_concurrent_checkout(use_git: bool) {
     // Test that we error out if a concurrent checkout is detected (i.e. if the
     // current checkout changed on disk after we read it).
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
-    let repo1 = &test_workspace.repo;
+    let mut test_workspace1 = testutils::init_repo(&settings, use_git);
+    let repo1 = test_workspace1.repo.clone();
+    let workspace1_root = test_workspace1.workspace.workspace_root().clone();
 
     let mut tx1 = repo1.start_transaction("test");
-    let commit1 = testutils::create_random_commit(&settings, repo1)
+    let commit1 = testutils::create_random_commit(&settings, &repo1)
         .set_open(true)
         .write_to_repo(tx1.mut_repo());
-    let commit2 = testutils::create_random_commit(&settings, repo1)
+    let commit2 = testutils::create_random_commit(&settings, &repo1)
         .set_open(true)
         .write_to_repo(tx1.mut_repo());
-    let commit3 = testutils::create_random_commit(&settings, repo1)
+    let commit3 = testutils::create_random_commit(&settings, &repo1)
         .set_open(true)
         .write_to_repo(tx1.mut_repo());
     tx1.commit();
 
     // Check out commit1
-    let mut wc1 = repo1.working_copy();
+    let wc1 = test_workspace1.workspace.working_copy_mut();
     wc1.check_out(commit1).unwrap();
 
-    // Check out commit2 from another process (simulated by another repo instance)
-    let repo2 = ReadonlyRepo::load(&settings, repo1.working_copy_path().clone()).unwrap();
-    repo2.working_copy().check_out(commit2.clone()).unwrap();
+    // Check out commit2 from another process (simulated by another workspace
+    // instance)
+    let mut workspace2 = Workspace::load(&settings, workspace1_root.clone()).unwrap();
+    workspace2
+        .working_copy_mut()
+        .check_out(commit2.clone())
+        .unwrap();
 
     // Checking out another commit (via the first repo instance) should now fail.
     assert_eq!(
@@ -59,9 +64,9 @@ fn test_concurrent_checkout(use_git: bool) {
     );
 
     // Check that the commit2 is still checked out on disk.
-    let repo3 = ReadonlyRepo::load(&settings, repo1.working_copy_path().clone()).unwrap();
+    let workspace3 = Workspace::load(&settings, workspace1_root).unwrap();
     assert_eq!(
-        repo3.working_copy().current_tree_id(),
+        workspace3.working_copy().current_tree_id(),
         commit2.tree().id().clone()
     );
 }
@@ -72,9 +77,10 @@ fn test_checkout_parallel(use_git: bool) {
     // Test that concurrent checkouts by different processes (simulated by using
     // different repo instances) is safe.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let mut test_workspace = testutils::init_repo(&settings, use_git);
     let repo = &test_workspace.repo;
     let store = repo.store();
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
 
     let num_threads = max(num_cpus::get(), 4);
     let mut tree_ids = HashSet::new();
@@ -100,19 +106,26 @@ fn test_checkout_parallel(use_git: bool) {
         .set_open(true)
         .write_to_repo(tx.mut_repo());
     tx.commit();
-    repo.working_copy().check_out(commit).unwrap();
+    test_workspace
+        .workspace
+        .working_copy_mut()
+        .check_out(commit)
+        .unwrap();
 
     let mut threads = vec![];
     for commit_id in &commit_ids {
         let tree_ids = tree_ids.clone();
         let commit_id = commit_id.clone();
         let settings = settings.clone();
-        let working_copy_path = repo.working_copy_path().clone();
+        let workspace_root = workspace_root.clone();
         let handle = thread::spawn(move || {
-            let repo = ReadonlyRepo::load(&settings, working_copy_path).unwrap();
-            let mut wc = repo.working_copy();
-            let commit = repo.store().get_commit(&commit_id).unwrap();
-            let stats = wc.check_out(commit).unwrap();
+            let mut workspace = Workspace::load(&settings, workspace_root).unwrap();
+            let commit = workspace
+                .repo_loader()
+                .store()
+                .get_commit(&commit_id)
+                .unwrap();
+            let stats = workspace.working_copy_mut().check_out(commit).unwrap();
             assert_eq!(stats.updated_files, 0);
             assert_eq!(stats.added_files, 1);
             assert_eq!(stats.removed_files, 1);
@@ -120,7 +133,7 @@ fn test_checkout_parallel(use_git: bool) {
             // different tree than the one we just checked out, but since
             // write_tree() should take the same lock as check_out(), write_tree()
             // should never produce a different tree.
-            let locked_wc = wc.write_tree();
+            let locked_wc = workspace.working_copy_mut().write_tree();
             let new_tree_id = locked_wc.new_tree_id();
             locked_wc.discard();
             assert!(tree_ids.contains(&new_tree_id));
