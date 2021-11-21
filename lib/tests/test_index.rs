@@ -257,11 +257,7 @@ fn test_index_commits_previous_operations(use_git: bool) {
     let repo = tx.commit();
 
     // Delete index from disk
-    let index_operations_dir = repo
-        .working_copy_path()
-        .join(".jj")
-        .join("index")
-        .join("operations");
+    let index_operations_dir = repo.repo_path().join("index").join("operations");
     assert!(index_operations_dir.is_dir());
     std::fs::remove_dir_all(&index_operations_dir).unwrap();
     std::fs::create_dir(&index_operations_dir).unwrap();
