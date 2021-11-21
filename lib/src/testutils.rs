@@ -30,6 +30,7 @@ use crate::settings::UserSettings;
 use crate::store::Store;
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
+use crate::workspace::Workspace;
 
 pub fn new_user_home() -> TempDir {
     // Set $HOME to some arbitrary place so libgit2 doesn't use ~/.gitignore
@@ -46,21 +47,32 @@ pub fn user_settings() -> UserSettings {
     UserSettings::from_config(config)
 }
 
-pub fn init_repo(settings: &UserSettings, use_git: bool) -> (TempDir, Arc<ReadonlyRepo>) {
+pub struct TestWorkspace {
+    pub temp_dir: TempDir,
+    pub workspace: Workspace,
+    pub repo: Arc<ReadonlyRepo>,
+}
+
+pub fn init_repo(settings: &UserSettings, use_git: bool) -> TestWorkspace {
     let temp_dir = tempfile::tempdir().unwrap();
 
-    let wc_path = temp_dir.path().join("repo");
-    fs::create_dir(&wc_path).unwrap();
+    let workspace_root = temp_dir.path().join("repo");
+    fs::create_dir(&workspace_root).unwrap();
 
     let repo = if use_git {
         let git_path = temp_dir.path().join("git-repo");
         git2::Repository::init(&git_path).unwrap();
-        ReadonlyRepo::init_external_git(settings, wc_path, git_path).unwrap()
+        ReadonlyRepo::init_external_git(settings, workspace_root.clone(), git_path).unwrap()
     } else {
-        ReadonlyRepo::init_local(settings, wc_path).unwrap()
+        ReadonlyRepo::init_local(settings, workspace_root.clone()).unwrap()
     };
+    let workspace = Workspace::load(settings, workspace_root).unwrap();
 
-    (temp_dir, repo)
+    TestWorkspace {
+        temp_dir,
+        workspace,
+        repo,
+    }
 }
 
 pub fn read_file(store: &Store, path: &RepoPath, id: &FileId) -> Vec<u8> {

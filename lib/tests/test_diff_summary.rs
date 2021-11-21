@@ -23,7 +23,8 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_types(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let clean_path = RepoPath::from_internal_string("clean");
     let modified_path = RepoPath::from_internal_string("modified");
@@ -31,7 +32,7 @@ fn test_types(use_git: bool) {
     let removed_path = RepoPath::from_internal_string("removed");
 
     let tree1 = testutils::create_tree(
-        &repo,
+        repo,
         &[
             (&clean_path, "clean"),
             (&modified_path, "contents before"),
@@ -40,7 +41,7 @@ fn test_types(use_git: bool) {
     );
 
     let tree2 = testutils::create_tree(
-        &repo,
+        repo,
         &[
             (&clean_path, "clean"),
             (&modified_path, "contents after"),
@@ -62,13 +63,14 @@ fn test_types(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_tree_file_transition(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let dir_file_path = RepoPath::from_internal_string("dir/file");
     let dir_path = RepoPath::from_internal_string("dir");
 
-    let tree1 = testutils::create_tree(&repo, &[(&dir_file_path, "contents")]);
-    let tree2 = testutils::create_tree(&repo, &[(&dir_path, "contents")]);
+    let tree1 = testutils::create_tree(repo, &[(&dir_file_path, "contents")]);
+    let tree2 = testutils::create_tree(repo, &[(&dir_path, "contents")]);
 
     assert_eq!(
         tree1.diff_summary(&tree2, &EverythingMatcher),
@@ -92,7 +94,8 @@ fn test_tree_file_transition(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_sorting(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let a_path = RepoPath::from_internal_string("a");
     let b_path = RepoPath::from_internal_string("b");
@@ -105,7 +108,7 @@ fn test_sorting(use_git: bool) {
     let z_path = RepoPath::from_internal_string("z");
 
     let tree1 = testutils::create_tree(
-        &repo,
+        repo,
         &[
             (&a_path, "before"),
             (&f_a_path, "before"),
@@ -114,7 +117,7 @@ fn test_sorting(use_git: bool) {
     );
 
     let tree2 = testutils::create_tree(
-        &repo,
+        repo,
         &[
             (&a_path, "after"),
             (&b_path, "after"),
@@ -157,13 +160,14 @@ fn test_sorting(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_matcher_dir_file_transition(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let a_path = RepoPath::from_internal_string("a");
     let a_a_path = RepoPath::from_internal_string("a/a");
 
-    let tree1 = testutils::create_tree(&repo, &[(&a_path, "before")]);
-    let tree2 = testutils::create_tree(&repo, &[(&a_a_path, "after")]);
+    let tree1 = testutils::create_tree(repo, &[(&a_path, "before")]);
+    let tree2 = testutils::create_tree(repo, &[(&a_a_path, "after")]);
 
     let matcher = FilesMatcher::new(hashset! {a_path.clone()});
     assert_eq!(
@@ -224,20 +228,21 @@ fn test_matcher_dir_file_transition(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_matcher_normal_cases(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let a_path = RepoPath::from_internal_string("a");
     let dir1_a_path = RepoPath::from_internal_string("dir1/a");
     let dir2_b_path = RepoPath::from_internal_string("dir2/b");
     let z_path = RepoPath::from_internal_string("z");
 
-    let tree1 = testutils::create_tree(&repo, &[(&a_path, "before"), (&dir1_a_path, "before")]);
+    let tree1 = testutils::create_tree(repo, &[(&a_path, "before"), (&dir1_a_path, "before")]);
     // File "a" gets modified
     // File "dir1/a" gets modified
     // File "dir2/b" gets created
     // File "z" gets created
     let tree2 = testutils::create_tree(
-        &repo,
+        repo,
         &[
             (&a_path, "after"),
             (&dir1_a_path, "after"),

@@ -25,10 +25,11 @@ use test_case::test_case;
 fn test_checkout_open(use_git: bool) {
     // Test that MutableRepo::check_out() uses the requested commit if it's open
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
-    let requested_checkout = testutils::create_random_commit(&settings, &repo)
+    let requested_checkout = testutils::create_random_commit(&settings, repo)
         .set_open(true)
         .write_to_repo(tx.mut_repo());
     let repo = tx.commit();
@@ -46,10 +47,11 @@ fn test_checkout_closed(use_git: bool) {
     // Test that MutableRepo::check_out() creates a child if the requested commit is
     // closed
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
-    let requested_checkout = testutils::create_random_commit(&settings, &repo)
+    let requested_checkout = testutils::create_random_commit(&settings, repo)
         .set_open(false)
         .write_to_repo(tx.mut_repo());
     let repo = tx.commit();
@@ -69,11 +71,12 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     // Test that MutableRepo::check_out() does not usually abandon the previous
     // commit.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let old_checkout = testutils::create_random_commit(&settings, &repo)
+    let old_checkout = testutils::create_random_commit(&settings, repo)
         .set_open(true)
         .write_to_repo(mut_repo);
     mut_repo.check_out(&settings, &old_checkout);
@@ -96,7 +99,8 @@ fn test_checkout_previous_empty(use_git: bool) {
     // Test that MutableRepo::check_out() abandons the previous commit if it was
     // empty.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -127,12 +131,13 @@ fn test_add_head_success(use_git: bool) {
     // Test that MutableRepo::add_head() adds the head, and that it's still there
     // after commit. It should also be indexed.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Create a commit outside of the repo by using a temporary transaction. Then
     // add that as a head.
     let mut tx = repo.start_transaction("test");
-    let new_commit = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+    let new_commit = testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
     tx.discard();
 
     let index_stats = repo.index().stats();
@@ -161,7 +166,8 @@ fn test_add_head_ancestor(use_git: bool) {
     // Test that MutableRepo::add_head() does not add a head if it's an ancestor of
     // an existing head.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
@@ -191,10 +197,11 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     // Test that MutableRepo::add_head() can be used for adding a head that is not
     // an immediate child of a current head.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
-    let initial = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+    let initial = testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
     // Create some commit outside of the repo by using a temporary transaction. Then
@@ -240,7 +247,8 @@ fn test_remove_head(use_git: bool) {
     // for commits no longer visible in that case so we don't have to reindex e.g.
     // when the user does `jj op undo`.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
@@ -276,10 +284,11 @@ fn test_add_public_head(use_git: bool) {
     // Test that MutableRepo::add_public_head() adds the head, and that it's still
     // there after commit.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -297,7 +306,8 @@ fn test_add_public_head_ancestor(use_git: bool) {
     // Test that MutableRepo::add_public_head() does not add a public head if it's
     // an ancestor of an existing public head.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
@@ -321,11 +331,12 @@ fn test_remove_public_head(use_git: bool) {
     // Test that MutableRepo::remove_public_head() removes the head, and that it's
     // still removed after commit.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.add_public_head(&commit1);
     let repo = tx.commit();
 
@@ -345,7 +356,8 @@ fn test_rebase_descendants_simple(use_git: bool) {
     // DescendantRebaser that rebases descendants of rewritten and abandoned
     // commits.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
@@ -382,7 +394,8 @@ fn test_rebase_descendants_conflicting_rewrite(use_git: bool) {
     // Tests MutableRepo::create_descendant_rebaser() when a commit has been marked
     // as rewritten to several other commits.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());

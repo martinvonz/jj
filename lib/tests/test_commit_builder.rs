@@ -25,13 +25,14 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_initial(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
     let store = repo.store();
 
     let root_file_path = RepoPath::from_internal_string("file");
     let dir_file_path = RepoPath::from_internal_string("dir/file");
     let tree = testutils::create_tree(
-        &repo,
+        repo,
         &[
             (&root_file_path, "file contents"),
             (&dir_file_path, "dir/file contents"),
@@ -69,13 +70,14 @@ fn test_initial(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rewrite(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
     let store = repo.store().clone();
 
     let root_file_path = RepoPath::from_internal_string("file");
     let dir_file_path = RepoPath::from_internal_string("dir/file");
     let initial_tree = testutils::create_tree(
-        &repo,
+        repo,
         &[
             (&root_file_path, "file contents"),
             (&dir_file_path, "dir/file contents"),
@@ -152,7 +154,8 @@ fn test_rewrite(use_git: bool) {
 // #[test_case(true ; "git backend")]
 fn test_commit_builder_descendants(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
     let store = repo.store().clone();
 
     let mut tx = repo.start_transaction("test");

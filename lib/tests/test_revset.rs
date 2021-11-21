@@ -25,7 +25,8 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_resolve_symbol_root(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     assert_eq!(
         resolve_symbol(repo.as_repo_ref(), "root"),
@@ -37,7 +38,8 @@ fn test_resolve_symbol_root(use_git: bool) {
 fn test_resolve_symbol_commit_id() {
     let settings = testutils::user_settings();
     // Test only with git so we can get predictable commit ids
-    let (_temp_dir, repo) = testutils::init_repo(&settings, true);
+    let test_workspace = testutils::init_repo(&settings, true);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -123,7 +125,8 @@ fn test_resolve_symbol_commit_id() {
 fn test_resolve_symbol_change_id() {
     let settings = testutils::user_settings();
     // Test only with git so we can get predictable change ids
-    let (_temp_dir, repo) = testutils::init_repo(&settings, true);
+    let test_workspace = testutils::init_repo(&settings, true);
+    let repo = &test_workspace.repo;
 
     let git_repo = repo.store().git_repo().unwrap();
     // Add some commits that will end up having change ids with common prefixes
@@ -236,13 +239,14 @@ fn test_resolve_symbol_change_id() {
 #[test_case(true ; "git backend")]
 fn test_resolve_symbol_checkout(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
 
     mut_repo.set_checkout(commit1.id().clone());
     assert_eq!(
@@ -261,17 +265,18 @@ fn test_resolve_symbol_checkout(use_git: bool) {
 #[test]
 fn test_resolve_symbol_git_refs() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, true);
+    let test_workspace = testutils::init_repo(&settings, true);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
     // Create some commits and refs to work with and so the repo is not empty
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit5 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit4 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit5 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.set_git_ref(
         "refs/heads/branch1".to_string(),
         RefTarget::Normal(commit1.id().clone()),
@@ -395,13 +400,14 @@ fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_root_and_checkout(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
     let root_commit = repo.store().root_commit();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
 
     // Can find the root commit
     assert_eq!(
@@ -423,7 +429,8 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_heads_of(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
@@ -486,7 +493,8 @@ fn test_evaluate_expression_heads_of(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_parents(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
@@ -548,23 +556,24 @@ fn test_evaluate_expression_parents(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_children(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
     let checkout_id = repo.view().checkout().clone();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo)
+    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, repo)
         .set_parents(vec![commit1.id().clone()])
         .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo)
+    let commit3 = testutils::create_random_commit(&settings, repo)
         .set_parents(vec![commit2.id().clone()])
         .write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, &repo)
+    let commit4 = testutils::create_random_commit(&settings, repo)
         .set_parents(vec![commit1.id().clone()])
         .write_to_repo(mut_repo);
-    let commit5 = testutils::create_random_commit(&settings, &repo)
+    let commit5 = testutils::create_random_commit(&settings, repo)
         .set_parents(vec![commit3.id().clone(), commit4.id().clone()])
         .write_to_repo(mut_repo);
 
@@ -604,7 +613,8 @@ fn test_evaluate_expression_children(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_ancestors(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
@@ -641,7 +651,8 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_range(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -705,7 +716,8 @@ fn test_evaluate_expression_range(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_dag_range(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let root_commit_id = repo.store().root_commit_id().clone();
     let mut tx = repo.start_transaction("test");
@@ -776,24 +788,25 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_descendants(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
     let root_commit_id = repo.store().root_commit_id().clone();
     let checkout_id = repo.view().checkout().clone();
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo)
+    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, repo)
         .set_parents(vec![commit1.id().clone()])
         .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo)
+    let commit3 = testutils::create_random_commit(&settings, repo)
         .set_parents(vec![commit2.id().clone()])
         .write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, &repo)
+    let commit4 = testutils::create_random_commit(&settings, repo)
         .set_parents(vec![commit1.id().clone()])
         .write_to_repo(mut_repo);
-    let commit5 = testutils::create_random_commit(&settings, &repo)
+    let commit5 = testutils::create_random_commit(&settings, repo)
         .set_parents(vec![commit3.id().clone(), commit4.id().clone()])
         .write_to_repo(mut_repo);
 
@@ -828,7 +841,8 @@ fn test_evaluate_expression_descendants(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_none(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // none() is empty (doesn't include the checkout, for example)
     assert_eq!(resolve_commit_ids(repo.as_repo_ref(), "none()"), vec![]);
@@ -838,7 +852,8 @@ fn test_evaluate_expression_none(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_all(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -869,7 +884,8 @@ fn test_evaluate_expression_all(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_heads(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -890,7 +906,8 @@ fn test_evaluate_expression_heads(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_public_heads(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
@@ -924,15 +941,16 @@ fn test_evaluate_expression_public_heads(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_git_refs(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit4 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
 
     // Can get git refs when there are none
     assert_eq!(
@@ -994,15 +1012,16 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_branches(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit4 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
 
     // Can get branches when there are none
     assert_eq!(
@@ -1064,15 +1083,16 @@ fn test_evaluate_expression_branches(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_remote_branches(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit4 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
 
     // Can get branches when there are none
     assert_eq!(
@@ -1145,7 +1165,8 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_merges(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -1177,19 +1198,20 @@ fn test_evaluate_expression_merges(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_description(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = testutils::create_random_commit(&settings, &repo)
+    let commit1 = testutils::create_random_commit(&settings, repo)
         .set_description("commit 1".to_string())
         .write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, &repo)
+    let commit2 = testutils::create_random_commit(&settings, repo)
         .set_parents(vec![commit1.id().clone()])
         .set_description("commit 2".to_string())
         .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, &repo)
+    let commit3 = testutils::create_random_commit(&settings, repo)
         .set_parents(vec![commit2.id().clone()])
         .set_description("commit 3".to_string())
         .write_to_repo(mut_repo);
@@ -1221,7 +1243,8 @@ fn test_evaluate_expression_description(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_union(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
@@ -1295,7 +1318,8 @@ fn test_evaluate_expression_union(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_intersection(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
@@ -1336,7 +1360,8 @@ fn test_evaluate_expression_intersection(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_difference(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");

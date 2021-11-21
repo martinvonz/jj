@@ -29,16 +29,17 @@ fn test_concurrent_checkout(use_git: bool) {
     // Test that we error out if a concurrent checkout is detected (i.e. if the
     // current checkout changed on disk after we read it).
     let settings = testutils::user_settings();
-    let (_temp_dir, repo1) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo1 = &test_workspace.repo;
 
     let mut tx1 = repo1.start_transaction("test");
-    let commit1 = testutils::create_random_commit(&settings, &repo1)
+    let commit1 = testutils::create_random_commit(&settings, repo1)
         .set_open(true)
         .write_to_repo(tx1.mut_repo());
-    let commit2 = testutils::create_random_commit(&settings, &repo1)
+    let commit2 = testutils::create_random_commit(&settings, repo1)
         .set_open(true)
         .write_to_repo(tx1.mut_repo());
-    let commit3 = testutils::create_random_commit(&settings, &repo1)
+    let commit3 = testutils::create_random_commit(&settings, repo1)
         .set_open(true)
         .write_to_repo(tx1.mut_repo());
     tx1.commit();
@@ -71,7 +72,8 @@ fn test_checkout_parallel(use_git: bool) {
     // Test that concurrent checkouts by different processes (simulated by using
     // different repo instances) is safe.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
     let store = repo.store();
 
     let num_threads = max(num_cpus::get(), 4);
@@ -80,7 +82,7 @@ fn test_checkout_parallel(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     for i in 0..num_threads {
         let path = RepoPath::from_internal_string(format!("file{}", i).as_str());
-        let tree = testutils::create_tree(&repo, &[(&path, "contents")]);
+        let tree = testutils::create_tree(repo, &[(&path, "contents")]);
         tree_ids.insert(tree.id().clone());
         let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())
             .set_open(true)
@@ -91,7 +93,7 @@ fn test_checkout_parallel(use_git: bool) {
     // Create another commit just so we can test the update stats reliably from the
     // first update
     let tree = testutils::create_tree(
-        &repo,
+        repo,
         &[(&RepoPath::from_internal_string("other file"), "contents")],
     );
     let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())

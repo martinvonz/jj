@@ -55,7 +55,8 @@ fn commit_id(commit: &git2::Commit) -> CommitId {
 #[test]
 fn test_import_refs() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, true);
+    let test_workspace = testutils::init_repo(&settings, true);
+    let repo = &test_workspace.repo;
     let git_repo = repo.store().git_repo().unwrap();
 
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
@@ -139,7 +140,8 @@ fn test_import_refs() {
 #[test]
 fn test_import_refs_reimport() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, true);
+    let test_workspace = testutils::init_repo(&settings, true);
+    let repo = &test_workspace.repo;
     let git_repo = repo.store().git_repo().unwrap();
 
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);

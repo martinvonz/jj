@@ -21,7 +21,8 @@ use jujutsu_lib::testutils;
 #[test]
 fn test_materialize_conflict_basic() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     let path = RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
@@ -100,7 +101,8 @@ line 5
 #[test]
 fn test_materialize_conflict_modify_delete() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     let path = RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
@@ -177,7 +179,8 @@ line 5
 #[test]
 fn test_materialize_conflict_delete_modify() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     let path = RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
@@ -420,7 +423,8 @@ line 5
 #[test]
 fn test_update_conflict_from_content() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     let path = RepoPath::from_internal_string("dir/file");
     let base_file_id = testutils::write_file(repo.store(), &path, "line 1\nline 2\nline 3\n");

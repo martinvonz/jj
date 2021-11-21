@@ -35,7 +35,8 @@ use test_case::test_case;
 fn test_root(use_git: bool) {
     // Test that the working copy is clean and empty after init.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut wc = repo.working_copy();
     let locked_wc = wc.write_tree();
@@ -54,7 +55,8 @@ fn test_checkout_file_transitions(use_git: bool) {
     // additions and removals as well.
 
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
     let store = repo.store().clone();
 
     #[derive(Debug, Clone, Copy)]
@@ -194,14 +196,8 @@ fn test_checkout_file_transitions(use_git: bool) {
     for left_kind in &kinds {
         for right_kind in &kinds {
             let path = format!("{:?}_{:?}", left_kind, right_kind);
-            write_path(&settings, &repo, &mut left_tree_builder, *left_kind, &path);
-            write_path(
-                &settings,
-                &repo,
-                &mut right_tree_builder,
-                *right_kind,
-                &path,
-            );
+            write_path(&settings, repo, &mut left_tree_builder, *left_kind, &path);
+            write_path(&settings, repo, &mut right_tree_builder, *right_kind, &path);
             files.push((*left_kind, *right_kind, path));
         }
     }
@@ -297,7 +293,8 @@ fn test_checkout_file_transitions(use_git: bool) {
 #[test]
 fn test_untrack() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     let wanted_path = RepoPath::from_internal_string("wanted");
     let unwanted_path = RepoPath::from_internal_string("unwanted");
@@ -305,7 +302,7 @@ fn test_untrack() {
 
     // First create a commit where one of the files is unwanted.
     let initial_tree = testutils::create_tree(
-        &repo,
+        repo,
         &[
             (&wanted_path, "code"),
             (&unwanted_path, "garbage"),
@@ -360,7 +357,8 @@ fn test_commit_racy_timestamps(use_git: bool) {
     // millisecond as the updated working copy state.
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let file_path = repo.working_copy_path().join("file");
     let mut previous_tree_id = repo.store().empty_tree_id().clone();
@@ -390,7 +388,8 @@ fn test_gitignores(use_git: bool) {
 
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
     let added_path = RepoPath::from_internal_string("added");
@@ -400,11 +399,11 @@ fn test_gitignores(use_git: bool) {
     let subdir_modified_path = RepoPath::from_internal_string("dir/modified");
     let subdir_ignored_path = RepoPath::from_internal_string("dir/ignored");
 
-    testutils::write_working_copy_file(&repo, &gitignore_path, "ignored\n");
-    testutils::write_working_copy_file(&repo, &modified_path, "1");
-    testutils::write_working_copy_file(&repo, &removed_path, "1");
+    testutils::write_working_copy_file(repo, &gitignore_path, "ignored\n");
+    testutils::write_working_copy_file(repo, &modified_path, "1");
+    testutils::write_working_copy_file(repo, &removed_path, "1");
     std::fs::create_dir(repo.working_copy_path().join("dir")).unwrap();
-    testutils::write_working_copy_file(&repo, &subdir_modified_path, "1");
+    testutils::write_working_copy_file(repo, &subdir_modified_path, "1");
 
     let mut wc = repo.working_copy();
     let locked_wc = wc.write_tree();
@@ -425,13 +424,13 @@ fn test_gitignores(use_git: bool) {
         ]
     );
 
-    testutils::write_working_copy_file(&repo, &gitignore_path, "ignored\nmodified\nremoved\n");
-    testutils::write_working_copy_file(&repo, &added_path, "2");
-    testutils::write_working_copy_file(&repo, &modified_path, "2");
+    testutils::write_working_copy_file(repo, &gitignore_path, "ignored\nmodified\nremoved\n");
+    testutils::write_working_copy_file(repo, &added_path, "2");
+    testutils::write_working_copy_file(repo, &modified_path, "2");
     std::fs::remove_file(removed_path.to_fs_path(repo.working_copy_path())).unwrap();
-    testutils::write_working_copy_file(&repo, &ignored_path, "2");
-    testutils::write_working_copy_file(&repo, &subdir_modified_path, "2");
-    testutils::write_working_copy_file(&repo, &subdir_ignored_path, "2");
+    testutils::write_working_copy_file(repo, &ignored_path, "2");
+    testutils::write_working_copy_file(repo, &subdir_modified_path, "2");
+    testutils::write_working_copy_file(repo, &subdir_ignored_path, "2");
 
     let locked_wc = wc.write_tree();
     let new_tree_id2 = locked_wc.new_tree_id();
@@ -460,13 +459,14 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
 
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Write an ignored file called "modified" to disk
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
-    testutils::write_working_copy_file(&repo, &gitignore_path, "modified\n");
+    testutils::write_working_copy_file(repo, &gitignore_path, "modified\n");
     let modified_path = RepoPath::from_internal_string("modified");
-    testutils::write_working_copy_file(&repo, &modified_path, "garbage");
+    testutils::write_working_copy_file(repo, &modified_path, "garbage");
 
     // Create a commit that adds the same file but with different contents
     let mut tx = repo.start_transaction("test");
@@ -516,11 +516,12 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
 
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Add a .gitignore file saying to ignore the directory "ignored/"
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
-    testutils::write_working_copy_file(&repo, &gitignore_path, "/ignored/\n");
+    testutils::write_working_copy_file(repo, &gitignore_path, "/ignored/\n");
     let file_path = RepoPath::from_internal_string("ignored/file");
 
     // Create a commit that adds a file in the ignored directory
@@ -560,7 +561,8 @@ fn test_dotgit_ignored(use_git: bool) {
 
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut wc = repo.working_copy();
 
@@ -569,7 +571,7 @@ fn test_dotgit_ignored(use_git: bool) {
     let dotgit_path = repo.working_copy_path().join(".git");
     std::fs::create_dir(&dotgit_path).unwrap();
     testutils::write_working_copy_file(
-        &repo,
+        repo,
         &RepoPath::from_internal_string(".git/file"),
         "contents",
     );
@@ -580,7 +582,7 @@ fn test_dotgit_ignored(use_git: bool) {
     std::fs::remove_dir_all(&dotgit_path).unwrap();
 
     // Test with a .git file
-    testutils::write_working_copy_file(&repo, &RepoPath::from_internal_string(".git"), "contents");
+    testutils::write_working_copy_file(repo, &RepoPath::from_internal_string(".git"), "contents");
     let locked_working_copy = wc.write_tree();
     let new_tree_id = locked_working_copy.new_tree_id();
     assert_eq!(new_tree_id, *repo.store().empty_tree_id());

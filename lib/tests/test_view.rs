@@ -22,7 +22,8 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_heads_empty(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     assert_eq!(
         *repo.view().heads(),
@@ -38,7 +39,8 @@ fn test_heads_empty(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_heads_fork(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
     let mut tx = repo.start_transaction("test");
 
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
@@ -61,7 +63,8 @@ fn test_heads_fork(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_heads_merge(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
     let mut tx = repo.start_transaction("test");
 
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
@@ -81,21 +84,22 @@ fn test_heads_merge(use_git: bool) {
 fn test_merge_views_heads() {
     // Tests merging of the view's heads (by performing concurrent operations).
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let head_unchanged = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let head_remove_tx1 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
-    let head_remove_tx2 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let head_unchanged = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let head_remove_tx1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let head_remove_tx2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     let public_head_unchanged =
-        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+        testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.add_public_head(&public_head_unchanged);
     let public_head_remove_tx1 =
-        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+        testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.add_public_head(&public_head_remove_tx1);
     let public_head_remove_tx2 =
-        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+        testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.add_public_head(&public_head_remove_tx2);
     let repo = tx.commit();
 
@@ -148,17 +152,18 @@ fn test_merge_views_heads() {
 fn test_merge_views_checkout() {
     // Tests merging of the view's checkout (by performing concurrent operations).
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     let mut tx1 = repo.start_transaction("test");
-    let checkout_tx1 = testutils::create_random_commit(&settings, &repo)
+    let checkout_tx1 = testutils::create_random_commit(&settings, repo)
         .set_open(false)
         .write_to_repo(tx1.mut_repo());
     tx1.mut_repo().set_checkout(checkout_tx1.id().clone());
     tx1.commit();
 
     let mut tx2 = repo.start_transaction("test");
-    let checkout_tx2 = testutils::create_random_commit(&settings, &repo)
+    let checkout_tx2 = testutils::create_random_commit(&settings, repo)
         .set_open(false)
         .write_to_repo(tx2.mut_repo());
     tx2.mut_repo().set_checkout(checkout_tx2.id().clone());
@@ -176,18 +181,19 @@ fn test_merge_views_branches() {
     // Tests merging of branches (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     let main_branch_local_tx0 =
-        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+        testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     let main_branch_origin_tx0 =
-        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+        testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     let main_branch_origin_tx1 =
-        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+        testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     let main_branch_alternate_tx0 =
-        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+        testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.set_local_branch(
         "main".to_string(),
         RefTarget::Normal(main_branch_local_tx0.id().clone()),
@@ -203,7 +209,7 @@ fn test_merge_views_branches() {
         RefTarget::Normal(main_branch_alternate_tx0.id().clone()),
     );
     let feature_branch_local_tx0 =
-        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+        testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.set_git_ref(
         "feature".to_string(),
         RefTarget::Normal(feature_branch_local_tx0.id().clone()),
@@ -276,13 +282,14 @@ fn test_merge_views_tags() {
     // Tests merging of tags (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let v1_tx0 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let v1_tx0 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.set_tag("v1.0".to_string(), RefTarget::Normal(v1_tx0.id().clone()));
-    let v2_tx0 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let v2_tx0 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.set_tag("v2.0".to_string(), RefTarget::Normal(v2_tx0.id().clone()));
     let repo = tx.commit();
 
@@ -321,17 +328,18 @@ fn test_merge_views_git_refs() {
     // Tests merging of git refs (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let main_branch_tx0 = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let main_branch_tx0 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.set_git_ref(
         "refs/heads/main".to_string(),
         RefTarget::Normal(main_branch_tx0.id().clone()),
     );
     let feature_branch_tx0 =
-        testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+        testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.set_git_ref(
         "refs/heads/feature".to_string(),
         RefTarget::Normal(feature_branch_tx0.id().clone()),

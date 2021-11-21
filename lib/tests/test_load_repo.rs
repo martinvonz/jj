@@ -30,7 +30,8 @@ fn test_load_bad_path() {
 #[test_case(true ; "git backend")]
 fn test_load_from_subdir(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let subdir = repo.working_copy_path().join("dir").join("subdir");
     std::fs::create_dir_all(subdir.clone()).unwrap();
@@ -45,10 +46,11 @@ fn test_load_from_subdir(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_load_at_operation(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("add commit");
-    let commit = testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+    let commit = testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("remove commit");

@@ -32,7 +32,8 @@ fn test_same_type(use_git: bool) {
     // using only normal files in all trees (no symlinks, no trees, etc.).
 
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
     let store = repo.store();
 
     // The file name encodes the state in the base and in each side ("_" means
@@ -231,7 +232,8 @@ fn test_subtrees(use_git: bool) {
     // Tests that subtrees are merged.
 
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
     let store = repo.store();
 
     let write_tree = |paths: Vec<&str>| -> Tree {
@@ -287,7 +289,8 @@ fn test_subtree_becomes_empty(use_git: bool) {
     // Tests that subtrees that become empty are removed from the parent tree.
 
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
     let store = repo.store();
 
     let write_tree = |paths: Vec<&str>| -> Tree {
@@ -319,7 +322,8 @@ fn test_types(use_git: bool) {
     // conflicts survive the roundtrip to the store.
 
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
     let store = repo.store();
 
     let mut base_tree_builder = store.tree_builder(store.empty_tree_id().clone());
@@ -443,14 +447,12 @@ fn test_types(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_simplify_conflict(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
     let store = repo.store();
 
     let write_tree = |contents: &str| -> Tree {
-        testutils::create_tree(
-            &repo,
-            &[(&RepoPath::from_internal_string("file"), contents)],
-        )
+        testutils::create_tree(repo, &[(&RepoPath::from_internal_string("file"), contents)])
     };
 
     let base_tree = write_tree("base contents");
@@ -569,7 +571,8 @@ fn test_simplify_conflict(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Set up a repo like this:
     // D
@@ -585,18 +588,18 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     // a conflict since it changed an unrelated line.
     let path = RepoPath::from_internal_string("dir/file");
     let mut tx = repo.start_transaction("test");
-    let tree_a = testutils::create_tree(&repo, &[(&path, "abc\ndef\nghi\n")]);
+    let tree_a = testutils::create_tree(repo, &[(&path, "abc\ndef\nghi\n")]);
     let commit_a = CommitBuilder::for_new_commit(&settings, repo.store(), tree_a.id().clone())
         .write_to_repo(tx.mut_repo());
-    let tree_b = testutils::create_tree(&repo, &[(&path, "Abc\ndef\nghi\n")]);
+    let tree_b = testutils::create_tree(repo, &[(&path, "Abc\ndef\nghi\n")]);
     let commit_b = CommitBuilder::for_new_commit(&settings, repo.store(), tree_b.id().clone())
         .set_parents(vec![commit_a.id().clone()])
         .write_to_repo(tx.mut_repo());
-    let tree_c = testutils::create_tree(&repo, &[(&path, "Abc\ndef\nGhi\n")]);
+    let tree_c = testutils::create_tree(repo, &[(&path, "Abc\ndef\nGhi\n")]);
     let commit_c = CommitBuilder::for_new_commit(&settings, repo.store(), tree_c.id().clone())
         .set_parents(vec![commit_b.id().clone()])
         .write_to_repo(tx.mut_repo());
-    let tree_d = testutils::create_tree(&repo, &[(&path, "abC\ndef\nghi\n")]);
+    let tree_d = testutils::create_tree(repo, &[(&path, "abC\ndef\nghi\n")]);
     let commit_d = CommitBuilder::for_new_commit(&settings, repo.store(), tree_d.id().clone())
         .set_parents(vec![commit_a.id().clone()])
         .write_to_repo(tx.mut_repo());
@@ -615,7 +618,7 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     );
 
     // Create the resolved B and rebase C on top.
-    let tree_b3 = testutils::create_tree(&repo, &[(&path, "AbC\ndef\nghi\n")]);
+    let tree_b3 = testutils::create_tree(repo, &[(&path, "AbC\ndef\nghi\n")]);
     let commit_b3 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b2)
         .set_tree(tree_b3.id().clone())
         .write_to_repo(tx.mut_repo());

@@ -94,10 +94,11 @@ fn test_bad_locking_children(use_git: bool) {
     // Test that two new commits created on separate machines are both visible (not
     // lost due to lack of locking)
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
-    let initial = testutils::create_random_commit(&settings, &repo)
+    let initial = testutils::create_random_commit(&settings, repo)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write_to_repo(tx.mut_repo());
     tx.commit();
@@ -146,10 +147,11 @@ fn test_bad_locking_interrupted(use_git: bool) {
     // that's a descendant of the other is resolved without creating a new
     // operation.
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
-    let initial = testutils::create_random_commit(&settings, &repo)
+    let initial = testutils::create_random_commit(&settings, repo)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write_to_repo(tx.mut_repo());
     let repo = tx.commit();

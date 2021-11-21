@@ -25,7 +25,8 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_sideways(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit B was replaced by commit F. Commits C-E should be rebased.
     //
@@ -75,7 +76,8 @@ fn test_rebase_descendants_sideways(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_forward(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit B was replaced by commit F. Commits C and E should be rebased onto F.
     // Commit D does not get rebased because it's an ancestor of the
@@ -129,7 +131,8 @@ fn test_rebase_descendants_forward(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_backward(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit C was replaced by commit B. Commit D should be rebased.
     //
@@ -168,7 +171,8 @@ fn test_rebase_descendants_backward(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_internal_merge(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit B was replaced by commit F. Commits C-E should be rebased.
     //
@@ -219,7 +223,8 @@ fn test_rebase_descendants_internal_merge(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_external_merge(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit C was replaced by commit F. Commits E should be rebased. The rebased
     // commit E should have F as first parent and commit D as second parent.
@@ -265,7 +270,8 @@ fn test_rebase_descendants_external_merge(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_abandon(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit B and commit E were abandoned. Commit C and commit D should get
     // rebased onto commit A. Commit F should get rebased onto the new commit D.
@@ -313,7 +319,8 @@ fn test_rebase_descendants_abandon(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_abandon_no_descendants(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit B and C were abandoned. Commit A should become a head.
     //
@@ -350,7 +357,8 @@ fn test_rebase_descendants_abandon_no_descendants(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_abandon_and_replace(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit B was replaced by commit E. Commit C was abandoned. Commit D should
     // get rebased onto commit E.
@@ -390,7 +398,8 @@ fn test_rebase_descendants_abandon_and_replace(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_abandon_degenerate_merge(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit B was abandoned. Commit D should get rebased to have only C as parent
     // (not A and C).
@@ -429,7 +438,8 @@ fn test_rebase_descendants_abandon_degenerate_merge(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_abandon_widen_merge(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit E was abandoned. Commit F should get rebased to have B, C, and D as
     // parents (in that order).
@@ -476,7 +486,8 @@ fn test_rebase_descendants_abandon_widen_merge(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_multiple_sideways(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit B and commit D were both replaced by commit F. Commit C and commit E
     // should get rebased onto it.
@@ -525,7 +536,8 @@ fn test_rebase_descendants_multiple_sideways(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_multiple_swap(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit B was replaced by commit D. Commit D was replaced by commit B.
     // Commit C and commit E should swap places.
@@ -572,7 +584,8 @@ fn test_rebase_descendants_multiple_swap(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_multiple_no_descendants(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit B was replaced by commit C. Commit C was replaced by commit B.
     //
@@ -613,7 +626,8 @@ fn test_rebase_descendants_multiple_no_descendants(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_multiple_forward_and_backward(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit B was replaced by commit D. Commit F was replaced by commit C.
     // Commit G should be rebased onto commit C. Commit H should be rebased onto
@@ -671,7 +685,8 @@ fn test_rebase_descendants_multiple_forward_and_backward(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_divergent_rewrite(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit B was replaced by commit B2. Commit D was replaced by commits D2 and
     // D3. Commit F was replaced by commit F2. Commit C should be rebased onto
@@ -741,7 +756,8 @@ fn test_rebase_descendants_divergent_rewrite(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_contents(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Commit B was replaced by commit D. Commit C should have the changes from
     // commit C and commit D, but not the changes from commit B.
@@ -753,21 +769,21 @@ fn test_rebase_descendants_contents(use_git: bool) {
     // A
     let mut tx = repo.start_transaction("test");
     let path1 = RepoPath::from_internal_string("file1");
-    let tree1 = testutils::create_tree(&repo, &[(&path1, "content")]);
+    let tree1 = testutils::create_tree(repo, &[(&path1, "content")]);
     let commit_a = CommitBuilder::for_new_commit(&settings, repo.store(), tree1.id().clone())
         .write_to_repo(tx.mut_repo());
     let path2 = RepoPath::from_internal_string("file2");
-    let tree2 = testutils::create_tree(&repo, &[(&path2, "content")]);
+    let tree2 = testutils::create_tree(repo, &[(&path2, "content")]);
     let commit_b = CommitBuilder::for_new_commit(&settings, repo.store(), tree2.id().clone())
         .set_parents(vec![commit_a.id().clone()])
         .write_to_repo(tx.mut_repo());
     let path3 = RepoPath::from_internal_string("file3");
-    let tree3 = testutils::create_tree(&repo, &[(&path3, "content")]);
+    let tree3 = testutils::create_tree(repo, &[(&path3, "content")]);
     let commit_c = CommitBuilder::for_new_commit(&settings, repo.store(), tree3.id().clone())
         .set_parents(vec![commit_b.id().clone()])
         .write_to_repo(tx.mut_repo());
     let path4 = RepoPath::from_internal_string("file4");
-    let tree4 = testutils::create_tree(&repo, &[(&path4, "content")]);
+    let tree4 = testutils::create_tree(repo, &[(&path4, "content")]);
     let commit_d = CommitBuilder::for_new_commit(&settings, repo.store(), tree4.id().clone())
         .set_parents(vec![commit_a.id().clone()])
         .write_to_repo(tx.mut_repo());
@@ -807,7 +823,8 @@ fn test_rebase_descendants_contents(use_git: bool) {
 #[test]
 fn test_rebase_descendants_basic_branch_update() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     // Branch "main" points to branch B. B gets rewritten as B2. Branch main should
     // be updated to point to B2.
@@ -845,7 +862,8 @@ fn test_rebase_descendants_basic_branch_update() {
 #[test]
 fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     // Branch "main" points to branch B. B gets rewritten as B2. Branch main should
     // be updated to point to B2. Remote branch main@origin and tag v1 should not
@@ -903,7 +921,8 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
 #[test]
 fn test_rebase_descendants_update_branch_after_abandon() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     // Branch "main" points to branch B. B is then abandoned. Branch main should
     // be updated to point to A.
@@ -940,7 +959,8 @@ fn test_rebase_descendants_update_branch_after_abandon() {
 #[test]
 fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     // Branch "main" points to commit B. B gets rewritten as B2, B3, B4. Branch main
     // should become a conflict pointing to all of them.
@@ -1000,7 +1020,8 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
 #[test]
 fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     // Branch "main" is a conflict removing commit A and adding commit B and C.
     // A gets rewritten as A2 and A3. B gets rewritten as B2 and B2. The branch
@@ -1070,7 +1091,8 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
 #[test]
 fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
 
     // Branch "main" is a conflict removing ancestor commit A and adding commit B
     // and C (maybe it moved forward to B locally and moved forward to C
@@ -1128,7 +1150,8 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_update_checkout_open(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Checked-out, open commit B was replaced by open commit C. C should become
     // checked out.
@@ -1137,8 +1160,8 @@ fn test_rebase_descendants_update_checkout_open(use_git: bool) {
     // |/
     // A
     let mut tx = repo.start_transaction("test");
-    let commit_a = create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
-    let commit_b = create_random_commit(&settings, &repo)
+    let commit_a = create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
+    let commit_b = create_random_commit(&settings, repo)
         .set_parents(vec![commit_a.id().clone()])
         .set_open(true)
         .write_to_repo(tx.mut_repo());
@@ -1161,7 +1184,8 @@ fn test_rebase_descendants_update_checkout_open(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_update_checkout_closed(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Checked-out, open commit B was replaced by closed commit C. A child of C
     // should become checked out.
@@ -1170,8 +1194,8 @@ fn test_rebase_descendants_update_checkout_closed(use_git: bool) {
     // |/
     // A
     let mut tx = repo.start_transaction("test");
-    let commit_a = create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
-    let commit_b = create_random_commit(&settings, &repo)
+    let commit_a = create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
+    let commit_b = create_random_commit(&settings, repo)
         .set_parents(vec![commit_a.id().clone()])
         .set_open(true)
         .write_to_repo(tx.mut_repo());
@@ -1197,7 +1221,8 @@ fn test_rebase_descendants_update_checkout_closed(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
     let settings = testutils::user_settings();
-    let (_temp_dir, repo) = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     // Checked-out, open merge commit D was abandoned. A parent commit should become
     // checked out.
@@ -1208,14 +1233,14 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
     // |/
     // A
     let mut tx = repo.start_transaction("test");
-    let commit_a = create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
-    let commit_b = create_random_commit(&settings, &repo)
+    let commit_a = create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
+    let commit_b = create_random_commit(&settings, repo)
         .set_parents(vec![commit_a.id().clone()])
         .write_to_repo(tx.mut_repo());
-    let commit_c = create_random_commit(&settings, &repo)
+    let commit_c = create_random_commit(&settings, repo)
         .set_parents(vec![commit_a.id().clone()])
         .write_to_repo(tx.mut_repo());
-    let commit_d = create_random_commit(&settings, &repo)
+    let commit_d = create_random_commit(&settings, repo)
         .set_parents(vec![commit_b.id().clone(), commit_c.id().clone()])
         .set_open(true)
         .write_to_repo(tx.mut_repo());
