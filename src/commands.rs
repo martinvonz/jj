@@ -261,6 +261,10 @@ impl WorkspaceCommandHelper {
         self.workspace.working_copy_mut()
     }
 
+    fn workspace_root(&self) -> &PathBuf {
+        self.workspace.workspace_root()
+    }
+
     fn resolve_revision_arg(
         &mut self,
         ui: &mut Ui,
@@ -1378,11 +1382,11 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
         fs::create_dir(&wc_path).unwrap();
     }
 
-    let repo = if let Some(git_store_str) = args.value_of("git-store") {
+    if let Some(git_store_str) = args.value_of("git-store") {
         let git_store_path = ui.cwd().join(git_store_str);
         let repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path.clone(), git_store_path)?;
         let git_repo = repo.store().git_repo().unwrap();
-        let workspace = Workspace::load(ui.settings(), wc_path).unwrap();
+        let workspace = Workspace::load(ui.settings(), wc_path.clone()).unwrap();
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo);
         let mut tx = workspace_command.start_transaction("import git refs");
         git::import_refs(tx.mut_repo(), &git_repo).unwrap();
@@ -1391,15 +1395,11 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
         workspace_command.finish_transaction(ui, tx)?;
         workspace_command.repo
     } else if args.is_present("git") {
-        ReadonlyRepo::init_internal_git(ui.settings(), wc_path)?
+        ReadonlyRepo::init_internal_git(ui.settings(), wc_path.clone())?
     } else {
-        ReadonlyRepo::init_local(ui.settings(), wc_path)?
+        ReadonlyRepo::init_local(ui.settings(), wc_path.clone())?
     };
-    writeln!(
-        ui,
-        "Initialized repo in \"{}\"",
-        repo.working_copy_path().display()
-    )?;
+    writeln!(ui, "Initialized repo in \"{}\"", wc_path.display())?;
     Ok(())
 }
 
@@ -1429,10 +1429,10 @@ fn cmd_untrack(
     // TODO: We should probably check that the repo was loaded at head.
     let mut workspace_command = command.workspace_helper(ui)?;
     workspace_command.maybe_commit_working_copy(ui)?;
-    let base_repo = workspace_command.repo().clone();
+    let store = workspace_command.repo().store().clone();
     let matcher = matcher_from_values(
         ui,
-        workspace_command.repo().working_copy_path(),
+        workspace_command.workspace_root(),
         args.values_of("paths"),
     )?;
     let mut tx = workspace_command.start_transaction("untrack paths");
@@ -1442,7 +1442,7 @@ fn cmd_untrack(
         .untrack(matcher.as_ref())
         .map_err(|err| CommandError::InternalError(format!("Failed to untrack paths: {}", err)))?;
     let new_tree_id = unfinished_write.new_tree_id();
-    let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), base_repo.store(), &old_commit)
+    let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &store, &old_commit)
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().set_checkout(new_commit.id().clone());
@@ -1456,7 +1456,7 @@ fn cmd_untrack(
     workspace_command.maybe_commit_working_copy(ui)?;
     let new_commit = workspace_command.working_copy().current_commit();
     if let Some((path, _value)) = new_commit.tree().entries_matching(matcher.as_ref()).next() {
-        let ui_path = ui.format_file_path(base_repo.working_copy_path(), &path);
+        let ui_path = ui.format_file_path(workspace_command.workspace_root(), &path);
         return Err(CommandError::UserError(format!(
             "At least '{}' was added back because it is not ignored. Make sure it's ignored, then \
              try again.",
@@ -1473,7 +1473,7 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
         writeln!(
             ui,
             "{}",
-            &ui.format_file_path(workspace_command.repo().working_copy_path(), &name)
+            &ui.format_file_path(workspace_command.workspace_root(), &name)
         )?;
     }
     Ok(())
@@ -1598,7 +1598,8 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
         to_tree = commit.tree()
     }
     let repo = workspace_command.repo();
-    let matcher = matcher_from_values(ui, repo.working_copy_path(), args.values_of("paths"))?;
+    let workspace_root = workspace_command.workspace_root();
+    let matcher = matcher_from_values(ui, workspace_root, args.values_of("paths"))?;
     enum Format {
         Summary,
         Git,
@@ -1623,13 +1624,13 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
     let diff_iterator = from_tree.diff(&to_tree, matcher.as_ref());
     match format {
         Format::Summary => {
-            show_diff_summary(ui, repo, diff_iterator)?;
+            show_diff_summary(ui, workspace_root, diff_iterator)?;
         }
         Format::Git => {
             show_git_diff(ui, repo, diff_iterator)?;
         }
         Format::ColorWords => {
-            show_color_words_diff(ui, repo, diff_iterator)?;
+            show_color_words_diff(ui, workspace_root, repo, diff_iterator)?;
         }
     }
     Ok(())
@@ -1687,13 +1688,14 @@ fn basic_diff_file_type(value: &TreeValue) -> String {
 
 fn show_color_words_diff(
     ui: &mut Ui,
+    workspace_root: &Path,
     repo: &Arc<ReadonlyRepo>,
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
     let mut formatter = ui.stdout_formatter();
     formatter.add_label(String::from("diff"))?;
     for (path, diff) in tree_diff {
-        let ui_path = ui.format_file_path(repo.working_copy_path(), &path);
+        let ui_path = ui.format_file_path(workspace_root, &path);
         match diff {
             tree::Diff::Added(right_value) => {
                 let right_content = diff_content(repo, &path, &right_value)?;
@@ -2043,26 +2045,25 @@ fn show_git_diff(
 
 fn show_diff_summary(
     ui: &mut Ui,
-    repo: &Arc<ReadonlyRepo>,
+    workspace_root: &Path,
     tree_diff: TreeDiffIterator,
 ) -> io::Result<()> {
-    let wc_path = repo.working_copy_path();
     ui.stdout_formatter().add_label(String::from("diff"))?;
     for (repo_path, diff) in tree_diff {
         match diff {
             tree::Diff::Modified(_, _) => {
                 ui.stdout_formatter().add_label(String::from("modified"))?;
-                writeln!(ui, "M {}", ui.format_file_path(wc_path, &repo_path))?;
+                writeln!(ui, "M {}", ui.format_file_path(workspace_root, &repo_path))?;
                 ui.stdout_formatter().remove_label()?;
             }
             tree::Diff::Added(_) => {
                 ui.stdout_formatter().add_label(String::from("added"))?;
-                writeln!(ui, "A {}", ui.format_file_path(wc_path, &repo_path))?;
+                writeln!(ui, "A {}", ui.format_file_path(workspace_root, &repo_path))?;
                 ui.stdout_formatter().remove_label()?;
             }
             tree::Diff::Removed(_) => {
                 ui.stdout_formatter().add_label(String::from("removed"))?;
-                writeln!(ui, "R {}", ui.format_file_path(wc_path, &repo_path))?;
+                writeln!(ui, "R {}", ui.format_file_path(workspace_root, &repo_path))?;
                 ui.stdout_formatter().remove_label()?;
             }
         }
@@ -2140,7 +2141,11 @@ fn cmd_status(
         ui.write("The working copy is clean\n")?;
     } else {
         ui.write("Working copy changes:\n")?;
-        show_diff_summary(ui, repo, parent_tree.diff(&tree, &EverythingMatcher))?;
+        show_diff_summary(
+            ui,
+            workspace_command.workspace_root(),
+            parent_tree.diff(&tree, &EverythingMatcher),
+        )?;
     }
 
     let conflicts = tree.conflicts();
@@ -2152,7 +2157,7 @@ fn cmd_status(
             writeln!(
                 ui,
                 "{}",
-                &ui.format_file_path(repo.working_copy_path(), &path)
+                &ui.format_file_path(workspace_command.workspace_root(), &path)
             )?;
         }
     }
@@ -2680,7 +2685,11 @@ side. If you don't make any changes, then the operation will be aborted.
         tree_id =
             crate::diff_edit::edit_diff(ui, &from_commit.tree(), &to_commit.tree(), &instructions)?;
     } else if args.is_present("paths") {
-        let matcher = matcher_from_values(ui, repo.working_copy_path(), args.values_of("paths"))?;
+        let matcher = matcher_from_values(
+            ui,
+            workspace_command.workspace_root(),
+            args.values_of("paths"),
+        )?;
         let mut tree_builder = repo.store().tree_builder(to_commit.tree().id().clone());
         for (repo_path, diff) in from_commit.tree().diff(&to_commit.tree(), matcher.as_ref()) {
             match diff.into_options().0 {
@@ -3519,11 +3528,7 @@ fn cmd_git_clone(
 
     let repo = ReadonlyRepo::init_internal_git(ui.settings(), wc_path.clone())?;
     let git_repo = get_git_repo(repo.store())?;
-    writeln!(
-        ui,
-        "Fetching into new repo in {:?}",
-        repo.working_copy_path()
-    )?;
+    writeln!(ui, "Fetching into new repo in {:?}", wc_path)?;
     let workspace = Workspace::load(ui.settings(), wc_path).unwrap();
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo);
     let remote_name = "origin";
