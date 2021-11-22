@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use crate::repo::{RepoLoadError, RepoLoader};
+use crate::repo::{ReadonlyRepo, RepoInitError, RepoLoadError, RepoLoader};
 use crate::settings::UserSettings;
 use crate::working_copy::WorkingCopy;
 
@@ -29,6 +30,38 @@ pub struct Workspace {
 }
 
 impl Workspace {
+    pub fn init_local(
+        user_settings: &UserSettings,
+        workspace_root: PathBuf,
+    ) -> Result<(Self, Arc<ReadonlyRepo>), RepoInitError> {
+        let repo = ReadonlyRepo::init_local(user_settings, workspace_root.clone())?;
+        let repo_loader = repo.loader();
+        let workspace = Self::from_repo_loader(workspace_root, repo_loader);
+        Ok((workspace, repo))
+    }
+
+    pub fn init_internal_git(
+        user_settings: &UserSettings,
+        workspace_root: PathBuf,
+    ) -> Result<(Self, Arc<ReadonlyRepo>), RepoInitError> {
+        let repo = ReadonlyRepo::init_internal_git(user_settings, workspace_root.clone())?;
+        let repo_loader = repo.loader();
+        let workspace = Self::from_repo_loader(workspace_root, repo_loader);
+        Ok((workspace, repo))
+    }
+
+    pub fn init_external_git(
+        user_settings: &UserSettings,
+        workspace_root: PathBuf,
+        git_repo_path: PathBuf,
+    ) -> Result<(Self, Arc<ReadonlyRepo>), RepoInitError> {
+        let repo =
+            ReadonlyRepo::init_external_git(user_settings, workspace_root.clone(), git_repo_path)?;
+        let repo_loader = repo.loader();
+        let workspace = Self::from_repo_loader(workspace_root, repo_loader);
+        Ok((workspace, repo))
+    }
+
     pub fn load(
         user_settings: &UserSettings,
         workspace_root: PathBuf,
@@ -36,17 +69,21 @@ impl Workspace {
         // TODO: Move the find_repo_dir() call from RepoLoader::init() to here
         let repo_loader = RepoLoader::init(user_settings, workspace_root)?;
         let workspace_root = repo_loader.working_copy_path().clone();
-        let working_copy_state_path = repo_path.join("working_copy");
+        Ok(Self::from_repo_loader(workspace_root, repo_loader))
+    }
+
+    fn from_repo_loader(workspace_root: PathBuf, repo_loader: RepoLoader) -> Self {
+        let working_copy_state_path = repo_loader.repo_path().join("working_copy");
         let working_copy = WorkingCopy::load(
             repo_loader.store().clone(),
             workspace_root.clone(),
             working_copy_state_path,
         );
-        Ok(Self {
+        Self {
             workspace_root,
             repo_loader,
             working_copy,
-        })
+        }
     }
 
     pub fn workspace_root(&self) -> &PathBuf {

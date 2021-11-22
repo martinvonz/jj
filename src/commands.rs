@@ -1384,20 +1384,19 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
 
     if let Some(git_store_str) = args.value_of("git-store") {
         let git_store_path = ui.cwd().join(git_store_str);
-        let repo = ReadonlyRepo::init_external_git(ui.settings(), wc_path.clone(), git_store_path)?;
+        let (workspace, repo) =
+            Workspace::init_external_git(ui.settings(), wc_path.clone(), git_store_path)?;
         let git_repo = repo.store().git_repo().unwrap();
-        let workspace = Workspace::load(ui.settings(), wc_path.clone()).unwrap();
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo);
         let mut tx = workspace_command.start_transaction("import git refs");
         git::import_refs(tx.mut_repo(), &git_repo).unwrap();
         // TODO: Check out a recent commit. Maybe one with the highest generation
         // number.
         workspace_command.finish_transaction(ui, tx)?;
-        workspace_command.repo
     } else if args.is_present("git") {
-        ReadonlyRepo::init_internal_git(ui.settings(), wc_path.clone())?
+        Workspace::init_internal_git(ui.settings(), wc_path.clone())?;
     } else {
-        ReadonlyRepo::init_local(ui.settings(), wc_path.clone())?
+        Workspace::init_local(ui.settings(), wc_path.clone())?;
     };
     writeln!(ui, "Initialized repo in \"{}\"", wc_path.display())?;
     Ok(())
@@ -3526,10 +3525,9 @@ fn cmd_git_clone(
         fs::create_dir(&wc_path).unwrap();
     }
 
-    let repo = ReadonlyRepo::init_internal_git(ui.settings(), wc_path.clone())?;
+    let (workspace, repo) = Workspace::init_internal_git(ui.settings(), wc_path.clone())?;
     let git_repo = get_git_repo(repo.store())?;
     writeln!(ui, "Fetching into new repo in {:?}", wc_path)?;
-    let workspace = Workspace::load(ui.settings(), wc_path).unwrap();
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo);
     let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();

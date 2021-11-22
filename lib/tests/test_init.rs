@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
+use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
 
 #[test]
@@ -22,10 +22,10 @@ fn test_init_local() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let wc_path = temp_dir.path().to_owned();
-    let repo = ReadonlyRepo::init_local(&settings, wc_path.clone()).unwrap();
+    let (workspace, repo) = Workspace::init_local(&settings, wc_path.clone()).unwrap();
     assert!(repo.store().git_repo().is_none());
-    assert_eq!(repo.working_copy_path(), &wc_path);
     assert_eq!(repo.repo_path(), &wc_path.join(".jj"));
+    assert_eq!(workspace.workspace_root(), &wc_path);
 
     // Just test that we can write a commit to the store
     let mut tx = repo.start_transaction("test");
@@ -38,10 +38,10 @@ fn test_init_internal_git() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
     let wc_path = temp_dir.path().to_owned();
-    let repo = ReadonlyRepo::init_internal_git(&settings, wc_path.clone()).unwrap();
+    let (workspace, repo) = Workspace::init_internal_git(&settings, wc_path.clone()).unwrap();
     assert!(repo.store().git_repo().is_some());
-    assert_eq!(repo.working_copy_path(), &wc_path);
     assert_eq!(repo.repo_path(), &wc_path.join(".jj"));
+    assert_eq!(workspace.workspace_root(), &wc_path);
 
     // Just test that we ca write a commit to the store
     let mut tx = repo.start_transaction("test");
@@ -57,10 +57,11 @@ fn test_init_external_git() {
     git2::Repository::init(&git_repo_path).unwrap();
     let wc_path = temp_dir.path().join("jj");
     std::fs::create_dir(&wc_path).unwrap();
-    let repo = ReadonlyRepo::init_external_git(&settings, wc_path.clone(), git_repo_path).unwrap();
+    let (workspace, repo) =
+        Workspace::init_external_git(&settings, wc_path.clone(), git_repo_path).unwrap();
     assert!(repo.store().git_repo().is_some());
-    assert_eq!(repo.working_copy_path(), &wc_path);
     assert_eq!(repo.repo_path(), &wc_path.join(".jj"));
+    assert_eq!(workspace.workspace_root(), &wc_path);
 
     // Just test that we can write a commit to the store
     let mut tx = repo.start_transaction("test");

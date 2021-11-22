@@ -60,14 +60,13 @@ pub fn init_repo(settings: &UserSettings, use_git: bool) -> TestWorkspace {
     let workspace_root = temp_dir.path().join("repo");
     fs::create_dir(&workspace_root).unwrap();
 
-    let repo = if use_git {
+    let (workspace, repo) = if use_git {
         let git_path = temp_dir.path().join("git-repo");
         git2::Repository::init(&git_path).unwrap();
-        ReadonlyRepo::init_external_git(settings, workspace_root.clone(), git_path).unwrap()
+        Workspace::init_external_git(settings, workspace_root, git_path).unwrap()
     } else {
-        ReadonlyRepo::init_local(settings, workspace_root.clone()).unwrap()
+        Workspace::init_local(settings, workspace_root).unwrap()
     };
-    let workspace = Workspace::load(settings, workspace_root).unwrap();
 
     TestWorkspace {
         temp_dir,
