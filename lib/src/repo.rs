@@ -37,7 +37,6 @@ use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
 use crate::transaction::Transaction;
 use crate::view::{RefName, View};
-use crate::working_copy::WorkingCopy;
 use crate::{backend, op_store};
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -162,11 +161,6 @@ impl ReadonlyRepo {
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
 
         let wc_path = repo_path.parent().unwrap().to_path_buf();
-        let mut working_copy = WorkingCopy::init(
-            store.clone(),
-            wc_path.clone(),
-            repo_path.join("working_copy"),
-        );
 
         let signature = signature(user_settings);
         let checkout_commit = backend::Commit {
@@ -195,10 +189,6 @@ impl ReadonlyRepo {
         let index_store = Arc::new(IndexStore::init(repo_path.join("index")));
 
         let view = View::new(root_view);
-
-        working_copy
-            .check_out(checkout_commit)
-            .expect("failed to check out root commit");
 
         Arc::new(ReadonlyRepo {
             repo_path,

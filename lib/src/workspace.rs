@@ -53,15 +53,37 @@ fn create_jj_dir(workspace_root: &Path) -> Result<PathBuf, WorkspaceInitError> {
     }
 }
 
+fn init_working_copy(
+    repo: &Arc<ReadonlyRepo>,
+    workspace_root: &Path,
+    jj_dir: &Path,
+) -> WorkingCopy {
+    let mut working_copy = WorkingCopy::init(
+        repo.store().clone(),
+        workspace_root.to_path_buf(),
+        jj_dir.join("working_copy"),
+    );
+    let checkout_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
+    working_copy
+        .check_out(checkout_commit)
+        .expect("failed to check out root commit");
+    working_copy
+}
+
 impl Workspace {
     pub fn init_local(
         user_settings: &UserSettings,
         workspace_root: PathBuf,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(&workspace_root)?;
-        let repo = ReadonlyRepo::init_local(user_settings, jj_dir);
+        let repo = ReadonlyRepo::init_local(user_settings, jj_dir.clone());
+        let working_copy = init_working_copy(&repo, &workspace_root, &jj_dir);
         let repo_loader = repo.loader();
-        let workspace = Self::from_repo_loader(workspace_root, repo_loader);
+        let workspace = Workspace {
+            workspace_root,
+            repo_loader,
+            working_copy,
+        };
         Ok((workspace, repo))
     }
 
@@ -70,9 +92,14 @@ impl Workspace {
         workspace_root: PathBuf,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(&workspace_root)?;
-        let repo = ReadonlyRepo::init_internal_git(user_settings, jj_dir);
+        let repo = ReadonlyRepo::init_internal_git(user_settings, jj_dir.clone());
+        let working_copy = init_working_copy(&repo, &workspace_root, &jj_dir);
         let repo_loader = repo.loader();
-        let workspace = Self::from_repo_loader(workspace_root, repo_loader);
+        let workspace = Workspace {
+            workspace_root,
+            repo_loader,
+            working_copy,
+        };
         Ok((workspace, repo))
     }
 
@@ -82,9 +109,14 @@ impl Workspace {
         git_repo_path: PathBuf,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(&workspace_root)?;
-        let repo = ReadonlyRepo::init_external_git(user_settings, jj_dir, git_repo_path);
+        let repo = ReadonlyRepo::init_external_git(user_settings, jj_dir.clone(), git_repo_path);
+        let working_copy = init_working_copy(&repo, &workspace_root, &jj_dir);
         let repo_loader = repo.loader();
-        let workspace = Self::from_repo_loader(workspace_root, repo_loader);
+        let workspace = Workspace {
+            workspace_root,
+            repo_loader,
+            working_copy,
+        };
         Ok((workspace, repo))
     }
 
@@ -96,21 +128,17 @@ impl Workspace {
             .ok_or(WorkspaceLoadError::NoWorkspaceHere(workspace_path))?;
         let workspace_root = repo_path.parent().unwrap().to_owned();
         let repo_loader = RepoLoader::init(user_settings, repo_path);
-        Ok(Self::from_repo_loader(workspace_root, repo_loader))
-    }
-
-    fn from_repo_loader(workspace_root: PathBuf, repo_loader: RepoLoader) -> Self {
         let working_copy_state_path = repo_loader.repo_path().join("working_copy");
         let working_copy = WorkingCopy::load(
             repo_loader.store().clone(),
             workspace_root.clone(),
             working_copy_state_path,
         );
-        Self {
+        Ok(Self {
             workspace_root,
             repo_loader,
             working_copy,
-        }
+        })
     }
 
     pub fn workspace_root(&self) -> &PathBuf {
