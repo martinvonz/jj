@@ -32,8 +32,9 @@ fn test_load_from_subdir(use_git: bool) {
     let settings = testutils::user_settings();
     let test_workspace = testutils::init_repo(&settings, use_git);
     let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
 
-    let subdir = repo.working_copy_path().join("dir").join("subdir");
+    let subdir = workspace_root.join("dir").join("subdir");
     std::fs::create_dir_all(subdir.clone()).unwrap();
     let same_repo = ReadonlyRepo::load(&settings, subdir);
     assert!(same_repo.is_ok());

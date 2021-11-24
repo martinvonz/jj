@@ -58,6 +58,7 @@ fn test_checkout_file_transitions(use_git: bool) {
     let mut test_workspace = testutils::init_repo(&settings, use_git);
     let repo = &test_workspace.repo;
     let store = repo.store().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
 
     #[derive(Debug, Clone, Copy)]
     enum Kind {
@@ -226,7 +227,7 @@ fn test_checkout_file_transitions(use_git: bool) {
     assert_eq!(&new_tree_id, right_commit.tree().id());
 
     for (_left_kind, right_kind, path) in &files {
-        let wc_path = repo.working_copy_path().join(path);
+        let wc_path = workspace_root.join(path);
         let maybe_metadata = wc_path.symlink_metadata();
         match right_kind {
             Kind::Missing => {
@@ -295,6 +296,7 @@ fn test_untrack() {
     let settings = testutils::user_settings();
     let mut test_workspace = testutils::init_repo(&settings, false);
     let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
 
     let wanted_path = RepoPath::from_internal_string("wanted");
     let unwanted_path = RepoPath::from_internal_string("unwanted");
@@ -329,10 +331,10 @@ fn test_untrack() {
         .set_tree(unfinished_write.new_tree_id())
         .write_to_repo(tx.mut_repo());
     unfinished_write.finish(new_commit.clone());
-    let repo = tx.commit();
+    tx.commit();
 
     // The file should still exist in the working copy.
-    assert!(unwanted_path.to_fs_path(repo.working_copy_path()).is_file());
+    assert!(unwanted_path.to_fs_path(&workspace_root).is_file());
 
     // It should not be in the new tree.
     let tracked_paths = new_commit
@@ -359,8 +361,9 @@ fn test_commit_racy_timestamps(use_git: bool) {
     let settings = testutils::user_settings();
     let mut test_workspace = testutils::init_repo(&settings, use_git);
     let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
 
-    let file_path = repo.working_copy_path().join("file");
+    let file_path = workspace_root.join("file");
     let mut previous_tree_id = repo.store().empty_tree_id().clone();
     let wc = test_workspace.workspace.working_copy_mut();
     for i in 0..100 {
@@ -466,13 +469,13 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     let settings = testutils::user_settings();
     let mut test_workspace = testutils::init_repo(&settings, use_git);
     let repo = &test_workspace.repo;
-    let workspace_root = test_workspace.workspace.workspace_root();
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
 
     // Write an ignored file called "modified" to disk
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
-    testutils::write_working_copy_file(workspace_root, &gitignore_path, "modified\n");
+    testutils::write_working_copy_file(&workspace_root, &gitignore_path, "modified\n");
     let modified_path = RepoPath::from_internal_string("modified");
-    testutils::write_working_copy_file(workspace_root, &modified_path, "garbage");
+    testutils::write_working_copy_file(&workspace_root, &modified_path, "garbage");
 
     // Create a commit that adds the same file but with different contents
     let mut tx = repo.start_transaction("test");
@@ -494,7 +497,7 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     wc.check_out(commit).unwrap();
 
     // Check that the new contents are in the working copy
-    let path = repo.working_copy_path().join("modified");
+    let path = workspace_root.join("modified");
     assert!(path.is_file());
     let mut file = File::open(path).unwrap();
     let mut buf = Vec::new();
@@ -577,7 +580,7 @@ fn test_dotgit_ignored(use_git: bool) {
 
     // Test with a .git/ directory (with a file in, since we don't write empty
     // trees)
-    let dotgit_path = repo.working_copy_path().join(".git");
+    let dotgit_path = workspace_root.join(".git");
     std::fs::create_dir(&dotgit_path).unwrap();
     testutils::write_working_copy_file(
         &workspace_root,
