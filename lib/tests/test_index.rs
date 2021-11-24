@@ -262,7 +262,7 @@ fn test_index_commits_previous_operations(use_git: bool) {
     std::fs::remove_dir_all(&index_operations_dir).unwrap();
     std::fs::create_dir(&index_operations_dir).unwrap();
 
-    let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
+    let repo = ReadonlyRepo::load(&settings, repo.repo_path().clone()).unwrap();
     let index = repo.index();
     // There should be the root commit and the working copy commit, plus
     // 3 more
@@ -309,7 +309,7 @@ fn test_index_commits_incremental(use_git: bool) {
     let commit_c = child_commit(&settings, &repo, &commit_b).write_to_repo(tx.mut_repo());
     tx.commit();
 
-    let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
+    let repo = ReadonlyRepo::load(&settings, repo.repo_path().clone()).unwrap();
     let index = repo.index();
     // There should be the root commit and the working copy commit, plus
     // 3 more
@@ -354,7 +354,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
 
     repo.start_transaction("test").commit();
 
-    let repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
+    let repo = ReadonlyRepo::load(&settings, repo.repo_path().clone()).unwrap();
     let index = repo.index();
     // There should be the root commit and the working copy commit, plus
     // 1 more

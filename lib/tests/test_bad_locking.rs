@@ -167,10 +167,10 @@ fn test_bad_locking_interrupted(use_git: bool) {
 
     copy_directory(&backup_path, &op_heads_dir);
     // Reload the repo and check that only the new head is present.
-    let reloaded_repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
+    let reloaded_repo = ReadonlyRepo::load(&settings, repo.repo_path().clone()).unwrap();
     assert_eq!(reloaded_repo.op_id(), &op_id);
     // Reload once more to make sure that the .jj/op_heads/ directory was updated
     // correctly.
-    let reloaded_repo = ReadonlyRepo::load(&settings, repo.working_copy_path().clone()).unwrap();
+    let reloaded_repo = ReadonlyRepo::load(&settings, repo.repo_path().clone()).unwrap();
     assert_eq!(reloaded_repo.op_id(), &op_id);
 }
