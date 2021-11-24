@@ -120,67 +120,48 @@ impl Debug for ReadonlyRepo {
     }
 }
 
-#[derive(Error, Debug, PartialEq)]
-pub enum RepoInitError {
-    #[error("The destination repo ({0}) already exists")]
-    DestinationExists(PathBuf),
-}
-
 impl ReadonlyRepo {
-    pub fn init_local(
-        settings: &UserSettings,
-        wc_path: PathBuf,
-    ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
-        let repo_path = ReadonlyRepo::init_repo_dir(&wc_path)?;
+    pub fn init_local(settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
+        ReadonlyRepo::init_repo_dir(&repo_path);
         let store = Store::init_local(repo_path.join("store"));
-        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, store))
+        ReadonlyRepo::init(settings, repo_path, store)
     }
 
     /// Initializes a repo with a new Git backend in .jj/git/ (bare Git repo)
-    pub fn init_internal_git(
-        settings: &UserSettings,
-        wc_path: PathBuf,
-    ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
-        let repo_path = ReadonlyRepo::init_repo_dir(&wc_path)?;
+    pub fn init_internal_git(settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
+        ReadonlyRepo::init_repo_dir(&repo_path);
         let store = Store::init_internal_git(repo_path.join("store"));
-        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, store))
+        ReadonlyRepo::init(settings, repo_path, store)
     }
 
     /// Initializes a repo with an existing Git backend at the specified path
     pub fn init_external_git(
         settings: &UserSettings,
-        wc_path: PathBuf,
+        repo_path: PathBuf,
         git_repo_path: PathBuf,
-    ) -> Result<Arc<ReadonlyRepo>, RepoInitError> {
-        let repo_path = ReadonlyRepo::init_repo_dir(&wc_path)?;
+    ) -> Arc<ReadonlyRepo> {
+        ReadonlyRepo::init_repo_dir(&repo_path);
         let store = Store::init_external_git(repo_path.join("store"), git_repo_path);
-        Ok(ReadonlyRepo::init(settings, repo_path, wc_path, store))
+        ReadonlyRepo::init(settings, repo_path, store)
     }
 
-    fn init_repo_dir(wc_path: &Path) -> Result<PathBuf, RepoInitError> {
-        let repo_path = wc_path.join(".jj");
-        if repo_path.exists() {
-            Err(RepoInitError::DestinationExists(repo_path))
-        } else {
-            fs::create_dir(&repo_path).unwrap();
-            fs::create_dir(repo_path.join("store")).unwrap();
-            fs::create_dir(repo_path.join("working_copy")).unwrap();
-            fs::create_dir(repo_path.join("view")).unwrap();
-            fs::create_dir(repo_path.join("op_store")).unwrap();
-            fs::create_dir(repo_path.join("op_heads")).unwrap();
-            fs::create_dir(repo_path.join("index")).unwrap();
-            Ok(repo_path)
-        }
+    fn init_repo_dir(repo_path: &Path) {
+        fs::create_dir(repo_path.join("store")).unwrap();
+        fs::create_dir(repo_path.join("working_copy")).unwrap();
+        fs::create_dir(repo_path.join("view")).unwrap();
+        fs::create_dir(repo_path.join("op_store")).unwrap();
+        fs::create_dir(repo_path.join("op_heads")).unwrap();
+        fs::create_dir(repo_path.join("index")).unwrap();
     }
 
     fn init(
         user_settings: &UserSettings,
         repo_path: PathBuf,
-        wc_path: PathBuf,
         store: Arc<Store>,
     ) -> Arc<ReadonlyRepo> {
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
 
+        let wc_path = repo_path.parent().unwrap().to_path_buf();
         let mut working_copy = WorkingCopy::init(
             store.clone(),
             wc_path.clone(),

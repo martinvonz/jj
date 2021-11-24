@@ -45,7 +45,7 @@ use jujutsu_lib::op_heads_store::OpHeadsStore;
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction};
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoInitError, RepoRef};
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
@@ -55,7 +55,7 @@ use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::TreeDiffIterator;
 use jujutsu_lib::working_copy::{CheckoutStats, WorkingCopy};
-use jujutsu_lib::workspace::{Workspace, WorkspaceLoadError};
+use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
 use jujutsu_lib::{conflicts, diff, files, git, revset, tree};
 use maplit::{hashmap, hashset};
 use pest::Parser;
@@ -92,8 +92,8 @@ impl From<BackendError> for CommandError {
     }
 }
 
-impl From<RepoInitError> for CommandError {
-    fn from(_: RepoInitError) -> Self {
+impl From<WorkspaceInitError> for CommandError {
+    fn from(_: WorkspaceInitError) -> Self {
         CommandError::UserError("The target repo already exists".to_string())
     }
 }

@@ -17,9 +17,15 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::repo::{ReadonlyRepo, RepoInitError, RepoLoader};
+use crate::repo::{ReadonlyRepo, RepoLoader};
 use crate::settings::UserSettings;
 use crate::working_copy::WorkingCopy;
+
+#[derive(Error, Debug, PartialEq)]
+pub enum WorkspaceInitError {
+    #[error("The destination repo ({0}) already exists")]
+    DestinationExists(PathBuf),
+}
 
 #[derive(Error, Debug, PartialEq)]
 pub enum WorkspaceLoadError {
@@ -37,12 +43,23 @@ pub struct Workspace {
     working_copy: WorkingCopy,
 }
 
+fn create_jj_dir(workspace_root: &Path) -> Result<PathBuf, WorkspaceInitError> {
+    let jj_dir = workspace_root.join(".jj");
+    if jj_dir.exists() {
+        Err(WorkspaceInitError::DestinationExists(jj_dir))
+    } else {
+        std::fs::create_dir(&jj_dir).unwrap();
+        Ok(jj_dir)
+    }
+}
+
 impl Workspace {
     pub fn init_local(
         user_settings: &UserSettings,
         workspace_root: PathBuf,
-    ) -> Result<(Self, Arc<ReadonlyRepo>), RepoInitError> {
-        let repo = ReadonlyRepo::init_local(user_settings, workspace_root.clone())?;
+    ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
+        let jj_dir = create_jj_dir(&workspace_root)?;
+        let repo = ReadonlyRepo::init_local(user_settings, jj_dir);
         let repo_loader = repo.loader();
         let workspace = Self::from_repo_loader(workspace_root, repo_loader);
         Ok((workspace, repo))
@@ -51,8 +68,9 @@ impl Workspace {
     pub fn init_internal_git(
         user_settings: &UserSettings,
         workspace_root: PathBuf,
-    ) -> Result<(Self, Arc<ReadonlyRepo>), RepoInitError> {
-        let repo = ReadonlyRepo::init_internal_git(user_settings, workspace_root.clone())?;
+    ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
+        let jj_dir = create_jj_dir(&workspace_root)?;
+        let repo = ReadonlyRepo::init_internal_git(user_settings, jj_dir);
         let repo_loader = repo.loader();
         let workspace = Self::from_repo_loader(workspace_root, repo_loader);
         Ok((workspace, repo))
@@ -62,9 +80,9 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_root: PathBuf,
         git_repo_path: PathBuf,
-    ) -> Result<(Self, Arc<ReadonlyRepo>), RepoInitError> {
-        let repo =
-            ReadonlyRepo::init_external_git(user_settings, workspace_root.clone(), git_repo_path)?;
+    ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
+        let jj_dir = create_jj_dir(&workspace_root)?;
+        let repo = ReadonlyRepo::init_external_git(user_settings, jj_dir, git_repo_path);
         let repo_loader = repo.loader();
         let workspace = Self::from_repo_loader(workspace_root, repo_loader);
         Ok((workspace, repo))
