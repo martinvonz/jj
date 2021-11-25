@@ -98,7 +98,6 @@ impl<'a> RepoRef<'a> {
 
 pub struct ReadonlyRepo {
     repo_path: PathBuf,
-    wc_path: PathBuf,
     store: Arc<Store>,
     op_store: Arc<dyn OpStore>,
     op_heads_store: Arc<OpHeadsStore>,
@@ -113,7 +112,6 @@ impl Debug for ReadonlyRepo {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         f.debug_struct("Repo")
             .field("repo_path", &self.repo_path)
-            .field("wc_path", &self.wc_path)
             .field("store", &self.store)
             .finish()
     }
@@ -160,8 +158,6 @@ impl ReadonlyRepo {
     ) -> Arc<ReadonlyRepo> {
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
 
-        let wc_path = repo_path.parent().unwrap().to_path_buf();
-
         let signature = signature(user_settings);
         let checkout_commit = backend::Commit {
             parents: vec![],
@@ -192,7 +188,6 @@ impl ReadonlyRepo {
 
         Arc::new(ReadonlyRepo {
             repo_path,
-            wc_path,
             store,
             op_store,
             op_heads_store,
@@ -210,7 +205,6 @@ impl ReadonlyRepo {
 
     pub fn loader(&self) -> RepoLoader {
         RepoLoader {
-            wc_path: self.wc_path.clone(),
             repo_path: self.repo_path.clone(),
             repo_settings: self.settings.clone(),
             store: self.store.clone(),
@@ -226,10 +220,6 @@ impl ReadonlyRepo {
 
     pub fn repo_path(&self) -> &PathBuf {
         &self.repo_path
-    }
-
-    pub fn working_copy_path(&self) -> &PathBuf {
-        &self.wc_path
     }
 
     pub fn op_id(&self) -> &OperationId {
@@ -304,7 +294,6 @@ impl ReadonlyRepo {
 }
 
 pub struct RepoLoader {
-    wc_path: PathBuf,
     repo_path: PathBuf,
     repo_settings: RepoSettings,
     store: Arc<Store>,
@@ -315,7 +304,6 @@ pub struct RepoLoader {
 
 impl RepoLoader {
     pub fn init(user_settings: &UserSettings, repo_path: PathBuf) -> Self {
-        let wc_path = repo_path.parent().unwrap().to_owned();
         let store_path = repo_path.join("store");
         if store_path.is_file() {
             // This is the old format. Let's be nice and upgrade any existing repos.
@@ -343,7 +331,6 @@ impl RepoLoader {
         let op_heads_store = Arc::new(OpHeadsStore::load(repo_path.join("op_heads")));
         let index_store = Arc::new(IndexStore::load(repo_path.join("index")));
         Self {
-            wc_path,
             repo_path,
             repo_settings,
             store,
@@ -355,10 +342,6 @@ impl RepoLoader {
 
     pub fn repo_path(&self) -> &PathBuf {
         &self.repo_path
-    }
-
-    pub fn working_copy_path(&self) -> &PathBuf {
-        &self.wc_path
     }
 
     pub fn store(&self) -> &Arc<Store> {
@@ -396,7 +379,6 @@ impl RepoLoader {
     ) -> Arc<ReadonlyRepo> {
         let repo = ReadonlyRepo {
             repo_path: self.repo_path.clone(),
-            wc_path: self.wc_path.clone(),
             store: self.store.clone(),
             op_store: self.op_store.clone(),
             op_heads_store: self.op_heads_store.clone(),
@@ -412,7 +394,6 @@ impl RepoLoader {
     fn _finish_load(&self, operation: Operation, view: View) -> Arc<ReadonlyRepo> {
         let repo = ReadonlyRepo {
             repo_path: self.repo_path.clone(),
-            wc_path: self.wc_path.clone(),
             store: self.store.clone(),
             op_store: self.op_store.clone(),
             op_heads_store: self.op_heads_store.clone(),
