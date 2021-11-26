@@ -58,16 +58,12 @@ fn init_working_copy(
     workspace_root: &Path,
     jj_dir: &Path,
 ) -> WorkingCopy {
-    let mut working_copy = WorkingCopy::init(
+    WorkingCopy::init(
         repo.store().clone(),
         workspace_root.to_path_buf(),
         jj_dir.join("working_copy"),
-    );
-    let checkout_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
-    working_copy
-        .check_out(checkout_commit)
-        .expect("failed to check out root commit");
-    working_copy
+        repo.view().checkout().clone(),
+    )
 }
 
 impl Workspace {

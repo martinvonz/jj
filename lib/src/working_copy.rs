@@ -702,10 +702,18 @@ pub struct WorkingCopy {
 }
 
 impl WorkingCopy {
-    pub fn init(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> WorkingCopy {
-        // Leave the commit_id empty so a subsequent call to check out the root revision
-        // will have an effect.
-        let proto = crate::protos::working_copy::Checkout::new();
+    /// Initializes a new working copy at `working_copy_path`. The working copy's state will be
+    /// stored in the `state_path` directory. The working copy will be recorded as being already
+    /// checked out at commit pointed to by `commit_id`; this function doesn't update the working
+    /// copy file to that commit.
+    pub fn init(
+        store: Arc<Store>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+        commit_id: CommitId,
+    ) -> WorkingCopy {
+        let mut proto = crate::protos::working_copy::Checkout::new();
+        proto.commit_id = commit_id.to_bytes();
         let mut file = OpenOptions::new()
             .create_new(true)
             .write(true)
@@ -716,7 +724,7 @@ impl WorkingCopy {
             store,
             working_copy_path,
             state_path,
-            commit_id: RefCell::new(None),
+            commit_id: RefCell::new(Some(commit_id)),
             tree_state: RefCell::new(None),
         }
     }
