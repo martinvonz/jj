@@ -551,6 +551,10 @@ impl MutableRepo {
         self.view_mut().set_checkout(workspace_id, commit_id);
     }
 
+    pub fn remove_checkout(&mut self, workspace_id: &WorkspaceId) {
+        self.view_mut().remove_checkout(workspace_id);
+    }
+
     pub fn check_out(
         &mut self,
         workspace_id: WorkspaceId,

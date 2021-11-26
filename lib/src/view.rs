@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::backend::CommitId;
 use crate::index::IndexRef;
@@ -45,6 +45,10 @@ impl View {
         self.get_checkout(&WorkspaceId::default()).unwrap()
     }
 
+    pub fn checkouts(&self) -> &HashMap<WorkspaceId, CommitId> {
+        &self.data.checkouts
+    }
+
     pub fn get_checkout(&self, workspace_id: &WorkspaceId) -> Option<&CommitId> {
         self.data.checkouts.get(workspace_id)
     }
@@ -75,6 +79,10 @@ impl View {
 
     pub fn set_checkout(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {
         self.data.checkouts.insert(workspace_id, commit_id);
+    }
+
+    pub fn remove_checkout(&mut self, workspace_id: &WorkspaceId) {
+        self.data.checkouts.remove(workspace_id);
     }
 
     pub fn add_head(&mut self, head_id: &CommitId) {
@@ -234,15 +242,30 @@ impl View {
     }
 
     pub fn merge(&mut self, index: IndexRef, base: &View, other: &View) {
-        // TODO: Merge checkout for all workspaces or pass in a particular workspace ID
-        // to this function
-        if other.checkout() == base.checkout() || other.checkout() == self.checkout() {
-            // Keep the self side
-        } else if self.checkout() == base.checkout() {
-            self.set_checkout(WorkspaceId::default(), other.checkout().clone());
-        } else {
-            // TODO: Return an error here. Or should we just pick one of the
-            // sides and emit a warning?
+        // Merge checkouts. If there's a conflict, we keep the self side.
+        for (workspace_id, base_checkout) in base.checkouts() {
+            let self_checkout = self.get_checkout(workspace_id);
+            let other_checkout = other.get_checkout(workspace_id);
+            if other_checkout == Some(base_checkout) || other_checkout == self_checkout {
+                // The other side didn't change or both sides changed in the
+                // same way.
+            } else if let Some(other_checkout) = other_checkout {
+                if self_checkout == Some(base_checkout) {
+                    self.set_checkout(workspace_id.clone(), other_checkout.clone());
+                }
+            } else {
+                // The other side removed the workspace. We want to remove it even if the self
+                // side changed the checkout.
+                self.remove_checkout(workspace_id);
+            }
+        }
+        for (workspace_id, other_checkout) in other.checkouts() {
+            if self.get_checkout(workspace_id).is_none()
+                && base.get_checkout(workspace_id).is_none()
+            {
+                // The other side added the workspace.
+                self.set_checkout(workspace_id.clone(), other_checkout.clone());
+            }
         }
 
         for removed_head in base.public_heads().difference(other.public_heads()) {

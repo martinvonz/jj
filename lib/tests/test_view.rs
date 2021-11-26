@@ -155,27 +155,79 @@ fn test_merge_views_checkout() {
     let test_workspace = testutils::init_repo(&settings, false);
     let repo = &test_workspace.repo;
 
+    // Workspace 1 gets updated in both transactions.
+    // Workspace 2 gets updated only in tx1.
+    // Workspace 3 gets updated only in tx2.
+    // Workspace 4 gets deleted in tx1 and modified in tx2.
+    // Workspace 5 gets deleted in tx2 and modified in tx1.
+    // Workspace 6 gets added in tx1.
+    // Workspace 7 gets added in tx2.
+    let mut initial_tx = repo.start_transaction("test");
+    let commit1 =
+        testutils::create_random_commit(&settings, repo).write_to_repo(initial_tx.mut_repo());
+    let commit2 =
+        testutils::create_random_commit(&settings, repo).write_to_repo(initial_tx.mut_repo());
+    let commit3 =
+        testutils::create_random_commit(&settings, repo).write_to_repo(initial_tx.mut_repo());
+    let ws1_id = WorkspaceId::new("ws1".to_string());
+    let ws2_id = WorkspaceId::new("ws2".to_string());
+    let ws3_id = WorkspaceId::new("ws3".to_string());
+    let ws4_id = WorkspaceId::new("ws4".to_string());
+    let ws5_id = WorkspaceId::new("ws5".to_string());
+    let ws6_id = WorkspaceId::new("ws6".to_string());
+    let ws7_id = WorkspaceId::new("ws7".to_string());
+    initial_tx
+        .mut_repo()
+        .set_checkout(ws1_id.clone(), commit1.id().clone());
+    initial_tx
+        .mut_repo()
+        .set_checkout(ws2_id.clone(), commit1.id().clone());
+    initial_tx
+        .mut_repo()
+        .set_checkout(ws3_id.clone(), commit1.id().clone());
+    initial_tx
+        .mut_repo()
+        .set_checkout(ws4_id.clone(), commit1.id().clone());
+    initial_tx
+        .mut_repo()
+        .set_checkout(ws5_id.clone(), commit1.id().clone());
+    let repo = initial_tx.commit();
+
     let mut tx1 = repo.start_transaction("test");
-    let checkout_tx1 = testutils::create_random_commit(&settings, repo)
-        .set_open(false)
-        .write_to_repo(tx1.mut_repo());
     tx1.mut_repo()
-        .set_checkout(WorkspaceId::default(), checkout_tx1.id().clone());
+        .set_checkout(ws1_id.clone(), commit2.id().clone());
+    tx1.mut_repo()
+        .set_checkout(ws2_id.clone(), commit2.id().clone());
+    tx1.mut_repo().remove_checkout(&ws4_id);
+    tx1.mut_repo()
+        .set_checkout(ws5_id.clone(), commit2.id().clone());
+    tx1.mut_repo()
+        .set_checkout(ws6_id.clone(), commit2.id().clone());
     tx1.commit();
 
     let mut tx2 = repo.start_transaction("test");
-    let checkout_tx2 = testutils::create_random_commit(&settings, repo)
-        .set_open(false)
-        .write_to_repo(tx2.mut_repo());
     tx2.mut_repo()
-        .set_checkout(WorkspaceId::default(), checkout_tx2.id().clone());
+        .set_checkout(ws1_id.clone(), commit3.id().clone());
+    tx2.mut_repo()
+        .set_checkout(ws3_id.clone(), commit3.id().clone());
+    tx2.mut_repo()
+        .set_checkout(ws4_id.clone(), commit3.id().clone());
+    tx2.mut_repo().remove_checkout(&ws5_id);
+    tx2.mut_repo()
+        .set_checkout(ws7_id.clone(), commit3.id().clone());
     tx2.commit();
 
     let repo = repo.reload();
 
     // We currently arbitrarily pick the first transaction's checkout (first by
     // transaction end time).
-    assert_eq!(repo.view().checkout(), checkout_tx1.id());
+    assert_eq!(repo.view().get_checkout(&ws1_id), Some(commit2.id()));
+    assert_eq!(repo.view().get_checkout(&ws2_id), Some(commit2.id()));
+    assert_eq!(repo.view().get_checkout(&ws3_id), Some(commit3.id()));
+    assert_eq!(repo.view().get_checkout(&ws4_id), None);
+    assert_eq!(repo.view().get_checkout(&ws5_id), None);
+    assert_eq!(repo.view().get_checkout(&ws6_id), Some(commit2.id()));
+    assert_eq!(repo.view().get_checkout(&ws7_id), Some(commit3.id()));
 }
 
 #[test]
