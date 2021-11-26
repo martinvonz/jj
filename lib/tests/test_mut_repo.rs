@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::op_store::RefTarget;
+use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::{assert_rebased, CommitGraphBuilder};
 use maplit::hashset;
@@ -37,7 +37,9 @@ fn test_checkout_open(use_git: bool) {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
+    let actual_checkout =
+        tx.mut_repo()
+            .check_out(WorkspaceId::default(), &settings, &requested_checkout);
     assert_eq!(actual_checkout.id(), requested_checkout.id());
     let repo = tx.commit();
     assert_eq!(repo.view().checkout(), actual_checkout.id());
@@ -59,7 +61,9 @@ fn test_checkout_closed(use_git: bool) {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    let actual_checkout = tx.mut_repo().check_out(&settings, &requested_checkout);
+    let actual_checkout =
+        tx.mut_repo()
+            .check_out(WorkspaceId::default(), &settings, &requested_checkout);
     assert_eq!(actual_checkout.tree().id(), requested_checkout.tree().id());
     assert_eq!(actual_checkout.parents().len(), 1);
     assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
@@ -81,7 +85,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     let old_checkout = testutils::create_random_commit(&settings, repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.check_out(&settings, &old_checkout);
+    mut_repo.check_out(WorkspaceId::default(), &settings, &old_checkout);
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -89,7 +93,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.check_out(&settings, &new_checkout);
+    mut_repo.check_out(WorkspaceId::default(), &settings, &new_checkout);
     mut_repo.rebase_descendants(&settings);
     assert!(mut_repo.view().heads().contains(old_checkout.id()));
 }
@@ -112,7 +116,7 @@ fn test_checkout_previous_empty(use_git: bool) {
         repo.store().empty_tree_id().clone(),
     )
     .write_to_repo(mut_repo);
-    mut_repo.check_out(&settings, &old_checkout);
+    mut_repo.check_out(WorkspaceId::default(), &settings, &old_checkout);
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -120,7 +124,7 @@ fn test_checkout_previous_empty(use_git: bool) {
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.check_out(&settings, &new_checkout);
+    mut_repo.check_out(WorkspaceId::default(), &settings, &new_checkout);
     mut_repo.rebase_descendants(&settings);
     assert!(!mut_repo.view().heads().contains(old_checkout.id()));
 }
@@ -364,7 +368,7 @@ fn test_has_changed(use_git: bool) {
     mut_repo.remove_head(repo.view().checkout());
     mut_repo.remove_head(commit2.id());
     mut_repo.add_public_head(&commit1);
-    mut_repo.set_checkout(commit1.id().clone());
+    mut_repo.set_checkout(WorkspaceId::default(), commit1.id().clone());
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
     mut_repo.set_remote_branch(
         "main".to_string(),
@@ -381,7 +385,7 @@ fn test_has_changed(use_git: bool) {
 
     mut_repo.add_public_head(&commit1);
     mut_repo.add_head(&commit1);
-    mut_repo.set_checkout(commit1.id().clone());
+    mut_repo.set_checkout(WorkspaceId::default(), commit1.id().clone());
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
     mut_repo.set_remote_branch(
         "main".to_string(),
@@ -411,9 +415,9 @@ fn test_has_changed(use_git: bool) {
     mut_repo.remove_head(commit2.id());
     assert!(!mut_repo.has_changes());
 
-    mut_repo.set_checkout(commit2.id().clone());
+    mut_repo.set_checkout(WorkspaceId::default(), commit2.id().clone());
     assert!(mut_repo.has_changes());
-    mut_repo.set_checkout(commit1.id().clone());
+    mut_repo.set_checkout(WorkspaceId::default(), commit1.id().clone());
     assert!(!mut_repo.has_changes());
 
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit2.id().clone()));

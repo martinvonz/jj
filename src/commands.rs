@@ -43,7 +43,7 @@ use jujutsu_lib::git::{GitExportError, GitFetchError, GitImportError, GitRefUpda
 use jujutsu_lib::index::HexPrefix;
 use jujutsu_lib::matchers::{EverythingMatcher, FilesMatcher, Matcher};
 use jujutsu_lib::op_heads_store::OpHeadsStore;
-use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget};
+use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction};
 use jujutsu_lib::repo::{ReadonlyRepo, RepoRef};
@@ -284,6 +284,7 @@ impl WorkspaceCommandHelper {
             // If the Git HEAD has changed, abandon our old checkout and check out the new
             // Git HEAD.
             if new_git_head != old_git_head && new_git_head.is_some() {
+                let workspace_id = self.workspace.workspace_id();
                 let mut locked_working_copy = self.workspace.working_copy_mut().start_mutation();
                 tx.mut_repo()
                     .record_abandoned_commit(self.repo.view().checkout().clone());
@@ -291,7 +292,9 @@ impl WorkspaceCommandHelper {
                     .repo
                     .store()
                     .get_commit(new_git_head.as_ref().unwrap())?;
-                let new_wc_commit = tx.mut_repo().check_out(&self.settings, &new_checkout);
+                let new_wc_commit =
+                    tx.mut_repo()
+                        .check_out(workspace_id, &self.settings, &new_checkout);
                 // The working copy was presumably updated by the git command that updated HEAD,
                 // so we just need to reset our working copy state to it without updating
                 // working copy files.
@@ -352,6 +355,10 @@ impl WorkspaceCommandHelper {
 
     fn workspace_root(&self) -> &PathBuf {
         self.workspace.workspace_root()
+    }
+
+    fn workspace_id(&self) -> WorkspaceId {
+        self.workspace.workspace_id()
     }
 
     fn working_copy_shared_with_git(&self) -> bool {
@@ -462,6 +469,7 @@ impl WorkspaceCommandHelper {
     fn maybe_commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             let repo = self.repo.clone();
+            let workspace_id = self.workspace_id();
             let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
             // Check if the working copy commit matches the repo's view. It's fine if it
             // doesn't, but we'll need to reload the repo so the new commit is
@@ -534,7 +542,7 @@ impl WorkspaceCommandHelper {
                 )
                 .set_tree(new_tree_id)
                 .write_to_repo(mut_repo);
-                mut_repo.set_checkout(commit.id().clone());
+                mut_repo.set_checkout(workspace_id, commit.id().clone());
 
                 // Rebase descendants
                 let num_rebased = mut_repo.rebase_descendants(&self.settings);
@@ -1653,13 +1661,21 @@ fn cmd_checkout(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_commit = workspace_command.resolve_revision_arg(ui, args)?;
-    if workspace_command.repo().view().checkout() == new_commit.id() {
+    let workspace_id = workspace_command.workspace_id();
+    if workspace_command
+        .repo()
+        .view()
+        .get_checkout(&workspace_id)
+        .unwrap()
+        == new_commit.id()
+    {
         ui.write("Already on that commit\n")?;
     } else {
         workspace_command.commit_working_copy(ui)?;
         let mut tx = workspace_command
             .start_transaction(&format!("check out commit {}", new_commit.id().hex()));
-        tx.mut_repo().check_out(ui.settings(), &new_commit);
+        tx.mut_repo()
+            .check_out(workspace_id, ui.settings(), &new_commit);
         workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())
@@ -2815,7 +2831,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
     let mut_repo = tx.mut_repo();
     let new_commit = commit_builder.write_to_repo(mut_repo);
     if mut_repo.view().checkout() == parent.id() {
-        mut_repo.check_out(ui.settings(), &new_commit);
+        mut_repo.check_out(workspace_command.workspace_id(), ui.settings(), &new_commit);
     }
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -3942,7 +3958,8 @@ fn cmd_git_clone(
             .get_remote_branch(&default_branch, "origin");
         if let Some(RefTarget::Normal(commit_id)) = default_branch_target {
             if let Ok(commit) = workspace_command.repo().store().get_commit(&commit_id) {
-                tx.mut_repo().check_out(ui.settings(), &commit);
+                tx.mut_repo()
+                    .check_out(workspace_command.workspace_id(), ui.settings(), &commit);
             }
         }
     }

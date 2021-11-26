@@ -14,7 +14,7 @@
 
 use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::op_store::RefTarget;
+use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::revset::{parse, resolve_symbol, RevsetError};
 use jujutsu_lib::testutils::CommitGraphBuilder;
@@ -248,12 +248,12 @@ fn test_resolve_symbol_checkout(use_git: bool) {
     let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
 
-    mut_repo.set_checkout(commit1.id().clone());
+    mut_repo.set_checkout(WorkspaceId::default(), commit1.id().clone());
     assert_eq!(
         resolve_symbol(mut_repo.as_repo_ref(), "@"),
         Ok(vec![commit1.id().clone()])
     );
-    mut_repo.set_checkout(commit2.id().clone());
+    mut_repo.set_checkout(WorkspaceId::default(), commit2.id().clone());
     assert_eq!(
         resolve_symbol(mut_repo.as_repo_ref(), "@"),
         Ok(vec![commit2.id().clone()])
@@ -412,7 +412,7 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
     );
 
     // Can find the current checkout
-    mut_repo.set_checkout(commit1.id().clone());
+    mut_repo.set_checkout(WorkspaceId::default(), commit1.id().clone());
     assert_eq!(
         resolve_commit_ids(mut_repo.as_repo_ref(), "@"),
         vec![commit1.id().clone()]
@@ -502,7 +502,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     assert_eq!(resolve_commit_ids(mut_repo.as_repo_ref(), "root-"), vec![]);
 
     // Can find parents of the current checkout
-    mut_repo.set_checkout(commit2.id().clone());
+    mut_repo.set_checkout(WorkspaceId::default(), commit2.id().clone());
     assert_eq!(
         resolve_commit_ids(mut_repo.as_repo_ref(), "@-"),
         vec![commit1.id().clone()]

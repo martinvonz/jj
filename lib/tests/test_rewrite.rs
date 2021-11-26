@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::op_store::RefTarget;
+use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::rewrite::DescendantRebaser;
 use jujutsu_lib::testutils;
@@ -1226,7 +1226,8 @@ fn test_rebase_descendants_update_checkout_open(use_git: bool) {
         .set_parents(vec![commit_a.id().clone()])
         .set_open(true)
         .write_to_repo(tx.mut_repo());
-    tx.mut_repo().set_checkout(commit_b.id().clone());
+    tx.mut_repo()
+        .set_checkout(WorkspaceId::default(), commit_b.id().clone());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -1258,7 +1259,8 @@ fn test_rebase_descendants_update_checkout_closed(use_git: bool) {
         .set_parents(vec![commit_a.id().clone()])
         .set_open(true)
         .write_to_repo(tx.mut_repo());
-    tx.mut_repo().set_checkout(commit_b.id().clone());
+    tx.mut_repo()
+        .set_checkout(WorkspaceId::default(), commit_b.id().clone());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -1301,7 +1303,8 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
         .set_parents(vec![commit_b.id().clone(), commit_c.id().clone()])
         .set_open(true)
         .write_to_repo(tx.mut_repo());
-    tx.mut_repo().set_checkout(commit_d.id().clone());
+    tx.mut_repo()
+        .set_checkout(WorkspaceId::default(), commit_d.id().clone());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");

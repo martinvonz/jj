@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::op_store::{BranchTarget, RefTarget};
+use jujutsu_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::CommitGraphBuilder;
 use maplit::{btreemap, hashset};
@@ -159,14 +159,16 @@ fn test_merge_views_checkout() {
     let checkout_tx1 = testutils::create_random_commit(&settings, repo)
         .set_open(false)
         .write_to_repo(tx1.mut_repo());
-    tx1.mut_repo().set_checkout(checkout_tx1.id().clone());
+    tx1.mut_repo()
+        .set_checkout(WorkspaceId::default(), checkout_tx1.id().clone());
     tx1.commit();
 
     let mut tx2 = repo.start_transaction("test");
     let checkout_tx2 = testutils::create_random_commit(&settings, repo)
         .set_open(false)
         .write_to_repo(tx2.mut_repo());
-    tx2.mut_repo().set_checkout(checkout_tx2.id().clone());
+    tx2.mut_repo()
+        .set_checkout(WorkspaceId::default(), checkout_tx2.id().clone());
     tx2.commit();
 
     let repo = repo.reload();

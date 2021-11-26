@@ -73,9 +73,8 @@ impl View {
         self.data.git_head.clone()
     }
 
-    // TODO: Pass in workspace id here
-    pub fn set_checkout(&mut self, id: CommitId) {
-        self.data.checkouts.insert(WorkspaceId::default(), id);
+    pub fn set_checkout(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {
+        self.data.checkouts.insert(workspace_id, commit_id);
     }
 
     pub fn add_head(&mut self, head_id: &CommitId) {
@@ -235,10 +234,12 @@ impl View {
     }
 
     pub fn merge(&mut self, index: IndexRef, base: &View, other: &View) {
+        // TODO: Merge checkout for all workspaces or pass in a particular workspace ID
+        // to this function
         if other.checkout() == base.checkout() || other.checkout() == self.checkout() {
             // Keep the self side
         } else if self.checkout() == base.checkout() {
-            self.set_checkout(other.checkout().clone());
+            self.set_checkout(WorkspaceId::default(), other.checkout().clone());
         } else {
             // TODO: Return an error here. Or should we just pick one of the
             // sides and emit a warning?

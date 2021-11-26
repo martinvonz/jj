@@ -547,11 +547,16 @@ impl MutableRepo {
         self.view.borrow().checkout().clone()
     }
 
-    pub fn set_checkout(&mut self, id: CommitId) {
-        self.view_mut().set_checkout(id);
+    pub fn set_checkout(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {
+        self.view_mut().set_checkout(workspace_id, commit_id);
     }
 
-    pub fn check_out(&mut self, settings: &UserSettings, commit: &Commit) -> Commit {
+    pub fn check_out(
+        &mut self,
+        workspace_id: WorkspaceId,
+        settings: &UserSettings,
+        commit: &Commit,
+    ) -> Commit {
         let current_checkout_id = self.view.borrow().checkout().clone();
         let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
         assert!(current_checkout.is_open(), "current checkout is closed");
@@ -572,8 +577,8 @@ impl MutableRepo {
             // Otherwise the commit was open, so just use that commit as is.
             commit.clone()
         };
-        let id = open_commit.id().clone();
-        self.set_checkout(id);
+        let commit_id = open_commit.id().clone();
+        self.set_checkout(workspace_id, commit_id);
         open_commit
     }
 

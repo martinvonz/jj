@@ -20,7 +20,7 @@ use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk;
-use crate::op_store::RefTarget;
+use crate::op_store::{RefTarget, WorkspaceId};
 use crate::repo::{MutableRepo, RepoRef};
 use crate::repo_path::RepoPath;
 use crate::revset::RevsetExpression;
@@ -291,11 +291,14 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     }
 
     fn update_references(&mut self, old_commit_id: CommitId, new_commit_ids: Vec<CommitId>) {
+        // TODO: Either make this update the checkout in all workspaces or pass in a
+        // particular workspace ID to this function
         if self.mut_repo.get_checkout() == old_commit_id {
             // We arbitrarily pick a new checkout among the candidates.
             let new_commit_id = new_commit_ids[0].clone();
             let new_commit = self.mut_repo.store().get_commit(&new_commit_id).unwrap();
-            self.mut_repo.check_out(self.settings, &new_commit);
+            self.mut_repo
+                .check_out(WorkspaceId::default(), self.settings, &new_commit);
         }
 
         if let Some(branch_names) = self.branches.get(&old_commit_id) {
