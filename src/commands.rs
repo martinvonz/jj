@@ -439,11 +439,7 @@ impl WorkspaceCommandHelper {
         tx
     }
 
-    fn finish_transaction(
-        &mut self,
-        ui: &mut Ui,
-        mut tx: Transaction,
-    ) -> Result<Option<CheckoutStats>, CommandError> {
+    fn finish_transaction(&mut self, ui: &mut Ui, mut tx: Transaction) -> Result<(), CommandError> {
         let mut_repo = tx.mut_repo();
         if self.rebase_descendants {
             let num_rebased = rebase_descendants(ui.settings(), mut_repo);
@@ -453,7 +449,7 @@ impl WorkspaceCommandHelper {
         }
         self.repo = tx.commit();
         let stats = update_working_copy(ui, &self.repo, self.workspace.working_copy_mut())?;
-        if let Some(stats) = &stats {
+        if let Some(stats) = stats {
             if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
                 writeln!(
                     ui,
@@ -462,7 +458,7 @@ impl WorkspaceCommandHelper {
                 )?;
             }
         }
-        Ok(stats)
+        Ok(())
     }
 }
 
@@ -1409,13 +1405,14 @@ fn cmd_checkout(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_commit = workspace_command.resolve_revision_arg(ui, args)?;
-    workspace_command.commit_working_copy(ui)?;
-    let mut tx =
-        workspace_command.start_transaction(&format!("check out commit {}", new_commit.id().hex()));
-    tx.mut_repo().check_out(ui.settings(), &new_commit);
-    let stats = workspace_command.finish_transaction(ui, tx)?;
-    if stats.is_none() {
+    if workspace_command.repo().view().checkout() == new_commit.id() {
         ui.write("Already on that commit\n")?;
+    } else {
+        workspace_command.commit_working_copy(ui)?;
+        let mut tx = workspace_command
+            .start_transaction(&format!("check out commit {}", new_commit.id().hex()));
+        tx.mut_repo().check_out(ui.settings(), &new_commit);
+        workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())
 }
