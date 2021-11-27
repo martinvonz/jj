@@ -62,6 +62,7 @@ fn init_working_copy(
         repo.store().clone(),
         workspace_root.to_path_buf(),
         jj_dir.join("working_copy"),
+        repo.op_id().clone(),
         repo.view().checkout().clone(),
     )
 }

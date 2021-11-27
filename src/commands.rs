@@ -300,7 +300,7 @@ impl WorkspaceCommandHelper {
                     .create_descendant_rebaser(&self.settings)
                     .rebase_all();
                 self.repo = tx.commit();
-                locked_working_copy.finish(new_wc_commit.id().clone());
+                locked_working_copy.finish(self.repo.op_id().clone(), new_wc_commit.id().clone());
             } else {
                 self.repo = tx.commit();
             }
@@ -501,7 +501,7 @@ impl WorkspaceCommandHelper {
                 }
 
                 self.repo = tx.commit();
-                locked_wc.finish(commit.id().clone());
+                locked_wc.finish(self.repo.op_id().clone(), commit.id().clone());
             } else {
                 locked_wc.discard();
             }
@@ -716,7 +716,11 @@ fn update_working_copy(
     // warning for most commands (but be an error for the checkout command)
     let new_commit = repo.store().get_commit(new_commit_id).unwrap();
     let stats = wc
-        .check_out(Some(old_commit_id), new_commit.clone())
+        .check_out(
+            repo.op_id().clone(),
+            Some(old_commit_id),
+            new_commit.clone(),
+        )
         .map_err(|err| {
             CommandError::InternalError(format!(
                 "Failed to check out commit {}: {}",
@@ -1647,8 +1651,8 @@ fn cmd_untrack(
     if num_rebased > 0 {
         writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
     }
-    tx.commit();
-    locked_working_copy.finish(new_commit.id().clone());
+    let repo = tx.commit();
+    locked_working_copy.finish(repo.op_id().clone(), new_commit.id().clone());
     Ok(())
 }
 

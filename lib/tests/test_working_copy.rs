@@ -212,11 +212,13 @@ fn test_checkout_file_transitions(use_git: bool) {
         .set_parents(vec![store.root_commit_id().clone()])
         .set_open(true)
         .write_to_repo(tx.mut_repo());
-    tx.commit();
+    let repo = tx.commit();
 
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(None, left_commit).unwrap();
-    wc.check_out(None, right_commit.clone()).unwrap();
+    wc.check_out(repo.op_id().clone(), None, left_commit)
+        .unwrap();
+    wc.check_out(repo.op_id().clone(), None, right_commit.clone())
+        .unwrap();
 
     // Check that the working copy is clean.
     let mut locked_wc = wc.start_mutation();
@@ -321,10 +323,12 @@ fn test_reset() {
         tree_with_file.id().clone(),
     )
     .write_to_repo(tx.mut_repo());
-    test_workspace.repo = tx.commit();
+    let repo = tx.commit();
+    test_workspace.repo = repo.clone();
 
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(None, commit_with_file.clone()).unwrap();
+    wc.check_out(repo.op_id().clone(), None, commit_with_file.clone())
+        .unwrap();
 
     // Test the setup: the file should exist on disk and in the tree state.
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
@@ -335,7 +339,7 @@ fn test_reset() {
     // commit the working copy (because it's ignored).
     let mut locked_wc = wc.start_mutation();
     locked_wc.reset(&tree_without_file).unwrap();
-    locked_wc.finish(commit_without_file.id().clone());
+    locked_wc.finish(repo.op_id().clone(), commit_without_file.id().clone());
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
@@ -348,7 +352,7 @@ fn test_reset() {
     // commit the working copy (because it's ignored).
     let mut locked_wc = wc.start_mutation();
     locked_wc.reset(&tree_without_file).unwrap();
-    locked_wc.finish(commit_without_file.id().clone());
+    locked_wc.finish(repo.op_id().clone(), commit_without_file.id().clone());
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
@@ -360,7 +364,7 @@ fn test_reset() {
     // tracked. The file should become tracked (even though it's ignored).
     let mut locked_wc = wc.start_mutation();
     locked_wc.reset(&tree_with_file).unwrap();
-    locked_wc.finish(commit_with_file.id().clone());
+    locked_wc.finish(repo.op_id().clone(), commit_with_file.id().clone());
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
@@ -511,7 +515,7 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     // "contents". The exiting contents ("garbage") should be replaced in the
     // working copy.
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(None, commit).unwrap();
+    wc.check_out(repo.op_id().clone(), None, commit).unwrap();
 
     // Check that the new contents are in the working copy
     let path = workspace_root.join("modified");
@@ -569,7 +573,7 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
 
     // Check out the commit with the file in ignored/
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(None, commit).unwrap();
+    wc.check_out(repo.op_id().clone(), None, commit).unwrap();
 
     // Check that the file is still in the tree created by committing the working
     // copy (that it didn't get removed because the directory is ignored)

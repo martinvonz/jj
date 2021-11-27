@@ -48,19 +48,20 @@ fn test_concurrent_checkout(use_git: bool) {
     // Check out commit1
     let wc1 = test_workspace1.workspace.working_copy_mut();
     let commit_id1 = commit1.id().clone();
-    wc1.check_out(None, commit1).unwrap();
+    // The operation ID is not correct, but that doesn't matter for this test
+    wc1.check_out(repo1.op_id().clone(), None, commit1).unwrap();
 
     // Check out commit2 from another process (simulated by another workspace
     // instance)
     let mut workspace2 = Workspace::load(&settings, workspace1_root.clone()).unwrap();
     workspace2
         .working_copy_mut()
-        .check_out(Some(&commit_id1), commit2.clone())
+        .check_out(repo1.op_id().clone(), Some(&commit_id1), commit2.clone())
         .unwrap();
 
     // Checking out another commit (via the first repo instance) should now fail.
     assert_eq!(
-        wc1.check_out(Some(&commit_id1), commit3),
+        wc1.check_out(repo1.op_id().clone(), Some(&commit_id1), commit3),
         Err(CheckoutError::ConcurrentCheckout)
     );
 
@@ -106,15 +107,16 @@ fn test_checkout_parallel(use_git: bool) {
     let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())
         .set_open(true)
         .write_to_repo(tx.mut_repo());
-    tx.commit();
+    let repo = tx.commit();
     test_workspace
         .workspace
         .working_copy_mut()
-        .check_out(None, commit)
+        .check_out(repo.op_id().clone(), None, commit)
         .unwrap();
 
     let mut threads = vec![];
     for commit_id in &commit_ids {
+        let op_id = repo.op_id().clone();
         let tree_ids = tree_ids.clone();
         let commit_id = commit_id.clone();
         let settings = settings.clone();
@@ -126,9 +128,10 @@ fn test_checkout_parallel(use_git: bool) {
                 .store()
                 .get_commit(&commit_id)
                 .unwrap();
+            // The operation ID is not correct, but that doesn't matter for this test
             let stats = workspace
                 .working_copy_mut()
-                .check_out(None, commit)
+                .check_out(op_id, None, commit)
                 .unwrap();
             assert_eq!(stats.updated_files, 0);
             assert_eq!(stats.added_files, 1);

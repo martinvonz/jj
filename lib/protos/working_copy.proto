@@ -35,5 +35,9 @@ message TreeState {
 }
 
 message Checkout {
+  // The operation at which the working copy was updated.
+  bytes operation_id = 2;
+  // The checked-out commit, which can be viewed as a cache of the checkout
+  // recorded in `operation_id`'s operation.
   bytes commit_id = 1;
 }

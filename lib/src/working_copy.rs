@@ -39,6 +39,7 @@ use crate::conflicts::{materialize_conflict, update_conflict_from_content};
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::matchers::EverythingMatcher;
+use crate::op_store::OperationId;
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::{Diff, Tree};
@@ -717,6 +718,7 @@ pub struct WorkingCopy {
     store: Arc<Store>,
     working_copy_path: PathBuf,
     state_path: PathBuf,
+    operation_id: RefCell<Option<OperationId>>,
     commit_id: RefCell<Option<CommitId>>,
     tree_state: RefCell<Option<TreeState>>,
 }
@@ -731,6 +733,7 @@ impl WorkingCopy {
         store: Arc<Store>,
         working_copy_path: PathBuf,
         state_path: PathBuf,
+        operation_id: OperationId,
         commit_id: CommitId,
     ) -> WorkingCopy {
         let mut proto = crate::protos::working_copy::Checkout::new();
@@ -746,6 +749,7 @@ impl WorkingCopy {
             working_copy_path,
             state_path,
             commit_id: RefCell::new(Some(commit_id)),
+            operation_id: RefCell::new(Some(operation_id)),
             tree_state: RefCell::new(None),
         }
     }
@@ -755,6 +759,7 @@ impl WorkingCopy {
             store,
             working_copy_path,
             state_path,
+            operation_id: RefCell::new(None),
             commit_id: RefCell::new(None),
             tree_state: RefCell::new(None),
         }
@@ -768,9 +773,21 @@ impl WorkingCopy {
         temp_file.persist(self.state_path.join("checkout")).unwrap();
     }
 
-    fn read_proto(&self) -> crate::protos::working_copy::Checkout {
+    fn load_proto(&self) {
         let mut file = File::open(self.state_path.join("checkout")).unwrap();
-        Message::parse_from_reader(&mut file).unwrap()
+        let proto: crate::protos::working_copy::Checkout =
+            Message::parse_from_reader(&mut file).unwrap();
+        self.operation_id
+            .replace(Some(OperationId::new(proto.operation_id)));
+        self.commit_id.replace(Some(CommitId::new(proto.commit_id)));
+    }
+
+    pub fn operation_id(&self) -> OperationId {
+        if self.operation_id.borrow().is_none() {
+            self.load_proto();
+        }
+
+        self.operation_id.borrow().as_ref().unwrap().clone()
     }
 
     /// The id of the commit that's currently checked out in the working copy.
@@ -779,9 +796,7 @@ impl WorkingCopy {
     /// The WorkingCopy is only updated at the end.
     pub fn current_commit_id(&self) -> CommitId {
         if self.commit_id.borrow().is_none() {
-            let proto = self.read_proto();
-            let commit_id = CommitId::new(proto.commit_id);
-            self.commit_id.replace(Some(commit_id));
+            self.load_proto();
         }
 
         self.commit_id.borrow().as_ref().unwrap().clone()
@@ -812,6 +827,7 @@ impl WorkingCopy {
 
     fn save(&mut self) {
         let mut proto = crate::protos::working_copy::Checkout::new();
+        proto.operation_id = self.operation_id().to_bytes();
         proto.commit_id = self.current_commit_id().to_bytes();
         self.write_proto(proto);
     }
@@ -820,13 +836,15 @@ impl WorkingCopy {
         let lock_path = self.state_path.join("working_copy.lock");
         let lock = FileLock::lock(lock_path);
 
-        let current_proto = self.read_proto();
-        let old_commit_id = CommitId::new(current_proto.commit_id);
-        self.commit_id.replace(Some(old_commit_id.clone()));
+        // Re-read from disk after taking the lock
+        self.load_proto();
+        let old_operation_id = self.operation_id();
+        let old_commit_id = self.current_commit_id();
 
         LockedWorkingCopy {
             wc: self,
             lock,
+            old_operation_id,
             old_commit_id,
             closed: false,
         }
@@ -834,6 +852,7 @@ impl WorkingCopy {
 
     pub fn check_out(
         &mut self,
+        operation_id: OperationId,
         old_commit_id: Option<&CommitId>,
         new_commit: Commit,
     ) -> Result<CheckoutStats, CheckoutError> {
@@ -846,7 +865,7 @@ impl WorkingCopy {
             }
             other => other,
         }?;
-        locked_wc.finish(new_commit_id);
+        locked_wc.finish(operation_id, new_commit_id);
         Ok(stats)
     }
 }
@@ -857,11 +876,17 @@ pub struct LockedWorkingCopy<'a> {
     wc: &'a mut WorkingCopy,
     #[allow(dead_code)]
     lock: FileLock,
+    old_operation_id: OperationId,
     old_commit_id: CommitId,
     closed: bool,
 }
 
 impl LockedWorkingCopy<'_> {
+    /// The operation at the time the lock was taken
+    pub fn old_operation_id(&self) -> &OperationId {
+        &self.old_operation_id
+    }
+
     /// The commit at the time the lock was taken
     pub fn old_commit_id(&self) -> &CommitId {
         &self.old_commit_id
@@ -901,8 +926,9 @@ impl LockedWorkingCopy<'_> {
         self.wc.tree_state().as_mut().unwrap().reset(new_tree)
     }
 
-    pub fn finish(mut self, commit_id: CommitId) {
+    pub fn finish(mut self, operation_id: OperationId, commit_id: CommitId) {
         self.wc.tree_state().as_mut().unwrap().save();
+        self.wc.operation_id.replace(Some(operation_id));
         self.wc.commit_id.replace(Some(commit_id));
         self.wc.save();
         // TODO: Clear the "pending_checkout" file here.
