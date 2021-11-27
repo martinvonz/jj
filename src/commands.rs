@@ -448,14 +448,16 @@ impl WorkspaceCommandHelper {
             }
         }
         self.repo = tx.commit();
-        let stats = update_working_copy(ui, &self.repo, self.workspace.working_copy_mut())?;
-        if let Some(stats) = stats {
-            if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
-                writeln!(
-                    ui,
-                    "Added {} files, modified {} files, removed {} files",
-                    stats.added_files, stats.updated_files, stats.removed_files
-                )?;
+        if self.may_update_working_copy {
+            let stats = update_working_copy(ui, &self.repo, self.workspace.working_copy_mut())?;
+            if let Some(stats) = stats {
+                if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
+                    writeln!(
+                        ui,
+                        "Added {} files, modified {} files, removed {} files",
+                        stats.added_files, stats.updated_files, stats.removed_files
+                    )?;
+                }
             }
         }
         Ok(())
