@@ -67,6 +67,7 @@ fn test_import_refs() {
     let commit5 = empty_git_commit(&git_repo, "refs/tags/v1.0", &[&commit1]);
     // Should not be imported
     empty_git_commit(&git_repo, "refs/notes/x", &[&commit2]);
+    empty_git_commit(&git_repo, "refs/remotes/origin/HEAD", &[&commit2]);
 
     let git_repo = repo.store().git_repo().unwrap();
     let mut tx = repo.start_transaction("test");
@@ -308,9 +309,8 @@ fn test_fetch_success() {
     assert_eq!(
         *view.git_refs(),
         btreemap! {
-            // The two first refs were created by by git2::Repository::clone()
+            // The second ref was created by by git2::Repository::clone()
             "refs/heads/main".to_string() => initial_commit_target,
-            "refs/remotes/origin/HEAD".to_string() => new_commit_target.clone(),
             "refs/remotes/origin/main".to_string() => new_commit_target.clone(),
         }
     );
@@ -318,10 +318,6 @@ fn test_fetch_success() {
         *view.branches(),
         btreemap! {
             "main".to_string() => BranchTarget {
-                local_target: Some(new_commit_target.clone()),
-                remote_targets: btreemap! {"origin".to_string() => new_commit_target.clone()}
-            },
-            "HEAD".to_string() => BranchTarget {
                 local_target: Some(new_commit_target.clone()),
                 remote_targets: btreemap! {"origin".to_string() => new_commit_target}
             },

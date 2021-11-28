@@ -65,6 +65,13 @@ pub fn import_refs(
             // TODO: Is it useful to import HEAD (especially if it's detached)?
             continue;
         }
+        let full_name = git_ref.name().unwrap().to_string();
+        if let Some(RefName::RemoteBranch { branch, remote: _ }) = parse_git_ref(&full_name) {
+            // "refs/remotes/origin/HEAD" isn't a real remote-tracking branch
+            if &branch == "HEAD" {
+                continue;
+            }
+        }
         let git_commit = match git_ref.peel_to_commit() {
             Ok(git_commit) => git_commit,
             Err(_) => {
@@ -77,7 +84,6 @@ pub fn import_refs(
         mut_repo.add_head(&commit);
         // TODO: Make it configurable which remotes are publishing and update public
         // heads here.
-        let full_name = git_ref.name().unwrap().to_string();
         mut_repo.set_git_ref(full_name.clone(), RefTarget::Normal(id.clone()));
         let old_target = existing_git_refs.remove(&full_name);
         let new_target = Some(RefTarget::Normal(id));
