@@ -62,7 +62,6 @@ pub fn import_refs(
             || git_ref.name().is_none()
         {
             // Skip other refs (such as notes) and symbolic refs, as well as non-utf8 refs.
-            // TODO: Is it useful to import HEAD (especially if it's detached)?
             continue;
         }
         let full_name = git_ref.name().unwrap().to_string();
@@ -113,6 +112,19 @@ pub fn import_refs(
                 );
             }
         }
+    }
+    // TODO: Should this be a separate function? We may not always want to import
+    // the Git HEAD (and add it to our set of heads).
+    if let Ok(head_git_commit) = git_repo
+        .head()
+        .and_then(|head_ref| head_ref.peel_to_commit())
+    {
+        let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
+        let head_commit = store.get_commit(&head_commit_id).unwrap();
+        mut_repo.add_head(&head_commit);
+        mut_repo.set_git_head(head_commit_id);
+    } else {
+        mut_repo.clear_git_head();
     }
     Ok(())
 }

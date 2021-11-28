@@ -71,6 +71,10 @@ impl View {
         &self.data.git_refs
     }
 
+    pub fn git_head(&self) -> Option<CommitId> {
+        self.data.git_head.clone()
+    }
+
     pub fn set_checkout(&mut self, id: CommitId) {
         self.data.checkout = id;
     }
@@ -209,6 +213,14 @@ impl View {
 
     pub fn remove_git_ref(&mut self, name: &str) {
         self.data.git_refs.remove(name);
+    }
+
+    pub fn set_git_head(&mut self, head_id: CommitId) {
+        self.data.git_head = Some(head_id);
+    }
+
+    pub fn clear_git_head(&mut self) {
+        self.data.git_head = None;
     }
 
     pub fn set_view(&mut self, data: op_store::View) {

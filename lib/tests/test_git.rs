@@ -69,6 +69,8 @@ fn test_import_refs() {
     empty_git_commit(&git_repo, "refs/notes/x", &[&commit2]);
     empty_git_commit(&git_repo, "refs/remotes/origin/HEAD", &[&commit2]);
 
+    git_repo.set_head("refs/heads/main").unwrap();
+
     let git_repo = repo.store().git_repo().unwrap();
     let mut tx = repo.start_transaction("test");
     jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
@@ -136,6 +138,7 @@ fn test_import_refs() {
         view.git_refs().get("refs/tags/v1.0"),
         Some(RefTarget::Normal(commit_id(&commit5))).as_ref()
     );
+    assert_eq!(view.git_head(), Some(commit_id(&commit2)));
 }
 
 #[test]
@@ -260,6 +263,43 @@ fn test_import_refs_empty_git_repo() {
     assert_eq!(repo.view().branches().len(), 0);
     assert_eq!(repo.view().tags().len(), 0);
     assert_eq!(repo.view().git_refs().len(), 0);
+    assert_eq!(repo.view().git_head(), None);
+}
+
+#[test]
+fn test_import_refs_detached_head() {
+    let settings = testutils::user_settings();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let git_repo_dir = temp_dir.path().join("source");
+    let jj_repo_dir = temp_dir.path().join("jj");
+
+    let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
+    let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    // Delete the reference. Check that the detached HEAD commit still gets added to
+    // the set of heads
+    git_repo
+        .find_reference("refs/heads/main")
+        .unwrap()
+        .delete()
+        .unwrap();
+    git_repo.set_head_detached(commit1.id()).unwrap();
+
+    std::fs::create_dir(&jj_repo_dir).unwrap();
+    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
+    let mut tx = repo.start_transaction("test");
+    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    let repo = tx.commit();
+
+    let expected_heads = hashset! {
+            repo.view().checkout().clone(),
+            commit_id(&commit1),
+    };
+    assert_eq!(*repo.view().heads(), expected_heads);
+    assert_eq!(repo.view().git_refs().len(), 0);
+    assert_eq!(
+        repo.view().git_head(),
+        Some(CommitId::from_bytes(commit1.id().as_bytes()))
+    );
 }
 
 #[test]

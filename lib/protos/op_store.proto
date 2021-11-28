@@ -64,6 +64,7 @@ message View {
   repeated Tag tags = 6;
   // Only a subset of the refs. For example, does not include refs/notes/.
   repeated GitRef git_refs = 3;
+  bytes git_head = 7;
 }
 
 message Operation {

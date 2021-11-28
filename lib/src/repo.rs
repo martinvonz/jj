@@ -664,6 +664,14 @@ impl MutableRepo {
         self.view.remove_git_ref(name);
     }
 
+    pub fn set_git_head(&mut self, head_id: CommitId) {
+        self.view.set_git_head(head_id);
+    }
+
+    pub fn clear_git_head(&mut self) {
+        self.view.clear_git_head();
+    }
+
     pub fn set_view(&mut self, data: op_store::View) {
         self.view.set_view(data);
         self.enforce_view_invariants();

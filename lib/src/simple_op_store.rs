@@ -237,6 +237,10 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
         proto.git_refs.push(git_ref_proto);
     }
 
+    if let Some(git_head) = &view.git_head {
+        proto.set_git_head(git_head.to_bytes());
+    }
+
     proto
 }
 
@@ -293,6 +297,10 @@ fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
                 RefTarget::Normal(CommitId::new(git_ref.commit_id.clone())),
             );
         }
+    }
+
+    if !proto.git_head.is_empty() {
+        view.git_head = Some(CommitId::new(proto.git_head.clone()));
     }
 
     view
@@ -387,6 +395,7 @@ mod tests {
                 "refs/heads/main".to_string() => git_refs_main_target,
                 "refs/heads/feature".to_string() => git_refs_feature_target
             },
+            git_head: Some(CommitId::from_hex("fff111")),
             checkout: checkout_id,
         };
         let view_id = store.write_view(&view).unwrap();

@@ -142,6 +142,10 @@ pub struct View {
     pub branches: BTreeMap<String, BranchTarget>,
     pub tags: BTreeMap<String, RefTarget>,
     pub git_refs: BTreeMap<String, RefTarget>,
+    /// The commit the Git HEAD points to.
+    // TODO: Support multiple Git worktrees?
+    // TODO: Do we want to store the current branch name too?
+    pub git_head: Option<CommitId>,
     // The commit that *should be* checked out in the (default) working copy. Note that the
     // working copy (.jj/working_copy/) has the source of truth about which commit *is* checked out
     // (to be precise: the commit to which we most recently completed a checkout to).
@@ -157,6 +161,7 @@ impl View {
             branches: BTreeMap::new(),
             tags: BTreeMap::new(),
             git_refs: BTreeMap::new(),
+            git_head: None,
             checkout,
         }
     }
