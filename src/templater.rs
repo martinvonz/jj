@@ -288,6 +288,22 @@ impl TemplateProperty<Commit, String> for GitRefsProperty<'_> {
     }
 }
 
+pub struct IsGitHeadProperty<'a> {
+    repo: RepoRef<'a>,
+}
+
+impl<'a> IsGitHeadProperty<'a> {
+    pub fn new(repo: RepoRef<'a>) -> Self {
+        Self { repo }
+    }
+}
+
+impl TemplateProperty<Commit, bool> for IsGitHeadProperty<'_> {
+    fn extract(&self, context: &Commit) -> bool {
+        self.repo.view().git_head().as_ref() == Some(context.id())
+    }
+}
+
 pub struct DivergentProperty {
     divergent_changes: HashSet<ChangeId>,
 }

@@ -67,6 +67,13 @@ pub enum RepoRef<'a> {
 }
 
 impl<'a> RepoRef<'a> {
+    pub fn base_repo(&self) -> &ReadonlyRepo {
+        match self {
+            RepoRef::Readonly(repo) => repo,
+            RepoRef::Mutable(repo) => repo.base_repo.as_ref(),
+        }
+    }
+
     pub fn store(&self) -> &Arc<Store> {
         match self {
             RepoRef::Readonly(repo) => repo.store(),

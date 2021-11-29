@@ -25,9 +25,9 @@ use crate::formatter::PlainTextFormatter;
 use crate::templater::{
     AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdKeyword, CommitterProperty,
     ConditionalTemplate, ConflictProperty, ConstantTemplateProperty, CurrentCheckoutProperty,
-    DescriptionProperty, DivergentProperty, DynamicLabelTemplate, GitRefsProperty, LabelTemplate,
-    ListTemplate, LiteralTemplate, OpenProperty, StringPropertyTemplate, TagProperty, Template,
-    TemplateFunction, TemplateProperty,
+    DescriptionProperty, DivergentProperty, DynamicLabelTemplate, GitRefsProperty,
+    IsGitHeadProperty, LabelTemplate, ListTemplate, LiteralTemplate, OpenProperty,
+    StringPropertyTemplate, TagProperty, Template, TemplateFunction, TemplateProperty,
 };
 
 #[derive(Parser)]
@@ -242,6 +242,7 @@ fn parse_commit_keyword<'a>(repo: RepoRef<'a>, pair: Pair<Rule>) -> (Property<'a
         "branches" => Property::String(Box::new(BranchProperty { repo })),
         "tags" => Property::String(Box::new(TagProperty { repo })),
         "git_refs" => Property::String(Box::new(GitRefsProperty { repo })),
+        "is_git_head" => Property::Boolean(Box::new(IsGitHeadProperty::new(repo))),
         "divergent" => Property::Boolean(Box::new(DivergentProperty::new(repo))),
         "conflict" => Property::Boolean(Box::new(ConflictProperty)),
         name => panic!("unexpected identifier: {}", name),

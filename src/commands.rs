@@ -2195,6 +2195,7 @@ fn log_template(settings: &UserSettings) -> String {
             " " label("timestamp", author.timestamp())
             " " branches
             " " tags
+            if(is_git_head, label("git_head", " HEAD@git"))
             if(divergent, label("divergent", " divergent"))
             if(conflict, label("conflict", " conflict"))
             "\n"
