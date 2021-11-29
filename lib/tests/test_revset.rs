@@ -982,6 +982,30 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
+fn test_evaluate_expression_git_head(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+
+    // Can get git head when it's not set
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "git_head()"),
+        vec![]
+    );
+    mut_repo.set_git_head(commit1.id().clone());
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "git_head()"),
+        vec![commit1.id().clone()]
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_branches(use_git: bool) {
     let settings = testutils::user_settings();
     let test_workspace = testutils::init_repo(&settings, use_git);

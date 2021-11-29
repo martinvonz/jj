@@ -202,6 +202,7 @@ pub enum RevsetExpression {
     RemoteBranches,
     Tags,
     GitRefs,
+    GitHead,
     ParentCount {
         candidates: Rc<RevsetExpression>,
         parent_count_range: Range<u32>,
@@ -258,6 +259,10 @@ impl RevsetExpression {
 
     pub fn git_refs() -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::GitRefs)
+    }
+
+    pub fn git_head() -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::GitHead)
     }
 
     /// Commits in `self` that don't have descendants in `self`.
@@ -637,6 +642,16 @@ fn parse_function_expression(
         "git_refs" => {
             if arg_count == 0 {
                 Ok(RevsetExpression::git_refs())
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 0 arguments".to_string(),
+                })
+            }
+        }
+        "git_head" => {
+            if arg_count == 0 {
+                Ok(RevsetExpression::git_head())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -1154,6 +1169,10 @@ pub fn evaluate_expression<'repo>(
             for ref_target in repo.view().git_refs().values() {
                 commit_ids.extend(ref_target.adds());
             }
+            Ok(revset_for_commit_ids(repo, &commit_ids))
+        }
+        RevsetExpression::GitHead => {
+            let commit_ids = repo.view().git_head().into_iter().collect_vec();
             Ok(revset_for_commit_ids(repo, &commit_ids))
         }
         RevsetExpression::Description { needle, candidates } => {
