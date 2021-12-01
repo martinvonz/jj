@@ -156,7 +156,7 @@ impl UnpublishedOperation {
 impl Drop for UnpublishedOperation {
     fn drop(&mut self) {
         if !std::thread::panicking() {
-            debug_assert!(
+            assert!(
                 self.closed,
                 "UnpublishedOperation was dropped without being closed."
             );
