@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::fs::File;
 use std::io::Read;
+use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
@@ -417,7 +419,8 @@ impl RepoLoader {
 pub struct MutableRepo {
     base_repo: Arc<ReadonlyRepo>,
     index: MutableIndex,
-    view: View,
+    view: RefCell<View>,
+    view_dirty: bool,
     rewritten_commits: HashMap<CommitId, HashSet<CommitId>>,
     abandoned_commits: HashSet<CommitId>,
 }
@@ -433,7 +436,8 @@ impl MutableRepo {
         MutableRepo {
             base_repo,
             index: mut_index,
-            view: mut_view,
+            view: RefCell::new(mut_view),
+            view_dirty: false,
             rewritten_commits: Default::default(),
             abandoned_commits: Default::default(),
         }
@@ -460,15 +464,23 @@ impl MutableRepo {
     }
 
     pub fn view(&self) -> &View {
-        &self.view
+        self.enforce_view_invariants();
+        let view_borrow = self.view.borrow();
+        let view = view_borrow.deref();
+        unsafe {std::mem::transmute(view)}
     }
 
+    fn view_mut(&mut self) -> &mut View {
+        self.view.get_mut()        
+    } 
+    
     pub fn has_changes(&self) -> bool {
-        self.view != self.base_repo.view
+        self.view.borrow().deref() != &self.base_repo.view
     }
 
     pub fn consume(self) -> (MutableIndex, View) {
-        (self.index, self.view)
+        self.enforce_view_invariants();
+        (self.index, self.view.into_inner())
     }
 
     pub fn write_commit(&mut self, commit: backend::Commit) -> Commit {
@@ -516,11 +528,11 @@ impl MutableRepo {
     }
 
     pub fn set_checkout(&mut self, id: CommitId) {
-        self.view.set_checkout(id);
+        self.view_mut().set_checkout(id);
     }
 
     pub fn check_out(&mut self, settings: &UserSettings, commit: &Commit) -> Commit {
-        let current_checkout_id = self.view.checkout().clone();
+        let current_checkout_id = self.view.borrow().checkout().clone();
         let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
         assert!(current_checkout.is_open(), "current checkout is closed");
         if current_checkout.is_empty() {
@@ -542,15 +554,16 @@ impl MutableRepo {
             open_commit = commit.clone();
         }
         let id = open_commit.id().clone();
-        self.view.set_checkout(id);
+        self.set_checkout(id);
         open_commit
     }
 
-    fn enforce_view_invariants(&mut self) {
-        let view = self.view.store_view_mut();
-        // TODO: This is surely terribly slow on large repos, at least in its current
-        // form. We should avoid calling it in most cases (avoid adding a head that's
-        // already reachable in the view).
+    fn enforce_view_invariants(&self) {
+        if !self.view_dirty {
+            return;
+        }
+        let mut view_borrow_mut = self.view.borrow_mut();
+        let view = view_borrow_mut.store_view_mut();
         view.public_head_ids = self
             .index
             .heads(view.public_head_ids.iter())
@@ -567,7 +580,7 @@ impl MutableRepo {
     }
 
     pub fn add_head(&mut self, head: &Commit) {
-        let current_heads = self.view.heads();
+        let current_heads = self.view.get_mut().heads();
         // Use incremental update for common case of adding a single commit on top a
         // current head. TODO: Also use incremental update when adding a single
         // commit on top a non-head.
@@ -577,9 +590,9 @@ impl MutableRepo {
             .all(|parent_id| current_heads.contains(parent_id))
         {
             self.index.add_commit(head);
-            self.view.add_head(head.id());
+            self.view.get_mut().add_head(head.id());
             for parent_id in head.parent_ids() {
-                self.view.remove_head(&parent_id);
+                self.view.get_mut().remove_head(&parent_id);
             }
         } else {
             let missing_commits = topo_order_reverse(
@@ -596,92 +609,92 @@ impl MutableRepo {
             for missing_commit in missing_commits.iter().rev() {
                 self.index.add_commit(missing_commit);
             }
-            self.view.add_head(head.id());
-            self.enforce_view_invariants();
+            self.view.get_mut().add_head(head.id());
+            self.view_dirty = true;
         }
     }
 
     pub fn remove_head(&mut self, head: &CommitId) {
-        self.view.remove_head(head);
-        self.enforce_view_invariants();
+        self.view_mut().remove_head(head);
+        self.view_dirty = true;
     }
 
     pub fn add_public_head(&mut self, head: &Commit) {
-        self.view.add_public_head(head.id());
-        self.enforce_view_invariants();
+        self.view_mut().add_public_head(head.id());
+        self.view_dirty = true;
     }
 
     pub fn remove_public_head(&mut self, head: &CommitId) {
-        self.view.remove_public_head(head);
+        self.view_mut().remove_public_head(head);
     }
 
-    pub fn get_branch(&self, name: &str) -> Option<&BranchTarget> {
-        self.view.get_branch(name)
+    pub fn get_branch(&self, name: &str) -> Option<BranchTarget> {
+        self.view.borrow().get_branch(name).cloned()
     }
 
     pub fn set_branch(&mut self, name: String, target: BranchTarget) {
-        self.view.set_branch(name, target);
+        self.view_mut().set_branch(name, target);
     }
 
     pub fn remove_branch(&mut self, name: &str) {
-        self.view.remove_branch(name);
+        self.view_mut().remove_branch(name);
     }
 
     pub fn get_local_branch(&self, name: &str) -> Option<RefTarget> {
-        self.view.get_local_branch(name)
+        self.view.borrow().get_local_branch(name)
     }
 
     pub fn set_local_branch(&mut self, name: String, target: RefTarget) {
-        self.view.set_local_branch(name, target);
+        self.view_mut().set_local_branch(name, target);
     }
 
     pub fn remove_local_branch(&mut self, name: &str) {
-        self.view.remove_local_branch(name);
+        self.view_mut().remove_local_branch(name);
     }
 
     pub fn get_remote_branch(&self, name: &str, remote_name: &str) -> Option<RefTarget> {
-        self.view.get_remote_branch(name, remote_name)
+        self.view.borrow().get_remote_branch(name, remote_name)
     }
 
     pub fn set_remote_branch(&mut self, name: String, remote_name: String, target: RefTarget) {
-        self.view.set_remote_branch(name, remote_name, target);
+        self.view_mut().set_remote_branch(name, remote_name, target);
     }
 
     pub fn remove_remote_branch(&mut self, name: &str, remote_name: &str) {
-        self.view.remove_remote_branch(name, remote_name);
+        self.view_mut().remove_remote_branch(name, remote_name);
     }
 
     pub fn get_tag(&self, name: &str) -> Option<RefTarget> {
-        self.view.get_tag(name)
+        self.view.borrow().get_tag(name)
     }
 
     pub fn set_tag(&mut self, name: String, target: RefTarget) {
-        self.view.set_tag(name, target);
+        self.view_mut().set_tag(name, target);
     }
 
     pub fn remove_tag(&mut self, name: &str) {
-        self.view.remove_tag(name);
+        self.view_mut().remove_tag(name);
     }
 
     pub fn set_git_ref(&mut self, name: String, target: RefTarget) {
-        self.view.set_git_ref(name, target);
+        self.view_mut().set_git_ref(name, target);
     }
 
     pub fn remove_git_ref(&mut self, name: &str) {
-        self.view.remove_git_ref(name);
+        self.view_mut().remove_git_ref(name);
     }
 
     pub fn set_git_head(&mut self, head_id: CommitId) {
-        self.view.set_git_head(head_id);
+        self.view_mut().set_git_head(head_id);
     }
 
     pub fn clear_git_head(&mut self) {
-        self.view.clear_git_head();
+        self.view_mut().clear_git_head();
     }
 
     pub fn set_view(&mut self, data: op_store::View) {
-        self.view.set_view(data);
-        self.enforce_view_invariants();
+        self.view_mut().set_view(data);
+        self.view_dirty = true;
     }
 
     pub fn merge(&mut self, base_repo: &ReadonlyRepo, other_repo: &ReadonlyRepo) {
@@ -692,9 +705,10 @@ impl MutableRepo {
         self.index.merge_in(base_repo.index());
         self.index.merge_in(other_repo.index());
 
-        self.view
-            .merge(self.index.as_index_ref(), &base_repo.view, &other_repo.view);
         self.enforce_view_invariants();
+        self.view.get_mut()
+            .merge(self.index.as_index_ref(), &base_repo.view, &other_repo.view);
+        self.view_dirty = true;
     }
 
     pub fn merge_single_ref(
@@ -703,7 +717,7 @@ impl MutableRepo {
         base_target: Option<&RefTarget>,
         other_target: Option<&RefTarget>,
     ) {
-        self.view.merge_single_ref(
+        self.view.get_mut().merge_single_ref(
             self.index.as_index_ref(),
             ref_name,
             base_target,
