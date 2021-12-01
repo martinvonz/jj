@@ -38,7 +38,7 @@ use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::diff::{Diff, DiffHunk};
 use jujutsu_lib::files::DiffLine;
-use jujutsu_lib::git::{GitFetchError, GitRefUpdate};
+use jujutsu_lib::git::{GitFetchError, GitImportError, GitRefUpdate};
 use jujutsu_lib::index::HexPrefix;
 use jujutsu_lib::matchers::{EverythingMatcher, FilesMatcher, Matcher};
 use jujutsu_lib::op_heads_store::OpHeadsStore;
@@ -107,6 +107,15 @@ impl From<DiffEditError> for CommandError {
 impl From<git2::Error> for CommandError {
     fn from(err: git2::Error) -> Self {
         CommandError::UserError(format!("Git operation failed: {}", err))
+    }
+}
+
+impl From<GitImportError> for CommandError {
+    fn from(err: GitImportError) -> Self {
+        CommandError::InternalError(format!(
+            "Failed to import refs from underlying Git repo: {}",
+            err
+        ))
     }
 }
 
@@ -1392,7 +1401,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
         let git_repo = repo.store().git_repo().unwrap();
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo);
         let mut tx = workspace_command.start_transaction("import git refs");
-        git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+        git::import_refs(tx.mut_repo(), &git_repo)?;
         // TODO: Check out a recent commit. Maybe one with the highest generation
         // number.
         if tx.mut_repo().has_changes() {
@@ -3664,8 +3673,7 @@ fn cmd_git_push(
     git::push_updates(&git_repo, remote_name, &ref_updates)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
     let mut tx = workspace_command.start_transaction("import git refs");
-    git::import_refs(tx.mut_repo(), &git_repo)
-        .map_err(|err| CommandError::UserError(err.to_string()))?;
+    git::import_refs(tx.mut_repo(), &git_repo)?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -3679,8 +3687,7 @@ fn cmd_git_import(
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction("import git refs");
-    git::import_refs(tx.mut_repo(), &git_repo)
-        .map_err(|err| CommandError::UserError(err.to_string()))?;
+    git::import_refs(tx.mut_repo(), &git_repo)?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
