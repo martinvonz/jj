@@ -819,6 +819,12 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .default_value("@")
                 .help("The revision to close"),
         )
+        .arg(
+            Arg::with_name("edit")
+                .long("edit")
+                .short("e")
+                .help("Also edit the description"),
+        )
         .arg(message_arg().help("The change description to use (don't open editor)"));
     let open_command = SubCommand::with_name("open")
         .about("Mark a revision open")
@@ -2439,14 +2445,15 @@ fn cmd_close(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
     let repo = workspace_command.repo();
     let mut commit_builder =
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit).set_open(false);
-    let description;
-    if args.is_present("message") {
-        description = args.value_of("message").unwrap().to_string();
+    let description = if args.is_present("message") {
+        args.value_of("message").unwrap().to_string()
     } else if commit.description().is_empty() {
-        description = edit_description(repo, "\n\nJJ: Enter commit description.\n");
+        edit_description(repo, "\n\nJJ: Enter commit description.\n")
+    } else if args.is_present("edit") {
+        edit_description(repo, commit.description())
     } else {
-        description = commit.description().to_string();
-    }
+        commit.description().to_string()
+    };
     commit_builder = commit_builder.set_description(description);
     let mut tx =
         workspace_command.start_transaction(&format!("close commit {}", commit.id().hex()));
