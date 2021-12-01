@@ -74,10 +74,8 @@ M README.md
 ```
 Note that you didn't have to tell Jujutsu to add the change like you would with
 `git add`. You actually don't even need to tell it when you add new files or
-remove existing files. However, the flip side of that is that you need to be
-careful to keep your `.gitignore` up to date since there's currently no easy way
-to say that you want an already added file to not be tracked
-(https://github.com/martinvonz/jj/issues/14).
+remove existing files. To untrack a path, add it to your `.gitignore` and run
+`jj untrack <path>`.
 
 To see the diff, run `jj diff`:
 ```shell script
