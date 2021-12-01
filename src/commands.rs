@@ -232,7 +232,7 @@ struct WorkspaceCommandHelper {
 impl WorkspaceCommandHelper {
     fn for_loaded_repo(
         ui: &Ui,
-        workspace: Workspace,
+        mut workspace: Workspace,
         string_args: Vec<String>,
         root_args: &ArgMatches,
         mut repo: Arc<ReadonlyRepo>,
@@ -243,7 +243,23 @@ impl WorkspaceCommandHelper {
                 let mut tx = repo.start_transaction("import git refs");
                 git::import_refs(tx.mut_repo(), &git_repo)?;
                 if tx.mut_repo().has_changes() {
+                    let old_git_head = repo.view().git_head();
+                    let new_git_head = tx.mut_repo().view().git_head();
+                    // If the Git HEAD has changed, abandon our old checkout and check out the new
+                    // Git HEAD.
+                    let mut new_wc_commit = None;
+                    if new_git_head != old_git_head && new_git_head.is_some() {
+                        tx.mut_repo().record_abandoned_commit(repo.view().checkout().clone());
+                        let new_checkout = repo.store().get_commit(new_git_head.as_ref().unwrap())?;
+                        let new_checkout = tx.mut_repo().check_out(ui.settings(), &new_checkout);
+                        new_wc_commit = Some(new_checkout);
+                        tx.mut_repo().create_descendant_rebaser(ui.settings()).rebase_all();
+                    }
                     repo = tx.commit();
+                    if let Some(new_wc_commit) = new_wc_commit {
+                        let locked_working_copy = workspace.working_copy_mut().write_tree();
+                        locked_working_copy.finish(new_wc_commit);
+                    }
                 }
             }
         }
