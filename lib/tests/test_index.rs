@@ -396,7 +396,6 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
     let mut_repo = tx.mut_repo();
     mut_repo.add_head(&commit_a);
     assert_eq!(mut_repo.index().num_commits(), 2 + 1);
-    tx.discard();
 }
 
 #[must_use]

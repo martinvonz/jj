@@ -29,7 +29,6 @@ pub struct Transaction {
     description: String,
     start_time: Timestamp,
     tags: HashMap<String, String>,
-    closed: bool,
 }
 
 impl Transaction {
@@ -41,7 +40,6 @@ impl Transaction {
             description: description.to_owned(),
             start_time: Timestamp::now(),
             tags: Default::default(),
-            closed: false,
         }
     }
 
@@ -94,20 +92,7 @@ impl Transaction {
             .index_store()
             .associate_file_with_operation(&index, operation.id())
             .unwrap();
-        self.closed = true;
         UnpublishedOperation::new(base_repo.loader(), operation, view, index)
-    }
-
-    pub fn discard(mut self) {
-        self.closed = true;
-    }
-}
-
-impl Drop for Transaction {
-    fn drop(&mut self) {
-        if !std::thread::panicking() {
-            debug_assert!(self.closed, "Transaction was dropped without being closed.");
-        }
     }
 }
 

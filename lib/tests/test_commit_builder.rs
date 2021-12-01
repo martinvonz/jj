@@ -171,7 +171,6 @@ fn test_commit_builder_descendants(use_git: bool) {
         .write_to_repo(tx.mut_repo());
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     assert!(rebaser.rebase_next().is_none());
-    tx.discard();
 
     // Test with for_open_commit()
     let mut tx = repo.start_transaction("test");
@@ -184,7 +183,6 @@ fn test_commit_builder_descendants(use_git: bool) {
     .write_to_repo(tx.mut_repo());
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     assert!(rebaser.rebase_next().is_none());
-    tx.discard();
 
     // Test with for_rewrite_from()
     let mut tx = repo.start_transaction("test");
@@ -193,7 +191,6 @@ fn test_commit_builder_descendants(use_git: bool) {
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     assert_rebased(rebaser.rebase_next(), &commit3, &[&commit4]);
     assert!(rebaser.rebase_next().is_none());
-    tx.discard();
 
     // Test with for_rewrite_from() but new change id
     let mut tx = repo.start_transaction("test");
@@ -202,5 +199,4 @@ fn test_commit_builder_descendants(use_git: bool) {
         .write_to_repo(tx.mut_repo());
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     assert!(rebaser.rebase_next().is_none());
-    tx.discard();
 }

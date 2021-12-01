@@ -258,8 +258,6 @@ fn test_resolve_symbol_checkout(use_git: bool) {
         resolve_symbol(mut_repo.as_repo_ref(), "@"),
         Ok(vec![commit2.id().clone()])
     );
-
-    tx.discard();
 }
 
 #[test]
@@ -382,8 +380,6 @@ fn test_resolve_symbol_git_refs() {
         resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/conflicted"),
         Ok(vec![commit1.id().clone(), commit3.id().clone()])
     );
-
-    tx.discard();
 }
 
 fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
@@ -421,8 +417,6 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
         resolve_commit_ids(mut_repo.as_repo_ref(), "@"),
         vec![commit1.id().clone()]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -485,8 +479,6 @@ fn test_evaluate_expression_heads_of(use_git: bool) {
         resolve_commit_ids(mut_repo.as_repo_ref(), "heads(all())"),
         resolve_commit_ids(mut_repo.as_repo_ref(), "heads()")
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -548,8 +540,6 @@ fn test_evaluate_expression_parents(use_git: bool) {
         ),
         vec![commit3.id().clone(), commit2.id().clone()]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -605,8 +595,6 @@ fn test_evaluate_expression_children(use_git: bool) {
         ),
         vec![commit5.id().clone()]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -643,8 +631,6 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
             root_commit.id().clone(),
         ]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -708,8 +694,6 @@ fn test_evaluate_expression_range(use_git: bool) {
         ),
         vec![commit3.id().clone()]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -780,8 +764,6 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
             commit2.id().clone(),
         ]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -833,8 +815,6 @@ fn test_evaluate_expression_descendants(use_git: bool) {
             commit2.id().clone(),
         ]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -876,8 +856,6 @@ fn test_evaluate_expression_all(use_git: bool) {
             root_commit_id,
         ]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -898,8 +876,6 @@ fn test_evaluate_expression_heads(use_git: bool) {
         resolve_commit_ids(mut_repo.as_repo_ref(), "heads()"),
         vec![commit2.id().clone(), checkout_id]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -933,8 +909,6 @@ fn test_evaluate_expression_public_heads(use_git: bool) {
         resolve_commit_ids(mut_repo.as_repo_ref(), "public_heads()"),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -1004,8 +978,6 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
             commit2.id().clone()
         ]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -1075,8 +1047,6 @@ fn test_evaluate_expression_branches(use_git: bool) {
             commit2.id().clone()
         ]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -1157,8 +1127,6 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
             commit2.id().clone()
         ]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -1190,8 +1158,6 @@ fn test_evaluate_expression_merges(use_git: bool) {
         ),
         vec![commit5.id().clone()]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -1235,8 +1201,6 @@ fn test_evaluate_expression_description(use_git: bool) {
         resolve_commit_ids(mut_repo.as_repo_ref(), "description(\"commit 2\",heads())"),
         vec![]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -1310,8 +1274,6 @@ fn test_evaluate_expression_union(use_git: bool) {
             commit3.id().clone()
         ]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -1352,8 +1314,6 @@ fn test_evaluate_expression_intersection(use_git: bool) {
         ),
         vec![]
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -1428,6 +1388,4 @@ fn test_evaluate_expression_difference(use_git: bool) {
         ),
         vec![commit4.id().clone()]
     );
-
-    tx.discard();
 }

@@ -90,7 +90,6 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     mut_repo.check_out(&settings, &new_checkout);
     mut_repo.create_descendant_rebaser(&settings).rebase_all();
     assert!(mut_repo.view().heads().contains(old_checkout.id()));
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -122,7 +121,6 @@ fn test_checkout_previous_empty(use_git: bool) {
     mut_repo.check_out(&settings, &new_checkout);
     mut_repo.create_descendant_rebaser(&settings).rebase_all();
     assert!(!mut_repo.view().heads().contains(old_checkout.id()));
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -138,7 +136,7 @@ fn test_add_head_success(use_git: bool) {
     // add that as a head.
     let mut tx = repo.start_transaction("test");
     let new_commit = testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
-    tx.discard();
+    drop(tx);
 
     let index_stats = repo.index().stats();
     assert_eq!(index_stats.num_heads, 1);
@@ -188,7 +186,6 @@ fn test_add_head_ancestor(use_git: bool) {
     assert_eq!(index_stats.num_heads, 2);
     assert_eq!(index_stats.num_commits, 5);
     assert_eq!(index_stats.max_generation_number, 3);
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -214,7 +211,7 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     let child = testutils::create_random_commit(&settings, &repo)
         .set_parents(vec![rewritten.id().clone()])
         .write_to_repo(tx.mut_repo());
-    tx.discard();
+    drop(tx);
 
     let index_stats = repo.index().stats();
     assert_eq!(index_stats.num_heads, 2);
@@ -233,7 +230,6 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     assert_eq!(index_stats.num_heads, 3);
     assert_eq!(index_stats.num_commits, 5);
     assert_eq!(index_stats.max_generation_number, 2);
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -385,7 +381,6 @@ fn test_rebase_descendants_simple(use_git: bool) {
         .create_descendant_rebaser(&settings)
         .rebase_next()
         .is_none());
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -420,5 +415,4 @@ fn test_rebase_descendants_conflicting_rewrite(use_git: bool) {
         .create_descendant_rebaser(&settings)
         .rebase_next()
         .is_none());
-    tx.discard();
 }

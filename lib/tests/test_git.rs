@@ -352,8 +352,6 @@ fn test_fetch_prune_deleted_ref() {
         .unwrap();
     git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
     assert!(tx.mut_repo().get_branch("main").is_none());
-
-    tx.discard();
 }
 
 #[test]
@@ -382,7 +380,6 @@ fn test_fetch_no_default_branch() {
     let default_branch = git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
     // There is no default branch
     assert_eq!(default_branch, None);
-    tx.discard();
 }
 
 #[test]
@@ -398,7 +395,6 @@ fn test_fetch_no_such_remote() {
     let mut tx = jj_repo.start_transaction("test");
     let result = git::fetch(tx.mut_repo(), &git_repo, "invalid-remote");
     assert!(matches!(result, Err(GitFetchError::NoSuchRemote(_))));
-    tx.discard();
 }
 
 struct PushTestSetup {

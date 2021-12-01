@@ -451,7 +451,6 @@ impl WorkspaceCommandHelper {
     fn finish_transaction(&mut self, ui: &mut Ui, mut tx: Transaction) -> Result<(), CommandError> {
         let mut_repo = tx.mut_repo();
         if !mut_repo.has_changes() {
-            tx.discard();
             writeln!(ui, "Nothing changed.")?;
             return Ok(());
         }
@@ -1406,8 +1405,6 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
         // number.
         if tx.mut_repo().has_changes() {
             workspace_command.finish_transaction(ui, tx)?;
-        } else {
-            tx.discard();
         }
     } else if args.is_present("git") {
         Workspace::init_internal_git(ui.settings(), wc_path.clone())?;

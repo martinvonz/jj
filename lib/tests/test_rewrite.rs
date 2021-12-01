@@ -68,8 +68,6 @@ fn test_rebase_descendants_sideways(use_git: bool) {
             new_commit_e.id().clone()
         }
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -123,8 +121,6 @@ fn test_rebase_descendants_forward(use_git: bool) {
             new_commit_e.id().clone()
         }
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -163,8 +159,6 @@ fn test_rebase_descendants_backward(use_git: bool) {
         *tx.mut_repo().view().heads(),
         hashset! {repo.view().checkout().clone(), new_commit_d.id().clone()}
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -215,8 +209,6 @@ fn test_rebase_descendants_internal_merge(use_git: bool) {
         *tx.mut_repo().view().heads(),
         hashset! { repo.view().checkout().clone(), new_commit_e.id().clone() }
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -262,8 +254,6 @@ fn test_rebase_descendants_external_merge(use_git: bool) {
         *tx.mut_repo().view().heads(),
         hashset! {repo.view().checkout().clone(), new_commit_e.id().clone()}
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -311,8 +301,6 @@ fn test_rebase_descendants_abandon(use_git: bool) {
             new_commit_f.id().clone()
         }
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -349,8 +337,6 @@ fn test_rebase_descendants_abandon_no_descendants(use_git: bool) {
             commit_a.id().clone(),
         }
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -390,8 +376,6 @@ fn test_rebase_descendants_abandon_and_replace(use_git: bool) {
         *tx.mut_repo().view().heads(),
         hashset! {repo.view().checkout().clone(), new_commit_d.id().clone()}
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -430,8 +414,6 @@ fn test_rebase_descendants_abandon_degenerate_merge(use_git: bool) {
         *tx.mut_repo().view().heads(),
         hashset! {repo.view().checkout().clone(), new_commit_d.id().clone()}
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -478,8 +460,6 @@ fn test_rebase_descendants_abandon_widen_merge(use_git: bool) {
         *tx.mut_repo().view().heads(),
         hashset! {repo.view().checkout().clone(), new_commit_f.id().clone()}
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -528,8 +508,6 @@ fn test_rebase_descendants_multiple_sideways(use_git: bool) {
             new_commit_e.id().clone()
         }
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -576,8 +554,6 @@ fn test_rebase_descendants_multiple_swap(use_git: bool) {
             new_commit_e.id().clone()
         }
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -618,8 +594,6 @@ fn test_rebase_descendants_multiple_no_descendants(use_git: bool) {
             commit_c.id().clone()
         }
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -677,8 +651,6 @@ fn test_rebase_descendants_multiple_forward_and_backward(use_git: bool) {
             new_commit_h.id().clone()
         }
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -748,8 +720,6 @@ fn test_rebase_descendants_divergent_rewrite(use_git: bool) {
             new_commit_g.id().clone(),
         }
     );
-
-    tx.discard();
 }
 
 #[test_case(false ; "local backend")]
@@ -816,8 +786,6 @@ fn test_rebase_descendants_contents(use_git: bool) {
         new_commit_c.tree().path_value(&path2),
         commit_b.tree().path_value(&path2)
     );
-
-    tx.discard();
 }
 
 #[test]
@@ -855,8 +823,6 @@ fn test_rebase_descendants_basic_branch_update() {
         *tx.mut_repo().view().heads(),
         hashset! {repo.view().checkout().clone(), commit_b2.id().clone()}
     );
-
-    tx.discard();
 }
 
 #[test]
@@ -914,8 +880,6 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
         *tx.mut_repo().view().heads(),
         hashset! {repo.view().checkout().clone(), commit_b2.id().clone()}
     );
-
-    tx.discard();
 }
 
 #[test]
@@ -952,8 +916,6 @@ fn test_rebase_descendants_update_branch_after_abandon() {
         *tx.mut_repo().view().heads(),
         hashset! {repo.view().checkout().clone(), commit_a.id().clone()}
     );
-
-    tx.discard();
 }
 
 #[test]
@@ -1013,8 +975,6 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
             commit_b4.id().clone(),
         }
     );
-
-    tx.discard();
 }
 
 #[test]
@@ -1084,8 +1044,6 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
             commit_c.id().clone(),
         }
     );
-
-    tx.discard();
 }
 
 #[test]
@@ -1131,8 +1089,6 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
         *tx.mut_repo().view().heads(),
         hashset! {repo.view().checkout().clone(), commit_b2.id().clone()}
     );
-
-    tx.discard();
 }
 
 // TODO: Add a test for the following case, which can't happen with our current
