@@ -16,7 +16,7 @@ use std::fs::{File, OpenOptions};
 use std::path::PathBuf;
 use std::time::Duration;
 
-use backoff::{ExponentialBackoff, Operation};
+use backoff::{retry, ExponentialBackoff};
 
 pub struct FileLock {
     path: PathBuf,
@@ -28,7 +28,7 @@ impl FileLock {
         let mut options = OpenOptions::new();
         options.create_new(true);
         options.write(true);
-        let mut try_write_lock_file = || match options.open(&path) {
+        let try_write_lock_file = || match options.open(&path) {
             Ok(file) => Ok(FileLock {
                 path: path.clone(),
                 _file: file,
@@ -41,12 +41,12 @@ impl FileLock {
             }
             Err(err) => Err(backoff::Error::Permanent(err)),
         };
-        let mut backoff = ExponentialBackoff {
+        let backoff = ExponentialBackoff {
             initial_interval: Duration::from_millis(1),
             max_elapsed_time: Some(Duration::from_secs(10)),
             ..Default::default()
         };
-        match try_write_lock_file.retry(&mut backoff) {
+        match retry(backoff, try_write_lock_file) {
             Err(err) => panic!(
                 "failed to create lock file {}: {}",
                 path.to_string_lossy(),
