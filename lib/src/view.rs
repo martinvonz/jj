@@ -28,6 +28,7 @@ pub enum RefName {
     GitRef(String),
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct View {
     data: op_store::View,
 }

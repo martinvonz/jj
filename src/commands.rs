@@ -441,6 +441,11 @@ impl WorkspaceCommandHelper {
 
     fn finish_transaction(&mut self, ui: &mut Ui, mut tx: Transaction) -> Result<(), CommandError> {
         let mut_repo = tx.mut_repo();
+        if !mut_repo.has_changes() {
+            tx.discard();
+            writeln!(ui, "Nothing changed.")?;
+            return Ok(());
+        }
         if self.rebase_descendants {
             let num_rebased = rebase_descendants(ui.settings(), mut_repo);
             if num_rebased > 0 {
@@ -1390,7 +1395,11 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
         git::import_refs(tx.mut_repo(), &git_repo).unwrap();
         // TODO: Check out a recent commit. Maybe one with the highest generation
         // number.
-        workspace_command.finish_transaction(ui, tx)?;
+        if tx.mut_repo().has_changes() {
+            workspace_command.finish_transaction(ui, tx)?;
+        } else {
+            tx.discard();
+        }
     } else if args.is_present("git") {
         Workspace::init_internal_git(ui.settings(), wc_path.clone())?;
     } else {
