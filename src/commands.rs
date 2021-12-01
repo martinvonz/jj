@@ -196,7 +196,7 @@ jj init --git-store={} <path to new jj repo>",
             )?;
             repo_loader.load_at(&op)
         };
-        Ok(self.for_loaded_repo(ui, workspace, repo))
+        self.for_loaded_repo(ui, workspace, repo)
     }
 
     fn for_loaded_repo(
@@ -204,7 +204,7 @@ jj init --git-store={} <path to new jj repo>",
         ui: &Ui,
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
-    ) -> WorkspaceCommandHelper {
+    ) -> Result<WorkspaceCommandHelper, CommandError> {
         WorkspaceCommandHelper::for_loaded_repo(
             ui,
             workspace,
@@ -235,18 +235,27 @@ impl WorkspaceCommandHelper {
         workspace: Workspace,
         string_args: Vec<String>,
         root_args: &ArgMatches,
-        repo: Arc<ReadonlyRepo>,
-    ) -> Self {
-        let may_update_working_copy = root_args.value_of("at_op").unwrap() == "@";
-        Self {
+        mut repo: Arc<ReadonlyRepo>,
+    ) -> Result<Self, CommandError> {
+        let loaded_at_head = root_args.value_of("at_op").unwrap() == "@";
+        if let Some(git_repo) = repo.store().git_repo() {
+            if git_repo.workdir() == Some(workspace.workspace_root().as_path()) && loaded_at_head {
+                let mut tx = repo.start_transaction("import git refs");
+                git::import_refs(tx.mut_repo(), &git_repo)?;
+                if tx.mut_repo().has_changes() {
+                    repo = tx.commit();
+                }
+            }
+        }
+        Ok(Self {
             string_args,
             settings: ui.settings().clone(),
             workspace,
             repo,
-            may_update_working_copy,
+            may_update_working_copy: loaded_at_head,
             working_copy_committed: false,
             rebase_descendants: true,
-        }
+        })
     }
 
     fn rebase_descendants(mut self, value: bool) -> Self {
@@ -1404,7 +1413,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
         let (workspace, repo) =
             Workspace::init_external_git(ui.settings(), wc_path.clone(), git_store_path)?;
         let git_repo = repo.store().git_repo().unwrap();
-        let mut workspace_command = command.for_loaded_repo(ui, workspace, repo);
+        let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
         let mut tx = workspace_command.start_transaction("import git refs");
         git::import_refs(tx.mut_repo(), &git_repo)?;
         // TODO: Check out a recent commit. Maybe one with the highest generation
@@ -3550,7 +3559,7 @@ fn cmd_git_clone(
     let (workspace, repo) = Workspace::init_internal_git(ui.settings(), wc_path.clone())?;
     let git_repo = get_git_repo(repo.store())?;
     writeln!(ui, "Fetching into new repo in {:?}", wc_path)?;
-    let mut workspace_command = command.for_loaded_repo(ui, workspace, repo);
+    let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
     let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();
     let mut tx = workspace_command.start_transaction("fetch from git remote into empty repo");
