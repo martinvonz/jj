@@ -422,7 +422,51 @@ fn test_export_refs_current_branch_changed() {
     );
     test_data.repo = tx.commit();
     assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert_eq!(
+        git_repo
+            .find_reference("refs/heads/main")
+            .unwrap()
+            .peel_to_commit()
+            .unwrap()
+            .id(),
+        Oid::from_bytes(new_commit.id().as_bytes()).unwrap()
+    );
     assert!(git_repo.head_detached().unwrap());
+}
+
+#[test]
+fn test_export_refs_unborn_git_branch() {
+    // Can export to an empty Git repo (we can handle Git's "unborn branch" state)
+    let mut test_data = GitRepoData::create();
+    let git_repo = test_data.git_repo;
+    git_repo.set_head("refs/heads/main").unwrap();
+    let mut tx = test_data.repo.start_transaction("test");
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    test_data.repo = tx.commit();
+
+    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    let mut tx = test_data.repo.start_transaction("test");
+    let new_commit = testutils::create_random_commit(&test_data.settings, &test_data.repo)
+        .write_to_repo(tx.mut_repo());
+    tx.mut_repo().set_local_branch(
+        "main".to_string(),
+        RefTarget::Normal(new_commit.id().clone()),
+    );
+    test_data.repo = tx.commit();
+    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert_eq!(
+        git_repo
+            .find_reference("refs/heads/main")
+            .unwrap()
+            .peel_to_commit()
+            .unwrap()
+            .id(),
+        Oid::from_bytes(new_commit.id().as_bytes()).unwrap()
+    );
+    // It's weird that the head is still pointing to refs/heads/main, but
+    // it doesn't seem that Git lets you be on an "unborn branch" while
+    // also being in a "detached HEAD" state.
+    assert!(!git_repo.head_detached().unwrap());
 }
 
 #[test]

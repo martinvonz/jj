@@ -31,6 +31,7 @@ use std::{fs, io};
 
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 use criterion::Criterion;
+use git2::Repository;
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeValue};
 use jujutsu_lib::commit::Commit;
@@ -233,45 +234,19 @@ struct WorkspaceCommandHelper {
 impl WorkspaceCommandHelper {
     fn for_loaded_repo(
         ui: &Ui,
-        mut workspace: Workspace,
+        workspace: Workspace,
         string_args: Vec<String>,
         root_args: &ArgMatches,
-        mut repo: Arc<ReadonlyRepo>,
+        repo: Arc<ReadonlyRepo>,
     ) -> Result<Self, CommandError> {
         let loaded_at_head = root_args.value_of("at_op").unwrap() == "@";
         let mut working_copy_shared_with_git = false;
-        if let Some(git_repo) = repo.store().git_repo() {
+        let maybe_git_repo = repo.store().git_repo();
+        if let Some(git_repo) = &maybe_git_repo {
             working_copy_shared_with_git =
                 git_repo.workdir() == Some(workspace.workspace_root().as_path());
-            if working_copy_shared_with_git && loaded_at_head {
-                let mut tx = repo.start_transaction("import git refs");
-                git::import_refs(tx.mut_repo(), &git_repo)?;
-                if tx.mut_repo().has_changes() {
-                    let old_git_head = repo.view().git_head();
-                    let new_git_head = tx.mut_repo().view().git_head();
-                    // If the Git HEAD has changed, abandon our old checkout and check out the new
-                    // Git HEAD.
-                    let mut new_wc_commit = None;
-                    if new_git_head != old_git_head && new_git_head.is_some() {
-                        tx.mut_repo()
-                            .record_abandoned_commit(repo.view().checkout().clone());
-                        let new_checkout =
-                            repo.store().get_commit(new_git_head.as_ref().unwrap())?;
-                        let new_checkout = tx.mut_repo().check_out(ui.settings(), &new_checkout);
-                        new_wc_commit = Some(new_checkout);
-                        tx.mut_repo()
-                            .create_descendant_rebaser(ui.settings())
-                            .rebase_all();
-                    }
-                    repo = tx.commit();
-                    if let Some(new_wc_commit) = new_wc_commit {
-                        let locked_working_copy = workspace.working_copy_mut().write_tree();
-                        locked_working_copy.finish(new_wc_commit);
-                    }
-                }
-            }
         }
-        Ok(Self {
+        let mut helper = Self {
             string_args,
             settings: ui.settings().clone(),
             workspace,
@@ -280,7 +255,42 @@ impl WorkspaceCommandHelper {
             working_copy_shared_with_git,
             working_copy_committed: false,
             rebase_descendants: true,
-        })
+        };
+        if working_copy_shared_with_git && loaded_at_head {
+            helper.import_git_refs_and_head(maybe_git_repo.as_ref().unwrap())?;
+        }
+        Ok(helper)
+    }
+
+    fn import_git_refs_and_head(&mut self, git_repo: &Repository) -> Result<(), CommandError> {
+        let mut tx = self.start_transaction("import git refs");
+        git::import_refs(tx.mut_repo(), git_repo)?;
+        if tx.mut_repo().has_changes() {
+            let old_git_head = self.repo.view().git_head();
+            let new_git_head = tx.mut_repo().view().git_head();
+            // If the Git HEAD has changed, abandon our old checkout and check out the new
+            // Git HEAD.
+            let mut new_wc_commit = None;
+            if new_git_head != old_git_head && new_git_head.is_some() {
+                tx.mut_repo()
+                    .record_abandoned_commit(self.repo.view().checkout().clone());
+                let new_checkout = self
+                    .repo
+                    .store()
+                    .get_commit(new_git_head.as_ref().unwrap())?;
+                let new_checkout = tx.mut_repo().check_out(&self.settings, &new_checkout);
+                new_wc_commit = Some(new_checkout);
+                tx.mut_repo()
+                    .create_descendant_rebaser(&self.settings)
+                    .rebase_all();
+            }
+            self.repo = tx.commit();
+            if let Some(new_wc_commit) = new_wc_commit {
+                let locked_working_copy = self.workspace.working_copy_mut().write_tree();
+                locked_working_copy.finish(new_wc_commit);
+            }
+        }
+        Ok(())
     }
 
     fn rebase_descendants(mut self, value: bool) -> Self {
