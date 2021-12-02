@@ -467,13 +467,13 @@ impl MutableRepo {
         self.enforce_view_invariants();
         let view_borrow = self.view.borrow();
         let view = view_borrow.deref();
-        unsafe {std::mem::transmute(view)}
+        unsafe { std::mem::transmute(view) }
     }
 
     fn view_mut(&mut self) -> &mut View {
-        self.view.get_mut()        
-    } 
-    
+        self.view.get_mut()
+    }
+
     pub fn has_changes(&self) -> bool {
         self.view.borrow().deref() != &self.base_repo.view
     }
@@ -706,7 +706,8 @@ impl MutableRepo {
         self.index.merge_in(other_repo.index());
 
         self.enforce_view_invariants();
-        self.view.get_mut()
+        self.view
+            .get_mut()
             .merge(self.index.as_index_ref(), &base_repo.view, &other_repo.view);
         self.view_dirty = true;
     }

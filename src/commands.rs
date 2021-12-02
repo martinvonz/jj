@@ -20,7 +20,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fs::OpenOptions;
-use std::io::{Read, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -223,6 +223,7 @@ struct WorkspaceCommandHelper {
     workspace: Workspace,
     repo: Arc<ReadonlyRepo>,
     may_update_working_copy: bool,
+    working_copy_shared_with_git: bool,
     working_copy_committed: bool,
     // Whether to rebase descendants when the transaction finishes. This should generally be true
     // for commands that rewrite commits.
@@ -238,8 +239,11 @@ impl WorkspaceCommandHelper {
         mut repo: Arc<ReadonlyRepo>,
     ) -> Result<Self, CommandError> {
         let loaded_at_head = root_args.value_of("at_op").unwrap() == "@";
+        let mut working_copy_shared_with_git = false;
         if let Some(git_repo) = repo.store().git_repo() {
-            if git_repo.workdir() == Some(workspace.workspace_root().as_path()) && loaded_at_head {
+            working_copy_shared_with_git =
+                git_repo.workdir() == Some(workspace.workspace_root().as_path());
+            if working_copy_shared_with_git && loaded_at_head {
                 let mut tx = repo.start_transaction("import git refs");
                 git::import_refs(tx.mut_repo(), &git_repo)?;
                 if tx.mut_repo().has_changes() {
@@ -249,11 +253,15 @@ impl WorkspaceCommandHelper {
                     // Git HEAD.
                     let mut new_wc_commit = None;
                     if new_git_head != old_git_head && new_git_head.is_some() {
-                        tx.mut_repo().record_abandoned_commit(repo.view().checkout().clone());
-                        let new_checkout = repo.store().get_commit(new_git_head.as_ref().unwrap())?;
+                        tx.mut_repo()
+                            .record_abandoned_commit(repo.view().checkout().clone());
+                        let new_checkout =
+                            repo.store().get_commit(new_git_head.as_ref().unwrap())?;
                         let new_checkout = tx.mut_repo().check_out(ui.settings(), &new_checkout);
                         new_wc_commit = Some(new_checkout);
-                        tx.mut_repo().create_descendant_rebaser(ui.settings()).rebase_all();
+                        tx.mut_repo()
+                            .create_descendant_rebaser(ui.settings())
+                            .rebase_all();
                     }
                     repo = tx.commit();
                     if let Some(new_wc_commit) = new_wc_commit {
@@ -269,6 +277,7 @@ impl WorkspaceCommandHelper {
             workspace,
             repo,
             may_update_working_copy: loaded_at_head,
+            working_copy_shared_with_git,
             working_copy_committed: false,
             rebase_descendants: true,
         })
@@ -297,6 +306,10 @@ impl WorkspaceCommandHelper {
 
     fn workspace_root(&self) -> &PathBuf {
         self.workspace.workspace_root()
+    }
+
+    fn working_copy_shared_with_git(&self) -> bool {
+        self.working_copy_shared_with_git
     }
 
     fn resolve_revision_arg(
@@ -1410,6 +1423,43 @@ fn short_commit_description(commit: &Commit) -> String {
     format!("{} ({})", &commit.id().hex()[0..12], first_line)
 }
 
+fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), CommandError> {
+    let exclude_file_path = git_repo.path().join("info").join("exclude");
+    if exclude_file_path.exists() {
+        match fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&exclude_file_path)
+        {
+            Ok(mut exclude_file) => {
+                let mut buf = vec![];
+                exclude_file.read_to_end(&mut buf)?;
+                let pattern = b"\n/.jj/\n";
+                if !buf.windows(pattern.len()).any(|window| window == pattern) {
+                    exclude_file.seek(SeekFrom::End(0))?;
+                    if !buf.ends_with(b"\n") {
+                        exclude_file.write_all(b"\n")?;
+                    }
+                    exclude_file.write_all(b"/.jj/\n")?;
+                }
+            }
+            Err(err) => {
+                ui.write_error(&format!(
+                    "Failed to add `.jj/` to {}: {}\n",
+                    exclude_file_path.to_string_lossy(),
+                    err
+                ))?;
+            }
+        }
+    } else {
+        ui.write_error(&format!(
+            "Failed to add `.jj/` to {} because it doesn't exist\n",
+            exclude_file_path.to_string_lossy()
+        ))?;
+    }
+    Ok(())
+}
+
 fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
     if args.is_present("git") && args.is_present("git-store") {
         return Err(CommandError::UserError(String::from(
@@ -1430,6 +1480,9 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
             Workspace::init_external_git(ui.settings(), wc_path.clone(), git_store_path)?;
         let git_repo = repo.store().git_repo().unwrap();
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
+        if workspace_command.working_copy_shared_with_git() {
+            add_to_git_exclude(ui, &git_repo)?;
+        }
         let mut tx = workspace_command.start_transaction("import git refs");
         git::import_refs(tx.mut_repo(), &git_repo)?;
         // TODO: Check out a recent commit. Maybe one with the highest generation
