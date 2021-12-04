@@ -39,7 +39,7 @@ use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::diff::{Diff, DiffHunk};
 use jujutsu_lib::files::DiffLine;
-use jujutsu_lib::git::{GitFetchError, GitImportError, GitRefUpdate};
+use jujutsu_lib::git::{GitExportError, GitFetchError, GitImportError, GitRefUpdate};
 use jujutsu_lib::index::HexPrefix;
 use jujutsu_lib::matchers::{EverythingMatcher, FilesMatcher, Matcher};
 use jujutsu_lib::op_heads_store::OpHeadsStore;
@@ -117,6 +117,25 @@ impl From<GitImportError> for CommandError {
             "Failed to import refs from underlying Git repo: {}",
             err
         ))
+    }
+}
+
+impl From<GitExportError> for CommandError {
+    fn from(err: GitExportError) -> Self {
+        match err {
+            GitExportError::ConflictedBranch(branch_name) => CommandError::UserError(format!(
+                "Cannot export conflicted branch '{}'",
+                branch_name
+            )),
+            GitExportError::BranchCheckedOut(branch_name) => CommandError::UserError(format!(
+                "Cannot export branch '{}' because it's checked in the Git repo",
+                branch_name
+            )),
+            GitExportError::InternalGitError(err) => CommandError::InternalError(format!(
+                "Failed to export refs to underlying Git repo: {}",
+                err
+            )),
+        }
     }
 }
 
@@ -1264,6 +1283,10 @@ By default, all branches are pushed. Use `--branch` if you want to push only one
         .subcommand(
             SubCommand::with_name("import")
                 .about("Update repo with changes made in the underlying Git repo"),
+        )
+        .subcommand(
+            SubCommand::with_name("export")
+                .about("Update the underlying Git repo with changes made in the repo"),
         );
     let bench_command = SubCommand::with_name("bench")
         .about("Commands for benchmarking internal operations")
@@ -3784,6 +3807,18 @@ fn cmd_git_import(
     Ok(())
 }
 
+fn cmd_git_export(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &ArgMatches,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
+    let git_repo = get_git_repo(repo.store())?;
+    git::export_refs(repo, &git_repo)?;
+    Ok(())
+}
+
 fn cmd_git(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
     if let Some(command_matches) = args.subcommand_matches("remote") {
         cmd_git_remote(ui, command, command_matches)?;
@@ -3795,6 +3830,8 @@ fn cmd_git(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
         cmd_git_push(ui, command, command_matches)?;
     } else if let Some(command_matches) = args.subcommand_matches("import") {
         cmd_git_import(ui, command, command_matches)?;
+    } else if let Some(command_matches) = args.subcommand_matches("export") {
+        cmd_git_export(ui, command, command_matches)?;
     } else {
         panic!("unhandled command: {:#?}", command.root_args());
     }
