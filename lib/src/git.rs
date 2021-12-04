@@ -12,16 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::fs::OpenOptions;
+use std::io::{Read, Write};
+use std::sync::Arc;
 
-use git2::RemoteCallbacks;
+use git2::{Oid, RemoteCallbacks};
 use itertools::Itertools;
 use thiserror::Error;
 
 use crate::backend::CommitId;
 use crate::commit::Commit;
-use crate::op_store::RefTarget;
-use crate::repo::MutableRepo;
+use crate::op_store::{OperationId, RefTarget};
+use crate::operation::Operation;
+use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use crate::view::RefName;
 
 #[derive(Error, Debug, PartialEq)]
@@ -47,7 +51,7 @@ fn parse_git_ref(ref_name: &str) -> Option<RefName> {
     }
 }
 
-// Reflect changes made in the underlying Git repo in the Jujutsu repo.
+/// Reflect changes made in the underlying Git repo in the Jujutsu repo.
 pub fn import_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
@@ -125,6 +129,110 @@ pub fn import_refs(
         mut_repo.set_git_head(head_commit_id);
     } else {
         mut_repo.clear_git_head();
+    }
+    Ok(())
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum GitExportError {
+    #[error("Cannot export conflicted branch '{0}'")]
+    ConflictedBranch(String),
+    #[error("Unexpected git error when exporting refs: {0}")]
+    InternalGitError(#[from] git2::Error),
+}
+
+/// Reflect changes between two Jujutsu repo states in the underlying Git repo.
+pub fn export_changes(
+    old_repo: RepoRef,
+    new_repo: RepoRef,
+    git_repo: &git2::Repository,
+) -> Result<(), GitExportError> {
+    let old_view = old_repo.view();
+    let new_view = new_repo.view();
+    let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
+    let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
+    // TODO: Check that the ref is not pointed to by any worktree's HEAD.
+    let mut active_branches = HashSet::new();
+    if let Ok(head_ref) = git_repo.head() {
+        if let Some(head_target) = head_ref.name() {
+            active_branches.insert(head_target.to_string());
+        }
+    }
+    let mut detach_head = false;
+    // First find the changes we want need to make and then make them all at once to
+    // reduce the risk of making some changes before we fail.
+    let mut refs_to_update = BTreeMap::new();
+    let mut refs_to_delete = BTreeSet::new();
+    for branch_name in old_branches.union(&new_branches) {
+        let old_branch = old_view.get_local_branch(branch_name);
+        let new_branch = new_view.get_local_branch(branch_name);
+        if new_branch == old_branch {
+            continue;
+        }
+        let git_ref_name = format!("refs/heads/{}", branch_name);
+        if let Some(new_branch) = new_branch {
+            match new_branch {
+                RefTarget::Normal(id) => {
+                    refs_to_update.insert(
+                        git_ref_name.clone(),
+                        Oid::from_bytes(id.as_bytes()).unwrap(),
+                    );
+                }
+                RefTarget::Conflict { .. } => {
+                    return Err(GitExportError::ConflictedBranch(branch_name.to_string()));
+                }
+            }
+        } else {
+            refs_to_delete.insert(git_ref_name.clone());
+        }
+        if active_branches.contains(&git_ref_name) {
+            detach_head = true;
+        }
+    }
+    if detach_head {
+        let current_git_head_ref = git_repo.head()?;
+        let current_git_commit = current_git_head_ref.peel_to_commit()?;
+        git_repo.set_head_detached(current_git_commit.id())?;
+    }
+    for (git_ref_name, new_target) in refs_to_update {
+        git_repo.reference(&git_ref_name, new_target, true, "export from jj")?;
+    }
+    for git_ref_name in refs_to_delete {
+        if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
+            git_ref.delete()?;
+        }
+    }
+    Ok(())
+}
+
+/// Reflect changes made in the Jujutsu repo since last export in the underlying
+/// Git repo. If this is the first export, nothing will be exported. The
+/// exported state's operation ID is recorded in the repo (`.jj/
+/// git_export_operation_id`).
+pub fn export_refs(
+    repo: &Arc<ReadonlyRepo>,
+    git_repo: &git2::Repository,
+) -> Result<(), GitExportError> {
+    let last_export_path = repo.repo_path().join("git_export_operation_id");
+    if let Ok(mut last_export_file) = OpenOptions::new().read(true).open(&last_export_path) {
+        let mut buf = vec![];
+        last_export_file.read_to_end(&mut buf).unwrap();
+        let last_export_op_id = OperationId::from_hex(String::from_utf8(buf).unwrap().as_str());
+        let loader = repo.loader();
+        let op_store = loader.op_store();
+        let last_export_store_op = op_store.read_operation(&last_export_op_id).unwrap();
+        let last_export_op =
+            Operation::new(op_store.clone(), last_export_op_id, last_export_store_op);
+        let old_repo = repo.loader().load_at(&last_export_op);
+        export_changes(old_repo.as_repo_ref(), repo.as_repo_ref(), git_repo)?;
+    }
+    if let Ok(mut last_export_file) = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&last_export_path)
+    {
+        let buf = repo.op_id().hex().as_bytes().to_vec();
+        last_export_file.write_all(&buf).unwrap();
     }
     Ok(())
 }

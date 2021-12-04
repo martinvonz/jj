@@ -245,6 +245,7 @@ fn delete_git_ref(git_repo: &git2::Repository, name: &str) {
 }
 
 struct GitRepoData {
+    settings: UserSettings,
     _temp_dir: TempDir,
     origin_repo: git2::Repository,
     git_repo: git2::Repository,
@@ -264,6 +265,7 @@ impl GitRepoData {
         std::fs::create_dir(&jj_repo_dir).unwrap();
         let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
         Self {
+            settings,
             _temp_dir: temp_dir,
             origin_repo,
             git_repo,
@@ -314,6 +316,113 @@ fn test_import_refs_detached_head() {
         repo.view().git_head(),
         Some(CommitId::from_bytes(commit1.id().as_bytes()))
     );
+}
+
+#[test]
+fn test_export_refs_initial() {
+    // The first export doesn't do anything
+    let mut test_data = GitRepoData::create();
+    let git_repo = test_data.git_repo;
+    let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    git_repo.set_head("refs/heads/main").unwrap();
+    let mut tx = test_data.repo.start_transaction("test");
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    test_data.repo = tx.commit();
+
+    // The first export shouldn't do anything
+    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/main"));
+    assert_eq!(
+        git_repo.find_reference("refs/heads/main").unwrap().target(),
+        Some(commit1.id())
+    );
+}
+
+#[test]
+fn test_export_refs_no_op() {
+    // Nothing changes on the git side if nothing changed on the jj side
+    let mut test_data = GitRepoData::create();
+    let git_repo = test_data.git_repo;
+    let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    git_repo.set_head("refs/heads/main").unwrap();
+
+    let mut tx = test_data.repo.start_transaction("test");
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    test_data.repo = tx.commit();
+
+    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    // The export should be a no-op since nothing changed on the jj side since last
+    // export
+    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/main"));
+    assert_eq!(
+        git_repo.find_reference("refs/heads/main").unwrap().target(),
+        Some(commit1.id())
+    );
+}
+
+#[test]
+fn test_export_refs_branch_changed() {
+    // We can export a change to a branch
+    let mut test_data = GitRepoData::create();
+    let git_repo = test_data.git_repo;
+    let commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    git_repo
+        .reference("refs/heads/feature", commit.id(), false, "test")
+        .unwrap();
+    git_repo.set_head("refs/heads/feature").unwrap();
+
+    let mut tx = test_data.repo.start_transaction("test");
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    test_data.repo = tx.commit();
+
+    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    let mut tx = test_data.repo.start_transaction("test");
+    let new_commit = testutils::create_random_commit(&test_data.settings, &test_data.repo)
+        .set_parents(vec![CommitId::from_bytes(commit.id().as_bytes())])
+        .write_to_repo(tx.mut_repo());
+    tx.mut_repo().set_local_branch(
+        "main".to_string(),
+        RefTarget::Normal(new_commit.id().clone()),
+    );
+    test_data.repo = tx.commit();
+    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert_eq!(
+        git_repo
+            .find_reference("refs/heads/main")
+            .unwrap()
+            .peel_to_commit()
+            .unwrap()
+            .id(),
+        Oid::from_bytes(new_commit.id().as_bytes()).unwrap()
+    );
+    // HEAD should be unchanged since its target branch didn't change
+    assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/feature"));
+}
+
+#[test]
+fn test_export_refs_current_branch_changed() {
+    // If we update a branch that is checked out in the git repo, HEAD gets detached
+    let mut test_data = GitRepoData::create();
+    let git_repo = test_data.git_repo;
+    let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    git_repo.set_head("refs/heads/main").unwrap();
+    let mut tx = test_data.repo.start_transaction("test");
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    test_data.repo = tx.commit();
+
+    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    let mut tx = test_data.repo.start_transaction("test");
+    let new_commit = testutils::create_random_commit(&test_data.settings, &test_data.repo)
+        .set_parents(vec![CommitId::from_bytes(commit1.id().as_bytes())])
+        .write_to_repo(tx.mut_repo());
+    tx.mut_repo().set_local_branch(
+        "main".to_string(),
+        RefTarget::Normal(new_commit.id().clone()),
+    );
+    test_data.repo = tx.commit();
+    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert!(git_repo.head_detached().unwrap());
 }
 
 #[test]
