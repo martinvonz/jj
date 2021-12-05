@@ -475,6 +475,7 @@ impl MutableRepo {
     }
 
     pub fn has_changes(&self) -> bool {
+        self.enforce_view_invariants();
         self.view.borrow().deref() != &self.base_repo.view
     }
 
@@ -626,6 +627,7 @@ impl MutableRepo {
 
     pub fn remove_public_head(&mut self, head: &CommitId) {
         self.view_mut().remove_public_head(head);
+        self.view_dirty = true;
     }
 
     pub fn get_branch(&self, name: &str) -> Option<BranchTarget> {

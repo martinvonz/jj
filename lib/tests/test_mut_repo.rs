@@ -13,8 +13,10 @@
 // limitations under the License.
 
 use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::{assert_rebased, CommitGraphBuilder};
+use maplit::hashset;
 use test_case::test_case;
 
 // TODO Many of the tests here are not run with Git because they end up creating
@@ -343,6 +345,94 @@ fn test_remove_public_head(use_git: bool) {
     assert!(!mut_repo.view().public_heads().contains(commit1.id()));
     let repo = tx.commit();
     assert!(!repo.view().public_heads().contains(commit1.id()));
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_has_changed(use_git: bool) {
+    // Test that MutableRepo::has_changed() reports changes iff the view has changed
+    // (e.g. not after setting a branch to point to where it was already
+    // pointing).
+    let settings = testutils::user_settings();
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    mut_repo.remove_head(repo.view().checkout());
+    mut_repo.remove_head(commit2.id());
+    mut_repo.add_public_head(&commit1);
+    mut_repo.set_checkout(commit1.id().clone());
+    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
+    mut_repo.set_remote_branch(
+        "main".to_string(),
+        "origin".to_string(),
+        RefTarget::Normal(commit1.id().clone()),
+    );
+    let repo = tx.commit();
+    // Test the setup
+    assert_eq!(repo.view().heads(), &hashset! {commit1.id().clone()});
+    assert_eq!(repo.view().public_heads(), &hashset! {commit1.id().clone()});
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    mut_repo.add_public_head(&commit1);
+    mut_repo.add_head(&commit1);
+    mut_repo.set_checkout(commit1.id().clone());
+    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
+    mut_repo.set_remote_branch(
+        "main".to_string(),
+        "origin".to_string(),
+        RefTarget::Normal(commit1.id().clone()),
+    );
+    assert!(!mut_repo.has_changes());
+
+    mut_repo.remove_public_head(commit2.id());
+    mut_repo.remove_head(commit2.id());
+    mut_repo.remove_local_branch("stable");
+    mut_repo.remove_remote_branch("stable", "origin");
+    assert!(!mut_repo.has_changes());
+
+    mut_repo.add_head(&commit2);
+    assert!(mut_repo.has_changes());
+    mut_repo.remove_head(commit2.id());
+    assert!(!mut_repo.has_changes());
+
+    mut_repo.add_public_head(&commit2);
+    assert!(mut_repo.has_changes());
+    mut_repo.remove_public_head(commit2.id());
+    // The commit was added as a visible head when we called has_changes() above.
+    // That's a weird side-effect.
+    // TODO: Should we make add_public_head() also add it as a visible head? Or
+    // should we decouple the two sets completely?
+    mut_repo.remove_head(commit2.id());
+    assert!(!mut_repo.has_changes());
+
+    mut_repo.set_checkout(commit2.id().clone());
+    assert!(mut_repo.has_changes());
+    mut_repo.set_checkout(commit1.id().clone());
+    assert!(!mut_repo.has_changes());
+
+    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit2.id().clone()));
+    assert!(mut_repo.has_changes());
+    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
+    assert!(!mut_repo.has_changes());
+
+    mut_repo.set_remote_branch(
+        "main".to_string(),
+        "origin".to_string(),
+        RefTarget::Normal(commit2.id().clone()),
+    );
+    assert!(mut_repo.has_changes());
+    mut_repo.set_remote_branch(
+        "main".to_string(),
+        "origin".to_string(),
+        RefTarget::Normal(commit1.id().clone()),
+    );
+    assert!(!mut_repo.has_changes());
 }
 
 #[test_case(false ; "local backend")]
