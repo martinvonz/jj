@@ -31,7 +31,7 @@ use std::{fs, io};
 
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 use criterion::Criterion;
-use git2::Repository;
+use git2::{Oid, Repository};
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeValue};
 use jujutsu_lib::commit::Commit;
@@ -125,10 +125,6 @@ impl From<GitExportError> for CommandError {
         match err {
             GitExportError::ConflictedBranch(branch_name) => CommandError::UserError(format!(
                 "Cannot export conflicted branch '{}'",
-                branch_name
-            )),
-            GitExportError::BranchCheckedOut(branch_name) => CommandError::UserError(format!(
-                "Cannot export branch '{}' because it's checked in the Git repo",
                 branch_name
             )),
             GitExportError::InternalGitError(err) => CommandError::InternalError(format!(
@@ -308,6 +304,29 @@ impl WorkspaceCommandHelper {
                 let locked_working_copy = self.workspace.working_copy_mut().write_tree();
                 locked_working_copy.finish(new_wc_commit);
             }
+        }
+        Ok(())
+    }
+
+    fn export_git_refs_and_head(&mut self) -> Result<(), CommandError> {
+        let repo = self.repo();
+        let git_repo = repo.store().git_repo().unwrap();
+        let current_git_head_ref = git_repo.find_reference("HEAD").unwrap();
+        let current_git_commit_id = current_git_head_ref
+            .peel_to_commit()
+            .ok()
+            .map(|commit| commit.id());
+        git::export_refs(repo, &git_repo)?;
+        let checkout_id = repo.view().checkout();
+        let first_parent_id =
+            repo.index().entry_by_id(checkout_id).unwrap().parents()[0].commit_id();
+        if first_parent_id != *repo.store().root_commit_id() {
+            if let Some(current_git_commit_id) = current_git_commit_id {
+                git_repo.set_head_detached(current_git_commit_id)?;
+            }
+            let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
+            let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
+            git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
         }
         Ok(())
     }
@@ -539,6 +558,9 @@ impl WorkspaceCommandHelper {
                     )?;
                 }
             }
+        }
+        if self.working_copy_shared_with_git {
+            self.export_git_refs_and_head()?;
         }
         Ok(())
     }

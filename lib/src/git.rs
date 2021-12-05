@@ -153,8 +153,8 @@ pub fn export_changes(
     let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
     // TODO: Check that the ref is not pointed to by any worktree's HEAD.
     let mut active_branches = HashSet::new();
-    if let Ok(head_ref) = git_repo.head() {
-        if let Some(head_target) = head_ref.name() {
+    if let Ok(head_ref) = git_repo.find_reference("HEAD") {
+        if let Some(head_target) = head_ref.symbolic_target() {
             active_branches.insert(head_target.to_string());
         }
     }
@@ -190,9 +190,11 @@ pub fn export_changes(
         }
     }
     if detach_head {
-        let current_git_head_ref = git_repo.head()?;
-        let current_git_commit = current_git_head_ref.peel_to_commit()?;
-        git_repo.set_head_detached(current_git_commit.id())?;
+        if let Ok(head_ref) = git_repo.find_reference("HEAD") {
+            if let Ok(current_git_commit) = head_ref.peel_to_commit() {
+                git_repo.set_head_detached(current_git_commit.id())?;
+            }
+        }
     }
     for (git_ref_name, new_target) in refs_to_update {
         git_repo.reference(&git_ref_name, new_target, true, "export from jj")?;
