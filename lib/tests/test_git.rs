@@ -236,6 +236,27 @@ fn test_import_refs_reimport() {
     );
 }
 
+#[test]
+fn test_import_refs_reimport_head_removed() {
+    // Test that re-importing refs doesn't cause a deleted head to come back
+    let settings = testutils::user_settings();
+    let test_workspace = testutils::init_repo(&settings, true);
+    let repo = &test_workspace.repo;
+    let git_repo = repo.store().git_repo().unwrap();
+
+    let commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    let mut tx = repo.start_transaction("test");
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    let commit_id = CommitId::from_bytes(commit.id().as_bytes());
+    // Test the setup
+    assert!(tx.mut_repo().view().heads().contains(&commit_id));
+
+    // Remove the head and re-import
+    tx.mut_repo().remove_head(&commit_id);
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    assert!(!tx.mut_repo().view().heads().contains(&commit_id));
+}
+
 fn git_ref(git_repo: &git2::Repository, name: &str, target: Oid) {
     git_repo.reference(name, target, true, "").unwrap();
 }
