@@ -18,7 +18,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use crate::backend;
-use crate::backend::{ChangeId, CommitId, Signature};
+use crate::backend::{ChangeId, CommitId, Signature, TreeId};
 use crate::repo_path::RepoPath;
 use crate::store::Store;
 use crate::tree::Tree;
@@ -110,6 +110,10 @@ impl Commit {
         self.store
             .get_tree(&RepoPath::root(), &self.data.root_tree)
             .unwrap()
+    }
+
+    pub fn tree_id(&self) -> &TreeId {
+        &self.data.root_tree
     }
 
     pub fn change_id(&self) -> &ChangeId {

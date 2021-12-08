@@ -61,10 +61,24 @@ pub fn rebase_commit(
     new_parents: &[Commit],
 ) -> Commit {
     let store = mut_repo.store();
-    let old_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &old_commit.parents());
-    let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), new_parents);
-    // TODO: pass in labels for the merge parts
-    let new_tree_id = merge_trees(&new_base_tree, &old_base_tree, &old_commit.tree()).unwrap();
+    let old_parents = old_commit.parents();
+    let old_parent_trees = old_parents
+        .iter()
+        .map(|parent| parent.store_commit().root_tree.clone())
+        .collect_vec();
+    let new_parent_trees = new_parents
+        .iter()
+        .map(|parent| parent.store_commit().root_tree.clone())
+        .collect_vec();
+    let new_tree_id = if new_parent_trees == old_parent_trees {
+        // Optimization
+        old_commit.tree_id().clone()
+    } else {
+        let old_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &old_parents);
+        let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), new_parents);
+        // TODO: pass in labels for the merge parts
+        merge_trees(&new_base_tree, &old_base_tree, &old_commit.tree()).unwrap()
+    };
     let new_parent_ids = new_parents
         .iter()
         .map(|commit| commit.id().clone())
