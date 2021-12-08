@@ -264,7 +264,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     }
 
     fn update_references(&mut self, old_commit_id: CommitId, new_commit_ids: Vec<CommitId>) {
-        if *self.mut_repo.view().checkout() == old_commit_id {
+        if self.mut_repo.get_checkout() == old_commit_id {
             // We arbitrarily pick a new checkout among the candidates.
             let new_commit_id = new_commit_ids[0].clone();
             let new_commit = self.mut_repo.store().get_commit(&new_commit_id).unwrap();
@@ -272,10 +272,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         }
 
         if let Some(branch_names) = self.branches.get(&old_commit_id) {
-            let view = self.mut_repo.view();
             let mut branch_updates = vec![];
             for branch_name in branch_names {
-                let local_target = view.get_local_branch(branch_name).unwrap();
+                let local_target = self.mut_repo.get_local_branch(branch_name).unwrap();
                 for old_add in local_target.adds() {
                     if old_add == old_commit_id {
                         branch_updates.push((branch_name.clone(), true));

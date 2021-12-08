@@ -528,6 +528,10 @@ impl MutableRepo {
         )
     }
 
+    pub fn get_checkout(&mut self) -> CommitId {
+        self.view.borrow().checkout().clone()
+    }
+
     pub fn set_checkout(&mut self, id: CommitId) {
         self.view_mut().set_checkout(id);
     }
