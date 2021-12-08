@@ -73,7 +73,7 @@ fn test_import_refs() {
 
     let git_repo = repo.store().git_repo().unwrap();
     let mut tx = repo.start_transaction("test");
-    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     let repo = tx.commit();
     let view = repo.view();
 
@@ -159,7 +159,7 @@ fn test_import_refs_reimport() {
         .unwrap();
 
     let mut tx = repo.start_transaction("test");
-    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     let repo = tx.commit();
 
     // Delete feature1 and rewrite feature2
@@ -179,7 +179,7 @@ fn test_import_refs_reimport() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     let repo = tx.commit();
 
     let view = repo.view();
@@ -244,20 +244,40 @@ fn delete_git_ref(git_repo: &git2::Repository, name: &str) {
     git_repo.find_reference(name).unwrap().delete().unwrap();
 }
 
+struct GitRepoData {
+    _temp_dir: TempDir,
+    origin_repo: git2::Repository,
+    git_repo: git2::Repository,
+    repo: Arc<ReadonlyRepo>,
+}
+
+impl GitRepoData {
+    fn create() -> Self {
+        let settings = testutils::user_settings();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let origin_repo_dir = temp_dir.path().join("source");
+        let origin_repo = git2::Repository::init_bare(&origin_repo_dir).unwrap();
+        let git_repo_dir = temp_dir.path().join("git");
+        let git_repo =
+            git2::Repository::clone(origin_repo_dir.to_str().unwrap(), &git_repo_dir).unwrap();
+        let jj_repo_dir = temp_dir.path().join("jj");
+        std::fs::create_dir(&jj_repo_dir).unwrap();
+        let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
+        Self {
+            _temp_dir: temp_dir,
+            origin_repo,
+            git_repo,
+            repo,
+        }
+    }
+}
+
 #[test]
 fn test_import_refs_empty_git_repo() {
-    let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
-    let git_repo_dir = temp_dir.path().join("source");
-    let jj_repo_dir = temp_dir.path().join("jj");
-
-    let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
-
-    std::fs::create_dir(&jj_repo_dir).unwrap();
-    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
-    let heads_before = repo.view().heads().clone();
-    let mut tx = repo.start_transaction("test");
-    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    let test_data = GitRepoData::create();
+    let heads_before = test_data.repo.view().heads().clone();
+    let mut tx = test_data.repo.start_transaction("test");
+    git::import_refs(tx.mut_repo(), &test_data.git_repo).unwrap();
     let repo = tx.commit();
     assert_eq!(*repo.view().heads(), heads_before);
     assert_eq!(repo.view().branches().len(), 0);
@@ -268,26 +288,20 @@ fn test_import_refs_empty_git_repo() {
 
 #[test]
 fn test_import_refs_detached_head() {
-    let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
-    let git_repo_dir = temp_dir.path().join("source");
-    let jj_repo_dir = temp_dir.path().join("jj");
-
-    let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
-    let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    let test_data = GitRepoData::create();
+    let commit1 = empty_git_commit(&test_data.git_repo, "refs/heads/main", &[]);
     // Delete the reference. Check that the detached HEAD commit still gets added to
     // the set of heads
-    git_repo
+    test_data
+        .git_repo
         .find_reference("refs/heads/main")
         .unwrap()
         .delete()
         .unwrap();
-    git_repo.set_head_detached(commit1.id()).unwrap();
+    test_data.git_repo.set_head_detached(commit1.id()).unwrap();
 
-    std::fs::create_dir(&jj_repo_dir).unwrap();
-    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
-    let mut tx = repo.start_transaction("test");
-    jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    let mut tx = test_data.repo.start_transaction("test");
+    git::import_refs(tx.mut_repo(), &test_data.git_repo).unwrap();
     let repo = tx.commit();
 
     let expected_heads = hashset! {
@@ -319,38 +333,76 @@ fn test_init() {
 }
 
 #[test]
+fn test_fetch_empty_repo() {
+    let test_data = GitRepoData::create();
+
+    let mut tx = test_data.repo.start_transaction("test");
+    let default_branch = git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
+    // No default branch and no refs
+    assert_eq!(default_branch, None);
+    assert_eq!(*tx.mut_repo().view().git_refs(), btreemap! {});
+    assert_eq!(*tx.mut_repo().view().branches(), btreemap! {});
+}
+
+#[test]
+fn test_fetch_initial_commit() {
+    let test_data = GitRepoData::create();
+    let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
+
+    let mut tx = test_data.repo.start_transaction("test");
+    let default_branch = git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
+    // No default branch because the origin repo's HEAD wasn't set
+    assert_eq!(default_branch, None);
+    let repo = tx.commit();
+    // The initial commit commit is visible after git::fetch().
+    let view = repo.view();
+    assert!(view.heads().contains(&commit_id(&initial_git_commit)));
+    let initial_commit_target = RefTarget::Normal(commit_id(&initial_git_commit));
+    assert_eq!(
+        *view.git_refs(),
+        btreemap! {
+            "refs/remotes/origin/main".to_string() => initial_commit_target.clone(),
+        }
+    );
+    assert_eq!(
+        *view.branches(),
+        btreemap! {
+            "main".to_string() => BranchTarget {
+                local_target: Some(initial_commit_target.clone()),
+                remote_targets: btreemap! {"origin".to_string() => initial_commit_target}
+            },
+        }
+    );
+}
+
+#[test]
 fn test_fetch_success() {
-    let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
-    let source_repo_dir = temp_dir.path().join("source");
-    let clone_repo_dir = temp_dir.path().join("clone");
-    let jj_repo_dir = temp_dir.path().join("jj");
-    let source_git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
-    let initial_git_commit = empty_git_commit(&source_git_repo, "refs/heads/main", &[]);
-    source_git_repo.set_head("refs/heads/main").unwrap();
-    let clone_git_repo =
-        git2::Repository::clone(source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
-    std::fs::create_dir(&jj_repo_dir).unwrap();
-    let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, clone_repo_dir);
+    let mut test_data = GitRepoData::create();
+    let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
-    let new_git_commit =
-        empty_git_commit(&source_git_repo, "refs/heads/main", &[&initial_git_commit]);
+    let mut tx = test_data.repo.start_transaction("test");
+    git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
+    test_data.repo = tx.commit();
 
-    let mut tx = jj_repo.start_transaction("test");
-    let default_branch = git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
+    test_data.origin_repo.set_head("refs/heads/main").unwrap();
+    let new_git_commit = empty_git_commit(
+        &test_data.origin_repo,
+        "refs/heads/main",
+        &[&initial_git_commit],
+    );
+
+    let mut tx = test_data.repo.start_transaction("test");
+    let default_branch = git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
     // The default branch is "main"
     assert_eq!(default_branch, Some("main".to_string()));
     let repo = tx.commit();
-    // The new commit is visible after git::fetch().
+    // The new commit is visible after we fetch again
     let view = repo.view();
     assert!(view.heads().contains(&commit_id(&new_git_commit)));
-    let initial_commit_target = RefTarget::Normal(commit_id(&initial_git_commit));
     let new_commit_target = RefTarget::Normal(commit_id(&new_git_commit));
     assert_eq!(
         *view.git_refs(),
         btreemap! {
-            // The second ref was created by by git2::Repository::clone()
-            "refs/heads/main".to_string() => initial_commit_target,
             "refs/remotes/origin/main".to_string() => new_commit_target.clone(),
         }
     );
@@ -367,73 +419,57 @@ fn test_fetch_success() {
 
 #[test]
 fn test_fetch_prune_deleted_ref() {
-    let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
-    let source_repo_dir = temp_dir.path().join("source");
-    let clone_repo_dir = temp_dir.path().join("clone");
-    let jj_repo_dir = temp_dir.path().join("jj");
-    let source_git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
-    empty_git_commit(&source_git_repo, "refs/heads/main", &[]);
-    let clone_git_repo =
-        git2::Repository::clone(source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
-    std::fs::create_dir(&jj_repo_dir).unwrap();
-    let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, clone_repo_dir);
+    let test_data = GitRepoData::create();
+    empty_git_commit(&test_data.git_repo, "refs/heads/main", &[]);
 
-    let mut tx = jj_repo.start_transaction("test");
-    git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
+    let mut tx = test_data.repo.start_transaction("test");
+    git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
     // Test the setup
     assert!(tx.mut_repo().get_branch("main").is_some());
 
-    // After re-fetching, the branch should be deleted
-    source_git_repo
+    test_data
+        .git_repo
         .find_reference("refs/heads/main")
         .unwrap()
         .delete()
         .unwrap();
-    git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
+    // After re-fetching, the branch should be deleted
+    git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
     assert!(tx.mut_repo().get_branch("main").is_none());
 }
 
 #[test]
 fn test_fetch_no_default_branch() {
-    let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
-    let source_repo_dir = temp_dir.path().join("source");
-    let clone_repo_dir = temp_dir.path().join("clone");
-    let jj_repo_dir = temp_dir.path().join("jj");
-    let source_git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
-    let initial_git_commit = empty_git_commit(&source_git_repo, "refs/heads/main", &[]);
-    let clone_git_repo =
-        git2::Repository::clone(source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
-    std::fs::create_dir(&jj_repo_dir).unwrap();
-    let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, clone_repo_dir);
+    let test_data = GitRepoData::create();
+    let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
-    empty_git_commit(&source_git_repo, "refs/heads/main", &[&initial_git_commit]);
+    let mut tx = test_data.repo.start_transaction("test");
+    git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
+
+    empty_git_commit(
+        &test_data.origin_repo,
+        "refs/heads/main",
+        &[&initial_git_commit],
+    );
     // It's actually not enough to have a detached HEAD, it also needs to point to a
-    // commit without a commit (that's possibly a bug in Git *and* libgit2), so
+    // commit without a branch (that's possibly a bug in Git *and* libgit2), so
     // we point it to initial_git_commit.
-    source_git_repo
+    test_data
+        .origin_repo
         .set_head_detached(initial_git_commit.id())
         .unwrap();
 
-    let mut tx = jj_repo.start_transaction("test");
-    let default_branch = git::fetch(tx.mut_repo(), &clone_git_repo, "origin").unwrap();
+    let default_branch = git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
     // There is no default branch
     assert_eq!(default_branch, None);
 }
 
 #[test]
 fn test_fetch_no_such_remote() {
-    let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
-    let source_repo_dir = temp_dir.path().join("source");
-    let jj_repo_dir = temp_dir.path().join("jj");
-    let git_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
-    std::fs::create_dir(&jj_repo_dir).unwrap();
-    let jj_repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, source_repo_dir);
+    let test_data = GitRepoData::create();
 
-    let mut tx = jj_repo.start_transaction("test");
-    let result = git::fetch(tx.mut_repo(), &git_repo, "invalid-remote");
+    let mut tx = test_data.repo.start_transaction("test");
+    let result = git::fetch(tx.mut_repo(), &test_data.git_repo, "invalid-remote");
     assert!(matches!(result, Err(GitFetchError::NoSuchRemote(_))));
 }
 
