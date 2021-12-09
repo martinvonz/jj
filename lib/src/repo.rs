@@ -544,20 +544,19 @@ impl MutableRepo {
             // Abandon the checkout we're leaving if it's empty.
             self.record_abandoned_commit(current_checkout_id);
         }
-        let open_commit;
-        if !commit.is_open() {
+        let open_commit = if !commit.is_open() {
             // If the commit is closed, create a new open commit on top
-            open_commit = CommitBuilder::for_open_commit(
+            CommitBuilder::for_open_commit(
                 settings,
                 self.store(),
                 commit.id().clone(),
                 commit.tree().id().clone(),
             )
-            .write_to_repo(self);
+            .write_to_repo(self)
         } else {
             // Otherwise the commit was open, so just use that commit as is.
-            open_commit = commit.clone();
-        }
+            commit.clone()
+        };
         let id = open_commit.id().clone();
         self.set_checkout(id);
         open_commit

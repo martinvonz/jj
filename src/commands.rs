@@ -478,7 +478,7 @@ impl WorkspaceCommandHelper {
             }) {
                 arg.clone()
             } else {
-                format!("'{}'", arg.replace("'", "\\'"))
+                format!("'{}'", arg.replace('\'', "\\'"))
             }
         };
         let quoted_strings = self.string_args.iter().map(shell_escape).collect_vec();
@@ -2940,15 +2940,14 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
         commits.push(commit);
     }
     let repo = workspace_command.repo();
-    let description;
-    if args.is_present("message") {
-        description = args.value_of("message").unwrap().to_string();
+    let description = if args.is_present("message") {
+        args.value_of("message").unwrap().to_string()
     } else {
-        description = edit_description(
+        edit_description(
             repo,
             "\n\nJJ: Enter commit description for the merge commit.\n",
-        );
-    }
+        )
+    };
     let merged_tree = merge_commit_trees(repo.as_repo_ref(), &commits);
     let mut tx = workspace_command.start_transaction("merge commits");
     CommitBuilder::for_new_commit(ui.settings(), repo.store(), merged_tree.id().clone())

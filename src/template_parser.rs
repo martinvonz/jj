@@ -414,7 +414,7 @@ pub fn parse_commit_template<'a>(
     assert!(pairs.next().is_none());
 
     assert!(
-        !(first_pair.as_span().end() != template_text.len()),
+        first_pair.as_span().end() == template_text.len(),
         "failed to parse template past position {}",
         first_pair.as_span().end()
     );

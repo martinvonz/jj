@@ -35,7 +35,7 @@ fn parse_git_ref(ref_name: &str) -> Option<RefName> {
         Some(RefName::LocalBranch(branch_name.to_string()))
     } else if let Some(remote_and_branch) = ref_name.strip_prefix("refs/remotes/") {
         remote_and_branch
-            .split_once("/")
+            .split_once('/')
             .map(|(remote, branch)| RefName::RemoteBranch {
                 remote: remote.to_string(),
                 branch: branch.to_string(),

@@ -66,13 +66,12 @@ impl Store {
     }
 
     pub fn load_store(store_path: PathBuf) -> Arc<Store> {
-        let backend: Box<dyn Backend>;
         let git_target_path = store_path.join("git_target");
-        if git_target_path.is_file() {
-            backend = Box::new(GitBackend::load(store_path));
+        let backend: Box<dyn Backend> = if git_target_path.is_file() {
+            Box::new(GitBackend::load(store_path))
         } else {
-            backend = Box::new(LocalBackend::load(store_path));
-        }
+            Box::new(LocalBackend::load(store_path))
+        };
         Store::new(backend)
     }
 

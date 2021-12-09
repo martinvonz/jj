@@ -82,15 +82,14 @@ impl ReadonlyTable {
         key_size: usize,
     ) -> io::Result<Arc<ReadonlyTable>> {
         let parent_filename_len = file.read_u32::<LittleEndian>()?;
-        let maybe_parent_file;
-        if parent_filename_len > 0 {
+        let maybe_parent_file = if parent_filename_len > 0 {
             let mut parent_filename_bytes = vec![0; parent_filename_len as usize];
             file.read_exact(&mut parent_filename_bytes)?;
             let parent_filename = String::from_utf8(parent_filename_bytes).unwrap();
             let parent_file = store.load_table(parent_filename)?;
-            maybe_parent_file = Some(parent_file);
+            Some(parent_file)
         } else {
-            maybe_parent_file = None;
+            None
         };
         let num_local_entries = file.read_u32::<LittleEndian>()? as usize;
         let index_size = num_local_entries * ReadonlyTableIndexEntry::size(key_size);

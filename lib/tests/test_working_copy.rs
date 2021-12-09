@@ -231,7 +231,7 @@ fn test_checkout_file_transitions(use_git: bool) {
         let maybe_metadata = wc_path.symlink_metadata();
         match right_kind {
             Kind::Missing => {
-                assert!(!maybe_metadata.is_ok(), "{:?} should not exist", path);
+                assert!(maybe_metadata.is_err(), "{:?} should not exist", path);
             }
             Kind::Normal => {
                 assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
@@ -285,7 +285,7 @@ fn test_checkout_file_transitions(use_git: bool) {
             }
             Kind::GitSubmodule => {
                 // Not supported for now
-                assert!(!maybe_metadata.is_ok(), "{:?} should not exist", path);
+                assert!(maybe_metadata.is_err(), "{:?} should not exist", path);
             }
         };
     }

@@ -61,7 +61,7 @@ fn resolve_branch(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetEr
             .map(|target| target.adds())
             .unwrap_or_default());
     }
-    if let Some((name, remote_name)) = symbol.split_once("@") {
+    if let Some((name, remote_name)) = symbol.split_once('@') {
         if let Some(branch_target) = repo.view().branches().get(name) {
             if let Some(target) = branch_target.remote_targets.get(remote_name) {
                 return Ok(target.adds());
