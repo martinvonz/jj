@@ -408,17 +408,17 @@ fn parse_range_expression_rule(
     match first.as_rule() {
         Rule::ancestors_op => {
             return Ok(
-                parse_children_expression_rule(pairs.next().unwrap().into_inner())?.ancestors(),
+                parse_neighbors_expression_rule(pairs.next().unwrap().into_inner())?.ancestors(),
             );
         }
-        Rule::children_expression => {
+        Rule::neighbors_expression => {
             // Fall through
         }
         _ => {
             panic!("unxpected revset range operator rule {:?}", first.as_rule());
         }
     }
-    let mut expression = parse_children_expression_rule(first.into_inner())?;
+    let mut expression = parse_neighbors_expression_rule(first.into_inner())?;
     if let Some(next) = pairs.next() {
         match next.as_rule() {
             Rule::descendants_op => {
@@ -426,12 +426,12 @@ fn parse_range_expression_rule(
             }
             Rule::dag_range_op => {
                 let heads_expression =
-                    parse_children_expression_rule(pairs.next().unwrap().into_inner())?;
+                    parse_neighbors_expression_rule(pairs.next().unwrap().into_inner())?;
                 expression = expression.dag_range_to(&heads_expression);
             }
             Rule::range_op => {
                 let expression2 =
-                    parse_children_expression_rule(pairs.next().unwrap().into_inner())?;
+                    parse_neighbors_expression_rule(pairs.next().unwrap().into_inner())?;
                 expression = expression.range(&expression2);
             }
             _ => {
@@ -442,40 +442,27 @@ fn parse_range_expression_rule(
     Ok(expression)
 }
 
-fn parse_children_expression_rule(
+fn parse_neighbors_expression_rule(
     mut pairs: Pairs<Rule>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let mut expression = parse_parents_expression_rule(pairs.next().unwrap().into_inner())?;
+    let mut expression = parse_primary_rule(pairs.next().unwrap().into_inner())?;
     for operator in pairs {
         match operator.as_rule() {
+            Rule::parents_op => {
+                expression = expression.parents();
+            }
             Rule::children_op => {
                 expression = expression.children();
             }
             _ => {
                 panic!(
-                    "unxpected revset children operator rule {:?}",
+                    "unxpected revset neighbors operator rule {:?}",
                     operator.as_rule()
                 );
             }
         }
     }
     Ok(expression)
-}
-
-fn parse_parents_expression_rule(
-    mut pairs: Pairs<Rule>,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let first = pairs.next().unwrap();
-    match first.as_rule() {
-        Rule::primary => parse_primary_rule(first.into_inner()),
-        Rule::parents_op => Ok(parse_parents_expression_rule(pairs)?.parents()),
-        _ => {
-            panic!(
-                "unxpected revset parents operator rule {:?}",
-                first.as_rule()
-            );
-        }
-    }
 }
 
 fn parse_primary_rule(mut pairs: Pairs<Rule>) -> Result<Rc<RevsetExpression>, RevsetParseError> {
@@ -1337,9 +1324,9 @@ mod tests {
         // Parse a quoted symbol
         assert_eq!(parse("\"foo\""), Ok(foo_symbol.clone()));
         // Parse the "parents" operator
-        assert_eq!(parse(":@"), Ok(checkout_symbol.parents()));
+        assert_eq!(parse("@~"), Ok(checkout_symbol.parents()));
         // Parse the "children" operator
-        assert_eq!(parse("@:"), Ok(checkout_symbol.children()));
+        assert_eq!(parse("@+"), Ok(checkout_symbol.children()));
         // Parse the "ancestors" operator
         assert_eq!(parse(",,@"), Ok(checkout_symbol.ancestors()));
         // Parse the "descendants" operator
@@ -1352,14 +1339,14 @@ mod tests {
         assert_eq!(parse("foo | bar"), Ok(foo_symbol.union(&bar_symbol)));
         // Parse the "difference" operator
         assert_eq!(parse("foo - bar"), Ok(foo_symbol.minus(&bar_symbol)));
-        // Parentheses are allowed after prefix operators
-        assert_eq!(parse(":(@)"), Ok(checkout_symbol.parents()));
+        // Parentheses are allowed before suffix operators
+        assert_eq!(parse("(@)~"), Ok(checkout_symbol.parents()));
         // Space is allowed around expressions
         assert_eq!(parse(" ,,@ "), Ok(checkout_symbol.ancestors()));
         // Space is not allowed around prefix operators
         assert_matches!(parse(" ,, @ "), Err(RevsetParseError::SyntaxError(_)));
         // Incomplete parse
-        assert_matches!(parse("foo | :"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo | ~"), Err(RevsetParseError::SyntaxError(_)));
         // Space is allowed around infix operators and function arguments
         assert_eq!(
             parse("   description(  arg1 ,   arg2 ) -    parents(   arg1  )  - heads(  )  "),
@@ -1375,12 +1362,12 @@ mod tests {
         let foo_symbol = RevsetExpression::symbol("foo".to_string());
         // Parse repeated "parents" operator
         assert_eq!(
-            parse(":::foo"),
+            parse("foo~~~"),
             Ok(foo_symbol.parents().parents().parents())
         );
         // Parse repeated "children" operator
         assert_eq!(
-            parse("foo:::"),
+            parse("foo+++"),
             Ok(foo_symbol.children().children().children())
         );
         // Parse repeated "ancestors"/"descendants"/"dag range" operators
@@ -1392,9 +1379,9 @@ mod tests {
         assert_matches!(parse("foo,,bar,,"), Err(RevsetParseError::SyntaxError(_)));
         // Parse combinations of "parents"/"children" operators and the range operators.
         // The former bind more strongly.
-        assert_eq!(parse(":foo:"), Ok(foo_symbol.parents().children()));
-        assert_eq!(parse(":foo,,"), Ok(foo_symbol.parents().descendants()));
-        assert_eq!(parse(",,foo:"), Ok(foo_symbol.children().ancestors()));
+        assert_eq!(parse("foo~+"), Ok(foo_symbol.parents().children()));
+        assert_eq!(parse("foo~,,"), Ok(foo_symbol.parents().descendants()));
+        assert_eq!(parse(",,foo+"), Ok(foo_symbol.children().ancestors()));
     }
 
     #[test]

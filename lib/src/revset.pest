@@ -20,11 +20,11 @@ symbol = {
 literal_string = { "\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
 whitespace = _{ " " }
 
+parents_op = { "~" }
+children_op = { "+" }
+
 // We could use the same rule name for the shared operators if we can
 // think of a good name.
-parents_op = { ":" }
-children_op = { ":" }
-
 ancestors_op = { ",," }
 descendants_op = { ",," }
 dag_range_op = { ",," }
@@ -47,16 +47,14 @@ primary = {
   | symbol
 }
 
-parents_expression = { parents_op* ~ primary }
-
-children_expression = { parents_expression ~ children_op* }
+neighbors_expression = { primary ~ (parents_op | children_op)* }
 
 range_expression = {
-  children_expression ~ dag_range_op ~ children_expression
-  | children_expression ~ range_op ~ children_expression
-  | ancestors_op ~ children_expression
-  | children_expression ~ descendants_op
-  | children_expression
+  neighbors_expression ~ dag_range_op ~ neighbors_expression
+  | neighbors_expression ~ range_op ~ neighbors_expression
+  | ancestors_op ~ neighbors_expression
+  | neighbors_expression ~ descendants_op
+  | neighbors_expression
 }
 
 infix_expression = {

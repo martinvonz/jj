@@ -410,8 +410,8 @@ impl WorkspaceCommandHelper {
         // it's another symbol, then we don't. If it's more complex, then we do
         // (just to be safe). TODO: Maybe make this smarter. How do we generally
         // figure out if a revset needs to commit the working copy? For example,
-        // ":@" should perhaps not result in a new working copy commit, but
-        // "::@" should. "foo::" is probably also should, since we would
+        // "@~" should perhaps not result in a new working copy commit, but
+        // "@~~" should. "foo++" is probably also should, since we would
         // otherwise need to evaluate the revset and see if "foo::" includes the
         // parent of the current checkout. Other interesting cases include some kind of
         // reference pointing to the working copy commit. If it's a
@@ -947,7 +947,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
             "Create a new, empty change. This may be useful if you want to make some changes \
              you're unsure of on top of the working copy. If the changes turned out to useful, \
              you can `jj squash` them into the previous working copy. If they turned out to be \
-             unsuccessful, you can `jj abandon` them and `jj co :@` the previous working copy.",
+             unsuccessful, you can `jj abandon` them and `jj co @~` the previous working copy.",
         )
         .arg(
             Arg::with_name("revision")
@@ -1005,7 +1005,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
             Arg::with_name("from")
                 .long("from")
                 .takes_value(true)
-                .default_value(":@")
+                .default_value("@~")
                 .help("Revision to restore from (source)"),
         )
         .arg(
@@ -1119,7 +1119,7 @@ A          A",
                 .multiple(true)
                 .help("The revision to rebase onto"),
         );
-    // TODO: It seems better to default the destination to `:@`. Maybe the working
+    // TODO: It seems better to default the destination to `@~`. Maybe the working
     // copy should be rebased on top?
     let backout_command = SubCommand::with_name("backout")
         .about("Apply the reverse of a revision on top of another revision")

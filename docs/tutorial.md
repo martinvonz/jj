@@ -167,7 +167,7 @@ o 000000000000 000000000000  1970-01-01 00:00:00.000 +00:00
 (The `000000000000` commit is a virtual commit that's called the "root commit".
 It's the root commit of every repo. The `root` symbol in the revset matches it.)
 
-There are also operators for getting the parents (`:foo`), children `foo:`,
+There are also operators for getting the parents (`foo~`), children (`foo+`),
 ancestors (`,,foo`), descendants (`foo,,`), DAG range (`foo,,bar`, like
 `git log --ancestry-path`), range (`foo,,,bar`, like Git's `foo..bar`). There
 are also a few more functions, such as `heads(<set>)`, which filters out
@@ -195,7 +195,7 @@ Now let's see how Jujutsu deals with merge conflicts. We'll start by making some
 commits:
 ```shell script
 # Check out the grandparent of the working copy
-$ jj co ::@
+$ jj co @~~
 Working copy now at: 9164f1d6a011
 Added 0 files, modified 1 files, removed 0 files
 $ echo a > file1; jj close -m A
@@ -382,7 +382,7 @@ third commit. Remember that `jj squash` moves all the changes from one commit
 into its parent. `jj squash -i` moves only part of the changes into its parent.
 Now try that:
 ```shell script
-$ jj squash -i -r :@
+$ jj squash -i -r @~
 Rebased 1 descendant commits
 Working copy now at: 4b4c714b36aa 
 ```
@@ -391,7 +391,7 @@ the right side of the diff to have the desired end state in "ABC" by removing
 the "D" line. Then close Meld. If we look the diff of the second commit, we
 now see that all three lines got capitalized:
 ```shell script
-$ jj diff -r ::@
+$ jj diff -r @~~
 Modified regular file file:
    1    1: aA
    2    2: bB
@@ -407,7 +407,7 @@ Let's try one final command for changing the contents of an exiting commit. That
 command is `jj edit`, which lets you edit the contents of a commit without
 checking it out.
 ```shell script
-$ jj edit -r ::@
+$ jj edit -r @~~
 Created 2423c134ea70 ABC
 Rebased 2 descendant commits
 Working copy now at: d31c52e8ca41 
@@ -415,7 +415,7 @@ Added 0 files, modified 1 files, removed 0 files
 ```
 When Meld starts, edit the right side by e.g. adding something to the first
 line. Then close Meld. You can now inspect the rewritten commit with
-`jj diff -r ::@` again and you should see your addition to the first line.
+`jj diff -r @~~` again and you should see your addition to the first line.
 Unlike `jj squash -i`, which left the content state of the commit unchanged,
 `jj edit` (typically) results in a different state, which means that descendant
 commits may have conflicts.

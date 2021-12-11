@@ -499,18 +499,18 @@ fn test_evaluate_expression_parents(use_git: bool) {
     let commit5 = graph_builder.commit_with_parents(&[&commit2]);
 
     // The root commit has no parents
-    assert_eq!(resolve_commit_ids(mut_repo.as_repo_ref(), ":root"), vec![]);
+    assert_eq!(resolve_commit_ids(mut_repo.as_repo_ref(), "root~"), vec![]);
 
     // Can find parents of the current checkout
     mut_repo.set_checkout(commit2.id().clone());
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), ":@"),
+        resolve_commit_ids(mut_repo.as_repo_ref(), "@~"),
         vec![commit1.id().clone()]
     );
 
     // Can find parents of a merge commit
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), &format!(":{}", commit4.id().hex())),
+        resolve_commit_ids(mut_repo.as_repo_ref(), &format!("{}~", commit4.id().hex())),
         vec![commit3.id().clone(), commit2.id().clone()]
     );
 
@@ -518,7 +518,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!(":({} | {})", commit2.id().hex(), commit3.id().hex())
+            &format!("({} | {})~", commit2.id().hex(), commit3.id().hex())
         ),
         vec![commit1.id().clone(), root_commit.id().clone()]
     );
@@ -527,7 +527,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!(":({} | {})", commit1.id().hex(), commit2.id().hex())
+            &format!("({} | {})~", commit1.id().hex(), commit2.id().hex())
         ),
         vec![commit1.id().clone(), root_commit.id().clone()]
     );
@@ -536,7 +536,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!(":({} | {})", commit4.id().hex(), commit5.id().hex())
+            &format!("({} | {})~", commit4.id().hex(), commit5.id().hex())
         ),
         vec![commit3.id().clone(), commit2.id().clone()]
     );
@@ -569,7 +569,7 @@ fn test_evaluate_expression_children(use_git: bool) {
 
     // Can find children of the root commit
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "root:"),
+        resolve_commit_ids(mut_repo.as_repo_ref(), "root+"),
         vec![commit1.id().clone(), checkout_id]
     );
 
@@ -578,7 +578,7 @@ fn test_evaluate_expression_children(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("({} | {}):", commit1.id().hex(), commit2.id().hex())
+            &format!("({} | {})+", commit1.id().hex(), commit2.id().hex())
         ),
         vec![
             commit4.id().clone(),
@@ -591,7 +591,7 @@ fn test_evaluate_expression_children(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("({} | {}):", commit3.id().hex(), commit4.id().hex())
+            &format!("({} | {})+", commit3.id().hex(), commit4.id().hex())
         ),
         vec![commit5.id().clone()]
     );
