@@ -185,17 +185,9 @@ impl<'args> CommandHelper<'args> {
                 if git_dir.is_dir() {
                     // TODO: Make this hint separate from the error, so the caller can format
                     // it differently.
-                    let git_dir_str = PathBuf::from(wc_path_str)
-                        .join(".git")
-                        .to_str()
-                        .unwrap()
-                        .to_owned();
-                    message += &format!(
-                        "
+                    message += "
 It looks like this is a git repo. You can create a jj repo backed by it by running this:
-jj init --git-store={} <path to new jj repo>",
-                        git_dir_str
-                    );
+jj init --git-store=.";
                 }
                 return Err(CommandError::UserError(message));
             }
