@@ -651,7 +651,7 @@ fn test_evaluate_expression_range(use_git: bool) {
     // The range from the root to the root is empty (because the left side of the
     // range is exclusive)
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "root,,,root"),
+        resolve_commit_ids(mut_repo.as_repo_ref(), "root..root"),
         vec![]
     );
 
@@ -659,7 +659,7 @@ fn test_evaluate_expression_range(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("{},,,{}", commit1.id().hex(), commit3.id().hex())
+            &format!("{}..{}", commit1.id().hex(), commit3.id().hex())
         ),
         vec![commit3.id().clone(), commit2.id().clone()]
     );
@@ -668,7 +668,7 @@ fn test_evaluate_expression_range(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("{},,,{}", commit3.id().hex(), commit1.id().hex())
+            &format!("{}..{}", commit3.id().hex(), commit1.id().hex())
         ),
         vec![]
     );
@@ -677,7 +677,7 @@ fn test_evaluate_expression_range(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("{},,,{}", commit1.id().hex(), commit4.id().hex())
+            &format!("{}..{}", commit1.id().hex(), commit4.id().hex())
         ),
         vec![
             commit4.id().clone(),
@@ -690,7 +690,7 @@ fn test_evaluate_expression_range(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("{},,,{}", commit2.id().hex(), commit3.id().hex())
+            &format!("{}..{}", commit2.id().hex(), commit3.id().hex())
         ),
         vec![commit3.id().clone()]
     );

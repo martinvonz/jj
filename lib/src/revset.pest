@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-identifier = @{ (ASCII_ALPHANUMERIC | "_" | "@" | "/" | ".")+ } 
+non_period_identifier = @{ (ASCII_ALPHANUMERIC | "_" | "@" | "/")+ }
+identifier = @{
+  (non_period_identifier+ ~ ".")+ ~ non_period_identifier+
+  | non_period_identifier+
+} 
 symbol = {
   identifier
   | literal_string
@@ -28,7 +32,7 @@ children_op = { "+" }
 ancestors_op = { ":" }
 descendants_op = { ":" }
 dag_range_op = { ":" }
-range_op = { ",,," }
+range_op = { ".." }
 
 union_op = { "|" }
 intersection_op = { "&" }
