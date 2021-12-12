@@ -15,8 +15,8 @@ Jujutsu is a Git-compatible
 [DVCS](https://en.wikipedia.org/wiki/Distributed_version_control). It combines
 features from Git (data model, speed), Mercurial (anonymous branching, simple
 CLI free from "the index", [revsets](docs/revsets.md)), and Pijul/Darcs
-(first-class conflicts), with features not found in either of them
-([working-copy-as-a-commit](docs/working-copy.md),
+([first-class conflicts](docs/conflicts.md)), with features not found in either
+of them ([working-copy-as-a-commit](docs/working-copy.md),
 [undo functionality](docs/operation-log.md), automatic rebase).
 
 The command-line tool is called `jj` for now because it's easy to type and easy
