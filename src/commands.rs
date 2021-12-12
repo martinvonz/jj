@@ -841,7 +841,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .long("revisions")
                 .short("r")
                 .takes_value(true)
-                .default_value(",,heads()")
+                .default_value(":heads()")
                 .help("Which revisions to show"),
         )
         .arg(

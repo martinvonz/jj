@@ -25,9 +25,9 @@ children_op = { "+" }
 
 // We could use the same rule name for the shared operators if we can
 // think of a good name.
-ancestors_op = { ",," }
-descendants_op = { ",," }
-dag_range_op = { ",," }
+ancestors_op = { ":" }
+descendants_op = { ":" }
+dag_range_op = { ":" }
 range_op = { ",,," }
 
 union_op = { "|" }

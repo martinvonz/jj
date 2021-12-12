@@ -1328,11 +1328,11 @@ mod tests {
         // Parse the "children" operator
         assert_eq!(parse("@+"), Ok(checkout_symbol.children()));
         // Parse the "ancestors" operator
-        assert_eq!(parse(",,@"), Ok(checkout_symbol.ancestors()));
+        assert_eq!(parse(":@"), Ok(checkout_symbol.ancestors()));
         // Parse the "descendants" operator
-        assert_eq!(parse("@,,"), Ok(checkout_symbol.descendants()));
+        assert_eq!(parse("@:"), Ok(checkout_symbol.descendants()));
         // Parse the "dag range" operator
-        assert_eq!(parse("foo,,bar"), Ok(foo_symbol.dag_range_to(&bar_symbol)));
+        assert_eq!(parse("foo:bar"), Ok(foo_symbol.dag_range_to(&bar_symbol)));
         // Parse the "intersection" operator
         assert_eq!(parse("foo & bar"), Ok(foo_symbol.intersection(&bar_symbol)));
         // Parse the "union" operator
@@ -1342,9 +1342,9 @@ mod tests {
         // Parentheses are allowed before suffix operators
         assert_eq!(parse("(@)~"), Ok(checkout_symbol.parents()));
         // Space is allowed around expressions
-        assert_eq!(parse(" ,,@ "), Ok(checkout_symbol.ancestors()));
+        assert_eq!(parse(" :@ "), Ok(checkout_symbol.ancestors()));
         // Space is not allowed around prefix operators
-        assert_matches!(parse(" ,, @ "), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse(" : @ "), Err(RevsetParseError::SyntaxError(_)));
         // Incomplete parse
         assert_matches!(parse("foo | ~"), Err(RevsetParseError::SyntaxError(_)));
         // Space is allowed around infix operators and function arguments
@@ -1371,17 +1371,17 @@ mod tests {
             Ok(foo_symbol.children().children().children())
         );
         // Parse repeated "ancestors"/"descendants"/"dag range" operators
-        assert_matches!(parse(",,foo,,"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse(",,,,foo"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("foo,,,,"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("foo,,,,bar"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse(",,foo,,bar"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("foo,,bar,,"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse(":foo:"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("::foo"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo::"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo::bar"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse(":foo:bar"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo:bar:"), Err(RevsetParseError::SyntaxError(_)));
         // Parse combinations of "parents"/"children" operators and the range operators.
         // The former bind more strongly.
         assert_eq!(parse("foo~+"), Ok(foo_symbol.parents().children()));
-        assert_eq!(parse("foo~,,"), Ok(foo_symbol.parents().descendants()));
-        assert_eq!(parse(",,foo+"), Ok(foo_symbol.children().ancestors()));
+        assert_eq!(parse("foo~:"), Ok(foo_symbol.parents().descendants()));
+        assert_eq!(parse(":foo+"), Ok(foo_symbol.children().ancestors()));
     }
 
     #[test]

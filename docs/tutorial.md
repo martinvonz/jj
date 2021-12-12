@@ -168,14 +168,14 @@ o 000000000000 000000000000  1970-01-01 00:00:00.000 +00:00
 It's the root commit of every repo. The `root` symbol in the revset matches it.)
 
 There are also operators for getting the parents (`foo~`), children (`foo+`),
-ancestors (`,,foo`), descendants (`foo,,`), DAG range (`foo,,bar`, like
+ancestors (`:foo`), descendants (`foo:`), DAG range (`foo:bar`, like
 `git log --ancestry-path`), range (`foo,,,bar`, like Git's `foo..bar`). There
 are also a few more functions, such as `heads(<set>)`, which filters out
 revisions in the input set if they're ancestors of other revisions in the set.
 Let's define an alias based on that by adding the following to `~/.jjconfig`:
 ```
 [alias]
-l = ["log", "-r", "(heads(remote_branches()),,,@),,"]
+l = ["log", "-r", "(heads(remote_branches()),,,@):"]
 ```
 
 The alias lets us run `jj l` to see the commits we have created between public
