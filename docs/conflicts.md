@@ -10,7 +10,8 @@ the rebased commit and the rebase operation will succeed. You can then resolve
 the conflict whenever you want. Conflicted states can be further rebased,
 merged, or backed out. Note that what's stored in the commit is a logical
 representation of the conflict, not conflict *markers*; rebasing a conflict
-doesn't result in a nested conflict markers.
+doesn't result in a nested conflict markers (see
+[technical doc](technical/conflicts.md) for how this works).
 
 
 ## Advantages
