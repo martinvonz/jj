@@ -24,7 +24,7 @@ symbol = {
 literal_string = { "\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
 whitespace = _{ " " }
 
-parents_op = { "~" }
+parents_op = { "-" }
 children_op = { "+" }
 
 // We could use the same rule name for the shared operators if we can
@@ -36,7 +36,7 @@ range_op = { ".." }
 
 union_op = { "|" }
 intersection_op = { "&" }
-difference_op = { "-" }
+difference_op = { "~" }
 infix_op = _{ union_op | intersection_op | difference_op }
 
 function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }

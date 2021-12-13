@@ -1324,7 +1324,7 @@ mod tests {
         // Parse a quoted symbol
         assert_eq!(parse("\"foo\""), Ok(foo_symbol.clone()));
         // Parse the "parents" operator
-        assert_eq!(parse("@~"), Ok(checkout_symbol.parents()));
+        assert_eq!(parse("@-"), Ok(checkout_symbol.parents()));
         // Parse the "children" operator
         assert_eq!(parse("@+"), Ok(checkout_symbol.children()));
         // Parse the "ancestors" operator
@@ -1338,18 +1338,18 @@ mod tests {
         // Parse the "union" operator
         assert_eq!(parse("foo | bar"), Ok(foo_symbol.union(&bar_symbol)));
         // Parse the "difference" operator
-        assert_eq!(parse("foo - bar"), Ok(foo_symbol.minus(&bar_symbol)));
+        assert_eq!(parse("foo ~ bar"), Ok(foo_symbol.minus(&bar_symbol)));
         // Parentheses are allowed before suffix operators
-        assert_eq!(parse("(@)~"), Ok(checkout_symbol.parents()));
+        assert_eq!(parse("(@)-"), Ok(checkout_symbol.parents()));
         // Space is allowed around expressions
         assert_eq!(parse(" :@ "), Ok(checkout_symbol.ancestors()));
         // Space is not allowed around prefix operators
         assert_matches!(parse(" : @ "), Err(RevsetParseError::SyntaxError(_)));
         // Incomplete parse
-        assert_matches!(parse("foo | ~"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo | -"), Err(RevsetParseError::SyntaxError(_)));
         // Space is allowed around infix operators and function arguments
         assert_eq!(
-            parse("   description(  arg1 ,   arg2 ) -    parents(   arg1  )  - heads(  )  "),
+            parse("   description(  arg1 ,   arg2 ) ~    parents(   arg1  )  ~ heads(  )  "),
             Ok(RevsetExpression::symbol("arg2".to_string())
                 .with_description("arg1".to_string())
                 .minus(&RevsetExpression::symbol("arg1".to_string()).parents())
@@ -1362,7 +1362,7 @@ mod tests {
         let foo_symbol = RevsetExpression::symbol("foo".to_string());
         // Parse repeated "parents" operator
         assert_eq!(
-            parse("foo~~~"),
+            parse("foo---"),
             Ok(foo_symbol.parents().parents().parents())
         );
         // Parse repeated "children" operator
@@ -1379,8 +1379,8 @@ mod tests {
         assert_matches!(parse("foo:bar:"), Err(RevsetParseError::SyntaxError(_)));
         // Parse combinations of "parents"/"children" operators and the range operators.
         // The former bind more strongly.
-        assert_eq!(parse("foo~+"), Ok(foo_symbol.parents().children()));
-        assert_eq!(parse("foo~:"), Ok(foo_symbol.parents().descendants()));
+        assert_eq!(parse("foo-+"), Ok(foo_symbol.parents().children()));
+        assert_eq!(parse("foo-:"), Ok(foo_symbol.parents().descendants()));
         assert_eq!(parse(":foo+"), Ok(foo_symbol.children().ancestors()));
     }
 

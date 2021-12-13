@@ -107,7 +107,7 @@ parent.
     </tr>
     <tr>
       <td>Edit description (commit message) of the previous change</td>
-      <td><code>jj describe @~</code></td>
+      <td><code>jj describe @-</code></td>
       <td><code>git commit --amend</code> (first make sure that nothing is
           staged)</td>
     </tr>
