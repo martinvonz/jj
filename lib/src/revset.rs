@@ -211,6 +211,16 @@ pub enum RevsetExpression {
         needle: String,
         candidates: Rc<RevsetExpression>,
     },
+    Author {
+        // Matches against both name and email
+        needle: String,
+        candidates: Rc<RevsetExpression>,
+    },
+    Committer {
+        // Matches against both name and email
+        needle: String,
+        candidates: Rc<RevsetExpression>,
+    },
     Union(Rc<RevsetExpression>, Rc<RevsetExpression>),
     Intersection(Rc<RevsetExpression>, Rc<RevsetExpression>),
     Difference(Rc<RevsetExpression>, Rc<RevsetExpression>),
@@ -329,6 +339,22 @@ impl RevsetExpression {
     /// Commits in `self` with description containing `needle`.
     pub fn with_description(self: &Rc<RevsetExpression>, needle: String) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Description {
+            candidates: self.clone(),
+            needle,
+        })
+    }
+
+    /// Commits in `self` with author's name or email containing `needle`.
+    pub fn with_author(self: &Rc<RevsetExpression>, needle: String) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Author {
+            candidates: self.clone(),
+            needle,
+        })
+    }
+
+    /// Commits in `self` with committer's name or email containing `needle`.
+    pub fn with_committer(self: &Rc<RevsetExpression>, needle: String) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Committer {
             candidates: self.clone(),
             needle,
         })
@@ -665,7 +691,7 @@ fn parse_function_expression(
             };
             Ok(candidates.with_parent_count(2..u32::MAX))
         }
-        "description" => {
+        "description" | "author" | "committer" => {
             if !(1..=2).contains(&arg_count) {
                 return Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -681,7 +707,14 @@ fn parse_function_expression(
             } else {
                 parse_expression_rule(argument_pairs.next().unwrap().into_inner())?
             };
-            Ok(candidates.with_description(needle))
+            match name.as_str() {
+                "description" => Ok(candidates.with_description(needle)),
+                "author" => Ok(candidates.with_author(needle)),
+                "committer" => Ok(candidates.with_committer(needle)),
+                _ => {
+                    panic!("unexpected function name: {}", name)
+                }
+            }
         }
         _ => Err(RevsetParseError::NoSuchFunction(name)),
     }
@@ -1182,6 +1215,35 @@ pub fn evaluate_expression<'repo>(
                 }),
             }))
         }
+        RevsetExpression::Author { needle, candidates } => {
+            let candidates = candidates.evaluate(repo)?;
+            let repo = repo;
+            let needle = needle.clone();
+            // TODO: Make these functions that take a needle to search for accept some
+            // syntax for specifying whether it's a regex and whether it's
+            // case-sensitive.
+            Ok(Box::new(FilterRevset {
+                candidates,
+                predicate: Box::new(move |entry| {
+                    let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
+                    commit.author().name.contains(needle.as_str())
+                        || commit.author().email.contains(needle.as_str())
+                }),
+            }))
+        }
+        RevsetExpression::Committer { needle, candidates } => {
+            let candidates = candidates.evaluate(repo)?;
+            let repo = repo;
+            let needle = needle.clone();
+            Ok(Box::new(FilterRevset {
+                candidates,
+                predicate: Box::new(move |entry| {
+                    let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
+                    commit.committer().name.contains(needle.as_str())
+                        || commit.committer().email.contains(needle.as_str())
+                }),
+            }))
+        }
         RevsetExpression::Union(expression1, expression2) => {
             let set1 = expression1.evaluate(repo)?;
             let set2 = expression2.evaluate(repo)?;
@@ -1288,6 +1350,20 @@ mod tests {
         assert_eq!(
             foo_symbol.with_description("needle".to_string()),
             Rc::new(RevsetExpression::Description {
+                candidates: foo_symbol.clone(),
+                needle: "needle".to_string()
+            })
+        );
+        assert_eq!(
+            foo_symbol.with_author("needle".to_string()),
+            Rc::new(RevsetExpression::Author {
+                candidates: foo_symbol.clone(),
+                needle: "needle".to_string()
+            })
+        );
+        assert_eq!(
+            foo_symbol.with_committer("needle".to_string()),
+            Rc::new(RevsetExpression::Committer {
                 candidates: foo_symbol.clone(),
                 needle: "needle".to_string()
             })

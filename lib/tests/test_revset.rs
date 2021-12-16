@@ -1229,6 +1229,132 @@ fn test_evaluate_expression_description(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
+fn test_evaluate_expression_author(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let timestamp = Timestamp {
+        timestamp: MillisSinceEpoch(0),
+        tz_offset: 0,
+    };
+    let commit1 = testutils::create_random_commit(&settings, repo)
+        .set_author(Signature {
+            name: "name1".to_string(),
+            email: "email1".to_string(),
+            timestamp: timestamp.clone(),
+        })
+        .write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, repo)
+        .set_parents(vec![commit1.id().clone()])
+        .set_author(Signature {
+            name: "name2".to_string(),
+            email: "email2".to_string(),
+            timestamp: timestamp.clone(),
+        })
+        .write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, repo)
+        .set_parents(vec![commit2.id().clone()])
+        .set_author(Signature {
+            name: "name3".to_string(),
+            email: "email3".to_string(),
+            timestamp,
+        })
+        .write_to_repo(mut_repo);
+
+    // Can find multiple matches
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "author(name)"),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone()
+        ]
+    );
+    // Can find a unique match by either name or email
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "author(\"name2\")"),
+        vec![commit2.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "author(\"name3\")"),
+        vec![commit3.id().clone()]
+    );
+    // Searches only among candidates if specified
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "author(\"name2\",heads())"),
+        vec![]
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_evaluate_expression_committer(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let timestamp = Timestamp {
+        timestamp: MillisSinceEpoch(0),
+        tz_offset: 0,
+    };
+    let commit1 = testutils::create_random_commit(&settings, repo)
+        .set_committer(Signature {
+            name: "name1".to_string(),
+            email: "email1".to_string(),
+            timestamp: timestamp.clone(),
+        })
+        .write_to_repo(mut_repo);
+    let commit2 = testutils::create_random_commit(&settings, repo)
+        .set_parents(vec![commit1.id().clone()])
+        .set_committer(Signature {
+            name: "name2".to_string(),
+            email: "email2".to_string(),
+            timestamp: timestamp.clone(),
+        })
+        .write_to_repo(mut_repo);
+    let commit3 = testutils::create_random_commit(&settings, repo)
+        .set_parents(vec![commit2.id().clone()])
+        .set_committer(Signature {
+            name: "name3".to_string(),
+            email: "email3".to_string(),
+            timestamp,
+        })
+        .write_to_repo(mut_repo);
+
+    // Can find multiple matches
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "committer(name)"),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone()
+        ]
+    );
+    // Can find a unique match by either name or email
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "committer(\"name2\")"),
+        vec![commit2.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "committer(\"name3\")"),
+        vec![commit3.id().clone()]
+    );
+    // Searches only among candidates if specified
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "committer(\"name2\",heads())"),
+        vec![]
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_union(use_git: bool) {
     let settings = testutils::user_settings();
     let test_workspace = testutils::init_repo(&settings, use_git);
