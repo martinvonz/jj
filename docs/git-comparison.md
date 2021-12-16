@@ -65,6 +65,11 @@ parent.
       <td><code>git diff &lt;revision&gt;^ &lt;revision&gt;</code></td>
     </tr>
     <tr>
+      <td>Show description and diff of a change</td>
+      <td><code>jj show &lt;revision&gt;</code></td>
+      <td><code>git show &lt;revision&gt;</code></td>
+    </tr>
+    <tr>
       <td>Add a file to the current change</td>
       <td><code>touch filename</code></td>
       <td><code>touch filename; git add filename</code></td>

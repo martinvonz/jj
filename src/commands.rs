@@ -814,6 +814,34 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .help("Show changes to this revision"),
         )
         .arg(paths_arg());
+    let show_command = SubCommand::with_name("show")
+        .about("Show commit description and changes in a revision")
+        .long_about("Show commit description and changes in a revision")
+        .arg(
+            Arg::with_name("summary")
+                .long("summary")
+                .short("s")
+                .help("For each path, show only whether it was modified, added, or removed"),
+        )
+        .arg(
+            Arg::with_name("git")
+                .long("git")
+                .conflicts_with("summary")
+                .help("Show a Git-format diff"),
+        )
+        .arg(
+            Arg::with_name("color-words")
+                .long("color-words")
+                .conflicts_with("summary")
+                .conflicts_with("git")
+                .help("Show a word-level diff with changes indicated only by color"),
+        )
+        .arg(
+            Arg::with_name("revision")
+                .index(1)
+                .default_value("@")
+                .help("Show changes changes in this revision, compared to its parent(s)"),
+        );
     let status_command = SubCommand::with_name("status")
         .alias("st")
         .about("Show high-level repo status")
@@ -1434,6 +1462,7 @@ It is possible to mutating commands when loading the repo at an earlier operatio
         untrack_command,
         files_command,
         diff_command,
+        show_command,
         status_command,
         log_command,
         obslog_command,
@@ -1749,6 +1778,34 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
     Ok(())
 }
 
+fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_single_rev(ui, args.value_of("revision").unwrap())?;
+    let parents = commit.parents();
+    let from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
+    let to_tree = commit.tree();
+    let repo = workspace_command.repo();
+    let diff_iterator = from_tree.diff(&to_tree, &EverythingMatcher);
+    let workspace_root = workspace_command.workspace_root();
+    // TODO: Add branches, tags, etc
+    // TODO: Indent the description like Git does
+    let template_string = r#"
+            label(if(open, "open"),
+            "Commit ID: " commit_id "\n"
+            "Change ID: " change_id "\n"
+            "Author: " author " <" author.email() "> (" author.timestamp() ")\n"
+            "Committer: " committer " <" committer.email() "> (" committer.timestamp() ")\n"        
+            "\n"
+            description
+            "\n"
+            )"#;
+    let template =
+        crate::template_parser::parse_commit_template(repo.as_repo_ref(), template_string);
+    template.format(&commit, ui.stdout_formatter().as_mut())?;
+    show_diff(ui, repo, workspace_root, args, diff_iterator)?;
+    Ok(())
+}
+
 fn show_diff(
     ui: &mut Ui,
     repo: &Arc<ReadonlyRepo>,
@@ -1790,6 +1847,7 @@ fn show_diff(
     }
     Ok(())
 }
+
 fn diff_content(
     repo: &Arc<ReadonlyRepo>,
     path: &RepoPath,
@@ -4133,6 +4191,8 @@ where
         cmd_files(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("diff") {
         cmd_diff(&mut ui, &command_helper, sub_args)
+    } else if let Some(sub_args) = matches.subcommand_matches("show") {
+        cmd_show(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("status") {
         cmd_status(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("log") {
