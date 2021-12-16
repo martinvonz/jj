@@ -52,7 +52,9 @@ neighbors_expression = { primary ~ (parents_op | children_op)* }
 range_expression = {
   neighbors_expression ~ dag_range_op ~ neighbors_expression
   | neighbors_expression ~ range_op ~ neighbors_expression
+  | neighbors_expression ~ range_op
   | dag_range_op ~ neighbors_expression
+  | range_op ~ neighbors_expression
   | neighbors_expression ~ dag_range_op
   | neighbors_expression
 }

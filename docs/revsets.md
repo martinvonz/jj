@@ -68,6 +68,9 @@ only symbols.
 * `x..y`: Ancestors of `y` that are not also ancestors of `x`, both inclusive.
   Equivalent to `:y ~ :x`. This is what `git log` calls `x..y` (i.e. the same as
   we call it).
+* `..x`: Ancestors of `x`, including the commits in `x` itself. Equivalent to
+   `:x` and provided for consistency.
+* `x..`: Revisions that are not ancestors of `x`.
 
 You can use parentheses to control evaluation order, such as `(x & y) | z` or
 `x & (y | z)`.
@@ -113,7 +116,7 @@ jj log -r @-
 
 Show commits not on any remote branch:
 ```
-jj log -r 'remote_branches()..all()'
+jj log -r 'remote_branches()..'
 ```
 
 Show all ancestors of the working copy (almost like plain `git log`)

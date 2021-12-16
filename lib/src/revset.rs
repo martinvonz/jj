@@ -406,7 +406,7 @@ fn parse_range_expression_rule(
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let first = pairs.next().unwrap();
     match first.as_rule() {
-        Rule::dag_range_op => {
+        Rule::dag_range_op | Rule::range_op => {
             return Ok(
                 parse_neighbors_expression_rule(pairs.next().unwrap().into_inner())?.ancestors(),
             );
@@ -431,9 +431,13 @@ fn parse_range_expression_rule(
                 }
             }
             Rule::range_op => {
-                let expression2 =
-                    parse_neighbors_expression_rule(pairs.next().unwrap().into_inner())?;
-                expression = expression.range(&expression2);
+                if let Some(heads_pair) = pairs.next() {
+                    let heads_expression =
+                        parse_neighbors_expression_rule(heads_pair.into_inner())?;
+                    expression = expression.range(&heads_expression);
+                } else {
+                    expression = expression.range(&RevsetExpression::heads());
+                }
             }
             _ => {
                 panic!("unxpected revset range operator rule {:?}", next.as_rule());
@@ -1334,6 +1338,13 @@ mod tests {
         assert_eq!(parse("@:"), Ok(checkout_symbol.descendants()));
         // Parse the "dag range" operator
         assert_eq!(parse("foo:bar"), Ok(foo_symbol.dag_range_to(&bar_symbol)));
+        // Parse the "range" prefix operator
+        assert_eq!(parse("..@"), Ok(checkout_symbol.ancestors()));
+        assert_eq!(
+            parse("@.."),
+            Ok(checkout_symbol.range(&RevsetExpression::heads()))
+        );
+        assert_eq!(parse("foo..bar"), Ok(foo_symbol.range(&bar_symbol)));
         // Parse the "intersection" operator
         assert_eq!(parse("foo & bar"), Ok(foo_symbol.intersection(&bar_symbol)));
         // Parse the "union" operator
@@ -1371,13 +1382,18 @@ mod tests {
             parse("foo+++"),
             Ok(foo_symbol.children().children().children())
         );
-        // Parse repeated "ancestors"/"descendants"/"dag range" operators
+        // Parse repeated "ancestors"/"descendants"/"dag range"/"range" operators
         assert_matches!(parse(":foo:"), Err(RevsetParseError::SyntaxError(_)));
         assert_matches!(parse("::foo"), Err(RevsetParseError::SyntaxError(_)));
         assert_matches!(parse("foo::"), Err(RevsetParseError::SyntaxError(_)));
         assert_matches!(parse("foo::bar"), Err(RevsetParseError::SyntaxError(_)));
         assert_matches!(parse(":foo:bar"), Err(RevsetParseError::SyntaxError(_)));
         assert_matches!(parse("foo:bar:"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("....foo"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo...."), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo.....bar"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("..foo..bar"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo..bar.."), Err(RevsetParseError::SyntaxError(_)));
         // Parse combinations of "parents"/"children" operators and the range operators.
         // The former bind more strongly.
         assert_eq!(parse("foo-+"), Ok(foo_symbol.parents().children()));
