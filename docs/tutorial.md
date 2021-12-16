@@ -150,11 +150,12 @@ change ids because they stay the same when the commit is rewritten.
 
 By default, `jj log` lists all revisions (commits) in the repo that have not
 been rewritten (roughly speaking). We can use the `-r` flag to restrict which
-revisions we want to list. The flag accepts a "revset", which is an expression
-in a simple language for specifying revision. For example, `@` refers to the
-working copy commit, `root` refers to the root commit, `branches()` refers to
-all commits pointed to by branches. We can combine expression with `|` for
-union, `&` for intersection and `-` for difference. For example:
+revisions we want to list. The flag accepts a ["revset"](revsets.md), which is
+an expression in a simple language for specifying revisions. For example, `@`
+refers to the working copy commit, `root` refers to the root commit,
+`branches()` refers to all commits pointed to by branches. We can combine
+expressions with `|` for union, `&` for intersection and `~` for difference.
+For example:
 ```shell script
 $ jj log -r '@ | root | branches()'
 @ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
