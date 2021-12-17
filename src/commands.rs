@@ -746,8 +746,9 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
         .about("Update the working copy to another revision")
         .long_about(
             "Update the working copy to another revision. If the revision is closed or has \
-             conflicts, then a new, open revision will be created on top, and that will be \
-             checked out. See `jj concepts working-copy` for more information.",
+             conflicts, then a new, open revision will be created on top, and that will be checked \
+             out. For more information, see \
+             https://github.com/martinvonz/jj/blob/main/docs/working_copy.md.",
         )
         .arg(
             Arg::with_name("revision")
@@ -848,9 +849,11 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         .long_about(
             "Show high-level repo status. This includes:
 
- * The working copy commit and its (first) parent, and a summary of the changes between them
+ * The working copy commit and its (first) \
+             parent, and a summary of the changes between them
 
- * Conflicted branches (see `jj concepts branches`)",
+ * Conflicted branches (see https://github.com/martinvonz/jj/blob/main/docs/branches.md)\
+             ",
         );
     let log_command = SubCommand::with_name("log")
         .about("Show commit history")
@@ -919,8 +922,8 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         .alias("commit")
         .about("Mark a revision closed")
         .long_about(
-            "Mark a revision closed. See `jj concepts working-copy` for information about \
-             open/closed revisions.",
+            "Mark a revision closed. For information about open/closed revisions, see \
+            https://github.com/martinvonz/jj/blob/main/docs/working_copy.md.",
         )
         .arg(
             Arg::with_name("revision")
@@ -939,8 +942,8 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         .about("Mark a revision open")
         .alias("uncommit")
         .long_about(
-            "Mark a revision open. See `jj concepts working-copy` for information about \
-             open/closed revisions.",
+            "Mark a revision open. For information about open/closed revisions, see \
+            https://github.com/martinvonz/jj/blob/main/docs/working_copy.md.",
         )
         .arg(
             Arg::with_name("revision")
@@ -1164,8 +1167,8 @@ A          A",
     let branch_command = SubCommand::with_name("branch")
         .about("Create, update, or delete a branch")
         .long_about(
-            "Create, update, or delete a branch. See `jj concepts branches` for information about \
-             branches.",
+            "Create, update, or delete a branch. For information about branches, see \
+            https://github.com/martinvonz/jj/blob/main/docs/branches.md.",
         )
         .arg(rev_arg().help("The branch's target revision"))
         .arg(
@@ -1207,7 +1210,7 @@ List branches and their targets. A remote branch will be included only if its ta
              from the local target. For a conflicted branch (both local and remote), old target \
              revisions are preceded by a \"-\" and new target revisions are preceded by a \"+\".
 
-See `jj concepts branches` for information about branches.",
+For information about branches, see https://github.com/martinvonz/jj/blob/main/docs/branches.md",
         );
     let undo_command = SubCommand::with_name("undo")
         .about("Undo an operation")
@@ -1216,8 +1219,8 @@ See `jj concepts branches` for information about branches.",
         .alias("op")
         .about("Commands for working with the operation log")
         .long_about(
-            "Commands for working with the operation log. See `jj concepts operations` for \
-             information about the operation log.",
+            "Commands for working with the operation log. For information about the \
+            operation log, see https://github.com/martinvonz/jj/blob/main/docs/operation_log.md.",
         )
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(SubCommand::with_name("log").about("Show the operation log"))
@@ -1233,8 +1236,7 @@ See `jj concepts branches` for information about branches.",
         .long_about(
             "Commands for working with the underlying Git repo.
 
-For a comparison with Git, including \
-             a table of commands, see
+For a comparison with Git, including a table of commands, see \
 https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
              ",
         )
@@ -1389,18 +1391,6 @@ By default, all branches are pushed. Use `--branch` if you want to push only one
         )
         .subcommand(SubCommand::with_name("index").about("Show commit index stats"))
         .subcommand(SubCommand::with_name("reindex").about("Rebuild commit index"));
-    let concepts_command = SubCommand::with_name("concepts")
-        .alias("concept")
-        .about("Show help about concepts")
-        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
-        .subcommand(SubCommand::with_name("branches").about("Show help about branches"))
-        .subcommand(
-            SubCommand::with_name("working-copy")
-                .alias("working_copy")
-                .alias("workingcopy")
-                .about("Show help about the working copy"),
-        )
-        .subcommand(SubCommand::with_name("operations").about("Show help about operations"));
     let help_message = "Print help information, more help with --help than with -h";
     let mut app = App::new("Jujutsu")
         .global_setting(clap::AppSettings::ColoredHelp)
@@ -1487,7 +1477,6 @@ It is possible to mutating commands when loading the repo at an earlier operatio
         git_command,
         bench_command,
         debug_command,
-        concepts_command,
     ] {
         app = app.subcommand(subcommand.help_message(help_message));
     }
@@ -3920,220 +3909,6 @@ fn cmd_git(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
     Ok(())
 }
 
-fn cmd_concepts(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &ArgMatches,
-) -> Result<(), CommandError> {
-    let mut sections = vec![];
-    if args.is_present("branches") {
-        sections.push((
-            "INTRODUCTION:",
-            "\
-Branches are named pointers to revisions (just like they are in Git). You can move them without \
-             affecting the target revision's identity. Branches automatically move when revisions \
-             are rewritten (e.g. by `jj rebase`). You can pass a branch's name to commands that \
-             want a revision as argument. For example, `jj co main` will check out the revision \
-             pointed to by the \"main\" branch. Use `jj branches` to list branches and `jj \
-             branch` to create, move, or delete branches. There is currently no concept of an \
-             active/current/checked-out branch.",
-        ));
-        sections.push((
-            "REMOTES:",
-            "\
-Jujutsu identifies a branch by its name across remotes (this is unlike Git and more like \
-             Mercurial's \"bookmarks\"). For example, a branch called \"main\" in your local repo \
-             is considered the same branch as a branch by the same name on a remote. When you \
-             pull from a remote (currently only via `jj git fetch`), any branches from the remote \
-             will be imported as branches in your local repo. 
-
-Jujutsu also records the last seen position on each remote (just like Git's remote-tracking \
-             branches). You can refer to these with `<branch name>@<remote name>`, such as `jj co \
-             main@origin`. Most commands don't show the remote branch if it has the same target \
-             as the local branch. The local branch (without `@<remote name>`) is considered the \
-             branch's desired target. Consequently, if you want to update a branch on a remote, \
-             you first update the branch locally and then push the update to the remote.
-
-When you pull from a remote, any changes compared to the current record of the remote's state will \
-             be propagated to the local branch. Let's say you run `jj git fetch --remote origin` \
-             and the remote's \"main\" branch has moved so its target is now ahead of the local \
-             record in `main@origin`. That will update `main@origin` to the new target. It will \
-             also apply the change to the local branch `main`. If the local target had also moved \
-             compared to `main@origin` (probably because you had run `jj branch main`), then the \
-             two updates will be merged. If one is ahead of the other, then that target will be \
-             the new target. Otherwise the local branch will be conflicted (see next section for \
-             details).",
-        ));
-        sections.push((
-            "CONFLICTS:",
-            "\
-Branches can end up in a conflicted state. When that happens, `jj status` will include information \
-             about the conflicted branches (and instructions for how to mitigate it). `jj \
-             branches` will have details. `jj log` will show the branch name with a question mark \
-             suffix (e.g. `main?`) on each of the conflicted branch's potential target revisions. \
-             Using the branch name to look up a revision will resolve to all potential targets. \
-             That means that `jj co main` will error out, complaining that the revset resolved to \
-             multiple revisions.
-
-Both local branches (e.g. `main`) and the remote branch (e.g. `main@origin`) can have conflicts. \
-             Both can end up in that state if concurrent operations were run in the repo. The \
-             local branch more typically becomes conflicted because it was updated both locally \
-             and on a remote.
-
-To resolve a conflicted state in a local branch (e.g. `main`), you can move the branch to the \
-             desired target with `jj branch`. You may want to first either merge the conflicted \
-             targets with `jj merge`, or you may want to rebase one side on top of the other with \
-             `jj rebase`.
-
-To resolve a conflicted state in a remote branch (e.g. `main@origin`), simply pull from the remote \
-             (e.g. `jj git fetch`). The conflict resolution will also propagate to the local \
-             branch (which was presumably also conflicted).",
-        ));
-    } else if args.is_present("working-copy") {
-        sections.push((
-            "INTRODUCTION:",
-            "\
-The working copy is where the current checkout's files are written so you can interact with them. \
-             It also where files are read from in order to create new commits (though there are \
-             many other ways of creating new commits).
-
-Unlike most other VCSs, Jujutsu will automatically create commits from the working copy contents \
-             when they have changed. Most `jj` commands you run will commit the working copy \
-             changes if they have changed. The resulting revision will replace the previous \
-             working copy revision.
-
-Also unlike most other VCSs, added files are implicitly tracked. That means that if you add a new \
-             file to the working copy, it will be automatically committed once you run e.g. `jj \
-             st`. Similarly, if you remove a file from the working copy, it will implicitly be \
-             untracked. There is no easy way to make it untrack already tracked files \
-             (https://github.com/martinvonz/jj/issues/14).
-
-Jujutsu currently supports only one working copy (https://github.com/martinvonz/jj/issues/13).",
-        ));
-        sections.push((
-            "OPEN/CLOSED REVISIONS:",
-            "\
-As described in the introduction, Jujutsu automatically rewrites the current checkout with any \
-             changes from the working copy. That works well while you're developing that \
-             revision. On the other hand, if you check out some existing revision, you generally \
-             don't want changes to the working copy to automatically rewrite that revision. \
-             Jujutsu has a concept of \"open\" and \"closed\" revisions to solve this. When you \
-             check out a closed revision, Jujutsu will actually create a new, *open* revision on \
-             top of it and check that out. The checked-out revision is thus always open. When you \
-             are done making changes to the currently checked-out revision, you close it by \
-             running `jj close`. That command then updates to the rewritten revision (as most \
-             `jj` commands do), and since the rewritten revision is now closed, it creates a new \
-             open revision on top. If you check out a closed revision and make changes on top of \
-             it that you want to go into the revision, use `jj squash`.",
-        ));
-        sections.push((
-                          "CONFLICTS:",
-                          "\
-The working copy cannot contain conflicts. When you check out a revision that has conflicts, \
-             Jujutsu creates a new revision on top with the conflicts \"materialized\" as regular \
-             files. That revision will then be what's actually checked out. Materialized conflicts \
-             are simply files where the conflicting regions have been replaced by conflict markers.
-
-Once you have resolved the conflicts, use `jj squash` to move the conflict resolutions into the \
-conflicted revision.
-
-There's not yet a way of resolving conflicts in an external merge tool \
-             (https://github.com/martinvonz/jj/issues/18). There's also no good way of resolving \
-             conflicts between directories, files, and symlinks \
-             (https://github.com/martinvonz/jj/issues/19). You can use `jj restore` to choose one \
-             side of the conflict, but there's no way to even see where the involved parts came \
-             from.",
-        ));
-        sections.push((
-            "IGNORED FILES:",
-            "\
-You probably don't want build outputs and temporary files to be under version control. You can \
-             tell Jujutsu to not automatically track certain files by using `.gitignore` files \
-             (there's no such thing as `.jjignore` yet). See https://git-scm.com/docs/gitignore \
-             for details about the format. `.gitignore` files are supported in any directory in \
-             the working copy, as well as in `$HOME/.gitignore`. However, `$GIT_DIR/info/exclude` \
-             or equivalent way (maybe `.jj/gitignore`) of specifying per-clone ignores is not \
-             yet supported.",
-        ));
-    } else if args.is_present("operations") {
-        sections.push((
-            "INTRODUCTION:",
-            "\
-Jujutsu records each operation that modifies the repo in the \"operation log\". You can see the \
-             log with `jj op log`. Each operation object contains a snapshot of how the repo \
-             looked at the end of the operation. We call this snapshot a \"view\" object. The \
-             view contains information about where each branch, tag, and Git ref (in Git-backed \
-             repos) pointed, as well as the set of heads in the repo, and the current checkout. \
-             The operation object also (in addition to the view) contains pointers to the \
-             operation(s) immediately before it, as well as metadata about the operation, such as \
-             timestamps, username, hostname, description.
-
-The operation log allows you to undo an operation (`jj op undo`), which doesn't need to be the \
-             most recent one. It also lets you restore the entire repo to the way it looked at an \
-             earlier point (`jj op restore`).",
-        ));
-        sections.push((
-            "CONCURRENT OPERATIONS:",
-            "\
-One benefit of the operation log (and the reason for its creation) is that it allows lock-free \
-             concurrency -- you can run concurrent `jj` commands without corrupting the repo, \
-             even if you run the commands on different machines that access the repo via a \
-             distributed file system (as long as the file system guarantees that a write is only \
-             visible once previous writes are visible). When you run a `jj` command, it will \
-             start by loading the repo at the latest operation. It will not see any changes \
-             written by concurrent commands. If there are conflicts, you will be informed of them \
-             by subsequent `jj st` and/or `jj log` commands.
-
-As an example, let's say you had started editing the description of a change and then also update \
-             the contents of the change (maybe because you had forgotten the editor). When you \
-             eventually close your editor, the command will succeed and e.g. `jj log` will \
-             indicate that the change has diverged.",
-        ));
-        sections.push((
-            "LOADING AN OLD VERSION OF REPO:",
-            "\
-The top-level `--at-operation/--at-top` option allows you load the repo at a specific operation. \
-             This can be useful for understanding how your repo got into the current state. It \
-             can be even more useful for understanding why someone else's repo got into its \
-             current state.
-
-When you use `--at-op`, the automatic snapshotting of the working copy will not take place. When \
-             referring to a revision with the `@` symbol (as many commands do by default), that \
-             will resolve to the current checkout recorded in the operation's view (which is \
-             actually how it always works -- it's just the snapshotting that's skipped with \
-             `--at-op`).
-
-As a top-level option, `--at-op`, it can be passed to any command. However, you will typically \
-             only want to run read-only commands. For example, `jj log`, `jj st`, and `jj diff` \
-             all make sense. It's still possible to run e.g. `jj --at-op=<some operation ID> \
-             describe`. That's equivalent to having started `jj describe` back when the specified \
-             operation was the most recent operation and then let it run until now (which can be \
-             done for that particular command by not closing the editor). There's practically no \
-             good reason to do that other than to simulate concurrent commands.",
-        ));
-    } else {
-        panic!("unhandled help concept: {:#?}", command.root_args());
-    }
-
-    let mut formatter = ui.stdout_formatter();
-    formatter.add_label("concepts".to_string())?;
-    for (i, (heading, text)) in sections.iter().enumerate() {
-        if i != 0 {
-            formatter.write_str("\n")?;
-        }
-        formatter.add_label("heading".to_string())?;
-        formatter.write_str(heading)?;
-        formatter.remove_label()?;
-        formatter.write_str("\n")?;
-        let text = textwrap::fill(text, 116);
-        let text = textwrap::indent(&text, "    ");
-        formatter.write_str(&text)?;
-        formatter.write_str("\n")?;
-    }
-    formatter.remove_label()?;
-    Ok(())
-}
-
 fn resolve_alias(ui: &mut Ui, args: Vec<String>) -> Vec<String> {
     if args.len() >= 2 {
         let command_name = args[1].clone();
@@ -4241,8 +4016,6 @@ where
         cmd_bench(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("debug") {
         cmd_debug(&mut ui, &command_helper, sub_args)
-    } else if let Some(sub_args) = matches.subcommand_matches("concepts") {
-        cmd_concepts(&mut ui, &command_helper, sub_args)
     } else {
         panic!("unhandled command: {:#?}", matches);
     };
