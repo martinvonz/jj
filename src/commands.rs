@@ -1744,6 +1744,18 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
     let repo = workspace_command.repo();
     let workspace_root = workspace_command.workspace_root();
     let matcher = matcher_from_values(ui, workspace_root, args.values_of("paths"))?;
+    let diff_iterator = from_tree.diff(&to_tree, matcher.as_ref());
+    show_diff(ui, repo, workspace_root, args, diff_iterator)?;
+    Ok(())
+}
+
+fn show_diff(
+    ui: &mut Ui,
+    repo: &Arc<ReadonlyRepo>,
+    workspace_root: &Path,
+    args: &ArgMatches,
+    tree_diff: TreeDiffIterator,
+) -> Result<(), CommandError> {
     enum Format {
         Summary,
         Git,
@@ -1765,21 +1777,19 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
             }
         }
     };
-    let diff_iterator = from_tree.diff(&to_tree, matcher.as_ref());
     match format {
         Format::Summary => {
-            show_diff_summary(ui, workspace_root, diff_iterator)?;
+            show_diff_summary(ui, workspace_root, tree_diff)?;
         }
         Format::Git => {
-            show_git_diff(ui, repo, diff_iterator)?;
+            show_git_diff(ui, repo, tree_diff)?;
         }
         Format::ColorWords => {
-            show_color_words_diff(ui, workspace_root, repo, diff_iterator)?;
+            show_color_words_diff(ui, workspace_root, repo, tree_diff)?;
         }
     }
     Ok(())
 }
-
 fn diff_content(
     repo: &Arc<ReadonlyRepo>,
     path: &RepoPath,
