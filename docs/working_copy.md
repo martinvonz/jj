@@ -42,14 +42,26 @@ into the revision, use `jj squash`.
 
 ## Conflicts
 
-The working copy cannot contain conflicts. When you check out a revision that
-has conflicts, Jujutsu creates a new revision on top with the conflicts
-"materialized" as regular files. That revision will then be what's actually
-checked out. Materialized conflicts are simply files where the conflicting
-regions have been replaced by conflict markers.
+When you check out a commit with conflicts, those conflicts need to be
+represented in the working copy somehow. However, the file system doesn't
+understand conflicts. Jujutsu's solution is to add conflict markers to
+conflicted files when it writes them to the working copy. It also keeps track of
+the (typically 3) different parts involved in the conflict. Whenever it scans
+the working copy thereafter, it parses the conflict markers and recreates the
+conflict state from them. You can resolve conflicts by replacing the conflict
+markers by the resolved text. You don't need to resolve all conflicts at once.
+You can even resolve part of a conflict by updating the different parts of the
+conflict marker.
 
-Once you have resolved the conflicts, use `jj squash` to move the conflict
-resolutions into the conflicted revision.
+If the commit with conflicts was closed, your conflict resolution would be in
+the working copy commit. Once you have resolved the conflicts, you would then
+typically use `jj squash` to move the conflict resolutions into the conflicted
+commit.
+
+If the commit with conflicts was open, it would simply not have conflicts
+anymore once you have resolved them. If you prefer to do the conflict resolution
+in a separate commit, you can use `jj new` before you resolve the conflicts and
+then `jj squash` once you're done.
 
 There's not yet a way of resolving conflicts in an external merge tool
 (https://github.com/martinvonz/jj/issues/18). There's also no good way of
