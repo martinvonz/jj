@@ -15,8 +15,9 @@ will replace the previous working copy revision.
 Also unlike most other VCSs, added files are implicitly tracked. That means that
 if you add a new file to the working copy, it will be automatically committed
 once you run e.g. `jj st`. Similarly, if you remove a file from the working
-copy, it will implicitly be untracked. There is no easy way to make it untrack
-already tracked files (https://github.com/martinvonz/jj/issues/14).
+copy, it will implicitly be untracked. To untrack a file while keeping it in
+the working copy, first make sure it's [ignored](#ignored-files) and then run
+`jj untrack <path>`.
 
 Jujutsu currently supports only one working copy
 (https://github.com/martinvonz/jj/issues/13).
