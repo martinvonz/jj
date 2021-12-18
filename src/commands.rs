@@ -748,7 +748,7 @@ fn get_app<'a, 'b>() -> App<'a, 'b> {
             "Update the working copy to another revision. If the revision is closed or has \
              conflicts, then a new, open revision will be created on top, and that will be checked \
              out. For more information, see \
-             https://github.com/martinvonz/jj/blob/main/docs/working_copy.md.",
+             https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.",
         )
         .arg(
             Arg::with_name("revision")
@@ -923,7 +923,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         .about("Mark a revision closed")
         .long_about(
             "Mark a revision closed. For information about open/closed revisions, see \
-            https://github.com/martinvonz/jj/blob/main/docs/working_copy.md.",
+            https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.",
         )
         .arg(
             Arg::with_name("revision")
@@ -943,7 +943,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         .alias("uncommit")
         .long_about(
             "Mark a revision open. For information about open/closed revisions, see \
-            https://github.com/martinvonz/jj/blob/main/docs/working_copy.md.",
+            https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.",
         )
         .arg(
             Arg::with_name("revision")
@@ -1220,7 +1220,7 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
         .about("Commands for working with the operation log")
         .long_about(
             "Commands for working with the operation log. For information about the \
-            operation log, see https://github.com/martinvonz/jj/blob/main/docs/operation_log.md.",
+            operation log, see https://github.com/martinvonz/jj/blob/main/docs/operation-log.md.",
         )
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(SubCommand::with_name("log").about("Show the operation log"))

@@ -148,4 +148,4 @@ The best way to get started is probably to go through
 ## Related work
 
 There are several tools trying to solve similar problems as Jujutsu. See
-[related work](docs/related_work.md) for details.
+[related work](docs/related-work.md) for details.
