@@ -996,7 +996,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         .long_about(
             "Move changes from a revision into its parent. After moving the changes into the \
              parent, the child revision will have the same content state as before. If that means \
-             that the change is now empty compared to its parent, it will be abandon. Note that \
+             that the change is now empty compared to its parent, it will be abandoned. Note that \
              this will always be the case without `--interactive`.",
         )
         .arg(rev_arg())
