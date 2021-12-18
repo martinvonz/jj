@@ -2,6 +2,27 @@
 
 TODO: Describe the differences compared to Git here
 
+
+## The index
+
+Git's ["index"](https://git-scm.com/book/en/v2/Git-Tools-Reset-Demystified) has
+multiple roles. One role is as a cache of file system information. Jujutsu has
+something similar. Unfortunately, Git exposes the index to the user, which makes
+the CLI unnecessarily complicated (learning what the different flavors of
+`git reset` do, especially when combined with commits and/or paths, usually
+takes a while). Jujutsu, like Mercurial, doesn't make that mistake.
+
+As a Git power-user, you may think that you need the power of the index to
+commit only part of the working copy. However, Jujutsu provides commands for
+more directly achieving most use cases you're used to using Git's index for. For
+example, to create a commit from part of the changes in the working copy, you
+might be used to using `git add -p; git commit`. With Jujutsu, you'd instead
+use `jj split` to split the working copy commit into two commits. To add more
+changes into the parent commit, which you might normally use
+`git add -p; git commit --amend` for, you can instead use `jj squash -i` to
+choose which changes to move into the parent commit.
+
+
 ## Command equivalence table
 
 Note that all `jj` commands can be run on any commit (not just the working copy
