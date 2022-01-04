@@ -15,6 +15,7 @@
 #![feature(assert_matches)]
 #![feature(map_first_last)]
 #![deny(unused_must_use)]
+#![allow(clippy::return_self_not_must_use)]
 
 #[macro_use]
 extern crate pest_derive;
