@@ -11,7 +11,7 @@ from Google.
 
 ## Introduction
 
-Jujutsu is a Git-compatible
+Jujutsu is a [Git-compatible](docs/git-compatibility.md)
 [DVCS](https://en.wikipedia.org/wiki/Distributed_version_control). It combines
 features from Git (data model,
 [speed](https://github.com/martinvonz/jj/discussions/49)), Mercurial (anonymous
