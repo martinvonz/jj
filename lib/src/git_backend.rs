@@ -105,10 +105,7 @@ impl GitBackend {
             } else {
                 TableStore::load(extra_path, HASH_LENGTH)
             };
-            let mut mut_table = extra_metadata_store
-                .get_head()
-                .unwrap()
-                .start_modification();
+            let mut mut_table = extra_metadata_store.get_head().unwrap().start_mutation();
             println!(
                 "Found Git notes ref {}, migrating it to a new format...",
                 COMMITS_NOTES_REF
@@ -424,7 +421,7 @@ impl Backend for GitBackend {
             .extra_metadata_store
             .get_head()
             .unwrap()
-            .start_modification();
+            .start_mutation();
         if let Some(existing_extras) = mut_table.get_value(git_id.as_bytes()) {
             if existing_extras != extras {
                 return Err(BackendError::Other(format!(
