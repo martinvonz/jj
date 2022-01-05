@@ -431,7 +431,7 @@ impl MutableRepo {
         index: Arc<ReadonlyIndex>,
         view: &View,
     ) -> MutableRepo {
-        let mut_view = view.start_modification();
+        let mut_view = view.clone();
         let mut_index = MutableIndex::incremental(index);
         MutableRepo {
             base_repo,

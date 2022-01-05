@@ -28,7 +28,7 @@ pub enum RefName {
     GitRef(String),
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct View {
     data: op_store::View,
 }
@@ -37,13 +37,6 @@ impl View {
     pub fn new(op_store_view: op_store::View) -> Self {
         View {
             data: op_store_view,
-        }
-    }
-
-    pub fn start_modification(&self) -> View {
-        // TODO: Avoid the cloning of the sets here.
-        View {
-            data: self.data.clone(),
         }
     }
 
