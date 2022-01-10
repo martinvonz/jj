@@ -29,7 +29,7 @@ early: every command that may modify the repo takes a lock at the very
 beginning. However, that means that operations that wouldn't actually conflict
 would still have to wait for each other. The user experience can be improved by
 using finer-grained locks and/or taking the locks later. The drawback of that is
-complexity. For example, ou need to verify that any assumptions you made before
+complexity. For example, you need to verify that any assumptions you made before
 locking are still valid.
 
 To avoid depending on lock files, Jujutsu takes a different approach by
