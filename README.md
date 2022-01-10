@@ -19,7 +19,9 @@ branching, simple CLI [free from "the index"](docs/git-comparison.md#the-index),
 [revsets](docs/revsets.md)), and Pijul/Darcs
 ([first-class conflicts](docs/conflicts.md)), with features not found in either
 of them ([working-copy-as-a-commit](docs/working-copy.md),
-[undo functionality](docs/operation-log.md), automatic rebase).
+[undo functionality](docs/operation-log.md), automatic rebase,
+[safe replication via `rsync`, Dropbox, or distributed file
+system](docs/technical/concurrency.md)).
 
 The command-line tool is called `jj` for now because it's easy to type and easy
 to replace (rare in English). The project is called "Jujutsu" because it matches
