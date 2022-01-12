@@ -83,11 +83,10 @@ impl GitIgnoreLine {
         is_rooted |= input.contains('/');
 
         let mut regex = String::new();
-        if is_rooted {
-            regex.insert_str(0, prefix);
-            regex.insert(0, '^');
-        } else {
-            regex.insert_str(0, "(^|/)");
+        regex.push('^');
+        regex.push_str(prefix);
+        if !is_rooted {
+            regex.push_str("(.*/)?");
         }
 
         let components = input.split('/').collect_vec();
@@ -271,9 +270,17 @@ mod tests {
         let file = GitIgnoreFile::empty().chain("dir/", b"foo\n").ok().unwrap();
         // I consider it undefined whether a file in a parent directory matches, but
         // let's test it anyway
-        assert!(file.matches_file("foo"));
+        assert!(!file.matches_file("foo"));
         assert!(file.matches_file("dir/foo"));
         assert!(file.matches_file("dir/subdir/foo"));
+    }
+
+    #[test]
+    fn test_gitignore_pattern_same_as_prefix() {
+        let file = GitIgnoreFile::empty().chain("dir/", b"dir\n").ok().unwrap();
+        assert!(file.matches_file("dir/dir"));
+        // We don't want the "dir" pattern to apply to the parent directory
+        assert!(!file.matches_file("dir/foo"));
     }
 
     #[test]
