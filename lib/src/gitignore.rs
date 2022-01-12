@@ -32,6 +32,7 @@ impl GitIgnoreLine {
         let mut non_space_seen = false;
         let mut prev_was_space = false;
         let mut in_escape = false;
+        let input = input.strip_suffix('\r').unwrap_or(input);
         for (i, c) in input.char_indices() {
             if !prev_was_space && non_space_seen {
                 trimmed_len = i;
@@ -341,6 +342,13 @@ mod tests {
         // It's unclear how this should be interpreted, but we count spaces before
         // escaped spaces
         assert!(matches_file(b"a b \\  \n", "a b  "));
+        // A single CR at EOL is ignored
+        assert!(matches_file(b"a\r\n", "a"));
+        assert!(!matches_file(b"a\r\n", "a\r"));
+        assert!(matches_file(b"a\r\r\n", "a\r"));
+        assert!(!matches_file(b"a\r\r\n", "a\r\r"));
+        assert!(matches_file(b"\ra\n", "\ra"));
+        assert!(!matches_file(b"\ra\n", "a"));
     }
 
     #[test]
