@@ -19,6 +19,7 @@ use regex::{escape as regex_escape, Regex};
 
 pub enum GitIgnoreParseError {}
 
+#[derive(Debug)]
 struct GitIgnoreLine {
     is_negative: bool,
     regex: Regex,
@@ -153,6 +154,7 @@ impl GitIgnoreLine {
     }
 }
 
+#[derive(Debug)]
 pub struct GitIgnoreFile {
     parent: Option<Arc<GitIgnoreFile>>,
     lines: Vec<GitIgnoreLine>,
