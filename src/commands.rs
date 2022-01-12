@@ -1383,7 +1383,7 @@ By default, all branches are pushed. Use `--branch` if you want to push only one
         )
         .subcommand(App::new("index").about("Show commit index stats"))
         .subcommand(App::new("reindex").about("Rebuild commit index"));
-    let mut app = App::new("jj")
+    App::new("jj")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .version(crate_version!())
         .author("Martin von Zweigbergk <martinvonz@google.com>")
@@ -1393,6 +1393,9 @@ By default, all branches are pushed. Use `--branch` if you want to push only one
 To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.\
              ",
         )
+        .mut_arg("help", |arg| {
+            arg.help("Print help information, more help with --help than with -h")
+        })
         .arg(
             Arg::new("repository")
                 .long("repository")
@@ -1432,45 +1435,37 @@ It is possible to mutating commands when loading the repo at an earlier operatio
                      operation. There's rarely a reason to do that, but it is possible.
 ",
                 ),
-        );
-    // TODO: We should also set the help message on sub-sub-commands etc.
-    let help_message = "Print help information, more help with --help than with -h";
-    app = app.mut_arg("help", |arg| arg.help(help_message));
-    for subcommand in [
-        init_command,
-        checkout_command,
-        untrack_command,
-        files_command,
-        diff_command,
-        show_command,
-        status_command,
-        log_command,
-        obslog_command,
-        describe_command,
-        close_command,
-        open_command,
-        duplicate_command,
-        abandon_command,
-        new_command,
-        squash_command,
-        unsquash_command,
-        restore_command,
-        edit_command,
-        split_command,
-        merge_command,
-        rebase_command,
-        backout_command,
-        branch_command,
-        branches_command,
-        operation_command,
-        undo_command,
-        git_command,
-        bench_command,
-        debug_command,
-    ] {
-        app = app.subcommand(subcommand.mut_arg("help", |arg| arg.help(help_message)));
-    }
-    app
+        )
+        .subcommand(init_command)
+        .subcommand(checkout_command)
+        .subcommand(untrack_command)
+        .subcommand(files_command)
+        .subcommand(diff_command)
+        .subcommand(show_command)
+        .subcommand(status_command)
+        .subcommand(log_command)
+        .subcommand(obslog_command)
+        .subcommand(describe_command)
+        .subcommand(close_command)
+        .subcommand(open_command)
+        .subcommand(duplicate_command)
+        .subcommand(abandon_command)
+        .subcommand(new_command)
+        .subcommand(squash_command)
+        .subcommand(unsquash_command)
+        .subcommand(restore_command)
+        .subcommand(edit_command)
+        .subcommand(split_command)
+        .subcommand(merge_command)
+        .subcommand(rebase_command)
+        .subcommand(backout_command)
+        .subcommand(branch_command)
+        .subcommand(branches_command)
+        .subcommand(operation_command)
+        .subcommand(undo_command)
+        .subcommand(git_command)
+        .subcommand(bench_command)
+        .subcommand(debug_command)
 }
 
 fn short_commit_description(commit: &Commit) -> String {
