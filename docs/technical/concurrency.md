@@ -25,7 +25,7 @@ frequently get corrupted, for example).
 
 Another problem with using lock files is related to complexity of
 implementation. The simplest way of using lock files is to take coarse-grained
-early: every command that may modify the repo takes a lock at the very
+locks early: every command that may modify the repo takes a lock at the very
 beginning. However, that means that operations that wouldn't actually conflict
 would still have to wait for each other. The user experience can be improved by
 using finer-grained locks and/or taking the locks later. The drawback of that is
@@ -35,7 +35,7 @@ locking are still valid.
 To avoid depending on lock files, Jujutsu takes a different approach by
 accepting that concurrent changes can always happen. It instead exposes any
 conflicting changes to the user, much like other DVCSs do for conflicting
-changes done remotely.
+changes made remotely.
 
 Jujutsu's lock-free concurrency means that it's possible to update copies of the
 clone on different machines and then let `rsync` (or Dropbox, or NFS, etc.)
@@ -74,12 +74,12 @@ view of the repo and are guaranteed to be able to commit their changes --
 greatly simplifies the implementation of commands.
 
 It is possible to load the repo at a particular operation with
-`jj --at-operation <command>`. If the command is mutational, that will result
-in a fork in the operation log. That works exactly the same as if any later
-operations had not existed when the command started. In other words, running
-commands on a repo loaded at an earlier operation works the same way as if the
-operations had been concurrent. This can be useful for simulating concurrent
-operations.
+`jj --at-operation=<operation ID> <command>`. If the command is mutational, that
+will result in a fork in the operation log. That works exactly the same as if
+any later operations had not existed when the command started. In other words,
+running commands on a repo loaded at an earlier operation works the same way as
+if the operations had been concurrent. This can be useful for simulating
+concurrent operations.
 
 ### Merging concurrent operations
 
@@ -87,16 +87,16 @@ If Jujutsu tries to load the repo and finds multiple heads in the operation log,
 it will do a 3-way merge of the view objects based on their common ancestor
 (possibly several 3-way merges if there were more than two heads). Conflicts
 are recorded in the resulting view object. For example, if branch `main` was
-moved from commit A to commit B in one operation and moved to commit C in
+moved from commit A to commit B in one operation and moved to commit C in a
 concurrent operation, then `main` will be recorded as "moved from A to B or C".
 See the `RefTarget` [definition](../../lib/protos/op_store.proto).
 
 Because we allow branches (etc.) to be in a conflicted state rather than just
-erroring out when there are multiple heads, the user continue to use the repo,
-including performing further operations on the repo. Of course, some commands
-will fail when using a conflicted branch. For example, `jj checkout main` when
-`main` is in a conflicted state will result in an error telling you that `main`
-resolved to multiple revisions.
+erroring out when there are multiple heads, the user can continue to use the
+repo, including performing further operations on the repo. Of course, some
+commands will fail when using a conflicted branch. For example,
+`jj checkout main` when `main` is in a conflicted state will result in an error
+telling you that `main` resolved to multiple revisions.
 
 ### Storage
 
