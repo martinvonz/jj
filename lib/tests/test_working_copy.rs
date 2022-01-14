@@ -330,7 +330,7 @@ fn test_untrack() {
     let new_commit = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial_commit)
         .set_tree(unfinished_write.new_tree_id())
         .write_to_repo(tx.mut_repo());
-    unfinished_write.finish(new_commit.clone());
+    unfinished_write.finish(new_commit.id().clone());
     tx.commit();
 
     // The file should still exist in the working copy.

@@ -294,7 +294,7 @@ impl WorkspaceCommandHelper {
             self.repo = tx.commit();
             if let Some(new_wc_commit) = new_wc_commit {
                 let locked_working_copy = self.workspace.working_copy_mut().write_tree();
-                locked_working_copy.finish(new_wc_commit);
+                locked_working_copy.finish(new_wc_commit.id().clone());
             }
         }
         Ok(())
@@ -457,7 +457,8 @@ impl WorkspaceCommandHelper {
         if self.may_update_working_copy {
             let repo = self.repo.clone();
             let locked_wc = self.workspace.working_copy_mut().write_tree();
-            let old_commit = locked_wc.old_commit();
+            let old_commit_id = locked_wc.old_commit_id();
+            let old_commit = self.repo.store().get_commit(&old_commit_id).unwrap();
             // Check if the current checkout has changed on disk after we read it. It's fine
             // if it has, but we'll need to reload the repo so the new commit is
             // in the index and view.
@@ -488,7 +489,7 @@ impl WorkspaceCommandHelper {
                 }
 
                 self.repo = tx.commit();
-                locked_wc.finish(commit);
+                locked_wc.finish(commit.id().clone());
             } else {
                 locked_wc.discard();
             }
@@ -688,9 +689,9 @@ fn update_working_copy(
     repo: &Arc<ReadonlyRepo>,
     wc: &mut WorkingCopy,
 ) -> Result<Option<CheckoutStats>, CommandError> {
-    let old_commit = wc.current_commit();
+    let old_commit_id = wc.current_commit_id();
     let new_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
-    if old_commit == new_commit {
+    if *new_commit.id() == old_commit_id {
         return Ok(None);
     }
     // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
@@ -1588,19 +1589,27 @@ fn cmd_untrack(
         .untrack(matcher.as_ref())
         .map_err(|err| CommandError::InternalError(format!("Failed to untrack paths: {}", err)))?;
     let new_tree_id = unfinished_write.new_tree_id();
-    let old_commit = unfinished_write.old_commit();
+    let old_commit_id = unfinished_write.old_commit_id();
+    let old_commit = store.get_commit(&old_commit_id).unwrap();
     let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &store, &old_commit)
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().set_checkout(new_commit.id().clone());
-    unfinished_write.finish(new_commit);
+    unfinished_write.finish(new_commit.id().clone());
     workspace_command.finish_transaction(ui, tx)?;
 
     // TODO: Is it better to have WorkingCopy::untrack() report if any matching
     // files exist on disk? That would make the command have no effect rather
     // than partially succeeding, for better or worse.
+    // Commit the working copy again so we can inform the user if paths couldn't be
+    // untracked because they're not ignored.
     workspace_command.maybe_commit_working_copy(ui)?;
-    let new_commit = workspace_command.working_copy().current_commit();
+    let new_commit_id = workspace_command.repo().view().checkout();
+    let new_commit = workspace_command
+        .repo()
+        .store()
+        .get_commit(new_commit_id)
+        .unwrap();
     if let Some((path, _value)) = new_commit.tree().entries_matching(matcher.as_ref()).next() {
         let ui_path = ui.format_file_path(workspace_command.workspace_root(), &path);
         return Err(CommandError::UserError(format!(

@@ -699,8 +699,6 @@ pub struct WorkingCopy {
     state_path: PathBuf,
     commit_id: RefCell<Option<CommitId>>,
     tree_state: RefCell<Option<TreeState>>,
-    // cached commit
-    commit: RefCell<Option<Commit>>,
 }
 
 impl WorkingCopy {
@@ -720,7 +718,6 @@ impl WorkingCopy {
             state_path,
             commit_id: RefCell::new(None),
             tree_state: RefCell::new(None),
-            commit: RefCell::new(None),
         }
     }
 
@@ -731,7 +728,6 @@ impl WorkingCopy {
             state_path,
             commit_id: RefCell::new(None),
             tree_state: RefCell::new(None),
-            commit: RefCell::new(None),
         }
     }
 
@@ -760,23 +756,6 @@ impl WorkingCopy {
         }
 
         self.commit_id.borrow().as_ref().unwrap().clone()
-    }
-
-    /// The commit that's currently checked out in the working copy. Note that
-    /// the View is the source of truth for which commit *should* be checked
-    /// out. That should be kept up to date within a Transaction. The
-    /// WorkingCopy is only updated at the end.
-    pub fn current_commit(&self) -> Commit {
-        let commit_id = self.current_commit_id();
-        let stale = match self.commit.borrow().as_ref() {
-            None => true,
-            Some(value) => value.id() != &commit_id,
-        };
-        if stale {
-            self.commit
-                .replace(Some(self.store.get_commit(&commit_id).unwrap()));
-        }
-        self.commit.borrow().as_ref().unwrap().clone()
     }
 
     fn tree_state(&self) -> RefMut<Option<TreeState>> {
@@ -838,7 +817,6 @@ impl WorkingCopy {
             .check_out(commit.tree().id().clone())?;
 
         self.commit_id.replace(Some(commit.id().clone()));
-        self.commit.replace(Some(commit));
 
         self.save();
         // TODO: Clear the "pending_checkout" file here.
@@ -889,17 +867,12 @@ impl LockedWorkingCopy<'_> {
         self.wc.current_commit_id()
     }
 
-    pub fn old_commit(&self) -> Commit {
-        self.wc.current_commit()
-    }
-
     pub fn new_tree_id(&self) -> TreeId {
         self.wc.current_tree_id()
     }
 
-    pub fn finish(mut self, commit: Commit) {
-        self.wc.commit_id.replace(Some(commit.id().clone()));
-        self.wc.commit.replace(Some(commit));
+    pub fn finish(mut self, commit_id: CommitId) {
+        self.wc.commit_id.replace(Some(commit_id));
         self.wc.save();
         self.closed = true;
     }
