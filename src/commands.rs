@@ -1583,12 +1583,12 @@ fn cmd_untrack(
         args.values_of("paths"),
     )?;
     let mut tx = workspace_command.start_transaction("untrack paths");
-    let old_commit = workspace_command.working_copy_mut().current_commit();
     let unfinished_write = workspace_command
         .working_copy_mut()
         .untrack(matcher.as_ref())
         .map_err(|err| CommandError::InternalError(format!("Failed to untrack paths: {}", err)))?;
     let new_tree_id = unfinished_write.new_tree_id();
+    let old_commit = unfinished_write.old_commit();
     let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &store, &old_commit)
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
