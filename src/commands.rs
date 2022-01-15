@@ -1593,9 +1593,8 @@ fn cmd_untrack(
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().set_checkout(new_commit.id().clone());
-    let repo = tx.commit();
     unfinished_write.finish(new_commit);
-    workspace_command.repo_mut().reload_at(repo.operation());
+    workspace_command.finish_transaction(ui, tx)?;
 
     // TODO: Is it better to have WorkingCopy::untrack() report if any matching
     // files exist on disk? That would make the command have no effect rather
