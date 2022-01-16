@@ -12,35 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::testutils;
+use jujutsu::testutils::TestEnvironment;
 use regex::Regex;
 
 #[test]
 fn smoke_test() {
-    let temp_dir = tempfile::tempdir().unwrap();
+    let test_env = TestEnvironment::default();
+    test_env
+        .jj_cmd(test_env.env_root(), &["init", "repo"])
+        .assert()
+        .success();
 
-    let output = testutils::CommandRunner::new(temp_dir.path()).run(vec!["init", "repo"]);
-    assert_eq!(output.status, 0);
-    let repo_path = temp_dir.path().join("repo");
-
+    let repo_path = test_env.env_root().join("repo");
     // Check the output of `jj status` right after initializing repo
-    let output = testutils::CommandRunner::new(&repo_path).run(vec!["status"]);
-    assert_eq!(output.status, 0);
-    let stdout_string = output.stdout_string();
-    let output_regex = Regex::new(
-        "^Parent commit: 000000000000[ ]
+    let assert = test_env.jj_cmd(&repo_path, &["status"]).assert().success();
+    let stdout_string_empty = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    let output_regex = "^Parent commit: 000000000000[ ]
 Working copy : ([[:xdigit:]]+)[ ]
 The working copy is clean
-$",
-    )
-    .unwrap();
-    assert!(
-        output_regex.is_match(&stdout_string),
-        "output was: {}",
-        stdout_string
-    );
-    let wc_hex_id_empty = output_regex
-        .captures(&stdout_string)
+$";
+    assert.stdout(predicates::str::is_match(output_regex).unwrap());
+    let wc_hex_id_empty = Regex::new(output_regex)
+        .unwrap()
+        .captures(&stdout_string_empty)
         .unwrap()
         .get(1)
         .unwrap()
@@ -52,26 +46,19 @@ $",
     std::fs::write(repo_path.join("file2"), "file2").unwrap();
     std::fs::write(repo_path.join("file3"), "file3").unwrap();
 
-    let output = testutils::CommandRunner::new(&repo_path).run(vec!["status"]);
-    assert_eq!(output.status, 0);
-    let stdout_string = output.stdout_string();
-    let output_regex = Regex::new(
-        "^Parent commit: 000000000000[ ]
+    let assert = test_env.jj_cmd(&repo_path, &["status"]).assert().success();
+    let stdout_string_non_empty = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    let output_regex = "^Parent commit: 000000000000[ ]
 Working copy : ([[:xdigit:]]+)[ ]
 Working copy changes:
 A file1
 A file2
 A file3
-$",
-    )
-    .unwrap();
-    assert!(
-        output_regex.is_match(&stdout_string),
-        "output was: {}",
-        stdout_string
-    );
-    let wc_hex_id_non_empty = output_regex
-        .captures(&stdout_string)
+$";
+    assert.stdout(predicates::str::is_match(output_regex).unwrap());
+    let wc_hex_id_non_empty = Regex::new(output_regex)
+        .unwrap()
+        .captures(&stdout_string_non_empty)
         .unwrap()
         .get(1)
         .unwrap()
@@ -79,40 +66,25 @@ $",
         .to_owned();
 
     // The working copy's id should have changed
-    assert_ne!(wc_hex_id_empty, wc_hex_id_non_empty);
+    assert_ne!(wc_hex_id_non_empty, wc_hex_id_empty);
 
     // Running `jj status` again gives the same output
-    let output2 = testutils::CommandRunner::new(&repo_path).run(vec!["status"]);
-    assert_eq!(output, output2);
+    let assert = test_env.jj_cmd(&repo_path, &["status"]).assert().success();
+    let stdout_string_again = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    assert_eq!(stdout_string_again, stdout_string_non_empty);
 
     // Add a commit description
-    let output =
-        testutils::CommandRunner::new(&repo_path).run(vec!["describe", "-m", "add some files"]);
-    assert_eq!(output.status, 0);
-    let stdout_string = output.stdout_string();
-    let output_regex = Regex::new(
-        "^Working copy now at: [[:xdigit:]]+ add some files
-$",
-    )
-    .unwrap();
-    assert!(
-        output_regex.is_match(&stdout_string),
-        "output was: {}",
-        stdout_string
-    );
+    let assert = test_env
+        .jj_cmd(&repo_path, &["describe", "-m", "add some files"])
+        .assert()
+        .success();
+    let output_regex = "^Working copy now at: [[:xdigit:]]+ add some files
+$";
+    assert.stdout(predicates::str::is_match(output_regex).unwrap());
 
     // Close the commit
-    let output = testutils::CommandRunner::new(&repo_path).run(vec!["close"]);
-    assert_eq!(output.status, 0);
-    let stdout_string = output.stdout_string();
-    let output_regex = Regex::new(
-        "^Working copy now at: [[:xdigit:]]+[ ]
-$",
-    )
-    .unwrap();
-    assert!(
-        output_regex.is_match(&stdout_string),
-        "output was: {}",
-        stdout_string
-    );
+    let assert = test_env.jj_cmd(&repo_path, &["close"]).assert().success();
+    let output_regex = "^Working copy now at: [[:xdigit:]]+[ ]
+$";
+    assert.stdout(predicates::str::is_match(output_regex).unwrap());
 }
