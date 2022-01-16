@@ -12,56 +12,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::{Debug, Error, Formatter};
-use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-use jujutsu_lib::testutils::{new_user_home, user_settings};
+use tempfile::TempDir;
 
-use crate::commands;
-use crate::ui::Ui;
-
-pub struct CommandRunner {
-    pub cwd: PathBuf,
-    pub stdout_buf: Vec<u8>,
+pub struct TestEnvironment {
+    _temp_dir: TempDir,
+    env_root: PathBuf,
+    home_dir: PathBuf,
 }
 
-impl CommandRunner {
-    pub fn new(cwd: &Path) -> CommandRunner {
-        CommandRunner {
-            cwd: cwd.to_owned(),
-            stdout_buf: vec![],
+impl Default for TestEnvironment {
+    fn default() -> Self {
+        let tmp_dir = TempDir::new().unwrap();
+        let env_root = tmp_dir.path().canonicalize().unwrap();
+        let home_dir = env_root.join("home");
+        Self {
+            _temp_dir: tmp_dir,
+            env_root,
+            home_dir,
         }
     }
+}
 
-    pub fn run(self, mut args: Vec<&str>) -> CommandOutput {
-        let _home_dir = new_user_home();
-        let mut stdout_buf = self.stdout_buf;
-        let stdout = Box::new(Cursor::new(&mut stdout_buf));
-        let ui = Ui::new(self.cwd, stdout, false, user_settings());
-        args.insert(0, "jj");
-        let status = commands::dispatch(ui, args);
-        CommandOutput { status, stdout_buf }
+impl TestEnvironment {
+    pub fn jj_cmd(&self, current_dir: &Path, args: &[&str]) -> assert_cmd::Command {
+        let mut cmd = assert_cmd::Command::cargo_bin("jj").unwrap();
+        cmd.current_dir(current_dir);
+        cmd.args(args);
+        cmd.env("HOME", self.home_dir.to_str().unwrap());
+        cmd
     }
-}
 
-#[derive(PartialEq, Eq)]
-pub struct CommandOutput {
-    pub status: i32,
-    pub stdout_buf: Vec<u8>,
-}
-
-impl CommandOutput {
-    pub fn stdout_string(&self) -> String {
-        String::from_utf8(self.stdout_buf.clone()).unwrap()
+    pub fn env_root(&self) -> &Path {
+        &self.env_root
     }
-}
 
-impl Debug for CommandOutput {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.debug_struct("CommandOutput")
-            .field("status", &self.status)
-            .field("stdout_buf", &String::from_utf8_lossy(&self.stdout_buf))
-            .finish()
+    pub fn home_dir(&self) -> &Path {
+        &self.home_dir
     }
 }
