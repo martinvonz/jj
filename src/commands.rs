@@ -549,9 +549,15 @@ impl WorkspaceCommandHelper {
                 writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
             }
         }
+        let old_commit_id = tx.base_repo().view().checkout().clone();
         self.repo = tx.commit();
         if self.may_update_working_copy {
-            let stats = update_working_copy(ui, &self.repo, self.workspace.working_copy_mut())?;
+            let stats = update_working_copy(
+                ui,
+                &self.repo,
+                self.workspace.working_copy_mut(),
+                &old_commit_id,
+            )?;
             if let Some(stats) = stats {
                 if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
                     writeln!(
@@ -698,22 +704,24 @@ fn update_working_copy(
     ui: &mut Ui,
     repo: &Arc<ReadonlyRepo>,
     wc: &mut WorkingCopy,
+    old_commit_id: &CommitId,
 ) -> Result<Option<CheckoutStats>, CommandError> {
-    let old_commit_id = wc.current_commit_id();
     let new_commit_id = repo.view().checkout();
-    if *new_commit_id == old_commit_id {
+    if new_commit_id == old_commit_id {
         return Ok(None);
     }
     // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
     // warning for most commands (but be an error for the checkout command)
     let new_commit = repo.store().get_commit(new_commit_id).unwrap();
-    let stats = wc.check_out(new_commit.clone()).map_err(|err| {
-        CommandError::InternalError(format!(
-            "Failed to check out commit {}: {}",
-            new_commit.id().hex(),
-            err
-        ))
-    })?;
+    let stats = wc
+        .check_out(Some(old_commit_id), new_commit.clone())
+        .map_err(|err| {
+            CommandError::InternalError(format!(
+                "Failed to check out commit {}: {}",
+                new_commit.id().hex(),
+                err
+            ))
+        })?;
     ui.write("Working copy now at: ")?;
     ui.write_commit_summary(repo.as_repo_ref(), &new_commit)?;
     ui.write("\n")?;

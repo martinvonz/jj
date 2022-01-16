@@ -816,8 +816,12 @@ impl WorkingCopy {
         self.write_proto(proto);
     }
 
-    pub fn check_out(&mut self, commit: Commit) -> Result<CheckoutStats, CheckoutError> {
-        assert!(commit.is_open());
+    pub fn check_out(
+        &mut self,
+        old_commit_id: Option<&CommitId>,
+        new_commit: Commit,
+    ) -> Result<CheckoutStats, CheckoutError> {
+        assert!(new_commit.is_open());
         let lock_path = self.state_path.join("working_copy.lock");
         let _lock = FileLock::lock(lock_path);
 
@@ -826,15 +830,12 @@ impl WorkingCopy {
         // access to that file can       also serve as lock so only one process
         // at once can do a checkout.
 
-        // Check if the current checkout has changed on disk after we read it. It's safe
-        // to check out another commit regardless, but it's probably not what
-        // the caller wanted, so we let them know.
-        //
-        // We could safely add a version of this function without the check if we see a
-        // need for it.
+        // Check if the current checkout has changed on disk compared to what the caller
+        // expected. It's safe to check out another commit regardless, but it's
+        // probably not what  the caller wanted, so we let them know.
         let current_proto = self.read_proto();
-        if let Some(commit_id_at_read_time) = self.commit_id.borrow().as_ref() {
-            if current_proto.commit_id != commit_id_at_read_time.as_bytes() {
+        if let Some(old_commit_id) = old_commit_id {
+            if current_proto.commit_id != old_commit_id.as_bytes() {
                 return Err(CheckoutError::ConcurrentCheckout);
             }
         }
@@ -843,9 +844,9 @@ impl WorkingCopy {
             .tree_state()
             .as_mut()
             .unwrap()
-            .check_out(commit.tree().id().clone())?;
+            .check_out(new_commit.tree().id().clone())?;
 
-        self.commit_id.replace(Some(commit.id().clone()));
+        self.commit_id.replace(Some(new_commit.id().clone()));
 
         self.save();
         // TODO: Clear the "pending_checkout" file here.

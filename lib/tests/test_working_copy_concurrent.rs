@@ -47,19 +47,20 @@ fn test_concurrent_checkout(use_git: bool) {
 
     // Check out commit1
     let wc1 = test_workspace1.workspace.working_copy_mut();
-    wc1.check_out(commit1).unwrap();
+    let commit_id1 = commit1.id().clone();
+    wc1.check_out(None, commit1).unwrap();
 
     // Check out commit2 from another process (simulated by another workspace
     // instance)
     let mut workspace2 = Workspace::load(&settings, workspace1_root.clone()).unwrap();
     workspace2
         .working_copy_mut()
-        .check_out(commit2.clone())
+        .check_out(Some(&commit_id1), commit2.clone())
         .unwrap();
 
     // Checking out another commit (via the first repo instance) should now fail.
     assert_eq!(
-        wc1.check_out(commit3),
+        wc1.check_out(Some(&commit_id1), commit3),
         Err(CheckoutError::ConcurrentCheckout)
     );
 
@@ -109,7 +110,7 @@ fn test_checkout_parallel(use_git: bool) {
     test_workspace
         .workspace
         .working_copy_mut()
-        .check_out(commit)
+        .check_out(None, commit)
         .unwrap();
 
     let mut threads = vec![];
@@ -125,7 +126,10 @@ fn test_checkout_parallel(use_git: bool) {
                 .store()
                 .get_commit(&commit_id)
                 .unwrap();
-            let stats = workspace.working_copy_mut().check_out(commit).unwrap();
+            let stats = workspace
+                .working_copy_mut()
+                .check_out(None, commit)
+                .unwrap();
             assert_eq!(stats.updated_files, 0);
             assert_eq!(stats.added_files, 1);
             assert_eq!(stats.removed_files, 1);
