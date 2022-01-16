@@ -293,7 +293,11 @@ impl WorkspaceCommandHelper {
             }
             self.repo = tx.commit();
             if let Some(new_wc_commit) = new_wc_commit {
-                let locked_working_copy = self.workspace.working_copy_mut().write_tree();
+                // TODO: We should probably do a regular checkout of new_wc_commit here even
+                // though it would usually have no effect. The issue is that if
+                // the update removed file ignored, we currently leave that as
+                // tracked, making it appear like it was added.
+                let locked_working_copy = self.workspace.working_copy_mut().start_mutation();
                 locked_working_copy.finish(new_wc_commit.id().clone());
             }
         }
@@ -456,9 +460,13 @@ impl WorkspaceCommandHelper {
     fn maybe_commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             let repo = self.repo.clone();
-            let locked_wc = self.workspace.working_copy_mut().write_tree();
-            let old_commit_id = locked_wc.old_commit_id();
-            let old_commit = self.repo.store().get_commit(&old_commit_id).unwrap();
+            let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
+            let new_tree_id = locked_wc.write_tree();
+            let old_commit = self
+                .repo
+                .store()
+                .get_commit(locked_wc.old_commit_id())
+                .unwrap();
             // Check if the current checkout has changed on disk after we read it. It's fine
             // if it has, but we'll need to reload the repo so the new commit is
             // in the index and view.
@@ -468,7 +476,6 @@ impl WorkspaceCommandHelper {
                 // view when we reload.
                 self.repo = repo.reload();
             }
-            let new_tree_id = locked_wc.new_tree_id();
             if new_tree_id != *old_commit.tree().id() {
                 let mut tx = self.repo.start_transaction("commit working copy");
                 let mut_repo = tx.mut_repo();
@@ -1585,18 +1592,18 @@ fn cmd_untrack(
         args.values_of("paths"),
     )?;
     let mut tx = workspace_command.start_transaction("untrack paths");
-    let unfinished_write = workspace_command
-        .working_copy_mut()
+    let mut locked_working_copy = workspace_command.working_copy_mut().start_mutation();
+    let new_tree_id = locked_working_copy
         .untrack(matcher.as_ref())
         .map_err(|err| CommandError::InternalError(format!("Failed to untrack paths: {}", err)))?;
-    let new_tree_id = unfinished_write.new_tree_id();
-    let old_commit_id = unfinished_write.old_commit_id();
-    let old_commit = store.get_commit(&old_commit_id).unwrap();
+    let old_commit = store
+        .get_commit(locked_working_copy.old_commit_id())
+        .unwrap();
     let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &store, &old_commit)
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().set_checkout(new_commit.id().clone());
-    unfinished_write.finish(new_commit.id().clone());
+    locked_working_copy.finish(new_commit.id().clone());
     workspace_command.finish_transaction(ui, tx)?;
 
     // TODO: Is it better to have WorkingCopy::untrack() report if any matching

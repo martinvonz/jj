@@ -831,33 +831,20 @@ impl WorkingCopy {
         Ok(stats)
     }
 
-    pub fn write_tree(&mut self) -> LockedWorkingCopy {
+    pub fn start_mutation(&mut self) -> LockedWorkingCopy {
         let lock_path = self.state_path.join("working_copy.lock");
         let lock = FileLock::lock(lock_path);
 
         let current_proto = self.read_proto();
-        self.commit_id
-            .replace(Some(CommitId::new(current_proto.commit_id)));
-        self.tree_state().as_mut().unwrap().write_tree();
+        let old_commit_id = CommitId::new(current_proto.commit_id);
+        self.commit_id.replace(Some(old_commit_id.clone()));
 
         LockedWorkingCopy {
             wc: self,
             lock,
+            old_commit_id,
             closed: false,
         }
-    }
-
-    pub fn untrack(&mut self, matcher: &dyn Matcher) -> Result<LockedWorkingCopy, UntrackError> {
-        let lock_path = self.state_path.join("working_copy.lock");
-        let lock = FileLock::lock(lock_path);
-
-        self.tree_state().as_mut().unwrap().untrack(matcher)?;
-
-        Ok(LockedWorkingCopy {
-            wc: self,
-            lock,
-            closed: false,
-        })
     }
 }
 
@@ -867,16 +854,24 @@ pub struct LockedWorkingCopy<'a> {
     wc: &'a mut WorkingCopy,
     #[allow(dead_code)]
     lock: FileLock,
+    old_commit_id: CommitId,
     closed: bool,
 }
 
 impl LockedWorkingCopy<'_> {
-    pub fn old_commit_id(&self) -> CommitId {
-        self.wc.current_commit_id()
+    /// The commit at the time the lock was taken
+    pub fn old_commit_id(&self) -> &CommitId {
+        &self.old_commit_id
     }
 
-    pub fn new_tree_id(&self) -> TreeId {
+    pub fn write_tree(&mut self) -> TreeId {
+        self.wc.tree_state().as_mut().unwrap().write_tree();
         self.wc.current_tree_id()
+    }
+
+    pub fn untrack(&mut self, matcher: &dyn Matcher) -> Result<TreeId, UntrackError> {
+        self.wc.tree_state().as_mut().unwrap().untrack(matcher)?;
+        Ok(self.wc.current_tree_id())
     }
 
     pub fn finish(mut self, commit_id: CommitId) {
