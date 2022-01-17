@@ -55,7 +55,7 @@ use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::TreeDiffIterator;
-use jujutsu_lib::working_copy::{CheckoutStats, WorkingCopy};
+use jujutsu_lib::working_copy::{CheckoutStats, ResetError, WorkingCopy};
 use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
 use jujutsu_lib::{conflicts, diff, files, git, revset, tree};
 use maplit::{hashmap, hashset};
@@ -96,6 +96,12 @@ impl From<BackendError> for CommandError {
 impl From<WorkspaceInitError> for CommandError {
     fn from(_: WorkspaceInitError) -> Self {
         CommandError::UserError("The target repo already exists".to_string())
+    }
+}
+
+impl From<ResetError> for CommandError {
+    fn from(_: ResetError) -> Self {
+        CommandError::InternalError("Failed to reset the working copy".to_string())
     }
 }
 
@@ -293,11 +299,8 @@ impl WorkspaceCommandHelper {
             }
             self.repo = tx.commit();
             if let Some(new_wc_commit) = new_wc_commit {
-                // TODO: We should probably do a regular checkout of new_wc_commit here even
-                // though it would usually have no effect. The issue is that if
-                // the update removed file ignored, we currently leave that as
-                // tracked, making it appear like it was added.
-                let locked_working_copy = self.workspace.working_copy_mut().start_mutation();
+                let mut locked_working_copy = self.workspace.working_copy_mut().start_mutation();
+                locked_working_copy.reset(&new_wc_commit.tree())?;
                 locked_working_copy.finish(new_wc_commit.id().clone());
             }
         }
