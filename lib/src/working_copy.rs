@@ -839,7 +839,7 @@ impl WorkingCopy {
     ) -> Result<CheckoutStats, CheckoutError> {
         let mut locked_wc = self.start_mutation();
         let new_commit_id = new_commit.id().clone();
-        let stats = match locked_wc.check_out(old_commit_id, new_commit) {
+        let stats = match locked_wc.check_out(old_commit_id, new_commit.tree_id().clone()) {
             Err(CheckoutError::ConcurrentCheckout) => {
                 locked_wc.discard();
                 return Err(CheckoutError::ConcurrentCheckout);
@@ -874,9 +874,8 @@ impl LockedWorkingCopy<'_> {
     pub fn check_out(
         &mut self,
         old_commit_id: Option<&CommitId>,
-        new_commit: Commit,
+        new_tree_id: TreeId,
     ) -> Result<CheckoutStats, CheckoutError> {
-        assert!(new_commit.is_open());
         // TODO: Write a "pending_checkout" file with the old and new TreeIds so we can
         // continue an interrupted checkout if we find such a file.
 
@@ -894,7 +893,7 @@ impl LockedWorkingCopy<'_> {
             .tree_state()
             .as_mut()
             .unwrap()
-            .check_out(new_commit.tree().id().clone())?;
+            .check_out(new_tree_id)?;
         Ok(stats)
     }
 
