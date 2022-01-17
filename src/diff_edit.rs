@@ -150,7 +150,7 @@ pub fn edit_diff(
     // Create a Tree based on the initial right tree, applying the changes made to
     // that directory by the diff editor.
     let new_right_partial_tree_id = right_tree_state.write_tree();
-    let new_right_partial_tree = store.get_tree(&RepoPath::root(), new_right_partial_tree_id)?;
+    let new_right_partial_tree = store.get_tree(&RepoPath::root(), &new_right_partial_tree_id)?;
     let new_tree_id = merge_trees(right_tree, &right_partial_tree, &new_right_partial_tree)?;
 
     Ok(new_tree_id)

@@ -314,7 +314,7 @@ impl TreeState {
 
     // Look for changes to the working copy. If there are any changes, create
     // a new tree from it and return it, and also update the dirstate on disk.
-    pub fn write_tree(&mut self) -> &TreeId {
+    pub fn write_tree(&mut self) -> TreeId {
         // TODO: We should probably have the caller pass in the home directory to the
         // library crate instead of depending on $HOME directly here. We should also
         // have the caller (within the library crate) chain that the
@@ -380,8 +380,7 @@ impl TreeState {
             tree_builder.remove(file.clone());
         }
         self.tree_id = tree_builder.write_tree();
-        self.save();
-        &self.tree_id
+        self.tree_id.clone()
     }
 
     fn update_file_state(
@@ -673,7 +672,7 @@ impl TreeState {
         Ok(stats)
     }
 
-    pub fn untrack(&mut self, matcher: &dyn Matcher) -> Result<(), UntrackError> {
+    pub fn untrack(&mut self, matcher: &dyn Matcher) -> Result<TreeId, UntrackError> {
         let tree = self
             .store
             .get_tree(&RepoPath::root(), &self.tree_id)
@@ -688,8 +687,7 @@ impl TreeState {
             tree_builder.remove(path);
         }
         self.tree_id = tree_builder.write_tree();
-        self.save();
-        Ok(())
+        Ok(self.tree_id.clone())
     }
 }
 
@@ -702,9 +700,10 @@ pub struct WorkingCopy {
 }
 
 impl WorkingCopy {
-    /// Initializes a new working copy at `working_copy_path`. The working copy's state will be
-    /// stored in the `state_path` directory. The working copy will be recorded as being already
-    /// checked out at commit pointed to by `commit_id`; this function doesn't update the working
+    /// Initializes a new working copy at `working_copy_path`. The working
+    /// copy's state will be stored in the `state_path` directory. The
+    /// working copy will be recorded as being already checked out at commit
+    /// pointed to by `commit_id`; this function doesn't update the working
     /// copy file to that commit.
     pub fn init(
         store: Arc<Store>,
@@ -865,16 +864,15 @@ impl LockedWorkingCopy<'_> {
     }
 
     pub fn write_tree(&mut self) -> TreeId {
-        self.wc.tree_state().as_mut().unwrap().write_tree();
-        self.wc.current_tree_id()
+        self.wc.tree_state().as_mut().unwrap().write_tree()
     }
 
     pub fn untrack(&mut self, matcher: &dyn Matcher) -> Result<TreeId, UntrackError> {
-        self.wc.tree_state().as_mut().unwrap().untrack(matcher)?;
-        Ok(self.wc.current_tree_id())
+        self.wc.tree_state().as_mut().unwrap().untrack(matcher)
     }
 
     pub fn finish(mut self, commit_id: CommitId) {
+        self.wc.tree_state().as_mut().unwrap().save();
         self.wc.commit_id.replace(Some(commit_id));
         self.wc.save();
         self.closed = true;
