@@ -41,7 +41,7 @@ use crate::lock::FileLock;
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
-use crate::tree::Diff;
+use crate::tree::{Diff, Tree};
 use crate::tree_builder::TreeBuilder;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -185,6 +185,16 @@ pub enum CheckoutError {
     // working copy was read by the current process).
     #[error("Concurrent checkout")]
     ConcurrentCheckout,
+    #[error("Internal error: {0:?}")]
+    InternalBackendError(BackendError),
+}
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum ResetError {
+    // The current checkout was deleted, maybe by an overly aggressive GC that happened while
+    // the current process was running.
+    #[error("Current checkout not found")]
+    SourceNotFound,
     #[error("Internal error: {0:?}")]
     InternalBackendError(BackendError),
 }
@@ -672,6 +682,46 @@ impl TreeState {
         Ok(stats)
     }
 
+    pub fn reset(&mut self, new_tree: &Tree) -> Result<(), ResetError> {
+        let old_tree = self
+            .store
+            .get_tree(&RepoPath::root(), &self.tree_id)
+            .map_err(|err| match err {
+                BackendError::NotFound => ResetError::SourceNotFound,
+                other => ResetError::InternalBackendError(other),
+            })?;
+
+        for (path, diff) in old_tree.diff(new_tree, &EverythingMatcher) {
+            match diff {
+                Diff::Removed(_before) => {
+                    self.file_states.remove(&path);
+                }
+                Diff::Added(after) | Diff::Modified(_, after) => {
+                    let file_type = match after {
+                        TreeValue::Normal { id: _, executable } => FileType::Normal { executable },
+                        TreeValue::Symlink(_id) => FileType::Symlink,
+                        TreeValue::Conflict(id) => FileType::Conflict { id },
+                        TreeValue::GitSubmodule(_id) => {
+                            println!("ignoring git submodule at {:?}", path);
+                            continue;
+                        }
+                        TreeValue::Tree(_id) => {
+                            panic!("unexpected tree entry in diff at {:?}", path);
+                        }
+                    };
+                    let file_state = FileState {
+                        file_type,
+                        mtime: MillisSinceEpoch(0),
+                        size: 0,
+                    };
+                    self.file_states.insert(path.clone(), file_state);
+                }
+            }
+        }
+        self.tree_id = new_tree.id().clone();
+        Ok(())
+    }
+
     pub fn untrack(&mut self, matcher: &dyn Matcher) -> Result<TreeId, UntrackError> {
         let tree = self
             .store
@@ -865,6 +915,10 @@ impl LockedWorkingCopy<'_> {
 
     pub fn write_tree(&mut self) -> TreeId {
         self.wc.tree_state().as_mut().unwrap().write_tree()
+    }
+
+    pub fn reset(&mut self, new_tree: &Tree) -> Result<(), ResetError> {
+        self.wc.tree_state().as_mut().unwrap().reset(new_tree)
     }
 
     pub fn untrack(&mut self, matcher: &dyn Matcher) -> Result<TreeId, UntrackError> {

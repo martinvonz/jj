@@ -292,6 +292,86 @@ fn test_checkout_file_transitions(use_git: bool) {
 }
 
 #[test]
+fn test_reset() {
+    let settings = testutils::user_settings();
+    let mut test_workspace = testutils::init_repo(&settings, false);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
+
+    let ignored_path = RepoPath::from_internal_string("ignored");
+    let gitignore_path = RepoPath::from_internal_string(".gitignore");
+
+    let tree_without_file = testutils::create_tree(repo, &[(&gitignore_path, "ignored\n")]);
+    let tree_with_file = testutils::create_tree(
+        repo,
+        &[(&gitignore_path, "ignored\n"), (&ignored_path, "code")],
+    );
+    let mut tx = repo.start_transaction("test");
+    let store = repo.store();
+    let root_commit = store.root_commit_id();
+    let commit_without_file = CommitBuilder::for_open_commit(
+        &settings,
+        store,
+        root_commit.clone(),
+        tree_without_file.id().clone(),
+    )
+    .write_to_repo(tx.mut_repo());
+    let commit_with_file = CommitBuilder::for_open_commit(
+        &settings,
+        store,
+        root_commit.clone(),
+        tree_with_file.id().clone(),
+    )
+    .write_to_repo(tx.mut_repo());
+    test_workspace.repo = tx.commit();
+
+    let wc = test_workspace.workspace.working_copy_mut();
+    wc.check_out(commit_with_file.clone()).unwrap();
+
+    // Test the setup: the file should exist on disk and in the tree state.
+    assert!(ignored_path.to_fs_path(&workspace_root).is_file());
+    assert!(wc.file_states().contains_key(&ignored_path));
+
+    // After we reset to the commit without the file, it should still exist on disk,
+    // but it should not be in the tree state, and it should not get added when we
+    // commit the working copy (because it's ignored).
+    let mut locked_wc = wc.start_mutation();
+    locked_wc.reset(&tree_without_file).unwrap();
+    locked_wc.finish(commit_without_file.id().clone());
+    assert!(ignored_path.to_fs_path(&workspace_root).is_file());
+    assert!(!wc.file_states().contains_key(&ignored_path));
+    let mut locked_wc = wc.start_mutation();
+    let new_tree_id = locked_wc.write_tree();
+    assert_eq!(new_tree_id, *tree_without_file.id());
+    locked_wc.discard();
+
+    // After we reset to the commit without the file, it should still exist on disk,
+    // but it should not be in the tree state, and it should not get added when we
+    // commit the working copy (because it's ignored).
+    let mut locked_wc = wc.start_mutation();
+    locked_wc.reset(&tree_without_file).unwrap();
+    locked_wc.finish(commit_without_file.id().clone());
+    assert!(ignored_path.to_fs_path(&workspace_root).is_file());
+    assert!(!wc.file_states().contains_key(&ignored_path));
+    let mut locked_wc = wc.start_mutation();
+    let new_tree_id = locked_wc.write_tree();
+    assert_eq!(new_tree_id, *tree_without_file.id());
+    locked_wc.discard();
+
+    // Now test the opposite direction: resetting to a commit where the file is
+    // tracked. The file should become tracked (even though it's ignored).
+    let mut locked_wc = wc.start_mutation();
+    locked_wc.reset(&tree_with_file).unwrap();
+    locked_wc.finish(commit_with_file.id().clone());
+    assert!(ignored_path.to_fs_path(&workspace_root).is_file());
+    assert!(wc.file_states().contains_key(&ignored_path));
+    let mut locked_wc = wc.start_mutation();
+    let new_tree_id = locked_wc.write_tree();
+    assert_eq!(new_tree_id, *tree_with_file.id());
+    locked_wc.discard();
+}
+
+#[test]
 fn test_untrack() {
     let settings = testutils::user_settings();
     let mut test_workspace = testutils::init_repo(&settings, false);
