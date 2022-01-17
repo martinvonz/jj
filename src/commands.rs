@@ -1633,11 +1633,12 @@ fn cmd_untrack(
     let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &store, &old_commit)
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
-    tx.mut_repo().set_checkout(new_commit.id().clone());
-    // TODO: We shouldn't write a reference to new_commit in the working copy until
-    // the transaction has committed.
+    let num_rebased = rebase_descendants(ui.settings(), tx.mut_repo());
+    if num_rebased > 0 {
+        writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
+    }
+    tx.commit();
     locked_working_copy.finish(new_commit.id().clone());
-    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
