@@ -816,43 +816,6 @@ impl WorkingCopy {
         self.write_proto(proto);
     }
 
-    pub fn check_out(
-        &mut self,
-        old_commit_id: Option<&CommitId>,
-        new_commit: Commit,
-    ) -> Result<CheckoutStats, CheckoutError> {
-        assert!(new_commit.is_open());
-        let lock_path = self.state_path.join("working_copy.lock");
-        let _lock = FileLock::lock(lock_path);
-
-        // TODO: Write a "pending_checkout" file with the old and new TreeIds so we can
-        // continue       an interrupted checkout if we find such a file. Write
-        // access to that file can       also serve as lock so only one process
-        // at once can do a checkout.
-
-        // Check if the current checkout has changed on disk compared to what the caller
-        // expected. It's safe to check out another commit regardless, but it's
-        // probably not what  the caller wanted, so we let them know.
-        let current_proto = self.read_proto();
-        if let Some(old_commit_id) = old_commit_id {
-            if current_proto.commit_id != old_commit_id.as_bytes() {
-                return Err(CheckoutError::ConcurrentCheckout);
-            }
-        }
-
-        let stats = self
-            .tree_state()
-            .as_mut()
-            .unwrap()
-            .check_out(new_commit.tree().id().clone())?;
-
-        self.commit_id.replace(Some(new_commit.id().clone()));
-
-        self.save();
-        // TODO: Clear the "pending_checkout" file here.
-        Ok(stats)
-    }
-
     pub fn start_mutation(&mut self) -> LockedWorkingCopy {
         let lock_path = self.state_path.join("working_copy.lock");
         let lock = FileLock::lock(lock_path);
@@ -867,6 +830,24 @@ impl WorkingCopy {
             old_commit_id,
             closed: false,
         }
+    }
+
+    pub fn check_out(
+        &mut self,
+        old_commit_id: Option<&CommitId>,
+        new_commit: Commit,
+    ) -> Result<CheckoutStats, CheckoutError> {
+        let mut locked_wc = self.start_mutation();
+        let new_commit_id = new_commit.id().clone();
+        let stats = match locked_wc.check_out(old_commit_id, new_commit) {
+            Err(CheckoutError::ConcurrentCheckout) => {
+                locked_wc.discard();
+                return Err(CheckoutError::ConcurrentCheckout);
+            }
+            other => other,
+        }?;
+        locked_wc.finish(new_commit_id);
+        Ok(stats)
     }
 }
 
@@ -890,6 +871,33 @@ impl LockedWorkingCopy<'_> {
         self.wc.tree_state().as_mut().unwrap().write_tree()
     }
 
+    pub fn check_out(
+        &mut self,
+        old_commit_id: Option<&CommitId>,
+        new_commit: Commit,
+    ) -> Result<CheckoutStats, CheckoutError> {
+        assert!(new_commit.is_open());
+        // TODO: Write a "pending_checkout" file with the old and new TreeIds so we can
+        // continue an interrupted checkout if we find such a file.
+
+        // Check if the current checkout has changed on disk compared to what the caller
+        // expected. It's safe to check out another commit regardless, but it's
+        // probably not what  the caller wanted, so we let them know.
+        if let Some(old_commit_id) = old_commit_id {
+            if *old_commit_id != self.old_commit_id {
+                return Err(CheckoutError::ConcurrentCheckout);
+            }
+        }
+
+        let stats = self
+            .wc
+            .tree_state()
+            .as_mut()
+            .unwrap()
+            .check_out(new_commit.tree().id().clone())?;
+        Ok(stats)
+    }
+
     pub fn reset(&mut self, new_tree: &Tree) -> Result<(), ResetError> {
         self.wc.tree_state().as_mut().unwrap().reset(new_tree)
     }
@@ -898,6 +906,7 @@ impl LockedWorkingCopy<'_> {
         self.wc.tree_state().as_mut().unwrap().save();
         self.wc.commit_id.replace(Some(commit_id));
         self.wc.save();
+        // TODO: Clear the "pending_checkout" file here.
         self.closed = true;
     }
 
