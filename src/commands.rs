@@ -690,12 +690,13 @@ fn update_working_copy(
     wc: &mut WorkingCopy,
 ) -> Result<Option<CheckoutStats>, CommandError> {
     let old_commit_id = wc.current_commit_id();
-    let new_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
-    if *new_commit.id() == old_commit_id {
+    let new_commit_id = repo.view().checkout();
+    if *new_commit_id == old_commit_id {
         return Ok(None);
     }
     // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
     // warning for most commands (but be an error for the checkout command)
+    let new_commit = repo.store().get_commit(new_commit_id).unwrap();
     let stats = wc.check_out(new_commit.clone()).map_err(|err| {
         CommandError::InternalError(format!(
             "Failed to check out commit {}: {}",
