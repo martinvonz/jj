@@ -63,7 +63,7 @@ pub struct FileState {
 
 impl FileState {
     #[cfg_attr(unix, allow(dead_code))]
-    fn is_executable(&mut self) -> bool {
+    fn is_executable(&self) -> bool {
         if let FileType::Normal { executable } = &self.file_type {
             *executable
         } else {
