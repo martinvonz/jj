@@ -38,7 +38,7 @@ use crate::commit::Commit;
 use crate::conflicts::{materialize_conflict, update_conflict_from_content};
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
-use crate::matchers::{EverythingMatcher, Matcher};
+use crate::matchers::EverythingMatcher;
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::tree::{Diff, Tree};
@@ -191,16 +191,6 @@ pub enum CheckoutError {
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ResetError {
-    // The current checkout was deleted, maybe by an overly aggressive GC that happened while
-    // the current process was running.
-    #[error("Current checkout not found")]
-    SourceNotFound,
-    #[error("Internal error: {0:?}")]
-    InternalBackendError(BackendError),
-}
-
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum UntrackError {
     // The current checkout was deleted, maybe by an overly aggressive GC that happened while
     // the current process was running.
     #[error("Current checkout not found")]
@@ -721,24 +711,6 @@ impl TreeState {
         self.tree_id = new_tree.id().clone();
         Ok(())
     }
-
-    pub fn untrack(&mut self, matcher: &dyn Matcher) -> Result<TreeId, UntrackError> {
-        let tree = self
-            .store
-            .get_tree(&RepoPath::root(), &self.tree_id)
-            .map_err(|err| match err {
-                BackendError::NotFound => UntrackError::SourceNotFound,
-                other => UntrackError::InternalBackendError(other),
-            })?;
-
-        let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
-        for (path, _value) in tree.entries_matching(matcher) {
-            self.file_states.remove(&path);
-            tree_builder.remove(path);
-        }
-        self.tree_id = tree_builder.write_tree();
-        Ok(self.tree_id.clone())
-    }
 }
 
 pub struct WorkingCopy {
@@ -919,10 +891,6 @@ impl LockedWorkingCopy<'_> {
 
     pub fn reset(&mut self, new_tree: &Tree) -> Result<(), ResetError> {
         self.wc.tree_state().as_mut().unwrap().reset(new_tree)
-    }
-
-    pub fn untrack(&mut self, matcher: &dyn Matcher) -> Result<TreeId, UntrackError> {
-        self.wc.tree_state().as_mut().unwrap().untrack(matcher)
     }
 
     pub fn finish(mut self, commit_id: CommitId) {

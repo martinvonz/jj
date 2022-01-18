@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashSet;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 #[cfg(unix)]
@@ -22,7 +21,6 @@ use std::sync::Arc;
 use itertools::Itertools;
 use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::matchers::FilesMatcher;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::settings::UserSettings;
@@ -368,68 +366,6 @@ fn test_reset() {
     let mut locked_wc = wc.start_mutation();
     let new_tree_id = locked_wc.write_tree();
     assert_eq!(new_tree_id, *tree_with_file.id());
-    locked_wc.discard();
-}
-
-#[test]
-fn test_untrack() {
-    let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_repo(&settings, false);
-    let repo = &test_workspace.repo;
-    let workspace_root = test_workspace.workspace.workspace_root().clone();
-
-    let wanted_path = RepoPath::from_internal_string("wanted");
-    let unwanted_path = RepoPath::from_internal_string("unwanted");
-    let gitignore_path = RepoPath::from_internal_string(".gitignore");
-
-    // First create a commit where one of the files is unwanted.
-    let initial_tree = testutils::create_tree(
-        repo,
-        &[
-            (&wanted_path, "code"),
-            (&unwanted_path, "garbage"),
-            (&gitignore_path, "unwanted\n"),
-        ],
-    );
-    let mut tx = repo.start_transaction("test");
-    let initial_commit = CommitBuilder::for_open_commit(
-        &settings,
-        repo.store(),
-        repo.store().root_commit_id().clone(),
-        initial_tree.id().clone(),
-    )
-    .write_to_repo(tx.mut_repo());
-    let repo = tx.commit();
-    let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(initial_commit.clone()).unwrap();
-
-    // Now we untrack the file called "unwanted"
-    let mut tx = repo.start_transaction("test");
-    let matcher = FilesMatcher::new(HashSet::from([unwanted_path.clone()]));
-    let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.untrack(&matcher).unwrap();
-    let new_commit = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial_commit)
-        .set_tree(new_tree_id)
-        .write_to_repo(tx.mut_repo());
-    locked_wc.finish(new_commit.id().clone());
-    tx.commit();
-
-    // The file should still exist in the working copy.
-    assert!(unwanted_path.to_fs_path(&workspace_root).is_file());
-
-    // It should not be in the new tree.
-    let tracked_paths = new_commit
-        .tree()
-        .entries()
-        .map(|(path, _)| path)
-        .collect_vec();
-    assert_eq!(tracked_paths, vec![gitignore_path, wanted_path]);
-
-    // It should not get re-added if we write a new tree since we also added it
-    // to the .gitignore file.
-    let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.write_tree();
-    assert_eq!(new_tree_id, *new_commit.tree().id());
     locked_wc.discard();
 }
 
