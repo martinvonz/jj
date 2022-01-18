@@ -1594,41 +1594,50 @@ fn cmd_untrack(
         workspace_command.workspace_root(),
         args.values_of("paths"),
     )?;
+
     let mut tx = workspace_command.start_transaction("untrack paths");
     let mut locked_working_copy = workspace_command.working_copy_mut().start_mutation();
-    let new_tree_id = locked_working_copy
-        .untrack(matcher.as_ref())
-        .map_err(|err| CommandError::InternalError(format!("Failed to untrack paths: {}", err)))?;
+    // TODO: Error out if locked_working_copy.old_commit_id() doesn't match
+    // repo.view().checkout()
     let old_commit = store
         .get_commit(locked_working_copy.old_commit_id())
         .unwrap();
+    // Create a new tree without the unwanted files
+    let mut tree_builder = store.tree_builder(old_commit.tree_id().clone());
+    for (path, _value) in old_commit.tree().entries_matching(matcher.as_ref()) {
+        tree_builder.remove(path);
+    }
+    let new_tree_id = tree_builder.write_tree();
+    let new_tree = store.get_tree(&RepoPath::root(), &new_tree_id)?;
+    // Reset the working copy to the new tree
+    locked_working_copy.reset(&new_tree)?;
+    // Commit the working copy again so we can inform the user if paths couldn't be
+    // untracked because they're not ignored.
+    let wc_tree_id = locked_working_copy.write_tree();
+    if wc_tree_id != new_tree_id {
+        let wc_tree = store.get_tree(&RepoPath::root(), &wc_tree_id)?;
+        if let Some((path, _value)) = wc_tree.entries_matching(matcher.as_ref()).next() {
+            locked_working_copy.discard();
+            let ui_path = ui.format_file_path(workspace_command.workspace_root(), &path);
+            return Err(CommandError::UserError(format!(
+                "At least '{}' was added back because it is not ignored. Make sure it's ignored, \
+                 then try again.",
+                ui_path
+            )));
+        } else {
+            // This means there were some concurrent changes made in the working copy. We
+            // don't want to mix those in, so reset the working copy again.
+            locked_working_copy.reset(&new_tree)?;
+        }
+    }
     let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &store, &old_commit)
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().set_checkout(new_commit.id().clone());
+    // TODO: We shouldn't write a reference to new_commit in the working copy until
+    // the transaction has committed.
     locked_working_copy.finish(new_commit.id().clone());
     workspace_command.finish_transaction(ui, tx)?;
-
-    // TODO: Is it better to have WorkingCopy::untrack() report if any matching
-    // files exist on disk? That would make the command have no effect rather
-    // than partially succeeding, for better or worse.
-    // Commit the working copy again so we can inform the user if paths couldn't be
-    // untracked because they're not ignored.
-    workspace_command.maybe_commit_working_copy(ui)?;
-    let new_commit_id = workspace_command.repo().view().checkout();
-    let new_commit = workspace_command
-        .repo()
-        .store()
-        .get_commit(new_commit_id)
-        .unwrap();
-    if let Some((path, _value)) = new_commit.tree().entries_matching(matcher.as_ref()).next() {
-        let ui_path = ui.format_file_path(workspace_command.workspace_root(), &path);
-        return Err(CommandError::UserError(format!(
-            "At least '{}' was added back because it is not ignored. Make sure it's ignored, then \
-             try again.",
-            ui_path
-        )));
-    }
     Ok(())
 }
 
