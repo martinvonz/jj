@@ -464,7 +464,6 @@ impl WorkspaceCommandHelper {
         if self.may_update_working_copy {
             let repo = self.repo.clone();
             let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
-            let new_tree_id = locked_wc.write_tree();
             let old_commit = self
                 .repo
                 .store()
@@ -479,6 +478,7 @@ impl WorkspaceCommandHelper {
                 // view when we reload.
                 self.repo = repo.reload();
             }
+            let new_tree_id = locked_wc.write_tree();
             if new_tree_id != *old_commit.tree().id() {
                 let mut tx = self.repo.start_transaction("commit working copy");
                 let mut_repo = tx.mut_repo();
