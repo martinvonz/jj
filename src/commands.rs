@@ -57,7 +57,7 @@ use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::TreeDiffIterator;
 use jujutsu_lib::working_copy::{CheckoutStats, ResetError, WorkingCopy};
 use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
-use jujutsu_lib::{conflicts, diff, files, git, revset, tree};
+use jujutsu_lib::{conflicts, dag_walk, diff, files, git, revset, tree};
 use maplit::{hashmap, hashset};
 use pest::Parser;
 
@@ -465,29 +465,77 @@ impl WorkspaceCommandHelper {
         if self.may_update_working_copy {
             let repo = self.repo.clone();
             let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
-            let wc_commit = self
-                .repo
-                .store()
-                .get_commit(locked_wc.old_commit_id())
-                .unwrap();
             // Check if the working copy commit matches the repo's view. It's fine if it
             // doesn't, but we'll need to reload the repo so the new commit is
             // in the index and view, and so we don't cause unnecessary
             // divergence.
-            let checkout = repo.view().checkout();
-            if checkout != wc_commit.id() {
-                // TODO: This is not enough. The new commit is not necessarily still in the
-                // view when we reload.
-                self.repo = repo.reload();
+            let checkout_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
+            let wc_commit_id = locked_wc.old_commit_id().clone();
+            if *checkout_commit.id() != wc_commit_id {
+                let wc_operation_data = self
+                    .repo
+                    .op_store()
+                    .read_operation(locked_wc.old_operation_id())
+                    .unwrap();
+                let wc_operation = Operation::new(
+                    repo.op_store().clone(),
+                    locked_wc.old_operation_id().clone(),
+                    wc_operation_data,
+                );
+                let repo_operation = repo.operation();
+                let maybe_ancestor_op = dag_walk::closest_common_node(
+                    [wc_operation.clone()],
+                    [repo_operation.clone()],
+                    &|op: &Operation| op.parents(),
+                    &|op: &Operation| op.id().clone(),
+                );
+                if let Some(ancestor_op) = maybe_ancestor_op {
+                    if ancestor_op.id() == repo_operation.id() {
+                        // The working copy was updated since we loaded the repo. We reload the repo
+                        // at the working copy's operation.
+                        self.repo = repo.reload_at(&wc_operation);
+                    } else if ancestor_op.id() == wc_operation.id() {
+                        // The working copy was not updated when some repo operation committed,
+                        // meaning that it's stale compared to the repo view. We update the working
+                        // copy to what the view says.
+                        writeln!(
+                            ui,
+                            "The working copy is stale (not updated since operation {}), now \
+                             updating to operation {}",
+                            wc_operation.id().hex(),
+                            repo_operation.id().hex()
+                        )?;
+                        locked_wc
+                            .check_out(Some(&wc_commit_id), checkout_commit.tree_id().clone())
+                            .unwrap();
+                    } else {
+                        return Err(CommandError::InternalError(format!(
+                            "The repo was loaded at operation {}, which seems to be a sibling of \
+                             the working copy's operation {}",
+                            repo_operation.id().hex(),
+                            wc_operation.id().hex()
+                        )));
+                    }
+                } else {
+                    return Err(CommandError::InternalError(format!(
+                        "The repo was loaded at operation {}, which seems unrelated to the \
+                         working copy's operation {}",
+                        repo_operation.id().hex(),
+                        wc_operation.id().hex()
+                    )));
+                }
             }
             let new_tree_id = locked_wc.write_tree();
-            if new_tree_id != *wc_commit.tree().id() {
+            if new_tree_id != *checkout_commit.tree_id() {
                 let mut tx = self.repo.start_transaction("commit working copy");
                 let mut_repo = tx.mut_repo();
-                let commit =
-                    CommitBuilder::for_rewrite_from(&self.settings, self.repo.store(), &wc_commit)
-                        .set_tree(new_tree_id)
-                        .write_to_repo(mut_repo);
+                let commit = CommitBuilder::for_rewrite_from(
+                    &self.settings,
+                    self.repo.store(),
+                    &checkout_commit,
+                )
+                .set_tree(new_tree_id)
+                .write_to_repo(mut_repo);
                 mut_repo.set_checkout(commit.id().clone());
 
                 // Rebase descendants
