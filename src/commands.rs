@@ -283,25 +283,26 @@ impl WorkspaceCommandHelper {
             let new_git_head = tx.mut_repo().view().git_head();
             // If the Git HEAD has changed, abandon our old checkout and check out the new
             // Git HEAD.
-            let mut new_wc_commit = None;
             if new_git_head != old_git_head && new_git_head.is_some() {
+                let mut locked_working_copy = self.workspace.working_copy_mut().start_mutation();
                 tx.mut_repo()
                     .record_abandoned_commit(self.repo.view().checkout().clone());
                 let new_checkout = self
                     .repo
                     .store()
                     .get_commit(new_git_head.as_ref().unwrap())?;
-                let new_checkout = tx.mut_repo().check_out(&self.settings, &new_checkout);
-                new_wc_commit = Some(new_checkout);
+                let new_wc_commit = tx.mut_repo().check_out(&self.settings, &new_checkout);
+                // The working copy was presumably updated by the git command that updated HEAD,
+                // so we just need to reset our working copy state to it without updating
+                // working copy files.
+                locked_working_copy.reset(&new_checkout.tree())?;
                 tx.mut_repo()
                     .create_descendant_rebaser(&self.settings)
                     .rebase_all();
-            }
-            self.repo = tx.commit();
-            if let Some(new_wc_commit) = new_wc_commit {
-                let mut locked_working_copy = self.workspace.working_copy_mut().start_mutation();
-                locked_working_copy.reset(&new_wc_commit.tree())?;
+                self.repo = tx.commit();
                 locked_working_copy.finish(new_wc_commit.id().clone());
+            } else {
+                self.repo = tx.commit();
             }
         }
         Ok(())
