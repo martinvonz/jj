@@ -851,8 +851,8 @@ impl WorkingCopy {
     }
 }
 
-// A working copy that's locked on disk. The tree state has already been
-// updated.
+/// A working copy that's locked on disk. The lock is held until you call
+/// `finish()` or `discard()`.
 pub struct LockedWorkingCopy<'a> {
     wc: &'a mut WorkingCopy,
     #[allow(dead_code)]
