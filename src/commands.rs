@@ -464,26 +464,27 @@ impl WorkspaceCommandHelper {
         if self.may_update_working_copy {
             let repo = self.repo.clone();
             let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
-            let old_commit = self
+            let wc_commit = self
                 .repo
                 .store()
                 .get_commit(locked_wc.old_commit_id())
                 .unwrap();
-            // Check if the current checkout has changed on disk after we read it. It's fine
-            // if it has, but we'll need to reload the repo so the new commit is
-            // in the index and view.
-            let old_checkout = repo.view().checkout();
-            if old_checkout != old_commit.id() {
+            // Check if the working copy commit matches the repo's view. It's fine if it
+            // doesn't, but we'll need to reload the repo so the new commit is
+            // in the index and view, and so we don't cause unnecessary
+            // divergence.
+            let checkout = repo.view().checkout();
+            if checkout != wc_commit.id() {
                 // TODO: This is not enough. The new commit is not necessarily still in the
                 // view when we reload.
                 self.repo = repo.reload();
             }
             let new_tree_id = locked_wc.write_tree();
-            if new_tree_id != *old_commit.tree().id() {
+            if new_tree_id != *wc_commit.tree().id() {
                 let mut tx = self.repo.start_transaction("commit working copy");
                 let mut_repo = tx.mut_repo();
                 let commit =
-                    CommitBuilder::for_rewrite_from(&self.settings, self.repo.store(), &old_commit)
+                    CommitBuilder::for_rewrite_from(&self.settings, self.repo.store(), &wc_commit)
                         .set_tree(new_tree_id)
                         .write_to_repo(mut_repo);
                 mut_repo.set_checkout(commit.id().clone());
