@@ -19,6 +19,7 @@ use itertools::Itertools;
 use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
+use crate::dag_walk;
 use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, RepoRef};
 use crate::repo_path::RepoPath;
@@ -165,19 +166,38 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let to_visit_revset = to_visit_expression
             .evaluate(mut_repo.as_repo_ref())
             .unwrap();
-        let to_visit = to_visit_revset.iter().commit_ids().collect_vec();
+        let to_visit_entries = to_visit_revset.iter().collect_vec();
         drop(to_visit_revset);
-
-        let new_commits_expression =
-            RevsetExpression::commits(rewritten.values().flatten().cloned().collect());
-        let ancestors_expression =
-            to_visit_expression.intersection(&new_commits_expression.ancestors());
-        let ancestors_revset = ancestors_expression
-            .evaluate(mut_repo.as_repo_ref())
-            .unwrap();
-        let mut to_skip = abandoned;
-        to_skip.extend(ancestors_revset.iter().commit_ids());
-        drop(ancestors_revset);
+        let index = mut_repo.index();
+        let to_visit_set: HashSet<CommitId> = to_visit_entries
+            .iter()
+            .map(|entry| entry.commit_id())
+            .collect();
+        let mut visited = HashSet::new();
+        // Calculate an order where we rebase parents first, but if the parents were
+        // rewritten, make sure we rebase the rewritten parent first.
+        let to_visit = dag_walk::topo_order_reverse(
+            to_visit_entries,
+            Box::new(|entry| entry.commit_id()),
+            Box::new(|entry| {
+                visited.insert(entry.commit_id());
+                let mut dependents = vec![];
+                for parent in entry.parents() {
+                    if let Some(targets) = rewritten.get(&parent.commit_id()) {
+                        for target in targets {
+                            if to_visit_set.contains(target) && !visited.contains(target) {
+                                dependents.push(index.entry_by_id(target).unwrap());
+                            }
+                        }
+                    }
+                    if to_visit_set.contains(&parent.commit_id()) {
+                        dependents.push(parent);
+                    }
+                }
+                dependents
+            }),
+        );
+        let to_visit = to_visit.iter().map(|entry| entry.commit_id()).collect_vec();
 
         let new_commits = rewritten.values().flatten().cloned().collect();
 
@@ -219,7 +239,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             new_parents,
             divergent,
             to_visit,
-            to_skip,
+            to_skip: abandoned,
             new_commits,
             rebased: Default::default(),
             branches,
@@ -239,7 +259,14 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let mut new_ids = vec![];
         for old_id in old_ids {
             if let Some(new_parent_ids) = self.new_parents.get(old_id) {
-                new_ids.extend(new_parent_ids.clone());
+                for new_parent_id in new_parent_ids {
+                    // The new parent may itself have been rebased earlier in the process
+                    if let Some(newer_parent_id) = self.rebased.get(new_parent_id) {
+                        new_ids.push(newer_parent_id.clone());
+                    } else {
+                        new_ids.push(new_parent_id.clone());
+                    }
+                }
             } else if let Some(new_parent_id) = self.rebased.get(old_id) {
                 new_ids.push(new_parent_id.clone());
             } else {
@@ -308,7 +335,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         }
 
         self.heads_to_add.remove(&old_commit_id);
-        if !self.new_commits.contains(&old_commit_id) {
+        if !self.new_commits.contains(&old_commit_id) || self.rebased.contains_key(&old_commit_id) {
             self.heads_to_remove.push(old_commit_id);
         }
     }
@@ -358,8 +385,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id).unwrap())
                 .collect_vec();
             let new_commit = rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents);
-            self.update_references(old_commit_id.clone(), vec![new_commit.id().clone()]);
-            self.rebased.insert(old_commit_id, new_commit.id().clone());
+            self.rebased
+                .insert(old_commit_id.clone(), new_commit.id().clone());
+            self.update_references(old_commit_id, vec![new_commit.id().clone()]);
             return Some(RebasedDescendant {
                 old_commit,
                 new_commit,

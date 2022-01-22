@@ -81,6 +81,11 @@ fn test_rebase_descendants_forward(use_git: bool) {
     // Commit D does not get rebased because it's an ancestor of the
     // destination. Commit G does not get replaced because it's already in
     // place.
+    // TODO: The above is not what actually happens! The test below shows what
+    // actually happens: D and F also get rebased onto F, so we end up with
+    // duplicates. Consider if it's worth supporting the case above better or if
+    // that decision belongs with the caller (as we currently force it to do by
+    // not supporting it in DescendantRebaser).
     //
     // G
     // F E
@@ -107,18 +112,74 @@ fn test_rebase_descendants_forward(use_git: bool) {
         },
         hashset! {},
     );
-    let new_commit_c = assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_f]);
-    let new_commit_e = assert_rebased(rebaser.rebase_next(), &commit_e, &[&commit_f]);
+    let new_commit_d = assert_rebased(rebaser.rebase_next(), &commit_d, &[&commit_f]);
+    let new_commit_f = assert_rebased(rebaser.rebase_next(), &commit_f, &[&new_commit_d]);
+    let new_commit_c = assert_rebased(rebaser.rebase_next(), &commit_c, &[&new_commit_f]);
+    let new_commit_e = assert_rebased(rebaser.rebase_next(), &commit_e, &[&new_commit_d]);
+    let new_commit_g = assert_rebased(rebaser.rebase_next(), &commit_g, &[&new_commit_f]);
     assert!(rebaser.rebase_next().is_none());
-    assert_eq!(rebaser.rebased().len(), 2);
+    assert_eq!(rebaser.rebased().len(), 5);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
         hashset! {
             repo.view().checkout().clone(),
-            commit_g.id().clone(),
             new_commit_c.id().clone(),
-            new_commit_e.id().clone()
+            new_commit_e.id().clone(),
+            new_commit_g.id().clone(),
+        }
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rebase_descendants_reorder(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
+
+    // Commit E was replaced by commit D, and commit C was replaced by commit F
+    // (attempting to to reorder C and E), and commit G was replaced by commit
+    // H.
+    //
+    // I
+    // G H
+    // E F
+    // C D
+    // |/
+    // B
+    // A
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
+    let commit_d = graph_builder.commit_with_parents(&[&commit_b]);
+    let commit_e = graph_builder.commit_with_parents(&[&commit_c]);
+    let commit_f = graph_builder.commit_with_parents(&[&commit_d]);
+    let commit_g = graph_builder.commit_with_parents(&[&commit_e]);
+    let commit_h = graph_builder.commit_with_parents(&[&commit_f]);
+    let commit_i = graph_builder.commit_with_parents(&[&commit_g]);
+
+    let mut rebaser = DescendantRebaser::new(
+        &settings,
+        tx.mut_repo(),
+        hashmap! {
+            commit_e.id().clone() => hashset!{commit_d.id().clone()},
+            commit_c.id().clone() => hashset!{commit_f.id().clone()},
+            commit_g.id().clone() => hashset!{commit_h.id().clone()},
+        },
+        hashset! {},
+    );
+    let new_commit_i = assert_rebased(rebaser.rebase_next(), &commit_i, &[&commit_h]);
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 1);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            new_commit_i.id().clone(),
         }
     );
 }
@@ -158,6 +219,55 @@ fn test_rebase_descendants_backward(use_git: bool) {
     assert_eq!(
         *tx.mut_repo().view().heads(),
         hashset! {repo.view().checkout().clone(), new_commit_d.id().clone()}
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rebase_descendants_chain_becomes_branchy(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
+
+    // Commit B was replaced by commit E and commit C was replaced by commit F.
+    // Commit F should get rebased onto E, and commit D should get rebased onto
+    // the rebased F.
+    //
+    // D
+    // C F
+    // |/
+    // B E
+    // |/
+    // A
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
+    let commit_d = graph_builder.commit_with_parents(&[&commit_c]);
+    let commit_e = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_f = graph_builder.commit_with_parents(&[&commit_b]);
+
+    let mut rebaser = DescendantRebaser::new(
+        &settings,
+        tx.mut_repo(),
+        hashmap! {
+            commit_b.id().clone() => hashset!{commit_e.id().clone()},
+            commit_c.id().clone() => hashset!{commit_f.id().clone()},
+        },
+        hashset! {},
+    );
+    let new_commit_f = assert_rebased(rebaser.rebase_next(), &commit_f, &[&commit_e]);
+    let new_commit_d = assert_rebased(rebaser.rebase_next(), &commit_d, &[&new_commit_f]);
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 2);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            new_commit_d.id().clone(),
+        }
     );
 }
 
@@ -592,63 +702,6 @@ fn test_rebase_descendants_multiple_no_descendants(use_git: bool) {
             repo.view().checkout().clone(),
             commit_b.id().clone(),
             commit_c.id().clone()
-        }
-    );
-}
-
-#[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_rebase_descendants_multiple_forward_and_backward(use_git: bool) {
-    let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
-    let repo = &test_workspace.repo;
-
-    // Commit B was replaced by commit D. Commit F was replaced by commit C.
-    // Commit G should be rebased onto commit C. Commit H should be rebased onto
-    // commit D. Commits C-D should be left alone since they're ancestors of D.
-    // Commit E should be left alone since its already in place (as a descendant of
-    // D).
-    //
-    // G
-    // F
-    // E
-    // D
-    // C H
-    // |/
-    // B
-    // A
-    let mut tx = repo.start_transaction("test");
-    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
-    let commit_a = graph_builder.initial_commit();
-    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
-    let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
-    let commit_d = graph_builder.commit_with_parents(&[&commit_c]);
-    let commit_e = graph_builder.commit_with_parents(&[&commit_d]);
-    let commit_f = graph_builder.commit_with_parents(&[&commit_e]);
-    let commit_g = graph_builder.commit_with_parents(&[&commit_f]);
-    let commit_h = graph_builder.commit_with_parents(&[&commit_b]);
-
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {
-            commit_b.id().clone() => hashset!{commit_d.id().clone()},
-            commit_f.id().clone() => hashset!{commit_c.id().clone()},
-        },
-        hashset! {},
-    );
-    let new_commit_g = assert_rebased(rebaser.rebase_next(), &commit_g, &[&commit_c]);
-    let new_commit_h = assert_rebased(rebaser.rebase_next(), &commit_h, &[&commit_d]);
-    assert!(rebaser.rebase_next().is_none());
-    assert_eq!(rebaser.rebased().len(), 2);
-
-    assert_eq!(
-        *tx.mut_repo().view().heads(),
-        hashset! {
-            repo.view().checkout().clone(),
-            commit_e.id().clone(),
-            new_commit_g.id().clone(),
-            new_commit_h.id().clone()
         }
     );
 }
