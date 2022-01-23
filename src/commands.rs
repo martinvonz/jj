@@ -54,7 +54,7 @@ use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, D
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
-use jujutsu_lib::tree::TreeDiffIterator;
+use jujutsu_lib::tree::{merge_trees, TreeDiffIterator};
 use jujutsu_lib::working_copy::{CheckoutStats, ResetError, WorkingCopy};
 use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
 use jujutsu_lib::{conflicts, dag_walk, diff, files, git, revset, tree};
@@ -1053,6 +1053,36 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                      change will be checked out.",
                 ),
         );
+    let move_command = App::new("move")
+        .about("Move changes from one revisions into another")
+        .long_about(
+            "Move changes from a revision into another revision. Use `--interactive` to move only \
+             part of the source revision into the destination. The selected changes (or all the \
+             changes in the source revision if not using `--interactive`) will be moved into the \
+             destination. The changes will be removed from the source. If that means that the \
+             source is now empty compared to its parent, it will be abandoned.",
+        )
+        .arg(rev_arg())
+        .arg(
+            Arg::new("from")
+                .long("from")
+                .takes_value(true)
+                .default_value("@")
+                .help("Move part of this change into the destination"),
+        )
+        .arg(
+            Arg::new("to")
+                .long("to")
+                .takes_value(true)
+                .default_value("@")
+                .help("Move part of the source into this change"),
+        )
+        .arg(
+            Arg::new("interactive")
+                .long("interactive")
+                .short('i')
+                .help("Interactively choose which parts to move"),
+        );
     let squash_command = App::new("squash")
         .alias("amend")
         .about("Move changes from a revision into its parent")
@@ -1514,6 +1544,7 @@ It is possible to mutating commands when loading the repo at an earlier operatio
         .subcommand(duplicate_command)
         .subcommand(abandon_command)
         .subcommand(new_command)
+        .subcommand(move_command)
         .subcommand(squash_command)
         .subcommand(unsquash_command)
         .subcommand(restore_command)
@@ -2787,6 +2818,86 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
     if mut_repo.view().checkout() == parent.id() {
         mut_repo.check_out(ui.settings(), &new_commit);
     }
+    workspace_command.finish_transaction(ui, tx)?;
+    Ok(())
+}
+
+fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_revision_arg(ui, args)?;
+    workspace_command.check_rewriteable(&commit)?;
+    let source = workspace_command.resolve_single_rev(ui, args.value_of("from").unwrap())?;
+    let mut destination = workspace_command.resolve_single_rev(ui, args.value_of("to").unwrap())?;
+    if source.id() == destination.id() {
+        return Err(CommandError::UserError(String::from(
+            "Source and destination cannot be the same.",
+        )));
+    }
+    workspace_command.check_rewriteable(&source)?;
+    workspace_command.check_rewriteable(&destination)?;
+    let mut tx = workspace_command.start_transaction(&format!(
+        "move changes from {} to {}",
+        source.id().hex(),
+        destination.id().hex()
+    ));
+    let mut_repo = tx.mut_repo();
+    let repo = workspace_command.repo();
+    let parent_tree = merge_commit_trees(repo.as_repo_ref(), &source.parents());
+    let source_tree = source.tree();
+    let new_parent_tree_id = if args.is_present("interactive") {
+        let instructions = format!(
+            "\
+You are moving changes from: {}
+into commit: {}
+
+The left side of the diff shows the contents of the parent commit. The
+right side initially shows the contents of the commit you're moving
+changes from.
+
+Adjust the right side until the diff shows the changes you want to move
+to the destination. If you don't make any changes, then all the changes
+from the source will be moved into the destination.
+",
+            short_commit_description(&source),
+            short_commit_description(&destination)
+        );
+        crate::diff_edit::edit_diff(ui, &parent_tree, &source_tree, &instructions)?
+    } else {
+        source_tree.id().clone()
+    };
+    if &new_parent_tree_id == parent_tree.id() {
+        return Err(CommandError::UserError(String::from("No changes to move")));
+    }
+    let new_parent_tree = repo
+        .store()
+        .get_tree(&RepoPath::root(), &new_parent_tree_id)?;
+    // Apply the reverse of the selected changes onto the source
+    let new_source_tree_id = merge_trees(&source_tree, &new_parent_tree, &parent_tree)?;
+    if new_source_tree_id == *parent_tree.id() {
+        mut_repo.record_abandoned_commit(source.id().clone());
+    } else {
+        CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &source)
+            .set_tree(new_source_tree_id)
+            .write_to_repo(mut_repo);
+    }
+    if repo.index().is_ancestor(source.id(), destination.id()) {
+        // If we're moving changes to a descendant, first rebase descendants onto the
+        // rewritten source. Otherwise it will likely already have the content
+        // changes we're moving, so applying them will have no effect and the
+        // changes will disappear.
+        let mut rebaser = mut_repo.create_descendant_rebaser(ui.settings());
+        rebaser.rebase_all();
+        let rebased_destination_id = rebaser.rebased().get(destination.id()).unwrap().clone();
+        destination = mut_repo
+            .store()
+            .get_commit(&rebased_destination_id)
+            .unwrap();
+    }
+    // Apply the selected changes onto the destination
+    let new_destination_tree_id = merge_trees(&destination.tree(), &parent_tree, &new_parent_tree)?;
+    CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &destination)
+        .set_tree(new_destination_tree_id)
+        .write_to_repo(mut_repo);
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -4069,6 +4180,8 @@ where
         cmd_abandon(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("new") {
         cmd_new(&mut ui, &command_helper, sub_args)
+    } else if let Some(sub_args) = matches.subcommand_matches("move") {
+        cmd_move(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("squash") {
         cmd_squash(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("unsquash") {
