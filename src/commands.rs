@@ -1533,7 +1533,11 @@ It is possible to mutating commands when loading the repo at an earlier operatio
 
 fn short_commit_description(commit: &Commit) -> String {
     let first_line = commit.description().split('\n').next().unwrap();
-    format!("{} ({})", &commit.id().hex()[0..12], first_line)
+    format!("{} ({})", short_commit_hash(commit.id()), first_line)
+}
+
+fn short_commit_hash(commit_id: &CommitId) -> String {
+    commit_id.hex()[0..12].to_string()
 }
 
 fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), CommandError> {
@@ -3152,6 +3156,15 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
             workspace_command.resolve_single_rev(ui, args.value_of("revision").unwrap_or("@"))?;
     }
     workspace_command.check_rewriteable(&old_commit)?;
+    for parent in &new_parents {
+        if workspace_command.repo.index().is_ancestor(old_commit.id(), parent.id()) {
+            return Err(CommandError::UserError(format!(
+                "Cannot rebase {} onto descendant {}",
+                short_commit_hash(old_commit.id()),
+                short_commit_hash(parent.id())
+            )));
+        }
+    }
 
     if rebase_descendants {
         let mut tx = workspace_command.start_transaction(&format!(
