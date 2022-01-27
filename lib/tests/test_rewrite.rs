@@ -811,9 +811,7 @@ fn test_rebase_descendants_basic_branch_update() {
     let mut tx = repo.start_transaction("test");
     let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
         .write_to_repo(tx.mut_repo());
-    tx.mut_repo()
-        .create_descendant_rebaser(&settings)
-        .rebase_all();
+    tx.mut_repo().rebase_descendants(&settings);
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         Some(RefTarget::Normal(commit_b2.id().clone()))
@@ -857,9 +855,7 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
     let mut tx = repo.start_transaction("test");
     let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
         .write_to_repo(tx.mut_repo());
-    tx.mut_repo()
-        .create_descendant_rebaser(&settings)
-        .rebase_all();
+    tx.mut_repo().rebase_descendants(&settings);
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         Some(RefTarget::Normal(commit_b2.id().clone()))
@@ -904,9 +900,7 @@ fn test_rebase_descendants_update_branch_after_abandon() {
 
     let mut tx = repo.start_transaction("test");
     tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
-    tx.mut_repo()
-        .create_descendant_rebaser(&settings)
-        .rebase_all();
+    tx.mut_repo().rebase_descendants(&settings);
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         Some(RefTarget::Normal(commit_a.id().clone()))
@@ -951,9 +945,7 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     let commit_b4 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
         .set_description("more different".to_string())
         .write_to_repo(tx.mut_repo());
-    tx.mut_repo()
-        .create_descendant_rebaser(&settings)
-        .rebase_all();
+    tx.mut_repo().rebase_descendants(&settings);
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         Some(RefTarget::Conflict {
@@ -1013,9 +1005,7 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     let commit_b3 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
         .set_description("different".to_string())
         .write_to_repo(tx.mut_repo());
-    tx.mut_repo()
-        .create_descendant_rebaser(&settings)
-        .rebase_all();
+    tx.mut_repo().rebase_descendants(&settings);
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         Some(RefTarget::Conflict {
@@ -1077,9 +1067,7 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
         .set_parents(vec![commit_c.id().clone()])
         .write_to_repo(tx.mut_repo());
-    tx.mut_repo()
-        .create_descendant_rebaser(&settings)
-        .rebase_all();
+    tx.mut_repo().rebase_descendants(&settings);
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         Some(RefTarget::Normal(commit_b2.id().clone()))
@@ -1128,9 +1116,7 @@ fn test_rebase_descendants_update_checkout_open(use_git: bool) {
     let commit_c = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
         .set_description("C".to_string())
         .write_to_repo(tx.mut_repo());
-    tx.mut_repo()
-        .create_descendant_rebaser(&settings)
-        .rebase_all();
+    tx.mut_repo().rebase_descendants(&settings);
     let repo = tx.commit();
 
     assert_eq!(repo.view().checkout(), commit_c.id());
@@ -1163,9 +1149,7 @@ fn test_rebase_descendants_update_checkout_closed(use_git: bool) {
         .set_description("C".to_string())
         .set_open(false)
         .write_to_repo(tx.mut_repo());
-    tx.mut_repo()
-        .create_descendant_rebaser(&settings)
-        .rebase_all();
+    tx.mut_repo().rebase_descendants(&settings);
     let repo = tx.commit();
 
     let checkout = repo.store().get_commit(repo.view().checkout()).unwrap();
@@ -1205,9 +1189,7 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     tx.mut_repo().record_abandoned_commit(commit_d.id().clone());
-    tx.mut_repo()
-        .create_descendant_rebaser(&settings)
-        .rebase_all();
+    tx.mut_repo().rebase_descendants(&settings);
     let repo = tx.commit();
 
     let checkout = repo.store().get_commit(repo.view().checkout()).unwrap();

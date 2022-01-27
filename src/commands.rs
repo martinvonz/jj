@@ -46,7 +46,7 @@ use jujutsu_lib::op_heads_store::OpHeadsStore;
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction};
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoRef};
+use jujutsu_lib::repo::{ReadonlyRepo, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
@@ -296,9 +296,7 @@ impl WorkspaceCommandHelper {
                 // so we just need to reset our working copy state to it without updating
                 // working copy files.
                 locked_working_copy.reset(&new_checkout.tree())?;
-                tx.mut_repo()
-                    .create_descendant_rebaser(&self.settings)
-                    .rebase_all();
+                tx.mut_repo().rebase_descendants(&self.settings);
                 self.repo = tx.commit();
                 locked_working_copy.finish(self.repo.op_id().clone(), new_wc_commit.id().clone());
             } else {
@@ -539,7 +537,7 @@ impl WorkspaceCommandHelper {
                 mut_repo.set_checkout(commit.id().clone());
 
                 // Rebase descendants
-                let num_rebased = rebase_descendants(&self.settings, mut_repo);
+                let num_rebased = mut_repo.rebase_descendants(&self.settings);
                 if num_rebased > 0 {
                     writeln!(
                         ui,
@@ -594,7 +592,7 @@ impl WorkspaceCommandHelper {
             return Ok(());
         }
         if self.rebase_descendants {
-            let num_rebased = rebase_descendants(ui.settings(), mut_repo);
+            let num_rebased = mut_repo.rebase_descendants(ui.settings());
             if num_rebased > 0 {
                 writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
             }
@@ -780,15 +778,6 @@ fn update_working_copy(
     ui.write_commit_summary(repo.as_repo_ref(), &new_commit)?;
     ui.write("\n")?;
     Ok(Some(stats))
-}
-
-fn rebase_descendants(settings: &UserSettings, mut_repo: &mut MutableRepo) -> i32 {
-    let mut rebaser = mut_repo.create_descendant_rebaser(settings);
-    let mut num_rebased = 0;
-    while rebaser.rebase_next().is_some() {
-        num_rebased += 1;
-    }
-    num_rebased
 }
 
 fn get_app<'help>() -> App<'help> {
@@ -1695,7 +1684,7 @@ fn cmd_untrack(
     let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &store, &old_commit)
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
-    let num_rebased = rebase_descendants(ui.settings(), tx.mut_repo());
+    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings());
     if num_rebased > 0 {
         writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
     }
@@ -2766,9 +2755,7 @@ fn cmd_abandon(
     for commit in to_abandon {
         tx.mut_repo().record_abandoned_commit(commit.id().clone());
     }
-    let mut rebaser = tx.mut_repo().create_descendant_rebaser(ui.settings());
-    rebaser.rebase_all();
-    let num_rebased = rebaser.rebased().len();
+    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings());
     if num_rebased > 0 {
         writeln!(
             ui,
@@ -3162,9 +3149,7 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
         ));
         workspace_command.check_rewriteable(&old_commit)?;
         rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &parents);
-        let mut rebaser = tx.mut_repo().create_descendant_rebaser(ui.settings());
-        rebaser.rebase_all();
-        let num_rebased = rebaser.rebased().len() + 1;
+        let num_rebased = tx.mut_repo().rebase_descendants(ui.settings()) + 1;
         writeln!(ui, "Rebased {} commits", num_rebased)?;
         workspace_command.finish_transaction(ui, tx)?;
     } else {
@@ -3194,9 +3179,7 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
             );
             num_rebased_descendants += 1;
         }
-        let mut rebaser = tx.mut_repo().create_descendant_rebaser(ui.settings());
-        rebaser.rebase_all();
-        num_rebased_descendants += rebaser.rebased().len();
+        num_rebased_descendants += tx.mut_repo().rebase_descendants(ui.settings());
         if num_rebased_descendants > 0 {
             writeln!(
                 ui,

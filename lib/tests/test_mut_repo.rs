@@ -90,7 +90,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
         .set_open(true)
         .write_to_repo(mut_repo);
     mut_repo.check_out(&settings, &new_checkout);
-    mut_repo.create_descendant_rebaser(&settings).rebase_all();
+    mut_repo.rebase_descendants(&settings);
     assert!(mut_repo.view().heads().contains(old_checkout.id()));
 }
 
@@ -121,7 +121,7 @@ fn test_checkout_previous_empty(use_git: bool) {
         .set_open(true)
         .write_to_repo(mut_repo);
     mut_repo.check_out(&settings, &new_checkout);
-    mut_repo.create_descendant_rebaser(&settings).rebase_all();
+    mut_repo.rebase_descendants(&settings);
     assert!(!mut_repo.view().heads().contains(old_checkout.id()));
 }
 

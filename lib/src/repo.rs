@@ -528,6 +528,12 @@ impl MutableRepo {
         )
     }
 
+    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> usize {
+        let mut rebaser = self.create_descendant_rebaser(settings);
+        rebaser.rebase_all();
+        rebaser.rebased().len()
+    }
+
     pub fn get_checkout(&mut self) -> CommitId {
         self.view.borrow().checkout().clone()
     }
