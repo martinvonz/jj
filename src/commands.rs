@@ -1059,15 +1059,15 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         .long_about(
             "Move changes from a revision into its parent. After moving the changes into the \
              parent, the child revision will have the same content state as before. If that means \
-             that the change is now empty compared to its parent, it will be abandoned. Note that \
-             this will always be the case without `--interactive`.",
+             that the change is now empty compared to its parent, it will be abandoned. This will \
+             always be the case without `--interactive`.",
         )
         .arg(rev_arg())
         .arg(
             Arg::new("interactive")
                 .long("interactive")
                 .short('i')
-                .help("Interactively squash part of the changes"),
+                .help("Interactively choose which parts to squash"),
         );
     // TODO: It doesn't make much sense to run this without -i. We should make that
     // the default. We should also abandon the parent commit if that becomes empty.
@@ -1079,7 +1079,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
             Arg::new("interactive")
                 .long("interactive")
                 .short('i')
-                .help("Interactively unsquash part of the changes"),
+                .help("Interactively choose which parts to unsquash"),
         );
     let restore_command = App::new("restore")
         .about("Restore paths from another revision")
@@ -1113,7 +1113,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
             Arg::new("interactive")
                 .long("interactive")
                 .short('i')
-                .help("Interactively restore part of the changes"),
+                .help("Interactively choose which parts to restore"),
         )
         .arg(paths_arg());
     let edit_command = App::new("edit")
