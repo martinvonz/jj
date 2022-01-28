@@ -724,6 +724,70 @@ fn test_rebase_descendants_divergent_rewrite(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
+fn test_rebase_descendants_repeated(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
+
+    // Commit B was replaced by commit B2. Commit C should get rebased. Rebasing
+    // descendants again should have no effect (C should not get rebased again).
+    // We then replace B2 by B3. C should now get rebased onto B3.
+    //
+    // C
+    // B
+    // | B3
+    // |/
+    // | B2
+    // |/
+    // A
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
+
+    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+        .set_description("b2".to_string())
+        .write_to_repo(tx.mut_repo());
+    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
+    let commit_c2 = assert_rebased(rebaser.rebase_next(), &commit_c, &[&commit_b2]);
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 1);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            commit_c2.id().clone(),
+        }
+    );
+
+    // We made no more changes, so nothing should be rebased.
+    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 0);
+
+    // Now mark B3 as rewritten from B2 and rebase descendants again.
+    let commit_b3 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b2)
+        .set_description("b3".to_string())
+        .write_to_repo(tx.mut_repo());
+    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
+    let commit_c3 = assert_rebased(rebaser.rebase_next(), &commit_c2, &[&commit_b3]);
+    assert!(rebaser.rebase_next().is_none());
+    assert_eq!(rebaser.rebased().len(), 1);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            repo.view().checkout().clone(),
+            // commit_b.id().clone(),
+            commit_c3.id().clone(),
+        }
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_rebase_descendants_contents(use_git: bool) {
     let settings = testutils::user_settings();
     let test_workspace = testutils::init_repo(&settings, use_git);

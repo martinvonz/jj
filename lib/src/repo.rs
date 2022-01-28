@@ -503,6 +503,10 @@ impl MutableRepo {
             .insert(new_id);
     }
 
+    pub fn clear_rewritten_commits(&mut self) {
+        self.rewritten_commits.clear();
+    }
+
     /// Record a commit as having been abandoned in this transaction. This
     /// record is used by `rebase_descendants()`.
     ///
@@ -513,9 +517,12 @@ impl MutableRepo {
         self.abandoned_commits.insert(old_id);
     }
 
+    pub fn clear_abandoned_commits(&mut self) {
+        self.abandoned_commits.clear();
+    }
+
     /// Creates a `DescendantRebaser` to rebase descendants of the recorded
-    /// rewritten and abandoned commits. Clears the records of rewritten and
-    /// abandoned commits.
+    /// rewritten and abandoned commits.
     pub fn create_descendant_rebaser<'settings, 'repo>(
         &'repo mut self,
         settings: &'settings UserSettings,
