@@ -3129,10 +3129,10 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
 
 fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?.rebase_descendants(false);
-    let mut parents = vec![];
+    let mut new_parents = vec![];
     for revision_str in args.values_of("destination").unwrap() {
         let destination = workspace_command.resolve_single_rev(ui, revision_str)?;
-        parents.push(destination);
+        new_parents.push(destination);
     }
     // TODO: Unless we want to allow both --revision and --source, is it better to
     // replace   --source by --rebase-descendants?
@@ -3141,24 +3141,31 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
             "--revision cannot be used with --source",
         )));
     }
+    let old_commit;
+    let rebase_descendants;
     if let Some(source_str) = args.value_of("source") {
-        let old_commit = workspace_command.resolve_single_rev(ui, source_str)?;
+        rebase_descendants = true;
+        old_commit = workspace_command.resolve_single_rev(ui, source_str)?;
+    } else {
+        rebase_descendants = false;
+        old_commit =
+            workspace_command.resolve_single_rev(ui, args.value_of("revision").unwrap_or("@"))?;
+    }
+    workspace_command.check_rewriteable(&old_commit)?;
+
+    if rebase_descendants {
         let mut tx = workspace_command.start_transaction(&format!(
             "rebase commit {} and descendants",
             old_commit.id().hex()
         ));
-        workspace_command.check_rewriteable(&old_commit)?;
-        rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &parents);
+        rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &new_parents);
         let num_rebased = tx.mut_repo().rebase_descendants(ui.settings()) + 1;
         writeln!(ui, "Rebased {} commits", num_rebased)?;
         workspace_command.finish_transaction(ui, tx)?;
     } else {
-        let old_commit =
-            workspace_command.resolve_single_rev(ui, args.value_of("revision").unwrap_or("@"))?;
         let mut tx = workspace_command
             .start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
-        workspace_command.check_rewriteable(&old_commit)?;
-        rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &parents);
+        rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &new_parents);
         // Manually rebase children because we don't want to rebase them onto the
         // rewritten commit. (But we still want to record the commit as rewritten so
         // branches and the working copy get updated to the rewritten commit.)
