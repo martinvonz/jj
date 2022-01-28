@@ -1062,7 +1062,6 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
              destination. The changes will be removed from the source. If that means that the \
              source is now empty compared to its parent, it will be abandoned.",
         )
-        .arg(rev_arg())
         .arg(
             Arg::new("from")
                 .long("from")
@@ -2824,8 +2823,6 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
 
 fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_revision_arg(ui, args)?;
-    workspace_command.check_rewriteable(&commit)?;
     let source = workspace_command.resolve_single_rev(ui, args.value_of("from").unwrap())?;
     let mut destination = workspace_command.resolve_single_rev(ui, args.value_of("to").unwrap())?;
     if source.id() == destination.id() {
