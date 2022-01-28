@@ -3157,7 +3157,11 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
     }
     workspace_command.check_rewriteable(&old_commit)?;
     for parent in &new_parents {
-        if workspace_command.repo.index().is_ancestor(old_commit.id(), parent.id()) {
+        if workspace_command
+            .repo
+            .index()
+            .is_ancestor(old_commit.id(), parent.id())
+        {
             return Err(CommandError::UserError(format!(
                 "Cannot rebase {} onto descendant {}",
                 short_commit_hash(old_commit.id()),
