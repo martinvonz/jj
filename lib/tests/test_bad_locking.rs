@@ -16,6 +16,7 @@ use std::path::Path;
 
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::testutils;
+use jujutsu_lib::workspace::Workspace;
 use tempfile::TempDir;
 use test_case::test_case;
 
@@ -107,7 +108,8 @@ fn test_bad_locking_children(use_git: bool) {
     // Simulate a write of a commit that happens on one machine
     let machine1_root = TempDir::new().unwrap().into_path();
     copy_directory(workspace_root, &machine1_root);
-    let machine1_repo = ReadonlyRepo::load(&settings, machine1_root.join(".jj"));
+    let machine1_workspace = Workspace::load(&settings, machine1_root.clone()).unwrap();
+    let machine1_repo = machine1_workspace.repo_loader().load_at_head();
     let mut machine1_tx = machine1_repo.start_transaction("test");
     let child1 = testutils::create_random_commit(&settings, &machine1_repo)
         .set_parents(vec![initial.id().clone()])
@@ -117,7 +119,8 @@ fn test_bad_locking_children(use_git: bool) {
     // Simulate a write of a commit that happens on another machine
     let machine2_root = TempDir::new().unwrap().into_path();
     copy_directory(workspace_root, &machine2_root);
-    let machine2_repo = ReadonlyRepo::load(&settings, machine2_root.join(".jj"));
+    let machine2_workspace = Workspace::load(&settings, machine2_root.clone()).unwrap();
+    let machine2_repo = machine2_workspace.repo_loader().load_at_head();
     let mut machine2_tx = machine2_repo.start_transaction("test");
     let child2 = testutils::create_random_commit(&settings, &machine2_repo)
         .set_parents(vec![initial.id().clone()])
@@ -128,7 +131,8 @@ fn test_bad_locking_children(use_git: bool) {
     // both machines
     let merged_path = TempDir::new().unwrap().into_path();
     merge_directories(&machine1_root, workspace_root, &machine2_root, &merged_path);
-    let merged_repo = ReadonlyRepo::load(&settings, merged_path.join(".jj"));
+    let merged_workspace = Workspace::load(&settings, merged_path).unwrap();
+    let merged_repo = merged_workspace.repo_loader().load_at_head();
     assert!(merged_repo.view().heads().contains(child1.id()));
     assert!(merged_repo.view().heads().contains(child2.id()));
     let op_id = merged_repo.op_id().clone();
