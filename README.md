@@ -16,7 +16,7 @@ Jujutsu is a [Git-compatible](docs/git-compatibility.md)
 features from Git (data model,
 [speed](https://github.com/martinvonz/jj/discussions/49)), Mercurial (anonymous
 branching, simple CLI [free from "the index"](docs/git-comparison.md#the-index),
-[revsets](docs/revsets.md)), and Pijul/Darcs
+[revsets](docs/revsets.md), powerful history-rewriting), and Pijul/Darcs
 ([first-class conflicts](docs/conflicts.md)), with features not found in either
 of them ([working-copy-as-a-commit](docs/working-copy.md),
 [undo functionality](docs/operation-log.md), automatic rebase,
@@ -95,8 +95,16 @@ onto the new commit. Thanks to the conflict design described above, that can be
 done even if there are conflicts. Branches pointing to rebased commits will be
 updated. So will the working copy if it points to a rebased commit.
 
+### Comprehensive support for rewriting history
 
-## Status ##
+Besides the usual rebase command, there's `jj describe` for editing the
+description (commit message) of an arbitrary commit. There's also `jj edit`,
+which lets you edit the changes in a commit without checking it out. To split
+a commit into two, use `jj split`. You can even move part of the changes in a
+commit to any other commit using `jj move`. 
+
+
+## Status
 
 The tool is quite feature-complete, but some important features like (the
 equivalent of) `git blame` and `git log <paths>` are not yet supported. There
