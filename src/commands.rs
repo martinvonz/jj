@@ -1054,7 +1054,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 ),
         );
     let move_command = App::new("move")
-        .about("Move changes from one revisions into another")
+        .about("Move changes from one revision into another")
         .long_about(
             "Move changes from a revision into another revision. Use `--interactive` to move only \
              part of the source revision into the destination. The selected changes (or all the \
