@@ -58,10 +58,12 @@ fn init_working_copy(
     workspace_root: &Path,
     jj_dir: &Path,
 ) -> WorkingCopy {
+    let working_copy_state_path = jj_dir.join("working_copy");
+    std::fs::create_dir(&working_copy_state_path).unwrap();
     WorkingCopy::init(
         repo.store().clone(),
         workspace_root.to_path_buf(),
-        jj_dir.join("working_copy"),
+        working_copy_state_path,
         repo.op_id().clone(),
         repo.view().checkout().clone(),
     )
