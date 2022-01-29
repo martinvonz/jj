@@ -543,10 +543,6 @@ impl MutableRepo {
         rebaser.rebased().len()
     }
 
-    pub fn get_checkout(&mut self) -> CommitId {
-        self.view.borrow().checkout().clone()
-    }
-
     pub fn set_checkout(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {
         self.view_mut().set_checkout(workspace_id, commit_id);
     }

@@ -20,7 +20,7 @@ use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk;
-use crate::op_store::{RefTarget, WorkspaceId};
+use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, RepoRef};
 use crate::repo_path::RepoPath;
 use crate::revset::RevsetExpression;
@@ -291,15 +291,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     }
 
     fn update_references(&mut self, old_commit_id: CommitId, new_commit_ids: Vec<CommitId>) {
-        // TODO: Either make this update the checkout in all workspaces or pass in a
-        // particular workspace ID to this function
-        if self.mut_repo.get_checkout() == old_commit_id {
-            // We arbitrarily pick a new checkout among the candidates.
-            let new_commit_id = new_commit_ids[0].clone();
-            let new_commit = self.mut_repo.store().get_commit(&new_commit_id).unwrap();
-            self.mut_repo
-                .check_out(WorkspaceId::default(), self.settings, &new_commit);
-        }
+        self.update_checkouts(&old_commit_id, &new_commit_ids);
 
         if let Some(branch_names) = self.branches.get(&old_commit_id) {
             let mut branch_updates = vec![];
@@ -343,7 +335,36 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         }
     }
 
-    // TODO: Perhaps the interface since it's not just about rebasing commits.
+    fn update_checkouts(&mut self, old_commit_id: &CommitId, new_commit_ids: &[CommitId]) {
+        let mut workspaces_to_update = vec![];
+        for (workspace_id, checkout_id) in self.mut_repo.view().checkouts() {
+            if checkout_id == old_commit_id {
+                workspaces_to_update.push(workspace_id.clone());
+            }
+        }
+
+        if workspaces_to_update.is_empty() {
+            return;
+        }
+
+        // If several workspaces had the same old commit checked out, we want them all
+        // to have the same commit checked out afterwards as well, so we avoid
+        // calling MutableRepo::check_out() multiple times, since that might
+        // otherwise create a separate new commit for each workspace.
+        // We arbitrarily pick a new checkout among the candidates.
+        let new_commit_id = new_commit_ids[0].clone();
+        let new_commit = self.mut_repo.store().get_commit(&new_commit_id).unwrap();
+        let new_checkout_commit =
+            self.mut_repo
+                .check_out(workspaces_to_update[0].clone(), self.settings, &new_commit);
+        for workspace_id in workspaces_to_update.into_iter().skip(1) {
+            self.mut_repo
+                .check_out(workspace_id, self.settings, &new_checkout_commit);
+        }
+    }
+
+    // TODO: Perhaps change the interface since it's not just about rebasing
+    // commits.
     pub fn rebase_next(&mut self) -> Option<RebasedDescendant> {
         while let Some(old_commit_id) = self.to_visit.pop() {
             if let Some(new_parent_ids) = self.new_parents.get(&old_commit_id).cloned() {

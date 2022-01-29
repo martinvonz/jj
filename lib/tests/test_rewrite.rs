@@ -1226,8 +1226,15 @@ fn test_rebase_descendants_update_checkout_open(use_git: bool) {
         .set_parents(vec![commit_a.id().clone()])
         .set_open(true)
         .write_to_repo(tx.mut_repo());
+    let ws1_id = WorkspaceId::new("ws1".to_string());
+    let ws2_id = WorkspaceId::new("ws2".to_string());
+    let ws3_id = WorkspaceId::new("ws3".to_string());
     tx.mut_repo()
-        .set_checkout(WorkspaceId::default(), commit_b.id().clone());
+        .set_checkout(ws1_id.clone(), commit_b.id().clone());
+    tx.mut_repo()
+        .set_checkout(ws2_id.clone(), commit_b.id().clone());
+    tx.mut_repo()
+        .set_checkout(ws3_id.clone(), commit_a.id().clone());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -1237,7 +1244,11 @@ fn test_rebase_descendants_update_checkout_open(use_git: bool) {
     tx.mut_repo().rebase_descendants(&settings);
     let repo = tx.commit();
 
-    assert_eq!(repo.view().checkout(), commit_c.id());
+    // Workspaces 1 and 2 had B checked out, so they get updated to C. Workspace 3
+    // had A checked out, so it doesn't get updated.
+    assert_eq!(repo.view().get_checkout(&ws1_id), Some(commit_c.id()));
+    assert_eq!(repo.view().get_checkout(&ws2_id), Some(commit_c.id()));
+    assert_eq!(repo.view().get_checkout(&ws3_id), Some(commit_a.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -1259,8 +1270,15 @@ fn test_rebase_descendants_update_checkout_closed(use_git: bool) {
         .set_parents(vec![commit_a.id().clone()])
         .set_open(true)
         .write_to_repo(tx.mut_repo());
+    let ws1_id = WorkspaceId::new("ws1".to_string());
+    let ws2_id = WorkspaceId::new("ws2".to_string());
+    let ws3_id = WorkspaceId::new("ws3".to_string());
     tx.mut_repo()
-        .set_checkout(WorkspaceId::default(), commit_b.id().clone());
+        .set_checkout(ws1_id.clone(), commit_b.id().clone());
+    tx.mut_repo()
+        .set_checkout(ws2_id.clone(), commit_b.id().clone());
+    tx.mut_repo()
+        .set_checkout(ws3_id.clone(), commit_a.id().clone());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -1271,9 +1289,19 @@ fn test_rebase_descendants_update_checkout_closed(use_git: bool) {
     tx.mut_repo().rebase_descendants(&settings);
     let repo = tx.commit();
 
-    let checkout = repo.store().get_commit(repo.view().checkout()).unwrap();
+    // Workspaces 1 and 2 had B checked out, so they get updated to the same new
+    // commit on top of C. Workspace 3 had A checked out, so it doesn't get updated.
+    assert_eq!(
+        repo.view().get_checkout(&ws1_id),
+        repo.view().get_checkout(&ws2_id)
+    );
+    let checkout = repo
+        .store()
+        .get_commit(repo.view().get_checkout(&ws1_id).unwrap())
+        .unwrap();
     assert!(checkout.is_open());
     assert_eq!(checkout.parent_ids(), vec![commit_c.id().clone()]);
+    assert_eq!(repo.view().get_checkout(&ws3_id), Some(commit_a.id()));
 }
 
 #[test_case(false ; "local backend")]
