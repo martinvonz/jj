@@ -123,10 +123,10 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_path: PathBuf,
     ) -> Result<Self, WorkspaceLoadError> {
-        let repo_path = find_repo_dir(&workspace_path)
+        let jj_dir = find_jj_dir(&workspace_path)
             .ok_or(WorkspaceLoadError::NoWorkspaceHere(workspace_path))?;
-        let workspace_root = repo_path.parent().unwrap().to_owned();
-        let repo_loader = RepoLoader::init(user_settings, repo_path);
+        let workspace_root = jj_dir.parent().unwrap().to_owned();
+        let repo_loader = RepoLoader::init(user_settings, jj_dir);
         let working_copy_state_path = repo_loader.repo_path().join("working_copy");
         let working_copy = WorkingCopy::load(
             repo_loader.store().clone(),
@@ -161,11 +161,11 @@ impl Workspace {
     }
 }
 
-fn find_repo_dir(mut workspace_root: &Path) -> Option<PathBuf> {
+fn find_jj_dir(mut workspace_root: &Path) -> Option<PathBuf> {
     loop {
-        let repo_path = workspace_root.join(".jj");
-        if repo_path.is_dir() {
-            return Some(repo_path);
+        let jj_path = workspace_root.join(".jj");
+        if jj_path.is_dir() {
+            return Some(jj_path);
         }
         if let Some(wc_dir_parent) = workspace_root.parent() {
             workspace_root = wc_dir_parent;
