@@ -27,75 +27,73 @@ The command-line tool is called `jj` for now because it's easy to type and easy
 to replace (rare in English). The project is called "Jujutsu" because it matches
 "jj".
 
-Features:
+## Features
 
- * **Compatible with Git**
+### Compatible with Git
    
-   Jujutsu has two backends. One of them is a Git backend (the other is a
-   native one). This lets you use Jujutsu as an alternative interface to Git.
-   The commits you create will look like regular Git commits. You can always
-   switch back to Git.
-   
-   <a href="https://asciinema.org/a/DRCzktCyEAxH6j788ZDT6aSjS" target="_blank">
-     <img src="https://asciinema.org/a/DRCzktCyEAxH6j788ZDT6aSjS.svg" />
-   </a>
+Jujutsu has two backends. One of them is a Git backend (the other is a native
+one). This lets you use Jujutsu as an alternative interface to Git. The commits
+you create will look like regular Git commits. You can always switch back to
+Git.
 
- * **The working copy is automatically committed**
+<a href="https://asciinema.org/a/DRCzktCyEAxH6j788ZDT6aSjS" target="_blank">
+  <img src="https://asciinema.org/a/DRCzktCyEAxH6j788ZDT6aSjS.svg" />
+</a>
 
-   Most Jujutsu commands automatically commit the working copy. This leads to a
-   simpler and more powerful interface, since all commands work the same way on
-   the working copy or any other commit. It also means that you can always check
-   out a different commit without first explicitly committing the working copy
-   changes (you can even check out a different commit while resolving merge
-   conflicts).
+### The working copy is automatically committed
 
-   <a href="https://asciinema.org/a/zWMv4ffmoXykBtrxvDY6ohEaZ" target="_blank">
-     <img src="https://asciinema.org/a/zWMv4ffmoXykBtrxvDY6ohEaZ.svg" />
-   </a>
+Most Jujutsu commands automatically commit the working copy. This leads to a
+simpler and more powerful interface, since all commands work the same way on the
+working copy or any other commit. It also means that you can always check out a
+different commit without first explicitly committing the working copy changes
+(you can even check out a different commit while resolving merge conflicts).
 
- * **Operations update the repo first, then possibly the working copy**
+<a href="https://asciinema.org/a/zWMv4ffmoXykBtrxvDY6ohEaZ" target="_blank">
+  <img src="https://asciinema.org/a/zWMv4ffmoXykBtrxvDY6ohEaZ.svg" />
+</a>
 
-   The working copy is only updated at the end of an operation, after all other
-   changes have already been recorded. This means that you can run any command
-   (such as `jj rebase`) even if the working copy is dirty.
+### Operations update the repo first, then possibly the working copy
 
- * **Entire repo is under version control**
+The working copy is only updated at the end of an operation, after all other
+changes have already been recorded. This means that you can run any command 
+(such as `jj rebase`) even if the working copy is dirty.
 
-   All operations you perform in the repo are recorded, along with a snapshot of
-   the repo state after the operation. This means that you can easily revert to
-   an earlier repo state, or to simply undo a particular operation (which does
-   not necessarily have to be the most recent operation).
+### Entire repo is under version control
 
-   <a href="https://asciinema.org/a/OFOTcm2XlZ09LLEI5bHYM8Alw" target="_blank">
-     <img src="https://asciinema.org/a/OFOTcm2XlZ09LLEI5bHYM8Alw.svg" />
-   </a>
+All operations you perform in the repo are recorded, along with a snapshot of
+the repo state after the operation. This means that you can easily revert to an
+earlier repo state, or to simply undo a particular operation (which does not
+necessarily have to be the most recent operation).
 
- * **Conflicts can be recorded in commits**
+<a href="https://asciinema.org/a/OFOTcm2XlZ09LLEI5bHYM8Alw" target="_blank">
+  <img src="https://asciinema.org/a/OFOTcm2XlZ09LLEI5bHYM8Alw.svg" />
+</a>
 
-   If an operation results in conflicts, information about those conflicts will
-   be recorded in the commit(s). The operation will succeed. You can then
-   resolve the conflicts later. One consequence of this design is that there's
-   no need to continue interrupted operations. Instead, you get a single
-   workflow for resolving conflicts, regardless of which command caused them.
-   This design also lets Jujutsu rebase merge commits correctly (unlike both Git
-   and Mercurial).
+### Conflicts can be recorded in commits
 
-   Basic conflict resolution:
-   <a href="https://asciinema.org/a/MWQz2nAprRXevQEYtaHScN2tJ" target="_blank">
-     <img src="https://asciinema.org/a/MWQz2nAprRXevQEYtaHScN2tJ.svg" />
-   </a>
-   Juggling conflicts:
-   <a href="https://asciinema.org/a/HqYA9SL2tzarPAErpYs684GGR" target="_blank">
-     <img src="https://asciinema.org/a/HqYA9SL2tzarPAErpYs684GGR.svg" />
-   </a>
+If an operation results in conflicts, information about those conflicts will be
+recorded in the commit(s). The operation will succeed. You can then resolve the
+conflicts later. One consequence of this design is that there's no need to
+continue interrupted operations. Instead, you get a single workflow for
+resolving conflicts, regardless of which command caused them. This design also
+lets Jujutsu rebase merge commits correctly (unlike both Git and Mercurial).
 
- * **Automatic rebase**
+Basic conflict resolution:
+<a href="https://asciinema.org/a/MWQz2nAprRXevQEYtaHScN2tJ" target="_blank">
+  <img src="https://asciinema.org/a/MWQz2nAprRXevQEYtaHScN2tJ.svg" />
+</a>
 
-   Whenever you modify a commit, any descendants of the old commit will be
-   rebased onto the new commit. Thanks to the conflict design described above,
-   that can be done even if there are conflicts. Branches pointing to rebased
-   commits will be updated. So will the working copy if it points to a rebased
-   commit.
+Juggling conflicts:
+<a href="https://asciinema.org/a/HqYA9SL2tzarPAErpYs684GGR" target="_blank">
+  <img src="https://asciinema.org/a/HqYA9SL2tzarPAErpYs684GGR.svg" />
+</a>
+
+### Automatic rebase
+
+Whenever you modify a commit, any descendants of the old commit will be rebased
+onto the new commit. Thanks to the conflict design described above, that can be
+done even if there are conflicts. Branches pointing to rebased commits will be
+updated. So will the working copy if it points to a rebased commit.
 
 
 ## Status ##
