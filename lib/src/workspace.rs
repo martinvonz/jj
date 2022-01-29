@@ -75,7 +75,9 @@ impl Workspace {
         workspace_root: PathBuf,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(&workspace_root)?;
-        let repo = ReadonlyRepo::init_local(user_settings, jj_dir.clone());
+        let repo_dir = jj_dir.join("repo");
+        std::fs::create_dir(&repo_dir).unwrap();
+        let repo = ReadonlyRepo::init_local(user_settings, repo_dir);
         let working_copy = init_working_copy(&repo, &workspace_root, &jj_dir);
         let repo_loader = repo.loader();
         let workspace = Workspace {
@@ -91,7 +93,9 @@ impl Workspace {
         workspace_root: PathBuf,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(&workspace_root)?;
-        let repo = ReadonlyRepo::init_internal_git(user_settings, jj_dir.clone());
+        let repo_dir = jj_dir.join("repo");
+        std::fs::create_dir(&repo_dir).unwrap();
+        let repo = ReadonlyRepo::init_internal_git(user_settings, repo_dir);
         let working_copy = init_working_copy(&repo, &workspace_root, &jj_dir);
         let repo_loader = repo.loader();
         let workspace = Workspace {
@@ -108,7 +112,9 @@ impl Workspace {
         git_repo_path: PathBuf,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(&workspace_root)?;
-        let repo = ReadonlyRepo::init_external_git(user_settings, jj_dir.clone(), git_repo_path);
+        let repo_dir = jj_dir.join("repo");
+        std::fs::create_dir(&repo_dir).unwrap();
+        let repo = ReadonlyRepo::init_external_git(user_settings, repo_dir, git_repo_path);
         let working_copy = init_working_copy(&repo, &workspace_root, &jj_dir);
         let repo_loader = repo.loader();
         let workspace = Workspace {
@@ -126,8 +132,17 @@ impl Workspace {
         let jj_dir = find_jj_dir(&workspace_path)
             .ok_or(WorkspaceLoadError::NoWorkspaceHere(workspace_path))?;
         let workspace_root = jj_dir.parent().unwrap().to_owned();
-        let repo_loader = RepoLoader::init(user_settings, jj_dir);
-        let working_copy_state_path = repo_loader.repo_path().join("working_copy");
+        let repo_dir = jj_dir.join("repo");
+        if !repo_dir.exists() {
+            // TODO: Delete this in mid 2022 or so
+            println!("The repo format has changed. Moving repo into .jj/repo/");
+            std::fs::create_dir(&repo_dir).unwrap();
+            for dir in ["store", "op_store", "op_heads", "index"] {
+                std::fs::rename(jj_dir.join(dir), repo_dir.join(dir)).unwrap();
+            }
+        }
+        let repo_loader = RepoLoader::init(user_settings, repo_dir);
+        let working_copy_state_path = jj_dir.join("working_copy");
         let working_copy = WorkingCopy::load(
             repo_loader.store().clone(),
             workspace_root.clone(),

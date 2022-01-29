@@ -24,7 +24,7 @@ fn test_init_local() {
     let wc_path = temp_dir.path().to_owned();
     let (workspace, repo) = Workspace::init_local(&settings, wc_path.clone()).unwrap();
     assert!(repo.store().git_repo().is_none());
-    assert_eq!(repo.repo_path(), &wc_path.join(".jj"));
+    assert_eq!(repo.repo_path(), &wc_path.join(".jj").join("repo"));
     assert_eq!(workspace.workspace_root(), &wc_path);
 
     // Just test that we can write a commit to the store
@@ -39,7 +39,7 @@ fn test_init_internal_git() {
     let wc_path = temp_dir.path().to_owned();
     let (workspace, repo) = Workspace::init_internal_git(&settings, wc_path.clone()).unwrap();
     assert!(repo.store().git_repo().is_some());
-    assert_eq!(repo.repo_path(), &wc_path.join(".jj"));
+    assert_eq!(repo.repo_path(), &wc_path.join(".jj").join("repo"));
     assert_eq!(workspace.workspace_root(), &wc_path);
 
     // Just test that we ca write a commit to the store
@@ -58,7 +58,7 @@ fn test_init_external_git() {
     let (workspace, repo) =
         Workspace::init_external_git(&settings, wc_path.clone(), git_repo_path).unwrap();
     assert!(repo.store().git_repo().is_some());
-    assert_eq!(repo.repo_path(), &wc_path.join(".jj"));
+    assert_eq!(repo.repo_path(), &wc_path.join(".jj").join("repo"));
     assert_eq!(workspace.workspace_root(), &wc_path);
 
     // Just test that we can write a commit to the store
