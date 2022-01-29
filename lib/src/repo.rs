@@ -153,7 +153,6 @@ impl ReadonlyRepo {
 
     fn init_repo_dir(repo_path: &Path) {
         fs::create_dir(repo_path.join("store")).unwrap();
-        fs::create_dir(repo_path.join("view")).unwrap();
         fs::create_dir(repo_path.join("op_store")).unwrap();
         fs::create_dir(repo_path.join("op_heads")).unwrap();
         fs::create_dir(repo_path.join("index")).unwrap();
