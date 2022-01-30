@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fs::File;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -30,6 +32,8 @@ pub enum WorkspaceInitError {
 
 #[derive(Error, Debug, PartialEq)]
 pub enum WorkspaceLoadError {
+    #[error("The repo appears to no longer be at {0}")]
+    RepoDoesNotExist(PathBuf),
     #[error("There is no Jujutsu repo in {0}")]
     NoWorkspaceHere(PathBuf),
 }
@@ -149,13 +153,25 @@ impl Workspace {
         let jj_dir = find_jj_dir(&workspace_path)
             .ok_or(WorkspaceLoadError::NoWorkspaceHere(workspace_path))?;
         let workspace_root = jj_dir.parent().unwrap().to_owned();
-        let repo_dir = jj_dir.join("repo");
+        let mut repo_dir = jj_dir.join("repo");
         if !repo_dir.exists() {
             // TODO: Delete this in mid 2022 or so
             println!("The repo format has changed. Moving repo into .jj/repo/");
             std::fs::create_dir(&repo_dir).unwrap();
             for dir in ["store", "op_store", "op_heads", "index"] {
                 std::fs::rename(jj_dir.join(dir), repo_dir.join(dir)).unwrap();
+            }
+        }
+        // If .jj/repo is a file, then we interpret its contents as a relative path to
+        // the actual repo directory (typically in another workspace).
+        if repo_dir.is_file() {
+            let mut repo_file = File::open(repo_dir).unwrap();
+            let mut buf = Vec::new();
+            repo_file.read_to_end(&mut buf).unwrap();
+            let repo_path_str = String::from_utf8(buf).unwrap();
+            repo_dir = std::fs::canonicalize(jj_dir.join(repo_path_str)).unwrap();
+            if !repo_dir.is_dir() {
+                return Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir));
             }
         }
         let repo_loader = RepoLoader::init(user_settings, repo_dir);

@@ -197,6 +197,12 @@ jj init --git-repo=.";
                 }
                 return Err(CommandError::UserError(message));
             }
+            Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir)) => {
+                return Err(CommandError::UserError(format!(
+                    "The repository directory at {} is missing. Was it moved?",
+                    repo_dir.to_str().unwrap()
+                )));
+            }
         };
         let repo_loader = workspace.repo_loader();
         let op_str = self.root_args.value_of("at_op").unwrap();
