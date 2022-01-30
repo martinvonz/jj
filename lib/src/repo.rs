@@ -26,7 +26,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, CommitId};
 use crate::commit::Commit;
-use crate::commit_builder::{new_change_id, signature, CommitBuilder};
+use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
 use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
@@ -165,27 +165,10 @@ impl ReadonlyRepo {
     ) -> Arc<ReadonlyRepo> {
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
 
-        let signature = signature(user_settings);
-        let checkout_commit = backend::Commit {
-            parents: vec![],
-            predecessors: vec![],
-            root_tree: store.empty_tree_id().clone(),
-            change_id: new_change_id(),
-            description: "".to_string(),
-            author: signature.clone(),
-            committer: signature,
-            is_open: true,
-        };
-        let checkout_commit = store.write_commit(checkout_commit);
-        let workspace_id = WorkspaceId::default();
-
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(repo_path.join("op_store")));
 
         let mut root_view = op_store::View::default();
-        root_view
-            .checkouts
-            .insert(workspace_id, checkout_commit.id().clone());
-        root_view.head_ids.insert(checkout_commit.id().clone());
+        root_view.head_ids.insert(store.root_commit_id().clone());
         root_view
             .public_head_ids
             .insert(store.root_commit_id().clone());

@@ -55,21 +55,32 @@ fn create_jj_dir(workspace_root: &Path) -> Result<PathBuf, WorkspaceInitError> {
 }
 
 fn init_working_copy(
+    user_settings: &UserSettings,
     repo: &Arc<ReadonlyRepo>,
     workspace_root: &Path,
     jj_dir: &Path,
-) -> WorkingCopy {
+) -> (WorkingCopy, Arc<ReadonlyRepo>) {
     let working_copy_state_path = jj_dir.join("working_copy");
     std::fs::create_dir(&working_copy_state_path).unwrap();
+
     let workspace_id = WorkspaceId::default();
-    WorkingCopy::init(
+    let mut tx = repo.start_transaction(&format!("add workspace '{}'", workspace_id.as_str()));
+    let checkout_commit = tx.mut_repo().check_out(
+        workspace_id.clone(),
+        user_settings,
+        &repo.store().root_commit(),
+    );
+    let repo = tx.commit();
+
+    let working_copy = WorkingCopy::init(
         repo.store().clone(),
         workspace_root.to_path_buf(),
         working_copy_state_path,
         repo.op_id().clone(),
         workspace_id,
-        repo.view().checkout().clone(),
-    )
+        checkout_commit.id().clone(),
+    );
+    (working_copy, repo)
 }
 
 impl Workspace {
@@ -81,7 +92,8 @@ impl Workspace {
         let repo_dir = jj_dir.join("repo");
         std::fs::create_dir(&repo_dir).unwrap();
         let repo = ReadonlyRepo::init_local(user_settings, repo_dir);
-        let working_copy = init_working_copy(&repo, &workspace_root, &jj_dir);
+        let (working_copy, repo) =
+            init_working_copy(user_settings, &repo, &workspace_root, &jj_dir);
         let repo_loader = repo.loader();
         let workspace = Workspace {
             workspace_root,
@@ -99,7 +111,8 @@ impl Workspace {
         let repo_dir = jj_dir.join("repo");
         std::fs::create_dir(&repo_dir).unwrap();
         let repo = ReadonlyRepo::init_internal_git(user_settings, repo_dir);
-        let working_copy = init_working_copy(&repo, &workspace_root, &jj_dir);
+        let (working_copy, repo) =
+            init_working_copy(user_settings, &repo, &workspace_root, &jj_dir);
         let repo_loader = repo.loader();
         let workspace = Workspace {
             workspace_root,
@@ -118,7 +131,8 @@ impl Workspace {
         let repo_dir = jj_dir.join("repo");
         std::fs::create_dir(&repo_dir).unwrap();
         let repo = ReadonlyRepo::init_external_git(user_settings, repo_dir, git_repo_path);
-        let working_copy = init_working_copy(&repo, &workspace_root, &jj_dir);
+        let (working_copy, repo) =
+            init_working_copy(user_settings, &repo, &workspace_root, &jj_dir);
         let repo_loader = repo.loader();
         let workspace = Workspace {
             workspace_root,

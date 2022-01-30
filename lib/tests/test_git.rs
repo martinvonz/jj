@@ -328,7 +328,6 @@ fn test_import_refs_detached_head() {
     let repo = tx.commit();
 
     let expected_heads = hashset! {
-            repo.view().checkout().clone(),
             commit_id(&commit1),
     };
     assert_eq!(*repo.view().heads(), expected_heads);

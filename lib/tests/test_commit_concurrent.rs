@@ -66,9 +66,9 @@ fn test_commit_parallel(use_git: bool) {
     // root commit
     assert_eq!(repo.view().heads().len(), num_threads + 1);
 
-    // One operation for initializing the repo (containing the root id and the
-    // initial working copy commit).
-    assert_eq!(count_non_merge_operations(&repo), num_threads + 1);
+    // One addition operation for initializing the repo, one for checking out the
+    // initial commit.
+    assert_eq!(count_non_merge_operations(&repo), num_threads + 2);
 }
 
 #[test_case(false ; "local backend")]
@@ -100,7 +100,7 @@ fn test_commit_parallel_instances(use_git: bool) {
     let repo = ReadonlyRepo::load(&settings, repo.repo_path().clone());
     assert_eq!(repo.view().heads().len(), num_threads + 1);
 
-    // One operation for initializing the repo (containing the root id and the
-    // initial working copy commit).
-    assert_eq!(count_non_merge_operations(&repo), num_threads + 1);
+    // One addition operation for initializing the repo, one for checking out the
+    // initial commit.
+    assert_eq!(count_non_merge_operations(&repo), num_threads + 2);
 }
