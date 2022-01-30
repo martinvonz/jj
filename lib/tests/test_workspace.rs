@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::testutils;
 use jujutsu_lib::workspace::{Workspace, WorkspaceLoadError};
 use test_case::test_case;
@@ -43,4 +44,40 @@ fn test_load_from_subdir(use_git: bool) {
     let same_workspace = same_workspace.unwrap();
     assert_eq!(same_workspace.repo_path(), workspace.repo_path());
     assert_eq!(same_workspace.workspace_root(), workspace.workspace_root());
+}
+
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
+fn test_init_additional_workspace(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let workspace = &test_workspace.workspace;
+
+    let ws2_id = WorkspaceId::new("ws2".to_string());
+    let ws2_root = test_workspace.temp_dir.path().join("ws2_root");
+    std::fs::create_dir(&ws2_root).unwrap();
+    let (ws2, repo) = Workspace::init_workspace_with_existing_repo(
+        &settings,
+        ws2_root.clone(),
+        &test_workspace.repo,
+        ws2_id.clone(),
+    )
+    .unwrap();
+    let checkout_id = repo.view().get_checkout(&ws2_id);
+    assert_ne!(checkout_id, None);
+    let checkout_id = checkout_id.unwrap();
+    let checkout_commit = repo.store().get_commit(checkout_id).unwrap();
+    assert_eq!(
+        checkout_commit.parent_ids(),
+        vec![repo.store().root_commit_id().clone()]
+    );
+    assert_eq!(ws2.workspace_id(), ws2_id);
+    assert_eq!(ws2.repo_path(), workspace.repo_path());
+    assert_eq!(*ws2.workspace_root(), ws2_root);
+    let same_workspace = Workspace::load(&settings, ws2_root);
+    assert!(same_workspace.is_ok());
+    let same_workspace = same_workspace.unwrap();
+    assert_eq!(same_workspace.workspace_id(), ws2_id);
+    assert_eq!(same_workspace.repo_path(), workspace.repo_path());
+    assert_eq!(same_workspace.workspace_root(), ws2.workspace_root());
 }

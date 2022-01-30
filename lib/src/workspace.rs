@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -63,11 +63,11 @@ fn init_working_copy(
     repo: &Arc<ReadonlyRepo>,
     workspace_root: &Path,
     jj_dir: &Path,
+    workspace_id: WorkspaceId,
 ) -> (WorkingCopy, Arc<ReadonlyRepo>) {
     let working_copy_state_path = jj_dir.join("working_copy");
     std::fs::create_dir(&working_copy_state_path).unwrap();
 
-    let workspace_id = WorkspaceId::default();
     let mut tx = repo.start_transaction(&format!("add workspace '{}'", workspace_id.as_str()));
     let checkout_commit = tx.mut_repo().check_out(
         workspace_id.clone(),
@@ -96,8 +96,13 @@ impl Workspace {
         let repo_dir = jj_dir.join("repo");
         std::fs::create_dir(&repo_dir).unwrap();
         let repo = ReadonlyRepo::init_local(user_settings, repo_dir);
-        let (working_copy, repo) =
-            init_working_copy(user_settings, &repo, &workspace_root, &jj_dir);
+        let (working_copy, repo) = init_working_copy(
+            user_settings,
+            &repo,
+            &workspace_root,
+            &jj_dir,
+            WorkspaceId::default(),
+        );
         let repo_loader = repo.loader();
         let workspace = Workspace {
             workspace_root,
@@ -115,8 +120,13 @@ impl Workspace {
         let repo_dir = jj_dir.join("repo");
         std::fs::create_dir(&repo_dir).unwrap();
         let repo = ReadonlyRepo::init_internal_git(user_settings, repo_dir);
-        let (working_copy, repo) =
-            init_working_copy(user_settings, &repo, &workspace_root, &jj_dir);
+        let (working_copy, repo) = init_working_copy(
+            user_settings,
+            &repo,
+            &workspace_root,
+            &jj_dir,
+            WorkspaceId::default(),
+        );
         let repo_loader = repo.loader();
         let workspace = Workspace {
             workspace_root,
@@ -135,9 +145,39 @@ impl Workspace {
         let repo_dir = jj_dir.join("repo");
         std::fs::create_dir(&repo_dir).unwrap();
         let repo = ReadonlyRepo::init_external_git(user_settings, repo_dir, git_repo_path);
-        let (working_copy, repo) =
-            init_working_copy(user_settings, &repo, &workspace_root, &jj_dir);
+        let (working_copy, repo) = init_working_copy(
+            user_settings,
+            &repo,
+            &workspace_root,
+            &jj_dir,
+            WorkspaceId::default(),
+        );
         let repo_loader = repo.loader();
+        let workspace = Workspace {
+            workspace_root,
+            repo_loader,
+            working_copy,
+        };
+        Ok((workspace, repo))
+    }
+
+    pub fn init_workspace_with_existing_repo(
+        user_settings: &UserSettings,
+        workspace_root: PathBuf,
+        repo: &Arc<ReadonlyRepo>,
+        workspace_id: WorkspaceId,
+    ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
+        let jj_dir = create_jj_dir(&workspace_root)?;
+
+        let repo_dir = std::fs::canonicalize(repo.repo_path()).unwrap();
+        let mut repo_file = File::create(jj_dir.join("repo")).unwrap();
+        repo_file
+            .write_all(repo_dir.to_str().unwrap().as_bytes())
+            .unwrap();
+
+        let repo_loader = RepoLoader::init(user_settings, repo_dir);
+        let (working_copy, repo) =
+            init_working_copy(user_settings, repo, &workspace_root, &jj_dir, workspace_id);
         let workspace = Workspace {
             workspace_root,
             repo_loader,

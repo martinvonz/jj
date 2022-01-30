@@ -739,6 +739,8 @@ impl WorkingCopy {
         commit_id: CommitId,
     ) -> WorkingCopy {
         let mut proto = crate::protos::working_copy::Checkout::new();
+        proto.operation_id = operation_id.to_bytes();
+        proto.workspace_id = workspace_id.as_str().to_string();
         proto.commit_id = commit_id.to_bytes();
         let mut file = OpenOptions::new()
             .create_new(true)
