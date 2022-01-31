@@ -2420,13 +2420,16 @@ fn cmd_status(
     let mut workspace_command = command.workspace_helper(ui)?;
     workspace_command.maybe_commit_working_copy(ui)?;
     let repo = workspace_command.repo();
-    let commit = repo.store().get_commit(repo.view().checkout()).unwrap();
-    ui.write("Parent commit: ")?;
-    ui.write_commit_summary(repo.as_repo_ref(), &commit.parents()[0])?;
-    ui.write("\n")?;
-    ui.write("Working copy : ")?;
-    ui.write_commit_summary(repo.as_repo_ref(), &commit)?;
-    ui.write("\n")?;
+    let maybe_checkout_id = repo.view().get_checkout(&workspace_command.workspace_id());
+    let maybe_checkout = maybe_checkout_id.map(|id| repo.store().get_commit(id).unwrap());
+    if let Some(checkout_commit) = &maybe_checkout {
+        ui.write("Parent commit: ")?;
+        ui.write_commit_summary(repo.as_repo_ref(), &checkout_commit.parents()[0])?;
+        ui.write("\n")?;
+        ui.write("Working copy : ")?;
+        ui.write_commit_summary(repo.as_repo_ref(), checkout_commit)?;
+        ui.write("\n")?;
+    }
 
     let mut conflicted_local_branches = vec![];
     let mut conflicted_remote_branches = vec![];
@@ -2475,30 +2478,32 @@ fn cmd_status(
         )?;
     }
 
-    let parent_tree = commit.parents()[0].tree();
-    let tree = commit.tree();
-    if tree.id() == parent_tree.id() {
-        ui.write("The working copy is clean\n")?;
-    } else {
-        ui.write("Working copy changes:\n")?;
-        show_diff_summary(
-            ui,
-            workspace_command.workspace_root(),
-            parent_tree.diff(&tree, &EverythingMatcher),
-        )?;
-    }
-
-    let conflicts = tree.conflicts();
-    if !conflicts.is_empty() {
-        ui.stdout_formatter().add_label("conflict".to_string())?;
-        writeln!(ui, "There are unresolved conflicts at these paths:")?;
-        ui.stdout_formatter().remove_label()?;
-        for (path, _) in conflicts {
-            writeln!(
+    if let Some(checkout_commit) = &maybe_checkout {
+        let parent_tree = checkout_commit.parents()[0].tree();
+        let tree = checkout_commit.tree();
+        if tree.id() == parent_tree.id() {
+            ui.write("The working copy is clean\n")?;
+        } else {
+            ui.write("Working copy changes:\n")?;
+            show_diff_summary(
                 ui,
-                "{}",
-                &ui.format_file_path(workspace_command.workspace_root(), &path)
+                workspace_command.workspace_root(),
+                parent_tree.diff(&tree, &EverythingMatcher),
             )?;
+        }
+
+        let conflicts = tree.conflicts();
+        if !conflicts.is_empty() {
+            ui.stdout_formatter().add_label("conflict".to_string())?;
+            writeln!(ui, "There are unresolved conflicts at these paths:")?;
+            ui.stdout_formatter().remove_label()?;
+            for (path, _) in conflicts {
+                writeln!(
+                    ui,
+                    "{}",
+                    &ui.format_file_path(workspace_command.workspace_root(), &path)
+                )?;
+            }
         }
     }
 
