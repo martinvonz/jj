@@ -2854,8 +2854,9 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
     let mut tx = workspace_command.start_transaction("new empty commit");
     let mut_repo = tx.mut_repo();
     let new_commit = commit_builder.write_to_repo(mut_repo);
-    if mut_repo.view().checkout() == parent.id() {
-        mut_repo.check_out(workspace_command.workspace_id(), ui.settings(), &new_commit);
+    let workspace_id = workspace_command.workspace_id();
+    if mut_repo.view().get_checkout(&workspace_id) == Some(parent.id()) {
+        mut_repo.check_out(workspace_id, ui.settings(), &new_commit);
     }
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
