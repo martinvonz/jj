@@ -557,12 +557,14 @@ impl MutableRepo {
         settings: &UserSettings,
         commit: &Commit,
     ) -> Commit {
-        let current_checkout_id = self.view.borrow().checkout().clone();
-        let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
-        assert!(current_checkout.is_open(), "current checkout is closed");
-        if current_checkout.is_empty() {
-            // Abandon the checkout we're leaving if it's empty.
-            self.record_abandoned_commit(current_checkout_id);
+        let maybe_current_checkout_id = self.view.borrow().get_checkout(&workspace_id).cloned();
+        if let Some(current_checkout_id) = maybe_current_checkout_id {
+            let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
+            assert!(current_checkout.is_open(), "current checkout is closed");
+            if current_checkout.is_empty() {
+                // Abandon the checkout we're leaving if it's empty.
+                self.record_abandoned_commit(current_checkout_id);
+            }
         }
         let open_commit = if !commit.is_open() {
             // If the commit is closed, create a new open commit on top

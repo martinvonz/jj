@@ -131,6 +131,34 @@ fn test_checkout_previous_empty(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 // #[test_case(true ; "git backend")]
+fn test_checkout_initial(use_git: bool) {
+    // Test that MutableRepo::check_out() can be used on the initial checkout in a
+    // workspace
+    let settings = testutils::user_settings();
+    let test_workspace = testutils::init_repo(&settings, use_git);
+    let repo = &test_workspace.repo;
+
+    let mut tx = repo.start_transaction("test");
+    let requested_checkout = testutils::create_random_commit(&settings, repo)
+        .set_open(true)
+        .write_to_repo(tx.mut_repo());
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    let workspace_id = WorkspaceId::new("new-workspace".to_string());
+    let actual_checkout =
+        tx.mut_repo()
+            .check_out(workspace_id.clone(), &settings, &requested_checkout);
+    assert_eq!(actual_checkout.id(), requested_checkout.id());
+    let repo = tx.commit();
+    assert_eq!(
+        repo.view().get_checkout(&workspace_id),
+        Some(actual_checkout.id())
+    );
+}
+
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_add_head_success(use_git: bool) {
     // Test that MutableRepo::add_head() adds the head, and that it's still there
     // after commit. It should also be indexed.
