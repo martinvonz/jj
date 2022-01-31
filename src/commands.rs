@@ -605,14 +605,18 @@ impl WorkspaceCommandHelper {
                 writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
             }
         }
-        let old_commit_id = tx.base_repo().view().checkout().clone();
+        let maybe_old_commit_id = tx
+            .base_repo()
+            .view()
+            .get_checkout(&self.workspace_id())
+            .cloned();
         self.repo = tx.commit();
         if self.may_update_working_copy {
             let stats = update_working_copy(
                 ui,
                 &self.repo,
                 self.workspace.working_copy_mut(),
-                &old_commit_id,
+                maybe_old_commit_id.as_ref(),
             )?;
             if let Some(stats) = stats {
                 if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
@@ -760,21 +764,17 @@ fn update_working_copy(
     ui: &mut Ui,
     repo: &Arc<ReadonlyRepo>,
     wc: &mut WorkingCopy,
-    old_commit_id: &CommitId,
+    old_commit_id: Option<&CommitId>,
 ) -> Result<Option<CheckoutStats>, CommandError> {
     let new_commit_id = repo.view().checkout();
-    if new_commit_id == old_commit_id {
+    if Some(new_commit_id) == old_commit_id {
         return Ok(None);
     }
     // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
     // warning for most commands (but be an error for the checkout command)
     let new_commit = repo.store().get_commit(new_commit_id).unwrap();
     let stats = wc
-        .check_out(
-            repo.op_id().clone(),
-            Some(old_commit_id),
-            new_commit.clone(),
-        )
+        .check_out(repo.op_id().clone(), old_commit_id, new_commit.clone())
         .map_err(|err| {
             CommandError::InternalError(format!(
                 "Failed to check out commit {}: {}",
