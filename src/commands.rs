@@ -472,12 +472,20 @@ impl WorkspaceCommandHelper {
         }
         let repo = self.repo.clone();
         let workspace_id = self.workspace_id();
+        let checkout_id = match repo.view().get_checkout(&self.workspace_id()) {
+            Some(checkout_id) => checkout_id.clone(),
+            None => {
+                // If the workspace has been deleted, it's unclear what to do, so we just skip
+                // committing the working copy.
+                return Ok(());
+            }
+        };
         let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
         // Check if the working copy commit matches the repo's view. It's fine if it
         // doesn't, but we'll need to reload the repo so the new commit is
         // in the index and view, and so we don't cause unnecessary
         // divergence.
-        let checkout_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
+        let checkout_commit = repo.store().get_commit(&checkout_id).unwrap();
         let wc_commit_id = locked_wc.old_commit_id().clone();
         if *checkout_commit.id() != wc_commit_id {
             let wc_operation_data = self
