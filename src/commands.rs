@@ -615,6 +615,7 @@ impl WorkspaceCommandHelper {
             let stats = update_working_copy(
                 ui,
                 &self.repo,
+                &self.workspace_id(),
                 self.workspace.working_copy_mut(),
                 maybe_old_commit_id.as_ref(),
             )?;
@@ -763,10 +764,17 @@ fn matcher_from_values(
 fn update_working_copy(
     ui: &mut Ui,
     repo: &Arc<ReadonlyRepo>,
+    workspace_id: &WorkspaceId,
     wc: &mut WorkingCopy,
     old_commit_id: Option<&CommitId>,
 ) -> Result<Option<CheckoutStats>, CommandError> {
-    let new_commit_id = repo.view().checkout();
+    let new_commit_id = match repo.view().get_checkout(workspace_id) {
+        Some(new_commit_id) => new_commit_id,
+        None => {
+            // It seems the workspace was deleted, so we shouldn't try to update it.
+            return Ok(None);
+        }
+    };
     if Some(new_commit_id) == old_commit_id {
         return Ok(None);
     }
