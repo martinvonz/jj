@@ -319,16 +319,22 @@ impl WorkspaceCommandHelper {
             .ok()
             .map(|commit| commit.id());
         git::export_refs(repo, &git_repo)?;
-        let checkout_id = repo.view().checkout();
-        let first_parent_id =
-            repo.index().entry_by_id(checkout_id).unwrap().parents()[0].commit_id();
-        if first_parent_id != *repo.store().root_commit_id() {
-            if let Some(current_git_commit_id) = current_git_commit_id {
-                git_repo.set_head_detached(current_git_commit_id)?;
+        if let Some(checkout_id) = repo.view().get_checkout(&self.workspace_id()) {
+            let first_parent_id =
+                repo.index().entry_by_id(checkout_id).unwrap().parents()[0].commit_id();
+            if first_parent_id != *repo.store().root_commit_id() {
+                if let Some(current_git_commit_id) = current_git_commit_id {
+                    git_repo.set_head_detached(current_git_commit_id)?;
+                }
+                let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
+                let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
+                git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
             }
-            let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
-            let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
-            git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
+        } else {
+            // The workspace was removed (maybe the user undid the
+            // initialization of the workspace?), which is weird,
+            // but we should probably just not do anything else here.
+            // Except maybe print a note about it?
         }
         Ok(())
     }
