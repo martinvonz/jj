@@ -286,8 +286,9 @@ impl WorkspaceCommandHelper {
             if new_git_head != old_git_head && new_git_head.is_some() {
                 let workspace_id = self.workspace.workspace_id();
                 let mut locked_working_copy = self.workspace.working_copy_mut().start_mutation();
-                tx.mut_repo()
-                    .record_abandoned_commit(self.repo.view().checkout().clone());
+                if let Some(old_checkout) = self.repo.view().get_checkout(&workspace_id) {
+                    tx.mut_repo().record_abandoned_commit(old_checkout.clone());
+                }
                 let new_checkout = self
                     .repo
                     .store()
