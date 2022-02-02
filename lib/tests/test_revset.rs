@@ -29,7 +29,7 @@ fn test_resolve_symbol_root(use_git: bool) {
     let repo = &test_workspace.repo;
 
     assert_eq!(
-        resolve_symbol(repo.as_repo_ref(), "root"),
+        resolve_symbol(repo.as_repo_ref(), "root", None),
         Ok(vec![repo.store().root_commit_id().clone()])
     );
 }
@@ -84,39 +84,39 @@ fn test_resolve_symbol_commit_id() {
     // Test lookup by full commit id
     let repo_ref = repo.as_repo_ref();
     assert_eq!(
-        resolve_symbol(repo_ref, "0454de3cae04c46cda37ba2e8873b4c17ff51dcb"),
+        resolve_symbol(repo_ref, "0454de3cae04c46cda37ba2e8873b4c17ff51dcb", None),
         Ok(vec![commits[0].id().clone()])
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "045f56cd1b17e8abde86771e2705395dcde6a957"),
+        resolve_symbol(repo_ref, "045f56cd1b17e8abde86771e2705395dcde6a957", None),
         Ok(vec![commits[1].id().clone()])
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "0468f7da8de2ce442f512aacf83411d26cd2e0cf"),
+        resolve_symbol(repo_ref, "0468f7da8de2ce442f512aacf83411d26cd2e0cf", None),
         Ok(vec![commits[2].id().clone()])
     );
 
     // Test commit id prefix
     assert_eq!(
-        resolve_symbol(repo_ref, "046"),
+        resolve_symbol(repo_ref, "046", None),
         Ok(vec![commits[2].id().clone()])
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "04"),
+        resolve_symbol(repo_ref, "04", None),
         Err(RevsetError::AmbiguousCommitIdPrefix("04".to_string()))
     );
     assert_eq!(
-        resolve_symbol(repo_ref, ""),
+        resolve_symbol(repo_ref, "", None),
         Err(RevsetError::AmbiguousCommitIdPrefix("".to_string()))
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "040"),
+        resolve_symbol(repo_ref, "040", None),
         Err(RevsetError::NoSuchRevision("040".to_string()))
     );
 
     // Test non-hex string
     assert_eq!(
-        resolve_symbol(repo_ref, "foo"),
+        resolve_symbol(repo_ref, "foo", None),
         Err(RevsetError::NoSuchRevision("foo".to_string()))
     );
 }
@@ -183,19 +183,19 @@ fn test_resolve_symbol_change_id() {
     // Test lookup by full change id
     let repo_ref = repo.as_repo_ref();
     assert_eq!(
-        resolve_symbol(repo_ref, "04e12a5467bba790efb88a9870894ec2"),
+        resolve_symbol(repo_ref, "04e12a5467bba790efb88a9870894ec2", None),
         Ok(vec![CommitId::from_hex(
             "8fd68d104372910e19511df709e5dde62a548720"
         )])
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "040b3ba3a51d8edbc4c5855cbd09de71"),
+        resolve_symbol(repo_ref, "040b3ba3a51d8edbc4c5855cbd09de71", None),
         Ok(vec![CommitId::from_hex(
             "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
         )])
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "04e1c7082e4e34f3f371d8a1a46770b8"),
+        resolve_symbol(repo_ref, "04e1c7082e4e34f3f371d8a1a46770b8", None),
         Ok(vec![CommitId::from_hex(
             "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
         )])
@@ -203,34 +203,34 @@ fn test_resolve_symbol_change_id() {
 
     // Test change id prefix
     assert_eq!(
-        resolve_symbol(repo_ref, "04e12"),
+        resolve_symbol(repo_ref, "04e12", None),
         Ok(vec![CommitId::from_hex(
             "8fd68d104372910e19511df709e5dde62a548720"
         )])
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "04e1c"),
+        resolve_symbol(repo_ref, "04e1c", None),
         Ok(vec![CommitId::from_hex(
             "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
         )])
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "04e1"),
+        resolve_symbol(repo_ref, "04e1", None),
         Err(RevsetError::AmbiguousChangeIdPrefix("04e1".to_string()))
     );
     assert_eq!(
-        resolve_symbol(repo_ref, ""),
+        resolve_symbol(repo_ref, "", None),
         // Commit id is checked first, so this is considered an ambiguous commit id
         Err(RevsetError::AmbiguousCommitIdPrefix("".to_string()))
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "04e13"),
+        resolve_symbol(repo_ref, "04e13", None),
         Err(RevsetError::NoSuchRevision("04e13".to_string()))
     );
 
     // Test non-hex string
     assert_eq!(
-        resolve_symbol(repo_ref, "foo"),
+        resolve_symbol(repo_ref, "foo", None),
         Err(RevsetError::NoSuchRevision("foo".to_string()))
     );
 }
@@ -248,14 +248,40 @@ fn test_resolve_symbol_checkout(use_git: bool) {
     let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
 
-    mut_repo.set_checkout(WorkspaceId::default(), commit1.id().clone());
+    let ws1 = WorkspaceId::new("ws1".to_string());
+    let ws2 = WorkspaceId::new("ws2".to_string());
+    mut_repo.remove_checkout(&WorkspaceId::default());
+
+    // With no workspaces, no variation can be resolved
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "@"),
+        resolve_symbol(mut_repo.as_repo_ref(), "@", None),
+        Err(RevsetError::NoSuchRevision("@".to_string()))
+    );
+    assert_eq!(
+        resolve_symbol(mut_repo.as_repo_ref(), "@", Some(&ws1)),
+        Err(RevsetError::NoSuchRevision("@".to_string()))
+    );
+    assert_eq!(
+        resolve_symbol(mut_repo.as_repo_ref(), "ws1@", Some(&ws1)),
+        Err(RevsetError::NoSuchRevision("ws1@".to_string()))
+    );
+
+    // Add some workspaces
+    mut_repo.set_checkout(ws1.clone(), commit1.id().clone());
+    mut_repo.set_checkout(ws2, commit2.id().clone());
+    // @ cannot be resolved without a default workspace ID
+    assert_eq!(
+        resolve_symbol(mut_repo.as_repo_ref(), "@", None),
+        Err(RevsetError::NoSuchRevision("@".to_string()))
+    );
+    // Can resolve "@" shorthand with a default workspace ID
+    assert_eq!(
+        resolve_symbol(mut_repo.as_repo_ref(), "@", Some(&ws1)),
         Ok(vec![commit1.id().clone()])
     );
-    mut_repo.set_checkout(WorkspaceId::default(), commit2.id().clone());
+    // Can resolve an explicit checkout
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "@"),
+        resolve_symbol(mut_repo.as_repo_ref(), "ws2@", Some(&ws1)),
         Ok(vec![commit2.id().clone()])
     );
 }
@@ -301,7 +327,7 @@ fn test_resolve_symbol_git_refs() {
 
     // Non-existent ref
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "non-existent"),
+        resolve_symbol(mut_repo.as_repo_ref(), "non-existent", None),
         Err(RevsetError::NoSuchRevision("non-existent".to_string()))
     );
 
@@ -311,7 +337,7 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit4.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/branch"),
+        resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/branch", None),
         Ok(vec![commit4.id().clone()])
     );
 
@@ -325,7 +351,7 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit4.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "heads/branch"),
+        resolve_symbol(mut_repo.as_repo_ref(), "heads/branch", None),
         Ok(vec![commit5.id().clone()])
     );
 
@@ -339,7 +365,7 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit4.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "branch"),
+        resolve_symbol(mut_repo.as_repo_ref(), "branch", None),
         Ok(vec![commit3.id().clone()])
     );
 
@@ -349,7 +375,7 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit4.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "tag"),
+        resolve_symbol(mut_repo.as_repo_ref(), "tag", None),
         Ok(vec![commit4.id().clone()])
     );
 
@@ -359,7 +385,7 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit2.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "origin/remote-branch"),
+        resolve_symbol(mut_repo.as_repo_ref(), "origin/remote-branch", None),
         Ok(vec![commit2.id().clone()])
     );
 
@@ -367,17 +393,21 @@ fn test_resolve_symbol_git_refs() {
     mut_repo.set_git_ref("@".to_string(), RefTarget::Normal(commit2.id().clone()));
     mut_repo.set_git_ref("root".to_string(), RefTarget::Normal(commit3.id().clone()));
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "@"),
-        Ok(vec![mut_repo.view().checkout().clone()])
+        resolve_symbol(mut_repo.as_repo_ref(), "@", Some(&WorkspaceId::default())),
+        Ok(vec![mut_repo
+            .view()
+            .get_checkout(&WorkspaceId::default())
+            .unwrap()
+            .clone()])
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "root"),
+        resolve_symbol(mut_repo.as_repo_ref(), "root", None),
         Ok(vec![mut_repo.store().root_commit().id().clone()])
     );
 
     // Conflicted ref resolves to its "adds"
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/conflicted"),
+        resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/conflicted", None),
         Ok(vec![commit1.id().clone(), commit3.id().clone()])
     );
 }
@@ -385,7 +415,21 @@ fn test_resolve_symbol_git_refs() {
 fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
     let expression = parse(revset_str).unwrap();
     expression
-        .evaluate(repo)
+        .evaluate(repo, None)
+        .unwrap()
+        .iter()
+        .commit_ids()
+        .collect()
+}
+
+fn resolve_commit_ids_in_workspace(
+    repo: RepoRef,
+    revset_str: &str,
+    workspace_id: &WorkspaceId,
+) -> Vec<CommitId> {
+    let expression = parse(revset_str).unwrap();
+    expression
+        .evaluate(repo, Some(workspace_id))
         .unwrap()
         .iter()
         .commit_ids()
@@ -414,7 +458,7 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
     // Can find the current checkout
     mut_repo.set_checkout(WorkspaceId::default(), commit1.id().clone());
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "@"),
+        resolve_commit_ids_in_workspace(mut_repo.as_repo_ref(), "@", &WorkspaceId::default()),
         vec![commit1.id().clone()]
     );
 }
@@ -504,7 +548,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     // Can find parents of the current checkout
     mut_repo.set_checkout(WorkspaceId::default(), commit2.id().clone());
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "@-"),
+        resolve_commit_ids_in_workspace(mut_repo.as_repo_ref(), "@-", &WorkspaceId::default()),
         vec![commit1.id().clone()]
     );
 

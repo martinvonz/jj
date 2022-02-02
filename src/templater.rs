@@ -312,7 +312,7 @@ impl DivergentProperty {
     pub fn new(repo: RepoRef) -> Self {
         // TODO: Create a persistent index from change id to commit ids.
         let mut commit_count_by_change: HashMap<ChangeId, i32> = HashMap::new();
-        for index_entry in RevsetExpression::all().evaluate(repo).unwrap().iter() {
+        for index_entry in RevsetExpression::all().evaluate(repo, None).unwrap().iter() {
             let change_id = index_entry.change_id();
             commit_count_by_change
                 .entry(change_id)

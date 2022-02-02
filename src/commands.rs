@@ -386,7 +386,8 @@ impl WorkspaceCommandHelper {
         revision_str: &str,
     ) -> Result<Commit, CommandError> {
         let revset_expression = self.parse_revset(ui, revision_str)?;
-        let revset = revset_expression.evaluate(self.repo.as_repo_ref())?;
+        let revset =
+            revset_expression.evaluate(self.repo.as_repo_ref(), Some(&self.workspace_id()))?;
         let mut iter = revset.iter().commits(self.repo.store());
         match iter.next() {
             None => Err(CommandError::UserError(format!(
@@ -412,7 +413,8 @@ impl WorkspaceCommandHelper {
         revision_str: &str,
     ) -> Result<Vec<Commit>, CommandError> {
         let revset_expression = self.parse_revset(ui, revision_str)?;
-        let revset = revset_expression.evaluate(self.repo.as_repo_ref())?;
+        let revset =
+            revset_expression.evaluate(self.repo.as_repo_ref(), Some(&self.workspace_id()))?;
         Ok(revset
             .iter()
             .commits(self.repo.store())
@@ -2541,7 +2543,8 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
         workspace_command.parse_revset(ui, args.value_of("revisions").unwrap())?;
     let repo = workspace_command.repo();
     let checkout_id = repo.view().checkout().clone();
-    let revset = revset_expression.evaluate(repo.as_repo_ref())?;
+    let revset =
+        revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_command.workspace_id()))?;
     let store = repo.store();
 
     let template_string = match args.value_of("template") {
@@ -3344,7 +3347,10 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
         let mut num_rebased_descendants = 0;
         let store = workspace_command.repo.store();
         for child_commit in children_expression
-            .evaluate(workspace_command.repo().as_repo_ref())
+            .evaluate(
+                workspace_command.repo().as_repo_ref(),
+                Some(&workspace_command.workspace_id()),
+            )
             .unwrap()
             .iter()
             .commits(store)

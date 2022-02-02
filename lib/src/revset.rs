@@ -27,6 +27,7 @@ use thiserror::Error;
 use crate::backend::{BackendError, BackendResult, CommitId};
 use crate::commit::Commit;
 use crate::index::{HexPrefix, IndexEntry, IndexPosition, PrefixResolution, RevWalk};
+use crate::op_store::WorkspaceId;
 use crate::repo::RepoRef;
 use crate::revset_graph_iterator::RevsetGraphIterator;
 use crate::store::Store;
@@ -102,7 +103,7 @@ fn resolve_change_id(repo: RepoRef, change_id_prefix: &str) -> Result<Vec<Commit
         let mut found_change_id = None;
         let mut commit_ids = vec![];
         // TODO: Create a persistent lookup from change id to (visible?) commit ids.
-        for index_entry in RevsetExpression::all().evaluate(repo).unwrap().iter() {
+        for index_entry in RevsetExpression::all().evaluate(repo, None).unwrap().iter() {
             let change_id = index_entry.change_id();
             if change_id.hex().starts_with(hex_prefix.hex()) {
                 if let Some(previous_change_id) = found_change_id.replace(change_id.clone()) {
@@ -124,9 +125,26 @@ fn resolve_change_id(repo: RepoRef, change_id_prefix: &str) -> Result<Vec<Commit
     }
 }
 
-pub fn resolve_symbol(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetError> {
-    if symbol == "@" {
-        Ok(vec![repo.view().checkout().clone()])
+pub fn resolve_symbol(
+    repo: RepoRef,
+    symbol: &str,
+    workspace_id: Option<&WorkspaceId>,
+) -> Result<Vec<CommitId>, RevsetError> {
+    if symbol.ends_with('@') {
+        let target_workspace = if symbol == "@" {
+            if let Some(workspace_id) = workspace_id {
+                workspace_id.clone()
+            } else {
+                return Err(RevsetError::NoSuchRevision(symbol.to_owned()));
+            }
+        } else {
+            WorkspaceId::new(symbol.strip_suffix('@').unwrap().to_string())
+        };
+        if let Some(commit_id) = repo.view().get_checkout(&target_workspace) {
+            Ok(vec![commit_id.clone()])
+        } else {
+            Err(RevsetError::NoSuchRevision(symbol.to_owned()))
+        }
     } else if symbol == "root" {
         Ok(vec![repo.store().root_commit_id().clone()])
     } else {
@@ -387,8 +405,9 @@ impl RevsetExpression {
     pub fn evaluate<'repo>(
         &self,
         repo: RepoRef<'repo>,
+        workspace_id: Option<&WorkspaceId>,
     ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
-        evaluate_expression(repo, self)
+        evaluate_expression(repo, self, workspace_id)
     }
 }
 
@@ -1069,6 +1088,7 @@ impl<'revset, 'repo> Iterator for DifferenceRevsetIterator<'revset, 'repo> {
 pub fn evaluate_expression<'repo>(
     repo: RepoRef<'repo>,
     expression: &RevsetExpression,
+    workspace_id: Option<&WorkspaceId>,
 ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
     match expression {
         RevsetExpression::None => Ok(Box::new(EagerRevset {
@@ -1076,12 +1096,12 @@ pub fn evaluate_expression<'repo>(
         })),
         RevsetExpression::Commits(commit_ids) => Ok(revset_for_commit_ids(repo, commit_ids)),
         RevsetExpression::Symbol(symbol) => {
-            let commit_ids = resolve_symbol(repo, symbol)?;
-            evaluate_expression(repo, &RevsetExpression::Commits(commit_ids))
+            let commit_ids = resolve_symbol(repo, symbol, workspace_id)?;
+            evaluate_expression(repo, &RevsetExpression::Commits(commit_ids), workspace_id)
         }
         RevsetExpression::Parents(base_expression) => {
             // TODO: Make this lazy
-            let base_set = base_expression.evaluate(repo)?;
+            let base_set = base_expression.evaluate(repo, workspace_id)?;
             let mut parent_entries = base_set
                 .iter()
                 .flat_map(|entry| entry.parents())
@@ -1093,9 +1113,9 @@ pub fn evaluate_expression<'repo>(
             }))
         }
         RevsetExpression::Children(roots) => {
-            let root_set = roots.evaluate(repo)?;
+            let root_set = roots.evaluate(repo, workspace_id)?;
             let candidates_expression = roots.descendants();
-            let candidate_set = candidates_expression.evaluate(repo)?;
+            let candidate_set = candidates_expression.evaluate(repo, workspace_id)?;
             Ok(Box::new(ChildrenRevset {
                 root_set,
                 candidate_set,
@@ -1103,11 +1123,11 @@ pub fn evaluate_expression<'repo>(
         }
         RevsetExpression::Ancestors(base_expression) => RevsetExpression::none()
             .range(base_expression)
-            .evaluate(repo),
+            .evaluate(repo, workspace_id),
         RevsetExpression::Range { roots, heads } => {
-            let root_set = roots.evaluate(repo)?;
+            let root_set = roots.evaluate(repo, workspace_id)?;
             let root_ids = root_set.iter().commit_ids().collect_vec();
-            let head_set = heads.evaluate(repo)?;
+            let head_set = heads.evaluate(repo, workspace_id)?;
             let head_ids = head_set.iter().commit_ids().collect_vec();
             let walk = repo.index().walk_revs(&head_ids, &root_ids);
             Ok(Box::new(RevWalkRevset { walk }))
@@ -1116,8 +1136,8 @@ pub fn evaluate_expression<'repo>(
         // reverse
         #[allow(clippy::needless_collect)]
         RevsetExpression::DagRange { roots, heads } => {
-            let root_set = roots.evaluate(repo)?;
-            let candidate_set = heads.ancestors().evaluate(repo)?;
+            let root_set = roots.evaluate(repo, workspace_id)?;
+            let candidate_set = heads.ancestors().evaluate(repo, workspace_id)?;
             let mut reachable: HashSet<_> = root_set.iter().map(|entry| entry.position()).collect();
             let mut result = vec![];
             let candidates = candidate_set.iter().collect_vec();
@@ -1142,7 +1162,7 @@ pub fn evaluate_expression<'repo>(
             &repo.view().heads().iter().cloned().collect_vec(),
         )),
         RevsetExpression::HeadsOf(candidates) => {
-            let candidate_set = candidates.evaluate(repo)?;
+            let candidate_set = candidates.evaluate(repo, workspace_id)?;
             let candidate_ids = candidate_set.iter().commit_ids().collect_vec();
             Ok(revset_for_commit_ids(
                 repo,
@@ -1153,7 +1173,7 @@ pub fn evaluate_expression<'repo>(
             candidates,
             parent_count_range,
         } => {
-            let candidates = candidates.evaluate(repo)?;
+            let candidates = candidates.evaluate(repo, workspace_id)?;
             let parent_count_range = parent_count_range.clone();
             Ok(Box::new(FilterRevset {
                 candidates,
@@ -1201,7 +1221,7 @@ pub fn evaluate_expression<'repo>(
             Ok(revset_for_commit_ids(repo, &commit_ids))
         }
         RevsetExpression::Description { needle, candidates } => {
-            let candidates = candidates.evaluate(repo)?;
+            let candidates = candidates.evaluate(repo, workspace_id)?;
             let repo = repo;
             let needle = needle.clone();
             Ok(Box::new(FilterRevset {
@@ -1216,7 +1236,7 @@ pub fn evaluate_expression<'repo>(
             }))
         }
         RevsetExpression::Author { needle, candidates } => {
-            let candidates = candidates.evaluate(repo)?;
+            let candidates = candidates.evaluate(repo, workspace_id)?;
             let repo = repo;
             let needle = needle.clone();
             // TODO: Make these functions that take a needle to search for accept some
@@ -1232,7 +1252,7 @@ pub fn evaluate_expression<'repo>(
             }))
         }
         RevsetExpression::Committer { needle, candidates } => {
-            let candidates = candidates.evaluate(repo)?;
+            let candidates = candidates.evaluate(repo, workspace_id)?;
             let repo = repo;
             let needle = needle.clone();
             Ok(Box::new(FilterRevset {
@@ -1245,18 +1265,18 @@ pub fn evaluate_expression<'repo>(
             }))
         }
         RevsetExpression::Union(expression1, expression2) => {
-            let set1 = expression1.evaluate(repo)?;
-            let set2 = expression2.evaluate(repo)?;
+            let set1 = expression1.evaluate(repo, workspace_id)?;
+            let set2 = expression2.evaluate(repo, workspace_id)?;
             Ok(Box::new(UnionRevset { set1, set2 }))
         }
         RevsetExpression::Intersection(expression1, expression2) => {
-            let set1 = expression1.evaluate(repo)?;
-            let set2 = expression2.evaluate(repo)?;
+            let set1 = expression1.evaluate(repo, workspace_id)?;
+            let set2 = expression2.evaluate(repo, workspace_id)?;
             Ok(Box::new(IntersectionRevset { set1, set2 }))
         }
         RevsetExpression::Difference(expression1, expression2) => {
-            let set1 = expression1.evaluate(repo)?;
-            let set2 = expression2.evaluate(repo)?;
+            let set1 = expression1.evaluate(repo, workspace_id)?;
+            let set2 = expression2.evaluate(repo, workspace_id)?;
             Ok(Box::new(DifferenceRevset { set1, set2 }))
         }
     }
