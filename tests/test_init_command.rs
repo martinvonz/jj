@@ -48,7 +48,7 @@ fn test_init_git_external() {
     let output = testutils::CommandRunner::new(temp_dir.path()).run(vec![
         "init",
         "repo",
-        "--git-store",
+        "--git-repo",
         git_repo_path.to_str().unwrap(),
     ]);
     assert_eq!(output.status, 0);

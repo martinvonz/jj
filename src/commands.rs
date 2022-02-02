@@ -193,7 +193,7 @@ impl CommandHelper {
                     // it differently.
                     message += "
 It looks like this is a git repo. You can create a jj repo backed by it by running this:
-jj init --git-store=.";
+jj init --git-repo=.";
                 }
                 return Err(CommandError::UserError(message));
             }
@@ -799,10 +799,10 @@ fn get_app<'help>() -> App<'help> {
                 .help("Use the Git backend, creating a jj repo backed by a Git repo"),
         )
         .arg(
-            Arg::new("git-store")
-                .long("git-store")
+            Arg::new("git-repo")
+                .long("git-repo")
                 .takes_value(true)
-                .help("Path to a .git/ directory the jj repo will be backed by"),
+                .help("Path to a git repo the jj repo will be backed by"),
         );
     let checkout_command = App::new("checkout")
         .alias("co")
@@ -1608,9 +1608,9 @@ fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), Co
 }
 
 fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    if args.is_present("git") && args.is_present("git-store") {
+    if args.is_present("git") && args.is_present("git-repo") {
         return Err(CommandError::UserError(String::from(
-            "--git cannot be used with --git-store",
+            "--git cannot be used with --git-repo",
         )));
     }
     let wc_path_str = args.value_of("destination").unwrap();
@@ -1621,7 +1621,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
         fs::create_dir(&wc_path).unwrap();
     }
 
-    if let Some(git_store_str) = args.value_of("git-store") {
+    if let Some(git_store_str) = args.value_of("git-repo") {
         let git_store_path = ui.cwd().join(git_store_str);
         let (workspace, repo) =
             Workspace::init_external_git(ui.settings(), wc_path.clone(), git_store_path)?;

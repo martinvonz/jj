@@ -19,15 +19,15 @@ underlying Git repo will be inside of that directory (currently in
 ## Creating a repo backed by an existing Git repo
 
 To create a Jujutsu repo backed by a Git repo you already have on disk, use
-`jj init --git-store=<path to Git repo> <name>`. The repo will work similar to
-a [Git worktree](https://git-scm.com/docs/git-worktree), meaning that the
-working copies and the record of the current checkout will be separate, but the
-commits will be accessible in both repos. Use `jj git import` to update the
-Jujutsu repo with changes made in the Git repo. Use `jj git export` to update
-the Git repo with changes made in the Jujutsu repo.
+`jj init --git-repo=<path to Git repo> <name>`. The repo will work similar to a
+[Git worktree](https://git-scm.com/docs/git-worktree), meaning that the working
+copies and the record of the current checkout will be separate, but the commits
+will be accessible in both repos. Use `jj git import` to update the Jujutsu repo
+with changes made in the Git repo. Use `jj git export` to update the Git repo
+with changes made in the Jujutsu repo.
 
 If you create initialize the Jujutsu repo in the same working copy as the Git
-repo by running `jj init --git-store=.`, then the import and export will happen
+repo by running `jj init --git-repo=.`, then the import and export will happen
 automatically on every command (because not doing that makes it very confusing
 when the current checkout has changed in Git but not in Jujutsu or vice versa).
 This mode is meant to make it easier to start using readonly `jj` commands in an
