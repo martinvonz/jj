@@ -1361,6 +1361,17 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
                 .arg(op_arg().help("The operation to restore to")),
         );
     let undo_command = undo_command.about("Undo an operation (shortcut for `jj op undo`)");
+    let workspace_command = App::new("workspace")
+        .about("Commands for working with workspaces")
+        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
+        .subcommand(
+            App::new("add").about("Add a workspace").arg(
+                Arg::new("destination")
+                    .index(1)
+                    .required(true)
+                    .help("Where to create the new workspace"),
+            ),
+        );
     let git_command = App::new("git")
         .about("Commands for working with the underlying Git repo")
         .long_about(
@@ -1596,6 +1607,7 @@ It is possible to mutating commands when loading the repo at an earlier operatio
         .subcommand(branches_command)
         .subcommand(operation_command)
         .subcommand(undo_command)
+        .subcommand(workspace_command)
         .subcommand(git_command)
         .subcommand(bench_command)
         .subcommand(debug_command)
@@ -3891,6 +3903,88 @@ fn cmd_undo(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
     cmd_op_undo(ui, command, args)
 }
 
+fn cmd_workspace(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &ArgMatches,
+) -> Result<(), CommandError> {
+    if let Some(command_matches) = args.subcommand_matches("add") {
+        cmd_workspace_add(ui, command, command_matches)?;
+    } else {
+        panic!("unhandled command: {:#?}", command.root_args());
+    }
+    Ok(())
+}
+
+fn cmd_workspace_add(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &ArgMatches,
+) -> Result<(), CommandError> {
+    let old_workspace_command = command.workspace_helper(ui)?;
+    let destination_str = args.value_of("destination").unwrap();
+    let destination_path = ui.cwd().join(destination_str);
+    if destination_path.exists() {
+        return Err(CommandError::UserError(
+            "Workspace already exists".to_string(),
+        ));
+    } else {
+        fs::create_dir(&destination_path).unwrap();
+    }
+    let name = destination_path
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    let workspace_id = WorkspaceId::new(name.clone());
+    let (new_workspace, repo) = Workspace::init_workspace_with_existing_repo(
+        ui.settings(),
+        destination_path.clone(),
+        old_workspace_command.repo(),
+        workspace_id,
+    )?;
+    writeln!(
+        ui,
+        "Created workspace in \"{}\"",
+        destination_path.display()
+    )?;
+
+    let mut new_workspace_command = WorkspaceCommandHelper::for_loaded_repo(
+        ui,
+        new_workspace,
+        command.string_args.clone(),
+        &command.root_args,
+        repo,
+    )?;
+    let mut tx = new_workspace_command
+        .start_transaction(&format!("Initial checkout in workspace {}", &name));
+    // Check out a parent of the checkout of the current workspace, or the root if
+    // there is no checkout in the current workspace.
+    let new_checkout_commit = if let Some(old_checkout_id) = new_workspace_command
+        .repo()
+        .view()
+        .get_checkout(&new_workspace_command.workspace_id())
+    {
+        new_workspace_command
+            .repo()
+            .store()
+            .get_commit(old_checkout_id)
+            .unwrap()
+            .parents()[0]
+            .clone()
+    } else {
+        new_workspace_command.repo().store().root_commit()
+    };
+    tx.mut_repo().check_out(
+        new_workspace_command.workspace_id(),
+        ui.settings(),
+        &new_checkout_commit,
+    );
+    new_workspace_command.finish_transaction(ui, tx)?;
+    Ok(())
+}
+
 fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     match store.git_repo() {
         None => Err(CommandError::UserError(
@@ -4297,6 +4391,8 @@ where
         cmd_operation(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("undo") {
         cmd_undo(&mut ui, &command_helper, sub_args)
+    } else if let Some(sub_args) = matches.subcommand_matches("workspace") {
+        cmd_workspace(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("git") {
         cmd_git(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("bench") {
