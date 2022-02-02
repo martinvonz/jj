@@ -19,6 +19,7 @@ use std::{fmt, io};
 
 use atty::Stream;
 use jujutsu_lib::commit::Commit;
+use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jujutsu_lib::settings::UserSettings;
@@ -111,7 +112,12 @@ impl<'stdout> Ui<'stdout> {
         Ok(())
     }
 
-    pub fn write_commit_summary(&mut self, repo: RepoRef, commit: &Commit) -> io::Result<()> {
+    pub fn write_commit_summary(
+        &mut self,
+        repo: RepoRef,
+        workspace_id: &WorkspaceId,
+        commit: &Commit,
+    ) -> io::Result<()> {
         let template_string = self
             .settings
             .config()
@@ -121,7 +127,8 @@ impl<'stdout> Ui<'stdout> {
                     r#"label(if(open, "open"), commit_id.short() " " description.first_line())"#,
                 )
             });
-        let template = crate::template_parser::parse_commit_template(repo, &template_string);
+        let template =
+            crate::template_parser::parse_commit_template(repo, workspace_id, &template_string);
         let mut formatter = self.stdout_formatter();
         let mut template_writer = TemplateFormatter::new(template, formatter.as_mut());
         template_writer.format(commit)?;

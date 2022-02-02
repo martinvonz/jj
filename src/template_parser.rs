@@ -17,6 +17,7 @@ extern crate pest;
 use chrono::{FixedOffset, TimeZone, Utc};
 use jujutsu_lib::backend::{CommitId, Signature};
 use jujutsu_lib::commit::Commit;
+use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
@@ -229,7 +230,11 @@ impl<'a, I: 'a> Property<'a, I> {
     }
 }
 
-fn parse_commit_keyword<'a>(repo: RepoRef<'a>, pair: Pair<Rule>) -> (Property<'a, Commit>, String) {
+fn parse_commit_keyword<'a>(
+    repo: RepoRef<'a>,
+    workspace_id: &WorkspaceId,
+    pair: Pair<Rule>,
+) -> (Property<'a, Commit>, String) {
     assert_eq!(pair.as_rule(), Rule::identifier);
     let property = match pair.as_str() {
         "description" => Property::String(Box::new(DescriptionProperty)),
@@ -238,7 +243,10 @@ fn parse_commit_keyword<'a>(repo: RepoRef<'a>, pair: Pair<Rule>) -> (Property<'a
         "author" => Property::Signature(Box::new(AuthorProperty)),
         "committer" => Property::Signature(Box::new(CommitterProperty)),
         "open" => Property::Boolean(Box::new(OpenProperty)),
-        "current_checkout" => Property::Boolean(Box::new(CurrentCheckoutProperty { repo })),
+        "current_checkout" => Property::Boolean(Box::new(CurrentCheckoutProperty {
+            repo,
+            workspace_id: workspace_id.clone(),
+        })),
         "branches" => Property::String(Box::new(BranchProperty { repo })),
         "tags" => Property::String(Box::new(TagProperty { repo })),
         "git_refs" => Property::String(Box::new(GitRefsProperty { repo })),
@@ -272,6 +280,7 @@ fn coerce_to_string<'a, I: 'a>(
 
 fn parse_boolean_commit_property<'a>(
     repo: RepoRef<'a>,
+    workspace_id: &WorkspaceId,
     pair: Pair<Rule>,
 ) -> Box<dyn TemplateProperty<Commit, bool> + 'a> {
     let mut inner = pair.into_inner();
@@ -279,7 +288,7 @@ fn parse_boolean_commit_property<'a>(
     let _method = inner.next().unwrap();
     assert!(inner.next().is_none());
     match pair.as_rule() {
-        Rule::identifier => match parse_commit_keyword(repo, pair.clone()).0 {
+        Rule::identifier => match parse_commit_keyword(repo, workspace_id, pair.clone()).0 {
             Property::Boolean(property) => property,
             _ => panic!("cannot yet use this as boolean: {:?}", pair),
         },
@@ -287,7 +296,11 @@ fn parse_boolean_commit_property<'a>(
     }
 }
 
-fn parse_commit_term<'a>(repo: RepoRef<'a>, pair: Pair<Rule>) -> Box<dyn Template<Commit> + 'a> {
+fn parse_commit_term<'a>(
+    repo: RepoRef<'a>,
+    workspace_id: &WorkspaceId,
+    pair: Pair<Rule>,
+) -> Box<dyn Template<Commit> + 'a> {
     assert_eq!(pair.as_rule(), Rule::term);
     if pair.as_str().is_empty() {
         Box::new(LiteralTemplate(String::new()))
@@ -312,7 +325,7 @@ fn parse_commit_term<'a>(repo: RepoRef<'a>, pair: Pair<Rule>) -> Box<dyn Templat
                 }
             }
             Rule::identifier => {
-                let (term_property, labels) = parse_commit_keyword(repo, expr);
+                let (term_property, labels) = parse_commit_keyword(repo, workspace_id, expr);
                 let property = parse_method_chain(maybe_method, term_property);
                 let string_property = coerce_to_string(property);
                 Box::new(LabelTemplate::new(
@@ -330,6 +343,7 @@ fn parse_commit_term<'a>(repo: RepoRef<'a>, pair: Pair<Rule>) -> Box<dyn Templat
                         let label_pair = inner.next().unwrap();
                         let label_template = parse_commit_template_rule(
                             repo,
+                            workspace_id,
                             label_pair.into_inner().next().unwrap(),
                         );
                         let arg_template = match inner.next() {
@@ -340,7 +354,7 @@ fn parse_commit_term<'a>(repo: RepoRef<'a>, pair: Pair<Rule>) -> Box<dyn Templat
                             panic!("label() accepts only two arguments")
                         }
                         let content: Box<dyn Template<Commit> + 'a> =
-                            parse_commit_template_rule(repo, arg_template);
+                            parse_commit_template_rule(repo, workspace_id, arg_template);
                         let get_labels = move |commit: &Commit| -> String {
                             let mut buf: Vec<u8> = vec![];
                             {
@@ -355,15 +369,16 @@ fn parse_commit_term<'a>(repo: RepoRef<'a>, pair: Pair<Rule>) -> Box<dyn Templat
                     "if" => {
                         let condition_pair = inner.next().unwrap();
                         let condition_template = condition_pair.into_inner().next().unwrap();
-                        let condition = parse_boolean_commit_property(repo, condition_template);
+                        let condition =
+                            parse_boolean_commit_property(repo, workspace_id, condition_template);
 
                         let true_template = match inner.next() {
                             None => panic!("if() requires at least two arguments"),
-                            Some(pair) => parse_commit_template_rule(repo, pair),
+                            Some(pair) => parse_commit_template_rule(repo, workspace_id, pair),
                         };
                         let false_template = inner
                             .next()
-                            .map(|pair| parse_commit_template_rule(repo, pair));
+                            .map(|pair| parse_commit_template_rule(repo, workspace_id, pair));
                         if inner.next().is_some() {
                             panic!("if() accepts at most three arguments")
                         }
@@ -383,20 +398,21 @@ fn parse_commit_term<'a>(repo: RepoRef<'a>, pair: Pair<Rule>) -> Box<dyn Templat
 
 fn parse_commit_template_rule<'a>(
     repo: RepoRef<'a>,
+    workspace_id: &WorkspaceId,
     pair: Pair<Rule>,
 ) -> Box<dyn Template<Commit> + 'a> {
     match pair.as_rule() {
         Rule::template => {
             let mut inner = pair.into_inner();
-            let formatter = parse_commit_template_rule(repo, inner.next().unwrap());
+            let formatter = parse_commit_template_rule(repo, workspace_id, inner.next().unwrap());
             assert!(inner.next().is_none());
             formatter
         }
-        Rule::term => parse_commit_term(repo, pair),
+        Rule::term => parse_commit_term(repo, workspace_id, pair),
         Rule::list => {
             let mut formatters: Vec<Box<dyn Template<Commit>>> = vec![];
             for inner_pair in pair.into_inner() {
-                formatters.push(parse_commit_template_rule(repo, inner_pair));
+                formatters.push(parse_commit_template_rule(repo, workspace_id, inner_pair));
             }
             Box::new(ListTemplate(formatters))
         }
@@ -406,6 +422,7 @@ fn parse_commit_template_rule<'a>(
 
 pub fn parse_commit_template<'a>(
     repo: RepoRef<'a>,
+    workspace_id: &WorkspaceId,
     template_text: &str,
 ) -> Box<dyn Template<Commit> + 'a> {
     let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::template, template_text).unwrap();
@@ -419,5 +436,5 @@ pub fn parse_commit_template<'a>(
         first_pair.as_span().end()
     );
 
-    parse_commit_template_rule(repo, first_pair)
+    parse_commit_template_rule(repo, workspace_id, first_pair)
 }

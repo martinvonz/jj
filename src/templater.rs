@@ -20,6 +20,7 @@ use std::ops::{Add, AddAssign};
 use itertools::Itertools;
 use jujutsu_lib::backend::{ChangeId, CommitId, Signature};
 use jujutsu_lib::commit::Commit;
+use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::revset::RevsetExpression;
 
@@ -206,11 +207,12 @@ impl<'r> TemplateProperty<Commit, bool> for OpenProperty {
 
 pub struct CurrentCheckoutProperty<'a> {
     pub repo: RepoRef<'a>,
+    pub workspace_id: WorkspaceId,
 }
 
 impl TemplateProperty<Commit, bool> for CurrentCheckoutProperty<'_> {
     fn extract(&self, context: &Commit) -> bool {
-        context.id() == self.repo.view().checkout()
+        Some(context.id()) == self.repo.view().get_checkout(&self.workspace_id)
     }
 }
 
