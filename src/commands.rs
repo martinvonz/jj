@@ -2550,9 +2550,9 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
     let revset_expression =
         workspace_command.parse_revset(ui, args.value_of("revisions").unwrap())?;
     let repo = workspace_command.repo();
-    let checkout_id = repo.view().checkout().clone();
-    let revset =
-        revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_command.workspace_id()))?;
+    let workspace_id = workspace_command.workspace_id();
+    let checkout_id = repo.view().get_checkout(&workspace_id);
+    let revset = revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_id))?;
     let store = repo.store();
 
     let template_string = match args.value_of("template") {
@@ -2561,7 +2561,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
     };
     let template = crate::template_parser::parse_commit_template(
         repo.as_repo_ref(),
-        &workspace_command.workspace_id(),
+        &workspace_id,
         &template_string,
     );
 
@@ -2596,14 +2596,15 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<()
                 graphlog_edges.push(Edge::Missing);
             }
             let mut buffer = vec![];
-            let is_checkout = index_entry.commit_id() == checkout_id;
+            let commit_id = index_entry.commit_id();
+            let is_checkout = Some(&commit_id) == checkout_id;
             {
                 let writer = Box::new(&mut buffer);
                 let mut formatter = ui.new_formatter(writer);
                 if is_checkout {
                     formatter.add_label("checkout".to_string())?;
                 }
-                let commit = store.get_commit(&index_entry.commit_id()).unwrap();
+                let commit = store.get_commit(&commit_id).unwrap();
                 template.format(&commit, formatter.as_mut())?;
                 if is_checkout {
                     formatter.remove_label()?;
@@ -2634,7 +2635,8 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
     let mut workspace_command = command.workspace_helper(ui)?;
 
     let start_commit = workspace_command.resolve_revision_arg(ui, args)?;
-    let checkout_id = workspace_command.repo().view().checkout().clone();
+    let workspace_id = workspace_command.workspace_id();
+    let checkout_id = workspace_command.repo().view().get_checkout(&workspace_id);
 
     let template_string = match args.value_of("template") {
         Some(value) => value.to_string(),
@@ -2642,7 +2644,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
     };
     let template = crate::template_parser::parse_commit_template(
         workspace_command.repo().as_repo_ref(),
-        &workspace_command.workspace_id(),
+        &workspace_id,
         &template_string,
     );
 
@@ -2671,7 +2673,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            let node_symbol = if commit.id() == &checkout_id {
+            let node_symbol = if Some(commit.id()) == checkout_id {
                 b"@"
             } else {
                 b"o"
