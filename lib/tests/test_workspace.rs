@@ -72,12 +72,18 @@ fn test_init_additional_workspace(use_git: bool) {
         vec![repo.store().root_commit_id().clone()]
     );
     assert_eq!(ws2.workspace_id(), ws2_id);
-    assert_eq!(ws2.repo_path(), workspace.repo_path());
+    assert_eq!(
+        *ws2.repo_path(),
+        std::fs::canonicalize(workspace.repo_path()).unwrap()
+    );
     assert_eq!(*ws2.workspace_root(), ws2_root);
     let same_workspace = Workspace::load(&settings, ws2_root);
     assert!(same_workspace.is_ok());
     let same_workspace = same_workspace.unwrap();
     assert_eq!(same_workspace.workspace_id(), ws2_id);
-    assert_eq!(same_workspace.repo_path(), workspace.repo_path());
+    assert_eq!(
+        *same_workspace.repo_path(),
+        std::fs::canonicalize(workspace.repo_path()).unwrap()
+    );
     assert_eq!(same_workspace.workspace_root(), ws2.workspace_root());
 }
