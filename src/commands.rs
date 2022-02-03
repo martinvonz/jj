@@ -1717,13 +1717,7 @@ fn cmd_checkout(
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_commit = workspace_command.resolve_revision_arg(ui, args)?;
     let workspace_id = workspace_command.workspace_id();
-    if workspace_command
-        .repo()
-        .view()
-        .get_checkout(&workspace_id)
-        .unwrap()
-        == new_commit.id()
-    {
+    if workspace_command.repo().view().get_checkout(&workspace_id) == Some(new_commit.id()) {
         ui.write("Already on that commit\n")?;
     } else {
         workspace_command.commit_working_copy(ui)?;
