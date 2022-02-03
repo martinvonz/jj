@@ -1372,6 +1372,16 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
                     .help("Where to create the new workspace"),
             ),
         )
+        .subcommand(
+            App::new("forget")
+                .about("Stop tracking a workspace's checkout")
+                .long_about(
+                    "Stop tracking a workspace's checkout in the repo. The workspace will not be \
+                     touched on disk. It can be deleted from disk before or after running this \
+                     command.",
+                )
+                .arg(Arg::new("workspace").index(1)),
+        )
         .subcommand(App::new("list").about("List workspaces"));
     let git_command = App::new("git")
         .about("Commands for working with the underlying Git repo")
@@ -3912,6 +3922,8 @@ fn cmd_workspace(
 ) -> Result<(), CommandError> {
     if let Some(command_matches) = args.subcommand_matches("add") {
         cmd_workspace_add(ui, command, command_matches)?;
+    } else if let Some(command_matches) = args.subcommand_matches("forget") {
+        cmd_workspace_forget(ui, command, command_matches)?;
     } else if let Some(command_matches) = args.subcommand_matches("list") {
         cmd_workspace_list(ui, command, command_matches)?;
     } else {
@@ -3986,6 +3998,26 @@ fn cmd_workspace_add(
         &new_checkout_commit,
     );
     new_workspace_command.finish_transaction(ui, tx)?;
+    Ok(())
+}
+
+fn cmd_workspace_forget(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &ArgMatches,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+
+    let workspace_id = if let Some(workspace_str) = args.value_of("workspace") {
+        WorkspaceId::new(workspace_str.to_string())
+    } else {
+        workspace_command.workspace_id()
+    };
+
+    let mut tx =
+        workspace_command.start_transaction(&format!("forget workspace {}", workspace_id.as_str()));
+    tx.mut_repo().remove_checkout(&workspace_id);
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
