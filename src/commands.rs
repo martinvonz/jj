@@ -4007,6 +4007,14 @@ fn cmd_workspace_forget(
     } else {
         workspace_command.workspace_id()
     };
+    if workspace_command
+        .repo()
+        .view()
+        .get_checkout(&workspace_id)
+        .is_none()
+    {
+        return Err(UserError("No such workspace".to_string()));
+    }
 
     let mut tx =
         workspace_command.start_transaction(&format!("forget workspace {}", workspace_id.as_str()));
