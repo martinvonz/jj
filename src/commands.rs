@@ -1371,7 +1371,8 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
                     .required(true)
                     .help("Where to create the new workspace"),
             ),
-        );
+        )
+        .subcommand(App::new("list").about("List workspaces"));
     let git_command = App::new("git")
         .about("Commands for working with the underlying Git repo")
         .long_about(
@@ -3911,6 +3912,8 @@ fn cmd_workspace(
 ) -> Result<(), CommandError> {
     if let Some(command_matches) = args.subcommand_matches("add") {
         cmd_workspace_add(ui, command, command_matches)?;
+    } else if let Some(command_matches) = args.subcommand_matches("list") {
+        cmd_workspace_list(ui, command, command_matches)?;
     } else {
         panic!("unhandled command: {:#?}", command.root_args());
     }
@@ -3983,6 +3986,22 @@ fn cmd_workspace_add(
         &new_checkout_commit,
     );
     new_workspace_command.finish_transaction(ui, tx)?;
+    Ok(())
+}
+
+fn cmd_workspace_list(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &ArgMatches,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
+    for (workspace_id, checkout_id) in repo.view().checkouts().iter().sorted() {
+        write!(ui, "{}: ", workspace_id.as_str())?;
+        let commit = repo.store().get_commit(checkout_id)?;
+        ui.write_commit_summary(repo.as_repo_ref(), workspace_id, &commit)?;
+        writeln!(ui)?;
+    }
     Ok(())
 }
 
