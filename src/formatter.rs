@@ -88,6 +88,7 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result.insert(String::from("author timestamp"), String::from("cyan"));
     result.insert(String::from("committer"), String::from("yellow"));
     result.insert(String::from("committer timestamp"), String::from("cyan"));
+    result.insert(String::from("checkouts"), String::from("magenta"));
     result.insert(String::from("branch"), String::from("magenta"));
     result.insert(String::from("branches"), String::from("magenta"));
     result.insert(String::from("tags"), String::from("magenta"));
@@ -127,6 +128,10 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result.insert(
         String::from("checkout committer timestamp"),
         String::from("bright cyan"),
+    );
+    result.insert(
+        String::from("checkout checkouts"),
+        String::from("bright magenta"),
     );
     result.insert(
         String::from("checkout branch"),

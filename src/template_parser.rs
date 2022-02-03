@@ -24,10 +24,10 @@ use pest::Parser;
 
 use crate::formatter::PlainTextFormatter;
 use crate::templater::{
-    AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdKeyword, CommitterProperty,
-    ConditionalTemplate, ConflictProperty, ConstantTemplateProperty, CurrentCheckoutProperty,
-    DescriptionProperty, DivergentProperty, DynamicLabelTemplate, GitRefsProperty,
-    IsGitHeadProperty, LabelTemplate, ListTemplate, LiteralTemplate, OpenProperty,
+    AuthorProperty, BranchProperty, ChangeIdProperty, CheckoutsProperty, CommitIdKeyword,
+    CommitterProperty, ConditionalTemplate, ConflictProperty, ConstantTemplateProperty,
+    CurrentCheckoutProperty, DescriptionProperty, DivergentProperty, DynamicLabelTemplate,
+    GitRefsProperty, IsGitHeadProperty, LabelTemplate, ListTemplate, LiteralTemplate, OpenProperty,
     StringPropertyTemplate, TagProperty, Template, TemplateFunction, TemplateProperty,
 };
 
@@ -243,6 +243,7 @@ fn parse_commit_keyword<'a>(
         "author" => Property::Signature(Box::new(AuthorProperty)),
         "committer" => Property::Signature(Box::new(CommitterProperty)),
         "open" => Property::Boolean(Box::new(OpenProperty)),
+        "checkouts" => Property::String(Box::new(CheckoutsProperty { repo })),
         "current_checkout" => Property::Boolean(Box::new(CurrentCheckoutProperty {
             repo,
             workspace_id: workspace_id.clone(),

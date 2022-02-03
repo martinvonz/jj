@@ -205,6 +205,26 @@ impl<'r> TemplateProperty<Commit, bool> for OpenProperty {
     }
 }
 
+pub struct CheckoutsProperty<'a> {
+    pub repo: RepoRef<'a>,
+}
+
+impl TemplateProperty<Commit, String> for CheckoutsProperty<'_> {
+    fn extract(&self, context: &Commit) -> String {
+        let checkouts = self.repo.view().checkouts();
+        if checkouts.len() <= 1 {
+            return "".to_string();
+        }
+        let mut names = vec![];
+        for (workspace_id, checkout_id) in checkouts.iter().sorted() {
+            if checkout_id == context.id() {
+                names.push(format!("{}@", workspace_id.as_str()));
+            }
+        }
+        names.join(" ")
+    }
+}
+
 pub struct CurrentCheckoutProperty<'a> {
     pub repo: RepoRef<'a>,
     pub workspace_id: WorkspaceId,
