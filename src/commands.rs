@@ -3948,10 +3948,17 @@ fn cmd_workspace_add(
         .unwrap()
         .to_string();
     let workspace_id = WorkspaceId::new(name.clone());
+    let repo = old_workspace_command.repo();
+    if repo.view().get_checkout(&workspace_id).is_some() {
+        return Err(UserError(format!(
+            "Workspace named '{}' already exists",
+            name
+        )));
+    }
     let (new_workspace, repo) = Workspace::init_workspace_with_existing_repo(
         ui.settings(),
         destination_path.clone(),
-        old_workspace_command.repo(),
+        repo,
         workspace_id,
     )?;
     writeln!(
