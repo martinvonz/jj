@@ -27,8 +27,8 @@ use test_case::test_case;
 fn test_checkout_open(use_git: bool) {
     // Test that MutableRepo::check_out() uses the requested commit if it's open
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let requested_checkout = testutils::create_random_commit(&settings, repo)
@@ -37,12 +37,13 @@ fn test_checkout_open(use_git: bool) {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    let actual_checkout =
-        tx.mut_repo()
-            .check_out(WorkspaceId::default(), &settings, &requested_checkout);
+    let ws_id = WorkspaceId::default();
+    let actual_checkout = tx
+        .mut_repo()
+        .check_out(ws_id.clone(), &settings, &requested_checkout);
     assert_eq!(actual_checkout.id(), requested_checkout.id());
     let repo = tx.commit();
-    assert_eq!(repo.view().checkout(), actual_checkout.id());
+    assert_eq!(repo.view().get_checkout(&ws_id), Some(actual_checkout.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -51,8 +52,8 @@ fn test_checkout_closed(use_git: bool) {
     // Test that MutableRepo::check_out() creates a child if the requested commit is
     // closed
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let requested_checkout = testutils::create_random_commit(&settings, repo)
@@ -61,14 +62,15 @@ fn test_checkout_closed(use_git: bool) {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    let actual_checkout =
-        tx.mut_repo()
-            .check_out(WorkspaceId::default(), &settings, &requested_checkout);
+    let ws_id = WorkspaceId::default();
+    let actual_checkout = tx
+        .mut_repo()
+        .check_out(ws_id.clone(), &settings, &requested_checkout);
     assert_eq!(actual_checkout.tree().id(), requested_checkout.tree().id());
     assert_eq!(actual_checkout.parents().len(), 1);
     assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
     let repo = tx.commit();
-    assert_eq!(repo.view().checkout(), actual_checkout.id());
+    assert_eq!(repo.view().get_checkout(&ws_id), Some(actual_checkout.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -77,15 +79,16 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     // Test that MutableRepo::check_out() does not usually abandon the previous
     // commit.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     let old_checkout = testutils::create_random_commit(&settings, repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.check_out(WorkspaceId::default(), &settings, &old_checkout);
+    let ws_id = WorkspaceId::default();
+    mut_repo.check_out(ws_id.clone(), &settings, &old_checkout);
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -93,7 +96,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.check_out(WorkspaceId::default(), &settings, &new_checkout);
+    mut_repo.check_out(ws_id, &settings, &new_checkout);
     mut_repo.rebase_descendants(&settings);
     assert!(mut_repo.view().heads().contains(old_checkout.id()));
 }
@@ -104,8 +107,8 @@ fn test_checkout_previous_empty(use_git: bool) {
     // Test that MutableRepo::check_out() abandons the previous commit if it was
     // empty.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -116,7 +119,8 @@ fn test_checkout_previous_empty(use_git: bool) {
         repo.store().empty_tree_id().clone(),
     )
     .write_to_repo(mut_repo);
-    mut_repo.check_out(WorkspaceId::default(), &settings, &old_checkout);
+    let ws_id = WorkspaceId::default();
+    mut_repo.check_out(ws_id.clone(), &settings, &old_checkout);
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -124,7 +128,7 @@ fn test_checkout_previous_empty(use_git: bool) {
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.check_out(WorkspaceId::default(), &settings, &new_checkout);
+    mut_repo.check_out(ws_id, &settings, &new_checkout);
     mut_repo.rebase_descendants(&settings);
     assert!(!mut_repo.view().heads().contains(old_checkout.id()));
 }
@@ -135,8 +139,8 @@ fn test_checkout_initial(use_git: bool) {
     // Test that MutableRepo::check_out() can be used on the initial checkout in a
     // workspace
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let requested_checkout = testutils::create_random_commit(&settings, repo)
@@ -163,8 +167,8 @@ fn test_add_head_success(use_git: bool) {
     // Test that MutableRepo::add_head() adds the head, and that it's still there
     // after commit. It should also be indexed.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     // Create a commit outside of the repo by using a temporary transaction. Then
     // add that as a head.
@@ -174,8 +178,8 @@ fn test_add_head_success(use_git: bool) {
 
     let index_stats = repo.index().stats();
     assert_eq!(index_stats.num_heads, 1);
-    assert_eq!(index_stats.num_commits, 2);
-    assert_eq!(index_stats.max_generation_number, 1);
+    assert_eq!(index_stats.num_commits, 1);
+    assert_eq!(index_stats.max_generation_number, 0);
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     assert!(!mut_repo.view().heads().contains(new_commit.id()));
@@ -187,8 +191,8 @@ fn test_add_head_success(use_git: bool) {
     assert!(repo.view().heads().contains(new_commit.id()));
     assert!(repo.index().has_id(new_commit.id()));
     let index_stats = repo.index().stats();
-    assert_eq!(index_stats.num_heads, 2);
-    assert_eq!(index_stats.num_commits, 3);
+    assert_eq!(index_stats.num_heads, 1);
+    assert_eq!(index_stats.num_commits, 2);
     assert_eq!(index_stats.max_generation_number, 1);
 }
 
@@ -198,8 +202,8 @@ fn test_add_head_ancestor(use_git: bool) {
     // Test that MutableRepo::add_head() does not add a head if it's an ancestor of
     // an existing head.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
@@ -209,16 +213,16 @@ fn test_add_head_ancestor(use_git: bool) {
     let repo = tx.commit();
 
     let index_stats = repo.index().stats();
-    assert_eq!(index_stats.num_heads, 2);
-    assert_eq!(index_stats.num_commits, 5);
+    assert_eq!(index_stats.num_heads, 1);
+    assert_eq!(index_stats.num_commits, 4);
     assert_eq!(index_stats.max_generation_number, 3);
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     mut_repo.add_head(&commit1);
     assert!(!mut_repo.view().heads().contains(commit1.id()));
     let index_stats = mut_repo.index().stats();
-    assert_eq!(index_stats.num_heads, 2);
-    assert_eq!(index_stats.num_commits, 5);
+    assert_eq!(index_stats.num_heads, 1);
+    assert_eq!(index_stats.num_commits, 4);
     assert_eq!(index_stats.max_generation_number, 3);
 }
 
@@ -228,8 +232,8 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     // Test that MutableRepo::add_head() can be used for adding a head that is not
     // an immediate child of a current head.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let initial = testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
@@ -248,8 +252,8 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     drop(tx);
 
     let index_stats = repo.index().stats();
-    assert_eq!(index_stats.num_heads, 2);
-    assert_eq!(index_stats.num_commits, 3);
+    assert_eq!(index_stats.num_heads, 1);
+    assert_eq!(index_stats.num_commits, 2);
     assert_eq!(index_stats.max_generation_number, 1);
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -261,8 +265,8 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     assert!(mut_repo.index().has_id(rewritten.id()));
     assert!(mut_repo.index().has_id(child.id()));
     let index_stats = mut_repo.index().stats();
-    assert_eq!(index_stats.num_heads, 3);
-    assert_eq!(index_stats.num_commits, 5);
+    assert_eq!(index_stats.num_heads, 2);
+    assert_eq!(index_stats.num_commits, 4);
     assert_eq!(index_stats.max_generation_number, 2);
 }
 
@@ -277,8 +281,8 @@ fn test_remove_head(use_git: bool) {
     // for commits no longer visible in that case so we don't have to reindex e.g.
     // when the user does `jj op undo`.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
@@ -314,8 +318,8 @@ fn test_add_public_head(use_git: bool) {
     // Test that MutableRepo::add_public_head() adds the head, and that it's still
     // there after commit.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
@@ -336,8 +340,8 @@ fn test_add_public_head_ancestor(use_git: bool) {
     // Test that MutableRepo::add_public_head() does not add a public head if it's
     // an ancestor of an existing public head.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
@@ -361,8 +365,8 @@ fn test_remove_public_head(use_git: bool) {
     // Test that MutableRepo::remove_public_head() removes the head, and that it's
     // still removed after commit.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -386,17 +390,17 @@ fn test_has_changed(use_git: bool) {
     // (e.g. not after setting a branch to point to where it was already
     // pointing).
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
     let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    mut_repo.remove_head(repo.view().checkout());
     mut_repo.remove_head(commit2.id());
     mut_repo.add_public_head(&commit1);
-    mut_repo.set_checkout(WorkspaceId::default(), commit1.id().clone());
+    let ws_id = WorkspaceId::default();
+    mut_repo.set_checkout(ws_id.clone(), commit1.id().clone());
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
     mut_repo.set_remote_branch(
         "main".to_string(),
@@ -413,7 +417,7 @@ fn test_has_changed(use_git: bool) {
 
     mut_repo.add_public_head(&commit1);
     mut_repo.add_head(&commit1);
-    mut_repo.set_checkout(WorkspaceId::default(), commit1.id().clone());
+    mut_repo.set_checkout(ws_id.clone(), commit1.id().clone());
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
     mut_repo.set_remote_branch(
         "main".to_string(),
@@ -443,9 +447,9 @@ fn test_has_changed(use_git: bool) {
     mut_repo.remove_head(commit2.id());
     assert!(!mut_repo.has_changes());
 
-    mut_repo.set_checkout(WorkspaceId::default(), commit2.id().clone());
+    mut_repo.set_checkout(ws_id.clone(), commit2.id().clone());
     assert!(mut_repo.has_changes());
-    mut_repo.set_checkout(WorkspaceId::default(), commit1.id().clone());
+    mut_repo.set_checkout(ws_id, commit1.id().clone());
     assert!(!mut_repo.has_changes());
 
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit2.id().clone()));
@@ -474,8 +478,8 @@ fn test_rebase_descendants_simple(use_git: bool) {
     // DescendantRebaser that rebases descendants of rewritten and abandoned
     // commits.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
@@ -511,8 +515,8 @@ fn test_rebase_descendants_conflicting_rewrite(use_git: bool) {
     // Tests MutableRepo::create_descendant_rebaser() when a commit has been marked
     // as rewritten to several other commits.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
