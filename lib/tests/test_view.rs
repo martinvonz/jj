@@ -22,12 +22,12 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_heads_empty(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     assert_eq!(
         *repo.view().heads(),
-        hashset! {repo.view().checkout().clone()}
+        hashset! {repo.store().root_commit_id().clone()}
     );
     assert_eq!(
         *repo.view().public_heads(),
@@ -39,8 +39,8 @@ fn test_heads_empty(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_heads_fork(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
     let mut tx = repo.start_transaction("test");
 
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
@@ -52,7 +52,6 @@ fn test_heads_fork(use_git: bool) {
     assert_eq!(
         *repo.view().heads(),
         hashset! {
-            repo.view().checkout().clone(),
             child1.id().clone(),
             child2.id().clone(),
         }
@@ -63,8 +62,8 @@ fn test_heads_fork(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_heads_merge(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
     let mut tx = repo.start_transaction("test");
 
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
@@ -74,18 +73,15 @@ fn test_heads_merge(use_git: bool) {
     let merge = graph_builder.commit_with_parents(&[&child1, &child2]);
     let repo = tx.commit();
 
-    assert_eq!(
-        *repo.view().heads(),
-        hashset! {repo.view().checkout().clone(), merge.id().clone()}
-    );
+    assert_eq!(*repo.view().heads(), hashset! {merge.id().clone()});
 }
 
 #[test]
 fn test_merge_views_heads() {
     // Tests merging of the view's heads (by performing concurrent operations).
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, false);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, false);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -128,7 +124,6 @@ fn test_merge_views_heads() {
     let repo = repo.reload();
 
     let expected_heads = hashset! {
-        repo.view().checkout().clone(),
         head_unchanged.id().clone(),
         head_add_tx1.id().clone(),
         head_add_tx2.id().clone(),
@@ -152,8 +147,8 @@ fn test_merge_views_heads() {
 fn test_merge_views_checkout() {
     // Tests merging of the view's checkout (by performing concurrent operations).
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, false);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, false);
+    let repo = &test_repo.repo;
 
     // Workspace 1 gets updated in both transactions.
     // Workspace 2 gets updated only in tx1.
@@ -235,8 +230,8 @@ fn test_merge_views_branches() {
     // Tests merging of branches (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, false);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, false);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -336,8 +331,8 @@ fn test_merge_views_tags() {
     // Tests merging of tags (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, false);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, false);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -382,8 +377,8 @@ fn test_merge_views_git_refs() {
     // Tests merging of git refs (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, false);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, false);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
