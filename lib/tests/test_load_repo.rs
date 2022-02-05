@@ -20,8 +20,8 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_load_at_operation(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("add commit");
     let commit = testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
