@@ -1365,12 +1365,24 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
         .about("Commands for working with workspaces")
         .setting(clap::AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
-            App::new("add").about("Add a workspace").arg(
-                Arg::new("destination")
-                    .index(1)
-                    .required(true)
-                    .help("Where to create the new workspace"),
-            ),
+            App::new("add")
+                .about("Add a workspace")
+                .arg(
+                    Arg::new("destination")
+                        .index(1)
+                        .required(true)
+                        .help("Where to create the new workspace"),
+                )
+                .arg(
+                    Arg::new("name")
+                        .long("name")
+                        .takes_value(true)
+                        .help("A name for the workspace")
+                        .long_help(
+                            "A name for the workspace, to override the default, which is the \
+                             basename of the destination directory.",
+                        ),
+                ),
         )
         .subcommand(
             App::new("forget")
@@ -3941,12 +3953,16 @@ fn cmd_workspace_add(
     } else {
         fs::create_dir(&destination_path).unwrap();
     }
-    let name = destination_path
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let name = if let Some(name) = args.value_of("name") {
+        name.to_string()
+    } else {
+        destination_path
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string()
+    };
     let workspace_id = WorkspaceId::new(name.clone());
     let repo = old_workspace_command.repo();
     if repo.view().get_checkout(&workspace_id).is_some() {
