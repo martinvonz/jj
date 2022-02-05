@@ -32,8 +32,8 @@ fn list_dir(dir: &Path) -> Vec<String> {
 fn test_unpublished_operation(use_git: bool) {
     // Test that the operation doesn't get published until that's requested.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let op_heads_dir = repo.repo_path().join("op_heads");
     let op_id0 = repo.op_id().clone();
@@ -55,8 +55,8 @@ fn test_consecutive_operations(use_git: bool) {
     // Test that consecutive operations result in a single op-head on disk after
     // each operation
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let op_heads_dir = repo.repo_path().join("op_heads");
     let op_id0 = repo.op_id().clone();
@@ -88,8 +88,8 @@ fn test_concurrent_operations(use_git: bool) {
     // Test that consecutive operations result in multiple op-heads on disk until
     // the repo has been reloaded (which currently happens right away).
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let op_heads_dir = repo.repo_path().join("op_heads");
     let op_id0 = repo.op_id().clone();
@@ -133,10 +133,9 @@ fn assert_heads(repo: RepoRef, expected: Vec<&CommitId>) {
 fn test_isolation(use_git: bool) {
     // Test that two concurrent transactions don't see each other's changes.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
-    let checkout_id = repo.view().checkout().clone();
     let mut tx = repo.start_transaction("test");
     let initial = testutils::create_random_commit(&settings, repo)
         .set_parents(vec![repo.store().root_commit_id().clone()])
@@ -148,9 +147,9 @@ fn test_isolation(use_git: bool) {
     let mut tx2 = repo.start_transaction("transaction 2");
     let mut_repo2 = tx2.mut_repo();
 
-    assert_heads(repo.as_repo_ref(), vec![&checkout_id, initial.id()]);
-    assert_heads(mut_repo1.as_repo_ref(), vec![&checkout_id, initial.id()]);
-    assert_heads(mut_repo2.as_repo_ref(), vec![&checkout_id, initial.id()]);
+    assert_heads(repo.as_repo_ref(), vec![initial.id()]);
+    assert_heads(mut_repo1.as_repo_ref(), vec![initial.id()]);
+    assert_heads(mut_repo2.as_repo_ref(), vec![initial.id()]);
 
     let rewrite1 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial)
         .set_description("rewrite1".to_string())
@@ -161,31 +160,22 @@ fn test_isolation(use_git: bool) {
 
     // Neither transaction has committed yet, so each transaction sees its own
     // commit.
-    assert_heads(repo.as_repo_ref(), vec![&checkout_id, initial.id()]);
-    assert_heads(
-        mut_repo1.as_repo_ref(),
-        vec![&checkout_id, initial.id(), rewrite1.id()],
-    );
-    assert_heads(
-        mut_repo2.as_repo_ref(),
-        vec![&checkout_id, initial.id(), rewrite2.id()],
-    );
+    assert_heads(repo.as_repo_ref(), vec![initial.id()]);
+    assert_heads(mut_repo1.as_repo_ref(), vec![initial.id(), rewrite1.id()]);
+    assert_heads(mut_repo2.as_repo_ref(), vec![initial.id(), rewrite2.id()]);
 
     // The base repo and tx2 don't see the commits from tx1.
     tx1.commit();
-    assert_heads(repo.as_repo_ref(), vec![&checkout_id, initial.id()]);
-    assert_heads(
-        mut_repo2.as_repo_ref(),
-        vec![&checkout_id, initial.id(), rewrite2.id()],
-    );
+    assert_heads(repo.as_repo_ref(), vec![initial.id()]);
+    assert_heads(mut_repo2.as_repo_ref(), vec![initial.id(), rewrite2.id()]);
 
     // The base repo still doesn't see the commits after both transactions commit.
     tx2.commit();
-    assert_heads(repo.as_repo_ref(), vec![&checkout_id, initial.id()]);
+    assert_heads(repo.as_repo_ref(), vec![initial.id()]);
     // After reload, the base repo sees both rewrites.
     let repo = repo.reload();
     assert_heads(
         repo.as_repo_ref(),
-        vec![&checkout_id, initial.id(), rewrite1.id(), rewrite2.id()],
+        vec![initial.id(), rewrite1.id(), rewrite2.id()],
     );
 }
