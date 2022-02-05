@@ -25,8 +25,8 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_initial(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
     let store = repo.store();
 
     let root_file_path = RepoPath::from_internal_string("file");
@@ -70,8 +70,8 @@ fn test_initial(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rewrite(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
     let store = repo.store().clone();
 
     let root_file_path = RepoPath::from_internal_string("file");
@@ -154,8 +154,8 @@ fn test_rewrite(use_git: bool) {
 // #[test_case(true ; "git backend")]
 fn test_commit_builder_descendants(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
     let store = repo.store().clone();
 
     let mut tx = repo.start_transaction("test");
