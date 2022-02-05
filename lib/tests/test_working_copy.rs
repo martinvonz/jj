@@ -21,6 +21,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
 use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::settings::UserSettings;
@@ -40,7 +41,8 @@ fn test_root(use_git: bool) {
     let mut locked_wc = wc.start_mutation();
     let new_tree_id = locked_wc.write_tree();
     locked_wc.discard();
-    let checkout_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
+    let checkout_id = repo.view().get_checkout(&WorkspaceId::default()).unwrap();
+    let checkout_commit = repo.store().get_commit(checkout_id).unwrap();
     assert_eq!(&new_tree_id, checkout_commit.tree().id());
     assert_eq!(&new_tree_id, repo.store().empty_tree_id());
 }

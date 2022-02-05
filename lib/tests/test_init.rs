@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
 use jujutsu_lib::workspace::Workspace;
@@ -73,7 +74,7 @@ fn test_init_no_config_set(use_git: bool) {
     let settings = UserSettings::from_config(config::Config::new());
     let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
-    let checkout_id = repo.view().checkout();
+    let checkout_id = repo.view().get_checkout(&WorkspaceId::default()).unwrap();
     let checkout_commit = repo.store().get_commit(checkout_id).unwrap();
     assert_eq!(
         checkout_commit.author().name,
@@ -100,7 +101,8 @@ fn test_init_checkout(use_git: bool) {
     let settings = testutils::user_settings();
     let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
-    let checkout_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
+    let checkout_id = repo.view().get_checkout(&WorkspaceId::default()).unwrap();
+    let checkout_commit = repo.store().get_commit(checkout_id).unwrap();
     assert_eq!(checkout_commit.tree().id(), repo.store().empty_tree_id());
     assert_eq!(checkout_commit.store_commit().parents, vec![]);
     assert_eq!(checkout_commit.predecessors(), vec![]);

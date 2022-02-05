@@ -40,11 +40,6 @@ impl View {
         }
     }
 
-    // TODO: Delete this function
-    pub fn checkout(&self) -> &CommitId {
-        self.get_checkout(&WorkspaceId::default()).unwrap()
-    }
-
     pub fn checkouts(&self) -> &HashMap<WorkspaceId, CommitId> {
         &self.data.checkouts
     }
