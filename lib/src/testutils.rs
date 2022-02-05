@@ -48,6 +48,28 @@ pub fn user_settings() -> UserSettings {
     UserSettings::from_config(config)
 }
 
+pub struct TestRepo {
+    pub temp_dir: TempDir,
+    pub repo: Arc<ReadonlyRepo>,
+}
+
+pub fn init_repo(settings: &UserSettings, use_git: bool) -> TestRepo {
+    let temp_dir = tempfile::tempdir().unwrap();
+
+    let repo_dir = temp_dir.path().join("repo");
+    fs::create_dir(&repo_dir).unwrap();
+
+    let repo = if use_git {
+        let git_path = temp_dir.path().join("git-repo");
+        git2::Repository::init(&git_path).unwrap();
+        ReadonlyRepo::init_external_git(settings, repo_dir, git_path)
+    } else {
+        ReadonlyRepo::init_local(settings, repo_dir)
+    };
+
+    TestRepo { temp_dir, repo }
+}
+
 pub struct TestWorkspace {
     pub temp_dir: TempDir,
     pub workspace: Workspace,

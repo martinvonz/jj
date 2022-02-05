@@ -42,27 +42,26 @@ fn generation_number<'a>(index: impl Into<IndexRef<'a>>, commit_id: &CommitId) -
 #[test_case(true ; "git backend")]
 fn test_index_commits_empty_repo(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let index = repo.index();
-    // There should be the root commit and the working copy commit
-    assert_eq!(index.num_commits(), 2);
+    // There should be just the root commit
+    assert_eq!(index.num_commits(), 1);
 
     // Check the generation numbers of the root and the working copy
     assert_eq!(
         generation_number(index.as_ref(), repo.store().root_commit_id()),
         0
     );
-    assert_eq!(generation_number(index.as_ref(), repo.view().checkout()), 1);
 }
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
 fn test_index_commits_standard_cases(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     //   o H
     // o | G
@@ -79,7 +78,6 @@ fn test_index_commits_standard_cases(use_git: bool) {
     // o root
 
     let root_commit_id = repo.store().root_commit_id();
-    let checkout_id = repo.view().checkout().clone();
     let mut tx = repo.start_transaction("test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
@@ -93,17 +91,15 @@ fn test_index_commits_standard_cases(use_git: bool) {
     let repo = tx.commit();
 
     let index = repo.index();
-    // There should be the root commit and the working copy commit, plus
-    // 8 more
-    assert_eq!(index.num_commits(), 2 + 8);
+    // There should be the root commit, plus 8 more
+    assert_eq!(index.num_commits(), 1 + 8);
 
     let stats = index.stats();
-    assert_eq!(stats.num_commits, 2 + 8);
+    assert_eq!(stats.num_commits, 1 + 8);
     assert_eq!(stats.num_merges, 1);
     assert_eq!(stats.max_generation_number, 6);
 
     assert_eq!(generation_number(index.as_ref(), root_commit_id), 0);
-    assert_eq!(generation_number(index.as_ref(), &checkout_id), 1);
     assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
     assert_eq!(generation_number(index.as_ref(), commit_b.id()), 2);
     assert_eq!(generation_number(index.as_ref(), commit_c.id()), 2);
@@ -132,8 +128,8 @@ fn test_index_commits_standard_cases(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_index_commits_criss_cross(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let num_generations = 50;
 
@@ -155,12 +151,11 @@ fn test_index_commits_criss_cross(use_git: bool) {
     let repo = tx.commit();
 
     let index = repo.index();
-    // There should the root commit and the working copy commit, plus 2 for each
-    // generation
-    assert_eq!(index.num_commits(), 2 + 2 * (num_generations as u32));
+    // There should the root commit, plus 2 for each generation
+    assert_eq!(index.num_commits(), 1 + 2 * (num_generations as u32));
 
     let stats = index.stats();
-    assert_eq!(stats.num_commits, 2 + 2 * (num_generations as u32));
+    assert_eq!(stats.num_commits, 1 + 2 * (num_generations as u32));
     // The first generations are not merges
     assert_eq!(stats.num_merges, 2 * (num_generations as u32 - 1));
     assert_eq!(stats.max_generation_number, num_generations as u32);
@@ -233,8 +228,8 @@ fn test_index_commits_criss_cross(use_git: bool) {
 fn test_index_commits_previous_operations(use_git: bool) {
     // Test that commits visible only in previous operations are indexed.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     // Remove commit B and C in one operation and make sure they're still
     // visible in the index after that operation.
@@ -264,12 +259,11 @@ fn test_index_commits_previous_operations(use_git: bool) {
 
     let repo = ReadonlyRepo::load(&settings, repo.repo_path().clone());
     let index = repo.index();
-    // There should be the root commit and the working copy commit, plus
-    // 3 more
-    assert_eq!(index.num_commits(), 2 + 3);
+    // There should be the root commit, plus 3 more
+    assert_eq!(index.num_commits(), 1 + 3);
 
     let stats = index.stats();
-    assert_eq!(stats.num_commits, 2 + 3);
+    assert_eq!(stats.num_commits, 1 + 3);
     assert_eq!(stats.num_merges, 0);
     assert_eq!(stats.max_generation_number, 3);
 
@@ -282,8 +276,8 @@ fn test_index_commits_previous_operations(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_index_commits_incremental(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     // Create A in one operation, then B and C in another. Check that the index is
     // valid after.
@@ -300,9 +294,8 @@ fn test_index_commits_incremental(use_git: bool) {
     let repo = tx.commit();
 
     let index = repo.index();
-    // There should be the root commit and the working copy commit, plus
-    // 1 more
-    assert_eq!(index.num_commits(), 2 + 1);
+    // There should be the root commit, plus 1 more
+    assert_eq!(index.num_commits(), 1 + 1);
 
     let mut tx = repo.start_transaction("test");
     let commit_b = child_commit(&settings, &repo, &commit_a).write_to_repo(tx.mut_repo());
@@ -311,16 +304,15 @@ fn test_index_commits_incremental(use_git: bool) {
 
     let repo = ReadonlyRepo::load(&settings, repo.repo_path().clone());
     let index = repo.index();
-    // There should be the root commit and the working copy commit, plus
-    // 3 more
-    assert_eq!(index.num_commits(), 2 + 3);
+    // There should be the root commit, plus 3 more
+    assert_eq!(index.num_commits(), 1 + 3);
 
     let stats = index.stats();
-    assert_eq!(stats.num_commits, 2 + 3);
+    assert_eq!(stats.num_commits, 1 + 3);
     assert_eq!(stats.num_merges, 0);
     assert_eq!(stats.max_generation_number, 3);
     assert_eq!(stats.levels.len(), 1);
-    assert_eq!(stats.levels[0].num_commits, 5);
+    assert_eq!(stats.levels[0].num_commits, 4);
 
     assert_eq!(generation_number(index.as_ref(), root_commit.id()), 0);
     assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
@@ -332,8 +324,8 @@ fn test_index_commits_incremental(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     // Create A in one operation, then just an empty transaction. Check that the
     // index is valid after.
@@ -348,24 +340,22 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     let repo = tx.commit();
 
     let index = repo.index();
-    // There should be the root commit and the working copy commit, plus
-    // 1 more
-    assert_eq!(index.num_commits(), 2 + 1);
+    // There should be the root commit, plus 1 more
+    assert_eq!(index.num_commits(), 1 + 1);
 
     repo.start_transaction("test").commit();
 
     let repo = ReadonlyRepo::load(&settings, repo.repo_path().clone());
     let index = repo.index();
-    // There should be the root commit and the working copy commit, plus
-    // 1 more
-    assert_eq!(index.num_commits(), 2 + 1);
+    // There should be the root commit, plus 1 more
+    assert_eq!(index.num_commits(), 1 + 1);
 
     let stats = index.stats();
-    assert_eq!(stats.num_commits, 2 + 1);
+    assert_eq!(stats.num_commits, 1 + 1);
     assert_eq!(stats.num_merges, 0);
     assert_eq!(stats.max_generation_number, 1);
     assert_eq!(stats.levels.len(), 1);
-    assert_eq!(stats.levels[0].num_commits, 3);
+    assert_eq!(stats.levels[0].num_commits, 2);
 
     assert_eq!(generation_number(index.as_ref(), root_commit.id()), 0);
     assert_eq!(generation_number(index.as_ref(), commit_a.id()), 1);
@@ -376,8 +366,8 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
 fn test_index_commits_incremental_already_indexed(use_git: bool) {
     // Tests that trying to add a commit that's already been added is a no-op.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     // Create A in one operation, then try to add it again an new transaction.
     // o A
@@ -391,11 +381,11 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
     let repo = tx.commit();
 
     assert!(repo.index().has_id(commit_a.id()));
-    assert_eq!(repo.index().num_commits(), 2 + 1);
+    assert_eq!(repo.index().num_commits(), 1 + 1);
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
     mut_repo.add_head(&commit_a);
-    assert_eq!(mut_repo.index().num_commits(), 2 + 1);
+    assert_eq!(mut_repo.index().num_commits(), 1 + 1);
 }
 
 #[must_use]
@@ -425,52 +415,53 @@ fn commits_by_level(repo: &ReadonlyRepo) -> Vec<u32> {
 fn test_index_commits_incremental_squashed(use_git: bool) {
     let settings = testutils::user_settings();
 
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
     let repo = create_n_commits(&settings, repo, 1);
-    assert_eq!(commits_by_level(&repo), vec![3]);
+    assert_eq!(commits_by_level(&repo), vec![2]);
     let repo = create_n_commits(&settings, &repo, 1);
-    assert_eq!(commits_by_level(&repo), vec![3, 1]);
+    assert_eq!(commits_by_level(&repo), vec![3]);
 
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
     let repo = create_n_commits(&settings, repo, 2);
-    assert_eq!(commits_by_level(&repo), vec![4]);
+    assert_eq!(commits_by_level(&repo), vec![3]);
 
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
     let repo = create_n_commits(&settings, repo, 100);
-    assert_eq!(commits_by_level(&repo), vec![102]);
+    assert_eq!(commits_by_level(&repo), vec![101]);
 
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
-    let repo = create_n_commits(&settings, repo, 2);
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
+    let repo = create_n_commits(&settings, repo, 1);
+    let repo = create_n_commits(&settings, &repo, 2);
     let repo = create_n_commits(&settings, &repo, 4);
     let repo = create_n_commits(&settings, &repo, 8);
     let repo = create_n_commits(&settings, &repo, 16);
     let repo = create_n_commits(&settings, &repo, 32);
     assert_eq!(commits_by_level(&repo), vec![64]);
 
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
     let repo = create_n_commits(&settings, repo, 32);
     let repo = create_n_commits(&settings, &repo, 16);
     let repo = create_n_commits(&settings, &repo, 8);
     let repo = create_n_commits(&settings, &repo, 4);
     let repo = create_n_commits(&settings, &repo, 2);
-    assert_eq!(commits_by_level(&repo), vec![58, 6]);
+    assert_eq!(commits_by_level(&repo), vec![57, 6]);
 
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
-    let repo = create_n_commits(&settings, repo, 29);
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
+    let repo = create_n_commits(&settings, repo, 30);
     let repo = create_n_commits(&settings, &repo, 15);
     let repo = create_n_commits(&settings, &repo, 7);
     let repo = create_n_commits(&settings, &repo, 3);
     let repo = create_n_commits(&settings, &repo, 1);
     assert_eq!(commits_by_level(&repo), vec![31, 15, 7, 3, 1]);
 
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
     let repo = create_n_commits(&settings, repo, 10);
     let repo = create_n_commits(&settings, &repo, 10);
     let repo = create_n_commits(&settings, &repo, 10);
@@ -480,5 +471,5 @@ fn test_index_commits_incremental_squashed(use_git: bool) {
     let repo = create_n_commits(&settings, &repo, 10);
     let repo = create_n_commits(&settings, &repo, 10);
     let repo = create_n_commits(&settings, &repo, 10);
-    assert_eq!(commits_by_level(&repo), vec![72, 20]);
+    assert_eq!(commits_by_level(&repo), vec![71, 20]);
 }
