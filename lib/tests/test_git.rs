@@ -55,8 +55,8 @@ fn commit_id(commit: &git2::Commit) -> CommitId {
 #[test]
 fn test_import_refs() {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, true);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, true);
+    let repo = &test_repo.repo;
     let git_repo = repo.store().git_repo().unwrap();
 
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
@@ -78,7 +78,6 @@ fn test_import_refs() {
     let view = repo.view();
 
     let expected_heads = hashset! {
-        view.checkout().clone(),
         commit_id(&commit3),
         commit_id(&commit4),
         commit_id(&commit5)
@@ -144,7 +143,7 @@ fn test_import_refs() {
 #[test]
 fn test_import_refs_reimport() {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, true);
+    let test_workspace = testutils::init_repo(&settings, true);
     let repo = &test_workspace.repo;
     let git_repo = repo.store().git_repo().unwrap();
 
@@ -185,7 +184,6 @@ fn test_import_refs_reimport() {
     let view = repo.view();
     // TODO: commit3 and commit4 should probably be removed
     let expected_heads = hashset! {
-            view.checkout().clone(),
             commit_id(&commit3),
             commit_id(&commit4),
             commit_id(&commit5),
@@ -240,8 +238,8 @@ fn test_import_refs_reimport() {
 fn test_import_refs_reimport_head_removed() {
     // Test that re-importing refs doesn't cause a deleted head to come back
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, true);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, true);
+    let repo = &test_repo.repo;
     let git_repo = repo.store().git_repo().unwrap();
 
     let commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
