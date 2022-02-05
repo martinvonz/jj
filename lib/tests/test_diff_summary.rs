@@ -23,8 +23,8 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_types(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let clean_path = RepoPath::from_internal_string("clean");
     let modified_path = RepoPath::from_internal_string("modified");
@@ -63,8 +63,8 @@ fn test_types(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_tree_file_transition(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let dir_file_path = RepoPath::from_internal_string("dir/file");
     let dir_path = RepoPath::from_internal_string("dir");
@@ -94,8 +94,8 @@ fn test_tree_file_transition(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_sorting(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let a_path = RepoPath::from_internal_string("a");
     let b_path = RepoPath::from_internal_string("b");
@@ -160,8 +160,8 @@ fn test_sorting(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_matcher_dir_file_transition(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let a_path = RepoPath::from_internal_string("a");
     let a_a_path = RepoPath::from_internal_string("a/a");
@@ -228,8 +228,8 @@ fn test_matcher_dir_file_transition(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_matcher_normal_cases(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
-    let repo = &test_workspace.repo;
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
 
     let a_path = RepoPath::from_internal_string("a");
     let dir1_a_path = RepoPath::from_internal_string("dir1/a");
