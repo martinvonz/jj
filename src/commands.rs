@@ -2254,10 +2254,8 @@ fn unified_diff_hunks<'content>(
                     .saturating_sub(num_after_lines)
                     .saturating_sub(num_context_lines);
                 if num_skip_lines > 0 {
-                    let left_start =
-                        current_hunk.left_line_range.end + num_after_lines + num_skip_lines;
-                    let right_start =
-                        current_hunk.right_line_range.end + num_after_lines + num_skip_lines;
+                    let left_start = current_hunk.left_line_range.end + num_skip_lines;
+                    let right_start = current_hunk.right_line_range.end + num_skip_lines;
                     if !current_hunk.lines.is_empty() {
                         hunks.push(current_hunk);
                     }
