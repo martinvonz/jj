@@ -23,7 +23,7 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_types(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
 
     let clean_path = RepoPath::from_internal_string("clean");
@@ -63,7 +63,7 @@ fn test_types(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_tree_file_transition(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
 
     let dir_file_path = RepoPath::from_internal_string("dir/file");
@@ -94,7 +94,7 @@ fn test_tree_file_transition(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_sorting(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
 
     let a_path = RepoPath::from_internal_string("a");
@@ -160,7 +160,7 @@ fn test_sorting(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_matcher_dir_file_transition(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
 
     let a_path = RepoPath::from_internal_string("a");
@@ -228,7 +228,7 @@ fn test_matcher_dir_file_transition(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_matcher_normal_cases(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
 
     let a_path = RepoPath::from_internal_string("a");

@@ -95,7 +95,7 @@ fn test_bad_locking_children(use_git: bool) {
     // Test that two new commits created on separate machines are both visible (not
     // lost due to lack of locking)
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root();
 
@@ -147,7 +147,7 @@ fn test_bad_locking_interrupted(use_git: bool) {
     // that's a descendant of the other is resolved without creating a new
     // operation.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");

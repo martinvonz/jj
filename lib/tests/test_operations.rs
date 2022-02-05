@@ -32,7 +32,7 @@ fn list_dir(dir: &Path) -> Vec<String> {
 fn test_unpublished_operation(use_git: bool) {
     // Test that the operation doesn't get published until that's requested.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
 
     let op_heads_dir = repo.repo_path().join("op_heads");
@@ -55,7 +55,7 @@ fn test_consecutive_operations(use_git: bool) {
     // Test that consecutive operations result in a single op-head on disk after
     // each operation
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
 
     let op_heads_dir = repo.repo_path().join("op_heads");
@@ -88,7 +88,7 @@ fn test_concurrent_operations(use_git: bool) {
     // Test that consecutive operations result in multiple op-heads on disk until
     // the repo has been reloaded (which currently happens right away).
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
 
     let op_heads_dir = repo.repo_path().join("op_heads");
@@ -133,7 +133,7 @@ fn assert_heads(repo: RepoRef, expected: Vec<&CommitId>) {
 fn test_isolation(use_git: bool) {
     // Test that two concurrent transactions don't see each other's changes.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
 
     let checkout_id = repo.view().checkout().clone();

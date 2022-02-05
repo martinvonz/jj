@@ -32,7 +32,7 @@ fn test_same_type(use_git: bool) {
     // using only normal files in all trees (no symlinks, no trees, etc.).
 
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
     let store = repo.store();
 
@@ -232,7 +232,7 @@ fn test_subtrees(use_git: bool) {
     // Tests that subtrees are merged.
 
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
     let store = repo.store();
 
@@ -289,7 +289,7 @@ fn test_subtree_becomes_empty(use_git: bool) {
     // Tests that subtrees that become empty are removed from the parent tree.
 
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
     let store = repo.store();
 
@@ -322,7 +322,7 @@ fn test_types(use_git: bool) {
     // conflicts survive the roundtrip to the store.
 
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
     let store = repo.store();
 
@@ -447,7 +447,7 @@ fn test_types(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_simplify_conflict(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
     let store = repo.store();
 
@@ -571,7 +571,7 @@ fn test_simplify_conflict(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
 
     // Set up a repo like this:

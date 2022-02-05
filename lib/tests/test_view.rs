@@ -22,7 +22,7 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_heads_empty(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
 
     assert_eq!(
@@ -39,7 +39,7 @@ fn test_heads_empty(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_heads_fork(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
     let mut tx = repo.start_transaction("test");
 
@@ -63,7 +63,7 @@ fn test_heads_fork(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_heads_merge(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
     let mut tx = repo.start_transaction("test");
 
@@ -84,7 +84,7 @@ fn test_heads_merge(use_git: bool) {
 fn test_merge_views_heads() {
     // Tests merging of the view's heads (by performing concurrent operations).
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_workspace(&settings, false);
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
@@ -152,7 +152,7 @@ fn test_merge_views_heads() {
 fn test_merge_views_checkout() {
     // Tests merging of the view's checkout (by performing concurrent operations).
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_workspace(&settings, false);
     let repo = &test_workspace.repo;
 
     // Workspace 1 gets updated in both transactions.
@@ -235,7 +235,7 @@ fn test_merge_views_branches() {
     // Tests merging of branches (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_workspace(&settings, false);
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
@@ -336,7 +336,7 @@ fn test_merge_views_tags() {
     // Tests merging of tags (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_workspace(&settings, false);
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
@@ -382,7 +382,7 @@ fn test_merge_views_git_refs() {
     // Tests merging of git refs (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_workspace(&settings, false);
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");

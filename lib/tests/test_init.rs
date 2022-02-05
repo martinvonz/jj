@@ -71,7 +71,7 @@ fn test_init_external_git() {
 fn test_init_no_config_set(use_git: bool) {
     // Test that we can create a repo without setting any config
     let settings = UserSettings::from_config(config::Config::new());
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
     let checkout_id = repo.view().checkout();
     let checkout_commit = repo.store().get_commit(checkout_id).unwrap();
@@ -98,7 +98,7 @@ fn test_init_no_config_set(use_git: bool) {
 fn test_init_checkout(use_git: bool) {
     // Test the contents of the checkout after init
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, use_git);
+    let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
     let checkout_commit = repo.store().get_commit(repo.view().checkout()).unwrap();
     assert_eq!(checkout_commit.tree().id(), repo.store().empty_tree_id());

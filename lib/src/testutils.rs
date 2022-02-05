@@ -54,7 +54,7 @@ pub struct TestWorkspace {
     pub repo: Arc<ReadonlyRepo>,
 }
 
-pub fn init_repo(settings: &UserSettings, use_git: bool) -> TestWorkspace {
+pub fn init_workspace(settings: &UserSettings, use_git: bool) -> TestWorkspace {
     let temp_dir = tempfile::tempdir().unwrap();
 
     let workspace_root = temp_dir.path().join("repo");

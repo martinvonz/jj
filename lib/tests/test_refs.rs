@@ -20,7 +20,7 @@ use jujutsu_lib::testutils::CommitGraphBuilder;
 #[test]
 fn test_merge_ref_targets() {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_repo(&settings, false);
+    let test_workspace = testutils::init_workspace(&settings, false);
     let repo = &test_workspace.repo;
 
     // 6 7

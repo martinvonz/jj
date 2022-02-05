@@ -29,7 +29,7 @@ fn test_concurrent_checkout(use_git: bool) {
     // Test that we error out if a concurrent checkout is detected (i.e. if the
     // current checkout changed on disk after we read it).
     let settings = testutils::user_settings();
-    let mut test_workspace1 = testutils::init_repo(&settings, use_git);
+    let mut test_workspace1 = testutils::init_workspace(&settings, use_git);
     let repo1 = test_workspace1.repo.clone();
     let workspace1_root = test_workspace1.workspace.workspace_root().clone();
 
@@ -79,7 +79,7 @@ fn test_checkout_parallel(use_git: bool) {
     // Test that concurrent checkouts by different processes (simulated by using
     // different repo instances) is safe.
     let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_repo(&settings, use_git);
+    let mut test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
     let store = repo.store();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
