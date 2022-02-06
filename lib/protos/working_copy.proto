@@ -29,9 +29,14 @@ message FileState {
   bytes conflict_id = 4;
 }
 
+message SparsePatterns {
+  repeated string prefixes = 1;
+}
+
 message TreeState {
   bytes tree_id = 1;
   map<string, FileState> file_states = 2;
+  SparsePatterns sparse_patterns = 3;
 }
 
 message Checkout {
