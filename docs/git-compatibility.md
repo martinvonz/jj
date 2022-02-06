@@ -57,9 +57,8 @@ a comparison with Git, including how workflows are different, see the
   which doesn't have support for partial clones.
 * **git-worktree: No.** However, there's native support for multiple working
   copies backed by a single repo. See the `jj workspace` family of commands.
-* **Sparse checkouts: No.** There is
-  [#52](https://github.com/martinvonz/jj/issues/52) about native support for
-  sparse checkouts.
+* **Sparse checkouts: No.** However, there's native support for sparse
+  checkouts. See the `jj sparse` command.
 * **Signed commits: No.** ([#58](https://github.com/martinvonz/jj/issues/58))
 * **Git LFS: No.** ([#80](https://github.com/martinvonz/jj/issues/80))
 
