@@ -41,7 +41,7 @@ use jujutsu_lib::diff::{Diff, DiffHunk};
 use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::git::{GitExportError, GitFetchError, GitImportError, GitRefUpdate};
 use jujutsu_lib::index::HexPrefix;
-use jujutsu_lib::matchers::{EverythingMatcher, FilesMatcher, Matcher};
+use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use jujutsu_lib::op_heads_store::OpHeadsStore;
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
@@ -766,20 +766,13 @@ fn matcher_from_values(
     values: Option<clap::Values>,
 ) -> Result<Box<dyn Matcher>, CommandError> {
     if let Some(values) = values {
-        // TODO: Add support for matching directories (and probably globs and other
-        // formats)
-        let mut paths = HashSet::new();
+        // TODO: Add support for globs and other formats
+        let mut paths = vec![];
         for value in values {
             let repo_path = ui.parse_file_path(wc_path, value)?;
-            // TODO: Remove this when we have support for directories
-            if repo_path.is_root() {
-                return Err(CommandError::UserError(
-                    "Directory patterns are not yet supported.".to_string(),
-                ));
-            }
-            paths.insert(repo_path);
+            paths.push(repo_path);
         }
-        Ok(Box::new(FilesMatcher::new(paths)))
+        Ok(Box::new(PrefixMatcher::new(&paths)))
     } else {
         Ok(Box::new(EverythingMatcher))
     }
