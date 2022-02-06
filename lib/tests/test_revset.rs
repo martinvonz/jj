@@ -250,7 +250,6 @@ fn test_resolve_symbol_checkout(use_git: bool) {
 
     let ws1 = WorkspaceId::new("ws1".to_string());
     let ws2 = WorkspaceId::new("ws2".to_string());
-    mut_repo.remove_checkout(&WorkspaceId::default());
 
     // With no workspaces, no variation can be resolved
     assert_eq!(
