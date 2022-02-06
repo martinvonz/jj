@@ -39,6 +39,7 @@ fn test_root(use_git: bool) {
     let repo = &test_workspace.repo;
 
     let wc = test_workspace.workspace.working_copy_mut();
+    assert_eq!(wc.sparse_patterns(), vec![RepoPath::root()]);
     let mut locked_wc = wc.start_mutation();
     let new_tree_id = locked_wc.write_tree(GitIgnoreFile::empty());
     locked_wc.discard();

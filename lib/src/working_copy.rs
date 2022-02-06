@@ -84,6 +84,8 @@ pub struct TreeState {
     state_path: PathBuf,
     tree_id: TreeId,
     file_states: BTreeMap<RepoPath, FileState>,
+    // Currently only path prefixes
+    sparse_patterns: Vec<RepoPath>,
     own_mtime: MillisSinceEpoch,
 }
 
@@ -130,6 +132,20 @@ fn file_states_from_proto(
         file_states.insert(path, file_state_from_proto(proto_file_state));
     }
     file_states
+}
+
+fn sparse_patterns_from_proto(proto: &crate::protos::working_copy::TreeState) -> Vec<RepoPath> {
+    let mut sparse_patterns = vec![];
+    if proto.has_sparse_patterns() {
+        for prefix in &proto.get_sparse_patterns().prefixes {
+            sparse_patterns.push(RepoPath::from_internal_string(prefix.as_str()));
+        }
+    } else {
+        // For compatibility with old working copies.
+        // TODO: Delete this is late 2022 or so.
+        sparse_patterns.push(RepoPath::root());
+    }
+    sparse_patterns
 }
 
 fn create_parent_dirs(disk_path: &Path) {
@@ -206,6 +222,10 @@ impl TreeState {
         &self.file_states
     }
 
+    pub fn sparse_patterns(&self) -> &Vec<RepoPath> {
+        &self.sparse_patterns
+    }
+
     pub fn init(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> TreeState {
         let mut wc = TreeState::empty(store, working_copy_path, state_path);
         wc.save();
@@ -222,6 +242,7 @@ impl TreeState {
             state_path,
             tree_id,
             file_states: BTreeMap::new(),
+            sparse_patterns: vec![RepoPath::root()],
             own_mtime: MillisSinceEpoch(0),
         }
     }
@@ -256,6 +277,7 @@ impl TreeState {
             Message::parse_from_reader(&mut file).unwrap();
         self.tree_id = TreeId::new(proto.tree_id.clone());
         self.file_states = file_states_from_proto(&proto);
+        self.sparse_patterns = sparse_patterns_from_proto(&proto);
     }
 
     fn save(&mut self) {
@@ -267,6 +289,13 @@ impl TreeState {
                 file_state_to_proto(file_state),
             );
         }
+        let mut sparse_patterns = crate::protos::working_copy::SparsePatterns::new();
+        for path in &self.sparse_patterns {
+            sparse_patterns
+                .prefixes
+                .push(path.to_internal_file_string());
+        }
+        proto.set_sparse_patterns(sparse_patterns);
 
         let mut temp_file = NamedTempFile::new_in(&self.state_path).unwrap();
         proto.write_to_writer(temp_file.as_file_mut()).unwrap();
@@ -555,6 +584,10 @@ impl TreeState {
         Ok(stats)
     }
 
+    pub fn set_sparse_patterns(&mut self, sparse_patterns: Vec<RepoPath>) {
+        self.sparse_patterns = sparse_patterns;
+    }
+
     fn update(
         &mut self,
         old_tree: &Tree,
@@ -800,6 +833,14 @@ impl WorkingCopy {
         self.tree_state().as_ref().unwrap().file_states().clone()
     }
 
+    pub fn sparse_patterns(&self) -> Vec<RepoPath> {
+        self.tree_state()
+            .as_ref()
+            .unwrap()
+            .sparse_patterns()
+            .clone()
+    }
+
     fn save(&mut self) {
         let mut proto = crate::protos::working_copy::Checkout::new();
         proto.operation_id = self.operation_id().to_bytes();
@@ -892,6 +933,18 @@ impl LockedWorkingCopy<'_> {
 
     pub fn reset(&mut self, new_tree: &Tree) -> Result<(), ResetError> {
         self.wc.tree_state().as_mut().unwrap().reset(new_tree)
+    }
+
+    pub fn sparse_patterns(&self) -> Vec<RepoPath> {
+        self.wc.sparse_patterns()
+    }
+
+    pub fn set_sparse_patterns(&mut self, new_sparse_patterns: Vec<RepoPath>) {
+        self.wc
+            .tree_state()
+            .as_mut()
+            .unwrap()
+            .set_sparse_patterns(new_sparse_patterns)
     }
 
     pub fn finish(mut self, operation_id: OperationId) {
