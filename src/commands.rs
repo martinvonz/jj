@@ -780,13 +780,7 @@ impl WorkspaceCommandHelper {
                 maybe_old_commit.as_ref(),
             )?;
             if let Some(stats) = stats {
-                if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
-                    writeln!(
-                        ui,
-                        "Added {} files, modified {} files, removed {} files",
-                        stats.added_files, stats.updated_files, stats.removed_files
-                    )?;
-                }
+                print_checkout_stats(ui, stats)?;
             }
         }
         if self.working_copy_shared_with_git {
@@ -795,6 +789,17 @@ impl WorkspaceCommandHelper {
         }
         Ok(())
     }
+}
+
+fn print_checkout_stats(ui: &mut Ui, stats: CheckoutStats) -> Result<(), std::io::Error> {
+    if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
+        writeln!(
+            ui,
+            "Added {} files, modified {} files, removed {} files",
+            stats.added_files, stats.updated_files, stats.removed_files
+        )?;
+    }
+    Ok(())
 }
 
 /// Expands "~/" to "$HOME/" as Git seems to do for e.g. core.excludesFile.
@@ -919,11 +924,11 @@ fn resolve_single_op_from_store(
     }
 }
 
-fn matcher_from_values(
+fn repo_paths_from_values(
     ui: &Ui,
     wc_path: &Path,
     values: &[String],
-) -> Result<Box<dyn Matcher>, CommandError> {
+) -> Result<Vec<RepoPath>, CommandError> {
     if !values.is_empty() {
         // TODO: Add support for globs and other formats
         let mut paths = vec![];
@@ -931,9 +936,22 @@ fn matcher_from_values(
             let repo_path = ui.parse_file_path(wc_path, value)?;
             paths.push(repo_path);
         }
-        Ok(Box::new(PrefixMatcher::new(&paths)))
+        Ok(paths)
     } else {
+        Ok(vec![])
+    }
+}
+
+fn matcher_from_values(
+    ui: &Ui,
+    wc_path: &Path,
+    values: &[String],
+) -> Result<Box<dyn Matcher>, CommandError> {
+    let paths = repo_paths_from_values(ui, wc_path, values)?;
+    if paths.is_empty() {
         Ok(Box::new(EverythingMatcher))
+    } else {
+        Ok(Box::new(PrefixMatcher::new(&paths)))
     }
 }
 
@@ -1072,6 +1090,7 @@ enum Commands {
     Undo(OperationUndoArgs),
     Operation(OperationArgs),
     Workspace(WorkspaceArgs),
+    Sparse(SparseArgs),
     Git(GitArgs),
     Bench(BenchArgs),
     Debug(DebugArgs),
@@ -1648,6 +1667,26 @@ struct WorkspaceForgetArgs {
 /// List workspaces
 #[derive(clap::Args, Clone, Debug)]
 struct WorkspaceListArgs {}
+
+/// Manage which paths from the current checkout are present in the working copy
+#[derive(clap::Args, Clone, Debug)]
+struct SparseArgs {
+    /// Patterns to add to the working copy
+    #[clap(long)]
+    add: Vec<String>,
+    /// Patterns to remove from the working copy
+    #[clap(long, conflicts_with = "clear")]
+    remove: Vec<String>,
+    /// Include no files in the working copy (combine with --add)
+    #[clap(long)]
+    clear: bool,
+    /// Include all files in the working copy
+    #[clap(long, conflicts_with_all = &["add", "remove", "clear"])]
+    reset: bool,
+    /// List patterns
+    #[clap(long, conflicts_with_all = &["add", "remove", "clear", "reset"])]
+    list: bool,
+}
 
 /// Commands for working with the underlying Git repo
 ///
@@ -4465,6 +4504,45 @@ fn cmd_workspace_list(
     Ok(())
 }
 
+fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result<(), CommandError> {
+    if args.list {
+        let workspace_command = command.workspace_helper(ui)?;
+        for path in workspace_command.working_copy().sparse_patterns() {
+            let ui_path = workspace_command.format_file_path(&path);
+            writeln!(ui, "{}", ui_path)?;
+        }
+    } else {
+        let mut workspace_command = command.workspace_helper(ui)?;
+        workspace_command.commit_working_copy(ui)?;
+        let workspace_root = workspace_command.workspace_root().clone();
+        let paths_to_add = repo_paths_from_values(ui, &workspace_root, &args.add)?;
+        let (mut locked_wc, _current_checkout) = workspace_command.start_working_copy_mutation()?;
+        let mut new_patterns = HashSet::new();
+        if args.reset {
+            new_patterns.insert(RepoPath::root());
+        } else {
+            if !args.clear {
+                new_patterns.extend(locked_wc.sparse_patterns());
+                let paths_to_remove = repo_paths_from_values(ui, &workspace_root, &args.remove)?;
+                for path in paths_to_remove {
+                    new_patterns.remove(&path);
+                }
+            }
+            for path in paths_to_add {
+                new_patterns.insert(path);
+            }
+        }
+        let new_patterns = new_patterns.into_iter().sorted().collect();
+        let stats = locked_wc.set_sparse_patterns(new_patterns).map_err(|err| {
+            CommandError::InternalError(format!("Failed to update working copy paths: {}", err))
+        })?;
+        let operation_id = locked_wc.old_operation_id().clone();
+        locked_wc.finish(operation_id);
+        print_checkout_stats(ui, stats)?;
+    }
+    Ok(())
+}
+
 fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     match store.git_repo() {
         None => Err(CommandError::UserError(
@@ -4871,6 +4949,7 @@ where
         Commands::Undo(sub_args) => cmd_op_undo(&mut ui, &command_helper, sub_args),
         Commands::Operation(sub_args) => cmd_operation(&mut ui, &command_helper, sub_args),
         Commands::Workspace(sub_args) => cmd_workspace(&mut ui, &command_helper, sub_args),
+        Commands::Sparse(sub_args) => cmd_sparse(&mut ui, &command_helper, sub_args),
         Commands::Git(sub_args) => cmd_git(&mut ui, &command_helper, sub_args),
         Commands::Bench(sub_args) => cmd_bench(&mut ui, &command_helper, sub_args),
         Commands::Debug(sub_args) => cmd_debug(&mut ui, &command_helper, sub_args),

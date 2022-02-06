@@ -92,3 +92,28 @@ fn test_untrack() {
     let files_after = test_env.jj_cmd_success(&repo_path, &["files"]);
     assert!(!files_after.contains("target"));
 }
+
+#[test]
+fn test_untrack_sparse() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "contents").unwrap();
+    std::fs::write(repo_path.join("file2"), "contents").unwrap();
+
+    // When untracking a file that's not included in the sparse working copy, it
+    // doesn't need to be ignored (because it won't be automatically added
+    // back).
+    let stdout = test_env.jj_cmd_success(&repo_path, &["files"]);
+    insta::assert_snapshot!(stdout, @r###"
+    file1
+    file2
+    "###);
+    test_env.jj_cmd_success(&repo_path, &["sparse", "--clear", "--add", "file1"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["untrack", "file2"]);
+    insta::assert_snapshot!(stdout, @"");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["files"]);
+    insta::assert_snapshot!(stdout, @"file1
+");
+}

@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj split` now lets you specify on the CLI which paths to include in the first
   commit. The interactive diff-editing is not started when you do that.
 
+* Sparse checkouts are now supported. In fact, all working copies are now
+  "sparse", only to different degrees. Use the `jj sparse` command to manage
+  the paths included in the sparse checkout.  
+
 * The `$JJ_CONFIG` environment variable can now point to a directory. If it
   does, all files in the directory will be read, in alphabetical order.
 
