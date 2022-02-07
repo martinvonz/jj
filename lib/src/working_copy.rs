@@ -669,7 +669,6 @@ impl TreeState {
             }
         }
         self.tree_id = tree_id;
-        self.save();
         Ok(stats)
     }
 
@@ -769,6 +768,10 @@ impl WorkingCopy {
             commit_id: RefCell::new(None),
             tree_state: RefCell::new(None),
         }
+    }
+
+    pub fn state_path(&self) -> &Path {
+        &self.state_path
     }
 
     fn write_proto(&self, proto: crate::protos::working_copy::Checkout) {
@@ -959,6 +962,9 @@ impl LockedWorkingCopy<'_> {
     }
 
     pub fn discard(mut self) {
+        // Undo the changes in memory
+        self.wc.load_proto();
+        self.wc.tree_state.replace(None);
         self.closed = true;
     }
 }

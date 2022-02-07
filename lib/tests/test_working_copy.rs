@@ -27,6 +27,7 @@ use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
 use jujutsu_lib::tree_builder::TreeBuilder;
+use jujutsu_lib::working_copy::WorkingCopy;
 use test_case::test_case;
 
 #[test_case(false ; "local backend")]
@@ -373,6 +374,60 @@ fn test_reset() {
     let new_tree_id = locked_wc.write_tree();
     assert_eq!(new_tree_id, *tree_with_file.id());
     locked_wc.discard();
+}
+
+#[test]
+fn test_checkout_discard() {
+    // Start a mutation, do a checkout, and then discard the mutation. The working
+    // copy files should remain changed, but the state files should not be
+    // written.
+    let settings = testutils::user_settings();
+    let mut test_workspace = testutils::init_workspace(&settings, false);
+    let repo = test_workspace.repo.clone();
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
+
+    let file1_path = RepoPath::from_internal_string("file1");
+    let file2_path = RepoPath::from_internal_string("file2");
+
+    let mut tx = repo.start_transaction("test");
+    let store = repo.store();
+    let tree1 = testutils::create_tree(&repo, &[(&file1_path, "contents")]);
+    let tree2 = testutils::create_tree(&repo, &[(&file2_path, "contents")]);
+    let commit1 = CommitBuilder::for_new_commit(&settings, store, tree1.id().clone())
+        .write_to_repo(tx.mut_repo());
+    let repo = tx.commit();
+    test_workspace.repo = repo.clone();
+
+    let wc = test_workspace.workspace.working_copy_mut();
+    let state_path = wc.state_path().to_path_buf();
+    wc.check_out(repo.op_id().clone(), None, commit1.clone())
+        .unwrap();
+
+    // Test the setup: the file should exist on disk and in the tree state.
+    assert!(file1_path.to_fs_path(&workspace_root).is_file());
+    assert!(wc.file_states().contains_key(&file1_path));
+
+    // Start a checkout
+    let mut locked_wc = wc.start_mutation();
+    locked_wc
+        .check_out(Some(commit1.id()), tree2.id().clone())
+        .unwrap();
+    // The change should be reflected in the working copy but not saved
+    assert!(!file1_path.to_fs_path(&workspace_root).is_file());
+    assert!(file2_path.to_fs_path(&workspace_root).is_file());
+    let reloaded_wc = WorkingCopy::load(store.clone(), workspace_root.clone(), state_path.clone());
+    assert!(reloaded_wc.file_states().contains_key(&file1_path));
+    assert!(!reloaded_wc.file_states().contains_key(&file2_path));
+    locked_wc.discard();
+
+    // The change should remain in the working copy, but not in memory and not saved
+    assert!(wc.file_states().contains_key(&file1_path));
+    assert!(!wc.file_states().contains_key(&file2_path));
+    assert!(!file1_path.to_fs_path(&workspace_root).is_file());
+    assert!(file2_path.to_fs_path(&workspace_root).is_file());
+    let reloaded_wc = WorkingCopy::load(store.clone(), workspace_root, state_path);
+    assert!(reloaded_wc.file_states().contains_key(&file1_path));
+    assert!(!reloaded_wc.file_states().contains_key(&file2_path));
 }
 
 #[test_case(false ; "local backend")]
