@@ -435,7 +435,12 @@ fn test_gitignores(use_git: bool) {
     let wc = test_workspace.workspace.working_copy_mut();
     let mut locked_wc = wc.start_mutation();
     let new_tree_id1 = locked_wc.write_tree();
-    locked_wc.discard();
+    let mut tx = repo.start_transaction("test");
+    let initial_commit =
+        CommitBuilder::for_new_commit(&settings, repo.store(), new_tree_id1.clone())
+            .write_to_repo(tx.mut_repo());
+    let repo = tx.commit();
+    locked_wc.finish(repo.op_id().clone(), initial_commit.id().clone());
     let tree1 = repo
         .store()
         .get_tree(&RepoPath::root(), &new_tree_id1)
