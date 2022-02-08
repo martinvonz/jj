@@ -5,8 +5,8 @@
 
 This is not a Google product. It is an experimental version-control system
 (VCS). It was written by me, Martin von Zweigbergk (martinvonz@google.com). It
-is my personal hobby project. It does not indicate any commitment or direction
-from Google.
+is my personal hobby project and my 20% project at Google. It does not indicate
+any commitment or direction from Google.
 
 
 ## Introduction
