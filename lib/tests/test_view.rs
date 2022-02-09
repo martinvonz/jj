@@ -210,6 +210,9 @@ fn test_merge_views_checkout() {
     tx2.mut_repo().remove_checkout(&ws5_id);
     tx2.mut_repo()
         .set_checkout(ws7_id.clone(), commit3.id().clone());
+    // Make sure the end time different, assuming the clock has sub-millisecond
+    // precision.
+    std::thread::sleep(std::time::Duration::from_millis(1));
     tx2.commit();
 
     let repo = repo.reload();
