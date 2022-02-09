@@ -857,7 +857,8 @@ fn get_app<'help>() -> App<'help> {
         .arg(paths_arg());
     let files_command = App::new("files")
         .about("List files in a revision")
-        .arg(rev_arg().help("The revision to list files in"));
+        .arg(rev_arg().help("The revision to list files in"))
+        .arg(paths_arg());
     let diff_command = App::new("diff")
         .about("Show changes in a revision")
         .long_about(
@@ -1800,7 +1801,12 @@ fn cmd_untrack(
 fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_revision_arg(ui, args)?;
-    for (name, _value) in commit.tree().entries() {
+    let matcher = matcher_from_values(
+        ui,
+        workspace_command.workspace_root(),
+        args.values_of("paths"),
+    )?;
+    for (name, _value) in commit.tree().entries_matching(matcher.as_ref()) {
         writeln!(
             ui,
             "{}",
