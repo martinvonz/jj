@@ -34,10 +34,16 @@ impl FileLock {
                 _file: file,
             }),
             Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
-                Err(backoff::Error::Transient(err))
+                Err(backoff::Error::Transient {
+                    err,
+                    retry_after: None,
+                })
             }
             Err(err) if cfg!(windows) && err.kind() == std::io::ErrorKind::PermissionDenied => {
-                Err(backoff::Error::Transient(err))
+                Err(backoff::Error::Transient {
+                    err,
+                    retry_after: None,
+                })
             }
             Err(err) => Err(backoff::Error::Permanent(err)),
         };
