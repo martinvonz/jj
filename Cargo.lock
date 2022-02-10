@@ -529,14 +529,11 @@ name = "jujutsu"
 version = "0.2.0"
 dependencies = [
  "atty",
- "blake2",
- "bytes",
  "chrono",
  "clap 3.0.4",
  "clap_complete",
  "config",
  "criterion",
- "dirs",
  "git2",
  "hex",
  "indoc",
@@ -545,17 +542,12 @@ dependencies = [
  "maplit",
  "pest",
  "pest_derive",
- "protobuf",
- "protobuf-codegen-pure",
  "rand",
  "regex",
- "serde_json",
  "tempfile",
  "test-case",
  "textwrap 0.14.2",
  "thiserror",
- "uuid",
- "zstd",
 ]
 
 [[package]]
