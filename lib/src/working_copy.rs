@@ -37,7 +37,7 @@ use crate::backend::{
 use crate::conflicts::{materialize_conflict, update_conflict_from_content};
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
-use crate::matchers::{EverythingMatcher, Matcher};
+use crate::matchers::{DifferenceMatcher, Matcher, PrefixMatcher};
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
@@ -224,6 +224,10 @@ impl TreeState {
 
     pub fn sparse_patterns(&self) -> &Vec<RepoPath> {
         &self.sparse_patterns
+    }
+
+    fn sparse_matcher(&self) -> Box<dyn Matcher> {
+        Box::new(PrefixMatcher::new(&self.sparse_patterns))
     }
 
     pub fn init(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> TreeState {
@@ -579,13 +583,39 @@ impl TreeState {
                 BackendError::NotFound => CheckoutError::SourceNotFound,
                 other => CheckoutError::InternalBackendError(other),
             })?;
-        let stats = self.update(&old_tree, new_tree, &EverythingMatcher)?;
+        let stats = self.update(&old_tree, new_tree, self.sparse_matcher().as_ref())?;
         self.tree_id = new_tree.id().clone();
         Ok(stats)
     }
 
-    pub fn set_sparse_patterns(&mut self, sparse_patterns: Vec<RepoPath>) {
+    pub fn set_sparse_patterns(
+        &mut self,
+        sparse_patterns: Vec<RepoPath>,
+    ) -> Result<CheckoutStats, CheckoutError> {
+        let tree = self
+            .store
+            .get_tree(&RepoPath::root(), &self.tree_id)
+            .map_err(|err| match err {
+                BackendError::NotFound => CheckoutError::SourceNotFound,
+                other => CheckoutError::InternalBackendError(other),
+            })?;
+        let old_matcher = PrefixMatcher::new(&self.sparse_patterns);
+        let new_matcher = PrefixMatcher::new(&sparse_patterns);
+        let added_matcher = DifferenceMatcher::new(&new_matcher, &old_matcher);
+        let removed_matcher = DifferenceMatcher::new(&old_matcher, &new_matcher);
+        let empty_tree = Tree::null(self.store.clone(), RepoPath::root());
+        let added_stats = self.update(&empty_tree, &tree, &added_matcher)?;
+        let removed_stats = self.update(&tree, &empty_tree, &removed_matcher)?;
         self.sparse_patterns = sparse_patterns;
+        assert_eq!(added_stats.updated_files, 0);
+        assert_eq!(added_stats.removed_files, 0);
+        assert_eq!(removed_stats.updated_files, 0);
+        assert_eq!(removed_stats.added_files, 0);
+        Ok(CheckoutStats {
+            updated_files: 0,
+            added_files: added_stats.added_files,
+            removed_files: removed_stats.removed_files,
+        })
     }
 
     fn update(
@@ -684,7 +714,7 @@ impl TreeState {
                 other => ResetError::InternalBackendError(other),
             })?;
 
-        for (path, diff) in old_tree.diff(new_tree, &EverythingMatcher) {
+        for (path, diff) in old_tree.diff(new_tree, self.sparse_matcher().as_ref()) {
             match diff {
                 Diff::Removed(_before) => {
                     self.file_states.remove(&path);
@@ -764,6 +794,10 @@ impl WorkingCopy {
             workspace_id: RefCell::new(None),
             tree_state: RefCell::new(None),
         }
+    }
+
+    pub fn working_copy_path(&self) -> &Path {
+        &self.working_copy_path
     }
 
     pub fn state_path(&self) -> &Path {
@@ -925,8 +959,8 @@ impl LockedWorkingCopy<'_> {
     }
 
     pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {
-        // TODO: Write a "pending_checkout" file with the old and new TreeIds so we can
-        // continue an interrupted checkout if we find such a file.
+        // TODO: Write a "pending_checkout" file with the new TreeId so we can
+        // continue an interrupted update if we find such a file.
         let stats = self.wc.tree_state().as_mut().unwrap().check_out(new_tree)?;
         Ok(stats)
     }
@@ -939,7 +973,12 @@ impl LockedWorkingCopy<'_> {
         self.wc.sparse_patterns()
     }
 
-    pub fn set_sparse_patterns(&mut self, new_sparse_patterns: Vec<RepoPath>) {
+    pub fn set_sparse_patterns(
+        &mut self,
+        new_sparse_patterns: Vec<RepoPath>,
+    ) -> Result<CheckoutStats, CheckoutError> {
+        // TODO: Write a "pending_checkout" file with new sparse patterns so we can
+        // continue an interrupted update if we find such a file.
         self.wc
             .tree_state()
             .as_mut()
