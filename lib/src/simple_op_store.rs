@@ -19,7 +19,7 @@ use std::fs::File;
 use std::io::{ErrorKind, Write};
 use std::path::PathBuf;
 
-use blake2::{Blake2b, Digest};
+use blake2::{Blake2b512, Digest};
 use itertools::Itertools;
 use protobuf::{Message, ProtobufError};
 use tempfile::{NamedTempFile, PersistError};
@@ -100,7 +100,7 @@ impl OpStore for SimpleOpStore {
 
         temp_file.as_file().write_all(&proto_bytes)?;
 
-        let id = ViewId::new(Blake2b::digest(&proto_bytes).to_vec());
+        let id = ViewId::new(Blake2b512::digest(&proto_bytes).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.view_path(&id))?;
         Ok(id)
@@ -123,7 +123,7 @@ impl OpStore for SimpleOpStore {
 
         temp_file.as_file().write_all(&proto_bytes)?;
 
-        let id = OperationId::new(Blake2b::digest(&proto_bytes).to_vec());
+        let id = OperationId::new(Blake2b512::digest(&proto_bytes).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.operation_path(&id))?;
         Ok(id)

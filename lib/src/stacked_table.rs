@@ -28,7 +28,7 @@ use std::io::{Cursor, Read, Write};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
-use blake2::{Blake2b, Digest};
+use blake2::{Blake2b512, Digest};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use tempfile::NamedTempFile;
 
@@ -330,7 +330,7 @@ impl MutableTable {
         }
 
         let buf = self.maybe_squash_with_ancestors().serialize();
-        let mut hasher = Blake2b::new();
+        let mut hasher = Blake2b512::new();
         hasher.update(&buf);
         let file_id_hex = hex::encode(&hasher.finalize());
         let file_path = store.dir.join(&file_id_hex);

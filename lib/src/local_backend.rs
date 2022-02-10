@@ -18,7 +18,7 @@ use std::fs::File;
 use std::io::{ErrorKind, Read, Write};
 use std::path::PathBuf;
 
-use blake2::{Blake2b, Digest};
+use blake2::{Blake2b512, Digest};
 use protobuf::{Message, ProtobufError};
 use tempfile::{NamedTempFile, PersistError};
 
@@ -124,7 +124,7 @@ impl Backend for LocalBackend {
     fn write_file(&self, _path: &RepoPath, contents: &mut dyn Read) -> BackendResult<FileId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
         let mut encoder = zstd::Encoder::new(temp_file.as_file(), 0)?;
-        let mut hasher = Blake2b::new();
+        let mut hasher = Blake2b512::new();
         loop {
             let mut buff: Vec<u8> = Vec::with_capacity(1 << 14);
             let bytes_read;
@@ -157,7 +157,7 @@ impl Backend for LocalBackend {
     fn write_symlink(&self, _path: &RepoPath, target: &str) -> Result<SymlinkId, BackendError> {
         let mut temp_file = NamedTempFile::new_in(&self.path)?;
         temp_file.write_all(target.as_bytes())?;
-        let mut hasher = Blake2b::new();
+        let mut hasher = Blake2b512::new();
         hasher.update(&target.as_bytes());
         let id = SymlinkId::new(hasher.finalize().to_vec());
 
@@ -186,7 +186,7 @@ impl Backend for LocalBackend {
 
         temp_file.as_file().write_all(&proto_bytes)?;
 
-        let id = TreeId::new(Blake2b::digest(&proto_bytes).to_vec());
+        let id = TreeId::new(Blake2b512::digest(&proto_bytes).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.tree_path(&id))?;
         Ok(id)
@@ -209,7 +209,7 @@ impl Backend for LocalBackend {
 
         temp_file.as_file().write_all(&proto_bytes)?;
 
-        let id = CommitId::new(Blake2b::digest(&proto_bytes).to_vec());
+        let id = CommitId::new(Blake2b512::digest(&proto_bytes).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.commit_path(&id))?;
         Ok(id)
@@ -232,7 +232,7 @@ impl Backend for LocalBackend {
 
         temp_file.as_file().write_all(&proto_bytes)?;
 
-        let id = ConflictId::new(Blake2b::digest(&proto_bytes).to_vec());
+        let id = ConflictId::new(Blake2b512::digest(&proto_bytes).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.conflict_path(&id))?;
         Ok(id)

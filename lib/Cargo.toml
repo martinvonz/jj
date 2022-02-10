@@ -17,7 +17,7 @@ protobuf-codegen-pure = "2.25.2"
 
 [dependencies]
 backoff = "0.3.0"
-blake2 = "0.9.2"
+blake2 = "0.10.2"
 bytes = "1.1.0"
 byteorder = "1.4.3"
 chrono = "0.4.19"

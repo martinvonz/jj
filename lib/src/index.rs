@@ -25,7 +25,7 @@ use std::ops::Bound;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use blake2::{Blake2b, Digest};
+use blake2::{Blake2b512, Digest};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use itertools::Itertools;
 use tempfile::NamedTempFile;
@@ -551,7 +551,7 @@ impl MutableIndex {
         let hash_length = self.hash_length;
 
         let buf = self.maybe_squash_with_ancestors().serialize();
-        let mut hasher = Blake2b::new();
+        let mut hasher = Blake2b512::new();
         hasher.update(&buf);
         let index_file_id_hex = hex::encode(&hasher.finalize());
         let index_file_path = dir.join(&index_file_id_hex);
