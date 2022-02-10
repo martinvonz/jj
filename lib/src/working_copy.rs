@@ -37,7 +37,7 @@ use crate::backend::{
 use crate::conflicts::{materialize_conflict, update_conflict_from_content};
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
-use crate::matchers::EverythingMatcher;
+use crate::matchers::{EverythingMatcher, Matcher};
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
@@ -550,14 +550,24 @@ impl TreeState {
                 BackendError::NotFound => CheckoutError::SourceNotFound,
                 other => CheckoutError::InternalBackendError(other),
             })?;
+        let stats = self.update(&old_tree, new_tree, &EverythingMatcher)?;
+        self.tree_id = new_tree.id().clone();
+        Ok(stats)
+    }
 
+    fn update(
+        &mut self,
+        old_tree: &Tree,
+        new_tree: &Tree,
+        matcher: &dyn Matcher,
+    ) -> Result<CheckoutStats, CheckoutError> {
         let mut stats = CheckoutStats {
             updated_files: 0,
             added_files: 0,
             removed_files: 0,
         };
 
-        for (path, diff) in old_tree.diff(new_tree, &EverythingMatcher) {
+        for (path, diff) in old_tree.diff(new_tree, matcher) {
             let disk_path = path.to_fs_path(&self.working_copy_path);
 
             // TODO: Check that the file has not changed before overwriting/removing it.
@@ -629,7 +639,6 @@ impl TreeState {
                 }
             }
         }
-        self.tree_id = new_tree.id().clone();
         Ok(stats)
     }
 
