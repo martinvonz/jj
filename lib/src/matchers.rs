@@ -16,6 +16,8 @@
 
 use std::collections::{BTreeSet, HashMap, HashSet};
 
+use maplit::hashset;
+
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
 #[derive(PartialEq, Eq, Debug)]
@@ -27,6 +29,15 @@ pub enum Visit {
         dirs: VisitDirs,
         files: VisitFiles,
     },
+}
+
+impl Visit {
+    pub fn nothing() -> Self {
+        Self::Specific {
+            dirs: VisitDirs::Set(hashset! {}),
+            files: VisitFiles::Set(hashset! {}),
+        }
+    }
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -44,6 +55,19 @@ pub enum VisitFiles {
 pub trait Matcher {
     fn matches(&self, file: &RepoPath) -> bool;
     fn visit(&self, dir: &RepoPath) -> Visit;
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct NothingMatcher;
+
+impl Matcher for NothingMatcher {
+    fn matches(&self, _file: &RepoPath) -> bool {
+        false
+    }
+
+    fn visit(&self, _dir: &RepoPath) -> Visit {
+        Visit::nothing()
+    }
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -231,17 +255,19 @@ mod tests {
     }
 
     #[test]
+    fn test_nothingmatcher() {
+        let m = NothingMatcher;
+        assert!(!m.matches(&RepoPath::from_internal_string("file")));
+        assert!(!m.matches(&RepoPath::from_internal_string("dir/file")));
+        assert_eq!(m.visit(&RepoPath::root()), Visit::nothing());
+    }
+
+    #[test]
     fn test_filesmatcher_empty() {
         let m = FilesMatcher::new(hashset! {});
         assert!(!m.matches(&RepoPath::from_internal_string("file")));
         assert!(!m.matches(&RepoPath::from_internal_string("dir/file")));
-        assert_eq!(
-            m.visit(&RepoPath::root()),
-            Visit::Specific {
-                dirs: VisitDirs::Set(hashset! {}),
-                files: VisitFiles::Set(hashset! {}),
-            }
-        );
+        assert_eq!(m.visit(&RepoPath::root()), Visit::nothing());
     }
 
     #[test]
@@ -292,13 +318,7 @@ mod tests {
         let m = PrefixMatcher::new(&[]);
         assert!(!m.matches(&RepoPath::from_internal_string("file")));
         assert!(!m.matches(&RepoPath::from_internal_string("dir/file")));
-        assert_eq!(
-            m.visit(&RepoPath::root()),
-            Visit::Specific {
-                dirs: VisitDirs::Set(hashset! {}),
-                files: VisitFiles::Set(hashset! {}),
-            }
-        );
+        assert_eq!(m.visit(&RepoPath::root()), Visit::nothing());
     }
 
     #[test]
@@ -364,10 +384,7 @@ mod tests {
         // visit
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("bar")),
-            Visit::Specific {
-                dirs: VisitDirs::Set(hashset! {}),
-                files: VisitFiles::Set(hashset! {}),
-            }
+            Visit::nothing()
         );
     }
 
