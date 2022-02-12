@@ -400,8 +400,7 @@ fn test_checkout_discard() {
 
     let wc = test_workspace.workspace.working_copy_mut();
     let state_path = wc.state_path().to_path_buf();
-    wc.check_out(repo.op_id().clone(), None, commit1.clone())
-        .unwrap();
+    wc.check_out(repo.op_id().clone(), None, commit1).unwrap();
 
     // Test the setup: the file should exist on disk and in the tree state.
     assert!(file1_path.to_fs_path(&workspace_root).is_file());
@@ -409,9 +408,7 @@ fn test_checkout_discard() {
 
     // Start a checkout
     let mut locked_wc = wc.start_mutation();
-    locked_wc
-        .check_out(Some(commit1.id()), tree2.id().clone())
-        .unwrap();
+    locked_wc.check_out(tree2.id().clone()).unwrap();
     // The change should be reflected in the working copy but not saved
     assert!(!file1_path.to_fs_path(&workspace_root).is_file());
     assert!(file2_path.to_fs_path(&workspace_root).is_file());

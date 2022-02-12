@@ -537,7 +537,7 @@ impl WorkspaceCommandHelper {
                         repo_operation.id().hex()
                     )?;
                     locked_wc
-                        .check_out(Some(&wc_commit_id), checkout_commit.tree_id().clone())
+                        .check_out(checkout_commit.tree_id().clone())
                         .unwrap();
                 } else {
                     return Err(CommandError::InternalError(format!(

@@ -883,14 +883,17 @@ impl WorkingCopy {
         new_commit: Commit,
     ) -> Result<CheckoutStats, CheckoutError> {
         let mut locked_wc = self.start_mutation();
-        let new_commit_id = new_commit.id().clone();
-        let stats = match locked_wc.check_out(old_commit_id, new_commit.tree_id().clone()) {
-            Err(CheckoutError::ConcurrentCheckout) => {
+        // Check if the current checkout has changed on disk compared to what the caller
+        // expected. It's safe to check out another commit regardless, but it's
+        // probably not what  the caller wanted, so we let them know.
+        if let Some(old_commit_id) = old_commit_id {
+            if *old_commit_id != locked_wc.old_commit_id {
                 locked_wc.discard();
                 return Err(CheckoutError::ConcurrentCheckout);
             }
-            other => other,
-        }?;
+        }
+        let new_commit_id = new_commit.id().clone();
+        let stats = locked_wc.check_out(new_commit.tree_id().clone())?;
         locked_wc.finish(operation_id, new_commit_id);
         Ok(stats)
     }
@@ -922,23 +925,9 @@ impl LockedWorkingCopy<'_> {
         self.wc.tree_state().as_mut().unwrap().write_tree()
     }
 
-    pub fn check_out(
-        &mut self,
-        old_commit_id: Option<&CommitId>,
-        new_tree_id: TreeId,
-    ) -> Result<CheckoutStats, CheckoutError> {
+    pub fn check_out(&mut self, new_tree_id: TreeId) -> Result<CheckoutStats, CheckoutError> {
         // TODO: Write a "pending_checkout" file with the old and new TreeIds so we can
         // continue an interrupted checkout if we find such a file.
-
-        // Check if the current checkout has changed on disk compared to what the caller
-        // expected. It's safe to check out another commit regardless, but it's
-        // probably not what  the caller wanted, so we let them know.
-        if let Some(old_commit_id) = old_commit_id {
-            if *old_commit_id != self.old_commit_id {
-                return Err(CheckoutError::ConcurrentCheckout);
-            }
-        }
-
         let stats = self
             .wc
             .tree_state()
