@@ -719,28 +719,24 @@ pub struct WorkingCopy {
     state_path: PathBuf,
     operation_id: RefCell<Option<OperationId>>,
     workspace_id: RefCell<Option<WorkspaceId>>,
-    commit_id: RefCell<Option<CommitId>>,
     tree_state: RefCell<Option<TreeState>>,
 }
 
 impl WorkingCopy {
     /// Initializes a new working copy at `working_copy_path`. The working
-    /// copy's state will be stored in the `state_path` directory. The
-    /// working copy will be recorded as being already checked out at commit
-    /// pointed to by `commit_id`; this function doesn't update the working
-    /// copy file to that commit.
+    /// copy's state will be stored in the `state_path` directory. The working
+    /// copy will have the empty tree checked out.
     pub fn init(
         store: Arc<Store>,
         working_copy_path: PathBuf,
         state_path: PathBuf,
         operation_id: OperationId,
         workspace_id: WorkspaceId,
-        commit_id: CommitId,
+        _commit_id: CommitId,
     ) -> WorkingCopy {
         let mut proto = crate::protos::working_copy::Checkout::new();
         proto.operation_id = operation_id.to_bytes();
         proto.workspace_id = workspace_id.as_str().to_string();
-        proto.commit_id = commit_id.to_bytes();
         let mut file = OpenOptions::new()
             .create_new(true)
             .write(true)
@@ -753,7 +749,6 @@ impl WorkingCopy {
             state_path,
             operation_id: RefCell::new(Some(operation_id)),
             workspace_id: RefCell::new(Some(workspace_id)),
-            commit_id: RefCell::new(Some(commit_id)),
             tree_state: RefCell::new(None),
         }
     }
@@ -765,7 +760,6 @@ impl WorkingCopy {
             state_path,
             operation_id: RefCell::new(None),
             workspace_id: RefCell::new(None),
-            commit_id: RefCell::new(None),
             tree_state: RefCell::new(None),
         }
     }
@@ -796,7 +790,6 @@ impl WorkingCopy {
             WorkspaceId::new(proto.workspace_id)
         };
         self.workspace_id.replace(Some(workspace_id));
-        self.commit_id.replace(Some(CommitId::new(proto.commit_id)));
     }
 
     pub fn operation_id(&self) -> OperationId {
@@ -813,18 +806,6 @@ impl WorkingCopy {
         }
 
         self.workspace_id.borrow().as_ref().unwrap().clone()
-    }
-
-    /// The id of the commit that's currently checked out in the working copy.
-    /// Note that the View is the source of truth for which commit *should*
-    /// be checked out. That should be kept up to date within a Transaction.
-    /// The WorkingCopy is only updated at the end.
-    pub fn current_commit_id(&self) -> CommitId {
-        if self.commit_id.borrow().is_none() {
-            self.load_proto();
-        }
-
-        self.commit_id.borrow().as_ref().unwrap().clone()
     }
 
     fn tree_state(&self) -> RefMut<Option<TreeState>> {
@@ -854,7 +835,6 @@ impl WorkingCopy {
         let mut proto = crate::protos::working_copy::Checkout::new();
         proto.operation_id = self.operation_id().to_bytes();
         proto.workspace_id = self.workspace_id().as_str().to_string();
-        proto.commit_id = self.current_commit_id().to_bytes();
         self.write_proto(proto);
     }
 
@@ -944,10 +924,9 @@ impl LockedWorkingCopy<'_> {
         self.wc.tree_state().as_mut().unwrap().reset(new_tree)
     }
 
-    pub fn finish(mut self, operation_id: OperationId, commit_id: CommitId) {
+    pub fn finish(mut self, operation_id: OperationId, _commit_id: CommitId) {
         self.wc.tree_state().as_mut().unwrap().save();
         self.wc.operation_id.replace(Some(operation_id));
-        self.wc.commit_id.replace(Some(commit_id));
         self.wc.save();
         // TODO: Clear the "pending_checkout" file here.
         self.closed = true;
