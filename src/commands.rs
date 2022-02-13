@@ -3656,7 +3656,7 @@ fn cmd_debug(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
     } else if let Some(_wc_matches) = args.subcommand_matches("workingcopy") {
         let workspace_command = command.workspace_helper(ui)?;
         let wc = workspace_command.working_copy();
-        writeln!(ui, "Current commit: {:?}", wc.current_commit_id())?;
+        writeln!(ui, "Current operation: {:?}", wc.operation_id())?;
         writeln!(ui, "Current tree: {:?}", wc.current_tree_id())?;
         for (file, state) in wc.file_states().iter() {
             writeln!(
