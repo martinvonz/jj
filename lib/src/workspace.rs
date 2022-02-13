@@ -69,7 +69,7 @@ fn init_working_copy(
     std::fs::create_dir(&working_copy_state_path).unwrap();
 
     let mut tx = repo.start_transaction(&format!("add workspace '{}'", workspace_id.as_str()));
-    let checkout_commit = tx.mut_repo().check_out(
+    tx.mut_repo().check_out(
         workspace_id.clone(),
         user_settings,
         &repo.store().root_commit(),
@@ -82,7 +82,6 @@ fn init_working_copy(
         working_copy_state_path,
         repo.op_id().clone(),
         workspace_id,
-        checkout_commit.id().clone(),
     );
     (working_copy, repo)
 }

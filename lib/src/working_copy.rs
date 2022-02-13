@@ -732,7 +732,6 @@ impl WorkingCopy {
         state_path: PathBuf,
         operation_id: OperationId,
         workspace_id: WorkspaceId,
-        _commit_id: CommitId,
     ) -> WorkingCopy {
         let mut proto = crate::protos::working_copy::Checkout::new();
         proto.operation_id = operation_id.to_bytes();
