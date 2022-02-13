@@ -1751,16 +1751,28 @@ fn cmd_untrack(
         args.values_of("paths"),
     )?;
 
+    let current_checkout_id = workspace_command
+        .repo
+        .view()
+        .get_checkout(&workspace_command.workspace_id());
+    let current_checkout = if let Some(current_checkout_id) = current_checkout_id {
+        store.get_commit(current_checkout_id).unwrap()
+    } else {
+        return Err(CommandError::UserError(
+            "Nothing checked out in this workspace".to_string(),
+        ));
+    };
+
     let mut tx = workspace_command.start_transaction("untrack paths");
     let mut locked_working_copy = workspace_command.working_copy_mut().start_mutation();
-    // TODO: Error out if locked_working_copy.old_commit_id() doesn't match
-    // repo.view().checkout()
-    let old_commit = store
-        .get_commit(locked_working_copy.old_commit_id())
-        .unwrap();
+    if current_checkout.id() != locked_working_copy.old_commit_id() {
+        return Err(CommandError::UserError(
+            "Concurrent working copy operation. Try again.".to_string(),
+        ));
+    }
     // Create a new tree without the unwanted files
-    let mut tree_builder = store.tree_builder(old_commit.tree_id().clone());
-    for (path, _value) in old_commit.tree().entries_matching(matcher.as_ref()) {
+    let mut tree_builder = store.tree_builder(current_checkout.tree_id().clone());
+    for (path, _value) in current_checkout.tree().entries_matching(matcher.as_ref()) {
         tree_builder.remove(path);
     }
     let new_tree_id = tree_builder.write_tree();
@@ -1786,7 +1798,7 @@ fn cmd_untrack(
             locked_working_copy.reset(&new_tree)?;
         }
     }
-    let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &store, &old_commit)
+    let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &store, &current_checkout)
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
     let num_rebased = tx.mut_repo().rebase_descendants(ui.settings());
