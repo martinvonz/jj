@@ -299,16 +299,15 @@ impl WorkspaceCommandHelper {
                     .repo
                     .store()
                     .get_commit(new_git_head.as_ref().unwrap())?;
-                let new_wc_commit =
-                    tx.mut_repo()
-                        .check_out(workspace_id, &self.settings, &new_checkout);
+                tx.mut_repo()
+                    .check_out(workspace_id, &self.settings, &new_checkout);
                 // The working copy was presumably updated by the git command that updated HEAD,
                 // so we just need to reset our working copy state to it without updating
                 // working copy files.
                 locked_working_copy.reset(&new_checkout.tree())?;
                 tx.mut_repo().rebase_descendants(&self.settings);
                 self.repo = tx.commit();
-                locked_working_copy.finish(self.repo.op_id().clone(), new_wc_commit.id().clone());
+                locked_working_copy.finish(self.repo.op_id().clone());
             } else {
                 self.repo = tx.commit();
             }
@@ -580,7 +579,7 @@ impl WorkspaceCommandHelper {
             }
 
             self.repo = tx.commit();
-            locked_wc.finish(self.repo.op_id().clone(), commit.id().clone());
+            locked_wc.finish(self.repo.op_id().clone());
         } else {
             locked_wc.discard();
         }
@@ -1801,7 +1800,7 @@ fn cmd_untrack(
             locked_working_copy.reset(&new_tree)?;
         }
     }
-    let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &store, &current_checkout)
+    CommitBuilder::for_rewrite_from(ui.settings(), &store, &current_checkout)
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
     let num_rebased = tx.mut_repo().rebase_descendants(ui.settings());
@@ -1809,7 +1808,7 @@ fn cmd_untrack(
         writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
     }
     let repo = tx.commit();
-    locked_working_copy.finish(repo.op_id().clone(), new_commit.id().clone());
+    locked_working_copy.finish(repo.op_id().clone());
     Ok(())
 }
 

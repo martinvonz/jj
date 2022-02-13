@@ -312,13 +312,6 @@ fn test_reset() {
     let mut tx = repo.start_transaction("test");
     let store = repo.store();
     let root_commit = store.root_commit_id();
-    let commit_without_file = CommitBuilder::for_open_commit(
-        &settings,
-        store,
-        root_commit.clone(),
-        tree_without_file.id().clone(),
-    )
-    .write_to_repo(tx.mut_repo());
     let commit_with_file = CommitBuilder::for_open_commit(
         &settings,
         store,
@@ -330,7 +323,7 @@ fn test_reset() {
     test_workspace.repo = repo.clone();
 
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, commit_with_file.clone())
+    wc.check_out(repo.op_id().clone(), None, commit_with_file)
         .unwrap();
 
     // Test the setup: the file should exist on disk and in the tree state.
@@ -342,7 +335,7 @@ fn test_reset() {
     // commit the working copy (because it's ignored).
     let mut locked_wc = wc.start_mutation();
     locked_wc.reset(&tree_without_file).unwrap();
-    locked_wc.finish(repo.op_id().clone(), commit_without_file.id().clone());
+    locked_wc.finish(repo.op_id().clone());
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
@@ -355,7 +348,7 @@ fn test_reset() {
     // commit the working copy (because it's ignored).
     let mut locked_wc = wc.start_mutation();
     locked_wc.reset(&tree_without_file).unwrap();
-    locked_wc.finish(repo.op_id().clone(), commit_without_file.id().clone());
+    locked_wc.finish(repo.op_id().clone());
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
@@ -367,7 +360,7 @@ fn test_reset() {
     // tracked. The file should become tracked (even though it's ignored).
     let mut locked_wc = wc.start_mutation();
     locked_wc.reset(&tree_with_file).unwrap();
-    locked_wc.finish(repo.op_id().clone(), commit_with_file.id().clone());
+    locked_wc.finish(repo.op_id().clone());
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
@@ -487,12 +480,7 @@ fn test_gitignores(use_git: bool) {
     let wc = test_workspace.workspace.working_copy_mut();
     let mut locked_wc = wc.start_mutation();
     let new_tree_id1 = locked_wc.write_tree();
-    let mut tx = repo.start_transaction("test");
-    let initial_commit =
-        CommitBuilder::for_new_commit(&settings, repo.store(), new_tree_id1.clone())
-            .write_to_repo(tx.mut_repo());
-    let repo = tx.commit();
-    locked_wc.finish(repo.op_id().clone(), initial_commit.id().clone());
+    locked_wc.finish(repo.op_id().clone());
     let tree1 = repo
         .store()
         .get_tree(&RepoPath::root(), &new_tree_id1)

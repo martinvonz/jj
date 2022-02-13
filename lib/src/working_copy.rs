@@ -32,7 +32,7 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::backend::{
-    BackendError, CommitId, ConflictId, FileId, MillisSinceEpoch, SymlinkId, TreeId, TreeValue,
+    BackendError, ConflictId, FileId, MillisSinceEpoch, SymlinkId, TreeId, TreeValue,
 };
 use crate::commit::Commit;
 use crate::conflicts::{materialize_conflict, update_conflict_from_content};
@@ -874,9 +874,8 @@ impl WorkingCopy {
                 return Err(CheckoutError::ConcurrentCheckout);
             }
         }
-        let new_commit_id = new_commit.id().clone();
         let stats = locked_wc.check_out(new_commit.tree_id().clone())?;
-        locked_wc.finish(operation_id, new_commit_id);
+        locked_wc.finish(operation_id);
         Ok(stats)
     }
 }
@@ -923,7 +922,7 @@ impl LockedWorkingCopy<'_> {
         self.wc.tree_state().as_mut().unwrap().reset(new_tree)
     }
 
-    pub fn finish(mut self, operation_id: OperationId, _commit_id: CommitId) {
+    pub fn finish(mut self, operation_id: OperationId) {
         self.wc.tree_state().as_mut().unwrap().save();
         self.wc.operation_id.replace(Some(operation_id));
         self.wc.save();
