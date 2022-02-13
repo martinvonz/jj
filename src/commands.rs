@@ -33,7 +33,7 @@ use clap::{crate_version, App, Arg, ArgMatches};
 use criterion::Criterion;
 use git2::{Oid, Repository};
 use itertools::Itertools;
-use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeValue};
+use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::dag_walk::topo_order_reverse;
@@ -501,8 +501,8 @@ impl WorkspaceCommandHelper {
         // in the index and view, and so we don't cause unnecessary
         // divergence.
         let checkout_commit = repo.store().get_commit(&checkout_id).unwrap();
-        let wc_commit_id = locked_wc.old_commit_id().clone();
-        if *checkout_commit.id() != wc_commit_id {
+        let wc_tree_id = locked_wc.old_tree_id().clone();
+        if *checkout_commit.tree_id() != wc_tree_id {
             let wc_operation_data = self
                 .repo
                 .op_store()
@@ -619,6 +619,7 @@ impl WorkspaceCommandHelper {
 
     fn finish_transaction(&mut self, ui: &mut Ui, mut tx: Transaction) -> Result<(), CommandError> {
         let mut_repo = tx.mut_repo();
+        let store = mut_repo.store().clone();
         if !mut_repo.has_changes() {
             writeln!(ui, "Nothing changed.")?;
             return Ok(());
@@ -629,11 +630,11 @@ impl WorkspaceCommandHelper {
                 writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
             }
         }
-        let maybe_old_commit_id = tx
+        let maybe_old_tree_id = tx
             .base_repo()
             .view()
             .get_checkout(&self.workspace_id())
-            .cloned();
+            .map(|commit_id| store.get_commit(commit_id).unwrap().tree_id().clone());
         self.repo = tx.commit();
         if self.may_update_working_copy {
             let stats = update_working_copy(
@@ -641,7 +642,7 @@ impl WorkspaceCommandHelper {
                 &self.repo,
                 &self.workspace_id(),
                 self.workspace.working_copy_mut(),
-                maybe_old_commit_id.as_ref(),
+                maybe_old_tree_id.as_ref(),
             )?;
             if let Some(stats) = stats {
                 if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
@@ -783,7 +784,7 @@ fn update_working_copy(
     repo: &Arc<ReadonlyRepo>,
     workspace_id: &WorkspaceId,
     wc: &mut WorkingCopy,
-    old_commit_id: Option<&CommitId>,
+    old_tree_id: Option<&TreeId>,
 ) -> Result<Option<CheckoutStats>, CommandError> {
     let new_commit_id = match repo.view().get_checkout(workspace_id) {
         Some(new_commit_id) => new_commit_id,
@@ -792,25 +793,27 @@ fn update_working_copy(
             return Ok(None);
         }
     };
-    if Some(new_commit_id) == old_commit_id {
-        return Ok(None);
-    }
-    // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
-    // warning for most commands (but be an error for the checkout command)
     let new_commit = repo.store().get_commit(new_commit_id).unwrap();
-    let stats = wc
-        .check_out(repo.op_id().clone(), old_commit_id, new_commit.clone())
-        .map_err(|err| {
-            CommandError::InternalError(format!(
-                "Failed to check out commit {}: {}",
-                new_commit.id().hex(),
-                err
-            ))
-        })?;
+    let stats = if Some(new_commit.tree_id()) != old_tree_id {
+        // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
+        // warning for most commands (but be an error for the checkout command)
+        let stats = wc
+            .check_out(repo.op_id().clone(), old_tree_id, new_commit.clone())
+            .map_err(|err| {
+                CommandError::InternalError(format!(
+                    "Failed to check out commit {}: {}",
+                    new_commit.id().hex(),
+                    err
+                ))
+            })?;
+        Some(stats)
+    } else {
+        None
+    };
     ui.write("Working copy now at: ")?;
     ui.write_commit_summary(repo.as_repo_ref(), workspace_id, &new_commit)?;
     ui.write("\n")?;
-    Ok(Some(stats))
+    Ok(stats)
 }
 
 fn get_app<'help>() -> App<'help> {
@@ -1765,7 +1768,7 @@ fn cmd_untrack(
 
     let mut tx = workspace_command.start_transaction("untrack paths");
     let mut locked_working_copy = workspace_command.working_copy_mut().start_mutation();
-    if current_checkout.id() != locked_working_copy.old_commit_id() {
+    if current_checkout.tree_id() != locked_working_copy.old_tree_id() {
         return Err(CommandError::UserError(
             "Concurrent working copy operation. Try again.".to_string(),
         ));

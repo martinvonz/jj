@@ -47,7 +47,7 @@ fn test_concurrent_checkout(use_git: bool) {
 
     // Check out commit1
     let wc1 = test_workspace1.workspace.working_copy_mut();
-    let commit_id1 = commit1.id().clone();
+    let tree_id1 = commit1.tree_id().clone();
     // The operation ID is not correct, but that doesn't matter for this test
     wc1.check_out(repo1.op_id().clone(), None, commit1).unwrap();
 
@@ -56,12 +56,12 @@ fn test_concurrent_checkout(use_git: bool) {
     let mut workspace2 = Workspace::load(&settings, workspace1_root.clone()).unwrap();
     workspace2
         .working_copy_mut()
-        .check_out(repo1.op_id().clone(), Some(&commit_id1), commit2.clone())
+        .check_out(repo1.op_id().clone(), Some(&tree_id1), commit2.clone())
         .unwrap();
 
     // Checking out another commit (via the first repo instance) should now fail.
     assert_eq!(
-        wc1.check_out(repo1.op_id().clone(), Some(&commit_id1), commit3),
+        wc1.check_out(repo1.op_id().clone(), Some(&tree_id1), commit3),
         Err(CheckoutError::ConcurrentCheckout)
     );
 

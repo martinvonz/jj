@@ -864,14 +864,17 @@ impl WorkingCopy {
 
         // Re-read from disk after taking the lock
         self.load_proto();
+        // TODO: It's expensive to reload the whole tree. We should first check if it
+        // has changed.
+        self.tree_state.replace(None);
         let old_operation_id = self.operation_id();
-        let old_commit_id = self.current_commit_id();
+        let old_tree_id = self.current_tree_id();
 
         LockedWorkingCopy {
             wc: self,
             lock,
             old_operation_id,
-            old_commit_id,
+            old_tree_id,
             closed: false,
         }
     }
@@ -879,15 +882,15 @@ impl WorkingCopy {
     pub fn check_out(
         &mut self,
         operation_id: OperationId,
-        old_commit_id: Option<&CommitId>,
+        old_tree_id: Option<&TreeId>,
         new_commit: Commit,
     ) -> Result<CheckoutStats, CheckoutError> {
         let mut locked_wc = self.start_mutation();
         // Check if the current checkout has changed on disk compared to what the caller
         // expected. It's safe to check out another commit regardless, but it's
         // probably not what  the caller wanted, so we let them know.
-        if let Some(old_commit_id) = old_commit_id {
-            if *old_commit_id != locked_wc.old_commit_id {
+        if let Some(old_tree_id) = old_tree_id {
+            if *old_tree_id != locked_wc.old_tree_id {
                 locked_wc.discard();
                 return Err(CheckoutError::ConcurrentCheckout);
             }
@@ -906,7 +909,7 @@ pub struct LockedWorkingCopy<'a> {
     #[allow(dead_code)]
     lock: FileLock,
     old_operation_id: OperationId,
-    old_commit_id: CommitId,
+    old_tree_id: TreeId,
     closed: bool,
 }
 
@@ -916,9 +919,9 @@ impl LockedWorkingCopy<'_> {
         &self.old_operation_id
     }
 
-    /// The commit at the time the lock was taken
-    pub fn old_commit_id(&self) -> &CommitId {
-        &self.old_commit_id
+    /// The tree at the time the lock was taken
+    pub fn old_tree_id(&self) -> &TreeId {
+        &self.old_tree_id
     }
 
     pub fn write_tree(&mut self) -> TreeId {
