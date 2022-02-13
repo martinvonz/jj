@@ -55,12 +55,12 @@ fn check_out(
     store: Arc<Store>,
     wc_dir: PathBuf,
     state_dir: PathBuf,
-    tree_id: TreeId,
+    tree: &Tree,
 ) -> Result<TreeState, DiffEditError> {
     std::fs::create_dir(&wc_dir).unwrap();
     std::fs::create_dir(&state_dir).unwrap();
     let mut tree_state = TreeState::init(store, wc_dir, state_dir);
-    tree_state.check_out(tree_id)?;
+    tree_state.check_out(tree)?;
     Ok(tree_state)
 }
 
@@ -97,6 +97,7 @@ pub fn edit_diff(
     }
     let left_partial_tree_id = left_tree_builder.write_tree();
     let right_partial_tree_id = right_tree_builder.write_tree();
+    let left_partial_tree = store.get_tree(&RepoPath::root(), &left_partial_tree_id)?;
     let right_partial_tree = store.get_tree(&RepoPath::root(), &right_partial_tree_id)?;
 
     // Check out the two partial trees in temporary directories.
@@ -109,14 +110,14 @@ pub fn edit_diff(
         store.clone(),
         left_wc_dir.clone(),
         left_state_dir,
-        left_partial_tree_id,
+        &left_partial_tree,
     )?;
     set_readonly_recursively(&left_wc_dir);
     let mut right_tree_state = check_out(
         store.clone(),
         right_wc_dir.clone(),
         right_state_dir,
-        right_partial_tree_id,
+        &right_partial_tree,
     )?;
     let instructions_path = right_wc_dir.join("JJ-INSTRUCTIONS");
     // In the unlikely event that the file already exists, then the user will simply

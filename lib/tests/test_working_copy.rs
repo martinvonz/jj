@@ -401,7 +401,7 @@ fn test_checkout_discard() {
 
     // Start a checkout
     let mut locked_wc = wc.start_mutation();
-    locked_wc.check_out(tree2.id().clone()).unwrap();
+    locked_wc.check_out(&tree2).unwrap();
     // The change should be reflected in the working copy but not saved
     assert!(!file1_path.to_fs_path(&workspace_root).is_file());
     assert!(file2_path.to_fs_path(&workspace_root).is_file());

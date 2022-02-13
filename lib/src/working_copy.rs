@@ -176,8 +176,6 @@ pub struct CheckoutStats {
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum CheckoutError {
-    #[error("Update target not found")]
-    TargetNotFound,
     // The current checkout was deleted, maybe by an overly aggressive GC that happened while
     // the current process was running.
     #[error("Current checkout not found")]
@@ -574,7 +572,7 @@ impl TreeState {
         }
     }
 
-    pub fn check_out(&mut self, tree_id: TreeId) -> Result<CheckoutStats, CheckoutError> {
+    pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {
         let old_tree = self
             .store
             .get_tree(&RepoPath::root(), &self.tree_id)
@@ -582,13 +580,6 @@ impl TreeState {
                 BackendError::NotFound => CheckoutError::SourceNotFound,
                 other => CheckoutError::InternalBackendError(other),
             })?;
-        let new_tree =
-            self.store
-                .get_tree(&RepoPath::root(), &tree_id)
-                .map_err(|err| match err {
-                    BackendError::NotFound => CheckoutError::TargetNotFound,
-                    other => CheckoutError::InternalBackendError(other),
-                })?;
 
         let mut stats = CheckoutStats {
             updated_files: 0,
@@ -596,7 +587,7 @@ impl TreeState {
             removed_files: 0,
         };
 
-        for (path, diff) in old_tree.diff(&new_tree, &EverythingMatcher) {
+        for (path, diff) in old_tree.diff(new_tree, &EverythingMatcher) {
             let disk_path = path.to_fs_path(&self.working_copy_path);
 
             // TODO: Check that the file has not changed before overwriting/removing it.
@@ -668,7 +659,7 @@ impl TreeState {
                 }
             }
         }
-        self.tree_id = tree_id;
+        self.tree_id = new_tree.id().clone();
         Ok(stats)
     }
 
@@ -874,7 +865,7 @@ impl WorkingCopy {
                 return Err(CheckoutError::ConcurrentCheckout);
             }
         }
-        let stats = locked_wc.check_out(new_commit.tree_id().clone())?;
+        let stats = locked_wc.check_out(&new_commit.tree())?;
         locked_wc.finish(operation_id);
         Ok(stats)
     }
@@ -906,15 +897,10 @@ impl LockedWorkingCopy<'_> {
         self.wc.tree_state().as_mut().unwrap().write_tree()
     }
 
-    pub fn check_out(&mut self, new_tree_id: TreeId) -> Result<CheckoutStats, CheckoutError> {
+    pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {
         // TODO: Write a "pending_checkout" file with the old and new TreeIds so we can
         // continue an interrupted checkout if we find such a file.
-        let stats = self
-            .wc
-            .tree_state()
-            .as_mut()
-            .unwrap()
-            .check_out(new_tree_id)?;
+        let stats = self.wc.tree_state().as_mut().unwrap().check_out(new_tree)?;
         Ok(stats)
     }
 
