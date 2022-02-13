@@ -34,7 +34,6 @@ use thiserror::Error;
 use crate::backend::{
     BackendError, ConflictId, FileId, MillisSinceEpoch, SymlinkId, TreeId, TreeValue,
 };
-use crate::commit::Commit;
 use crate::conflicts::{materialize_conflict, update_conflict_from_content};
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
@@ -853,7 +852,7 @@ impl WorkingCopy {
         &mut self,
         operation_id: OperationId,
         old_tree_id: Option<&TreeId>,
-        new_commit: Commit,
+        new_tree: &Tree,
     ) -> Result<CheckoutStats, CheckoutError> {
         let mut locked_wc = self.start_mutation();
         // Check if the current checkout has changed on disk compared to what the caller
@@ -865,7 +864,7 @@ impl WorkingCopy {
                 return Err(CheckoutError::ConcurrentCheckout);
             }
         }
-        let stats = locked_wc.check_out(&new_commit.tree())?;
+        let stats = locked_wc.check_out(new_tree)?;
         locked_wc.finish(operation_id);
         Ok(stats)
     }

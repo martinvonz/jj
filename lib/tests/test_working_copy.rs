@@ -20,7 +20,6 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
-use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
@@ -205,29 +204,20 @@ fn test_checkout_file_transitions(use_git: bool) {
     }
     let left_tree_id = left_tree_builder.write_tree();
     let right_tree_id = right_tree_builder.write_tree();
-
-    let mut tx = repo.start_transaction("test");
-    let left_commit = CommitBuilder::for_new_commit(&settings, repo.store(), left_tree_id)
-        .set_parents(vec![store.root_commit_id().clone()])
-        .set_open(true)
-        .write_to_repo(tx.mut_repo());
-    let right_commit = CommitBuilder::for_new_commit(&settings, repo.store(), right_tree_id)
-        .set_parents(vec![store.root_commit_id().clone()])
-        .set_open(true)
-        .write_to_repo(tx.mut_repo());
-    let repo = tx.commit();
+    let left_tree = store.get_tree(&RepoPath::root(), &left_tree_id).unwrap();
+    let right_tree = store.get_tree(&RepoPath::root(), &right_tree_id).unwrap();
 
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, left_commit)
+    wc.check_out(repo.op_id().clone(), None, &left_tree)
         .unwrap();
-    wc.check_out(repo.op_id().clone(), None, right_commit.clone())
+    wc.check_out(repo.op_id().clone(), None, &right_tree)
         .unwrap();
 
     // Check that the working copy is clean.
     let mut locked_wc = wc.start_mutation();
     let new_tree_id = locked_wc.write_tree();
     locked_wc.discard();
-    assert_eq!(&new_tree_id, right_commit.tree().id());
+    assert_eq!(new_tree_id, right_tree_id);
 
     for (_left_kind, right_kind, path) in &files {
         let wc_path = workspace_root.join(path);
@@ -309,21 +299,9 @@ fn test_reset() {
         repo,
         &[(&gitignore_path, "ignored\n"), (&ignored_path, "code")],
     );
-    let mut tx = repo.start_transaction("test");
-    let store = repo.store();
-    let root_commit = store.root_commit_id();
-    let commit_with_file = CommitBuilder::for_open_commit(
-        &settings,
-        store,
-        root_commit.clone(),
-        tree_with_file.id().clone(),
-    )
-    .write_to_repo(tx.mut_repo());
-    let repo = tx.commit();
-    test_workspace.repo = repo.clone();
 
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, commit_with_file)
+    wc.check_out(repo.op_id().clone(), None, &tree_with_file)
         .unwrap();
 
     // Test the setup: the file should exist on disk and in the tree state.
@@ -382,18 +360,13 @@ fn test_checkout_discard() {
     let file1_path = RepoPath::from_internal_string("file1");
     let file2_path = RepoPath::from_internal_string("file2");
 
-    let mut tx = repo.start_transaction("test");
     let store = repo.store();
     let tree1 = testutils::create_tree(&repo, &[(&file1_path, "contents")]);
     let tree2 = testutils::create_tree(&repo, &[(&file2_path, "contents")]);
-    let commit1 = CommitBuilder::for_new_commit(&settings, store, tree1.id().clone())
-        .write_to_repo(tx.mut_repo());
-    let repo = tx.commit();
-    test_workspace.repo = repo.clone();
 
     let wc = test_workspace.workspace.working_copy_mut();
     let state_path = wc.state_path().to_path_buf();
-    wc.check_out(repo.op_id().clone(), None, commit1).unwrap();
+    wc.check_out(repo.op_id().clone(), None, &tree1).unwrap();
 
     // Test the setup: the file should exist on disk and in the tree state.
     assert!(file1_path.to_fs_path(&workspace_root).is_file());
@@ -545,24 +518,19 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     let modified_path = RepoPath::from_internal_string("modified");
     testutils::write_working_copy_file(&workspace_root, &modified_path, "garbage");
 
-    // Create a commit that adds the same file but with different contents
-    let mut tx = repo.start_transaction("test");
+    // Create a tree that adds the same file but with different contents
     let mut tree_builder = repo
         .store()
         .tree_builder(repo.store().empty_tree_id().clone());
     testutils::write_normal_file(&mut tree_builder, &modified_path, "contents");
     let tree_id = tree_builder.write_tree();
-    let commit = CommitBuilder::for_new_commit(&settings, repo.store(), tree_id)
-        .set_open(true)
-        .set_description("add file".to_string())
-        .write_to_repo(tx.mut_repo());
-    let repo = tx.commit();
+    let tree = repo.store().get_tree(&RepoPath::root(), &tree_id).unwrap();
 
-    // Now check out the commit that adds the file "modified" with contents
+    // Now check out the tree that adds the file "modified" with contents
     // "contents". The exiting contents ("garbage") should be replaced in the
     // working copy.
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, commit).unwrap();
+    wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
 
     // Check that the new contents are in the working copy
     let path = workspace_root.join("modified");
@@ -605,22 +573,17 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     );
     let file_path = RepoPath::from_internal_string("ignored/file");
 
-    // Create a commit that adds a file in the ignored directory
-    let mut tx = repo.start_transaction("test");
+    // Create a tree that adds a file in the ignored directory
     let mut tree_builder = repo
         .store()
         .tree_builder(repo.store().empty_tree_id().clone());
     testutils::write_normal_file(&mut tree_builder, &file_path, "contents");
     let tree_id = tree_builder.write_tree();
-    let commit = CommitBuilder::for_new_commit(&settings, repo.store(), tree_id)
-        .set_open(true)
-        .set_description("add ignored file".to_string())
-        .write_to_repo(tx.mut_repo());
-    let repo = tx.commit();
+    let tree = repo.store().get_tree(&RepoPath::root(), &tree_id).unwrap();
 
-    // Check out the commit with the file in ignored/
+    // Check out the tree with the file in ignored/
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, commit).unwrap();
+    wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
 
     // Check that the file is still in the tree created by committing the working
     // copy (that it didn't get removed because the directory is ignored)

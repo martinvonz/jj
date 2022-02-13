@@ -13,10 +13,8 @@
 // limitations under the License.
 
 use std::cmp::max;
-use std::collections::HashSet;
 use std::thread;
 
-use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::testutils;
 use jujutsu_lib::working_copy::CheckoutError;
@@ -33,44 +31,44 @@ fn test_concurrent_checkout(use_git: bool) {
     let repo1 = test_workspace1.repo.clone();
     let workspace1_root = test_workspace1.workspace.workspace_root().clone();
 
-    let mut tx1 = repo1.start_transaction("test");
-    let commit1 = testutils::create_random_commit(&settings, &repo1)
-        .set_open(true)
-        .write_to_repo(tx1.mut_repo());
-    let commit2 = testutils::create_random_commit(&settings, &repo1)
-        .set_open(true)
-        .write_to_repo(tx1.mut_repo());
-    let commit3 = testutils::create_random_commit(&settings, &repo1)
-        .set_open(true)
-        .write_to_repo(tx1.mut_repo());
-    tx1.commit();
+    let tree_id1 = testutils::create_random_tree(&repo1);
+    let tree_id2 = testutils::create_random_tree(&repo1);
+    let tree_id3 = testutils::create_random_tree(&repo1);
+    let tree1 = repo1
+        .store()
+        .get_tree(&RepoPath::root(), &tree_id1)
+        .unwrap();
+    let tree2 = repo1
+        .store()
+        .get_tree(&RepoPath::root(), &tree_id2)
+        .unwrap();
+    let tree3 = repo1
+        .store()
+        .get_tree(&RepoPath::root(), &tree_id3)
+        .unwrap();
 
-    // Check out commit1
+    // Check out tree1
     let wc1 = test_workspace1.workspace.working_copy_mut();
-    let tree_id1 = commit1.tree_id().clone();
     // The operation ID is not correct, but that doesn't matter for this test
-    wc1.check_out(repo1.op_id().clone(), None, commit1).unwrap();
+    wc1.check_out(repo1.op_id().clone(), None, &tree1).unwrap();
 
-    // Check out commit2 from another process (simulated by another workspace
+    // Check out tree2 from another process (simulated by another workspace
     // instance)
     let mut workspace2 = Workspace::load(&settings, workspace1_root.clone()).unwrap();
     workspace2
         .working_copy_mut()
-        .check_out(repo1.op_id().clone(), Some(&tree_id1), commit2.clone())
+        .check_out(repo1.op_id().clone(), Some(&tree_id1), &tree2)
         .unwrap();
 
-    // Checking out another commit (via the first repo instance) should now fail.
+    // Checking out another tree (via the first repo instance) should now fail.
     assert_eq!(
-        wc1.check_out(repo1.op_id().clone(), Some(&tree_id1), commit3),
+        wc1.check_out(repo1.op_id().clone(), Some(&tree_id1), &tree3),
         Err(CheckoutError::ConcurrentCheckout)
     );
 
-    // Check that the commit2 is still checked out on disk.
+    // Check that the tree2 is still checked out on disk.
     let workspace3 = Workspace::load(&settings, workspace1_root).unwrap();
-    assert_eq!(
-        workspace3.working_copy().current_tree_id(),
-        commit2.tree().id().clone()
-    );
+    assert_eq!(workspace3.working_copy().current_tree_id(), tree_id2);
 }
 
 #[test_case(false ; "local backend")]
@@ -81,57 +79,46 @@ fn test_checkout_parallel(use_git: bool) {
     let settings = testutils::user_settings();
     let mut test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
-    let store = repo.store();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
     let num_threads = max(num_cpus::get(), 4);
-    let mut tree_ids = HashSet::new();
-    let mut commit_ids = vec![];
-    let mut tx = repo.start_transaction("test");
+    let mut tree_ids = vec![];
     for i in 0..num_threads {
         let path = RepoPath::from_internal_string(format!("file{}", i).as_str());
         let tree = testutils::create_tree(repo, &[(&path, "contents")]);
-        tree_ids.insert(tree.id().clone());
-        let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())
-            .set_open(true)
-            .write_to_repo(tx.mut_repo());
-        commit_ids.push(commit.id().clone());
+        tree_ids.push(tree.id().clone());
     }
 
-    // Create another commit just so we can test the update stats reliably from the
+    // Create another tree just so we can test the update stats reliably from the
     // first update
     let tree = testutils::create_tree(
         repo,
         &[(&RepoPath::from_internal_string("other file"), "contents")],
     );
-    let commit = CommitBuilder::for_new_commit(&settings, store, tree.id().clone())
-        .set_open(true)
-        .write_to_repo(tx.mut_repo());
-    let repo = tx.commit();
     test_workspace
         .workspace
         .working_copy_mut()
-        .check_out(repo.op_id().clone(), None, commit)
+        .check_out(repo.op_id().clone(), None, &tree)
         .unwrap();
 
     let mut threads = vec![];
-    for commit_id in &commit_ids {
+    for tree_id in &tree_ids {
         let op_id = repo.op_id().clone();
         let tree_ids = tree_ids.clone();
-        let commit_id = commit_id.clone();
+        let tree_id = tree_id.clone();
         let settings = settings.clone();
         let workspace_root = workspace_root.clone();
         let handle = thread::spawn(move || {
             let mut workspace = Workspace::load(&settings, workspace_root).unwrap();
-            let commit = workspace
+            let tree = workspace
                 .repo_loader()
                 .store()
-                .get_commit(&commit_id)
+                .get_tree(&RepoPath::root(), &tree_id)
                 .unwrap();
             // The operation ID is not correct, but that doesn't matter for this test
             let stats = workspace
                 .working_copy_mut()
-                .check_out(op_id, None, commit)
+                .check_out(op_id, None, &tree)
                 .unwrap();
             assert_eq!(stats.updated_files, 0);
             assert_eq!(stats.added_files, 1);

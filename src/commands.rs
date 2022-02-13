@@ -795,7 +795,7 @@ fn update_working_copy(
         // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
         // warning for most commands (but be an error for the checkout command)
         let stats = wc
-            .check_out(repo.op_id().clone(), old_tree_id, new_commit.clone())
+            .check_out(repo.op_id().clone(), old_tree_id, &new_commit.tree())
             .map_err(|err| {
                 CommandError::InternalError(format!(
                     "Failed to check out commit {}: {}",
