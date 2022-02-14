@@ -19,18 +19,14 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
 #[derive(PartialEq, Eq, Debug)]
-pub struct Visit {
-    dirs: VisitDirs,
-    files: VisitFiles,
-}
-
-impl Visit {
-    pub fn all() -> Self {
-        Self {
-            dirs: VisitDirs::All,
-            files: VisitFiles::All,
-        }
-    }
+pub enum Visit {
+    /// Everything in the directory is *guaranteed* to match, no need to check
+    /// descendants
+    AllRecursively,
+    Specific {
+        dirs: VisitDirs,
+        files: VisitFiles,
+    },
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -59,10 +55,7 @@ impl Matcher for EverythingMatcher {
     }
 
     fn visit(&self, _dir: &RepoPath) -> Visit {
-        Visit {
-            dirs: VisitDirs::All,
-            files: VisitFiles::All,
-        }
+        Visit::AllRecursively
     }
 }
 
@@ -90,7 +83,7 @@ impl Matcher for FilesMatcher {
     fn visit(&self, dir: &RepoPath) -> Visit {
         let dirs = self.dirs.get_dirs(dir);
         let files = self.dirs.get_files(dir);
-        Visit {
+        Visit::Specific {
             dirs: VisitDirs::Set(dirs),
             files: VisitFiles::Set(files),
         }
@@ -131,11 +124,11 @@ impl Matcher for PrefixMatcher {
 
     fn visit(&self, dir: &RepoPath) -> Visit {
         if self.matches(dir) {
-            Visit::all()
+            Visit::AllRecursively
         } else {
             let dirs = self.dirs.get_dirs(dir);
             let files = self.dirs.get_files(dir);
-            Visit {
+            Visit::Specific {
                 dirs: VisitDirs::Set(dirs),
                 files: VisitFiles::Set(files),
             }
@@ -244,7 +237,7 @@ mod tests {
         assert!(!m.matches(&RepoPath::from_internal_string("dir/file")));
         assert_eq!(
             m.visit(&RepoPath::root()),
-            Visit {
+            Visit::Specific {
                 dirs: VisitDirs::Set(hashset! {}),
                 files: VisitFiles::Set(hashset! {}),
             }
@@ -262,14 +255,14 @@ mod tests {
 
         assert_eq!(
             m.visit(&RepoPath::root()),
-            Visit {
+            Visit::Specific {
                 dirs: VisitDirs::Set(hashset! {RepoPathComponent::from("dir1")}),
                 files: VisitFiles::Set(hashset! {RepoPathComponent::from("file4")}),
             }
         );
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("dir1")),
-            Visit {
+            Visit::Specific {
                 dirs: VisitDirs::Set(
                     hashset! {RepoPathComponent::from("subdir1"), RepoPathComponent::from("subdir2")}
                 ),
@@ -278,7 +271,7 @@ mod tests {
         );
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("dir1/subdir1")),
-            Visit {
+            Visit::Specific {
                 dirs: VisitDirs::Set(hashset! {}),
                 files: VisitFiles::Set(
                     hashset! {RepoPathComponent::from("file1"), RepoPathComponent::from("file2")}
@@ -287,7 +280,7 @@ mod tests {
         );
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("dir1/subdir2")),
-            Visit {
+            Visit::Specific {
                 dirs: VisitDirs::Set(hashset! {}),
                 files: VisitFiles::Set(hashset! {RepoPathComponent::from("file3")}),
             }
@@ -301,7 +294,7 @@ mod tests {
         assert!(!m.matches(&RepoPath::from_internal_string("dir/file")));
         assert_eq!(
             m.visit(&RepoPath::root()),
-            Visit {
+            Visit::Specific {
                 dirs: VisitDirs::Set(hashset! {}),
                 files: VisitFiles::Set(hashset! {}),
             }
@@ -315,19 +308,10 @@ mod tests {
         assert!(m.matches(&RepoPath::from_internal_string("file")));
         assert!(m.matches(&RepoPath::from_internal_string("dir/file")));
         // Visits all directories
-        assert_eq!(
-            m.visit(&RepoPath::root()),
-            Visit {
-                dirs: VisitDirs::All,
-                files: VisitFiles::All,
-            }
-        );
+        assert_eq!(m.visit(&RepoPath::root()), Visit::AllRecursively);
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("foo/bar")),
-            Visit {
-                dirs: VisitDirs::All,
-                files: VisitFiles::All,
-            }
+            Visit::AllRecursively
         );
     }
 
@@ -352,7 +336,7 @@ mod tests {
         // shouldn't be visited)
         assert_eq!(
             m.visit(&RepoPath::root()),
-            Visit {
+            Visit::Specific {
                 dirs: VisitDirs::Set(hashset! {RepoPathComponent::from("foo")}),
                 files: VisitFiles::Set(hashset! {}),
             }
@@ -361,33 +345,26 @@ mod tests {
         // match
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("foo")),
-            Visit {
+            Visit::Specific {
                 dirs: VisitDirs::Set(hashset! {RepoPathComponent::from("bar")}),
                 files: VisitFiles::Set(hashset! {RepoPathComponent::from("bar")}),
             }
         );
-        // Inside a directory that matches the prefix, everything may match (in does in
-        // fact match, as tested by m.matches() earlier)
+        // Inside a directory that matches the prefix, everything matches recursively
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("foo/bar")),
-            Visit {
-                dirs: VisitDirs::All,
-                files: VisitFiles::All,
-            }
+            Visit::AllRecursively
         );
         // Same thing in subdirectories of the prefix
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("foo/bar/baz")),
-            Visit {
-                dirs: VisitDirs::All,
-                files: VisitFiles::All,
-            }
+            Visit::AllRecursively
         );
         // Nothing in directories that are siblings of the prefix can match, so don't
         // visit
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("bar")),
-            Visit {
+            Visit::Specific {
                 dirs: VisitDirs::Set(hashset! {}),
                 files: VisitFiles::Set(hashset! {}),
             }
@@ -409,27 +386,20 @@ mod tests {
 
         assert_eq!(
             m.visit(&RepoPath::root()),
-            Visit {
+            Visit::Specific {
                 dirs: VisitDirs::Set(hashset! {RepoPathComponent::from("foo")}),
                 files: VisitFiles::Set(hashset! {RepoPathComponent::from("foo")}),
             }
         );
-        // Inside a directory that matches the prefix, everything may match (in does in
-        // fact match, as tested by m.matches() earlier)
+        // Inside a directory that matches the prefix, everything matches recursively
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("foo")),
-            Visit {
-                dirs: VisitDirs::All,
-                files: VisitFiles::All,
-            }
+            Visit::AllRecursively
         );
         // Same thing in subdirectories of the prefix
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("foo/bar/baz")),
-            Visit {
-                dirs: VisitDirs::All,
-                files: VisitFiles::All,
-            }
+            Visit::AllRecursively
         );
     }
 }
