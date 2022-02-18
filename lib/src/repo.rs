@@ -16,8 +16,6 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs;
-use std::fs::File;
-use std::io::Read;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -298,27 +296,6 @@ pub struct RepoLoader {
 
 impl RepoLoader {
     pub fn init(user_settings: &UserSettings, repo_path: PathBuf) -> Self {
-        let store_path = repo_path.join("store");
-        if store_path.is_file() {
-            // This is the old format. Let's be nice and upgrade any existing repos.
-            // TODO: Delete this in early 2022 or so
-            println!("The repo format has changed. Upgrading...");
-            let mut buf = vec![];
-            {
-                let mut store_file = File::open(&store_path).unwrap();
-                store_file.read_to_end(&mut buf).unwrap();
-            }
-            let contents = String::from_utf8(buf).unwrap();
-            assert!(contents.starts_with("git: "));
-            let git_backend_path_str = contents[5..].to_string();
-            fs::remove_file(&store_path).unwrap();
-            fs::create_dir(&store_path).unwrap();
-            if repo_path.join("git").is_dir() {
-                fs::rename(repo_path.join("git"), store_path.join("git")).unwrap();
-            }
-            fs::write(store_path.join("git_target"), &git_backend_path_str).unwrap();
-            println!("Done. .jj/git is now .jj/store/git");
-        }
         let store = Store::load_store(repo_path.join("store"));
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
