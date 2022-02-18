@@ -46,7 +46,7 @@ use jujutsu_lib::op_heads_store::OpHeadsStore;
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction};
-use jujutsu_lib::repo::{ReadonlyRepo, RepoRef};
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
@@ -315,25 +315,24 @@ impl WorkspaceCommandHelper {
         Ok(())
     }
 
-    fn export_git_refs_and_head(&mut self) -> Result<(), CommandError> {
-        let repo = self.repo();
-        let git_repo = repo.store().git_repo().unwrap();
+    fn export_head_to_git(&self, mut_repo: &mut MutableRepo) -> Result<(), CommandError> {
+        let git_repo = mut_repo.store().git_repo().unwrap();
         let current_git_head_ref = git_repo.find_reference("HEAD").unwrap();
         let current_git_commit_id = current_git_head_ref
             .peel_to_commit()
             .ok()
             .map(|commit| commit.id());
-        git::export_refs(repo, &git_repo)?;
-        if let Some(checkout_id) = repo.view().get_checkout(&self.workspace_id()) {
+        if let Some(checkout_id) = mut_repo.view().get_checkout(&self.workspace_id()) {
             let first_parent_id =
-                repo.index().entry_by_id(checkout_id).unwrap().parents()[0].commit_id();
-            if first_parent_id != *repo.store().root_commit_id() {
+                mut_repo.index().entry_by_id(checkout_id).unwrap().parents()[0].commit_id();
+            if first_parent_id != *mut_repo.store().root_commit_id() {
                 if let Some(current_git_commit_id) = current_git_commit_id {
                     git_repo.set_head_detached(current_git_commit_id)?;
                 }
                 let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
                 let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
                 git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
+                mut_repo.set_git_head(first_parent_id);
             }
         } else {
             // The workspace was removed (maybe the user undid the
@@ -627,6 +626,9 @@ impl WorkspaceCommandHelper {
                 writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
             }
         }
+        if self.working_copy_shared_with_git {
+            self.export_head_to_git(mut_repo)?;
+        }
         let maybe_old_tree_id = tx
             .base_repo()
             .view()
@@ -652,7 +654,8 @@ impl WorkspaceCommandHelper {
             }
         }
         if self.working_copy_shared_with_git {
-            self.export_git_refs_and_head()?;
+            let git_repo = self.repo.store().git_repo().unwrap();
+            git::export_refs(&self.repo, &git_repo)?;
         }
         Ok(())
     }
