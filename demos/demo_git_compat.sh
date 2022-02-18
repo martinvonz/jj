@@ -17,5 +17,5 @@ pause 5
 run_command "jj diff -r b1"
 pause 2
 run_command "# The repo is backed by the actual Git repo:"
-run_command "git --git-dir=.jj/store/git log --graph --all --decorate --oneline"
+run_command "git --git-dir=.jj/repo/store/git log --graph --all --decorate --oneline"
 '
