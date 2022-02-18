@@ -14,7 +14,7 @@
 
 use std::path::Path;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct UserSettings {
     config: config::Config,
 }

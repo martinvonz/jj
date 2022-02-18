@@ -20,8 +20,16 @@ fn main() {
     // TODO: We need to do some argument parsing here, at least for things like
     // --config,       and for reading user configs from the repo pointed to by
     // -R.
-    let user_settings = UserSettings::for_user().unwrap();
-    let ui = Ui::for_terminal(user_settings);
-    let status = dispatch(ui, &mut std::env::args_os());
-    std::process::exit(status);
+    match UserSettings::for_user() {
+        Ok(user_settings) => {
+            let ui = Ui::for_terminal(user_settings);
+            let status = dispatch(ui, &mut std::env::args_os());
+            std::process::exit(status);
+        }
+        Err(err) => {
+            let mut ui = Ui::for_terminal(UserSettings::default());
+            ui.write_error(&format!("Invalid config: {}\n", err))
+                .unwrap();
+        }
+    }
 }
