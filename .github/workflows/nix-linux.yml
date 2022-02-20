@@ -1,0 +1,22 @@
+name: Nix on Linux
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  nix:
+    runs-on: ubuntu-latest
+    name: nix-build
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: cachix/install-nix-action@v14.1
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+      - run: nix flake check --print-build-logs --show-trace --override-input nixpkgs github:NixOS/nixpkgs
