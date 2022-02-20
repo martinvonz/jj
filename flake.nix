@@ -111,6 +111,10 @@
         };
         packages.${system}.jujutsu = pkgs.jujutsu;
         defaultPackage.${system} = self.packages.${system}.jujutsu;
+        defaultApp.${system} = {
+          type = "app";
+          program = "${pkgs.jujutsu}/bin/jj";
+        };
         checks.${system}.jujutsu = pkgs.jujutsu.overrideAttrs ({ ... }: {
           cargoBuildType = "debug";
           cargoCheckType = "debug";

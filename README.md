@@ -156,6 +156,22 @@ name = "Martin von Zweigbergk"
 email = "martinvonz@google.com"
 ```
 
+### Nix OS
+
+If you're on Nix OS you can use the flake for this repository.
+For example, if you want to run `jj` loaded from the flake, use:
+
+```shell script
+nix run 'github:martinvonz/jj'
+```
+
+You can also add this flake url to your system input flakes. Or you can
+install the flake to your user profile:
+
+```shell script
+nix profile install 'github:martinvonz/jj'
+```
+
 
 ## Getting started
 
