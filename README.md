@@ -34,7 +34,7 @@ to replace (rare in English). The project is called "Jujutsu" because it matches
 Jujutsu has two backends. One of them is a Git backend (the other is a native
 one). This lets you use Jujutsu as an alternative interface to Git. The commits
 you create will look like regular Git commits. You can always switch back to
-Git.
+Git. The Git support uses the [libgit2](https://libgit2.org/) C library.
 
 <a href="https://asciinema.org/a/DRCzktCyEAxH6j788ZDT6aSjS" target="_blank">
   <img src="https://asciinema.org/a/DRCzktCyEAxH6j788ZDT6aSjS.svg" />
