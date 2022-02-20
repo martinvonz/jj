@@ -30,6 +30,7 @@ fn main() {
             let mut ui = Ui::for_terminal(UserSettings::default());
             ui.write_error(&format!("Invalid config: {}\n", err))
                 .unwrap();
+            std::process::exit(1);
         }
     }
 }
