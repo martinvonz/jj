@@ -32,7 +32,7 @@ use clap::{crate_version, Arg, ArgMatches, Command};
 use criterion::Criterion;
 use git2::{Oid, Repository};
 use itertools::Itertools;
-use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeId, TreeValue};
+use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::dag_walk::topo_order_reverse;
@@ -630,11 +630,11 @@ impl WorkspaceCommandHelper {
         if self.working_copy_shared_with_git {
             self.export_head_to_git(mut_repo)?;
         }
-        let maybe_old_tree_id = tx
+        let maybe_old_commit = tx
             .base_repo()
             .view()
             .get_checkout(&self.workspace_id())
-            .map(|commit_id| store.get_commit(commit_id).unwrap().tree_id().clone());
+            .map(|commit_id| store.get_commit(commit_id).unwrap());
         self.repo = tx.commit();
         if self.may_update_working_copy {
             let stats = update_working_copy(
@@ -642,7 +642,7 @@ impl WorkspaceCommandHelper {
                 &self.repo,
                 &self.workspace_id(),
                 self.workspace.working_copy_mut(),
-                maybe_old_tree_id.as_ref(),
+                maybe_old_commit.as_ref(),
             )?;
             if let Some(stats) = stats {
                 if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
@@ -785,7 +785,7 @@ fn update_working_copy(
     repo: &Arc<ReadonlyRepo>,
     workspace_id: &WorkspaceId,
     wc: &mut WorkingCopy,
-    old_tree_id: Option<&TreeId>,
+    old_commit: Option<&Commit>,
 ) -> Result<Option<CheckoutStats>, CommandError> {
     let new_commit_id = match repo.view().get_checkout(workspace_id) {
         Some(new_commit_id) => new_commit_id,
@@ -795,11 +795,16 @@ fn update_working_copy(
         }
     };
     let new_commit = repo.store().get_commit(new_commit_id).unwrap();
-    let stats = if Some(new_commit.tree_id()) != old_tree_id {
+    let old_tree_id = old_commit.map(|commit| commit.tree_id().clone());
+    let stats = if Some(new_commit.tree_id()) != old_tree_id.as_ref() {
         // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
         // warning for most commands (but be an error for the checkout command)
         let stats = wc
-            .check_out(repo.op_id().clone(), old_tree_id, &new_commit.tree())
+            .check_out(
+                repo.op_id().clone(),
+                old_tree_id.as_ref(),
+                &new_commit.tree(),
+            )
             .map_err(|err| {
                 CommandError::InternalError(format!(
                     "Failed to check out commit {}: {}",
@@ -811,9 +816,11 @@ fn update_working_copy(
     } else {
         None
     };
-    ui.write("Working copy now at: ")?;
-    ui.write_commit_summary(repo.as_repo_ref(), workspace_id, &new_commit)?;
-    ui.write("\n")?;
+    if Some(&new_commit) != old_commit {
+        ui.write("Working copy now at: ")?;
+        ui.write_commit_summary(repo.as_repo_ref(), workspace_id, &new_commit)?;
+        ui.write("\n")?;
+    }
     Ok(stats)
 }
 
