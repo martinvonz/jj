@@ -1,5 +1,5 @@
 {
-  description = "jujitsu";
+  description = "jujutsu";
 
   inputs.nixpkgs-mozilla.url = "github:mozilla/nixpkgs-mozilla";
 
@@ -18,7 +18,7 @@
     in
     {
       overlay = (final: prev: {
-        jujitsu = final.callPackage
+        jujutsu = final.callPackage
           (
             { stdenv
             , lib
@@ -91,12 +91,12 @@
       in
       {
         devShell.${system} = pkgs.mkShell {
-          inputsFrom = [ pkgs.jujitsu ];
+          inputsFrom = [ pkgs.jujutsu ];
           packages = [ updateToolchainManifest ];
         };
-        packages.${system}.jujitsu = pkgs.jujitsu;
-        defaultPackage.${system} = self.packages.${system}.jujitsu;
-        checks.${system}.jujitsu = pkgs.jujitsu.overrideAttrs ({ ... }: {
+        packages.${system}.jujutsu = pkgs.jujutsu;
+        defaultPackage.${system} = self.packages.${system}.jujutsu;
+        checks.${system}.jujutsu = pkgs.jujutsu.overrideAttrs ({ ... }: {
           cargoBuildType = "debug";
           cargoCheckType = "debug";
           preCheck = ''
