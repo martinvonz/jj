@@ -23,13 +23,12 @@ use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 use std::{fs, io};
 
-use clap::{crate_version, App, Arg, ArgMatches};
+use clap::{crate_version, Arg, ArgMatches, Command};
 use criterion::Criterion;
 use git2::{Oid, Repository};
 use itertools::Itertools;
@@ -818,8 +817,8 @@ fn update_working_copy(
     Ok(stats)
 }
 
-fn get_app<'help>() -> App<'help> {
-    let init_command = App::new("init")
+fn get_app<'help>() -> Command<'help> {
+    let init_command = Command::new("init")
         .about("Create a new repo in the given directory")
         .long_about(
             "Create a new repo in the given directory. If the given directory does not exist, it \
@@ -842,7 +841,7 @@ fn get_app<'help>() -> App<'help> {
                 .takes_value(true)
                 .help("Path to a git repo the jj repo will be backed by"),
         );
-    let checkout_command = App::new("checkout")
+    let checkout_command = Command::new("checkout")
         .alias("co")
         .about("Update the working copy to another revision")
         .long_about(
@@ -857,14 +856,14 @@ fn get_app<'help>() -> App<'help> {
                 .required(true)
                 .help("The revision to update to"),
         );
-    let untrack_command = App::new("untrack")
+    let untrack_command = Command::new("untrack")
         .about("Stop tracking specified paths in the working copy")
         .arg(paths_arg());
-    let files_command = App::new("files")
+    let files_command = Command::new("files")
         .about("List files in a revision")
         .arg(rev_arg().help("The revision to list files in"))
         .arg(paths_arg());
-    let diff_command = App::new("diff")
+    let diff_command = Command::new("diff")
         .about("Show changes in a revision")
         .long_about(
             "Show changes in a revision.
@@ -917,7 +916,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .help("Show changes to this revision"),
         )
         .arg(paths_arg());
-    let show_command = App::new("show")
+    let show_command = Command::new("show")
         .about("Show commit description and changes in a revision")
         .long_about("Show commit description and changes in a revision")
         .arg(
@@ -945,7 +944,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .default_value("@")
                 .help("Show changes changes in this revision, compared to its parent(s)"),
         );
-    let status_command = App::new("status")
+    let status_command = Command::new("status")
         .alias("st")
         .about("Show high-level repo status")
         .long_about(
@@ -957,7 +956,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
  * Conflicted branches (see https://github.com/martinvonz/jj/blob/main/docs/branches.md)\
              ",
         );
-    let log_command = App::new("log")
+    let log_command = Command::new("log")
         .about("Show commit history")
         .arg(
             Arg::new("template")
@@ -982,7 +981,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .long("no-graph")
                 .help("Don't show the graph, show a flat list of revisions"),
         );
-    let obslog_command = App::new("obslog")
+    let obslog_command = Command::new("obslog")
         .about("Show how a change has evolved")
         .long_about("Show how a change has evolved as it's been updated, rebased, etc.")
         .arg(rev_arg())
@@ -1001,7 +1000,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .long("no-graph")
                 .help("Don't show the graph, show a flat list of revisions"),
         );
-    let describe_command = App::new("describe")
+    let describe_command = Command::new("describe")
         .about("Edit the change description")
         .about("Edit the description of a change")
         .long_about(
@@ -1020,7 +1019,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .long("stdin")
                 .help("Read the change description from stdin"),
         );
-    let close_command = App::new("close")
+    let close_command = Command::new("close")
         .alias("commit")
         .about("Mark a revision closed")
         .long_about(
@@ -1040,7 +1039,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .help("Also edit the description"),
         )
         .arg(message_arg().help("The change description to use (don't open editor)"));
-    let open_command = App::new("open")
+    let open_command = Command::new("open")
         .about("Mark a revision open")
         .alias("uncommit")
         .long_about(
@@ -1053,7 +1052,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .required(true)
                 .help("The revision to open"),
         );
-    let duplicate_command = App::new("duplicate")
+    let duplicate_command = Command::new("duplicate")
         .about("Create a new change with the same content as an existing one")
         .arg(
             Arg::new("revision")
@@ -1061,7 +1060,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .default_value("@")
                 .help("The revision to duplicate"),
         );
-    let abandon_command = App::new("abandon")
+    let abandon_command = Command::new("abandon")
         .about("Abandon a revision")
         .long_about(
             "Abandon a revision, rebasing descendants onto its parent(s). The behavior is similar \
@@ -1074,7 +1073,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .default_value("@")
                 .help("The revision(s) to abandon"),
         );
-    let new_command = App::new("new")
+    let new_command = Command::new("new")
         .about("Create a new, empty change")
         .long_about(
             "Create a new, empty change. This may be useful if you want to make some changes \
@@ -1092,7 +1091,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                      change will be checked out.",
                 ),
         );
-    let move_command = App::new("move")
+    let move_command = Command::new("move")
         .about("Move changes from one revision into another")
         .long_about(
             "Move changes from a revision into another revision. Use `--interactive` to move only \
@@ -1121,7 +1120,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .short('i')
                 .help("Interactively choose which parts to move"),
         );
-    let squash_command = App::new("squash")
+    let squash_command = Command::new("squash")
         .alias("amend")
         .about("Move changes from a revision into its parent")
         .long_about(
@@ -1139,7 +1138,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         );
     // TODO: It doesn't make much sense to run this without -i. We should make that
     // the default. We should also abandon the parent commit if that becomes empty.
-    let unsquash_command = App::new("unsquash")
+    let unsquash_command = Command::new("unsquash")
         .alias("unamend")
         .about("Move changes from a revision's parent into the revision")
         .arg(rev_arg())
@@ -1149,7 +1148,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .short('i')
                 .help("Interactively choose which parts to unsquash"),
         );
-    let restore_command = App::new("restore")
+    let restore_command = Command::new("restore")
         .about("Restore paths from another revision")
         .long_about(
             "Restore paths from another revision. That means that the paths get the same content \
@@ -1184,7 +1183,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
                 .help("Interactively choose which parts to restore"),
         )
         .arg(paths_arg());
-    let edit_command = App::new("edit")
+    let edit_command = Command::new("edit")
         .about("Edit the content changes in a revision")
         .long_about(
             "Lets you interactively edit the content changes in a revision.
@@ -1196,7 +1195,7 @@ Starts a diff editor (`meld` by default) on the changes in the revision. Edit th
              changes into or out of the parent revision.",
         )
         .arg(rev_arg().help("The revision to edit"));
-    let split_command = App::new("split")
+    let split_command = Command::new("split")
         .about("Split a revision in two")
         .long_about(
             "Lets you interactively split a revision in two.
@@ -1208,7 +1207,7 @@ Starts a diff editor (`meld` by default) on the changes in the revision. Edit th
              description for each.",
         )
         .arg(rev_arg().help("The revision to split"));
-    let merge_command = App::new("merge")
+    let merge_command = Command::new("merge")
         .about("Merge work from multiple branches")
         .long_about(
             "Merge work from multiple branches.
@@ -1225,7 +1224,7 @@ Unlike most other VCSs, `jj merge` does not implicitly include the working copy 
                 .multiple_occurrences(true),
         )
         .arg(message_arg().help("The change description to use (don't open editor)"));
-    let rebase_command = App::new("rebase")
+    let rebase_command = Command::new("rebase")
         .about("Move a revision to a different parent")
         .long_about(
             "Move a revision to a different parent.
@@ -1283,7 +1282,7 @@ A          A",
         );
     // TODO: It seems better to default the destination to `@-`. Maybe the working
     // copy should be rebased on top?
-    let backout_command = App::new("backout")
+    let backout_command = Command::new("backout")
         .about("Apply the reverse of a revision on top of another revision")
         .arg(rev_arg().help("The revision to apply the reverse of"))
         .arg(
@@ -1295,7 +1294,7 @@ A          A",
                 .multiple_occurrences(true)
                 .help("The revision to apply the reverse changes on top of"),
         );
-    let branch_command = App::new("branch")
+    let branch_command = Command::new("branch")
         .about("Create, update, or delete a branch")
         .long_about(
             "Create, update, or delete a branch. For information about branches, see \
@@ -1333,7 +1332,7 @@ A          A",
                 .required(true)
                 .help("The name of the branch to move or delete"),
         );
-    let branches_command = App::new("branches").about("List branches").long_about(
+    let branches_command = Command::new("branches").about("List branches").long_about(
         "\
 List branches and their targets. A remote branch will be included only if its target is different \
          from the local target. For a conflicted branch (both local and remote), old target \
@@ -1341,30 +1340,32 @@ List branches and their targets. A remote branch will be included only if its ta
 
 For information about branches, see https://github.com/martinvonz/jj/blob/main/docs/branches.md",
     );
-    let undo_command = App::new("undo")
+    let undo_command = Command::new("undo")
         .about("Undo an operation")
         .arg(op_arg().help("The operation to undo"));
-    let operation_command = App::new("operation")
+    let operation_command = Command::new("operation")
         .alias("op")
         .about("Commands for working with the operation log")
         .long_about(
             "Commands for working with the operation log. For information about the \
             operation log, see https://github.com/martinvonz/jj/blob/main/docs/operation-log.md.",
         )
-        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
-        .subcommand(App::new("log").about("Show the operation log"))
+        .subcommand_required(true)
+        .arg_required_else_help(true)
+        .subcommand(Command::new("log").about("Show the operation log"))
         .subcommand(undo_command.clone())
         .subcommand(
-            App::new("restore")
+            Command::new("restore")
                 .about("Restore to the state at an operation")
                 .arg(op_arg().help("The operation to restore to")),
         );
     let undo_command = undo_command.about("Undo an operation (shortcut for `jj op undo`)");
-    let workspace_command = App::new("workspace")
+    let workspace_command = Command::new("workspace")
         .about("Commands for working with workspaces")
-        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
+        .subcommand_required(true)
+        .arg_required_else_help(true)
         .subcommand(
-            App::new("add")
+            Command::new("add")
                 .about("Add a workspace")
                 .arg(
                     Arg::new("destination")
@@ -1384,7 +1385,7 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
                 ),
         )
         .subcommand(
-            App::new("forget")
+            Command::new("forget")
                 .about("Stop tracking a workspace's checkout")
                 .long_about(
                     "Stop tracking a workspace's checkout in the repo. The workspace will not be \
@@ -1393,8 +1394,8 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
                 )
                 .arg(Arg::new("workspace").index(1)),
         )
-        .subcommand(App::new("list").about("List workspaces"));
-    let git_command = App::new("git")
+        .subcommand(Command::new("list").about("List workspaces"));
+    let git_command = Command::new("git")
         .about("Commands for working with the underlying Git repo")
         .long_about(
             "Commands for working with the underlying Git repo.
@@ -1403,13 +1404,15 @@ For a comparison with Git, including a table of commands, see \
 https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
              ",
         )
-        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
+        .subcommand_required(true)
+        .arg_required_else_help(true)
         .subcommand(
-            App::new("remote")
+            Command::new("remote")
                 .about("Manage Git remotes")
-                .setting(clap::AppSettings::SubcommandRequiredElseHelp)
+                .subcommand_required(true)
+                .arg_required_else_help(true)
                 .subcommand(
-                    App::new("add")
+                    Command::new("add")
                         .about("Add a Git remote")
                         .arg(
                             Arg::new("remote")
@@ -1425,7 +1428,7 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
                         ),
                 )
                 .subcommand(
-                    App::new("remove")
+                    Command::new("remove")
                         .about("Remove a Git remote and forget its branches")
                         .arg(
                             Arg::new("remote")
@@ -1436,7 +1439,7 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
                 ),
         )
         .subcommand(
-            App::new("fetch").about("Fetch from a Git remote").arg(
+            Command::new("fetch").about("Fetch from a Git remote").arg(
                 Arg::new("remote")
                     .long("remote")
                     .takes_value(true)
@@ -1445,7 +1448,7 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
             ),
         )
         .subcommand(
-            App::new("clone")
+            Command::new("clone")
                 .about("Create a new repo backed by a clone of a Git repo")
                 .long_about(
                     "Create a new repo backed by a clone of a Git repo. The Git repo will be a \
@@ -1464,7 +1467,7 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
                 ),
         )
         .subcommand(
-            App::new("push")
+            Command::new("push")
                 .about("Push to a Git remote")
                 .long_about(
                     "Push to a Git remote
@@ -1486,29 +1489,31 @@ By default, all branches are pushed. Use `--branch` if you want to push only one
                 ),
         )
         .subcommand(
-            App::new("import").about("Update repo with changes made in the underlying Git repo"),
+            Command::new("import")
+                .about("Update repo with changes made in the underlying Git repo"),
         )
         .subcommand(
-            App::new("export")
+            Command::new("export")
                 .about("Update the underlying Git repo with changes made in the repo"),
         );
-    let bench_command = App::new("bench")
+    let bench_command = Command::new("bench")
         .about("Commands for benchmarking internal operations")
-        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
+        .subcommand_required(true)
+        .arg_required_else_help(true)
         .subcommand(
-            App::new("commonancestors")
+            Command::new("commonancestors")
                 .about("Find the common ancestor(s) of a set of commits")
                 .arg(Arg::new("revision1").index(1).required(true))
                 .arg(Arg::new("revision2").index(2).required(true)),
         )
         .subcommand(
-            App::new("isancestor")
+            Command::new("isancestor")
                 .about("Checks if the first commit is an ancestor of the second commit")
                 .arg(Arg::new("ancestor").index(1).required(true))
                 .arg(Arg::new("descendant").index(2).required(true)),
         )
         .subcommand(
-            App::new("walkrevs")
+            Command::new("walkrevs")
                 .about(
                     "Walk revisions that are ancestors of the second argument but not ancestors \
                      of the first",
@@ -1517,36 +1522,42 @@ By default, all branches are pushed. Use `--branch` if you want to push only one
                 .arg(Arg::new("wanted").index(2).required(true)),
         )
         .subcommand(
-            App::new("resolveprefix")
+            Command::new("resolveprefix")
                 .about("Resolve a commit ID prefix")
                 .arg(Arg::new("prefix").index(1).required(true)),
         );
-    let debug_command = App::new("debug")
+    let debug_command = Command::new("debug")
         .about("Low-level commands not intended for users")
-        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
+        .subcommand_required(true)
+        .arg_required_else_help(true)
         .subcommand(
-            App::new("completion")
+            Command::new("completion")
                 .about("Print a command-line-completion script")
                 .arg(Arg::new("bash").long("bash"))
                 .arg(Arg::new("fish").long("fish"))
                 .arg(Arg::new("zsh").long("zsh")),
         )
         .subcommand(
-            App::new("resolverev")
+            Command::new("resolverev")
                 .about("Resolve a revision identifier to its full ID")
                 .arg(rev_arg()),
         )
-        .subcommand(App::new("workingcopy").about("Show information about the working copy state"))
-        .subcommand(App::new("writeworkingcopy").about("Write a tree from the working copy state"))
         .subcommand(
-            App::new("template")
+            Command::new("workingcopy").about("Show information about the working copy state"),
+        )
+        .subcommand(
+            Command::new("writeworkingcopy").about("Write a tree from the working copy state"),
+        )
+        .subcommand(
+            Command::new("template")
                 .about("Parse a template")
                 .arg(Arg::new("template").index(1).required(true)),
         )
-        .subcommand(App::new("index").about("Show commit index stats"))
-        .subcommand(App::new("reindex").about("Rebuild commit index"));
-    App::new("jj")
-        .setting(clap::AppSettings::SubcommandRequiredElseHelp)
+        .subcommand(Command::new("index").about("Show commit index stats"))
+        .subcommand(Command::new("reindex").about("Rebuild commit index"));
+    Command::new("jj")
+        .subcommand_required(true)
+        .arg_required_else_help(true)
         .version(crate_version!())
         .author("Martin von Zweigbergk <martinvonz@google.com>")
         .about(
@@ -1986,7 +1997,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
             "Commit ID: " commit_id "\n"
             "Change ID: " change_id "\n"
             "Author: " author " <" author.email() "> (" author.timestamp() ")\n"
-            "Committer: " committer " <" committer.email() "> (" committer.timestamp() ")\n"        
+            "Committer: " committer " <" committer.email() "> (" committer.timestamp() ")\n"
             "\n"
             description
             "\n"
@@ -2770,7 +2781,7 @@ fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
     // Handle things like `EDITOR=emacs -nw`
     let args = editor.split(' ').collect_vec();
     let editor_args = if args.len() > 1 { &args[1..] } else { &[] };
-    let exit_status = Command::new(args[0])
+    let exit_status = std::process::Command::new(args[0])
         .args(editor_args)
         .arg(&description_file_path)
         .status()
