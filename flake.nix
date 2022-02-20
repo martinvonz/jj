@@ -68,6 +68,21 @@
           inherit system;
           overlays = [ nixpkgs-mozilla.overlays.rust self.overlay ];
         };
+
+        # Script to update the toolchain-manifest.toml file which is used in the nix build.
+        #
+        # nixpkgs doesn't package rust nightly, so the Mozilla nixpkgs Rust overlay is used,
+        # which can download the rust toolchain if given a manifest file (a sha256 hash can also be used
+        # in which case the overlay downloads the manifest file with fetchurl).
+        # The nice thing about this manifest file is that the nix builds are fully hermetic.
+        # The downside is that now both nixpkgs needs to be updated (with nix flake update)
+        # and the toolchain manifest.
+        #
+        # To update the toolchain to the latest nightly, run 
+        # $ nix develop
+        # $ updateToolchainManifest
+        # The script also accepts arguments for a different rust channel (first argument)
+        # or a specific nightly date (e.g. updateToolchainManifest nightly 2022-02-19)
         updateToolchainManifest = pkgs.writeScriptBin "updateToolchainManifest" ''
           #! /usr/bin/env bash
 
