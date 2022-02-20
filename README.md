@@ -125,6 +125,15 @@ scripts if requested.
 
 ## Installation
 
+If you're on Mac, you may need to run some or all of these:
+```
+$ xcode-select --install
+$ brew install openssl
+$ brew install pkg-config
+$ export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
+```
+
+Now run this (regardless of platform):
 ```shell script
 # We need the "nightly" Rust toolchain. This command installs that without
 # changing your default.
