@@ -45,4 +45,4 @@ The deeper understanding of conflicts has many advantages:
   interact with your project using Git.)
 
 For information about how conflicts are handled in the working copy, see
-[here](working_copy.md#conflicts).
+[here](working-copy.md#conflicts).
