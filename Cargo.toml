@@ -16,6 +16,10 @@ categories = ["command-line-utilities", "development-tools"]
 name = "jj"
 path = "src/main.rs"
 
+[[bench]]
+name = "diff_bench"
+harness = false
+
 [workspace]
 members = ["lib"]
 
@@ -42,3 +46,5 @@ thiserror = "1.0.30"
 [dev-dependencies]
 test-case = "1.2.3"
 regex = "1.5.4"
+criterion = "0.3.5"
+criterion_bencher_compat = "0.3.4"

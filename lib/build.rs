@@ -13,6 +13,7 @@
 // limitations under the License.
 
 extern crate protobuf_codegen_pure;
+extern crate version_check;
 
 use std::path::Path;
 
@@ -44,5 +45,9 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     for file in input {
         println!("cargo:rerun-if-changed={}", file);
+    }
+
+    if let Some(true) = version_check::supports_feature("map_first_last") {
+        println!("cargo:rustc-cfg=feature=\"map_first_last\"");
     }
 }

@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![feature(assert_matches)]
-
-use std::assert_matches::assert_matches;
-
+use assert_matches::assert_matches;
 use itertools::Itertools;
 use jujutsu_lib::backend::{ConflictPart, TreeValue};
 use jujutsu_lib::commit_builder::CommitBuilder;

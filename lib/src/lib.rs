@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![feature(assert_matches)]
-#![feature(map_first_last)]
 #![deny(unused_must_use)]
+#![cfg_attr(feature = "map_first_last", feature(map_first_last))]
 
 #[macro_use]
 extern crate pest_derive;
@@ -39,6 +38,7 @@ pub mod index_store;
 pub mod local_backend;
 pub mod lock;
 pub mod matchers;
+pub mod nightly_shims;
 pub mod op_heads_store;
 pub mod op_store;
 pub mod operation;

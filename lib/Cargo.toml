@@ -14,6 +14,7 @@ readme = "../README.md"
 
 [build-dependencies]
 protobuf-codegen-pure = "2.27.1"
+version_check = "0.9.4"
 
 [dependencies]
 backoff = "0.4.0"
@@ -40,5 +41,6 @@ whoami = "1.2.1"
 zstd = "0.10.0"
 
 [dev-dependencies]
+assert_matches = "1.5.0"
 num_cpus = "1.13.1"
 test-case = "1.2.3"

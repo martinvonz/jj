@@ -35,6 +35,9 @@ use crate::backend::{ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
 
+#[cfg(not(feature = "map_first_last"))]
+use crate::nightly_shims::BTreeSetExt;
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct IndexPosition(u32);
 

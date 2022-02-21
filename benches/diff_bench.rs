@@ -1,9 +1,7 @@
-#![feature(test)]
-
-extern crate test;
+use bencher::{benchmark_group, benchmark_main, Bencher};
+use criterion_bencher_compat as bencher;
 
 use jujutsu_lib::diff;
-use test::Bencher;
 
 fn unchanged_lines(count: usize) -> (String, String) {
     let mut lines = vec![];
@@ -33,43 +31,36 @@ fn reversed_lines(count: usize) -> (String, String) {
     (left_lines.join(""), right_lines.join(""))
 }
 
-#[bench]
 fn bench_diff_1k_unchanged_lines(b: &mut Bencher) {
     let (left, right) = unchanged_lines(1000);
     b.iter(|| diff::diff(left.as_bytes(), right.as_bytes()));
 }
 
-#[bench]
 fn bench_diff_10k_unchanged_lines(b: &mut Bencher) {
     let (left, right) = unchanged_lines(10000);
     b.iter(|| diff::diff(left.as_bytes(), right.as_bytes()));
 }
 
-#[bench]
 fn bench_diff_1k_modified_lines(b: &mut Bencher) {
     let (left, right) = modified_lines(1000);
     b.iter(|| diff::diff(left.as_bytes(), right.as_bytes()));
 }
 
-#[bench]
 fn bench_diff_10k_modified_lines(b: &mut Bencher) {
     let (left, right) = modified_lines(10000);
     b.iter(|| diff::diff(left.as_bytes(), right.as_bytes()));
 }
 
-#[bench]
 fn bench_diff_1k_lines_reversed(b: &mut Bencher) {
     let (left, right) = reversed_lines(1000);
     b.iter(|| diff::diff(left.as_bytes(), right.as_bytes()));
 }
 
-#[bench]
 fn bench_diff_10k_lines_reversed(b: &mut Bencher) {
     let (left, right) = reversed_lines(10000);
     b.iter(|| diff::diff(left.as_bytes(), right.as_bytes()));
 }
 
-#[bench]
 fn bench_diff_git_git_read_tree_c(b: &mut Bencher) {
     b.iter(|| {
         diff::diff(
@@ -214,3 +205,15 @@ int main(int argc, char **argv)
         )
     });
 }
+
+benchmark_group!(
+    benches,
+    bench_diff_1k_unchanged_lines,
+    bench_diff_10k_unchanged_lines,
+    bench_diff_1k_modified_lines,
+    bench_diff_10k_modified_lines,
+    bench_diff_1k_lines_reversed,
+    bench_diff_10k_lines_reversed,
+    bench_diff_git_git_read_tree_c,
+);
+benchmark_main!(benches);
