@@ -252,6 +252,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "criterion_bencher_compat"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdb92ac87446e7097e0f429c0bb509a1040bfae23bc0320acac30d9fec23d1ed"
+dependencies = [
+ "criterion",
+]
+
+[[package]]
 name = "crossbeam-channel"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -558,6 +567,7 @@ dependencies = [
  "clap_complete",
  "config",
  "criterion",
+ "criterion_bencher_compat",
  "git2",
  "hex",
  "indoc",
