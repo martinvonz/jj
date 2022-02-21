@@ -34,6 +34,7 @@ use thiserror::Error;
 use crate::backend::{ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
+use crate::nightly_shims::BTreeSetExt;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct IndexPosition(u32);
@@ -812,25 +813,25 @@ impl<'a> CompositeIndex<'a> {
 
         let mut result = BTreeSet::new();
         while !(items1.is_empty() || items2.is_empty()) {
-            let entry1 = items1.last().unwrap();
-            let entry2 = items2.last().unwrap();
+            let entry1 = items1.ext_last().unwrap();
+            let entry2 = items2.ext_last().unwrap();
             match entry1.cmp(entry2) {
                 Ordering::Greater => {
-                    let entry1 = items1.pop_last().unwrap();
+                    let entry1 = items1.ext_pop_last().unwrap();
                     for parent_entry in entry1.0.parents() {
                         items1.insert(IndexEntryByGeneration(parent_entry));
                     }
                 }
                 Ordering::Less => {
-                    let entry2 = items2.pop_last().unwrap();
+                    let entry2 = items2.ext_pop_last().unwrap();
                     for parent_entry in entry2.0.parents() {
                         items2.insert(IndexEntryByGeneration(parent_entry));
                     }
                 }
                 Ordering::Equal => {
                     result.insert(entry1.0.pos);
-                    items1.pop_last();
-                    items2.pop_last();
+                    items1.ext_pop_last();
+                    items2.ext_pop_last();
                 }
             }
         }

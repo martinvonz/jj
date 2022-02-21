@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #![feature(assert_matches)]
-#![feature(map_first_last)]
 #![deny(unused_must_use)]
 
 #[macro_use]
@@ -39,6 +38,7 @@ pub mod index_store;
 pub mod local_backend;
 pub mod lock;
 pub mod matchers;
+pub mod nightly_shims;
 pub mod op_heads_store;
 pub mod op_store;
 pub mod operation;

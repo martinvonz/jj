@@ -19,6 +19,8 @@ use std::ops::Range;
 
 use itertools::Itertools;
 
+use crate::nightly_shims::BTreeMapExt;
+
 pub fn find_line_ranges(text: &[u8]) -> Vec<Range<usize>> {
     let mut ranges = vec![];
     let mut start = 0;
@@ -175,7 +177,7 @@ pub(crate) fn unchanged_ranges(
 
     let max_occurrences = 100;
     let mut left_histogram = Histogram::calculate(left, left_ranges, max_occurrences);
-    if *left_histogram.count_to_words.first_entry().unwrap().key() > max_occurrences {
+    if *left_histogram.count_to_words.ext_first_key().unwrap() > max_occurrences {
         // If there are very many occurrences of all words, then we just give up.
         return vec![];
     }
@@ -185,7 +187,7 @@ pub(crate) fn unchanged_ranges(
     // the LCS.
     let mut uncommon_shared_words = vec![];
     while !left_histogram.count_to_words.is_empty() && uncommon_shared_words.is_empty() {
-        let left_words = left_histogram.count_to_words.pop_first().unwrap().1;
+        let left_words = left_histogram.count_to_words.ext_pop_first_value().unwrap();
         for left_word in left_words {
             if right_histogram.word_to_positions.contains_key(left_word) {
                 uncommon_shared_words.push(left_word);

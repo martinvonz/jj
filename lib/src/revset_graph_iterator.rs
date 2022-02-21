@@ -16,6 +16,7 @@ use std::cmp::min;
 use std::collections::{BTreeMap, HashSet};
 
 use crate::index::{IndexEntry, IndexPosition};
+use crate::nightly_shims::BTreeMapExt;
 use crate::revset::RevsetIterator;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -149,7 +150,7 @@ impl<'revset, 'repo> RevsetGraphIterator<'revset, 'repo> {
     }
 
     fn next_index_entry(&mut self) -> Option<IndexEntry<'repo>> {
-        if let Some((_, index_entry)) = self.look_ahead.pop_last() {
+        if let Some(index_entry) = self.look_ahead.ext_pop_last_value() {
             return Some(index_entry);
         }
         self.input_set_iter.next()
