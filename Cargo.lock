@@ -618,6 +618,7 @@ dependencies = [
  "test-case",
  "thiserror",
  "uuid",
+ "version_check",
  "whoami",
  "zstd",
 ]

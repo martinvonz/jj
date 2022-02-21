@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #![deny(unused_must_use)]
+#![cfg_attr(feature = "map_first_last", feature(map_first_last))]
 
 #[macro_use]
 extern crate pest_derive;

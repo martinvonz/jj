@@ -1,60 +1,91 @@
-use std::collections::{BTreeMap, BTreeSet};
-
+#[cfg(feature = "map_first_last")]
 pub trait BTreeMapExt<K, V> {
-    fn ext_first_key(&self) -> Option<&K>;
-    fn ext_last_key(&self) -> Option<&K>;
-    fn ext_pop_first_key(&mut self) -> Option<K>;
-    fn ext_pop_last_key(&mut self) -> Option<K>;
-    fn ext_pop_first_value(&mut self) -> Option<V>;
-    fn ext_pop_last_value(&mut self) -> Option<V>;
+    fn first_key(&self) -> Option<&K>;
+    fn last_key(&self) -> Option<&K>;
+    fn pop_first_value(&mut self) -> Option<V>;
+    fn pop_last_value(&mut self) -> Option<V>;
 }
 
-impl<K: Ord + Clone, V> BTreeMapExt<K, V> for BTreeMap<K, V> {
-    fn ext_first_key(&self) -> Option<&K> {
+#[cfg(feature = "map_first_last")]
+impl<K: Ord + Clone, V> BTreeMapExt<K, V> for std::collections::BTreeMap<K, V> {
+    fn first_key(&self) -> Option<&K> {
         self.keys().next()
     }
 
-    fn ext_last_key(&self) -> Option<&K> {
+    fn last_key(&self) -> Option<&K> {
+        self.keys().next_back()
+    }
+    fn pop_first_value(&mut self) -> Option<V> {
+        self.first_entry().map(|x| x.remove())
+    }
+
+    fn pop_last_value(&mut self) -> Option<V> {
+        self.last_entry().map(|x| x.remove())
+    }
+}
+
+#[cfg(not(feature = "map_first_last"))]
+pub trait BTreeMapExt<K, V> {
+    fn first_key(&self) -> Option<&K>;
+    fn last_key(&self) -> Option<&K>;
+    fn pop_first_key(&mut self) -> Option<K>;
+    fn pop_last_key(&mut self) -> Option<K>;
+    fn pop_first_value(&mut self) -> Option<V>;
+    fn pop_last_value(&mut self) -> Option<V>;
+}
+
+#[cfg(not(feature = "map_first_last"))]
+impl<K: Ord + Clone, V> BTreeMapExt<K, V> for std::collections::BTreeMap<K, V> {
+    fn first_key(&self) -> Option<&K> {
+        self.keys().next()
+    }
+
+    fn last_key(&self) -> Option<&K> {
         self.keys().next_back()
     }
 
-    fn ext_pop_first_key(&mut self) -> Option<K> {
-        let key = self.ext_first_key()?;
+    fn pop_first_key(&mut self) -> Option<K> {
+        let key = self.first_key()?;
         let key = key.clone(); // ownership hack
         Some(self.remove_entry(&key).unwrap().0)
     }
 
-    fn ext_pop_last_key(&mut self) -> Option<K> {
-        let key = self.ext_last_key()?;
+    fn pop_last_key(&mut self) -> Option<K> {
+        let key = self.last_key()?;
         let key = key.clone(); // ownership hack
         Some(self.remove_entry(&key).unwrap().0)
     }
 
-    fn ext_pop_first_value(&mut self) -> Option<V> {
-        let key = self.ext_first_key()?;
+    fn pop_first_value(&mut self) -> Option<V> {
+        let key = self.first_key()?;
         let key = key.clone(); // ownership hack
         Some(self.remove_entry(&key).unwrap().1)
     }
 
-    fn ext_pop_last_value(&mut self) -> Option<V> {
-        let key = self.ext_last_key()?;
+    fn pop_last_value(&mut self) -> Option<V> {
+        let key = self.last_key()?;
         let key = key.clone(); // ownership hack
         Some(self.remove_entry(&key).unwrap().1)
     }
 }
 
+#[cfg(feature = "map_first_last")]
+pub trait BTreeSetExt<K> {}
+
+#[cfg(not(feature = "map_first_last"))]
 pub trait BTreeSetExt<K> {
-    fn ext_last(&self) -> Option<&K>;
-    fn ext_pop_last(&mut self) -> Option<K>;
+    fn last(&self) -> Option<&K>;
+    fn pop_last(&mut self) -> Option<K>;
 }
 
-impl<K: Ord + Clone> BTreeSetExt<K> for BTreeSet<K> {
-    fn ext_last(&self) -> Option<&K> {
+#[cfg(not(feature = "map_first_last"))]
+impl<K: Ord + Clone> BTreeSetExt<K> for std::collections::BTreeSet<K> {
+    fn last(&self) -> Option<&K> {
         self.iter().next_back()
     }
 
-    fn ext_pop_last(&mut self) -> Option<K> {
-        let key = self.ext_last()?;
+    fn pop_last(&mut self) -> Option<K> {
+        let key = self.last()?;
         let key = key.clone(); // ownership hack
         self.take(&key)
     }

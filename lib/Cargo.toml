@@ -14,6 +14,7 @@ readme = "../README.md"
 
 [build-dependencies]
 protobuf-codegen-pure = "2.27.1"
+version_check = "0.9.4"
 
 [dependencies]
 backoff = "0.4.0"
