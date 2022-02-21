@@ -15,10 +15,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install Rust nightly
+    - name: Install Rust (stable)
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: nightly
+        toolchain: stable
         override: true
         profile: minimal
     - name: Build
@@ -31,7 +31,7 @@ jobs:
         RUST_BACKTRACE: 1
 
   clippy:
-    name: Clippy check
+    name: Clippy check (nightly)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
