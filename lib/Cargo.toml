@@ -24,7 +24,7 @@ byteorder = "1.4.3"
 chrono = "0.4.19"
 config = "0.11.0"
 dirs = "4.0.0"
-git2 = "0.13.25"
+git2 = { version = "0.13.25", default-features = false }
 hex = "0.4.3"
 itertools = "0.10.3"
 maplit = "1.0.2"
