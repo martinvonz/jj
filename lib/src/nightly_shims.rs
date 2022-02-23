@@ -85,6 +85,7 @@ impl<K: Ord + Clone> BTreeSetExt<K> for std::collections::BTreeSet<K> {
     }
 
     fn pop_last(&mut self) -> Option<K> {
+        #[allow(unstable_name_collisions)]
         let key = self.last()?;
         let key = key.clone(); // ownership hack
         self.take(&key)
