@@ -30,7 +30,23 @@ jobs:
       env:
         RUST_BACKTRACE: 1
 
-  clippy:
+  clippy-stable:
+    name: Clippy check (stable)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+          override: true
+      - run: rustup component add clippy
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features --workspace
+
+  clippy-nightly:
     name: Clippy check (nightly)
     runs-on: ubuntu-latest
     steps:
