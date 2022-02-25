@@ -148,7 +148,8 @@ $ source <(jj debug completion)  # --bash is the default
 ```
 
 You may also want to configure your name and email so commits are made in your
-name. Create a `~/.jjconfig` file and make it look something like this:
+name. Create a file at `${XDG_CONFIG_HOME}/jj/config.toml` or `~/.jjconfig` and
+make it look something like this:
 ```shell script
 $ cat ~/.jjconfig
 [user]
