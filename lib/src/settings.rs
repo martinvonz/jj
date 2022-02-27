@@ -24,7 +24,8 @@ pub struct RepoSettings {
     _config: config::Config,
 }
 
-const TOO_MUCH_CONFIG_ERROR: &str = "Both `$HOME/.jjconfig` and `$XDG_CONFIG_HOME/jj/config.toml` were found, please remove one.";
+const TOO_MUCH_CONFIG_ERROR: &str =
+    "Both `$HOME/.jjconfig` and `$XDG_CONFIG_HOME/jj/config.toml` were found, please remove one.";
 
 impl UserSettings {
     pub fn from_config(config: config::Config) -> Self {
@@ -50,9 +51,12 @@ impl UserSettings {
 
         if let Some(home_dir) = dirs::home_dir() {
             let p = home_dir.join(".jjconfig");
-            // we already loaded from the new location, prevent user confusion and make them remove the old one:
+            // we already loaded from the new location, prevent user confusion and make them
+            // remove the old one:
             if loaded_from_config_dir && p.exists() {
-                return Err(config::ConfigError::Message(TOO_MUCH_CONFIG_ERROR.to_string()));
+                return Err(config::ConfigError::Message(
+                    TOO_MUCH_CONFIG_ERROR.to_string(),
+                ));
             }
             config.merge(
                 config::File::from(p)

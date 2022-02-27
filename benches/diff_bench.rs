@@ -1,6 +1,5 @@
 use bencher::{benchmark_group, benchmark_main, Bencher};
 use criterion_bencher_compat as bencher;
-
 use jujutsu_lib::diff;
 
 fn unchanged_lines(count: usize) -> (String, String) {
