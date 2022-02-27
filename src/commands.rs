@@ -259,6 +259,8 @@ impl WorkspaceCommandHelper {
         repo: Arc<ReadonlyRepo>,
     ) -> Result<Self, CommandError> {
         let loaded_at_head = root_args.value_of("at_op").unwrap() == "@";
+        let may_update_working_copy =
+            loaded_at_head && !root_args.is_present("no_commit_working_copy");
         let mut working_copy_shared_with_git = false;
         let maybe_git_repo = repo.store().git_repo();
         if let Some(git_repo) = &maybe_git_repo {
@@ -270,12 +272,12 @@ impl WorkspaceCommandHelper {
             settings: ui.settings().clone(),
             workspace,
             repo,
-            may_update_working_copy: loaded_at_head,
+            may_update_working_copy,
             working_copy_shared_with_git,
             working_copy_committed: false,
             rebase_descendants: true,
         };
-        if working_copy_shared_with_git && loaded_at_head {
+        if working_copy_shared_with_git && may_update_working_copy {
             helper.import_git_refs_and_head(maybe_git_repo.as_ref().unwrap())?;
         }
         Ok(helper)
@@ -1338,7 +1340,7 @@ List branches and their targets. A remote branch will be included only if its ta
          revisions are preceded by a \"-\" and new target revisions are preceded by a \"+\".
 
 For information about branches, see https://github.com/martinvonz/jj/blob/main/docs/branches.md",
-        );
+    );
     let undo_command = App::new("undo")
         .about("Undo an operation")
         .arg(op_arg().help("The operation to undo"));
@@ -1434,15 +1436,13 @@ https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.\
                 ),
         )
         .subcommand(
-            App::new("fetch")
-                .about("Fetch from a Git remote")
-                .arg(
-                    Arg::new("remote")
-                        .long("remote")
-                        .takes_value(true)
-                        .default_value("origin")
-                        .help("The remote to fetch from (only named remotes are supported)"),
-                ),
+            App::new("fetch").about("Fetch from a Git remote").arg(
+                Arg::new("remote")
+                    .long("remote")
+                    .takes_value(true)
+                    .default_value("origin")
+                    .help("The remote to fetch from (only named remotes are supported)"),
+            ),
         )
         .subcommand(
             App::new("clone")
@@ -1486,8 +1486,7 @@ By default, all branches are pushed. Use `--branch` if you want to push only one
                 ),
         )
         .subcommand(
-            App::new("import")
-                .about("Update repo with changes made in the underlying Git repo"),
+            App::new("import").about("Update repo with changes made in the underlying Git repo"),
         )
         .subcommand(
             App::new("export")
@@ -1570,6 +1569,20 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
                 .long_help(
                     "Path to repository to operate on. By default, Jujutsu searches for the \
                      closest .jj/ directory in an ancestor of the current working directory.",
+                ),
+        )
+        .arg(
+            Arg::new("no_commit_working_copy")
+                .long("no-commit-working-copy")
+                .global(true)
+                .help("Don't commit the working copy")
+                .long_help(
+                    "Don't commit the working copy. By default, Jujutsu commits the working copy \
+                     on every command, unless you load the repo at a specific operation with \
+                     `--at-operation`. If you want to avoid committing the working and instead \
+                     see a possibly stale working copy commit, you can use \
+                     `--no-commit-working-copy`. This may be useful e.g. in a command prompt, \
+                     especially if you have another process that commits the working copy.",
                 ),
         )
         .arg(
