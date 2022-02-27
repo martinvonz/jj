@@ -30,7 +30,7 @@ to replace (rare in English). The project is called "Jujutsu" because it matches
 ## Features
 
 ### Compatible with Git
-   
+
 Jujutsu has two backends. One of them is a Git backend (the other is a native
 one). This lets you use Jujutsu as an alternative interface to Git. The commits
 you create will look like regular Git commits. You can always switch back to
@@ -55,7 +55,7 @@ different commit without first explicitly committing the working copy changes
 ### Operations update the repo first, then possibly the working copy
 
 The working copy is only updated at the end of an operation, after all other
-changes have already been recorded. This means that you can run any command 
+changes have already been recorded. This means that you can run any command
 (such as `jj rebase`) even if the working copy is dirty.
 
 ### Entire repo is under version control
@@ -101,7 +101,7 @@ Besides the usual rebase command, there's `jj describe` for editing the
 description (commit message) of an arbitrary commit. There's also `jj edit`,
 which lets you edit the changes in a commit without checking it out. To split
 a commit into two, use `jj split`. You can even move part of the changes in a
-commit to any other commit using `jj move`. 
+commit to any other commit using `jj move`.
 
 
 ## Status
@@ -126,22 +126,22 @@ scripts if requested.
 ## Installation
 
 If you're on Mac, you may need to run some or all of these:
-```
-$ xcode-select --install
-$ brew install openssl
-$ brew install pkg-config
-$ export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
+```shell script
+xcode-select --install
+brew install openssl
+brew install pkg-config
+export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
 ```
 
 Now run this (regardless of platform):
 ```shell script
-$ cargo install --git https://github.com/martinvonz/jj.git
+cargo install --git https://github.com/martinvonz/jj.git
 ```
 
-To set up command-line completion, source the output of 
+To set up command-line completion, source the output of
 `jj debug completion --bash/--zsh/--fish`. For example, if you use Bash:
 ```shell script
-$ source <(jj debug completion)  # --bash is the default
+source <(jj debug completion)  # --bash is the default
 ```
 
 You may also want to configure your name and email so commits are made in your
