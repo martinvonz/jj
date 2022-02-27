@@ -138,12 +138,6 @@ Now run this (regardless of platform):
 cargo install --git https://github.com/martinvonz/jj.git
 ```
 
-To set up command-line completion, source the output of
-`jj debug completion --bash/--zsh/--fish`. For example, if you use Bash:
-```shell script
-source <(jj debug completion)  # --bash is the default
-```
-
 You may also want to configure your name and email so commits are made in your
 name. Create a file at `<config dir>/jj/config.toml` (where `<config dir>` is
 `${XDG_CONFIG_HOME}` or `~/.config/` on Linux, `~/Library/Application Support/`
@@ -155,6 +149,31 @@ $ cat ~/.jjconfig
 name = "Martin von Zweigbergk"
 email = "martinvonz@google.com"
 ```
+
+### Command-line completion
+
+To set up command-line completion, source the output of
+`jj debug completion --bash/--zsh/--fish`. Exactly how to source it depends on
+your shell.
+
+#### Bash
+```shell script
+source <(jj debug completion)  # --bash is the default
+```
+
+#### Zsh
+```shell script
+autoload -U compinit
+compinit
+source <(jj debug completion --zsh | sed '$d')  # remove the last line
+compdef _jj jj
+```
+
+#### Fish
+```shell script
+jj debug completion --fish | source
+```
+
 
 ### Nix OS
 
