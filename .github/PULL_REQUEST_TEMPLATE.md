@@ -1,6 +1,8 @@
-Fixes #<issue_number_goes_here>
-
-> It's a good idea to open an issue first for discussion.
-
-- [ ] Tests pass
-- [ ] Appropriate changes to README are included in PR
+<!--
+There's no need to add anything here, but feel free to add a personal message.
+Please describe the changes in this PR in the commit message(s) instead, with
+each commit representing one logical change. Address code review comments by
+rewriting the branch rather than adding commits on top. Use force-push when
+pushing the updated branch (`jj git push` does that automatically when you
+rewrite a branch).
+-->
