@@ -135,10 +135,7 @@ $ export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
 
 Now run this (regardless of platform):
 ```shell script
-# We need the "nightly" Rust toolchain. This command installs that without
-# changing your default.
-$ rustup install nightly
-$ cargo +nightly install --git https://github.com/martinvonz/jj.git
+$ cargo install --git https://github.com/martinvonz/jj.git
 ```
 
 To set up command-line completion, source the output of 
