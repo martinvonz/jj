@@ -125,57 +125,19 @@ scripts if requested.
 
 ## Installation
 
-If you're on Mac, you may need to run some or all of these:
-```shell script
-xcode-select --install
-brew install openssl
-brew install pkg-config
-export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
-```
+### Linux
 
-Now run this (regardless of platform):
+On most distributions, you'll need to install from source.
+
+#### From source
+
+Run:
 ```shell script
 cargo install --git https://github.com/martinvonz/jj.git
 ```
 
-You may also want to configure your name and email so commits are made in your
-name. Create a file at `<config dir>/jj/config.toml` (where `<config dir>` is
-`${XDG_CONFIG_HOME}` or `~/.config/` on Linux, `~/Library/Application Support/`
-on macOS, and `~\AppData\Roaming\` on Windows) or `~/.jjconfig` and make it
-look something like this:
-```shell script
-$ cat ~/.jjconfig
-[user]
-name = "Martin von Zweigbergk"
-email = "martinvonz@google.com"
-```
 
-### Command-line completion
-
-To set up command-line completion, source the output of
-`jj debug completion --bash/--zsh/--fish`. Exactly how to source it depends on
-your shell.
-
-#### Bash
-```shell script
-source <(jj debug completion)  # --bash is the default
-```
-
-#### Zsh
-```shell script
-autoload -U compinit
-compinit
-source <(jj debug completion --zsh | sed '$d')  # remove the last line
-compdef _jj jj
-```
-
-#### Fish
-```shell script
-jj debug completion --fish | source
-```
-
-
-### Nix OS
+#### Nix OS
 
 If you're on Nix OS you can use the flake for this repository.
 For example, if you want to run `jj` loaded from the flake, use:
@@ -189,6 +151,70 @@ install the flake to your user profile:
 
 ```shell script
 nix profile install 'github:martinvonz/jj'
+```
+
+
+### Mac
+
+You may need to run some or all of these:
+```shell script
+xcode-select --install
+brew install openssl
+brew install pkg-config
+export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
+```
+
+Now run:
+```shell script
+cargo install --git https://github.com/martinvonz/jj.git
+```
+
+
+### Windows
+
+Run:
+```shell script
+cargo install --git https://github.com/martinvonz/jj.git
+```
+
+
+## Initial configuration
+
+You may want to configure your name and email so commits are made in your name.
+Create a file at `<config dir>/jj/config.toml` (where `<config dir>` is
+`${XDG_CONFIG_HOME}` or `~/.config/` on Linux, `~/Library/Application Support/`
+on macOS, and `~\AppData\Roaming\` on Windows) or `~/.jjconfig` and make it
+look something like this:
+```shell script
+$ cat ~/.jjconfig
+[user]
+name = "Martin von Zweigbergk"
+email = "martinvonz@google.com"
+```
+
+
+## Command-line completion
+
+To set up command-line completion, source the output of
+`jj debug completion --bash/--zsh/--fish`. Exactly how to source it depends on
+your shell.
+
+### Bash
+```shell script
+source <(jj debug completion)  # --bash is the default
+```
+
+### Zsh
+```shell script
+autoload -U compinit
+compinit
+source <(jj debug completion --zsh | sed '$d')  # remove the last line
+compdef _jj jj
+```
+
+### Fish
+```shell script
+jj debug completion --fish | source
 ```
 
 
