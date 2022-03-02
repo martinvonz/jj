@@ -31,6 +31,7 @@
             , Security
             , SystemConfiguration
             , libiconv
+            , installShellFiles
             }:
 
             rustPlatform.buildRustPackage rec {
@@ -42,13 +43,27 @@
               cargoLock = {
                 lockFile = "${self}/Cargo.lock";
               };
-              nativeBuildInputs = [ pkgconfig gzip makeWrapper ];
+              nativeBuildInputs = [
+                pkgconfig gzip makeWrapper
+                installShellFiles
+              ];
               buildInputs = [ openssl dbus sqlite ]
               ++ lib.optionals stdenv.isDarwin [
                 Security
                 SystemConfiguration
                 libiconv
               ];
+              postInstall = ''
+                $out/bin/jj debug mangen > ./jj.1
+                installManPage ./jj.1
+
+                $out/bin/jj debug completion --bash > ./completions.bash
+                installShellCompletion --bash --name ${pname}.bash ./completions.bash
+                $out/bin/jj debug completion --fish > ./completions.fish
+                installShellCompletion --fish --name ${pname}.fish ./completions.fish
+                $out/bin/jj debug completion --zsh > ./completions.zsh
+                installShellCompletion --zsh --name _${pname} ./completions.zsh
+              '';
             }
 
           )
