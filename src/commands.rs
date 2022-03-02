@@ -163,14 +163,16 @@ impl From<FilePathParseError> for CommandError {
     }
 }
 
-struct CommandHelper {
+struct CommandHelper<'help> {
+    app: clap::Command<'help>,
     string_args: Vec<String>,
     root_args: ArgMatches,
 }
 
-impl CommandHelper {
-    fn new(string_args: Vec<String>, root_args: ArgMatches) -> Self {
+impl<'help> CommandHelper<'help> {
+    fn new(app: clap::Command<'help>, string_args: Vec<String>, root_args: ArgMatches) -> Self {
         Self {
+            app,
             string_args,
             root_args,
         }
@@ -3671,7 +3673,7 @@ fn cmd_branches(
 
 fn cmd_debug(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
     if let Some(completion_matches) = args.subcommand_matches("completion") {
-        let mut app = get_app();
+        let mut app = command.app.clone();
         let mut buf = vec![];
         let shell = if completion_matches.is_present("zsh") {
             clap_complete::Shell::Zsh
@@ -3683,9 +3685,8 @@ fn cmd_debug(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<
         clap_complete::generate(shell, &mut app, "jj", &mut buf);
         ui.stdout_formatter().write_all(&buf)?;
     } else if let Some(_mangen_matches) = args.subcommand_matches("mangen") {
-        let app = get_app();
         let mut buf = vec![];
-        let man = clap_mangen::Man::new(app);
+        let man = clap_mangen::Man::new(command.app.clone());
         man.render(&mut buf)?;
         ui.stdout_formatter().write_all(&buf)?;
     } else if let Some(resolve_matches) = args.subcommand_matches("resolverev") {
@@ -4461,8 +4462,9 @@ where
         }
     }
     let string_args = resolve_alias(&mut ui, string_args);
-    let matches = get_app().get_matches_from(&string_args);
-    let command_helper = CommandHelper::new(string_args, matches.clone());
+    let app = get_app();
+    let matches = app.clone().get_matches_from(&string_args);
+    let command_helper = CommandHelper::new(app, string_args, matches.clone());
     let result = if let Some(sub_args) = command_helper.root_args.subcommand_matches("init") {
         cmd_init(&mut ui, &command_helper, sub_args)
     } else if let Some(sub_args) = matches.subcommand_matches("checkout") {
