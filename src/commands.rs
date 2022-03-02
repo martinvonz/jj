@@ -14,6 +14,7 @@
 
 extern crate chrono;
 extern crate clap;
+extern crate clap_mangen;
 extern crate config;
 
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -1537,6 +1538,7 @@ By default, all branches are pushed. Use `--branch` if you want to push only one
                 .arg(Arg::new("fish").long("fish"))
                 .arg(Arg::new("zsh").long("zsh")),
         )
+        .subcommand(Command::new("mangen").about("Print a ROFF (manpage)"))
         .subcommand(
             Command::new("resolverev")
                 .about("Resolve a revision identifier to its full ID")
@@ -3661,17 +3663,23 @@ fn cmd_branches(
 }
 
 fn cmd_debug(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    if let Some(complation_matches) = args.subcommand_matches("completion") {
+    if let Some(completion_matches) = args.subcommand_matches("completion") {
         let mut app = get_app();
         let mut buf = vec![];
-        let shell = if complation_matches.is_present("zsh") {
+        let shell = if completion_matches.is_present("zsh") {
             clap_complete::Shell::Zsh
-        } else if complation_matches.is_present("fish") {
+        } else if completion_matches.is_present("fish") {
             clap_complete::Shell::Fish
         } else {
             clap_complete::Shell::Bash
         };
         clap_complete::generate(shell, &mut app, "jj", &mut buf);
+        ui.stdout_formatter().write_all(&buf)?;
+    } else if let Some(_mangen_matches) = args.subcommand_matches("mangen") {
+        let app = get_app();
+        let mut buf = vec![];
+        let man = clap_mangen::Man::new(app);
+        man.render(&mut buf)?;
         ui.stdout_formatter().write_all(&buf)?;
     } else if let Some(resolve_matches) = args.subcommand_matches("resolverev") {
         let mut workspace_command = command.workspace_helper(ui)?;
