@@ -1820,14 +1820,25 @@ fn cmd_untrack(
     let wc_tree_id = locked_working_copy.write_tree();
     if wc_tree_id != new_tree_id {
         let wc_tree = store.get_tree(&RepoPath::root(), &wc_tree_id)?;
-        if let Some((path, _value)) = wc_tree.entries_matching(matcher.as_ref()).next() {
+        let added_back = wc_tree.entries_matching(matcher.as_ref()).collect_vec();
+        if !added_back.is_empty() {
             locked_working_copy.discard();
-            let ui_path = ui.format_file_path(workspace_command.workspace_root(), &path);
-            return Err(CommandError::UserError(format!(
-                "At least '{}' was added back because it is not ignored. Make sure it's ignored, \
-                 then try again.",
-                ui_path
-            )));
+            let path = &added_back[0].0;
+            let ui_path = ui.format_file_path(workspace_command.workspace_root(), path);
+            if added_back.len() > 1 {
+                return Err(CommandError::UserError(format!(
+                    "'{}' and {} other files would be added back because they're not ignored. \
+                     Make sure they're ignored, then try again.",
+                    ui_path,
+                    added_back.len() - 1
+                )));
+            } else {
+                return Err(CommandError::UserError(format!(
+                    "'{}' would be added back because it's not ignored. Make sure it's ignored, \
+                     then try again.",
+                    ui_path
+                )));
+            }
         } else {
             // This means there were some concurrent changes made in the working copy. We
             // don't want to mix those in, so reset the working copy again.

@@ -105,6 +105,7 @@ impl<'stdout> Ui<'stdout> {
     }
 
     pub fn write_error(&mut self, text: &str) -> io::Result<()> {
+        // TODO: We should print the error to stderr
         let mut formatter = self.stdout_formatter();
         formatter.add_label(String::from("error"))?;
         formatter.write_str(text)?;
