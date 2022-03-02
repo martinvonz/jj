@@ -55,11 +55,15 @@ impl TestEnvironment {
     }
 }
 
+pub fn get_stdout_string(assert: &assert_cmd::assert::Assert) -> String {
+    String::from_utf8(assert.get_output().stdout.clone()).unwrap()
+}
+
 pub fn capture_matches(
     assert: assert_cmd::assert::Assert,
     pattern: &str,
 ) -> (assert_cmd::assert::Assert, Vec<String>) {
-    let stdout_string = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
+    let stdout_string = get_stdout_string(&assert);
     let assert = assert.stdout(predicates::str::is_match(pattern).unwrap());
     let matches = Regex::new(pattern)
         .unwrap()
