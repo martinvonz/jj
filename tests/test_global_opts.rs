@@ -51,3 +51,23 @@ fn test_no_commit_working_copy() {
     let modified_commit_id_hex = get_stdout_string(&assert);
     assert_ne!(modified_commit_id_hex, initial_commit_id_hex);
 }
+
+#[test]
+fn test_repo_arg_with_init() {
+    let test_env = TestEnvironment::default();
+    let assert = test_env
+        .jj_cmd(test_env.env_root(), &["init", "-R=.", "repo"])
+        .assert()
+        .failure();
+    assert.stdout("Error: '--repository' cannot be used with 'init'\n");
+}
+
+#[test]
+fn test_repo_arg_with_git_clone() {
+    let test_env = TestEnvironment::default();
+    let assert = test_env
+        .jj_cmd(test_env.env_root(), &["git", "clone", "-R=.", "remote"])
+        .assert()
+        .failure();
+    assert.stdout("Error: '--repository' cannot be used with 'git clone'\n");
+}

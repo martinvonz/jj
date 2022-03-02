@@ -1719,6 +1719,11 @@ fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), Co
 }
 
 fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
+    if command.root_args.occurrences_of("repository") > 0 {
+        return Err(CommandError::UserError(
+            "'--repository' cannot be used with 'init'".to_string(),
+        ));
+    }
     let wc_path_str = args.value_of("destination").unwrap();
     let wc_path = ui.cwd().join(wc_path_str);
     if wc_path.exists() {
@@ -4219,6 +4224,11 @@ fn cmd_git_clone(
     command: &CommandHelper,
     args: &ArgMatches,
 ) -> Result<(), CommandError> {
+    if command.root_args.occurrences_of("repository") > 0 {
+        return Err(CommandError::UserError(
+            "'--repository' cannot be used with 'git clone'".to_string(),
+        ));
+    }
     let source = args.value_of("source").unwrap();
     let wc_path_str = args
         .value_of("destination")
