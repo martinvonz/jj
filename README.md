@@ -131,7 +131,13 @@ On most distributions, you'll need to install from source.
 
 #### From source
 
-Run:
+First make sure that you have the `libssl-dev` and `openssl` packages installed
+by running something like this:
+```shell script
+sudo apt-get install libssl-dev openssl
+```
+
+Now run:
 ```shell script
 cargo install --git https://github.com/martinvonz/jj.git
 ```
