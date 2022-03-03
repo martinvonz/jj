@@ -847,6 +847,7 @@ fn get_app<'help>() -> Command<'help> {
             Arg::new("git-repo")
                 .long("git-repo")
                 .takes_value(true)
+                .conflicts_with("git")
                 .help("Path to a git repo the jj repo will be backed by"),
         );
     let checkout_command = Command::new("checkout")
@@ -914,12 +915,14 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
         .arg(
             Arg::new("from")
                 .long("from")
+                .conflicts_with("revision")
                 .takes_value(true)
                 .help("Show changes from this revision"),
         )
         .arg(
             Arg::new("to")
                 .long("to")
+                .conflicts_with("revision")
                 .takes_value(true)
                 .help("Show changes to this revision"),
         )
@@ -1274,6 +1277,7 @@ A          A",
             Arg::new("source")
                 .long("source")
                 .short('s')
+                .conflicts_with("revision")
                 .takes_value(true)
                 .required(false)
                 .multiple_occurrences(false)
@@ -1713,11 +1717,6 @@ fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), Co
 }
 
 fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    if args.is_present("git") && args.is_present("git-repo") {
-        return Err(CommandError::UserError(String::from(
-            "--git cannot be used with --git-repo",
-        )));
-    }
     let wc_path_str = args.value_of("destination").unwrap();
     let wc_path = ui.cwd().join(wc_path_str);
     if wc_path.exists() {
@@ -1972,11 +1971,6 @@ fn show_color_words_diff_line(
 }
 
 fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(), CommandError> {
-    if args.is_present("revision") && (args.is_present("from") || args.is_present("to")) {
-        return Err(CommandError::UserError(String::from(
-            "--revision cannot be used with --from or --to",
-        )));
-    }
     let mut workspace_command = command.workspace_helper(ui)?;
     let from_tree;
     let to_tree;
@@ -3423,11 +3417,6 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result
     }
     // TODO: Unless we want to allow both --revision and --source, is it better to
     // replace   --source by --rebase-descendants?
-    if args.is_present("revision") && args.is_present("source") {
-        return Err(CommandError::UserError(String::from(
-            "--revision cannot be used with --source",
-        )));
-    }
     let old_commit;
     let rebase_descendants;
     if let Some(source_str) = args.value_of("source") {
