@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::testutils::TestEnvironment;
-use regex::Regex;
+use jujutsu::testutils::{capture_matches, TestEnvironment};
 
 #[test]
 fn smoke_test() {
@@ -26,20 +25,12 @@ fn smoke_test() {
     let repo_path = test_env.env_root().join("repo");
     // Check the output of `jj status` right after initializing repo
     let assert = test_env.jj_cmd(&repo_path, &["status"]).assert().success();
-    let stdout_string_empty = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
     let output_regex = "^Parent commit: 000000000000[ ]
 Working copy : ([[:xdigit:]]+)[ ]
 The working copy is clean
 $";
-    assert.stdout(predicates::str::is_match(output_regex).unwrap());
-    let wc_hex_id_empty = Regex::new(output_regex)
-        .unwrap()
-        .captures(&stdout_string_empty)
-        .unwrap()
-        .get(1)
-        .unwrap()
-        .as_str()
-        .to_owned();
+    let (_, matches) = capture_matches(assert, output_regex);
+    let wc_hex_id_empty = matches[0].clone();
 
     // Write some files and check the output of `jj status`
     std::fs::write(repo_path.join("file1"), "file1").unwrap();
@@ -47,7 +38,6 @@ $";
     std::fs::write(repo_path.join("file3"), "file3").unwrap();
 
     let assert = test_env.jj_cmd(&repo_path, &["status"]).assert().success();
-    let stdout_string_non_empty = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
     let output_regex = "^Parent commit: 000000000000[ ]
 Working copy : ([[:xdigit:]]+)[ ]
 Working copy changes:
@@ -55,23 +45,17 @@ A file1
 A file2
 A file3
 $";
-    assert.stdout(predicates::str::is_match(output_regex).unwrap());
-    let wc_hex_id_non_empty = Regex::new(output_regex)
-        .unwrap()
-        .captures(&stdout_string_non_empty)
-        .unwrap()
-        .get(1)
-        .unwrap()
-        .as_str()
-        .to_owned();
+    let (_, matches) = capture_matches(assert, output_regex);
+    let wc_hex_id_non_empty = matches[0].clone();
 
     // The working copy's id should have changed
     assert_ne!(wc_hex_id_non_empty, wc_hex_id_empty);
 
     // Running `jj status` again gives the same output
     let assert = test_env.jj_cmd(&repo_path, &["status"]).assert().success();
-    let stdout_string_again = String::from_utf8(assert.get_output().stdout.clone()).unwrap();
-    assert_eq!(stdout_string_again, stdout_string_non_empty);
+    let (_, matches) = capture_matches(assert, output_regex);
+    let wc_hex_id_again = matches[0].clone();
+    assert_eq!(wc_hex_id_again, wc_hex_id_non_empty);
 
     // Add a commit description
     let assert = test_env
