@@ -233,10 +233,15 @@ pub struct Timestamp {
 
 impl Timestamp {
     pub fn now() -> Self {
-        let now = chrono::offset::Local::now();
+        Self::from_datetime(chrono::offset::Local::now())
+    }
+
+    pub fn from_datetime<Tz: chrono::TimeZone<Offset = chrono::offset::FixedOffset>>(
+        datetime: chrono::DateTime<Tz>,
+    ) -> Self {
         Self {
-            timestamp: MillisSinceEpoch(now.timestamp_millis() as u64),
-            tz_offset: now.offset().local_minus_utc() / 60,
+            timestamp: MillisSinceEpoch(datetime.timestamp_millis() as u64),
+            tz_offset: datetime.offset().local_minus_utc() / 60,
         }
     }
 }
