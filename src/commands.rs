@@ -4364,6 +4364,18 @@ fn cmd_git_push(
                 BranchPushAction::LocalConflicted => {}
                 BranchPushAction::RemoteConflicted => {}
                 BranchPushAction::Update(update) => {
+                    if let Some(new_target) = &update.new_target {
+                        let new_target_commit = repo.store().get_commit(new_target)?;
+                        // TODO: Should we also skip branches that have open commits as ancestors?
+                        if new_target_commit.is_open() {
+                            writeln!(
+                                ui,
+                                "Skipping branch '{}' since it points to an open commit.",
+                                branch_name
+                            )?;
+                            continue;
+                        }
+                    }
                     branch_updates.insert(branch_name, update);
                 }
             }
