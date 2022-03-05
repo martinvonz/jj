@@ -32,9 +32,13 @@ to replace (rare in English). The project is called "Jujutsu" because it matches
 ### Compatible with Git
 
 Jujutsu has two backends. One of them is a Git backend (the other is a native
-one). This lets you use Jujutsu as an alternative interface to Git. The commits
+one [^native-backend]). This lets you use Jujutsu as an alternative interface to Git. The commits
 you create will look like regular Git commits. You can always switch back to
 Git. The Git support uses the [libgit2](https://libgit2.org/) C library.
+
+[^native-backend]: There's currently practically no reason to use the native
+backend. It exists to make sure that it's possible to eventually add
+functionality that cannot easily be added the Git backend.
 
 <a href="https://asciinema.org/a/DRCzktCyEAxH6j788ZDT6aSjS" target="_blank">
   <img src="https://asciinema.org/a/DRCzktCyEAxH6j788ZDT6aSjS.svg" />
