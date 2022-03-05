@@ -25,10 +25,8 @@ fn smoke_test() {
     let repo_path = test_env.env_root().join("repo");
     // Check the output of `jj status` right after initializing repo
     let assert = test_env.jj_cmd(&repo_path, &["status"]).assert().success();
-    let output_regex = "^Parent commit: 000000000000[ ]
-Working copy : ([[:xdigit:]]+)[ ]
-The working copy is clean
-$";
+    let output_regex = "^Parent commit: 000000000000 \nWorking copy : ([[:xdigit:]]+) \nThe \
+                        working copy is clean\n$";
     let (_, matches) = capture_matches(assert, output_regex);
     let wc_hex_id_empty = matches[0].clone();
 
@@ -38,9 +36,8 @@ $";
     std::fs::write(repo_path.join("file3"), "file3").unwrap();
 
     let assert = test_env.jj_cmd(&repo_path, &["status"]).assert().success();
-    let output_regex = "^Parent commit: 000000000000[ ]
-Working copy : ([[:xdigit:]]+)[ ]
-Working copy changes:
+    let output_regex = "^Parent commit: 000000000000 \nWorking copy : ([[:xdigit:]]+) \nWorking \
+                        copy changes:
 A file1
 A file2
 A file3
@@ -68,7 +65,6 @@ $";
 
     // Close the commit
     let assert = test_env.jj_cmd(&repo_path, &["close"]).assert().success();
-    let output_regex = "^Working copy now at: [[:xdigit:]]+[ ]
-$";
+    let output_regex = "^Working copy now at: [[:xdigit:]]+ \n$";
     assert.stdout(predicates::str::is_match(output_regex).unwrap());
 }
