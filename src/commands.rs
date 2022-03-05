@@ -1733,7 +1733,10 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
     }
 
     if let Some(git_store_str) = args.value_of("git-repo") {
-        let git_store_path = ui.cwd().join(git_store_str);
+        let mut git_store_path = ui.cwd().join(git_store_str);
+        if !git_store_path.ends_with(".git") {
+            git_store_path = git_store_path.join(".git");
+        }
         let (workspace, repo) =
             Workspace::init_external_git(ui.settings(), wc_path.clone(), git_store_path)?;
         let git_repo = repo.store().git_repo().unwrap();

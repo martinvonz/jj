@@ -75,7 +75,7 @@ fn test_init_git_external() {
     let git_target_file_contents = std::fs::read_to_string(store_path.join("git_target")).unwrap();
     assert!(git_target_file_contents
         .replace('\\', "/")
-        .ends_with("/git-repo"));
+        .ends_with("/git-repo/.git"));
 }
 
 #[test]
