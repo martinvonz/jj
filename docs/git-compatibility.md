@@ -5,8 +5,8 @@ repo, which means that you can collaborate with Git users without them even
 knowing that you're not using the `git` CLI.
 
 See `jj help git` for help about the `jj git` family of commands, and e.g.
-`jj help git push` for help about a specific command (use `jj git push --help`
-for more verbose help).
+`jj help git push` for help about a specific command (use `jj git push -h` for
+briefer help).
 
 
 ## Creating an empty repo
