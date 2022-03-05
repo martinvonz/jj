@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 
 use itertools::Itertools;
@@ -22,6 +23,7 @@ pub struct TestEnvironment {
     _temp_dir: TempDir,
     env_root: PathBuf,
     home_dir: PathBuf,
+    command_number: RefCell<i64>,
 }
 
 impl Default for TestEnvironment {
@@ -33,6 +35,7 @@ impl Default for TestEnvironment {
             _temp_dir: tmp_dir,
             env_root,
             home_dir,
+            command_number: RefCell::new(0),
         }
     }
 }
@@ -43,6 +46,11 @@ impl TestEnvironment {
         cmd.current_dir(current_dir);
         cmd.args(args);
         cmd.env("HOME", self.home_dir.to_str().unwrap());
+        let timestamp = chrono::DateTime::parse_from_rfc3339("2001-02-03T04:05:06+07:00").unwrap();
+        let mut command_number = self.command_number.borrow_mut();
+        *command_number += 1;
+        let timestamp = timestamp + chrono::Duration::seconds(*command_number);
+        cmd.env("JJ_TIMESTAMP", timestamp.to_rfc3339());
         cmd
     }
 

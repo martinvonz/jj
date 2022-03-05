@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::env;
 use std::sync::Arc;
 
+use chrono::DateTime;
 use uuid::Uuid;
 
 use crate::backend;
@@ -35,8 +37,13 @@ pub fn new_change_id() -> ChangeId {
 }
 
 pub fn signature(settings: &UserSettings) -> Signature {
-    // TODO: check if it's slow to get the timezone etc for every signature
-    let timestamp = Timestamp::now();
+    let timestamp = match env::var("JJ_TIMESTAMP") {
+        Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
+            Ok(datetime) => Timestamp::from_datetime(datetime),
+            Err(_) => Timestamp::now(),
+        },
+        Err(_) => Timestamp::now(),
+    };
     Signature {
         name: settings.user_name(),
         email: settings.user_email(),
