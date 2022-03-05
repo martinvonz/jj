@@ -75,14 +75,13 @@ impl GitBackend {
     }
 
     pub fn init_external(store_path: PathBuf, git_repo_path: PathBuf) -> Self {
-        let git_repo_path = std::fs::canonicalize(git_repo_path).unwrap();
         let extra_path = store_path.join("extra");
         std::fs::create_dir(&extra_path).unwrap();
         let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
         git_target_file
             .write_all(git_repo_path.to_str().unwrap().as_bytes())
             .unwrap();
-        let repo = git2::Repository::open(git_repo_path).unwrap();
+        let repo = git2::Repository::open(store_path.join(git_repo_path)).unwrap();
         let extra_metadata_store = TableStore::init(extra_path, HASH_LENGTH);
         GitBackend::new(repo, extra_metadata_store)
     }

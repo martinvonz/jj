@@ -21,18 +21,18 @@ fn test_init_git_internal() {
         .jj_cmd(test_env.env_root(), &["init", "repo", "--git"])
         .assert()
         .success();
-
     let workspace_root = test_env.env_root().join("repo");
+    assert.stdout(format!(
+        "Initialized repo in \"{}\"\n",
+        workspace_root.to_str().unwrap()
+    ));
+
     let jj_path = workspace_root.join(".jj");
     let repo_path = jj_path.join("repo");
     let store_path = repo_path.join("store");
     assert!(workspace_root.is_dir());
     assert!(jj_path.is_dir());
     assert!(jj_path.join("working_copy").is_dir());
-    assert.stdout(format!(
-        "Initialized repo in \"{}\"\n",
-        workspace_root.to_str().unwrap()
-    ));
     assert!(repo_path.is_dir());
     assert!(store_path.is_dir());
     assert!(store_path.join("git").is_dir());
@@ -45,7 +45,8 @@ fn test_init_git_internal() {
 fn test_init_git_external() {
     let test_env = TestEnvironment::default();
     let git_repo_path = test_env.env_root().join("git-repo");
-    git2::Repository::init(git_repo_path.clone()).unwrap();
+    git2::Repository::init(&git_repo_path).unwrap();
+
     let assert = test_env
         .jj_cmd(
             test_env.env_root(),
@@ -58,18 +59,18 @@ fn test_init_git_external() {
         )
         .assert()
         .success();
-
     let workspace_root = test_env.env_root().join("repo");
+    assert.stdout(format!(
+        "Initialized repo in \"{}\"\n",
+        workspace_root.display()
+    ));
+
     let jj_path = workspace_root.join(".jj");
     let repo_path = jj_path.join("repo");
     let store_path = repo_path.join("store");
     assert!(workspace_root.is_dir());
     assert!(jj_path.is_dir());
     assert!(jj_path.join("working_copy").is_dir());
-    assert.stdout(format!(
-        "Initialized repo in \"{}\"\n",
-        workspace_root.display()
-    ));
     assert!(repo_path.is_dir());
     assert!(store_path.is_dir());
     let git_target_file_contents = std::fs::read_to_string(store_path.join("git_target")).unwrap();
@@ -79,24 +80,52 @@ fn test_init_git_external() {
 }
 
 #[test]
-fn test_init_local() {
+fn test_init_git_colocated() {
     let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    git2::Repository::init(&workspace_root).unwrap();
     let assert = test_env
-        .jj_cmd(test_env.env_root(), &["init", "repo"])
+        .jj_cmd(&workspace_root, &["init", "--git-repo", "."])
         .assert()
         .success();
+    assert.stdout(format!(
+        "Initialized repo in \"{}\"\n",
+        workspace_root.display()
+    ));
 
-    let workspace_root = test_env.env_root().join("repo");
     let jj_path = workspace_root.join(".jj");
     let repo_path = jj_path.join("repo");
     let store_path = repo_path.join("store");
     assert!(workspace_root.is_dir());
     assert!(jj_path.is_dir());
     assert!(jj_path.join("working_copy").is_dir());
+    assert!(repo_path.is_dir());
+    assert!(store_path.is_dir());
+    let git_target_file_contents = std::fs::read_to_string(store_path.join("git_target")).unwrap();
+    assert!(git_target_file_contents
+        .replace('\\', "/")
+        .ends_with("../../../.git"));
+}
+
+#[test]
+fn test_init_local() {
+    let test_env = TestEnvironment::default();
+    let assert = test_env
+        .jj_cmd(test_env.env_root(), &["init", "repo"])
+        .assert()
+        .success();
+    let workspace_root = test_env.env_root().join("repo");
     assert.stdout(format!(
         "Initialized repo in \"{}\"\n",
         workspace_root.display()
     ));
+
+    let jj_path = workspace_root.join(".jj");
+    let repo_path = jj_path.join("repo");
+    let store_path = repo_path.join("store");
+    assert!(workspace_root.is_dir());
+    assert!(jj_path.is_dir());
+    assert!(jj_path.join("working_copy").is_dir());
     assert!(repo_path.is_dir());
     assert!(store_path.is_dir());
     assert!(store_path.join("commits").is_dir());
