@@ -1731,11 +1731,21 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
     } else {
         fs::create_dir(&wc_path).unwrap();
     }
+    let wc_path = std::fs::canonicalize(&wc_path).unwrap();
 
     if let Some(git_store_str) = args.value_of("git-repo") {
         let mut git_store_path = ui.cwd().join(git_store_str);
         if !git_store_path.ends_with(".git") {
             git_store_path = git_store_path.join(".git");
+        }
+        git_store_path = std::fs::canonicalize(&git_store_path).unwrap();
+        // If the git repo is inside the workspace, use a relative path to it so the
+        // whole workspace can be moved without breaking.
+        if let Ok(relative_path) = git_store_path.strip_prefix(&wc_path) {
+            git_store_path = PathBuf::from("..")
+                .join("..")
+                .join("..")
+                .join(relative_path.to_path_buf());
         }
         let (workspace, repo) =
             Workspace::init_external_git(ui.settings(), wc_path.clone(), git_store_path)?;
