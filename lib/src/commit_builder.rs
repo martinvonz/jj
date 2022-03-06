@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
 use std::sync::Arc;
 
-use chrono::DateTime;
 use uuid::Uuid;
 
 use crate::backend;
-use crate::backend::{ChangeId, CommitId, Signature, Timestamp, TreeId};
+use crate::backend::{ChangeId, CommitId, Signature, TreeId};
 use crate::commit::Commit;
 use crate::repo::MutableRepo;
 use crate::settings::UserSettings;
@@ -36,28 +34,13 @@ pub fn new_change_id() -> ChangeId {
     ChangeId::from_bytes(Uuid::new_v4().as_bytes())
 }
 
-pub fn signature(settings: &UserSettings) -> Signature {
-    let timestamp = match env::var("JJ_TIMESTAMP") {
-        Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
-            Ok(datetime) => Timestamp::from_datetime(datetime),
-            Err(_) => Timestamp::now(),
-        },
-        Err(_) => Timestamp::now(),
-    };
-    Signature {
-        name: settings.user_name(),
-        email: settings.user_email(),
-        timestamp,
-    }
-}
-
 impl CommitBuilder {
     pub fn for_new_commit(
         settings: &UserSettings,
         store: &Arc<Store>,
         tree_id: TreeId,
     ) -> CommitBuilder {
-        let signature = signature(settings);
+        let signature = settings.signature();
         let commit = backend::Commit {
             parents: vec![],
             predecessors: vec![],
@@ -82,7 +65,7 @@ impl CommitBuilder {
     ) -> CommitBuilder {
         let mut commit = predecessor.store_commit().clone();
         commit.predecessors = vec![predecessor.id().clone()];
-        commit.committer = signature(settings);
+        commit.committer = settings.signature();
         CommitBuilder {
             store: store.clone(),
             commit,
@@ -96,7 +79,7 @@ impl CommitBuilder {
         parent_id: CommitId,
         tree_id: TreeId,
     ) -> CommitBuilder {
-        let signature = signature(settings);
+        let signature = settings.signature();
         let commit = backend::Commit {
             parents: vec![parent_id],
             predecessors: vec![],

@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::env;
 use std::path::Path;
+
+use chrono::DateTime;
+
+use crate::backend::{Signature, Timestamp};
 
 #[derive(Debug, Clone, Default)]
 pub struct UserSettings {
@@ -89,6 +94,21 @@ impl UserSettings {
         self.config
             .get_str("user.email")
             .unwrap_or_else(|_| "(no email configured)".to_string())
+    }
+
+    pub fn signature(&self) -> Signature {
+        let timestamp = match env::var("JJ_TIMESTAMP") {
+            Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
+                Ok(datetime) => Timestamp::from_datetime(datetime),
+                Err(_) => Timestamp::now(),
+            },
+            Err(_) => Timestamp::now(),
+        };
+        Signature {
+            name: self.user_name(),
+            email: self.user_email(),
+            timestamp,
+        }
     }
 
     pub fn config(&self) -> &config::Config {
