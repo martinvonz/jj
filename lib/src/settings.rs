@@ -79,8 +79,14 @@ impl UserSettings {
         }
 
         let mut env_config = config::Config::new();
-        if let Ok(timestamp_str) = env::var("JJ_TIMESTAMP") {
-            env_config.set("user.timestamp", timestamp_str)?;
+        if let Ok(value) = env::var("JJ_USER") {
+            env_config.set("user.name", value)?;
+        }
+        if let Ok(value) = env::var("JJ_EMAIL") {
+            env_config.set("user.email", value)?;
+        }
+        if let Ok(value) = env::var("JJ_TIMESTAMP") {
+            env_config.set("user.timestamp", value)?;
         }
         config.merge(env_config)?;
 

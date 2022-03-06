@@ -31,7 +31,7 @@ fn test_no_commit_working_copy() {
         .success();
     let stdout_string = get_stdout_string(&assert);
     insta::assert_snapshot!(stdout_string, @r###"
-    @ 1e9ff0ea7220c37a1d2c4aab153e238c12ff3cd0
+    @ 438471f3fbf1004298d8fb01eeb13663a051a643
     o 0000000000000000000000000000000000000000
     "###);
 
@@ -53,7 +53,7 @@ fn test_no_commit_working_copy() {
         .assert()
         .success();
     insta::assert_snapshot!(get_stdout_string(&assert), @r###"
-    @ cc12440b719c67fcd8c55848eb345f67b6e2d9f1
+    @ fab22d1acf5bb9c5aa48cb2c3dd2132072a359ca
     o 0000000000000000000000000000000000000000
     "###);
 }

@@ -27,7 +27,7 @@ fn smoke_test() {
     let assert = test_env.jj_cmd(&repo_path, &["status"]).assert().success();
     insta::assert_snapshot!(get_stdout_string(&assert), @r###"
     Parent commit: 000000000000 
-    Working copy : 1d1984a23811 
+    Working copy : 230dd059e1b0 
     The working copy is clean
     "###);
 
@@ -41,7 +41,7 @@ fn smoke_test() {
     let stdout_string = get_stdout_string(&assert);
     insta::assert_snapshot!(stdout_string, @r###"
     Parent commit: 000000000000 
-    Working copy : 5e60c5091e43 
+    Working copy : d38745675403 
     Working copy changes:
     A file1
     A file2
@@ -60,11 +60,11 @@ fn smoke_test() {
         .jj_cmd(&repo_path, &["describe", "-m", "add some files"])
         .assert()
         .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"Working copy now at: 6f13b3e41065 add some files
+    insta::assert_snapshot!(get_stdout_string(&assert), @"Working copy now at: 701b3d5a2eb3 add some files
 ");
 
     // Close the commit
     let assert = test_env.jj_cmd(&repo_path, &["close"]).assert().success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"Working copy now at: 6ff8a22d8ce1 
+    insta::assert_snapshot!(get_stdout_string(&assert), @"Working copy now at: a13f828fab1a 
 ");
 }
