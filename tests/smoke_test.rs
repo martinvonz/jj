@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::testutils::TestEnvironment;
+use jujutsu::testutils::{get_stdout_string, TestEnvironment};
 
 #[test]
 fn smoke_test() {
@@ -24,15 +24,15 @@ fn smoke_test() {
 
     let repo_path = test_env.env_root().join("repo");
     // Check the output of `jj status` right after initializing repo
-    let expected_output = "Parent commit: 000000000000 
-Working copy : 1d1984a23811 
-The working copy is clean
-";
-    test_env
+    let assert = test_env
         .jj_cmd(&repo_path, &["status"])
         .assert()
-        .success()
-        .stdout(expected_output);
+        .success();
+    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    Parent commit: 000000000000 
+    Working copy : 1d1984a23811 
+    The working copy is clean
+    "###);
 
     // Write some files and check the output of `jj status`
     std::fs::write(repo_path.join("file1"), "file1").unwrap();
@@ -40,41 +40,40 @@ The working copy is clean
     std::fs::write(repo_path.join("file3"), "file3").unwrap();
 
     // The working copy's ID should have changed
-    let expected_output = "Parent commit: 000000000000 
-Working copy : 5e60c5091e43 
-Working copy changes:
-A file1
-A file2
-A file3
-";
-    test_env
+    let assert = test_env
         .jj_cmd(&repo_path, &["status"])
         .assert()
-        .success()
-        .stdout(expected_output);
+        .success();
+    let stdout_string = get_stdout_string(&assert);
+    insta::assert_snapshot!(stdout_string, @r###"
+    Parent commit: 000000000000 
+    Working copy : 5e60c5091e43 
+    Working copy changes:
+    A file1
+    A file2
+    A file3
+    "###);
 
     // Running `jj status` again gives the same output
     test_env
         .jj_cmd(&repo_path, &["status"])
         .assert()
         .success()
-        .stdout(expected_output);
+        .stdout(stdout_string);
 
     // Add a commit description
-    let expected_output = "Working copy now at: 6f13b3e41065 add some files
-";
-    test_env
+    let assert = test_env
         .jj_cmd(&repo_path, &["describe", "-m", "add some files"])
         .assert()
-        .success()
-        .stdout(expected_output);
+        .success();
+    insta::assert_snapshot!(get_stdout_string(&assert), @"Working copy now at: 6f13b3e41065 add some files
+");
 
     // Close the commit
-    let expected_output = "Working copy now at: 6ff8a22d8ce1 
-";
-    test_env
+    let assert = test_env
         .jj_cmd(&repo_path, &["close"])
         .assert()
-        .success()
-        .stdout(expected_output);
+        .success();
+    insta::assert_snapshot!(get_stdout_string(&assert), @"Working copy now at: 6ff8a22d8ce1 
+");
 }
