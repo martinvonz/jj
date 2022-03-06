@@ -35,6 +35,7 @@ criterion = "0.3.5"
 git2 = "0.13.25"
 hex = "0.4.3"
 indoc = "1.0.3"
+insta = "1.13.0"
 itertools = "0.10.3"
 jujutsu-lib = { version = "=0.2.0", path = "lib"}
 maplit = "1.0.2"
