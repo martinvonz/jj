@@ -52,6 +52,8 @@ impl TestEnvironment {
         *command_number += 1;
         let timestamp = timestamp + chrono::Duration::seconds(*command_number);
         cmd.env("JJ_TIMESTAMP", timestamp.to_rfc3339());
+        cmd.env("JJ_USER", "Test User");
+        cmd.env("JJ_EMAIL", "test.user@example.com");
         cmd
     }
 
