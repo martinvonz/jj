@@ -22,6 +22,7 @@ use crate::backend::{Signature, Timestamp};
 #[derive(Debug, Clone, Default)]
 pub struct UserSettings {
     config: config::Config,
+    timestamp: Option<Timestamp>,
 }
 
 #[derive(Debug, Clone)]
@@ -34,7 +35,14 @@ const TOO_MUCH_CONFIG_ERROR: &str =
 
 impl UserSettings {
     pub fn from_config(config: config::Config) -> Self {
-        UserSettings { config }
+        let timestamp = match config.get_str("user.timestamp") {
+            Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
+                Ok(datetime) => Some(Timestamp::from_datetime(datetime)),
+                Err(_) => None,
+            },
+            Err(_) => None,
+        };
+        UserSettings { config, timestamp }
     }
 
     pub fn for_user() -> Result<Self, config::ConfigError> {
@@ -76,7 +84,7 @@ impl UserSettings {
         }
         config.merge(env_config)?;
 
-        Ok(UserSettings { config })
+        Ok(Self::from_config(config))
     }
 
     pub fn with_repo(&self, repo_path: &Path) -> Result<RepoSettings, config::ConfigError> {
@@ -103,13 +111,7 @@ impl UserSettings {
     }
 
     pub fn signature(&self) -> Signature {
-        let timestamp = match self.config.get_str("user.timestamp") {
-            Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
-                Ok(datetime) => Timestamp::from_datetime(datetime),
-                Err(_) => Timestamp::now(),
-            },
-            Err(_) => Timestamp::now(),
-        };
+        let timestamp = self.timestamp.clone().unwrap_or_else(Timestamp::now);
         Signature {
             name: self.user_name(),
             email: self.user_email(),
