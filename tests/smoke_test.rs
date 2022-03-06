@@ -24,8 +24,10 @@ fn smoke_test() {
 
     let repo_path = test_env.env_root().join("repo");
     // Check the output of `jj status` right after initializing repo
-    let expected_output =
-        "Parent commit: 000000000000 \nWorking copy : 1d1984a23811 \nThe working copy is clean\n";
+    let expected_output = "Parent commit: 000000000000 
+Working copy : 1d1984a23811 
+The working copy is clean
+";
     test_env
         .jj_cmd(&repo_path, &["status"])
         .assert()
@@ -38,8 +40,9 @@ fn smoke_test() {
     std::fs::write(repo_path.join("file3"), "file3").unwrap();
 
     // The working copy's ID should have changed
-    let expected_output = "Parent commit: 000000000000 \nWorking copy : 5e60c5091e43 \nWorking \
-                           copy changes:
+    let expected_output = "Parent commit: 000000000000 
+Working copy : 5e60c5091e43 
+Working copy changes:
 A file1
 A file2
 A file3
@@ -58,7 +61,8 @@ A file3
         .stdout(expected_output);
 
     // Add a commit description
-    let expected_output = "Working copy now at: 6f13b3e41065 add some files\n";
+    let expected_output = "Working copy now at: 6f13b3e41065 add some files
+";
     test_env
         .jj_cmd(&repo_path, &["describe", "-m", "add some files"])
         .assert()
@@ -66,7 +70,8 @@ A file3
         .stdout(expected_output);
 
     // Close the commit
-    let expected_output = "Working copy now at: 6ff8a22d8ce1 \n";
+    let expected_output = "Working copy now at: 6ff8a22d8ce1 
+";
     test_env
         .jj_cmd(&repo_path, &["close"])
         .assert()
