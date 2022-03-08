@@ -13,9 +13,10 @@
 // limitations under the License.
 
 use std::cmp::{max, min, Ordering};
-use std::collections::{btree_map, BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Formatter};
 use std::ops::Range;
+use std::slice;
 
 use itertools::Itertools;
 
@@ -290,20 +291,26 @@ pub(crate) fn unchanged_ranges(
     result
 }
 
-/// Wrapper around Range<usize> to provide Ord. We only order by the range's
-/// start because we make sure to never have overlapping ranges.
 #[derive(Clone, PartialEq, Eq, Debug)]
-struct BaseRange(Range<usize>);
+struct UnchangedRange {
+    base_range: Range<usize>,
+    offsets: Vec<isize>,
+}
 
-impl PartialOrd for BaseRange {
+/// We only order by the base range's start because we make sure to never have
+/// overlapping ranges.
+impl PartialOrd for UnchangedRange {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for BaseRange {
+impl Ord for UnchangedRange {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.0.start.cmp(&other.0.start).then_with(|| self.0.end.cmp(&other.0.end))
+        self.base_range
+            .start
+            .cmp(&other.base_range.start)
+            .then_with(|| self.base_range.end.cmp(&other.base_range.end))
     }
 }
 
@@ -316,21 +323,25 @@ pub struct Diff<'input> {
     // The key is a range in the base input. The value is the start of each non-base region
     // relative to the base region's start. By making them relative, they don't need to change
     // when the base range changes.
-    unchanged_regions: BTreeMap<BaseRange, Vec<isize>>,
+    unchanged_regions: Vec<UnchangedRange>,
 }
 
 /// Takes the current regions and intersects it with the new unchanged ranges
 /// from a 2-way diff. The result is a map of unchanged regions with one more
 /// offset in the map's values.
 fn intersect_regions(
-    current_ranges: BTreeMap<BaseRange, Vec<isize>>,
+    current_ranges: Vec<UnchangedRange>,
     new_unchanged_ranges: &[(Range<usize>, Range<usize>)],
-) -> BTreeMap<BaseRange, Vec<isize>> {
-    let mut result = BTreeMap::new();
+) -> Vec<UnchangedRange> {
+    let mut result = vec![];
     let mut current_ranges_iter = current_ranges.into_iter().peekable();
     for (new_base_range, other_range) in new_unchanged_ranges.iter() {
         assert_eq!(new_base_range.len(), other_range.len());
-        while let Some((BaseRange(base_range), offsets)) = current_ranges_iter.peek() {
+        while let Some(UnchangedRange {
+            base_range,
+            offsets,
+        }) = current_ranges_iter.peek()
+        {
             // No need to look further if we're past the new range.
             if base_range.start >= new_base_range.end {
                 break;
@@ -345,7 +356,10 @@ fn intersect_regions(
             let new_end = min(base_range.end, new_base_range.end);
             let mut new_offsets = offsets.clone();
             new_offsets.push(other_range.start.wrapping_sub(new_base_range.start) as isize);
-            result.insert(BaseRange(new_start..new_end), new_offsets);
+            result.push(UnchangedRange {
+                base_range: new_start..new_end,
+                offsets: new_offsets,
+            });
             if base_range.end >= new_base_range.end {
                 // Break without consuming the item; there may be other new ranges that overlap
                 // with it.
@@ -376,8 +390,10 @@ impl<'input> Diff<'input> {
         // input as unchanged (compared to itself). Then diff each other input
         // against the base. Intersect the previously found ranges with the
         // unchanged ranges in the diff.
-        let mut unchanged_regions = BTreeMap::new();
-        unchanged_regions.insert(BaseRange(0..base_input.len()), vec![]);
+        let mut unchanged_regions = vec![UnchangedRange {
+            base_range: 0..base_input.len(),
+            offsets: vec![],
+        }];
         for (i, other_token_ranges) in other_token_ranges.iter().enumerate() {
             let unchanged_diff_ranges = unchanged_ranges(
                 base_input,
@@ -392,7 +408,10 @@ impl<'input> Diff<'input> {
             .iter()
             .map(|input| input.len().wrapping_sub(base_input.len()) as isize)
             .collect_vec();
-        unchanged_regions.insert(BaseRange(base_input.len()..base_input.len()), offsets);
+        unchanged_regions.push(UnchangedRange {
+            base_range: base_input.len()..base_input.len(),
+            offsets,
+        });
 
         let mut diff = Self {
             base_input,
@@ -424,8 +443,10 @@ impl<'input> Diff<'input> {
         let previous_offsets = vec![0; self.other_inputs.len()];
         DiffHunkIterator {
             diff: self,
-            previous_base_range: 0..0,
-            previous_offsets,
+            previous: UnchangedRange {
+                base_range: 0..0,
+                offsets: previous_offsets,
+            },
             unchanged_emitted: true,
             unchanged_iter: self.unchanged_regions.iter(),
         }
@@ -434,55 +455,77 @@ impl<'input> Diff<'input> {
     /// Uses the given tokenizer to split the changed regions into smaller
     /// regions. Then tries to finds unchanged regions among them.
     pub fn refine_changed_regions(&mut self, tokenizer: &impl Fn(&[u8]) -> Vec<Range<usize>>) {
-        let mut previous_base_end = 0;
-        let mut previous_offsets = vec![0; self.other_inputs.len()];
-        let mut new_unchanged_ranges = BTreeMap::new();
-        for (BaseRange(base_range), offsets) in self.unchanged_regions.iter() {
+        let mut previous = UnchangedRange {
+            base_range: 0..0,
+            offsets: vec![0; self.other_inputs.len()],
+        };
+        let mut new_unchanged_ranges = vec![];
+        for current in self.unchanged_regions.iter() {
             // For the changed region between the previous region and the current one,
             // create a new Diff instance. Then adjust the start positions and
             // offsets to be valid in the context of the larger Diff instance
             // (`self`).
-            let mut slices = vec![&self.base_input[previous_base_end..base_range.start]];
-            for (i, offset) in offsets.iter().enumerate() {
-                let changed_range = previous_base_end.wrapping_add(previous_offsets[i] as usize)
-                    ..base_range.start.wrapping_add(*offset as usize);
+            let mut slices =
+                vec![&self.base_input[previous.base_range.end..current.base_range.start]];
+            for (i, offset) in current.offsets.iter().enumerate() {
+                let changed_range = previous
+                    .base_range
+                    .end
+                    .wrapping_add(previous.offsets[i] as usize)
+                    ..current.base_range.start.wrapping_add(*offset as usize);
                 slices.push(&self.other_inputs[i][changed_range]);
             }
 
             let refined_diff = Diff::for_tokenizer(&slices, tokenizer);
 
-            for (BaseRange(base_range), offsets) in refined_diff.unchanged_regions {
-                let new_base_start = base_range.start + previous_base_end;
-                let new_base_end = base_range.end + previous_base_end;
+            for UnchangedRange {
+                base_range,
+                offsets,
+            } in refined_diff.unchanged_regions
+            {
+                let new_base_start = base_range.start + previous.base_range.end;
+                let new_base_end = base_range.end + previous.base_range.end;
                 let offsets = offsets
                     .into_iter()
                     .enumerate()
-                    .map(|(i, offset)| offset + previous_offsets[i])
+                    .map(|(i, offset)| offset + previous.offsets[i])
                     .collect_vec();
-                new_unchanged_ranges.insert(BaseRange(new_base_start..new_base_end), offsets);
+                new_unchanged_ranges.push(UnchangedRange {
+                    base_range: new_base_start..new_base_end,
+                    offsets,
+                });
             }
-            previous_base_end = base_range.end;
-            previous_offsets = offsets.clone();
+            previous = current.clone();
         }
-        self.unchanged_regions.extend(new_unchanged_ranges);
+        self.unchanged_regions = self
+            .unchanged_regions
+            .iter()
+            .cloned()
+            .merge(new_unchanged_ranges)
+            .collect_vec();
         self.compact_unchanged_regions();
     }
 
     fn compact_unchanged_regions(&mut self) {
-        let mut compacted = BTreeMap::new();
-        let mut previous: Option<(Range<usize>, Vec<isize>)> = None;
-        for (BaseRange(base_range), value) in self.unchanged_regions.iter() {
-            if let Some((prevous_base_range, previous_value)) = previous {
-                if prevous_base_range.end == base_range.start && previous_value == *value {
-                    previous = Some((prevous_base_range.start..base_range.end, value.clone()));
+        let mut compacted = vec![];
+        let mut maybe_previous: Option<UnchangedRange> = None;
+        for current in self.unchanged_regions.iter() {
+            if let Some(previous) = maybe_previous {
+                if previous.base_range.end == current.base_range.start
+                    && previous.offsets == *current.offsets
+                {
+                    maybe_previous = Some(UnchangedRange {
+                        base_range: previous.base_range.start..current.base_range.end,
+                        offsets: current.offsets.clone(),
+                    });
                     continue;
                 }
-                compacted.insert(BaseRange(prevous_base_range), previous_value);
+                compacted.push(previous);
             }
-            previous = Some((base_range.clone(), value.clone()));
+            maybe_previous = Some(current.clone());
         }
-        if let Some((prevous_base_range, previous_value)) = previous {
-            compacted.insert(BaseRange(prevous_base_range), previous_value);
+        if let Some(previous) = maybe_previous {
+            compacted.push(previous);
         }
         self.unchanged_regions = compacted;
     }
@@ -516,10 +559,9 @@ impl Debug for DiffHunk<'_> {
 
 pub struct DiffHunkIterator<'diff, 'input> {
     diff: &'diff Diff<'input>,
-    previous_base_range: Range<usize>,
-    previous_offsets: Vec<isize>,
+    previous: UnchangedRange,
     unchanged_emitted: bool,
-    unchanged_iter: btree_map::Iter<'diff, BaseRange, Vec<isize>>,
+    unchanged_iter: slice::Iter<'diff, UnchangedRange>,
 }
 
 impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
@@ -529,25 +571,29 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
         loop {
             if !self.unchanged_emitted {
                 self.unchanged_emitted = true;
-                if !self.previous_base_range.is_empty() {
+                if !self.previous.base_range.is_empty() {
                     return Some(DiffHunk::Matching(
-                        &self.diff.base_input[self.previous_base_range.clone()],
+                        &self.diff.base_input[self.previous.base_range.clone()],
                     ));
                 }
             }
-            if let Some((BaseRange(base_range), offsets)) = self.unchanged_iter.next() {
-                let mut slices =
-                    vec![&self.diff.base_input[self.previous_base_range.end..base_range.start]];
+            if let Some(current) = self.unchanged_iter.next() {
+                let mut slices = vec![
+                    &self.diff.base_input[self.previous.base_range.end..current.base_range.start],
+                ];
                 for (i, input) in self.diff.other_inputs.iter().enumerate() {
                     let start = self
-                        .previous_base_range
+                        .previous
+                        .base_range
                         .end
-                        .wrapping_add(self.previous_offsets[i] as usize);
-                    let end = base_range.start.wrapping_add(offsets[i] as usize);
+                        .wrapping_add(self.previous.offsets[i] as usize);
+                    let end = current
+                        .base_range
+                        .start
+                        .wrapping_add(current.offsets[i] as usize);
                     slices.push(&input[start..end]);
                 }
-                self.previous_base_range = base_range.clone();
-                self.previous_offsets = offsets.clone();
+                self.previous = current.clone();
                 self.unchanged_emitted = false;
                 if slices.iter().any(|slice| !slice.is_empty()) {
                     return Some(DiffHunk::Different(slices));
@@ -732,54 +778,80 @@ mod tests {
 
     #[test]
     fn test_intersect_regions_existing_empty() {
-        let actual = intersect_regions(btreemap! {}, &[(20..25, 55..60)]);
-        let expected = btreemap! {};
+        let actual = intersect_regions(vec![], &[(20..25, 55..60)]);
+        let expected = vec![];
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_intersect_regions_new_ranges_within_existing() {
         let actual = intersect_regions(
-            btreemap! {
-                BaseRange(20..70) => vec![3],
-            },
+            vec![UnchangedRange {
+                base_range: 20..70,
+                offsets: vec![3],
+            }],
             &[(25..30, 35..40), (40..50, 40..50)],
         );
-        let expected = btreemap! {
-            BaseRange(25..30) => vec![3, 10],
-            BaseRange(40..50) => vec![3, 0],
-        };
+        let expected = vec![
+            UnchangedRange {
+                base_range: 25..30,
+                offsets: vec![3, 10],
+            },
+            UnchangedRange {
+                base_range: 40..50,
+                offsets: vec![3, 0],
+            },
+        ];
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_intersect_regions_partial_overlap() {
         let actual = intersect_regions(
-            btreemap! {
-                BaseRange(20..50) => vec![-3],
-            },
+            vec![UnchangedRange {
+                base_range: 20..50,
+                offsets: vec![-3],
+            }],
             &[(15..25, 5..15), (45..60, 55..70)],
         );
-        let expected = btreemap! {
-            BaseRange(20..25) => vec![-3, -10],
-            BaseRange(45..50) => vec![-3, 10],
-        };
+        let expected = vec![
+            UnchangedRange {
+                base_range: 20..25,
+                offsets: vec![-3, -10],
+            },
+            UnchangedRange {
+                base_range: 45..50,
+                offsets: vec![-3, 10],
+            },
+        ];
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn test_intersect_regions_new_range_overlaps_multiple_existing() {
         let actual = intersect_regions(
-            btreemap! {
-                BaseRange(20..50) => vec![3, -8],
-                BaseRange(70..80) => vec![7, 1],
-            },
+            vec![
+                UnchangedRange {
+                    base_range: 20..50,
+                    offsets: vec![3, -8],
+                },
+                UnchangedRange {
+                    base_range: 70..80,
+                    offsets: vec![7, 1],
+                },
+            ],
             &[(10..100, 5..95)],
         );
-        let expected = btreemap! {
-            BaseRange(20..50) => vec![3, -8, -5],
-            BaseRange(70..80) => vec![7, 1, -5],
-        };
+        let expected = vec![
+            UnchangedRange {
+                base_range: 20..50,
+                offsets: vec![3, -8, -5],
+            },
+            UnchangedRange {
+                base_range: 70..80,
+                offsets: vec![7, 1, -5],
+            },
+        ];
         assert_eq!(actual, expected);
     }
 
