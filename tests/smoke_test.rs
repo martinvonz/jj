@@ -24,10 +24,7 @@ fn smoke_test() {
 
     let repo_path = test_env.env_root().join("repo");
     // Check the output of `jj status` right after initializing repo
-    let assert = test_env
-        .jj_cmd(&repo_path, &["status"])
-        .assert()
-        .success();
+    let assert = test_env.jj_cmd(&repo_path, &["status"]).assert().success();
     insta::assert_snapshot!(get_stdout_string(&assert), @r###"
     Parent commit: 000000000000 
     Working copy : 1d1984a23811 
@@ -40,10 +37,7 @@ fn smoke_test() {
     std::fs::write(repo_path.join("file3"), "file3").unwrap();
 
     // The working copy's ID should have changed
-    let assert = test_env
-        .jj_cmd(&repo_path, &["status"])
-        .assert()
-        .success();
+    let assert = test_env.jj_cmd(&repo_path, &["status"]).assert().success();
     let stdout_string = get_stdout_string(&assert);
     insta::assert_snapshot!(stdout_string, @r###"
     Parent commit: 000000000000 
@@ -70,10 +64,7 @@ fn smoke_test() {
 ");
 
     // Close the commit
-    let assert = test_env
-        .jj_cmd(&repo_path, &["close"])
-        .assert()
-        .success();
+    let assert = test_env.jj_cmd(&repo_path, &["close"]).assert().success();
     insta::assert_snapshot!(get_stdout_string(&assert), @"Working copy now at: 6ff8a22d8ce1 
 ");
 }

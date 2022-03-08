@@ -35,7 +35,6 @@ fn test_no_commit_working_copy() {
     o 0000000000000000000000000000000000000000
     "###);
 
-
     // Modify the file. With --no-commit-working-copy, we still get the same commit
     // ID.
     std::fs::write(repo_path.join("file"), "modified").unwrap();
