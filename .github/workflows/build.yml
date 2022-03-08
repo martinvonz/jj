@@ -22,11 +22,15 @@ jobs:
         override: true
         profile: minimal
     - name: Build
-      run: |
-        cargo build --workspace --verbose
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --workspace --verbose
     - name: Test
-      run: |
-        cargo test --workspace --verbose
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --workspace --verbose
       env:
         RUST_BACKTRACE: 1
 
