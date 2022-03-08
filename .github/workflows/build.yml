@@ -34,6 +34,22 @@ jobs:
       env:
         RUST_BACKTRACE: 1
 
+  rustfmt:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          components: rustfmt
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
   clippy-stable:
     name: Clippy check (stable)
     runs-on: ubuntu-latest
