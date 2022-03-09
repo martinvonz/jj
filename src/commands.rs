@@ -1757,6 +1757,14 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
         }
         let mut tx = workspace_command.start_transaction("import git refs");
         git::import_refs(tx.mut_repo(), &git_repo)?;
+        if let Some(git_head_id) = tx.mut_repo().view().git_head() {
+            let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
+            tx.mut_repo().check_out(
+                workspace_command.workspace_id(),
+                ui.settings(),
+                &git_head_commit,
+            );
+        }
         // TODO: Check out a recent commit. Maybe one with the highest generation
         // number.
         if tx.mut_repo().has_changes() {
