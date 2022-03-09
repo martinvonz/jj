@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::testutils::TestEnvironment;
+use jujutsu::testutils::{get_stdout_string, TestEnvironment};
 
 #[test]
 fn test_init_git_internal() {
@@ -21,12 +21,10 @@ fn test_init_git_internal() {
         .jj_cmd(test_env.env_root(), &["init", "repo", "--git"])
         .assert()
         .success();
-    let workspace_root = test_env.env_root().join("repo");
-    assert.stdout(format!(
-        "Initialized repo in \"{}\"\n",
-        workspace_root.to_str().unwrap()
-    ));
+    insta::assert_snapshot!(get_stdout_string(&assert), @r###"Initialized repo in "repo"
+"###);
 
+    let workspace_root = test_env.env_root().join("repo");
     let jj_path = workspace_root.join(".jj");
     let repo_path = jj_path.join("repo");
     let store_path = repo_path.join("store");
@@ -59,12 +57,10 @@ fn test_init_git_external() {
         )
         .assert()
         .success();
-    let workspace_root = test_env.env_root().join("repo");
-    assert.stdout(format!(
-        "Initialized repo in \"{}\"\n",
-        workspace_root.display()
-    ));
+    insta::assert_snapshot!(get_stdout_string(&assert), @r###"Initialized repo in "repo"
+"###);
 
+    let workspace_root = test_env.env_root().join("repo");
     let jj_path = workspace_root.join(".jj");
     let repo_path = jj_path.join("repo");
     let store_path = repo_path.join("store");
@@ -88,10 +84,9 @@ fn test_init_git_colocated() {
         .jj_cmd(&workspace_root, &["init", "--git-repo", "."])
         .assert()
         .success();
-    assert.stdout(format!(
-        "Initialized repo in \"{}\"\n",
-        workspace_root.display()
-    ));
+    // TODO: We should say "." instead of "" here
+    insta::assert_snapshot!(get_stdout_string(&assert), @r###"Initialized repo in ""
+"###);
 
     let jj_path = workspace_root.join(".jj");
     let repo_path = jj_path.join("repo");
@@ -114,12 +109,10 @@ fn test_init_local() {
         .jj_cmd(test_env.env_root(), &["init", "repo"])
         .assert()
         .success();
-    let workspace_root = test_env.env_root().join("repo");
-    assert.stdout(format!(
-        "Initialized repo in \"{}\"\n",
-        workspace_root.display()
-    ));
+    insta::assert_snapshot!(get_stdout_string(&assert), @r###"Initialized repo in "repo"
+"###);
 
+    let workspace_root = test_env.env_root().join("repo");
     let jj_path = workspace_root.join(".jj");
     let repo_path = jj_path.join("repo");
     let store_path = repo_path.join("store");
