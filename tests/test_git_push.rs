@@ -1,0 +1,70 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use jujutsu::testutils::{get_stdout_string, TestEnvironment};
+
+#[test]
+fn test_git_push() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("git-repo");
+    git2::Repository::init(&git_repo_path).unwrap();
+
+    test_env
+        .jj_cmd(
+            test_env.env_root(),
+            &["git", "clone", "git-repo", "jj-repo"],
+        )
+        .assert()
+        .success();
+    let workspace_root = test_env.env_root().join("jj-repo");
+
+    // No branches to push yet
+    let assert = test_env
+        .jj_cmd(&workspace_root, &["git", "push"])
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stdout_string(&assert), @"Nothing changed.
+");
+
+    // Try pushing a conflict
+    std::fs::write(workspace_root.join("file"), "first").unwrap();
+    test_env
+        .jj_cmd(&workspace_root, &["close", "-m", "first"])
+        .assert()
+        .success();
+    std::fs::write(workspace_root.join("file"), "second").unwrap();
+    test_env
+        .jj_cmd(&workspace_root, &["close", "-m", "second"])
+        .assert()
+        .success();
+    std::fs::write(workspace_root.join("file"), "third").unwrap();
+    test_env
+        .jj_cmd(&workspace_root, &["rebase", "-d", "@--"])
+        .assert()
+        .success();
+    test_env
+        .jj_cmd(&workspace_root, &["branch", "my-branch"])
+        .assert()
+        .success();
+    test_env
+        .jj_cmd(&workspace_root, &["close", "-m", "third"])
+        .assert()
+        .success();
+    let assert = test_env
+        .jj_cmd(&workspace_root, &["git", "push"])
+        .assert()
+        .failure();
+    insta::assert_snapshot!(get_stdout_string(&assert), @"Error: Won't push commit 56e09a8ca383 since it has conflicts
+");
+}
