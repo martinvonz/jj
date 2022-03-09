@@ -4365,9 +4365,11 @@ fn cmd_git_push(
     }
 
     let mut ref_updates = vec![];
+    let mut new_heads = vec![];
     for (branch_name, update) in branch_updates {
         let qualified_name = format!("refs/heads/{}", branch_name);
         if let Some(new_target) = update.new_target {
+            new_heads.push(new_target.clone());
             let force = match update.old_target {
                 None => false,
                 Some(old_target) => !repo.index().is_ancestor(&old_target, &new_target),
@@ -4383,6 +4385,24 @@ fn cmd_git_push(
                 force: false,
                 new_target: None,
             });
+        }
+    }
+
+    // Check if there are conflicts in any commits we're about to push that haven't
+    // already been pushed.
+    let mut old_heads = vec![];
+    for branch_target in repo.view().branches().values() {
+        if let Some(old_head) = branch_target.remote_targets.get(remote_name) {
+            old_heads.extend(old_head.adds());
+        }
+    }
+    for index_entry in repo.index().walk_revs(&new_heads, &old_heads) {
+        let commit = repo.store().get_commit(&index_entry.commit_id())?;
+        if commit.tree().has_conflict() {
+            return Err(UserError(format!(
+                "Won't push commit {} since it has conflicts",
+                short_commit_hash(commit.id())
+            )));
         }
     }
 
