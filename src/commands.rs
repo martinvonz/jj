@@ -68,6 +68,7 @@ use crate::formatter::Formatter;
 use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
+use crate::ui;
 use crate::ui::{FilePathParseError, Ui};
 
 enum CommandError {
@@ -1766,7 +1767,9 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
     } else {
         Workspace::init_local(ui.settings(), wc_path.clone())?;
     };
-    writeln!(ui, "Initialized repo in \"{}\"", wc_path.display())?;
+    let cwd = std::fs::canonicalize(&ui.cwd()).unwrap();
+    let relative_wc_path = ui::relative_path(&cwd, &wc_path);
+    writeln!(ui, "Initialized repo in \"{}\"", relative_wc_path.display())?;
     Ok(())
 }
 

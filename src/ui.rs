@@ -178,7 +178,7 @@ pub enum FilePathParseError {
     InputNotInRepo(String),
 }
 
-fn relative_path(mut from: &Path, to: &Path) -> PathBuf {
+pub fn relative_path(mut from: &Path, to: &Path) -> PathBuf {
     let mut result = PathBuf::from("");
     loop {
         if let Ok(suffix) = to.strip_prefix(from) {
