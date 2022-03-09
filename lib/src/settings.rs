@@ -70,6 +70,12 @@ impl UserSettings {
             )?;
         }
 
+        let mut env_config = config::Config::new();
+        if let Ok(timestamp_str) = env::var("JJ_TIMESTAMP") {
+            env_config.set("user.timestamp", timestamp_str)?;
+        }
+        config.merge(env_config)?;
+
         Ok(UserSettings { config })
     }
 
@@ -97,7 +103,7 @@ impl UserSettings {
     }
 
     pub fn signature(&self) -> Signature {
-        let timestamp = match env::var("JJ_TIMESTAMP") {
+        let timestamp = match self.config.get_str("user.timestamp") {
             Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
                 Ok(datetime) => Timestamp::from_datetime(datetime),
                 Err(_) => Timestamp::now(),
