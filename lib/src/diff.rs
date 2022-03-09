@@ -297,13 +297,13 @@ struct BaseRange(Range<usize>);
 
 impl PartialOrd for BaseRange {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.0.start.partial_cmp(&other.0.start)
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for BaseRange {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.0.start.cmp(&other.0.start)
+        self.0.start.cmp(&other.0.start).then_with(|| self.0.end.cmp(&other.0.end))
     }
 }
 
