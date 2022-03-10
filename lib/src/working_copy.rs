@@ -291,21 +291,6 @@ impl TreeState {
         self.store.write_symlink(path, str_target).unwrap()
     }
 
-    fn try_chain_gitignore(
-        base: &Arc<GitIgnoreFile>,
-        prefix: &str,
-        file: PathBuf,
-    ) -> Arc<GitIgnoreFile> {
-        if file.is_file() {
-            let mut file = File::open(file).unwrap();
-            let mut buf = Vec::new();
-            file.read_to_end(&mut buf).unwrap();
-            base.chain(prefix, &buf)
-        } else {
-            base.clone()
-        }
-    }
-
     // Look for changes to the working copy. If there are any changes, create
     // a new tree from it and return it, and also update the dirstate on disk.
     pub fn write_tree(&mut self) -> TreeId {
@@ -316,8 +301,7 @@ impl TreeState {
         let mut git_ignore = GitIgnoreFile::empty();
         if let Ok(home_dir) = std::env::var("HOME") {
             let home_dir_path = PathBuf::from(home_dir);
-            git_ignore =
-                TreeState::try_chain_gitignore(&git_ignore, "", home_dir_path.join(".gitignore"));
+            git_ignore = git_ignore.chain_with_file("", home_dir_path.join(".gitignore"));
         }
 
         let mut work = vec![(RepoPath::root(), self.working_copy_path.clone(), git_ignore)];
@@ -325,11 +309,8 @@ impl TreeState {
         let mut deleted_files: HashSet<_> = self.file_states.keys().cloned().collect();
         while !work.is_empty() {
             let (dir, disk_dir, git_ignore) = work.pop().unwrap();
-            let git_ignore = TreeState::try_chain_gitignore(
-                &git_ignore,
-                &dir.to_internal_dir_string(),
-                disk_dir.join(".gitignore"),
-            );
+            let git_ignore = git_ignore
+                .chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"));
             for maybe_entry in disk_dir.read_dir().unwrap() {
                 let entry = maybe_entry.unwrap();
                 let file_type = entry.file_type().unwrap();

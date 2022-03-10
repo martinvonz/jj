@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fs::File;
+use std::io::Read;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -181,6 +184,21 @@ impl GitIgnoreFile {
             parent: Some(self.clone()),
             lines,
         })
+    }
+
+    pub fn chain_with_file(
+        self: &Arc<GitIgnoreFile>,
+        prefix: &str,
+        file: PathBuf,
+    ) -> Arc<GitIgnoreFile> {
+        if file.is_file() {
+            let mut file = File::open(file).unwrap();
+            let mut buf = Vec::new();
+            file.read_to_end(&mut buf).unwrap();
+            self.chain(prefix, &buf)
+        } else {
+            self.clone()
+        }
     }
 
     fn all_lines_reversed<'a>(&'a self) -> Box<dyn Iterator<Item = &GitIgnoreLine> + 'a> {
