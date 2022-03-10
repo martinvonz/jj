@@ -297,8 +297,20 @@ struct UnchangedRange {
     offsets: Vec<isize>,
 }
 
-/// We only order by the base range's start because we make sure to never have
-/// overlapping ranges.
+impl UnchangedRange {
+    fn start(&self, side: usize) -> usize {
+        self.base_range
+            .start
+            .wrapping_add(self.offsets[side] as usize)
+    }
+
+    fn end(&self, side: usize) -> usize {
+        self.base_range
+            .end
+            .wrapping_add(self.offsets[side] as usize)
+    }
+}
+
 impl PartialOrd for UnchangedRange {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
@@ -467,12 +479,8 @@ impl<'input> Diff<'input> {
             // (`self`).
             let mut slices =
                 vec![&self.base_input[previous.base_range.end..current.base_range.start]];
-            for (i, offset) in current.offsets.iter().enumerate() {
-                let changed_range = previous
-                    .base_range
-                    .end
-                    .wrapping_add(previous.offsets[i] as usize)
-                    ..current.base_range.start.wrapping_add(*offset as usize);
+            for i in 0..current.offsets.len() {
+                let changed_range = previous.end(i)..current.start(i);
                 slices.push(&self.other_inputs[i][changed_range]);
             }
 
@@ -582,16 +590,7 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
                     &self.diff.base_input[self.previous.base_range.end..current.base_range.start],
                 ];
                 for (i, input) in self.diff.other_inputs.iter().enumerate() {
-                    let start = self
-                        .previous
-                        .base_range
-                        .end
-                        .wrapping_add(self.previous.offsets[i] as usize);
-                    let end = current
-                        .base_range
-                        .start
-                        .wrapping_add(current.offsets[i] as usize);
-                    slices.push(&input[start..end]);
+                    slices.push(&input[self.previous.end(i)..current.start(i)]);
                 }
                 self.previous = current.clone();
                 self.unchanged_emitted = false;
