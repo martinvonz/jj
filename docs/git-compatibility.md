@@ -9,7 +9,61 @@ See `jj help git` for help about the `jj git` family of commands, and e.g.
 briefer help).
 
 
+## Supported features
+
+The following list describes which Git features Jujutsu is compatible with. For
+a comparison with Git, including how workflows are different, see the
+[Git-comparison doc](git-comparison.md).
+
+* **Configuration: No.** The only configuration from Git (e.g. in
+  `~/.gitconfig`) that's respected is the configuration of remotes. Feel free
+  to file a bug if you miss any particular configuration options.
+* **Authentication: Partial.** Only `ssh-agent` or a password-less key file at
+  `~/.ssh/id_rsa` (and only at exactly that path).
+* **Branches: Yes.** You can read more about
+  [how branches work in Jujutsu](branches.md)
+  and [how they interoperate with Git](#branches).
+* **Tags: Partial.** You can check out tagged commits by name (pointed to be
+  either annotated or lightweight tags), but you cannot create new tags.
+* **.gitignore: Partial.** No support for ignores in `.git/info/exclude`
+  ([#65](https://github.com/martinvonz/jj/issues/65)) or via `core.excludesfile`
+  config ([#87](https://github.com/martinvonz/jj/issues/87)). Also, it uses a
+  native implementation, so please report a bug if you notice any difference
+  compared to `git`.  
+* **.gitattributes: No.** There's [#53](https://github.com/martinvonz/jj/issues/53)
+  about adding support for at least the `eol` attribute.
+* **Merge commits: Yes.** Octopus merges (i.e. with more than 2 parents) are
+  also supported.
+* **Detached HEAD: Yes.** Jujutsu supports anonymous branches, so this is a
+  natural state.
+* **Orphan branch: Yes.** Jujutsu has a virtual root commit that appears as
+  parent of all commits Git would call "root commits".
+* **Staging area: Kind of.** The staging area will be ignored. For example,
+  `jj diff` will show a diff from the Git HEAD to the working copy. There are
+  [ways of fulfilling your usecases without a staging
+  area](https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md#the-index).  
+* **Garbage collection: Yes.** It should be safe to run `git gc` in the Git
+  repo, but it's not tested, so it's probably a good idea to make a backup of
+  the whole workspace first. There's [no garbage collection and repacking of
+  Jujutsu's own data structures yet](https://github.com/martinvonz/jj/issues/12),
+  however.
+* **Bare repositories: Yes.** You can use `jj init --git-repo=<path>` to create
+  a repo backed by a bare Git repo.
+* **Submodules: No.** They will not show up in the working copy, but they will
+  not be lost either.
+* **Partial clones: No.** We use the [libgit2](https://libgit2.org/) library,
+  which doesn't have support for partial clones.
+* **git-worktree: No.** However, there's native support for multiple working
+  copies backed by a single repo. See the `jj workspace` family of commands.
+* **Sparse checkouts: No.** There is
+  [#52](https://github.com/martinvonz/jj/issues/52) about native support for
+  sparse checkouts.
+* **Signed commits: No.** ([#58](https://github.com/martinvonz/jj/issues/58))
+* **Git LFS: No.** ([#80](https://github.com/martinvonz/jj/issues/80))
+
+
 ## Creating an empty repo
+
 To create an empty repo using the Git backend, use `jj init --git <name>`. Since
 the command creates a Jujutsu repo, it will have a `.jj/` directory. The
 underlying Git repo will be inside of that directory (currently in
