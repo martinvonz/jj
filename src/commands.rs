@@ -40,6 +40,7 @@ use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::diff::{Diff, DiffHunk};
 use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::git::{GitExportError, GitFetchError, GitImportError, GitRefUpdate};
+use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::index::HexPrefix;
 use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use jujutsu_lib::op_heads_store::OpHeadsStore;
@@ -381,6 +382,19 @@ impl WorkspaceCommandHelper {
         self.working_copy_shared_with_git
     }
 
+    fn base_ignores(&self) -> Arc<GitIgnoreFile> {
+        let mut git_ignores = GitIgnoreFile::empty();
+        if let Ok(home_dir) = std::env::var("HOME") {
+            let home_dir_path = PathBuf::from(home_dir);
+            // TODO: Look up the name of the file in the core.excludesFile config instead of
+            // hard-coding its name like this.
+            git_ignores = git_ignores.chain_with_file("", home_dir_path.join(".gitignore"));
+        }
+        // TODO: Chain with the .jj/git/info/exclude file if we're inside a git-backed
+        // repo.
+        git_ignores
+    }
+
     fn resolve_revision_arg(
         &mut self,
         ui: &mut Ui,
@@ -498,6 +512,7 @@ impl WorkspaceCommandHelper {
                 return Ok(());
             }
         };
+        let base_ignores = self.base_ignores();
         let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
         // Check if the working copy commit matches the repo's view. It's fine if it
         // doesn't, but we'll need to reload the repo so the new commit is
@@ -557,7 +572,7 @@ impl WorkspaceCommandHelper {
                 )));
             }
         }
-        let new_tree_id = locked_wc.write_tree();
+        let new_tree_id = locked_wc.write_tree(base_ignores);
         if new_tree_id != *checkout_commit.tree_id() {
             let mut tx = self.repo.start_transaction("commit working copy");
             let mut_repo = tx.mut_repo();
@@ -595,7 +610,13 @@ impl WorkspaceCommandHelper {
         right_tree: &Tree,
         instructions: &str,
     ) -> Result<TreeId, DiffEditError> {
-        crate::diff_edit::edit_diff(&self.settings, left_tree, right_tree, instructions)
+        crate::diff_edit::edit_diff(
+            &self.settings,
+            left_tree,
+            right_tree,
+            instructions,
+            self.base_ignores(),
+        )
     }
 
     fn start_transaction(&self, description: &str) -> Transaction {
@@ -1839,6 +1860,7 @@ fn cmd_untrack(
     };
 
     let mut tx = workspace_command.start_transaction("untrack paths");
+    let base_ignores = workspace_command.base_ignores();
     let mut locked_working_copy = workspace_command.working_copy_mut().start_mutation();
     if current_checkout.tree_id() != locked_working_copy.old_tree_id() {
         return Err(CommandError::UserError(
@@ -1856,7 +1878,7 @@ fn cmd_untrack(
     locked_working_copy.reset(&new_tree)?;
     // Commit the working copy again so we can inform the user if paths couldn't be
     // untracked because they're not ignored.
-    let wc_tree_id = locked_working_copy.write_tree();
+    let wc_tree_id = locked_working_copy.write_tree(base_ignores);
     if wc_tree_id != new_tree_id {
         let wc_tree = store.get_tree(&RepoPath::root(), &wc_tree_id)?;
         let added_back = wc_tree.entries_matching(matcher.as_ref()).collect_vec();

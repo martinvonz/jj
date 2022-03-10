@@ -15,6 +15,7 @@
 use std::cmp::max;
 use std::thread;
 
+use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::testutils;
 use jujutsu_lib::working_copy::CheckoutError;
@@ -128,7 +129,7 @@ fn test_checkout_parallel(use_git: bool) {
             // write_tree() should take the same lock as check_out(), write_tree()
             // should never produce a different tree.
             let mut locked_wc = workspace.working_copy_mut().start_mutation();
-            let new_tree_id = locked_wc.write_tree();
+            let new_tree_id = locked_wc.write_tree(GitIgnoreFile::empty());
             locked_wc.discard();
             assert!(tree_ids.contains(&new_tree_id));
         });

@@ -293,18 +293,12 @@ impl TreeState {
 
     // Look for changes to the working copy. If there are any changes, create
     // a new tree from it and return it, and also update the dirstate on disk.
-    pub fn write_tree(&mut self) -> TreeId {
-        // TODO: We should probably have the caller pass in the home directory to the
-        // library crate instead of depending on $HOME directly here. We should also
-        // have the caller (within the library crate) chain that the
-        // .jj/git/info/exclude file if we're inside a git-backed repo.
-        let mut git_ignore = GitIgnoreFile::empty();
-        if let Ok(home_dir) = std::env::var("HOME") {
-            let home_dir_path = PathBuf::from(home_dir);
-            git_ignore = git_ignore.chain_with_file("", home_dir_path.join(".gitignore"));
-        }
-
-        let mut work = vec![(RepoPath::root(), self.working_copy_path.clone(), git_ignore)];
+    pub fn write_tree(&mut self, base_ignores: Arc<GitIgnoreFile>) -> TreeId {
+        let mut work = vec![(
+            RepoPath::root(),
+            self.working_copy_path.clone(),
+            base_ignores,
+        )];
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
         let mut deleted_files: HashSet<_> = self.file_states.keys().cloned().collect();
         while !work.is_empty() {
@@ -869,8 +863,15 @@ impl LockedWorkingCopy<'_> {
         &self.old_tree_id
     }
 
-    pub fn write_tree(&mut self) -> TreeId {
-        self.wc.tree_state().as_mut().unwrap().write_tree()
+    // The base_ignores are passed in here rather than being set on the TreeState
+    // because the TreeState may be long-lived if the library is used in a
+    // long-lived process.
+    pub fn write_tree(&mut self, base_ignores: Arc<GitIgnoreFile>) -> TreeId {
+        self.wc
+            .tree_state()
+            .as_mut()
+            .unwrap()
+            .write_tree(base_ignores)
     }
 
     pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {
