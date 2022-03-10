@@ -133,7 +133,7 @@ pub fn edit_diff(
     // best one here.
     let editor_binary = settings
         .config()
-        .get_str("ui.diff-editor")
+        .get_string("ui.diff-editor")
         .unwrap_or_else(|_| "meld".to_string());
     // Start a diff editor on the two directories.
     let exit_status = Command::new(&editor_binary)

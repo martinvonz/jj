@@ -35,7 +35,7 @@ const TOO_MUCH_CONFIG_ERROR: &str =
 
 impl UserSettings {
     pub fn from_config(config: config::Config) -> Self {
-        let timestamp = match config.get_str("user.timestamp") {
+        let timestamp = match config.get_string("user.timestamp") {
             Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
                 Ok(datetime) => Some(Timestamp::from_datetime(datetime)),
                 Err(_) => None,
@@ -46,18 +46,18 @@ impl UserSettings {
     }
 
     pub fn for_user() -> Result<Self, config::ConfigError> {
-        let mut config = config::Config::new();
+        let mut config_builder = config::Config::builder();
 
         let loaded_from_config_dir = match dirs::config_dir() {
             None => false,
             Some(config_dir) => {
                 let p = config_dir.join("jj/config.toml");
                 let exists = p.exists();
-                config.merge(
+                config_builder = config_builder.add_source(
                     config::File::from(p)
                         .required(false)
                         .format(config::FileFormat::Toml),
-                )?;
+                );
                 exists
             }
         };
@@ -71,48 +71,52 @@ impl UserSettings {
                     TOO_MUCH_CONFIG_ERROR.to_string(),
                 ));
             }
-            config.merge(
+            config_builder = config_builder.add_source(
                 config::File::from(p)
                     .required(false)
                     .format(config::FileFormat::Toml),
-            )?;
+            );
         }
 
-        let mut env_config = config::Config::new();
+        // TODO: Make the config from environment a separate source instead? Seems
+        // cleaner to separate it like that, especially if the config::Config instance
+        // can keep track of where the config comes from then (it doesn't seem like it
+        // can, however - we don't give a name or anything to the Config object).
         if let Ok(value) = env::var("JJ_USER") {
-            env_config.set("user.name", value)?;
+            config_builder = config_builder.set_override("user.name", value)?;
         }
         if let Ok(value) = env::var("JJ_EMAIL") {
-            env_config.set("user.email", value)?;
+            config_builder = config_builder.set_override("user.email", value)?;
         }
         if let Ok(value) = env::var("JJ_TIMESTAMP") {
-            env_config.set("user.timestamp", value)?;
+            config_builder = config_builder.set_override("user.timestamp", value)?;
         }
-        config.merge(env_config)?;
 
+        let config = config_builder.build()?;
         Ok(Self::from_config(config))
     }
 
     pub fn with_repo(&self, repo_path: &Path) -> Result<RepoSettings, config::ConfigError> {
-        let mut config = self.config.clone();
-        config.merge(
-            config::File::from(repo_path.join("config"))
-                .required(false)
-                .format(config::FileFormat::Toml),
-        )?;
-
+        let config = config::Config::builder()
+            .add_source(self.config.clone())
+            .add_source(
+                config::File::from(repo_path.join("config"))
+                    .required(false)
+                    .format(config::FileFormat::Toml),
+            )
+            .build()?;
         Ok(RepoSettings { _config: config })
     }
 
     pub fn user_name(&self) -> String {
         self.config
-            .get_str("user.name")
+            .get_string("user.name")
             .unwrap_or_else(|_| "(no name configured)".to_string())
     }
 
     pub fn user_email(&self) -> String {
         self.config
-            .get_str("user.email")
+            .get_string("user.email")
             .unwrap_or_else(|_| "(no email configured)".to_string())
     }
 

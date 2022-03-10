@@ -67,7 +67,7 @@ impl<'stdout> Ui<'stdout> {
         let stdout: Box<dyn Write + 'static> = Box::new(io::stdout());
         let color_setting = settings
             .config()
-            .get_str("ui.color")
+            .get_string("ui.color")
             .unwrap_or_else(|_| "auto".to_string());
         let color = match color_setting.as_str() {
             "always" => true,
@@ -122,7 +122,7 @@ impl<'stdout> Ui<'stdout> {
         let template_string = self
             .settings
             .config()
-            .get_str("template.commit_summary")
+            .get_string("template.commit_summary")
             .unwrap_or_else(|_| {
                 String::from(
                     r#"label(if(open, "open"), commit_id.short() " " description.first_line())"#,

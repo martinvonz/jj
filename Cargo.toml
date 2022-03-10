@@ -30,7 +30,7 @@ chrono = "0.4.19"
 clap = { version = "3.1.6", features = ["cargo"] }
 clap_complete = "3.1.1"
 clap_mangen = "0.1"
-config = "0.11.0"
+config = "0.12.0"
 criterion = "0.3.5"
 git2 = "0.14.2"
 hex = "0.4.3"

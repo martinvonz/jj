@@ -2129,7 +2129,7 @@ fn show_diff(
         } else if args.is_present("color-words") {
             Format::ColorWords
         } else {
-            match ui.settings().config().get_str("diff.format") {
+            match ui.settings().config().get_string("diff.format") {
                 Ok(value) if &value == "summary" => Format::Summary,
                 Ok(value) if &value == "git" => Format::Git,
                 Ok(value) if &value == "color-words" => Format::ColorWords,
@@ -2709,7 +2709,7 @@ fn log_template(settings: &UserSettings) -> String {
             )"#;
     settings
         .config()
-        .get_str("template.log.graph")
+        .get_string("template.log.graph")
         .unwrap_or_else(|_| String::from(default_template))
 }
 
@@ -4545,7 +4545,7 @@ fn resolve_alias(ui: &mut Ui, args: Vec<String>) -> Vec<String> {
         {
             let mut resolved_args = vec![args[0].clone()];
             for arg in alias_definition {
-                match arg.into_str() {
+                match arg.into_string() {
                     Ok(string_arg) => resolved_args.push(string_arg),
                     Err(err) => {
                         ui.write_error(&format!(
