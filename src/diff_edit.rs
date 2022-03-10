@@ -19,6 +19,7 @@ use std::process::Command;
 use std::sync::Arc;
 
 use jujutsu_lib::backend::{BackendError, TreeId};
+use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
@@ -79,6 +80,7 @@ pub fn edit_diff(
     left_tree: &Tree,
     right_tree: &Tree,
     instructions: &str,
+    base_ignores: Arc<GitIgnoreFile>,
 ) -> Result<TreeId, DiffEditError> {
     // First create partial Trees of only the subset of the left and right trees
     // that affect files changed between them.
@@ -148,7 +150,7 @@ pub fn edit_diff(
 
     // Create a Tree based on the initial right tree, applying the changes made to
     // that directory by the diff editor.
-    let new_right_partial_tree_id = right_tree_state.write_tree();
+    let new_right_partial_tree_id = right_tree_state.write_tree(base_ignores);
     let new_right_partial_tree = store.get_tree(&RepoPath::root(), &new_right_partial_tree_id)?;
     let new_tree_id = merge_trees(right_tree, &right_partial_tree, &new_right_partial_tree)?;
 

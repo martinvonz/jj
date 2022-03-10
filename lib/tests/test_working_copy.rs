@@ -20,6 +20,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
+use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
@@ -39,7 +40,7 @@ fn test_root(use_git: bool) {
 
     let wc = test_workspace.workspace.working_copy_mut();
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.write_tree();
+    let new_tree_id = locked_wc.write_tree(GitIgnoreFile::empty());
     locked_wc.discard();
     let checkout_id = repo.view().get_checkout(&WorkspaceId::default()).unwrap();
     let checkout_commit = repo.store().get_commit(checkout_id).unwrap();
@@ -215,7 +216,7 @@ fn test_checkout_file_transitions(use_git: bool) {
 
     // Check that the working copy is clean.
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.write_tree();
+    let new_tree_id = locked_wc.write_tree(GitIgnoreFile::empty());
     locked_wc.discard();
     assert_eq!(new_tree_id, right_tree_id);
 
@@ -317,7 +318,7 @@ fn test_reset() {
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.write_tree();
+    let new_tree_id = locked_wc.write_tree(GitIgnoreFile::empty());
     assert_eq!(new_tree_id, *tree_without_file.id());
     locked_wc.discard();
 
@@ -330,7 +331,7 @@ fn test_reset() {
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(!wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.write_tree();
+    let new_tree_id = locked_wc.write_tree(GitIgnoreFile::empty());
     assert_eq!(new_tree_id, *tree_without_file.id());
     locked_wc.discard();
 
@@ -342,7 +343,7 @@ fn test_reset() {
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     assert!(wc.file_states().contains_key(&ignored_path));
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.write_tree();
+    let new_tree_id = locked_wc.write_tree(GitIgnoreFile::empty());
     assert_eq!(new_tree_id, *tree_with_file.id());
     locked_wc.discard();
 }
@@ -418,7 +419,7 @@ fn test_commit_racy_timestamps(use_git: bool) {
                 .unwrap();
         }
         let mut locked_wc = wc.start_mutation();
-        let new_tree_id = locked_wc.write_tree();
+        let new_tree_id = locked_wc.write_tree(GitIgnoreFile::empty());
         locked_wc.discard();
         assert_ne!(new_tree_id, previous_tree_id);
         previous_tree_id = new_tree_id;
@@ -452,7 +453,7 @@ fn test_gitignores(use_git: bool) {
 
     let wc = test_workspace.workspace.working_copy_mut();
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id1 = locked_wc.write_tree();
+    let new_tree_id1 = locked_wc.write_tree(GitIgnoreFile::empty());
     locked_wc.finish(repo.op_id().clone());
     let tree1 = repo
         .store()
@@ -482,7 +483,7 @@ fn test_gitignores(use_git: bool) {
     testutils::write_working_copy_file(&workspace_root, &subdir_ignored_path, "2");
 
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id2 = locked_wc.write_tree();
+    let new_tree_id2 = locked_wc.write_tree(GitIgnoreFile::empty());
     locked_wc.discard();
     let tree2 = repo
         .store()
@@ -542,7 +543,7 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
 
     // Check that the file is in the tree created by committing the working copy
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.write_tree();
+    let new_tree_id = locked_wc.write_tree(GitIgnoreFile::empty());
     locked_wc.discard();
     let new_tree = repo
         .store()
@@ -588,7 +589,7 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     // Check that the file is still in the tree created by committing the working
     // copy (that it didn't get removed because the directory is ignored)
     let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.write_tree();
+    let new_tree_id = locked_wc.write_tree(GitIgnoreFile::empty());
     locked_wc.discard();
     let new_tree = repo
         .store()
@@ -619,7 +620,7 @@ fn test_dotgit_ignored(use_git: bool) {
         "contents",
     );
     let mut locked_wc = test_workspace.workspace.working_copy_mut().start_mutation();
-    let new_tree_id = locked_wc.write_tree();
+    let new_tree_id = locked_wc.write_tree(GitIgnoreFile::empty());
     assert_eq!(new_tree_id, *repo.store().empty_tree_id());
     locked_wc.discard();
     std::fs::remove_dir_all(&dotgit_path).unwrap();
@@ -631,7 +632,7 @@ fn test_dotgit_ignored(use_git: bool) {
         "contents",
     );
     let mut locked_wc = test_workspace.workspace.working_copy_mut().start_mutation();
-    let new_tree_id = locked_wc.write_tree();
+    let new_tree_id = locked_wc.write_tree(GitIgnoreFile::empty());
     assert_eq!(new_tree_id, *repo.store().empty_tree_id());
     locked_wc.discard();
 }
