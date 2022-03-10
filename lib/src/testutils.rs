@@ -42,9 +42,13 @@ pub fn new_user_home() -> TempDir {
 }
 
 pub fn user_settings() -> UserSettings {
-    let mut config = config::Config::new();
-    config.set("user.name", "Test User").unwrap();
-    config.set("user.email", "test.user@example.com").unwrap();
+    let config = config::Config::builder()
+        .set_override("user.name", "Test User")
+        .unwrap()
+        .set_override("user.email", "test.user@example.com")
+        .unwrap()
+        .build()
+        .unwrap();
     UserSettings::from_config(config)
 }
 

@@ -99,10 +99,12 @@ fn test_rewrite(use_git: bool) {
         ],
     );
 
-    let mut config = config::Config::new();
-    config.set("user.name", "Rewrite User").unwrap();
-    config
-        .set("user.email", "rewrite.user@example.com")
+    let config = config::Config::builder()
+        .set_override("user.name", "Rewrite User")
+        .unwrap()
+        .set_override("user.email", "rewrite.user@example.com")
+        .unwrap()
+        .build()
         .unwrap();
     let rewrite_settings = UserSettings::from_config(config);
     let mut tx = repo.start_transaction("test");

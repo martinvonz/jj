@@ -71,7 +71,7 @@ fn test_init_external_git() {
 #[test_case(true ; "git backend")]
 fn test_init_no_config_set(use_git: bool) {
     // Test that we can create a repo without setting any config
-    let settings = UserSettings::from_config(config::Config::new());
+    let settings = UserSettings::from_config(config::Config::default());
     let test_workspace = testutils::init_workspace(&settings, use_git);
     let repo = &test_workspace.repo;
     let checkout_id = repo.view().get_checkout(&WorkspaceId::default()).unwrap();
