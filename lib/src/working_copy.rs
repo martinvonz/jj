@@ -300,11 +300,7 @@ impl TreeState {
             let mut file = File::open(file).unwrap();
             let mut buf = Vec::new();
             file.read_to_end(&mut buf).unwrap();
-            if let Ok(chained) = base.chain(prefix, &buf) {
-                chained
-            } else {
-                base.clone()
-            }
+            base.chain(prefix, &buf)
         } else {
             base.clone()
         }
