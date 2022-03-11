@@ -33,7 +33,7 @@ use clap::{crate_version, Arg, ArgMatches, Command};
 use criterion::Criterion;
 use git2::{Oid, Repository};
 use itertools::Itertools;
-use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeValue};
+use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::dag_walk::topo_order_reverse;
@@ -54,7 +54,7 @@ use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, D
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
-use jujutsu_lib::tree::{merge_trees, TreeDiffIterator};
+use jujutsu_lib::tree::{merge_trees, Tree, TreeDiffIterator};
 use jujutsu_lib::working_copy::{CheckoutStats, ResetError, WorkingCopy};
 use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
 use jujutsu_lib::{conflicts, dag_walk, diff, files, git, revset, tree};
@@ -587,6 +587,15 @@ impl WorkspaceCommandHelper {
         }
         self.working_copy_committed = true;
         Ok(())
+    }
+
+    fn edit_diff(
+        &self,
+        left_tree: &Tree,
+        right_tree: &Tree,
+        instructions: &str,
+    ) -> Result<TreeId, DiffEditError> {
+        crate::diff_edit::edit_diff(&self.settings, left_tree, right_tree, instructions)
     }
 
     fn start_transaction(&self, description: &str) -> Transaction {
@@ -3042,7 +3051,7 @@ from the source will be moved into the destination.
             short_commit_description(&source),
             short_commit_description(&destination)
         );
-        crate::diff_edit::edit_diff(ui, &parent_tree, &source_tree, &instructions)?
+        workspace_command.edit_diff(&parent_tree, &source_tree, &instructions)?
     } else {
         source_tree.id().clone()
     };
@@ -3118,7 +3127,7 @@ from the source will be moved into the parent.
             short_commit_description(parent)
         );
         new_parent_tree_id =
-            crate::diff_edit::edit_diff(ui, &parent.tree(), &commit.tree(), &instructions)?;
+            workspace_command.edit_diff(&parent.tree(), &commit.tree(), &instructions)?;
         if &new_parent_tree_id == parent.tree().id() {
             return Err(CommandError::UserError(String::from("No changes selected")));
         }
@@ -3183,7 +3192,7 @@ aborted.
             short_commit_description(&commit)
         );
         new_parent_tree_id =
-            crate::diff_edit::edit_diff(ui, &parent_base_tree, &parent.tree(), &instructions)?;
+            workspace_command.edit_diff(&parent_base_tree, &parent.tree(), &instructions)?;
         if &new_parent_tree_id == parent_base_tree.id() {
             return Err(CommandError::UserError(String::from("No changes selected")));
         }
@@ -3245,7 +3254,7 @@ side. If you don't make any changes, then the operation will be aborted.
             short_commit_description(&to_commit)
         );
         tree_id =
-            crate::diff_edit::edit_diff(ui, &from_commit.tree(), &to_commit.tree(), &instructions)?;
+            workspace_command.edit_diff(&from_commit.tree(), &to_commit.tree(), &instructions)?;
     } else if args.is_present("paths") {
         let matcher = matcher_from_values(
             ui,
@@ -3304,7 +3313,7 @@ Adjust the right side until it shows the contents you want. If you
 don't make any changes, then the operation will be aborted.",
         short_commit_description(&commit)
     );
-    let tree_id = crate::diff_edit::edit_diff(ui, &base_tree, &commit.tree(), &instructions)?;
+    let tree_id = workspace_command.edit_diff(&base_tree, &commit.tree(), &instructions)?;
     if &tree_id == commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {
@@ -3344,7 +3353,7 @@ any changes, then the operation will be aborted.
 ",
         short_commit_description(&commit)
     );
-    let tree_id = crate::diff_edit::edit_diff(ui, &base_tree, &commit.tree(), &instructions)?;
+    let tree_id = workspace_command.edit_diff(&base_tree, &commit.tree(), &instructions)?;
     if &tree_id == commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {

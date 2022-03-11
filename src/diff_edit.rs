@@ -21,13 +21,12 @@ use std::sync::Arc;
 use jujutsu_lib::backend::{BackendError, TreeId};
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::tree::{merge_trees, Tree};
 use jujutsu_lib::working_copy::{CheckoutError, TreeState};
 use tempfile::tempdir;
 use thiserror::Error;
-
-use crate::ui::Ui;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum DiffEditError {
@@ -76,7 +75,7 @@ fn set_readonly_recursively(path: &Path) {
 }
 
 pub fn edit_diff(
-    ui: &mut Ui,
+    settings: &UserSettings,
     left_tree: &Tree,
     right_tree: &Tree,
     instructions: &str,
@@ -130,8 +129,7 @@ pub fn edit_diff(
 
     // TODO: Make this configuration have a table of possible editors and detect the
     // best one here.
-    let editor_binary = ui
-        .settings()
+    let editor_binary = settings
         .config()
         .get_str("ui.diff-editor")
         .unwrap_or_else(|_| "meld".to_string());
