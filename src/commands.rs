@@ -390,8 +390,10 @@ impl WorkspaceCommandHelper {
             // hard-coding its name like this.
             git_ignores = git_ignores.chain_with_file("", home_dir_path.join(".gitignore"));
         }
-        // TODO: Chain with the .jj/git/info/exclude file if we're inside a git-backed
-        // repo.
+        if let Some(git_repo) = self.repo.store().git_repo() {
+            git_ignores =
+                git_ignores.chain_with_file("", git_repo.path().join("info").join("exclude"));
+        }
         git_ignores
     }
 
