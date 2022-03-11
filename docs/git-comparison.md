@@ -204,6 +204,12 @@ parent.
           rebase/merge/cherry-pick --continue</code></td>
     </tr>
     <tr>
+      <td>Create a copy of a commit on top of another commit</td>
+      <td><code>jj duplicate &lt;source&gt;; jj rebase -r &lt;duplicate commit&gt; -d &lt;destination&gt;</code>
+          (there's no single command for it yet)</td>
+      <td><code>git co &lt;destination&gt;; git cherry-pick &lt;source&gt;</code></td>
+    </tr>
+    <tr>
       <td>List branches</td>
       <td><code>jj branches</code></td>
       <td><code>git branch</code></td>
