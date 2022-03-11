@@ -1746,7 +1746,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &ArgMatches) -> Result<(
             git_store_path = PathBuf::from("..")
                 .join("..")
                 .join("..")
-                .join(relative_path.to_path_buf());
+                .join(relative_path);
         }
         let (workspace, repo) =
             Workspace::init_external_git(ui.settings(), wc_path.clone(), git_store_path)?;
