@@ -382,13 +382,23 @@ impl WorkspaceCommandHelper {
         self.working_copy_shared_with_git
     }
 
+    fn git_config(&self) -> Result<git2::Config, git2::Error> {
+        if let Some(git_repo) = self.repo.store().git_repo() {
+            git_repo.config()
+        } else {
+            git2::Config::open_default()
+        }
+    }
+
     fn base_ignores(&self) -> Arc<GitIgnoreFile> {
         let mut git_ignores = GitIgnoreFile::empty();
-        if let Ok(home_dir) = std::env::var("HOME") {
-            let home_dir_path = PathBuf::from(home_dir);
-            // TODO: Look up the name of the file in the core.excludesFile config instead of
-            // hard-coding its name like this.
-            git_ignores = git_ignores.chain_with_file("", home_dir_path.join(".gitignore"));
+        if let Ok(excludes_file_str) = self
+            .git_config()
+            .and_then(|git_config| git_config.get_string("core.excludesFile"))
+        {
+            let excludes_file_path =
+                std::fs::canonicalize(PathBuf::from(excludes_file_str)).unwrap();
+            git_ignores = git_ignores.chain_with_file("", excludes_file_path);
         }
         if let Some(git_repo) = self.repo.store().git_repo() {
             git_ignores =
