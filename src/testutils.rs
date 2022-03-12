@@ -46,6 +46,7 @@ impl TestEnvironment {
         cmd.current_dir(current_dir);
         cmd.args(args);
         cmd.env_clear();
+        cmd.env("RUST_BACKTRACE", "1");
         cmd.env("HOME", self.home_dir.to_str().unwrap());
         let timestamp = chrono::DateTime::parse_from_rfc3339("2001-02-03T04:05:06+07:00").unwrap();
         let mut command_number = self.command_number.borrow_mut();
