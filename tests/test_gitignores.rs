@@ -26,21 +26,47 @@ fn test_gitignores() {
         .assert()
         .success();
 
-    // Say in .git/info/exclude that we don't want file1 and file2
+    // Say in core.excludesFiles that we don't want file1, file2, or file3
+    let mut file = std::fs::OpenOptions::new()
+        .append(true)
+        .open(workspace_root.join(".git").join("config"))
+        .unwrap();
+    let excludes_file_path = test_env
+        .env_root()
+        .join("my-ignores")
+        .to_str()
+        .unwrap()
+        .to_string();
+    file.write_all(
+        format!(
+            "[core]\nexcludesFile=\"{}\"",
+            excludes_file_path
+                .replace('\\', "\\\\")
+                .replace('\"', "\\\"")
+        )
+        .as_bytes(),
+    )
+    .unwrap();
+    drop(file);
+    std::fs::write(excludes_file_path, "file1\nfile2\nfile3").unwrap();
+
+    // Say in .git/info/exclude that we actually do want file2 and file3
     let mut file = std::fs::OpenOptions::new()
         .append(true)
         .open(workspace_root.join(".git").join("info").join("exclude"))
         .unwrap();
-    file.write_all(b"file1\nfile2").unwrap();
+    file.write_all(b"!file2\n!file3").unwrap();
     drop(file);
 
-    // Say in .gitignore (in the working copy) that we actually do want file2
-    std::fs::write(workspace_root.join(".gitignore"), "!file2").unwrap();
+    // Say in .gitignore (in the working copy) that we actually do not want file2
+    // (again)
+    std::fs::write(workspace_root.join(".gitignore"), "file2").unwrap();
 
     // Writes some files to the working copy
     std::fs::write(workspace_root.join("file0"), "contents").unwrap();
     std::fs::write(workspace_root.join("file1"), "contents").unwrap();
     std::fs::write(workspace_root.join("file2"), "contents").unwrap();
+    std::fs::write(workspace_root.join("file3"), "contents").unwrap();
 
     let assert = test_env
         .jj_cmd(&workspace_root, &["diff", "-s"])
@@ -49,6 +75,6 @@ fn test_gitignores() {
     insta::assert_snapshot!(get_stdout_string(&assert), @r###"
     A .gitignore
     A file0
-    A file2
+    A file3
     "###);
 }

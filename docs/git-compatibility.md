@@ -15,9 +15,11 @@ The following list describes which Git features Jujutsu is compatible with. For
 a comparison with Git, including how workflows are different, see the
 [Git-comparison doc](git-comparison.md).
 
-* **Configuration: No.** The only configuration from Git (e.g. in
-  `~/.gitconfig`) that's respected is the configuration of remotes. Feel free
-  to file a bug if you miss any particular configuration options.
+* **Configuration: Partial.** The only configuration from Git (e.g. in
+  `~/.gitconfig`) that's respected is the following. Feel free to file a bug if
+  you miss any particular configuration options.
+  * The configuration of remotes (`[remote "<name>"]`).
+  * `core.exludesFile`
 * **Authentication: Partial.** Only `ssh-agent` or a password-less key file at
   `~/.ssh/id_rsa` (and only at exactly that path).
 * **Branches: Yes.** You can read more about
