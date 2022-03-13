@@ -37,6 +37,7 @@
             rustPlatform.buildRustPackage rec {
               pname = "jujutsu";
               version = "unstable-${self.shortRev or "dirty"}";
+              buildNoDefaultFeatures = true;
 
               src = self;
 
