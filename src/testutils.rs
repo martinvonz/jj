@@ -31,6 +31,7 @@ impl Default for TestEnvironment {
         let tmp_dir = TempDir::new().unwrap();
         let env_root = tmp_dir.path().canonicalize().unwrap();
         let home_dir = env_root.join("home");
+        std::fs::create_dir(&home_dir).unwrap();
         Self {
             _temp_dir: tmp_dir,
             env_root,

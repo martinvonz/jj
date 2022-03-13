@@ -31,24 +31,15 @@ fn test_gitignores() {
         .append(true)
         .open(workspace_root.join(".git").join("config"))
         .unwrap();
-    let excludes_file_path = test_env
-        .env_root()
-        .join("my-ignores")
-        .to_str()
-        .unwrap()
-        .to_string();
-    file.write_all(
-        format!(
-            "[core]\nexcludesFile=\"{}\"",
-            excludes_file_path
-                .replace('\\', "\\\\")
-                .replace('\"', "\\\"")
-        )
-        .as_bytes(),
+    // Put the file in "~/my-ignores" so we also test that "~" expands to "$HOME"
+    file.write_all(b"[core]\nexcludesFile=~/my-ignores\n")
+        .unwrap();
+    drop(file);
+    std::fs::write(
+        test_env.home_dir().join("my-ignores"),
+        "file1\nfile2\nfile3",
     )
     .unwrap();
-    drop(file);
-    std::fs::write(excludes_file_path, "file1\nfile2\nfile3").unwrap();
 
     // Say in .git/info/exclude that we actually do want file2 and file3
     let mut file = std::fs::OpenOptions::new()

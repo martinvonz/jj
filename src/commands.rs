@@ -396,8 +396,7 @@ impl WorkspaceCommandHelper {
             .git_config()
             .and_then(|git_config| git_config.get_string("core.excludesFile"))
         {
-            let excludes_file_path =
-                std::fs::canonicalize(PathBuf::from(excludes_file_str)).unwrap();
+            let excludes_file_path = expand_git_path(excludes_file_str);
             git_ignores = git_ignores.chain_with_file("", excludes_file_path);
         }
         if let Some(git_repo) = self.repo.store().git_repo() {
@@ -706,6 +705,16 @@ impl WorkspaceCommandHelper {
         }
         Ok(())
     }
+}
+
+/// Expands "~/" to "$HOME/" as Git seems to do for e.g. core.excludesFile.
+fn expand_git_path(path_str: String) -> PathBuf {
+    if let Some(remainder) = path_str.strip_prefix("~/") {
+        if let Ok(home_dir_str) = std::env::var("HOME") {
+            return PathBuf::from(home_dir_str).join(remainder);
+        }
+    }
+    PathBuf::from(path_str)
 }
 
 fn rev_arg<'help>() -> Arg<'help> {
