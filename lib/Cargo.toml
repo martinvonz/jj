@@ -24,7 +24,7 @@ byteorder = "1.4.3"
 chrono = "0.4.19"
 config = "0.11.0"
 dirs = "4.0.0"
-git2 = "0.13.25"
+git2 = "0.14.2"
 hex = "0.4.3"
 itertools = "0.10.3"
 maplit = "1.0.2"
@@ -44,3 +44,6 @@ zstd = "0.10.0"
 assert_matches = "1.5.0"
 num_cpus = "1.13.1"
 test-case = "1.2.3"
+
+[features]
+vendored-openssl = ["git2/vendored-openssl"]
