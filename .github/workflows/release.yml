@@ -1,29 +1,68 @@
-# .github/workflows/release.yml
-
+name: Release
 on:
   release:
     types: [created]
-
 jobs:
-  release:
-    name: release ${{ matrix.target }}
-    runs-on: ubuntu-latest
+  build-release:
+    name: build-release
     strategy:
       fail-fast: false
       matrix:
+        build: [linux-musl, macos, win-msvc]
         include:
-        - target: x86_64-pc-windows-gnu
-          archive: zip
-        - target: x86_64-unknown-linux-musl
-          archive: tar.gz tar.xz
-        - target: x86_64-apple-darwin
-          archive: zip
+        - build: linux-musl
+          os: ubuntu-20.04
+          target: x86_64-unknown-linux-musl
+        - build: macos
+          os: macos-11
+          target: x86_64-apple-darwin
+        - build: win-msvc
+          os: windows-2022
+          target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@master
-    - name: Compile and release
-      uses: rust-build/rust-build.action@latest
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Install packages (Ubuntu)
+      if: matrix.os == 'ubuntu-20.04'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends xz-utils liblz4-tool musl-tools
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        target: ${{ matrix.target }}
+    - name: Build release binary
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --target ${{ matrix.target }} --verbose --release
+    - name: Build archive
+      shell: bash
+      run: |
+        outdir="./target/${{ matrix.target }}/release"
+        staging="jj-${{ github.event.release.tag_name }}-${{ matrix.target }}"
+        mkdir -p "$staging"/complete
+        cp {README.md,LICENSE} "$staging/"
+        if [ "${{ matrix.os }}" = "windows-2022" ]; then
+          cp "target/${{ matrix.target }}/release/jj.exe" "$staging/"
+          cd "$staging"
+          7z a "../$staging.zip" .
+          echo "ASSET=$staging.zip" >> $GITHUB_ENV
+        else
+          cp "target/${{ matrix.target }}/release/jj" "$staging/"
+          tar czf "$staging.tar.gz" -C "$staging" .
+          echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
+        fi
+    - name: Upload release archive
+      uses: actions/upload-release-asset@v1.0.1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        RUSTTARGET: ${{ matrix.target }}
-        EXTRA_FILES: "README.md LICENSE"
-        ARCHIVE_TYPES: ${{ matrix.archive }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ${{ env.ASSET }}
+        asset_name: ${{ env.ASSET }}
+        asset_content_type: application/octet-stream
