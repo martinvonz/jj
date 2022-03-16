@@ -129,11 +129,15 @@ scripts if requested.
 
 ## Installation
 
+See below for how to build from source. There are also
+[pre-built binaries](https://github.com/martinvonz/jj/releases) for Windows,
+Mac, or Linux (musl).
+
 ### Linux
 
-On most distributions, you'll need to install from source.
+On most distributions, you'll need to build from source using `cargo` directly.
 
-#### From source
+#### Build using `cargo`
 
 First make sure that you have the `libssl-dev` and `openssl` packages installed
 by running something like this:
