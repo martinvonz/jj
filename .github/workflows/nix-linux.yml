@@ -6,6 +6,8 @@ on:
       - master
   pull_request:
 
+permissions: read-all
+
 jobs:
   nix:
     runs-on: ubuntu-latest
