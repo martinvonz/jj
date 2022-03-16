@@ -1,10 +1,16 @@
 name: Release
+
 on:
   release:
     types: [created]
+
+permissions: read-all
+
 jobs:
   build-release:
     name: build-release
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
