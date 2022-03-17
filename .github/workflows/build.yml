@@ -54,8 +54,7 @@ jobs:
 
   clippy-stable:
     name: Clippy check (stable)
-    permissions:
-      pull-requests: write
+    permissions: write-all
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -72,8 +71,7 @@ jobs:
 
   clippy-nightly:
     name: Clippy check (nightly)
-    permissions:
-      pull-requests: write
+    permissions: write-all
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
