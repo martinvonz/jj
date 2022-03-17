@@ -64,7 +64,7 @@ jobs:
           profile: minimal
           components: clippy
           override: true
-      - uses: actions-rs/clippy-check@v1
+      - uses: actions-rs/clippy-check@b5b5f21f4797c02da247df37026fcd0a5024aa4d
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features --workspace
@@ -81,7 +81,7 @@ jobs:
           profile: minimal
           components: clippy
           override: true
-      - uses: actions-rs/clippy-check@v1
+      - uses: actions-rs/clippy-check@b5b5f21f4797c02da247df37026fcd0a5024aa4d
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features --workspace
