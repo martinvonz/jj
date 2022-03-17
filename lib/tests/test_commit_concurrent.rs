@@ -61,7 +61,7 @@ fn test_commit_parallel(use_git: bool) {
     for thread in threads {
         thread.join().ok().unwrap();
     }
-    let repo = repo.reload_at_head();
+    let repo = repo.reload_at_head(&settings);
     // One commit per thread plus the commit from the initial checkout on top of the
     // root commit
     assert_eq!(repo.view().heads().len(), num_threads + 1);

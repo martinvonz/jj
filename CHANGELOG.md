@@ -30,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   abandoned if it's empty and has descendants, it only gets abandoned if it's
   empty and does not have descendants.
 
+* (#111) When undoing an earlier operation, any new commits on top of commits
+  from the undone operation will be rebased away. For example, let's say you
+  rebase commit A so it becomes a new commit A', and then you create commit B
+  on top of A'. If you now undo the rebase operation, commit B will be rebased
+  to be on top of A instead. The same logic is used if the repo was modified
+  by concurrent operations (so if one operation added B on top of A, and one
+  operation rebased A as A', then B would be automatically rebased on top of
+  A'). See #111 for more examples.
+
 ## [0.3.3] - 2022-03-16
 
 No changes, only trying to get the automated build to work.

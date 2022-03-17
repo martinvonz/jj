@@ -20,9 +20,10 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use itertools::Itertools;
 use thiserror::Error;
 
-use crate::backend::{BackendError, CommitId};
+use crate::backend::{BackendError, ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::{closest_common_node, topo_order_reverse};
@@ -194,7 +195,7 @@ impl ReadonlyRepo {
     pub fn load_at_head(user_settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
         RepoLoader::init(user_settings, repo_path)
             .load_at_head()
-            .resolve()
+            .resolve(user_settings)
     }
 
     pub fn loader(&self) -> RepoLoader {
@@ -278,8 +279,8 @@ impl ReadonlyRepo {
         Transaction::new(mut_repo, description)
     }
 
-    pub fn reload_at_head(&self) -> Arc<ReadonlyRepo> {
-        self.loader().load_at_head().resolve()
+    pub fn reload_at_head(&self, user_settings: &UserSettings) -> Arc<ReadonlyRepo> {
+        self.loader().load_at_head().resolve(user_settings)
     }
 
     pub fn reload_at(&self, operation: &Operation) -> Arc<ReadonlyRepo> {
@@ -293,10 +294,10 @@ pub enum RepoAtHead {
 }
 
 impl RepoAtHead {
-    pub fn resolve(self) -> Arc<ReadonlyRepo> {
+    pub fn resolve(self, user_settings: &UserSettings) -> Arc<ReadonlyRepo> {
         match self {
             RepoAtHead::Single(repo) => repo,
-            RepoAtHead::Unresolved(unresolved) => unresolved.resolve(),
+            RepoAtHead::Unresolved(unresolved) => unresolved.resolve(user_settings),
         }
     }
 }
@@ -308,10 +309,10 @@ pub struct UnresolvedHeadRepo {
 }
 
 impl UnresolvedHeadRepo {
-    pub fn resolve(self) -> Arc<ReadonlyRepo> {
+    pub fn resolve(self, user_settings: &UserSettings) -> Arc<ReadonlyRepo> {
         let merged_repo = self
             .repo_loader
-            .merge_op_heads(self.op_heads)
+            .merge_op_heads(user_settings, self.op_heads)
             .leave_unpublished();
         self.locked_op_heads.finish(merged_repo.operation());
         merged_repo
@@ -383,7 +384,11 @@ impl RepoLoader {
         }
     }
 
-    fn merge_op_heads(&self, mut op_heads: Vec<Operation>) -> UnpublishedOperation {
+    fn merge_op_heads(
+        &self,
+        user_settings: &UserSettings,
+        mut op_heads: Vec<Operation>,
+    ) -> UnpublishedOperation {
         op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
         let base_repo = self.load_at(&op_heads[0]);
         let mut tx = base_repo.start_transaction("resolve concurrent operations");
@@ -400,6 +405,7 @@ impl RepoLoader {
             let base_repo = self.load_at(&ancestor_op);
             let other_repo = self.load_at(other_op_head);
             merged_repo.merge(&base_repo, &other_repo);
+            merged_repo.rebase_descendants(user_settings);
         }
         let op_parent_ids = op_heads.iter().map(|op| op.id().clone()).collect();
         tx.set_parents(op_parent_ids);
@@ -810,15 +816,16 @@ impl MutableRepo {
             self.view_mut().add_public_head(added_head);
         }
 
-        for removed_head in base.heads().difference(other.heads()) {
-            self.view_mut().remove_head(removed_head);
-        }
+        let base_heads = base.heads().iter().cloned().collect_vec();
+        let own_heads = self.view().heads().iter().cloned().collect_vec();
+        let other_heads = other.heads().iter().cloned().collect_vec();
+        self.record_rewrites(&base_heads, &own_heads);
+        self.record_rewrites(&base_heads, &other_heads);
+        // No need to remove heads removed by `other` because we already marked them
+        // abandoned or rewritten.
         for added_head in other.heads().difference(base.heads()) {
             self.view_mut().add_head(added_head);
         }
-        // TODO: Should it be considered a conflict if a commit-head is removed on one
-        // side while a child or successor is created on another side? Maybe a
-        // warning?
 
         let mut maybe_changed_ref_names = HashSet::new();
 
@@ -874,6 +881,49 @@ impl MutableRepo {
                 base_target.as_ref(),
                 other_target.as_ref(),
             );
+        }
+    }
+
+    /// Finds and records commits that were rewritten or abandoned between
+    /// `old_heads` and `new_heads`.
+    fn record_rewrites(&mut self, old_heads: &[CommitId], new_heads: &[CommitId]) {
+        let mut removed_changes: HashMap<ChangeId, Vec<CommitId>> = HashMap::new();
+        for removed in self.index.walk_revs(old_heads, new_heads) {
+            removed_changes
+                .entry(removed.change_id())
+                .or_default()
+                .push(removed.commit_id());
+        }
+        if removed_changes.is_empty() {
+            return;
+        }
+
+        let mut rewritten_changes = HashSet::new();
+        let mut rewritten_commits: HashMap<CommitId, Vec<CommitId>> = HashMap::new();
+        for added in self.index.walk_revs(new_heads, old_heads) {
+            let change_id = added.change_id();
+            if let Some(old_commits) = removed_changes.get(&change_id) {
+                for old_commit in old_commits {
+                    rewritten_commits
+                        .entry(old_commit.clone())
+                        .or_default()
+                        .push(added.commit_id());
+                }
+            }
+            rewritten_changes.insert(change_id);
+        }
+        for (old_commit, new_commits) in rewritten_commits {
+            for new_commit in new_commits {
+                self.record_rewritten_commit(old_commit.clone(), new_commit);
+            }
+        }
+
+        for (change_id, removed_commit_ids) in &removed_changes {
+            if !rewritten_changes.contains(change_id) {
+                for removed_commit_id in removed_commit_ids {
+                    self.record_abandoned_commit(removed_commit_id.clone());
+                }
+            }
         }
     }
 
