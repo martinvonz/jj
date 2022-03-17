@@ -218,7 +218,8 @@ jj init --git-repo=.";
                         ui,
                         "Concurrent modification detected, resolving automatically.",
                     )?;
-                    unresolved.resolve()
+                    // TODO: Tell the user how many commits were rebased.
+                    unresolved.resolve(ui.settings())
                 }
             }
         } else {

@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
+use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
+use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::CommitGraphBuilder;
+use jujutsu_lib::transaction::Transaction;
 use maplit::{btreemap, hashset};
 use test_case::test_case;
 
@@ -121,7 +127,7 @@ fn test_merge_views_heads() {
     tx2.mut_repo().add_public_head(&public_head_add_tx2);
     tx2.commit();
 
-    let repo = repo.reload_at_head();
+    let repo = repo.reload_at_head(&settings);
 
     let expected_heads = hashset! {
         head_unchanged.id().clone(),
@@ -215,7 +221,7 @@ fn test_merge_views_checkout() {
     std::thread::sleep(std::time::Duration::from_millis(1));
     tx2.commit();
 
-    let repo = repo.reload_at_head();
+    let repo = repo.reload_at_head(&settings);
 
     // We currently arbitrarily pick the first transaction's checkout (first by
     // transaction end time).
@@ -302,7 +308,7 @@ fn test_merge_views_branches() {
     );
     tx2.commit();
 
-    let repo = repo.reload_at_head();
+    let repo = repo.reload_at_head(&settings);
     let expected_main_branch = BranchTarget {
         local_target: Some(RefTarget::Conflict {
             removes: vec![main_branch_local_tx0.id().clone()],
@@ -360,7 +366,7 @@ fn test_merge_views_tags() {
         .set_tag("v1.0".to_string(), RefTarget::Normal(v1_tx2.id().clone()));
     tx2.commit();
 
-    let repo = repo.reload_at_head();
+    let repo = repo.reload_at_head(&settings);
     let expected_v1 = RefTarget::Conflict {
         removes: vec![v1_tx0.id().clone()],
         adds: vec![v1_tx1.id().clone(), v1_tx2.id().clone()],
@@ -422,7 +428,7 @@ fn test_merge_views_git_refs() {
     );
     tx2.commit();
 
-    let repo = repo.reload_at_head();
+    let repo = repo.reload_at_head(&settings);
     let expected_main_branch = RefTarget::Conflict {
         removes: vec![main_branch_tx0.id().clone()],
         adds: vec![main_branch_tx1.id().clone(), main_branch_tx2.id().clone()],
@@ -435,4 +441,157 @@ fn test_merge_views_git_refs() {
             "refs/heads/feature".to_string() => expected_feature_branch,
         }
     );
+}
+
+fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<ReadonlyRepo> {
+    let repo_loader = txs[0].base_repo().loader();
+    let mut op_ids = vec![];
+    for tx in txs {
+        op_ids.push(tx.commit().op_id().clone());
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    let repo = repo_loader.load_at_head().resolve(settings);
+    // Test the setup. The assumption here is that the parent order matches the
+    // order in which they were merged (which currently matches the transaction
+    // commit order), so we want to know make sure they appear in a certain
+    // order, so the caller can decide the order by passing them to this
+    // function in a certain order.
+    assert_eq!(*repo.operation().parent_ids(), op_ids);
+    repo
+}
+
+#[test_case(false ; "rewrite first")]
+#[test_case(true ; "add child first")]
+fn test_merge_views_child_on_rewritten(child_first: bool) {
+    // We start with just commit A. Operation 1 adds commit B on top. Operation 2
+    // rewrites A as A2.
+    let settings = testutils::user_settings();
+    let test_repo = testutils::init_repo(&settings, false);
+
+    let mut tx = test_repo.repo.start_transaction("test");
+    let commit_a =
+        testutils::create_random_commit(&settings, &test_repo.repo).write_to_repo(tx.mut_repo());
+    let repo = tx.commit();
+
+    let mut tx1 = repo.start_transaction("test");
+    let commit_b = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit_a.id().clone()])
+        .write_to_repo(tx1.mut_repo());
+
+    let mut tx2 = repo.start_transaction("test");
+    let commit_a2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_a)
+        .set_description("A2".to_string())
+        .write_to_repo(tx2.mut_repo());
+    tx2.mut_repo().rebase_descendants(&settings);
+
+    let repo = if child_first {
+        commit_transactions(&settings, vec![tx1, tx2])
+    } else {
+        commit_transactions(&settings, vec![tx2, tx1])
+    };
+
+    // A new B2 commit (B rebased onto A2) should be the only head.
+    let heads = repo.view().heads();
+    assert_eq!(heads.len(), 1);
+    let b2_id = heads.iter().next().unwrap();
+    let commit_b2 = repo.store().get_commit(b2_id).unwrap();
+    assert_eq!(commit_b2.change_id(), commit_b.change_id());
+    assert_eq!(commit_b2.parent_ids(), vec![commit_a2.id().clone()]);
+}
+
+#[test_case(false, false ; "add child on unchanged, rewrite first")]
+#[test_case(false, true ; "add child on unchanged, add child first")]
+#[test_case(true, false ; "add child on rewritten, rewrite first")]
+#[test_case(true, true ; "add child on rewritten, add child first")]
+fn test_merge_views_child_on_rewritten_divergent(on_rewritten: bool, child_first: bool) {
+    // We start with divergent commits A2 and A3. Operation 1 adds commit B on top
+    // of A2 or A3. Operation 2 rewrites A2 as A4. The result should be that B
+    // gets rebased onto A4 if it was based on A2 before, but if it was based on
+    // A3, it should remain there.
+    let settings = testutils::user_settings();
+    let test_repo = testutils::init_repo(&settings, false);
+
+    let mut tx = test_repo.repo.start_transaction("test");
+    let commit_a2 =
+        testutils::create_random_commit(&settings, &test_repo.repo).write_to_repo(tx.mut_repo());
+    let commit_a3 = testutils::create_random_commit(&settings, &test_repo.repo)
+        .set_change_id(commit_a2.change_id().clone())
+        .write_to_repo(tx.mut_repo());
+    let repo = tx.commit();
+
+    let mut tx1 = repo.start_transaction("test");
+    let parent = if on_rewritten { &commit_a2 } else { &commit_a3 };
+    let commit_b = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![parent.id().clone()])
+        .write_to_repo(tx1.mut_repo());
+
+    let mut tx2 = repo.start_transaction("test");
+    let commit_a4 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_a2)
+        .set_description("A4".to_string())
+        .write_to_repo(tx2.mut_repo());
+    tx2.mut_repo().rebase_descendants(&settings);
+
+    let repo = if child_first {
+        commit_transactions(&settings, vec![tx1, tx2])
+    } else {
+        commit_transactions(&settings, vec![tx2, tx1])
+    };
+
+    if on_rewritten {
+        // A3 should remain as a head. The other head should be B2 (B rebased onto A4).
+        let mut heads = repo.view().heads().clone();
+        assert_eq!(heads.len(), 2);
+        assert!(heads.remove(commit_a3.id()));
+        let b2_id = heads.iter().next().unwrap();
+        let commit_b2 = repo.store().get_commit(b2_id).unwrap();
+        assert_eq!(commit_b2.change_id(), commit_b.change_id());
+        assert_eq!(commit_b2.parent_ids(), vec![commit_a4.id().clone()]);
+    } else {
+        // No rebases should happen, so B and A4 should be the heads.
+        let mut heads = repo.view().heads().clone();
+        assert_eq!(heads.len(), 2);
+        assert!(heads.remove(commit_b.id()));
+        assert!(heads.remove(commit_a4.id()));
+    }
+}
+
+#[test_case(false ; "abandon first")]
+#[test_case(true ; "add child first")]
+fn test_merge_views_child_on_abandoned(child_first: bool) {
+    // We start with commit B on top of commit A. Operation 1 adds commit C on top.
+    // Operation 2 abandons B.
+    let settings = testutils::user_settings();
+    let test_repo = testutils::init_repo(&settings, false);
+
+    let mut tx = test_repo.repo.start_transaction("test");
+    let commit_a =
+        testutils::create_random_commit(&settings, &test_repo.repo).write_to_repo(tx.mut_repo());
+    let commit_b = testutils::create_random_commit(&settings, &test_repo.repo)
+        .set_parents(vec![commit_a.id().clone()])
+        .write_to_repo(tx.mut_repo());
+    let repo = tx.commit();
+
+    let mut tx1 = repo.start_transaction("test");
+    let commit_c = testutils::create_random_commit(&settings, &repo)
+        .set_parents(vec![commit_b.id().clone()])
+        .write_to_repo(tx1.mut_repo());
+
+    let mut tx2 = repo.start_transaction("test");
+    tx2.mut_repo()
+        .record_abandoned_commit(commit_b.id().clone());
+    tx2.mut_repo().rebase_descendants(&settings);
+
+    let repo = if child_first {
+        commit_transactions(&settings, vec![tx1, tx2])
+    } else {
+        commit_transactions(&settings, vec![tx2, tx1])
+    };
+
+    // A new C2 commit (C rebased onto A) should be the only head.
+    let heads = repo.view().heads();
+    assert_eq!(heads.len(), 1);
+    let id_c2 = heads.iter().next().unwrap();
+    let commit_c2 = repo.store().get_commit(id_c2).unwrap();
+    assert_eq!(commit_c2.change_id(), commit_c.change_id());
+    assert_eq!(commit_c2.parent_ids(), vec![commit_a.id().clone()]);
 }

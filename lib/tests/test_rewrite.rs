@@ -706,7 +706,7 @@ fn test_rebase_descendants_divergent_rewrite(use_git: bool) {
 
     // Commit B was replaced by commit B2. Commit D was replaced by commits D2 and
     // D3. Commit F was replaced by commit F2. Commit C should be rebased onto
-    // B2. Commit E should not be rebased. Commit F should be rebased onto
+    // B2. Commit E should not be rebased. Commit G should be rebased onto
     // commit F2.
     //
     // G
