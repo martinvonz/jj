@@ -45,7 +45,7 @@ predicates = "2.1.1"
 rand = "0.8.4"
 regex = "1.5.4"
 tempfile = "3.3.0"
-textwrap = "0.14.2"
+textwrap = "0.15.0"
 thiserror = "1.0.30"
 
 [dev-dependencies]
