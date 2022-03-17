@@ -24,12 +24,12 @@ jobs:
         override: true
         profile: minimal
     - name: Build
-      uses: actions-rs/cargo@v1
+      uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b
       with:
         command: build
         args: --workspace --verbose
     - name: Test
-      uses: actions-rs/cargo@v1
+      uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b
       with:
         command: test
         args: --workspace --verbose
@@ -47,7 +47,7 @@ jobs:
           profile: minimal
           components: rustfmt
           override: true
-      - uses: actions-rs/cargo@v1
+      - uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b
         with:
           command: fmt
           args: --all -- --check
