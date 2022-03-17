@@ -14,7 +14,7 @@ jobs:
     name: nix-build
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - uses: cachix/install-nix-action@v16
