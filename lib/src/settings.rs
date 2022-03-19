@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
 use std::path::Path;
 
 use chrono::DateTime;
@@ -30,9 +29,6 @@ pub struct RepoSettings {
     _config: config::Config,
 }
 
-const TOO_MUCH_CONFIG_ERROR: &str =
-    "Both `$HOME/.jjconfig` and `$XDG_CONFIG_HOME/jj/config.toml` were found, please remove one.";
-
 impl UserSettings {
     pub fn from_config(config: config::Config) -> Self {
         let timestamp = match config.get_string("user.timestamp") {
@@ -43,57 +39,6 @@ impl UserSettings {
             Err(_) => None,
         };
         UserSettings { config, timestamp }
-    }
-
-    pub fn for_user() -> Result<Self, config::ConfigError> {
-        let mut config_builder = config::Config::builder();
-
-        let loaded_from_config_dir = match dirs::config_dir() {
-            None => false,
-            Some(config_dir) => {
-                let p = config_dir.join("jj/config.toml");
-                let exists = p.exists();
-                config_builder = config_builder.add_source(
-                    config::File::from(p)
-                        .required(false)
-                        .format(config::FileFormat::Toml),
-                );
-                exists
-            }
-        };
-
-        if let Some(home_dir) = dirs::home_dir() {
-            let p = home_dir.join(".jjconfig");
-            // we already loaded from the new location, prevent user confusion and make them
-            // remove the old one:
-            if loaded_from_config_dir && p.exists() {
-                return Err(config::ConfigError::Message(
-                    TOO_MUCH_CONFIG_ERROR.to_string(),
-                ));
-            }
-            config_builder = config_builder.add_source(
-                config::File::from(p)
-                    .required(false)
-                    .format(config::FileFormat::Toml),
-            );
-        }
-
-        // TODO: Make the config from environment a separate source instead? Seems
-        // cleaner to separate it like that, especially if the config::Config instance
-        // can keep track of where the config comes from then (it doesn't seem like it
-        // can, however - we don't give a name or anything to the Config object).
-        if let Ok(value) = env::var("JJ_USER") {
-            config_builder = config_builder.set_override("user.name", value)?;
-        }
-        if let Ok(value) = env::var("JJ_EMAIL") {
-            config_builder = config_builder.set_override("user.email", value)?;
-        }
-        if let Ok(value) = env::var("JJ_TIMESTAMP") {
-            config_builder = config_builder.set_override("user.timestamp", value)?;
-        }
-
-        let config = config_builder.build()?;
-        Ok(Self::from_config(config))
     }
 
     pub fn with_repo(&self, repo_path: &Path) -> Result<RepoSettings, config::ConfigError> {
