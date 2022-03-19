@@ -18,41 +18,16 @@ use jujutsu::commands::dispatch;
 use jujutsu::ui::Ui;
 use jujutsu_lib::settings::UserSettings;
 
-const TOO_MUCH_CONFIG_ERROR: &str =
-    "Both `$HOME/.jjconfig` and `$XDG_CONFIG_HOME/jj/config.toml` were found, please remove one.";
-
 fn read_config() -> Result<UserSettings, config::ConfigError> {
     let mut config_builder = config::Config::builder();
 
-    let loaded_from_config_dir = match dirs::config_dir() {
-        None => false,
-        Some(config_dir) => {
-            let p = config_dir.join("jj/config.toml");
-            let exists = p.exists();
-            config_builder = config_builder.add_source(
-                config::File::from(p)
-                    .required(false)
-                    .format(config::FileFormat::Toml),
-            );
-            exists
-        }
-    };
-
-    if let Some(home_dir) = dirs::home_dir() {
-        let p = home_dir.join(".jjconfig");
-        // we already loaded from the new location, prevent user confusion and make them
-        // remove the old one:
-        if loaded_from_config_dir && p.exists() {
-            return Err(config::ConfigError::Message(
-                TOO_MUCH_CONFIG_ERROR.to_string(),
-            ));
-        }
+    if let Some(config_dir) = dirs::config_dir() {
         config_builder = config_builder.add_source(
-            config::File::from(p)
+            config::File::from(config_dir.join("jj/config.toml"))
                 .required(false)
                 .format(config::FileFormat::Toml),
         );
-    }
+    };
 
     // TODO: Make the config from environment a separate source instead? Seems
     // cleaner to separate it like that, especially if the config::Config instance

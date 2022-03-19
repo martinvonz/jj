@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking changes
+
+* Dropped support for config in `~/.jjconfig`. Your configuration is now read
+  from `<config dir>/jj/config.toml`, where `<config dir>` is
+  `${XDG_CONFIG_HOME}` or `~/.config/` on Linux,
+  `~/Library/Application Support/` on macOS, and `~\AppData\Roaming\` on
+  Windows.
+
 ## [0.3.3] - 2022-03-16
 
 No changes, only trying to get the automated build to work.
