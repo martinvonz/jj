@@ -13,17 +13,26 @@
 // limitations under the License.
 
 use std::env;
+use std::path::PathBuf;
 
 use jujutsu::commands::dispatch;
 use jujutsu::ui::Ui;
 use jujutsu_lib::settings::UserSettings;
 
+fn config_path() -> Option<PathBuf> {
+    if let Ok(config_path) = env::var("JJ_CONFIG") {
+        Some(PathBuf::from(config_path))
+    } else {
+        dirs::config_dir().map(|config_dir| config_dir.join("jj").join("config.toml"))
+    }
+}
+
 fn read_config() -> Result<UserSettings, config::ConfigError> {
     let mut config_builder = config::Config::builder();
 
-    if let Some(config_dir) = dirs::config_dir() {
+    if let Some(config_path) = config_path() {
         config_builder = config_builder.add_source(
-            config::File::from(config_dir.join("jj").join("config.toml"))
+            config::File::from(config_path)
                 .required(false)
                 .format(config::FileFormat::Toml),
         );

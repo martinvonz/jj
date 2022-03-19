@@ -23,6 +23,7 @@ pub struct TestEnvironment {
     _temp_dir: TempDir,
     env_root: PathBuf,
     home_dir: PathBuf,
+    config_path: PathBuf,
     command_number: RefCell<i64>,
 }
 
@@ -32,10 +33,13 @@ impl Default for TestEnvironment {
         let env_root = tmp_dir.path().canonicalize().unwrap();
         let home_dir = env_root.join("home");
         std::fs::create_dir(&home_dir).unwrap();
+        let config_path = env_root.join("config.toml");
+        std::fs::write(&config_path, b"").unwrap();
         Self {
             _temp_dir: tmp_dir,
             env_root,
             home_dir,
+            config_path,
             command_number: RefCell::new(0),
         }
     }
@@ -52,6 +56,7 @@ impl TestEnvironment {
         let timestamp = chrono::DateTime::parse_from_rfc3339("2001-02-03T04:05:06+07:00").unwrap();
         let mut command_number = self.command_number.borrow_mut();
         *command_number += 1;
+        cmd.env("JJ_CONFIG", self.config_path.to_str().unwrap());
         let timestamp = timestamp + chrono::Duration::seconds(*command_number);
         cmd.env("JJ_TIMESTAMP", timestamp.to_rfc3339());
         cmd.env("JJ_USER", "Test User");
@@ -65,6 +70,10 @@ impl TestEnvironment {
 
     pub fn home_dir(&self) -> &Path {
         &self.home_dir
+    }
+
+    pub fn config_path(&self) -> &Path {
+        &self.config_path
     }
 }
 
