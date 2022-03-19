@@ -23,7 +23,7 @@ fn read_config() -> Result<UserSettings, config::ConfigError> {
 
     if let Some(config_dir) = dirs::config_dir() {
         config_builder = config_builder.add_source(
-            config::File::from(config_dir.join("jj/config.toml"))
+            config::File::from(config_dir.join("jj").join("config.toml"))
                 .required(false)
                 .format(config::FileFormat::Toml),
         );
