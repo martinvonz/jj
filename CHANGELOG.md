@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   config file. That will then be read instead of your regular config file. This
   is mostly intended for testing and scripts.
 
+* The [standard `$NO_COLOR` environment variable](https://no-color.org/) is now
+  respected.
+
 ## [0.3.3] - 2022-03-16
 
 No changes, only trying to get the automated build to work.

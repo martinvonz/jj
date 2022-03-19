@@ -46,6 +46,21 @@ fn new_formatter<'output>(
     }
 }
 
+fn use_color(settings: &UserSettings) -> bool {
+    if std::env::var("NO_COLOR").is_ok() {
+        return false;
+    }
+    let color_setting = settings
+        .config()
+        .get_string("ui.color")
+        .unwrap_or_else(|_| "auto".to_string());
+    match color_setting.as_str() {
+        "always" => true,
+        "never" => false,
+        _ => atty::is(Stream::Stdout),
+    }
+}
+
 impl<'stdout> Ui<'stdout> {
     pub fn new(
         cwd: PathBuf,
@@ -65,15 +80,7 @@ impl<'stdout> Ui<'stdout> {
     pub fn for_terminal(settings: UserSettings) -> Ui<'static> {
         let cwd = std::env::current_dir().unwrap();
         let stdout: Box<dyn Write + 'static> = Box::new(io::stdout());
-        let color_setting = settings
-            .config()
-            .get_string("ui.color")
-            .unwrap_or_else(|_| "auto".to_string());
-        let color = match color_setting.as_str() {
-            "always" => true,
-            "never" => false,
-            _ => atty::is(Stream::Stdout),
-        };
+        let color = use_color(&settings);
         Ui::new(cwd, stdout, color, settings)
     }
 
