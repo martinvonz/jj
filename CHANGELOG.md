@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `~/Library/Application Support/` on macOS, and `~\AppData\Roaming\` on
   Windows.
 
+### New features
+
+* You can now set an environment variable called `$JJ_CONFIG` to a path to a
+  config file. That will then be read instead of your regular config file. This
+  is mostly intended for testing and scripts.
+
 ## [0.3.3] - 2022-03-16
 
 No changes, only trying to get the automated build to work.

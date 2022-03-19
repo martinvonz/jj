@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write;
+
 use jujutsu::testutils::{get_stdout_string, TestEnvironment};
 
 #[test]
@@ -78,4 +80,34 @@ fn test_repo_arg_with_git_clone() {
         .failure();
     insta::assert_snapshot!(get_stdout_string(&assert), @"Error: '--repository' cannot be used with 'git clone'
 ");
+}
+
+#[test]
+fn test_color_config() {
+    let test_env = TestEnvironment::default();
+    let mut config_file = std::fs::File::options()
+        .append(true)
+        .open(test_env.config_path())
+        .unwrap();
+    config_file
+        .write_all(
+            br#"[ui]
+color="always""#,
+        )
+        .unwrap();
+    config_file.flush().unwrap();
+    test_env
+        .jj_cmd(test_env.env_root(), &["init", "repo", "--git"])
+        .assert()
+        .success();
+
+    let repo_path = test_env.env_root().join("repo");
+    let assert = test_env
+        .jj_cmd(&repo_path, &["log", "-T", "commit_id"])
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    @ [1;34m230dd059e1b059aefc0da06a2e5a7dbf22362f22[0m
+    o [34m0000000000000000000000000000000000000000[0m
+    "###);
 }
