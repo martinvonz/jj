@@ -25,17 +25,17 @@ use thiserror::Error;
 use crate::backend::{BackendError, CommitId};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
-use crate::dag_walk::topo_order_reverse;
+use crate::dag_walk::{closest_common_node, topo_order_reverse};
 use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
-use crate::op_heads_store::OpHeadsStore;
+use crate::op_heads_store::{OpHeads, OpHeadsStore};
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
 use crate::operation::Operation;
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
-use crate::transaction::Transaction;
+use crate::transaction::{Transaction, UnpublishedOperation};
 use crate::view::{RefName, View};
 use crate::{backend, op_store};
 
@@ -332,9 +332,44 @@ impl RepoLoader {
     }
 
     pub fn load_at_head(&self) -> Arc<ReadonlyRepo> {
-        let op = self.op_heads_store.get_single_op_head(self).unwrap();
-        let view = View::new(op.view().take_store_view());
-        self._finish_load(op, view)
+        let op_heads = self.op_heads_store.get_heads(self).unwrap();
+        match op_heads {
+            OpHeads::Single(op) => {
+                let view = View::new(op.view().take_store_view());
+                self._finish_load(op, view)
+            }
+            OpHeads::Unresolved {
+                locked_op_heads,
+                op_heads,
+            } => {
+                let merged_repo = self.merge_op_heads(op_heads).leave_unpublished();
+                locked_op_heads.finish(merged_repo.operation());
+                merged_repo
+            }
+        }
+    }
+
+    fn merge_op_heads(&self, mut op_heads: Vec<Operation>) -> UnpublishedOperation {
+        op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
+        let base_repo = self.load_at(&op_heads[0]);
+        let mut tx = base_repo.start_transaction("resolve concurrent operations");
+        let merged_repo = tx.mut_repo();
+        let neighbors_fn = |op: &Operation| op.parents();
+        for (i, other_op_head) in op_heads.iter().enumerate().skip(1) {
+            let ancestor_op = closest_common_node(
+                op_heads[0..i].to_vec(),
+                vec![other_op_head.clone()],
+                &neighbors_fn,
+                &|op: &Operation| op.id().clone(),
+            )
+            .unwrap();
+            let base_repo = self.load_at(&ancestor_op);
+            let other_repo = self.load_at(other_op_head);
+            merged_repo.merge(&base_repo, &other_repo);
+        }
+        let op_parent_ids = op_heads.iter().map(|op| op.id().clone()).collect();
+        tx.set_parents(op_parent_ids);
+        tx.write()
     }
 
     pub fn load_at(&self, op: &Operation) -> Arc<ReadonlyRepo> {
