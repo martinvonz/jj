@@ -40,6 +40,20 @@ pub enum OpHeadResolutionError {
     NoHeads,
 }
 
+pub struct LockedOpHeads {
+    store: Arc<OpHeadsStore>,
+    _lock: FileLock,
+}
+
+impl LockedOpHeads {
+    pub fn finish(self, new_op: &Operation) {
+        self.store.add_op_head(new_op.id());
+        for old_id in new_op.parent_ids() {
+            self.store.remove_op_head(old_id);
+        }
+    }
+}
+
 impl OpHeadsStore {
     pub fn init(
         dir: PathBuf,
@@ -66,7 +80,7 @@ impl OpHeadsStore {
         OpHeadsStore { dir }
     }
 
-    pub fn add_op_head(&self, id: &OperationId) {
+    fn add_op_head(&self, id: &OperationId) {
         std::fs::write(self.dir.join(id.hex()), "").unwrap();
     }
 
@@ -90,20 +104,16 @@ impl OpHeadsStore {
         op_heads
     }
 
-    fn lock(&self) -> FileLock {
-        FileLock::lock(self.dir.join("lock"))
-    }
-
-    pub fn update_op_heads(&self, op: &Operation) {
-        let _op_heads_lock = self.lock();
-        self.add_op_head(op.id());
-        for old_parent_id in op.parent_ids() {
-            self.remove_op_head(old_parent_id);
+    pub fn lock(self: &Arc<Self>) -> LockedOpHeads {
+        let lock = FileLock::lock(self.dir.join("lock"));
+        LockedOpHeads {
+            store: self.clone(),
+            _lock: lock,
         }
     }
 
     pub fn get_single_op_head(
-        &self,
+        self: &Arc<Self>,
         repo_loader: &RepoLoader,
     ) -> Result<Operation, OpHeadResolutionError> {
         let mut op_heads = self.get_op_heads();
@@ -128,7 +138,7 @@ impl OpHeadsStore {
         // Note that the locking isn't necessary for correctness; we take the lock
         // only to avoid other concurrent processes from doing the same work (and
         // producing another set of divergent heads).
-        let _lock = self.lock();
+        let locked_op_heads = self.lock();
         let op_head_ids = self.get_op_heads();
 
         if op_head_ids.is_empty() {
@@ -158,10 +168,7 @@ impl OpHeadsStore {
 
         let merged_repo = merge_op_heads(repo_loader, op_heads)?.leave_unpublished();
         let merge_operation = merged_repo.operation().clone();
-        self.add_op_head(merge_operation.id());
-        for old_op_head_id in merge_operation.parent_ids() {
-            self.remove_op_head(old_op_head_id);
-        }
+        locked_op_heads.finish(&merge_operation);
         // TODO: Change the return type include the repo if we have it (as we do here)
         Ok(merge_operation)
     }
