@@ -135,7 +135,8 @@ impl UnpublishedOperation {
         let data = self.data.take().unwrap();
         self.repo_loader
             .op_heads_store()
-            .update_op_heads(&data.operation);
+            .lock()
+            .finish(&data.operation);
         let repo = self
             .repo_loader
             .create_from(data.operation, data.view, data.index);
