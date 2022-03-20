@@ -28,7 +28,7 @@ use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::{closest_common_node, topo_order_reverse};
 use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
-use crate::op_heads_store::{OpHeads, OpHeadsStore};
+use crate::op_heads_store::{LockedOpHeads, OpHeads, OpHeadsStore};
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
 use crate::operation::Operation;
 use crate::rewrite::DescendantRebaser;
@@ -192,7 +192,9 @@ impl ReadonlyRepo {
     }
 
     pub fn load(user_settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
-        RepoLoader::init(user_settings, repo_path).load_at_head()
+        RepoLoader::init(user_settings, repo_path)
+            .load_at_head()
+            .resolve()
     }
 
     pub fn loader(&self) -> RepoLoader {
@@ -277,7 +279,7 @@ impl ReadonlyRepo {
     }
 
     pub fn reload(&self) -> Arc<ReadonlyRepo> {
-        self.loader().load_at_head()
+        self.loader().load_at_head().resolve()
     }
 
     pub fn reload_at(&self, operation: &Operation) -> Arc<ReadonlyRepo> {
@@ -285,6 +287,38 @@ impl ReadonlyRepo {
     }
 }
 
+pub enum RepoAtHead {
+    Single(Arc<ReadonlyRepo>),
+    Unresolved(Box<UnresolvedHeadRepo>),
+}
+
+impl RepoAtHead {
+    pub fn resolve(self) -> Arc<ReadonlyRepo> {
+        match self {
+            RepoAtHead::Single(repo) => repo,
+            RepoAtHead::Unresolved(unresolved) => unresolved.resolve(),
+        }
+    }
+}
+
+pub struct UnresolvedHeadRepo {
+    repo_loader: RepoLoader,
+    locked_op_heads: LockedOpHeads,
+    op_heads: Vec<Operation>,
+}
+
+impl UnresolvedHeadRepo {
+    pub fn resolve(self) -> Arc<ReadonlyRepo> {
+        let merged_repo = self
+            .repo_loader
+            .merge_op_heads(self.op_heads)
+            .leave_unpublished();
+        self.locked_op_heads.finish(merged_repo.operation());
+        merged_repo
+    }
+}
+
+#[derive(Clone)]
 pub struct RepoLoader {
     repo_path: PathBuf,
     repo_settings: RepoSettings,
@@ -331,21 +365,21 @@ impl RepoLoader {
         &self.op_heads_store
     }
 
-    pub fn load_at_head(&self) -> Arc<ReadonlyRepo> {
+    pub fn load_at_head(&self) -> RepoAtHead {
         let op_heads = self.op_heads_store.get_heads(self).unwrap();
         match op_heads {
             OpHeads::Single(op) => {
                 let view = View::new(op.view().take_store_view());
-                self._finish_load(op, view)
+                RepoAtHead::Single(self._finish_load(op, view))
             }
             OpHeads::Unresolved {
                 locked_op_heads,
                 op_heads,
-            } => {
-                let merged_repo = self.merge_op_heads(op_heads).leave_unpublished();
-                locked_op_heads.finish(merged_repo.operation());
-                merged_repo
-            }
+            } => RepoAtHead::Unresolved(Box::new(UnresolvedHeadRepo {
+                repo_loader: self.clone(),
+                locked_op_heads,
+                op_heads,
+            })),
         }
     }
 
