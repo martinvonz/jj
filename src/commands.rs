@@ -211,7 +211,7 @@ jj init --git-repo=.";
         let repo_loader = workspace.repo_loader();
         let op_str = &self.args.at_operation;
         let repo = if op_str == "@" {
-            repo_loader.load_at_head()
+            repo_loader.load_at_head().resolve()
         } else {
             let op = resolve_single_op_from_store(
                 repo_loader.op_store(),
