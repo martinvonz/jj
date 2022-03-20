@@ -6,3 +6,7 @@ rewriting the branch rather than adding commits on top. Use force-push when
 pushing the updated branch (`jj git push` does that automatically when you
 rewrite a branch).
 -->
+
+# Checklist
+
+- [ ] I have made relevant updates to `CHANGELOG.md`
