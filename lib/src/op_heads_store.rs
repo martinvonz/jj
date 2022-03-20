@@ -166,7 +166,7 @@ impl OpHeadsStore {
             return Ok(op_heads.pop().unwrap());
         }
 
-        let merged_repo = merge_op_heads(repo_loader, op_heads)?.leave_unpublished();
+        let merged_repo = merge_op_heads(repo_loader, op_heads).leave_unpublished();
         let merge_operation = merged_repo.operation().clone();
         locked_op_heads.finish(&merge_operation);
         // TODO: Change the return type include the repo if we have it (as we do here)
@@ -190,10 +190,7 @@ impl OpHeadsStore {
     }
 }
 
-fn merge_op_heads(
-    repo_loader: &RepoLoader,
-    mut op_heads: Vec<Operation>,
-) -> Result<UnpublishedOperation, OpHeadResolutionError> {
+fn merge_op_heads(repo_loader: &RepoLoader, mut op_heads: Vec<Operation>) -> UnpublishedOperation {
     op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
     let base_repo = repo_loader.load_at(&op_heads[0]);
     let mut tx = base_repo.start_transaction("resolve concurrent operations");
@@ -216,5 +213,5 @@ fn merge_op_heads(
     // TODO: We already have the resulting View in this case but Operation cannot
     // keep it. Teach Operation to have a cached View so the caller won't have
     // to re-read it from the store (by calling Operation::view())?
-    Ok(tx.write())
+    tx.write()
 }
