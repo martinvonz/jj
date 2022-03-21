@@ -47,7 +47,7 @@ use jujutsu_lib::op_heads_store::OpHeadsStore;
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction};
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoRef};
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoAtHead, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
@@ -184,7 +184,7 @@ impl<'help> CommandHelper<'help> {
         &self.args
     }
 
-    fn workspace_helper(&self, ui: &Ui) -> Result<WorkspaceCommandHelper, CommandError> {
+    fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
         let wc_path_str = self.args.repository.as_deref().unwrap_or(".");
         let wc_path = ui.cwd().join(wc_path_str);
         let workspace = match Workspace::load(ui.settings(), wc_path) {
@@ -211,7 +211,16 @@ jj init --git-repo=.";
         let repo_loader = workspace.repo_loader();
         let op_str = &self.args.at_operation;
         let repo = if op_str == "@" {
-            repo_loader.load_at_head().resolve()
+            match repo_loader.load_at_head() {
+                RepoAtHead::Single(repo) => repo,
+                RepoAtHead::Unresolved(unresolved) => {
+                    writeln!(
+                        ui,
+                        "Concurrent modification detected, resolving automatically.",
+                    )?;
+                    unresolved.resolve()
+                }
+            }
         } else {
             let op = resolve_single_op_from_store(
                 repo_loader.op_store(),
