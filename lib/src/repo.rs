@@ -191,7 +191,7 @@ impl ReadonlyRepo {
         })
     }
 
-    pub fn load(user_settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
+    pub fn load_at_head(user_settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
         RepoLoader::init(user_settings, repo_path)
             .load_at_head()
             .resolve()
@@ -278,7 +278,7 @@ impl ReadonlyRepo {
         Transaction::new(mut_repo, description)
     }
 
-    pub fn reload(&self) -> Arc<ReadonlyRepo> {
+    pub fn reload_at_head(&self) -> Arc<ReadonlyRepo> {
         self.loader().load_at_head().resolve()
     }
 
