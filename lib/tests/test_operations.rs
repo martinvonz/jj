@@ -154,28 +154,27 @@ fn test_isolation(use_git: bool) {
     let rewrite1 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial)
         .set_description("rewrite1".to_string())
         .write_to_repo(mut_repo1);
+    mut_repo1.rebase_descendants(&settings);
     let rewrite2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial)
         .set_description("rewrite2".to_string())
         .write_to_repo(mut_repo2);
+    mut_repo2.rebase_descendants(&settings);
 
     // Neither transaction has committed yet, so each transaction sees its own
     // commit.
     assert_heads(repo.as_repo_ref(), vec![initial.id()]);
-    assert_heads(mut_repo1.as_repo_ref(), vec![initial.id(), rewrite1.id()]);
-    assert_heads(mut_repo2.as_repo_ref(), vec![initial.id(), rewrite2.id()]);
+    assert_heads(mut_repo1.as_repo_ref(), vec![rewrite1.id()]);
+    assert_heads(mut_repo2.as_repo_ref(), vec![rewrite2.id()]);
 
     // The base repo and tx2 don't see the commits from tx1.
     tx1.commit();
     assert_heads(repo.as_repo_ref(), vec![initial.id()]);
-    assert_heads(mut_repo2.as_repo_ref(), vec![initial.id(), rewrite2.id()]);
+    assert_heads(mut_repo2.as_repo_ref(), vec![rewrite2.id()]);
 
     // The base repo still doesn't see the commits after both transactions commit.
     tx2.commit();
     assert_heads(repo.as_repo_ref(), vec![initial.id()]);
     // After reload, the base repo sees both rewrites.
     let repo = repo.reload();
-    assert_heads(
-        repo.as_repo_ref(),
-        vec![initial.id(), rewrite1.id(), rewrite2.id()],
-    );
+    assert_heads(repo.as_repo_ref(), vec![rewrite1.id(), rewrite2.id()]);
 }

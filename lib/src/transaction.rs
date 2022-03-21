@@ -69,6 +69,11 @@ impl Transaction {
     /// operation will not be seen when loading the repo at head.
     pub fn write(mut self) -> UnpublishedOperation {
         let mut_repo = self.repo.take().unwrap();
+        // TODO: Should we instead just do the rebasing here if necessary?
+        assert!(
+            !mut_repo.has_rewrites(),
+            "BUG: Descendants have not been rebased after the last rewrites."
+        );
         let base_repo = mut_repo.base_repo().clone();
         let (mut_index, view) = mut_repo.consume();
         let index = base_repo.index_store().write_index(mut_index).unwrap();

@@ -112,6 +112,7 @@ fn test_rewrite(use_git: bool) {
         CommitBuilder::for_rewrite_from(&rewrite_settings, &store, &initial_commit)
             .set_tree(rewritten_tree.id().clone())
             .write_to_repo(tx.mut_repo());
+    tx.mut_repo().rebase_descendants(&settings);
     tx.commit();
     assert_eq!(rewritten_commit.parents(), vec![store.root_commit()]);
     assert_eq!(

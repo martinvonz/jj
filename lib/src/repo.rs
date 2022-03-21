@@ -518,6 +518,10 @@ impl MutableRepo {
         self.abandoned_commits.clear();
     }
 
+    pub fn has_rewrites(&self) -> bool {
+        !(self.rewritten_commits.is_empty() && self.abandoned_commits.is_empty())
+    }
+
     /// Creates a `DescendantRebaser` to rebase descendants of the recorded
     /// rewritten and abandoned commits.
     pub fn create_descendant_rebaser<'settings, 'repo>(
@@ -533,7 +537,7 @@ impl MutableRepo {
     }
 
     pub fn rebase_descendants(&mut self, settings: &UserSettings) -> usize {
-        if self.rewritten_commits.is_empty() && self.abandoned_commits.is_empty() {
+        if !self.has_rewrites() {
             // Optimization
             return 0;
         }
