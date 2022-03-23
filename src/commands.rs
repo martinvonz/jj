@@ -1613,9 +1613,6 @@ By default, all branches are pushed. Use `--branch` if you want to push only one
             Command::new("workingcopy").about("Show information about the working copy state"),
         )
         .subcommand(
-            Command::new("writeworkingcopy").about("Write a tree from the working copy state"),
-        )
-        .subcommand(
             Command::new("template")
                 .about("Parse a template")
                 .arg(Arg::new("template").index(1).required(true)),
