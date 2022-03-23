@@ -3972,17 +3972,10 @@ fn cmd_operation(
     args: &OperationArgs,
 ) -> Result<(), CommandError> {
     match &args.command {
-        OperationCommands::Log(command_matches) => {
-            cmd_op_log(ui, command, command_matches)?;
-        }
-        OperationCommands::Restore(command_matches) => {
-            cmd_op_restore(ui, command, command_matches)?;
-        }
-        OperationCommands::Undo(command_matches) => {
-            cmd_op_undo(ui, command, command_matches)?;
-        }
+        OperationCommands::Log(command_matches) => cmd_op_log(ui, command, command_matches),
+        OperationCommands::Restore(command_matches) => cmd_op_restore(ui, command, command_matches),
+        OperationCommands::Undo(command_matches) => cmd_op_undo(ui, command, command_matches),
     }
-    Ok(())
 }
 
 fn cmd_workspace(
@@ -3991,17 +3984,14 @@ fn cmd_workspace(
     args: &WorkspaceArgs,
 ) -> Result<(), CommandError> {
     match &args.command {
-        WorkspaceCommands::Add(command_matches) => {
-            cmd_workspace_add(ui, command, command_matches)?;
-        }
+        WorkspaceCommands::Add(command_matches) => cmd_workspace_add(ui, command, command_matches),
         WorkspaceCommands::Forget(command_matches) => {
-            cmd_workspace_forget(ui, command, command_matches)?;
+            cmd_workspace_forget(ui, command, command_matches)
         }
         WorkspaceCommands::List(command_matches) => {
-            cmd_workspace_list(ui, command, command_matches)?;
+            cmd_workspace_list(ui, command, command_matches)
         }
     }
-    Ok(())
 }
 
 fn cmd_workspace_add(
@@ -4142,14 +4132,11 @@ fn cmd_git_remote(
     args: &GitRemoteArgs,
 ) -> Result<(), CommandError> {
     match &args.command {
-        GitRemoteCommands::Add(command_matches) => {
-            cmd_git_remote_add(ui, command, command_matches)?;
-        }
+        GitRemoteCommands::Add(command_matches) => cmd_git_remote_add(ui, command, command_matches),
         GitRemoteCommands::Remove(command_matches) => {
-            cmd_git_remote_remove(ui, command, command_matches)?;
+            cmd_git_remote_remove(ui, command, command_matches)
         }
     }
-    Ok(())
 }
 
 fn cmd_git_remote_add(
@@ -4447,26 +4434,13 @@ fn cmd_git_export(
 
 fn cmd_git(ui: &mut Ui, command: &CommandHelper, args: &GitArgs) -> Result<(), CommandError> {
     match &args.command {
-        GitCommands::Fetch(command_matches) => {
-            cmd_git_fetch(ui, command, command_matches)?;
-        }
-        GitCommands::Clone(command_matches) => {
-            cmd_git_clone(ui, command, command_matches)?;
-        }
-        GitCommands::Remote(command_matches) => {
-            cmd_git_remote(ui, command, command_matches)?;
-        }
-        GitCommands::Push(command_matches) => {
-            cmd_git_push(ui, command, command_matches)?;
-        }
-        GitCommands::Import(command_matches) => {
-            cmd_git_import(ui, command, command_matches)?;
-        }
-        GitCommands::Export(command_matches) => {
-            cmd_git_export(ui, command, command_matches)?;
-        }
+        GitCommands::Fetch(command_matches) => cmd_git_fetch(ui, command, command_matches),
+        GitCommands::Clone(command_matches) => cmd_git_clone(ui, command, command_matches),
+        GitCommands::Remote(command_matches) => cmd_git_remote(ui, command, command_matches),
+        GitCommands::Push(command_matches) => cmd_git_push(ui, command, command_matches),
+        GitCommands::Import(command_matches) => cmd_git_import(ui, command, command_matches),
+        GitCommands::Export(command_matches) => cmd_git_export(ui, command, command_matches),
     }
-    Ok(())
 }
 
 fn resolve_alias(ui: &mut Ui, args: Vec<String>) -> Vec<String> {
