@@ -533,6 +533,10 @@ impl MutableRepo {
     }
 
     pub fn rebase_descendants(&mut self, settings: &UserSettings) -> usize {
+        if self.rewritten_commits.is_empty() && self.abandoned_commits.is_empty() {
+            // Optimization
+            return 0;
+        }
         let mut rebaser = self.create_descendant_rebaser(settings);
         rebaser.rebase_all();
         rebaser.rebased().len()
