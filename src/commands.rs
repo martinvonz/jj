@@ -249,9 +249,6 @@ struct WorkspaceCommandHelper {
     may_update_working_copy: bool,
     working_copy_shared_with_git: bool,
     working_copy_committed: bool,
-    // Whether to rebase descendants when the transaction finishes. This should generally be true
-    // for commands that rewrite commits.
-    rebase_descendants: bool,
 }
 
 impl WorkspaceCommandHelper {
@@ -278,7 +275,6 @@ impl WorkspaceCommandHelper {
             may_update_working_copy,
             working_copy_shared_with_git,
             working_copy_committed: false,
-            rebase_descendants: true,
         };
         if working_copy_shared_with_git && may_update_working_copy {
             helper.import_git_refs_and_head(maybe_git_repo.as_ref().unwrap())?;
@@ -346,11 +342,6 @@ impl WorkspaceCommandHelper {
             // Except maybe print a note about it?
         }
         Ok(())
-    }
-
-    fn rebase_descendants(mut self, value: bool) -> Self {
-        self.rebase_descendants = value;
-        self
     }
 
     fn repo(&self) -> &Arc<ReadonlyRepo> {
@@ -657,11 +648,9 @@ impl WorkspaceCommandHelper {
             writeln!(ui, "Nothing changed.")?;
             return Ok(());
         }
-        if self.rebase_descendants {
-            let num_rebased = mut_repo.rebase_descendants(ui.settings());
-            if num_rebased > 0 {
-                writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
-            }
+        let num_rebased = mut_repo.rebase_descendants(ui.settings());
+        if num_rebased > 0 {
+            writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
         }
         if self.working_copy_shared_with_git {
             self.export_head_to_git(mut_repo)?;
@@ -3276,7 +3265,7 @@ don't make any changes, then the operation will be aborted.",
 }
 
 fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?.rebase_descendants(false);
+    let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
     let repo = workspace_command.repo();
@@ -3389,7 +3378,7 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &MergeArgs) -> Result<(
 }
 
 fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?.rebase_descendants(false);
+    let mut workspace_command = command.workspace_helper(ui)?;
     let mut new_parents = vec![];
     for revision_str in &args.destination {
         let destination = workspace_command.resolve_single_rev(ui, revision_str)?;
@@ -3506,7 +3495,7 @@ fn is_fast_forward(repo: RepoRef, branch_name: &str, new_target_id: &CommitId) -
 }
 
 fn cmd_branch(ui: &mut Ui, command: &CommandHelper, args: &BranchArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?.rebase_descendants(false);
+    let mut workspace_command = command.workspace_helper(ui)?;
     let branch_name = &args.name;
     if args.delete {
         if workspace_command
