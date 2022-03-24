@@ -935,7 +935,7 @@ enum Commands {
 #[clap(group(ArgGroup::new("backend").args(&["git", "git-repo"])))]
 struct InitArgs {
     /// The destination directory
-    #[clap(index = 1, default_value = ".")]
+    #[clap(default_value = ".")]
     destination: String,
     /// Use the Git backend, creating a jj repo backed by a Git repo
     #[clap(long)]
@@ -954,14 +954,12 @@ struct InitArgs {
 #[clap(alias = "co")]
 struct CheckoutArgs {
     /// The revision to update to
-    #[clap(index = 1)]
     revision: String,
 }
 
 /// Stop tracking specified paths in the working copy
 #[derive(clap::Args, Clone, Debug)]
 struct UntrackArgs {
-    #[clap(index = 1)]
     paths: Vec<String>,
 }
 
@@ -971,7 +969,6 @@ struct FilesArgs {
     /// The revision to list files in
     #[clap(long, short, default_value = "@")]
     revision: String,
-    #[clap(index = 1)]
     paths: Vec<String>,
 }
 
@@ -1012,7 +1009,6 @@ struct DiffArgs {
     #[clap(long, conflicts_with = "revision")]
     to: Option<String>,
     /// Restrict the diff to these paths
-    #[clap(index = 1)]
     paths: Vec<String>,
     #[clap(flatten)]
     format: DiffFormat,
@@ -1022,7 +1018,7 @@ struct DiffArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct ShowArgs {
     /// Show changes changes in this revision, compared to its parent(s)
-    #[clap(index = 1, default_value = "@")]
+    #[clap(default_value = "@")]
     revision: String,
     #[clap(flatten)]
     format: DiffFormat,
@@ -1078,7 +1074,7 @@ struct ObslogArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct DescribeArgs {
     /// The revision whose description to edit
-    #[clap(index = 1, default_value = "@")]
+    #[clap(default_value = "@")]
     revision: String,
     /// The change description to use (don't open editor)
     #[clap(long, short)]
@@ -1095,7 +1091,7 @@ struct DescribeArgs {
 #[clap(alias = "commit")]
 struct CloseArgs {
     /// The revision to close
-    #[clap(index = 1, default_value = "@")]
+    #[clap(default_value = "@")]
     revision: String,
     /// The change description to use (don't open editor)
     #[clap(long, short)]
@@ -1112,7 +1108,6 @@ struct CloseArgs {
 #[clap(alias = "uncommit")]
 struct OpenArgs {
     /// The revision to open
-    #[clap(index = 1)]
     revision: String,
 }
 
@@ -1122,7 +1117,7 @@ struct OpenArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct DuplicateArgs {
     /// The revision to duplicate
-    #[clap(index = 1, default_value = "@")]
+    #[clap(default_value = "@")]
     revision: String,
 }
 
@@ -1134,7 +1129,7 @@ struct DuplicateArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct AbandonArgs {
     /// The revision(s) to abandon
-    #[clap(index = 1, default_value = "@")]
+    #[clap(default_value = "@")]
     revisions: String,
 }
 
@@ -1151,7 +1146,7 @@ struct NewArgs {
     ///
     /// If the parent is the working copy, then the new change will be checked
     /// out.
-    #[clap(index = 1, default_value = "@")]
+    #[clap(default_value = "@")]
     revision: String,
 }
 
@@ -1229,7 +1224,6 @@ struct RestoreArgs {
     /// Interactively choose which parts to restore
     #[clap(long, short)]
     interactive: bool,
-    #[clap(index = 1)]
     paths: Vec<String>,
 }
 
@@ -1270,7 +1264,6 @@ struct SplitArgs {
 /// you need to explicitly check out the resulting revision if you want to.
 #[derive(clap::Args, Clone, Debug)]
 struct MergeArgs {
-    #[clap(index = 1)]
     revisions: Vec<String>,
     /// The change description to use (don't open editor)
     #[clap(long, short)]
@@ -1350,7 +1343,6 @@ struct BranchArgs {
     /// The name of the branch to move or delete
     #[clap(long)]
     forget: bool,
-    #[clap(index = 1)]
     name: String,
 }
 
@@ -1419,7 +1411,6 @@ enum WorkspaceCommands {
 #[derive(clap::Args, Clone, Debug)]
 struct WorkspaceAddArgs {
     /// Where to create the new workspace
-    #[clap(index = 1)]
     destination: String,
     /// A name for the workspace
     ///
@@ -1435,7 +1426,6 @@ struct WorkspaceAddArgs {
 /// before or after running this command.
 #[derive(clap::Args, Clone, Debug)]
 struct WorkspaceForgetArgs {
-    #[clap(index = 1)]
     workspace: Option<String>,
 }
 
@@ -1481,10 +1471,8 @@ enum GitRemoteCommands {
 #[derive(clap::Args, Clone, Debug)]
 struct GitRemoteAddArgs {
     /// The remote's name
-    #[clap(index = 1)]
     remote: String,
     /// The remote's URL
-    #[clap(index = 1)]
     url: String,
 }
 
@@ -1492,7 +1480,6 @@ struct GitRemoteAddArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct GitRemoteRemoveArgs {
     /// The remote's name
-    #[clap(index = 1)]
     remote: String,
 }
 
@@ -1510,10 +1497,8 @@ struct GitFetchArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct GitCloneArgs {
     /// URL or path of the Git repo to clone
-    #[clap(index = 1)]
     source: String,
     /// The directory to write the Jujutsu repo to
-    #[clap(index = 2)]
     destination: Option<String>,
 }
 
@@ -1561,18 +1546,14 @@ enum BenchCommands {
 /// Find the common ancestor(s) of a set of commits
 #[derive(clap::Args, Clone, Debug)]
 struct BenchCommonAncestorsArgs {
-    #[clap(index = 1)]
     revision1: String,
-    #[clap(index = 2)]
     revision2: String,
 }
 
 /// Checks if the first commit is an ancestor of the second commit
 #[derive(clap::Args, Clone, Debug)]
 struct BenchIsAncestorArgs {
-    #[clap(index = 1)]
     ancestor: String,
-    #[clap(index = 2)]
     descendant: String,
 }
 
@@ -1580,16 +1561,13 @@ struct BenchIsAncestorArgs {
 /// of the first
 #[derive(clap::Args, Clone, Debug)]
 struct BenchWalkRevsArgs {
-    #[clap(index = 1)]
     unwanted: String,
-    #[clap(index = 2)]
     wanted: String,
 }
 
 /// Resolve a commit ID prefix
 #[derive(clap::Args, Clone, Debug)]
 struct BenchResolvePrefixArgs {
-    #[clap(index = 1)]
     prefix: String,
 }
 
@@ -1643,7 +1621,6 @@ struct DebugWorkingCopyArgs {}
 /// Parse a template
 #[derive(clap::Args, Clone, Debug)]
 struct DebugTemplateArgs {
-    #[clap(index = 1)]
     template: String,
 }
 
