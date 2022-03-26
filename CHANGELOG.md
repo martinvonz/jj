@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The [standard `$NO_COLOR` environment variable](https://no-color.org/) is now
   respected.
 
+* `jj new` now lets you specify a description with `--message/-m`.
+
 ## [0.3.3] - 2022-03-16
 
 No changes, only trying to get the automated build to work.
