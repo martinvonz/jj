@@ -36,7 +36,7 @@ use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
-use crate::transaction::{Transaction, UnpublishedOperation};
+use crate::transaction::Transaction;
 use crate::view::{RefName, View};
 use crate::{backend, op_store};
 
@@ -310,10 +310,12 @@ pub struct UnresolvedHeadRepo {
 
 impl UnresolvedHeadRepo {
     pub fn resolve(self, user_settings: &UserSettings) -> Arc<ReadonlyRepo> {
-        let merged_repo = self
-            .repo_loader
-            .merge_op_heads(user_settings, self.op_heads)
-            .leave_unpublished();
+        let base_repo = self.repo_loader.load_at(&self.op_heads[0]);
+        let mut tx = base_repo.start_transaction("resolve concurrent operations");
+        for other_op_head in self.op_heads.into_iter().skip(1) {
+            tx.merge_operation(user_settings, other_op_head);
+        }
+        let merged_repo = tx.write().leave_unpublished();
         self.locked_op_heads.finish(merged_repo.operation());
         merged_repo
     }
@@ -382,19 +384,6 @@ impl RepoLoader {
                 op_heads,
             })),
         }
-    }
-
-    fn merge_op_heads(
-        &self,
-        user_settings: &UserSettings,
-        op_heads: Vec<Operation>,
-    ) -> UnpublishedOperation {
-        let base_repo = self.load_at(&op_heads[0]);
-        let mut tx = base_repo.start_transaction("resolve concurrent operations");
-        for other_op_head in op_heads.into_iter().skip(1) {
-            tx.merge_operation(user_settings, other_op_head);
-        }
-        tx.write()
     }
 
     pub fn load_at(&self, op: &Operation) -> Arc<ReadonlyRepo> {
