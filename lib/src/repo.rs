@@ -521,8 +521,8 @@ impl MutableRepo {
         if let Some(current_checkout_id) = maybe_current_checkout_id {
             let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
             assert!(current_checkout.is_open(), "current checkout is closed");
-            if current_checkout.is_empty() {
-                // Abandon the checkout we're leaving if it's empty.
+            if current_checkout.is_empty() && self.view().heads().contains(current_checkout.id()) {
+                // Abandon the checkout we're leaving if it's empty and a head commit
                 self.record_abandoned_commit(current_checkout_id);
             }
         }
