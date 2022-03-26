@@ -20,34 +20,22 @@ fn test_git_push() {
     let git_repo_path = test_env.env_root().join("git-repo");
     git2::Repository::init(&git_repo_path).unwrap();
 
-    test_env
-        .jj_cmd(
-            test_env.env_root(),
-            &["git", "clone", "git-repo", "jj-repo"],
-        )
-        .assert()
-        .success();
+    test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["git", "clone", "git-repo", "jj-repo"],
+    );
     let workspace_root = test_env.env_root().join("jj-repo");
 
     // No branches to push yet
-    let assert = test_env
-        .jj_cmd(&workspace_root, &["git", "push"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"Nothing changed.
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stdout, @"Nothing changed.
 ");
 
     // When pushing everything, won't push an open commit even if there's a branch
     // on it
-    test_env
-        .jj_cmd(&workspace_root, &["branch", "my-branch"])
-        .assert()
-        .success();
-    let assert = test_env
-        .jj_cmd(&workspace_root, &["git", "push"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    test_env.jj_cmd_success(&workspace_root, &["branch", "my-branch"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stdout, @r###"
     Skipping branch 'my-branch' since it points to an open commit.
     Nothing changed.
     "###);
@@ -62,28 +50,13 @@ fn test_git_push() {
 
     // Try pushing a conflict
     std::fs::write(workspace_root.join("file"), "first").unwrap();
-    test_env
-        .jj_cmd(&workspace_root, &["close", "-m", "first"])
-        .assert()
-        .success();
+    test_env.jj_cmd_success(&workspace_root, &["close", "-m", "first"]);
     std::fs::write(workspace_root.join("file"), "second").unwrap();
-    test_env
-        .jj_cmd(&workspace_root, &["close", "-m", "second"])
-        .assert()
-        .success();
+    test_env.jj_cmd_success(&workspace_root, &["close", "-m", "second"]);
     std::fs::write(workspace_root.join("file"), "third").unwrap();
-    test_env
-        .jj_cmd(&workspace_root, &["rebase", "-d", "@--"])
-        .assert()
-        .success();
-    test_env
-        .jj_cmd(&workspace_root, &["branch", "my-branch"])
-        .assert()
-        .success();
-    test_env
-        .jj_cmd(&workspace_root, &["close", "-m", "third"])
-        .assert()
-        .success();
+    test_env.jj_cmd_success(&workspace_root, &["rebase", "-d", "@--"]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "my-branch"]);
+    test_env.jj_cmd_success(&workspace_root, &["close", "-m", "third"]);
     let assert = test_env
         .jj_cmd(&workspace_root, &["git", "push"])
         .assert()

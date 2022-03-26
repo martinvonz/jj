@@ -14,17 +14,14 @@
 
 use std::io::Write;
 
-use jujutsu::testutils::{get_stdout_string, TestEnvironment};
+use jujutsu::testutils::TestEnvironment;
 
 #[test]
 fn test_gitignores() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
     git2::Repository::init(&workspace_root).unwrap();
-    test_env
-        .jj_cmd(&workspace_root, &["init", "--git-repo", "."])
-        .assert()
-        .success();
+    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
 
     // Say in core.excludesFiles that we don't want file1, file2, or file3
     let mut file = std::fs::OpenOptions::new()
@@ -59,11 +56,8 @@ fn test_gitignores() {
     std::fs::write(workspace_root.join("file2"), "contents").unwrap();
     std::fs::write(workspace_root.join("file3"), "contents").unwrap();
 
-    let assert = test_env
-        .jj_cmd(&workspace_root, &["diff", "-s"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["diff", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
     A .gitignore
     A file0
     A file3
