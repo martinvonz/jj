@@ -22,7 +22,6 @@ use crate::op_store;
 use crate::op_store::OperationMetadata;
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoLoader};
-use crate::settings::UserSettings;
 use crate::view::View;
 
 pub struct Transaction {
@@ -57,7 +56,7 @@ impl Transaction {
         self.repo.as_mut().unwrap()
     }
 
-    pub fn merge_operation(&mut self, user_settings: &UserSettings, other_op: Operation) {
+    pub fn merge_operation(&mut self, other_op: Operation) {
         let ancestor_op = closest_common_node(
             self.parent_ops.clone(),
             vec![other_op.clone()],
@@ -71,7 +70,6 @@ impl Transaction {
         self.parent_ops.push(other_op);
         let merged_repo = self.mut_repo();
         merged_repo.merge(&base_repo, &other_repo);
-        merged_repo.rebase_descendants(user_settings);
     }
 
     /// Writes the transaction to the operation store and publishes it.

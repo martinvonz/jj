@@ -313,7 +313,8 @@ impl UnresolvedHeadRepo {
         let base_repo = self.repo_loader.load_at(&self.op_heads[0]);
         let mut tx = base_repo.start_transaction("resolve concurrent operations");
         for other_op_head in self.op_heads.into_iter().skip(1) {
-            tx.merge_operation(user_settings, other_op_head);
+            tx.merge_operation(other_op_head);
+            tx.mut_repo().rebase_descendants(user_settings);
         }
         let merged_repo = tx.write().leave_unpublished();
         self.locked_op_heads.finish(merged_repo.operation());
