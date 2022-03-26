@@ -26,7 +26,7 @@ use thiserror::Error;
 use crate::backend::{BackendError, ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
-use crate::dag_walk::{closest_common_node, topo_order_reverse};
+use crate::dag_walk::topo_order_reverse;
 use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
 use crate::op_heads_store::{LockedOpHeads, OpHeads, OpHeadsStore};
@@ -392,22 +392,9 @@ impl RepoLoader {
         op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
         let base_repo = self.load_at(&op_heads[0]);
         let mut tx = base_repo.start_transaction("resolve concurrent operations");
-        let merged_repo = tx.mut_repo();
-        let neighbors_fn = |op: &Operation| op.parents();
-        for (i, other_op_head) in op_heads.iter().enumerate().skip(1) {
-            let ancestor_op = closest_common_node(
-                op_heads[0..i].to_vec(),
-                vec![other_op_head.clone()],
-                &neighbors_fn,
-                &|op: &Operation| op.id().clone(),
-            )
-            .unwrap();
-            let base_repo = self.load_at(&ancestor_op);
-            let other_repo = self.load_at(other_op_head);
-            merged_repo.merge(&base_repo, &other_repo);
-            merged_repo.rebase_descendants(user_settings);
+        for other_op_head in op_heads.into_iter().skip(1) {
+            tx.merge_operation(user_settings, other_op_head);
         }
-        tx.set_parent_ops(op_heads);
         tx.write()
     }
 
