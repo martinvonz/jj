@@ -20,7 +20,6 @@ fn test_new_with_message() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    std::fs::write(repo_path.join("file"), "contents").unwrap();
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "add a file"]);
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "a new commit"]);
 
@@ -29,8 +28,8 @@ fn test_new_with_message() {
         .assert()
         .success();
     insta::assert_snapshot!(get_stdout_string(&assert), @r###"
-    @ 588665964c5aaf306d9617095c8a9c4447cdb30c a new commit
-    o f0f3ab56bfa927e3a65c2ac9a513693d438e271b add a file
+    @ 88436dbcdbedc2b8a6ebd0687981906d09ccc68f a new commit
+    o 51e9c5819117991e4a6dc5a4a744283fc74f0746 add a file
     o 0000000000000000000000000000000000000000 
     "###);
 }
