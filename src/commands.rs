@@ -1148,6 +1148,9 @@ struct NewArgs {
     /// out.
     #[clap(default_value = "@")]
     revision: String,
+    /// The change description to use
+    #[clap(long, short, default_value = "")]
+    message: String,
 }
 
 /// Move changes from one revision into another
@@ -2942,7 +2945,8 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
         repo.store(),
         parent.id().clone(),
         parent.tree().id().clone(),
-    );
+    )
+    .set_description(args.message.clone());
     let mut tx = workspace_command.start_transaction("new empty commit");
     let mut_repo = tx.mut_repo();
     let new_commit = commit_builder.write_to_repo(mut_repo);
