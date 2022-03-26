@@ -18,14 +18,14 @@ use std::sync::Arc;
 use crate::backend::Timestamp;
 use crate::index::ReadonlyIndex;
 use crate::op_store;
-use crate::op_store::{OperationId, OperationMetadata};
+use crate::op_store::OperationMetadata;
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoLoader};
 use crate::view::View;
 
 pub struct Transaction {
     repo: Option<MutableRepo>,
-    parents: Vec<OperationId>,
+    parent_ops: Vec<Operation>,
     description: String,
     start_time: Timestamp,
     tags: HashMap<String, String>,
@@ -33,10 +33,10 @@ pub struct Transaction {
 
 impl Transaction {
     pub fn new(mut_repo: MutableRepo, description: &str) -> Transaction {
-        let parents = vec![mut_repo.base_repo().op_id().clone()];
+        let parent_ops = vec![mut_repo.base_repo().operation().clone()];
         Transaction {
             repo: Some(mut_repo),
-            parents,
+            parent_ops,
             description: description.to_owned(),
             start_time: Timestamp::now(),
             tags: Default::default(),
@@ -47,8 +47,8 @@ impl Transaction {
         self.repo.as_ref().unwrap().base_repo()
     }
 
-    pub fn set_parents(&mut self, parents: Vec<OperationId>) {
-        self.parents = parents;
+    pub fn set_parent_ops(&mut self, parent_ops: Vec<Operation>) {
+        self.parent_ops = parent_ops;
     }
 
     pub fn set_tag(&mut self, key: String, value: String) {
@@ -82,9 +82,10 @@ impl Transaction {
         let mut operation_metadata =
             OperationMetadata::new(self.description.clone(), self.start_time.clone());
         operation_metadata.tags = self.tags.clone();
+        let parents = self.parent_ops.iter().map(|op| op.id().clone()).collect();
         let store_operation = op_store::Operation {
             view_id,
-            parents: self.parents.clone(),
+            parents,
             metadata: operation_metadata,
         };
         let new_op_id = base_repo
