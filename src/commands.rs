@@ -218,8 +218,27 @@ jj init --git-repo=.";
                         ui,
                         "Concurrent modification detected, resolving automatically.",
                     )?;
-                    // TODO: Tell the user how many commits were rebased.
-                    unresolved.resolve(ui.settings())
+                    let base_repo = repo_loader.load_at(&unresolved.op_heads[0]);
+                    // TODO: It may be helpful to print each operation we're merging here
+                    let mut workspace_command = self.for_loaded_repo(ui, workspace, base_repo)?;
+                    let mut tx =
+                        workspace_command.start_transaction("resolve concurrent operations");
+                    for other_op_head in unresolved.op_heads.into_iter().skip(1) {
+                        tx.merge_operation(other_op_head);
+                        let num_rebased = tx.mut_repo().rebase_descendants(ui.settings());
+                        if num_rebased > 0 {
+                            writeln!(
+                                ui,
+                                "Rebased {} descendant commits onto commits rewritten by other \
+                                 operation",
+                                num_rebased
+                            )?;
+                        }
+                    }
+                    let merged_repo = tx.write().leave_unpublished();
+                    unresolved.locked_op_heads.finish(merged_repo.operation());
+                    workspace_command.repo = merged_repo;
+                    return Ok(workspace_command);
                 }
             }
         } else {

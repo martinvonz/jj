@@ -15,7 +15,7 @@
 use jujutsu::testutils::TestEnvironment;
 
 #[test]
-fn test_concurrent_operations() {
+fn test_concurrent_operation_divergence() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -37,5 +37,33 @@ fn test_concurrent_operations() {
     | @ message 1
     |/  
     o 
+    "###);
+}
+
+#[test]
+fn test_concurrent_operations_auto_rebase() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
+    let op_id_hex = stdout[2..14].to_string();
+
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "rewritten"]);
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["new", "--at-op", &op_id_hex, "-m", "new child"],
+    );
+
+    // We should be informed about the concurrent modification
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id \" \" description"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Concurrent modification detected, resolving automatically.
+    Rebased 1 descendant commits onto commits rewritten by other operation
+    o 4eeb7d76372418118a91c34f09e5e3936f0deeb5 new child
+    @ 14176aeadc0259b2150fc7374969e74b1552a498 rewritten
+    o 0000000000000000000000000000000000000000 
     "###);
 }

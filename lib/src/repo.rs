@@ -303,9 +303,9 @@ impl RepoAtHead {
 }
 
 pub struct UnresolvedHeadRepo {
-    repo_loader: RepoLoader,
-    locked_op_heads: LockedOpHeads,
-    op_heads: Vec<Operation>,
+    pub repo_loader: RepoLoader,
+    pub locked_op_heads: LockedOpHeads,
+    pub op_heads: Vec<Operation>,
 }
 
 impl UnresolvedHeadRepo {
