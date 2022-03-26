@@ -387,9 +387,8 @@ impl RepoLoader {
     fn merge_op_heads(
         &self,
         user_settings: &UserSettings,
-        mut op_heads: Vec<Operation>,
+        op_heads: Vec<Operation>,
     ) -> UnpublishedOperation {
-        op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
         let base_repo = self.load_at(&op_heads[0]);
         let mut tx = base_repo.start_transaction("resolve concurrent operations");
         for other_op_head in op_heads.into_iter().skip(1) {

@@ -184,6 +184,7 @@ impl OpHeadsStore {
             return Ok(OpHeads::Single(op_heads.pop().unwrap()));
         }
 
+        op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
         Ok(OpHeads::Unresolved {
             locked_op_heads,
             op_heads,
