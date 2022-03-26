@@ -407,8 +407,7 @@ impl RepoLoader {
             merged_repo.merge(&base_repo, &other_repo);
             merged_repo.rebase_descendants(user_settings);
         }
-        let op_parent_ids = op_heads.iter().map(|op| op.id().clone()).collect();
-        tx.set_parents(op_parent_ids);
+        tx.set_parent_ops(op_heads);
         tx.write()
     }
 
