@@ -64,6 +64,12 @@ impl TestEnvironment {
         cmd
     }
 
+    /// Run a `jj` command, check that it was successful, and return its stdout
+    pub fn jj_cmd_success(&self, current_dir: &Path, args: &[&str]) -> String {
+        let assert = self.jj_cmd(current_dir, args).assert().success();
+        get_stdout_string(&assert)
+    }
+
     pub fn env_root(&self) -> &Path {
         &self.env_root
     }

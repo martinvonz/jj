@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::testutils::{get_stdout_string, TestEnvironment};
+use jujutsu::testutils::TestEnvironment;
 
 #[test]
 fn test_init_git_internal() {
     let test_env = TestEnvironment::default();
-    let assert = test_env
-        .jj_cmd(test_env.env_root(), &["init", "repo", "--git"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"Initialized repo in "repo"
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    insta::assert_snapshot!(stdout, @r###"Initialized repo in "repo"
 "###);
 
     let workspace_root = test_env.env_root().join("repo");
@@ -69,19 +66,16 @@ fn test_init_git_external() {
         .unwrap();
     git_repo.set_head("refs/heads/my-branch").unwrap();
 
-    let assert = test_env
-        .jj_cmd(
-            test_env.env_root(),
-            &[
-                "init",
-                "repo",
-                "--git-repo",
-                git_repo_path.to_str().unwrap(),
-            ],
-        )
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &[
+            "init",
+            "repo",
+            "--git-repo",
+            git_repo_path.to_str().unwrap(),
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
     Working copy now at: f6950fc115ae 
     Added 1 files, modified 0 files, removed 0 files
     Initialized repo in "repo"
@@ -102,11 +96,8 @@ fn test_init_git_external() {
         .ends_with("/git-repo/.git"));
 
     // Check that the Git repo's HEAD got checked out
-    let assert = test_env
-        .jj_cmd(&repo_path, &["log", "-r", "@-"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
     o 8d698d4a8ee1 d3866db7e30a git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch   HEAD@git
     ~ My commit message
     "###);
@@ -117,12 +108,9 @@ fn test_init_git_colocated() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
     git2::Repository::init(&workspace_root).unwrap();
-    let assert = test_env
-        .jj_cmd(&workspace_root, &["init", "--git-repo", "."])
-        .assert()
-        .success();
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
     // TODO: We should say "." instead of "" here
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"Initialized repo in ""
+    insta::assert_snapshot!(stdout, @r###"Initialized repo in ""
 "###);
 
     let jj_path = workspace_root.join(".jj");
@@ -142,11 +130,8 @@ fn test_init_git_colocated() {
 #[test]
 fn test_init_local() {
     let test_env = TestEnvironment::default();
-    let assert = test_env
-        .jj_cmd(test_env.env_root(), &["init", "repo"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"Initialized repo in "repo"
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["init", "repo"]);
+    insta::assert_snapshot!(stdout, @r###"Initialized repo in "repo"
 "###);
 
     let workspace_root = test_env.env_root().join("repo");

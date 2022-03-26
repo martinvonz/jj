@@ -19,20 +19,13 @@ use jujutsu::testutils::{get_stdout_string, TestEnvironment};
 #[test]
 fn test_no_commit_working_copy() {
     let test_env = TestEnvironment::default();
-    test_env
-        .jj_cmd(test_env.env_root(), &["init", "repo", "--git"])
-        .assert()
-        .success();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
 
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file"), "initial").unwrap();
-    let assert = test_env
-        .jj_cmd(&repo_path, &["log", "-T", "commit_id"])
-        .assert()
-        .success();
-    let stdout_string = get_stdout_string(&assert);
-    insta::assert_snapshot!(stdout_string, @r###"
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
+    insta::assert_snapshot!(stdout, @r###"
     @ 438471f3fbf1004298d8fb01eeb13663a051a643
     o 0000000000000000000000000000000000000000
     "###);
@@ -40,21 +33,15 @@ fn test_no_commit_working_copy() {
     // Modify the file. With --no-commit-working-copy, we still get the same commit
     // ID.
     std::fs::write(repo_path.join("file"), "modified").unwrap();
-    test_env
-        .jj_cmd(
-            &repo_path,
-            &["log", "-T", "commit_id", "--no-commit-working-copy"],
-        )
-        .assert()
-        .success()
-        .stdout(stdout_string);
+    let stdout_again = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "commit_id", "--no-commit-working-copy"],
+    );
+    assert_eq!(stdout_again, stdout);
 
     // But without --no-commit-working-copy, we get a new commit ID.
-    let assert = test_env
-        .jj_cmd(&repo_path, &["log", "-T", "commit_id"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
+    insta::assert_snapshot!(stdout, @r###"
     @ fab22d1acf5bb9c5aa48cb2c3dd2132072a359ca
     o 0000000000000000000000000000000000000000
     "###);
@@ -98,17 +85,11 @@ color="always""#,
         )
         .unwrap();
     config_file.flush().unwrap();
-    test_env
-        .jj_cmd(test_env.env_root(), &["init", "repo", "--git"])
-        .assert()
-        .success();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
 
     let repo_path = test_env.env_root().join("repo");
-    let assert = test_env
-        .jj_cmd(&repo_path, &["log", "-T", "commit_id"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
+    insta::assert_snapshot!(stdout, @r###"
     @ [1;34m230dd059e1b059aefc0da06a2e5a7dbf22362f22[0m
     o [34m0000000000000000000000000000000000000000[0m
     "###);

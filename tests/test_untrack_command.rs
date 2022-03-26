@@ -19,10 +19,7 @@ use jujutsu::testutils::{get_stdout_string, TestEnvironment};
 #[test]
 fn test_untrack() {
     let test_env = TestEnvironment::default();
-    test_env
-        .jj_cmd(test_env.env_root(), &["init", "repo"])
-        .assert()
-        .success();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "initial").unwrap();
@@ -35,10 +32,9 @@ fn test_untrack() {
 
     // Run a command so all the files get tracked, then add "*.bak" to the ignore
     // patterns
-    test_env.jj_cmd(&repo_path, &["st"]).assert().success();
+    test_env.jj_cmd_success(&repo_path, &["st"]);
     std::fs::write(repo_path.join(".gitignore"), "*.bak\n").unwrap();
-    let files_before =
-        get_stdout_string(&test_env.jj_cmd(&repo_path, &["files"]).assert().success());
+    let files_before = test_env.jj_cmd_success(&repo_path, &["files"]);
 
     // Errors out when a specified file is not ignored
     let assert = test_env
@@ -49,20 +45,15 @@ fn test_untrack() {
         "Error: 'file1' would be added back because it's not ignored. Make sure it's ignored, \
          then try again.\n",
     );
-    let files_after =
-        get_stdout_string(&test_env.jj_cmd(&repo_path, &["files"]).assert().success());
+    let files_after = test_env.jj_cmd_success(&repo_path, &["files"]);
     // There should be no changes to the state when there was an error
     assert_eq!(files_after, files_before);
 
     // Can untrack a single file
     assert!(files_before.contains("file1.bak\n"));
-    test_env
-        .jj_cmd(&repo_path, &["untrack", "file1.bak"])
-        .assert()
-        .success()
-        .stdout("");
-    let files_after =
-        get_stdout_string(&test_env.jj_cmd(&repo_path, &["files"]).assert().success());
+    let stdout = test_env.jj_cmd_success(&repo_path, &["untrack", "file1.bak"]);
+    assert_eq!(stdout, "");
+    let files_after = test_env.jj_cmd_success(&repo_path, &["files"]);
     // The file is no longer tracked
     assert!(!files_after.contains("file1.bak"));
     // Other files that match the ignore pattern are not untracked
@@ -87,12 +78,8 @@ fn test_untrack() {
 
     // Can untrack after adding to ignore patterns
     std::fs::write(repo_path.join(".gitignore"), ".bak\ntarget/\n").unwrap();
-    test_env
-        .jj_cmd(&repo_path, &["untrack", "target"])
-        .assert()
-        .success()
-        .stdout("");
-    let files_after =
-        get_stdout_string(&test_env.jj_cmd(&repo_path, &["files"]).assert().success());
+    let stdout = test_env.jj_cmd_success(&repo_path, &["untrack", "target"]);
+    assert_eq!(stdout, "");
+    let files_after = test_env.jj_cmd_success(&repo_path, &["files"]);
     assert!(!files_after.contains("target"));
 }
