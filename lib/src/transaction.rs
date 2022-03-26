@@ -16,11 +16,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::backend::Timestamp;
+use crate::dag_walk::closest_common_node;
 use crate::index::ReadonlyIndex;
 use crate::op_store;
 use crate::op_store::OperationMetadata;
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoLoader};
+use crate::settings::UserSettings;
 use crate::view::View;
 
 pub struct Transaction {
@@ -47,16 +49,29 @@ impl Transaction {
         self.repo.as_ref().unwrap().base_repo()
     }
 
-    pub fn set_parent_ops(&mut self, parent_ops: Vec<Operation>) {
-        self.parent_ops = parent_ops;
-    }
-
     pub fn set_tag(&mut self, key: String, value: String) {
         self.tags.insert(key, value);
     }
 
     pub fn mut_repo(&mut self) -> &mut MutableRepo {
         self.repo.as_mut().unwrap()
+    }
+
+    pub fn merge_operation(&mut self, user_settings: &UserSettings, other_op: Operation) {
+        let ancestor_op = closest_common_node(
+            self.parent_ops.clone(),
+            vec![other_op.clone()],
+            &|op: &Operation| op.parents(),
+            &|op: &Operation| op.id().clone(),
+        )
+        .unwrap();
+        let repo_loader = self.base_repo().loader();
+        let base_repo = repo_loader.load_at(&ancestor_op);
+        let other_repo = repo_loader.load_at(&other_op);
+        self.parent_ops.push(other_op);
+        let merged_repo = self.mut_repo();
+        merged_repo.merge(&base_repo, &other_repo);
+        merged_repo.rebase_descendants(user_settings);
     }
 
     /// Writes the transaction to the operation store and publishes it.
