@@ -105,3 +105,21 @@ color="always""#,
     o 0000000000000000000000000000000000000000
     "###);
 }
+
+#[test]
+fn test_invalid_config() {
+    // Test that we get a reasonable error if the config is invalid (#55)
+    let test_env = TestEnvironment::default();
+
+    std::fs::write(
+        test_env.config_path(),
+        "[section]key = value-missing-quotes",
+    )
+    .unwrap();
+    let assert = test_env
+        .jj_cmd(test_env.env_root(), &["init", "repo"])
+        .assert()
+        .failure();
+    insta::assert_snapshot!(get_stdout_string(&assert), @"Invalid config: expected newline, found an identifier at line 1 column 10 in config.toml
+");
+}
