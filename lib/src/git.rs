@@ -57,9 +57,14 @@ pub fn import_refs(
     git_repo: &git2::Repository,
 ) -> Result<(), GitImportError> {
     let store = mut_repo.store().clone();
-    let git_refs = git_repo.references()?;
     let mut existing_git_refs = mut_repo.view().git_refs().clone();
+    let old_git_heads: HashSet<_> = existing_git_refs
+        .values()
+        .flat_map(|old_target| old_target.adds())
+        .collect();
+    let mut new_git_heads = HashSet::new();
     let mut changed_git_refs = BTreeMap::new();
+    let git_refs = git_repo.references()?;
     for git_ref in git_refs {
         let git_ref = git_ref?;
         if !(git_ref.is_tag() || git_ref.is_branch() || git_ref.is_remote())
@@ -83,6 +88,7 @@ pub fn import_refs(
             }
         };
         let id = CommitId::from_bytes(git_commit.id().as_bytes());
+        new_git_heads.insert(id.clone());
         // TODO: Make it configurable which remotes are publishing and update public
         // heads here.
         mut_repo.set_git_ref(full_name.clone(), RefTarget::Normal(id.clone()));
@@ -96,10 +102,6 @@ pub fn import_refs(
     }
     for (full_name, target) in existing_git_refs {
         mut_repo.remove_git_ref(&full_name);
-        // TODO: We should probably also remove heads pointing to the same
-        // commits and commits no longer reachable from other refs.
-        // If the underlying git repo has a branch that gets rewritten, we
-        // should probably not keep the commits it used to point to.
         changed_git_refs.insert(full_name, (Some(target), None));
     }
     for (full_name, (old_git_target, new_git_target)) in changed_git_refs {
@@ -117,6 +119,24 @@ pub fn import_refs(
             }
         }
     }
+
+    // Find commits that are no longer referenced in the git repo and abandon them
+    // in jj as well.
+    let old_git_heads = old_git_heads.into_iter().collect_vec();
+    let new_git_heads = new_git_heads.into_iter().collect_vec();
+    // We could use mut_repo.record_rewrites() here but we know we only need to care
+    // about abandoned commits for now. We may want to change this if we ever
+    // add a way of preserving change IDs across rewrites by `git` (e.g. by
+    // putting them in the commit message).
+    let abandoned_commits = mut_repo
+        .index()
+        .walk_revs(&old_git_heads, &new_git_heads)
+        .map(|entry| entry.commit_id())
+        .collect_vec();
+    for abandoned_commit in abandoned_commits {
+        mut_repo.record_abandoned_commit(abandoned_commit);
+    }
+
     // TODO: Should this be a separate function? We may not always want to import
     // the Git HEAD (and add it to our set of heads).
     if let Ok(head_git_commit) = git_repo
