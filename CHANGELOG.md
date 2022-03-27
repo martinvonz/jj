@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `$SSH_AUTH_SOCK` is set). This should help at least macOS users where
   ssh-agent is launched by default and only `$SSH_AUTH_SOCK` is set.
 
+* When importing from a git, any commits that are no longer referenced on the
+  git side will now be abandoned on the jj side as well. That means that
+  `jj git fetch` will now abandon unreferenced commits and rebase any local
+  changes you had on top.
+
 ### Fixed bugs
 
 * When rebasing a conflict where one side modified a file and the other side
