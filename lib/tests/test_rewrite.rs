@@ -1122,9 +1122,9 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     let test_repo = testutils::init_repo(&settings, false);
     let repo = &test_repo.repo;
 
-    // Branch "main" is a conflict removing commit A and adding commit B and C.
+    // Branch "main" is a conflict removing commit A and adding commits B and C.
     // A gets rewritten as A2 and A3. B gets rewritten as B2 and B2. The branch
-    // should become a conflict removing A2, A3, and B, and adding A, B2, B3, C.
+    // should become a conflict removing A and B, and adding B2, B3, C.
     let mut tx = repo.start_transaction("test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
@@ -1156,14 +1156,9 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
         Some(RefTarget::Conflict {
-            removes: vec![
-                commit_a2.id().clone(),
-                commit_a3.id().clone(),
-                commit_b.id().clone(),
-            ],
+            removes: vec![commit_a.id().clone(), commit_b.id().clone()],
             adds: vec![
                 commit_c.id().clone(),
-                commit_a.id().clone(),
                 commit_b2.id().clone(),
                 commit_b3.id().clone(),
             ]
