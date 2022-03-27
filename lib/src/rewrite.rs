@@ -305,33 +305,18 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 let local_target = self.mut_repo.get_local_branch(branch_name).unwrap();
                 for old_add in local_target.adds() {
                     if old_add == old_commit_id {
-                        branch_updates.push((branch_name.clone(), true));
-                    }
-                }
-                for old_add in local_target.removes() {
-                    if old_add == old_commit_id {
-                        // Arguments reversed for removes
-                        branch_updates.push((branch_name.clone(), false));
+                        branch_updates.push(branch_name.clone());
                     }
                 }
             }
             let (old_target, new_target) =
                 DescendantRebaser::ref_target_update(old_commit_id.clone(), new_commit_ids);
-            for (branch_name, is_add) in branch_updates {
-                if is_add {
-                    self.mut_repo.merge_single_ref(
-                        &RefName::LocalBranch(branch_name),
-                        Some(&old_target),
-                        Some(&new_target),
-                    );
-                } else {
-                    // Arguments reversed for removes
-                    self.mut_repo.merge_single_ref(
-                        &RefName::LocalBranch(branch_name),
-                        Some(&new_target),
-                        Some(&old_target),
-                    );
-                }
+            for branch_name in branch_updates {
+                self.mut_repo.merge_single_ref(
+                    &RefName::LocalBranch(branch_name),
+                    Some(&old_target),
+                    Some(&new_target),
+                );
             }
         }
 
