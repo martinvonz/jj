@@ -2480,27 +2480,40 @@ fn show_diff_summary(
     workspace_root: &Path,
     tree_diff: TreeDiffIterator,
 ) -> io::Result<()> {
-    ui.stdout_formatter().add_label(String::from("diff"))?;
+    let mut formatter = ui.stdout_formatter();
+    formatter.add_label(String::from("diff"))?;
     for (repo_path, diff) in tree_diff {
         match diff {
             tree::Diff::Modified(_, _) => {
-                ui.stdout_formatter().add_label(String::from("modified"))?;
-                writeln!(ui, "M {}", ui.format_file_path(workspace_root, &repo_path))?;
-                ui.stdout_formatter().remove_label()?;
+                formatter.add_label(String::from("modified"))?;
+                writeln!(
+                    formatter,
+                    "M {}",
+                    ui.format_file_path(workspace_root, &repo_path)
+                )?;
+                formatter.remove_label()?;
             }
             tree::Diff::Added(_) => {
-                ui.stdout_formatter().add_label(String::from("added"))?;
-                writeln!(ui, "A {}", ui.format_file_path(workspace_root, &repo_path))?;
-                ui.stdout_formatter().remove_label()?;
+                formatter.add_label(String::from("added"))?;
+                writeln!(
+                    formatter,
+                    "A {}",
+                    ui.format_file_path(workspace_root, &repo_path)
+                )?;
+                formatter.remove_label()?;
             }
             tree::Diff::Removed(_) => {
-                ui.stdout_formatter().add_label(String::from("removed"))?;
-                writeln!(ui, "R {}", ui.format_file_path(workspace_root, &repo_path))?;
-                ui.stdout_formatter().remove_label()?;
+                formatter.add_label(String::from("removed"))?;
+                writeln!(
+                    formatter,
+                    "R {}",
+                    ui.format_file_path(workspace_root, &repo_path)
+                )?;
+                formatter.remove_label()?;
             }
         }
     }
-    ui.stdout_formatter().remove_label()?;
+    formatter.remove_label()?;
     Ok(())
 }
 
