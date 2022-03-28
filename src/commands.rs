@@ -1993,7 +1993,14 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
     let workspace_root = workspace_command.workspace_root();
     let matcher = matcher_from_values(ui, workspace_root, &args.paths)?;
     let diff_iterator = from_tree.diff(&to_tree, matcher.as_ref());
-    show_diff(ui, repo, workspace_root, &args.format, diff_iterator)?;
+    show_diff(
+        ui,
+        ui.stdout_formatter().as_mut(),
+        repo,
+        workspace_root,
+        &args.format,
+        diff_iterator,
+    )?;
     Ok(())
 }
 
@@ -2023,13 +2030,23 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
         &workspace_command.workspace_id(),
         template_string,
     );
-    template.format(&commit, ui.stdout_formatter().as_mut())?;
-    show_diff(ui, repo, workspace_root, &args.format, diff_iterator)?;
+    let mut formatter = ui.stdout_formatter();
+    let formatter = formatter.as_mut();
+    template.format(&commit, formatter)?;
+    show_diff(
+        ui,
+        formatter,
+        repo,
+        workspace_root,
+        &args.format,
+        diff_iterator,
+    )?;
     Ok(())
 }
 
 fn show_diff(
-    ui: &mut Ui,
+    ui: &Ui,
+    formatter: &mut dyn Formatter,
     repo: &Arc<ReadonlyRepo>,
     workspace_root: &Path,
     args: &DiffFormat,
@@ -2056,8 +2073,6 @@ fn show_diff(
             }
         }
     };
-    let mut formatter = ui.stdout_formatter();
-    let formatter = formatter.as_mut();
     match format {
         Format::Summary => {
             show_diff_summary(ui, formatter, workspace_root, tree_diff)?;
