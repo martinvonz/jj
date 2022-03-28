@@ -1741,19 +1741,20 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
         if workspace_command.working_copy_shared_with_git() {
             add_to_git_exclude(ui, &git_repo)?;
-        }
-        let mut tx = workspace_command.start_transaction("import git refs");
-        git::import_refs(tx.mut_repo(), &git_repo)?;
-        if let Some(git_head_id) = tx.mut_repo().view().git_head() {
-            let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
-            tx.mut_repo().check_out(
-                workspace_command.workspace_id(),
-                ui.settings(),
-                &git_head_commit,
-            );
-        }
-        if tx.mut_repo().has_changes() {
-            workspace_command.finish_transaction(ui, tx)?;
+        } else {
+            let mut tx = workspace_command.start_transaction("import git refs");
+            git::import_refs(tx.mut_repo(), &git_repo)?;
+            if let Some(git_head_id) = tx.mut_repo().view().git_head() {
+                let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
+                tx.mut_repo().check_out(
+                    workspace_command.workspace_id(),
+                    ui.settings(),
+                    &git_head_commit,
+                );
+            }
+            if tx.mut_repo().has_changes() {
+                workspace_command.finish_transaction(ui, tx)?;
+            }
         }
     } else if args.git {
         Workspace::init_internal_git(ui.settings(), wc_path.clone())?;

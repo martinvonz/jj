@@ -12,7 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::PathBuf;
+
 use jujutsu::testutils::TestEnvironment;
+
+fn init_git_repo(git_repo_path: &PathBuf) {
+    let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+    let git_blob_oid = git_repo.blob(b"some content").unwrap();
+    let mut git_tree_builder = git_repo.treebuilder(None).unwrap();
+    git_tree_builder
+        .insert("some-file", git_blob_oid, 0o100644)
+        .unwrap();
+    let git_tree_id = git_tree_builder.write().unwrap();
+    let git_tree = git_repo.find_tree(git_tree_id).unwrap();
+    let git_signature = git2::Signature::new(
+        "Git User",
+        "git.user@example.com",
+        &git2::Time::new(123, 60),
+    )
+    .unwrap();
+    git_repo
+        .commit(
+            Some("refs/heads/my-branch"),
+            &git_signature,
+            &git_signature,
+            "My commit message",
+            &git_tree,
+            &[],
+        )
+        .unwrap();
+    git_repo.set_head("refs/heads/my-branch").unwrap();
+}
 
 #[test]
 fn test_init_git_internal() {
@@ -40,31 +70,7 @@ fn test_init_git_internal() {
 fn test_init_git_external() {
     let test_env = TestEnvironment::default();
     let git_repo_path = test_env.env_root().join("git-repo");
-    let git_repo = git2::Repository::init(&git_repo_path).unwrap();
-    let git_blob_oid = git_repo.blob(b"some content").unwrap();
-    let mut git_tree_builder = git_repo.treebuilder(None).unwrap();
-    git_tree_builder
-        .insert("some-file", git_blob_oid, 0o100644)
-        .unwrap();
-    let git_tree_id = git_tree_builder.write().unwrap();
-    let git_tree = git_repo.find_tree(git_tree_id).unwrap();
-    let git_signature = git2::Signature::new(
-        "Git User",
-        "git.user@example.com",
-        &git2::Time::new(123, 60),
-    )
-    .unwrap();
-    git_repo
-        .commit(
-            Some("refs/heads/my-branch"),
-            &git_signature,
-            &git_signature,
-            "My commit message",
-            &git_tree,
-            &[],
-        )
-        .unwrap();
-    git_repo.set_head("refs/heads/my-branch").unwrap();
+    init_git_repo(&git_repo_path);
 
     let stdout = test_env.jj_cmd_success(
         test_env.env_root(),
@@ -107,7 +113,7 @@ fn test_init_git_external() {
 fn test_init_git_colocated() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
-    git2::Repository::init(&workspace_root).unwrap();
+    init_git_repo(&workspace_root);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
     // TODO: We should say "." instead of "" here
     insta::assert_snapshot!(stdout, @r###"Initialized repo in ""
@@ -125,6 +131,13 @@ fn test_init_git_colocated() {
     assert!(git_target_file_contents
         .replace('\\', "/")
         .ends_with("../../../.git"));
+
+    // Check that the Git repo's HEAD got checked out
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    o 8d698d4a8ee1 d3866db7e30a git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch   HEAD@git
+    ~ My commit message
+    "###);
 }
 
 #[test]
