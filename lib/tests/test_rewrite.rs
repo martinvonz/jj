@@ -1182,16 +1182,35 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     );
 }
 
-// TODO: Add a test for the following case, which can't happen with our current
-// evolution-based rewriting.
-//
-// 1. Operation 1 points a branch to commit A
-// 2. Operation 2 repoints the branch to commit B
-// 3. Operation 3, which is concurrent with operation 2, deletes the branch
-// 4. Resolved state (operation 4) will have a "-A+B" state for the branch
-//
-// Now we hide B and make A visible instead. When that diff is applied to the
-// branch, the branch state becomes empty and is thus deleted.
+#[test]
+fn test_rebase_descendants_branch_delete_modify_abandon() {
+    let settings = testutils::user_settings();
+    let test_repo = testutils::init_repo(&settings, false);
+    let repo = &test_repo.repo;
+
+    // Branch "main" initially points to commit A. One operation rewrites it to
+    // point to B (child of A). A concurrent operation deletes the branch. That
+    // leaves the branch pointing to "-A+B". We now abandon B. That should
+    // result in the branch pointing to "-A+A=0", so the branch should
+    // be deleted.
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    tx.mut_repo().set_local_branch(
+        "main".to_string(),
+        RefTarget::Conflict {
+            removes: vec![commit_a.id().clone()],
+            adds: vec![commit_b.id().clone()],
+        },
+    );
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
+    tx.mut_repo().rebase_descendants(&settings);
+    assert_eq!(tx.mut_repo().get_local_branch("main"), None);
+}
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
