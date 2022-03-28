@@ -451,6 +451,38 @@ fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<Re
     repo
 }
 
+#[test]
+fn test_merge_views_divergent() {
+    // We start with just commit A. Operation 1 rewrites it as A2. Operation 2
+    // rewrites it as A3.
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(false);
+
+    let mut tx = test_repo.repo.start_transaction(&settings, "test");
+    let commit_a = create_random_commit(&settings, &test_repo.repo).write_to_repo(tx.mut_repo());
+    let repo = tx.commit();
+
+    let mut tx1 = repo.start_transaction(&settings, "test");
+    let commit_a2 = CommitBuilder::for_rewrite_from(&settings, &commit_a)
+        .set_description("A2".to_string())
+        .write_to_repo(tx1.mut_repo());
+    tx1.mut_repo().rebase_descendants(&settings).unwrap();
+
+    let mut tx2 = repo.start_transaction(&settings, "test");
+    let commit_a3 = CommitBuilder::for_rewrite_from(&settings, &commit_a)
+        .set_description("A3".to_string())
+        .write_to_repo(tx2.mut_repo());
+    tx2.mut_repo().rebase_descendants(&settings).unwrap();
+
+    let repo = commit_transactions(&settings, vec![tx1, tx2]);
+
+    // A2 and A3 should be heads.
+    assert_eq!(
+        *repo.view().heads(),
+        hashset! {commit_a2.id().clone(), commit_a3.id().clone()}
+    );
+}
+
 #[test_case(false ; "rewrite first")]
 #[test_case(true ; "add child first")]
 fn test_merge_views_child_on_rewritten(child_first: bool) {
