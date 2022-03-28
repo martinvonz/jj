@@ -1749,8 +1749,6 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
                 &git_head_commit,
             );
         }
-        // TODO: Check out a recent commit. Maybe one with the highest generation
-        // number.
         if tx.mut_repo().has_changes() {
             workspace_command.finish_transaction(ui, tx)?;
         }
