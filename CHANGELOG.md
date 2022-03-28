@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* Fixed crash on `jj init --git-repo=.` (it almost always crashed).
+
 * When sharing the working copy with a Git repo, the automatic importing and
   exporting (sometimes?) didn't happen on Windows.
 
