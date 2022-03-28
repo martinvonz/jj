@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   operation rebased A as A', then B would be automatically rebased on top of
   A'). See #111 for more examples.
 
+* `jj log` now accepts `-p`/`--patch` option.
+
 ## [0.3.3] - 2022-03-16
 
 No changes, only trying to get the automated build to work.

@@ -1067,6 +1067,11 @@ struct LogArgs {
     /// documented and is likely to change)
     #[clap(long, short = 'T')]
     template: Option<String>,
+    /// Show patch
+    #[clap(long, short = 'p')]
+    patch: bool,
+    #[clap(flatten)]
+    format: DiffFormat,
 }
 
 /// Show how a change has evolved
@@ -2663,6 +2668,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 
     let revset_expression = workspace_command.parse_revset(ui, &args.revisions)?;
     let repo = workspace_command.repo();
+    let workspace_root = workspace_command.workspace_root();
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = repo.view().get_checkout(&workspace_id);
     let revset = revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_id))?;
@@ -2710,6 +2716,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             }
             let mut buffer = vec![];
             let commit_id = index_entry.commit_id();
+            let commit = store.get_commit(&commit_id).unwrap();
             let is_checkout = Some(&commit_id) == checkout_id;
             {
                 let writer = Box::new(&mut buffer);
@@ -2717,7 +2724,6 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 if is_checkout {
                     formatter.add_label("checkout".to_string())?;
                 }
-                let commit = store.get_commit(&commit_id).unwrap();
                 template.format(&commit, formatter.as_mut())?;
                 if is_checkout {
                     formatter.remove_label()?;
@@ -2725,6 +2731,18 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             }
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
+            }
+            if args.patch {
+                let writer = Box::new(&mut buffer);
+                let mut formatter = ui.new_formatter(writer);
+                show_patch(
+                    ui,
+                    formatter.as_mut(),
+                    repo,
+                    &commit,
+                    workspace_root,
+                    &args.format,
+                )?;
             }
             let node_symbol = if is_checkout { b"@" } else { b"o" };
             graph.add_node(
@@ -2738,10 +2756,30 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         for index_entry in revset.iter() {
             let commit = store.get_commit(&index_entry.commit_id()).unwrap();
             template.format(&commit, formatter)?;
+            // TODO: should --summary (without --patch) show diff summary as in hg log
+            // --stat?
+            if args.patch {
+                show_patch(ui, formatter, repo, &commit, workspace_root, &args.format)?;
+            }
         }
     }
 
     Ok(())
+}
+
+fn show_patch(
+    ui: &Ui,
+    formatter: &mut dyn Formatter,
+    repo: &Arc<ReadonlyRepo>,
+    commit: &Commit,
+    workspace_root: &Path,
+    args: &DiffFormat,
+) -> Result<(), CommandError> {
+    let parents = commit.parents();
+    let from_tree = merge_commit_trees(repo.as_repo_ref(), &parents);
+    let to_tree = commit.tree();
+    let diff_iterator = from_tree.diff(&to_tree, &EverythingMatcher);
+    show_diff(ui, formatter, repo, workspace_root, args, diff_iterator)
 }
 
 fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result<(), CommandError> {
