@@ -2056,15 +2056,17 @@ fn show_diff(
             }
         }
     };
+    let mut formatter = ui.stdout_formatter();
+    let formatter = formatter.as_mut();
     match format {
         Format::Summary => {
-            show_diff_summary(ui, workspace_root, tree_diff)?;
+            show_diff_summary(ui, formatter, workspace_root, tree_diff)?;
         }
         Format::Git => {
-            show_git_diff(ui, repo, tree_diff)?;
+            show_git_diff(formatter, repo, tree_diff)?;
         }
         Format::ColorWords => {
-            show_color_words_diff(ui, workspace_root, repo, tree_diff)?;
+            show_color_words_diff(ui, formatter, workspace_root, repo, tree_diff)?;
         }
     }
     Ok(())
@@ -2121,12 +2123,12 @@ fn basic_diff_file_type(value: &TreeValue) -> String {
 }
 
 fn show_color_words_diff(
-    ui: &mut Ui,
+    ui: &Ui,
+    formatter: &mut dyn Formatter,
     workspace_root: &Path,
     repo: &Arc<ReadonlyRepo>,
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
-    let mut formatter = ui.stdout_formatter();
     formatter.add_label(String::from("diff"))?;
     for (path, diff) in tree_diff {
         let ui_path = ui.format_file_path(workspace_root, &path);
@@ -2137,7 +2139,7 @@ fn show_color_words_diff(
                 formatter.add_label(String::from("header"))?;
                 formatter.write_str(&format!("Added {} {}:\n", description, ui_path))?;
                 formatter.remove_label()?;
-                show_color_words_diff_hunks(&[], &right_content, formatter.as_mut())?;
+                show_color_words_diff_hunks(&[], &right_content, formatter)?;
             }
             tree::Diff::Modified(left_value, right_value) => {
                 let left_content = diff_content(repo, &path, &left_value)?;
@@ -2186,7 +2188,7 @@ fn show_color_words_diff(
                 formatter.add_label(String::from("header"))?;
                 formatter.write_str(&format!("{} {}:\n", description, ui_path))?;
                 formatter.remove_label()?;
-                show_color_words_diff_hunks(&left_content, &right_content, formatter.as_mut())?;
+                show_color_words_diff_hunks(&left_content, &right_content, formatter)?;
             }
             tree::Diff::Removed(left_value) => {
                 let left_content = diff_content(repo, &path, &left_value)?;
@@ -2194,7 +2196,7 @@ fn show_color_words_diff(
                 formatter.add_label(String::from("header"))?;
                 formatter.write_str(&format!("Removed {} {}:\n", description, ui_path))?;
                 formatter.remove_label()?;
-                show_color_words_diff_hunks(&left_content, &[], formatter.as_mut())?;
+                show_color_words_diff_hunks(&left_content, &[], formatter)?;
             }
         }
     }
@@ -2413,11 +2415,10 @@ fn show_unified_diff_hunks(
 }
 
 fn show_git_diff(
-    ui: &mut Ui,
+    formatter: &mut dyn Formatter,
     repo: &Arc<ReadonlyRepo>,
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
-    let mut formatter = ui.stdout_formatter();
     formatter.add_label(String::from("diff"))?;
     for (path, diff) in tree_diff {
         let path_string = path.to_internal_file_string();
@@ -2431,7 +2432,7 @@ fn show_git_diff(
                 writeln!(formatter, "--- /dev/null")?;
                 writeln!(formatter, "+++ b/{}", path_string)?;
                 formatter.remove_label()?;
-                show_unified_diff_hunks(formatter.as_mut(), &[], &right_part.content)?;
+                show_unified_diff_hunks(formatter, &[], &right_part.content)?;
             }
             tree::Diff::Modified(left_value, right_value) => {
                 let left_part = git_diff_part(repo, &path, &left_value)?;
@@ -2454,11 +2455,7 @@ fn show_git_diff(
                     writeln!(formatter, "+++ b/{}", path_string)?;
                 }
                 formatter.remove_label()?;
-                show_unified_diff_hunks(
-                    formatter.as_mut(),
-                    &left_part.content,
-                    &right_part.content,
-                )?;
+                show_unified_diff_hunks(formatter, &left_part.content, &right_part.content)?;
             }
             tree::Diff::Removed(left_value) => {
                 let left_part = git_diff_part(repo, &path, &left_value)?;
@@ -2467,7 +2464,7 @@ fn show_git_diff(
                 writeln!(formatter, "--- a/{}", path_string)?;
                 writeln!(formatter, "+++ /dev/null")?;
                 formatter.remove_label()?;
-                show_unified_diff_hunks(formatter.as_mut(), &left_part.content, &[])?;
+                show_unified_diff_hunks(formatter, &left_part.content, &[])?;
             }
         }
     }
@@ -2476,11 +2473,11 @@ fn show_git_diff(
 }
 
 fn show_diff_summary(
-    ui: &mut Ui,
+    ui: &Ui,
+    formatter: &mut dyn Formatter,
     workspace_root: &Path,
     tree_diff: TreeDiffIterator,
 ) -> io::Result<()> {
-    let mut formatter = ui.stdout_formatter();
     formatter.add_label(String::from("diff"))?;
     for (repo_path, diff) in tree_diff {
         match diff {
@@ -2597,6 +2594,7 @@ fn cmd_status(
             ui.write("Working copy changes:\n")?;
             show_diff_summary(
                 ui,
+                ui.stdout_formatter().as_mut(),
                 workspace_command.workspace_root(),
                 parent_tree.diff(&tree, &EverythingMatcher),
             )?;
