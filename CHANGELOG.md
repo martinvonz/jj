@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj log` now accepts `-p`/`--patch` option.
 
+### Fixed bugs
+
+* When sharing the working copy with a Git repo, the automatic importing and
+  exporting (sometimes?) didn't happen on Windows.
+
 ## [0.3.3] - 2022-03-16
 
 No changes, only trying to get the automated build to work.

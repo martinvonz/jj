@@ -292,9 +292,12 @@ impl WorkspaceCommandHelper {
         let may_update_working_copy = loaded_at_head && !root_args.no_commit_working_copy;
         let mut working_copy_shared_with_git = false;
         let maybe_git_repo = repo.store().git_repo();
-        if let Some(git_repo) = &maybe_git_repo {
-            working_copy_shared_with_git =
-                git_repo.workdir() == Some(workspace.workspace_root().as_path());
+        if let Some(git_workdir) = maybe_git_repo
+            .as_ref()
+            .and_then(|git_repo| git_repo.workdir())
+            .and_then(|workdir| workdir.canonicalize().ok())
+        {
+            working_copy_shared_with_git = git_workdir == workspace.workspace_root().as_path();
         }
         let mut helper = Self {
             string_args,
