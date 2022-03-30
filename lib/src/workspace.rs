@@ -87,6 +87,19 @@ fn init_working_copy(
 }
 
 impl Workspace {
+    fn new(
+        workspace_root: PathBuf,
+        working_copy: WorkingCopy,
+        repo_loader: RepoLoader,
+    ) -> Workspace {
+        let workspace_root = workspace_root.canonicalize().unwrap();
+        Workspace {
+            workspace_root,
+            repo_loader,
+            working_copy,
+        }
+    }
+
     pub fn init_local(
         user_settings: &UserSettings,
         workspace_root: PathBuf,
@@ -103,11 +116,7 @@ impl Workspace {
             WorkspaceId::default(),
         );
         let repo_loader = repo.loader();
-        let workspace = Workspace {
-            workspace_root,
-            repo_loader,
-            working_copy,
-        };
+        let workspace = Self::new(workspace_root, working_copy, repo_loader);
         Ok((workspace, repo))
     }
 
@@ -127,11 +136,7 @@ impl Workspace {
             WorkspaceId::default(),
         );
         let repo_loader = repo.loader();
-        let workspace = Workspace {
-            workspace_root,
-            repo_loader,
-            working_copy,
-        };
+        let workspace = Workspace::new(workspace_root, working_copy, repo_loader);
         Ok((workspace, repo))
     }
 
@@ -152,11 +157,7 @@ impl Workspace {
             WorkspaceId::default(),
         );
         let repo_loader = repo.loader();
-        let workspace = Workspace {
-            workspace_root,
-            repo_loader,
-            working_copy,
-        };
+        let workspace = Workspace::new(workspace_root, working_copy, repo_loader);
         Ok((workspace, repo))
     }
 
@@ -177,11 +178,7 @@ impl Workspace {
         let repo_loader = RepoLoader::init(user_settings, repo_dir);
         let (working_copy, repo) =
             init_working_copy(user_settings, repo, &workspace_root, &jj_dir, workspace_id);
-        let workspace = Workspace {
-            workspace_root,
-            repo_loader,
-            working_copy,
-        };
+        let workspace = Workspace::new(workspace_root, working_copy, repo_loader);
         Ok((workspace, repo))
     }
 
@@ -220,11 +217,7 @@ impl Workspace {
             workspace_root.clone(),
             working_copy_state_path,
         );
-        Ok(Self {
-            workspace_root,
-            repo_loader,
-            working_copy,
-        })
+        Ok(Workspace::new(workspace_root, working_copy, repo_loader))
     }
 
     pub fn workspace_root(&self) -> &PathBuf {

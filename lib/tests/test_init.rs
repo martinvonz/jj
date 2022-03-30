@@ -12,21 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::{Path, PathBuf};
+
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
 
+fn canonicalize(input: &Path) -> (PathBuf, PathBuf) {
+    let uncanonical = input.join("..").join(input.file_name().unwrap());
+    let canonical = uncanonical.canonicalize().unwrap();
+    (canonical, uncanonical)
+}
+
 #[test]
 fn test_init_local() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
-    let wc_path = temp_dir.path().to_owned();
-    let (workspace, repo) = Workspace::init_local(&settings, wc_path.clone()).unwrap();
+    let (canonical, uncanonical) = canonicalize(temp_dir.path());
+    let (workspace, repo) = Workspace::init_local(&settings, uncanonical).unwrap();
     assert!(repo.store().git_repo().is_none());
-    assert_eq!(repo.repo_path(), &wc_path.join(".jj").join("repo"));
-    assert_eq!(workspace.workspace_root(), &wc_path);
+    assert_eq!(repo.repo_path(), &canonical.join(".jj").join("repo"));
+    assert_eq!(workspace.workspace_root(), &canonical);
 
     // Just test that we can write a commit to the store
     let mut tx = repo.start_transaction("test");
@@ -37,11 +45,11 @@ fn test_init_local() {
 fn test_init_internal_git() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
-    let wc_path = temp_dir.path().to_owned();
-    let (workspace, repo) = Workspace::init_internal_git(&settings, wc_path.clone()).unwrap();
+    let (canonical, uncanonical) = canonicalize(temp_dir.path());
+    let (workspace, repo) = Workspace::init_internal_git(&settings, uncanonical).unwrap();
     assert!(repo.store().git_repo().is_some());
-    assert_eq!(repo.repo_path(), &wc_path.join(".jj").join("repo"));
-    assert_eq!(workspace.workspace_root(), &wc_path);
+    assert_eq!(repo.repo_path(), &canonical.join(".jj").join("repo"));
+    assert_eq!(workspace.workspace_root(), &canonical);
 
     // Just test that we ca write a commit to the store
     let mut tx = repo.start_transaction("test");
@@ -52,15 +60,18 @@ fn test_init_internal_git() {
 fn test_init_external_git() {
     let settings = testutils::user_settings();
     let temp_dir = tempfile::tempdir().unwrap();
-    let git_repo_path = temp_dir.path().join("git");
+    let (canonical, uncanonical) = canonicalize(temp_dir.path());
+    let git_repo_path = uncanonical.join("git");
     git2::Repository::init(&git_repo_path).unwrap();
-    let wc_path = temp_dir.path().join("jj");
-    std::fs::create_dir(&wc_path).unwrap();
+    std::fs::create_dir(&uncanonical.join("jj")).unwrap();
     let (workspace, repo) =
-        Workspace::init_external_git(&settings, wc_path.clone(), git_repo_path).unwrap();
+        Workspace::init_external_git(&settings, uncanonical.join("jj"), git_repo_path).unwrap();
     assert!(repo.store().git_repo().is_some());
-    assert_eq!(repo.repo_path(), &wc_path.join(".jj").join("repo"));
-    assert_eq!(workspace.workspace_root(), &wc_path);
+    assert_eq!(
+        repo.repo_path(),
+        &canonical.join("jj").join(".jj").join("repo")
+    );
+    assert_eq!(workspace.workspace_root(), &canonical.join("jj"));
 
     // Just test that we can write a commit to the store
     let mut tx = repo.start_transaction("test");
