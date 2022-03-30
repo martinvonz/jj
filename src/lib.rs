@@ -24,6 +24,3 @@ pub mod graphlog;
 pub mod template_parser;
 pub mod templater;
 pub mod ui;
-
-// TODO: make this a separate crate?
-pub mod testutils;

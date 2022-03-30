@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::testutils::{get_stdout_string, TestEnvironment};
+use crate::common::{get_stdout_string, TestEnvironment};
+
+pub mod common;
 
 #[test]
 fn test_git_push() {
