@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::testutils::TestEnvironment;
+use crate::common::TestEnvironment;
+
+pub mod common;
 
 #[test]
 fn test_undo_rewrite_with_child() {

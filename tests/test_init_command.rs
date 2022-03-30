@@ -14,7 +14,9 @@
 
 use std::path::PathBuf;
 
-use jujutsu::testutils::TestEnvironment;
+use crate::common::TestEnvironment;
+
+pub mod common;
 
 fn init_git_repo(git_repo_path: &PathBuf) {
     let git_repo = git2::Repository::init(&git_repo_path).unwrap();

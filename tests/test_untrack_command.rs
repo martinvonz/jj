@@ -14,7 +14,9 @@
 
 use std::path::PathBuf;
 
-use jujutsu::testutils::{get_stdout_string, TestEnvironment};
+use crate::common::{get_stdout_string, TestEnvironment};
+
+pub mod common;
 
 #[test]
 fn test_untrack() {

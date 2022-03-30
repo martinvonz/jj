@@ -15,8 +15,6 @@
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 
-use itertools::Itertools;
-use regex::Regex;
 use tempfile::TempDir;
 
 pub struct TestEnvironment {
@@ -85,20 +83,4 @@ impl TestEnvironment {
 
 pub fn get_stdout_string(assert: &assert_cmd::assert::Assert) -> String {
     String::from_utf8(assert.get_output().stdout.clone()).unwrap()
-}
-
-pub fn capture_matches(
-    assert: assert_cmd::assert::Assert,
-    pattern: &str,
-) -> (assert_cmd::assert::Assert, Vec<String>) {
-    let stdout_string = get_stdout_string(&assert);
-    let assert = assert.stdout(predicates::str::is_match(pattern).unwrap());
-    let matches = Regex::new(pattern)
-        .unwrap()
-        .captures(&stdout_string)
-        .unwrap()
-        .iter()
-        .map(|m| m.unwrap().as_str().to_owned())
-        .collect_vec();
-    (assert, matches)
 }

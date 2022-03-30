@@ -14,7 +14,9 @@
 
 use std::io::Write;
 
-use jujutsu::testutils::TestEnvironment;
+use crate::common::TestEnvironment;
+
+pub mod common;
 
 #[test]
 fn test_gitignores() {

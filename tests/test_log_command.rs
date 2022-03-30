@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::testutils::TestEnvironment;
+use common::TestEnvironment;
+
+pub mod common;
 
 #[test]
 fn test_log_with_or_without_diff() {
