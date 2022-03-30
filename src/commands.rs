@@ -1716,14 +1716,14 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
     } else {
         fs::create_dir(&wc_path).unwrap();
     }
-    let wc_path = std::fs::canonicalize(&wc_path).unwrap();
+    let wc_path = wc_path.canonicalize().unwrap();
 
     if let Some(git_store_str) = &args.git_repo {
         let mut git_store_path = ui.cwd().join(git_store_str);
         if !git_store_path.ends_with(".git") {
             git_store_path = git_store_path.join(".git");
         }
-        git_store_path = std::fs::canonicalize(&git_store_path).unwrap();
+        git_store_path = git_store_path.canonicalize().unwrap();
         // If the git repo is inside the workspace, use a relative path to it so the
         // whole workspace can be moved without breaking.
         if let Ok(relative_path) = git_store_path.strip_prefix(&wc_path) {
@@ -1757,7 +1757,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
     } else {
         Workspace::init_local(ui.settings(), wc_path.clone())?;
     };
-    let cwd = std::fs::canonicalize(&ui.cwd()).unwrap();
+    let cwd = ui.cwd().canonicalize().unwrap();
     let relative_wc_path = ui::relative_path(&cwd, &wc_path);
     writeln!(ui, "Initialized repo in \"{}\"", relative_wc_path.display())?;
     Ok(())
