@@ -127,6 +127,7 @@ impl Debug for ReadonlyRepo {
 
 impl ReadonlyRepo {
     pub fn init_local(settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
+        let repo_path = repo_path.canonicalize().unwrap();
         ReadonlyRepo::init_repo_dir(&repo_path);
         let store = Store::init_local(repo_path.join("store"));
         ReadonlyRepo::init(settings, repo_path, store)
@@ -134,6 +135,7 @@ impl ReadonlyRepo {
 
     /// Initializes a repo with a new Git backend in .jj/git/ (bare Git repo)
     pub fn init_internal_git(settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
+        let repo_path = repo_path.canonicalize().unwrap();
         ReadonlyRepo::init_repo_dir(&repo_path);
         let store = Store::init_internal_git(repo_path.join("store"));
         ReadonlyRepo::init(settings, repo_path, store)
@@ -145,6 +147,7 @@ impl ReadonlyRepo {
         repo_path: PathBuf,
         git_repo_path: PathBuf,
     ) -> Arc<ReadonlyRepo> {
+        let repo_path = repo_path.canonicalize().unwrap();
         ReadonlyRepo::init_repo_dir(&repo_path);
         let store = Store::init_external_git(repo_path.join("store"), git_repo_path);
         ReadonlyRepo::init(settings, repo_path, store)

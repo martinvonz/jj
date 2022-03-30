@@ -15,7 +15,7 @@
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -53,7 +53,7 @@ pub fn user_settings() -> UserSettings {
 }
 
 pub struct TestRepo {
-    pub temp_dir: TempDir,
+    _temp_dir: TempDir,
     pub repo: Arc<ReadonlyRepo>,
 }
 
@@ -71,11 +71,14 @@ pub fn init_repo(settings: &UserSettings, use_git: bool) -> TestRepo {
         ReadonlyRepo::init_local(settings, repo_dir)
     };
 
-    TestRepo { temp_dir, repo }
+    TestRepo {
+        _temp_dir: temp_dir,
+        repo,
+    }
 }
 
 pub struct TestWorkspace {
-    pub temp_dir: TempDir,
+    temp_dir: TempDir,
     pub workspace: Workspace,
     pub repo: Arc<ReadonlyRepo>,
 }
@@ -98,6 +101,12 @@ pub fn init_workspace(settings: &UserSettings, use_git: bool) -> TestWorkspace {
         temp_dir,
         workspace,
         repo,
+    }
+}
+
+impl TestWorkspace {
+    pub fn root_dir(&self) -> PathBuf {
+        self.temp_dir.path().join("repo").join("..")
     }
 }
 

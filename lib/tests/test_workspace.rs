@@ -54,7 +54,7 @@ fn test_init_additional_workspace(use_git: bool) {
     let workspace = &test_workspace.workspace;
 
     let ws2_id = WorkspaceId::new("ws2".to_string());
-    let ws2_root = test_workspace.temp_dir.path().join("ws2_root");
+    let ws2_root = test_workspace.root_dir().join("ws2_root");
     std::fs::create_dir(&ws2_root).unwrap();
     let (ws2, repo) = Workspace::init_workspace_with_existing_repo(
         &settings,
@@ -76,7 +76,7 @@ fn test_init_additional_workspace(use_git: bool) {
         *ws2.repo_path(),
         workspace.repo_path().canonicalize().unwrap()
     );
-    assert_eq!(*ws2.workspace_root(), ws2_root);
+    assert_eq!(*ws2.workspace_root(), ws2_root.canonicalize().unwrap());
     let same_workspace = Workspace::load(&settings, ws2_root);
     assert!(same_workspace.is_ok());
     let same_workspace = same_workspace.unwrap();
