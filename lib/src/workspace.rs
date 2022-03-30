@@ -168,7 +168,7 @@ impl Workspace {
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(&workspace_root)?;
 
-        let repo_dir = std::fs::canonicalize(repo.repo_path()).unwrap();
+        let repo_dir = repo.repo_path().canonicalize().unwrap();
         let mut repo_file = File::create(jj_dir.join("repo")).unwrap();
         repo_file
             .write_all(repo_dir.to_str().unwrap().as_bytes())
@@ -208,7 +208,7 @@ impl Workspace {
             let mut buf = Vec::new();
             repo_file.read_to_end(&mut buf).unwrap();
             let repo_path_str = String::from_utf8(buf).unwrap();
-            repo_dir = std::fs::canonicalize(jj_dir.join(repo_path_str)).unwrap();
+            repo_dir = jj_dir.join(repo_path_str).canonicalize().unwrap();
             if !repo_dir.is_dir() {
                 return Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir));
             }

@@ -91,7 +91,7 @@ impl GitBackend {
         let mut buf = Vec::new();
         git_target_file.read_to_end(&mut buf).unwrap();
         let git_repo_path_str = String::from_utf8(buf).unwrap();
-        let git_repo_path = std::fs::canonicalize(store_path.join(git_repo_path_str)).unwrap();
+        let git_repo_path = store_path.join(git_repo_path_str).canonicalize().unwrap();
         let repo = git2::Repository::open(git_repo_path).unwrap();
         // TODO: Delete this migration code in early 2022 or so
         if let Ok(notes) = repo.notes(Some(COMMITS_NOTES_REF)) {
