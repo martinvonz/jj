@@ -119,7 +119,9 @@ fn test_same_type(use_git: bool) {
     // Check the conflicting cases
     match merged_tree.value(&RepoPathComponent::from("_ab")).unwrap() {
         TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(id).unwrap();
+            let conflict = store
+                .read_conflict(&RepoPath::from_internal_string("_ab"), id)
+                .unwrap();
             assert_eq!(
                 conflict.adds,
                 vec![
@@ -143,7 +145,9 @@ fn test_same_type(use_git: bool) {
     };
     match merged_tree.value(&RepoPathComponent::from("a_b")).unwrap() {
         TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(id).unwrap();
+            let conflict = store
+                .read_conflict(&RepoPath::from_internal_string("a_b"), id)
+                .unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
@@ -167,7 +171,9 @@ fn test_same_type(use_git: bool) {
     };
     match merged_tree.value(&RepoPathComponent::from("ab_")).unwrap() {
         TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(id).unwrap();
+            let conflict = store
+                .read_conflict(&RepoPath::from_internal_string("ab_"), id)
+                .unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
@@ -191,7 +197,9 @@ fn test_same_type(use_git: bool) {
     };
     match merged_tree.value(&RepoPathComponent::from("abc")).unwrap() {
         TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(id).unwrap();
+            let conflict = store
+                .read_conflict(&RepoPath::from_internal_string("abc"), id)
+                .unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
@@ -373,7 +381,12 @@ fn test_types(use_git: bool) {
         .unwrap()
     {
         TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(id).unwrap();
+            let conflict = store
+                .read_conflict(
+                    &RepoPath::from_internal_string("normal_executable_symlink"),
+                    id,
+                )
+                .unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
@@ -408,7 +421,9 @@ fn test_types(use_git: bool) {
         .unwrap()
     {
         TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(id).unwrap();
+            let conflict = store
+                .read_conflict(&RepoPath::from_internal_string("tree_normal_symlink"), id)
+                .unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
@@ -496,7 +511,9 @@ fn test_simplify_conflict(use_git: bool) {
         .unwrap()
     {
         TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(id).unwrap();
+            let conflict = store
+                .read_conflict(&RepoPath::from_internal_string("file"), id)
+                .unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {
@@ -532,7 +549,9 @@ fn test_simplify_conflict(use_git: bool) {
         .unwrap()
     {
         TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(id).unwrap();
+            let conflict = store
+                .read_conflict(&RepoPath::from_internal_string("file"), id)
+                .unwrap();
             assert_eq!(
                 conflict.removes,
                 vec![ConflictPart {

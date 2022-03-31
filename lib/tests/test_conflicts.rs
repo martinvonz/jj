@@ -452,7 +452,7 @@ fn test_update_conflict_from_content() {
             },
         ],
     };
-    let conflict_id = store.write_conflict(&conflict).unwrap();
+    let conflict_id = store.write_conflict(&path, &conflict).unwrap();
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
@@ -475,7 +475,7 @@ fn test_update_conflict_from_content() {
     let result = update_conflict_from_content(store, &path, &conflict_id, b"resolved 1\nline 2\n<<<<<<<\n-------\n+++++++\n-line 3\n+left 3\n+++++++\nright 3\n>>>>>>>\n").unwrap();
     assert_ne!(result, None);
     assert_ne!(result, Some(conflict_id));
-    let new_conflict = store.read_conflict(&result.unwrap()).unwrap();
+    let new_conflict = store.read_conflict(&path, &result.unwrap()).unwrap();
     // Calculate expected new FileIds
     let new_base_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nline 3\n");
     let new_left_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nleft 3\n");

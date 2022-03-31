@@ -125,7 +125,7 @@ fn test_checkout_file_transitions(use_git: bool) {
                         },
                     ],
                 };
-                let conflict_id = store.write_conflict(&conflict).unwrap();
+                let conflict_id = store.write_conflict(path, &conflict).unwrap();
                 TreeValue::Conflict(conflict_id)
             }
             Kind::Symlink => {

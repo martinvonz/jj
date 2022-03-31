@@ -321,7 +321,7 @@ pub fn update_conflict_from_content(
     conflict_id: &ConflictId,
     content: &[u8],
 ) -> BackendResult<Option<ConflictId>> {
-    let mut conflict = store.read_conflict(conflict_id)?;
+    let mut conflict = store.read_conflict(path, conflict_id)?;
 
     // First check if the new content is unchanged compared to the old content. If
     // it is, we don't need parse the content or write any new objects to the
@@ -379,7 +379,7 @@ pub fn update_conflict_from_content(
                 panic!("Found conflict markers in merge of non-files");
             }
         }
-        let new_conflict_id = store.write_conflict(&conflict)?;
+        let new_conflict_id = store.write_conflict(path, &conflict)?;
         Ok(Some(new_conflict_id))
     } else {
         Ok(None)

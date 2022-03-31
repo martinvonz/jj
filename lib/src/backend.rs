@@ -393,9 +393,7 @@ pub trait Backend: Send + Sync + Debug {
 
     fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId>;
 
-    // TODO: Pass in the paths here too even though they are unused, just like for
-    // files and trees?
-    fn read_conflict(&self, id: &ConflictId) -> BackendResult<Conflict>;
+    fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict>;
 
-    fn write_conflict(&self, contents: &Conflict) -> BackendResult<ConflictId>;
+    fn write_conflict(&self, path: &RepoPath, contents: &Conflict) -> BackendResult<ConflictId>;
 }

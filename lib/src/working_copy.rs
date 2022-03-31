@@ -512,7 +512,7 @@ impl TreeState {
 
     fn write_conflict(&self, disk_path: &Path, path: &RepoPath, id: &ConflictId) -> FileState {
         create_parent_dirs(disk_path);
-        let conflict = self.store.read_conflict(id).unwrap();
+        let conflict = self.store.read_conflict(path, id).unwrap();
         // TODO: Check that we're not overwriting an un-ignored file here (which might
         // be created by a concurrent process).
         let mut file = OpenOptions::new()
