@@ -23,7 +23,7 @@ use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::ReadonlyRepo;
-use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
+use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
 use jujutsu_lib::tree_builder::TreeBuilder;
@@ -78,7 +78,7 @@ fn test_checkout_file_transitions(use_git: bool) {
         repo: &Arc<ReadonlyRepo>,
         tree_builder: &mut TreeBuilder,
         kind: Kind,
-        path: &str,
+        path: &RepoPath,
     ) {
         let store = repo.store();
         let value = match kind {
@@ -86,43 +86,23 @@ fn test_checkout_file_transitions(use_git: bool) {
                 return;
             }
             Kind::Normal => {
-                let id = testutils::write_file(
-                    store,
-                    &RepoPath::from_internal_string(path),
-                    "normal file contents",
-                );
+                let id = testutils::write_file(store, path, "normal file contents");
                 TreeValue::Normal {
                     id,
                     executable: false,
                 }
             }
             Kind::Executable => {
-                let id = testutils::write_file(
-                    store,
-                    &RepoPath::from_internal_string(path),
-                    "executable file contents",
-                );
+                let id = testutils::write_file(store, path, "executable file contents");
                 TreeValue::Normal {
                     id,
                     executable: true,
                 }
             }
             Kind::Conflict => {
-                let base_file_id = testutils::write_file(
-                    store,
-                    &RepoPath::from_internal_string(path),
-                    "base file contents",
-                );
-                let left_file_id = testutils::write_file(
-                    store,
-                    &RepoPath::from_internal_string(path),
-                    "left file contents",
-                );
-                let right_file_id = testutils::write_file(
-                    store,
-                    &RepoPath::from_internal_string(path),
-                    "right file contents",
-                );
+                let base_file_id = testutils::write_file(store, path, "base file contents");
+                let left_file_id = testutils::write_file(store, path, "left file contents");
+                let right_file_id = testutils::write_file(store, path, "right file contents");
                 let conflict = Conflict {
                     removes: vec![ConflictPart {
                         value: TreeValue::Normal {
@@ -149,14 +129,12 @@ fn test_checkout_file_transitions(use_git: bool) {
                 TreeValue::Conflict(conflict_id)
             }
             Kind::Symlink => {
-                let id = store
-                    .write_symlink(&RepoPath::from_internal_string(path), "target")
-                    .unwrap();
+                let id = store.write_symlink(path, "target").unwrap();
                 TreeValue::Symlink(id)
             }
             Kind::Tree => {
                 let mut sub_tree_builder = store.tree_builder(store.empty_tree_id().clone());
-                let file_path = path.to_owned() + "/file";
+                let file_path = path.join(&RepoPathComponent::from("file"));
                 write_path(
                     settings,
                     repo,
@@ -177,7 +155,7 @@ fn test_checkout_file_transitions(use_git: bool) {
                 TreeValue::GitSubmodule(id)
             }
         };
-        tree_builder.set(RepoPath::from_internal_string(path), value);
+        tree_builder.set(path.clone(), value);
     }
 
     let mut kinds = vec![
@@ -197,7 +175,7 @@ fn test_checkout_file_transitions(use_git: bool) {
     let mut files = vec![];
     for left_kind in &kinds {
         for right_kind in &kinds {
-            let path = format!("{:?}_{:?}", left_kind, right_kind);
+            let path = RepoPath::from_internal_string(&format!("{:?}_{:?}", left_kind, right_kind));
             write_path(&settings, repo, &mut left_tree_builder, *left_kind, &path);
             write_path(&settings, repo, &mut right_tree_builder, *right_kind, &path);
             files.push((*left_kind, *right_kind, path));
@@ -221,7 +199,7 @@ fn test_checkout_file_transitions(use_git: bool) {
     assert_eq!(new_tree_id, right_tree_id);
 
     for (_left_kind, right_kind, path) in &files {
-        let wc_path = workspace_root.join(path);
+        let wc_path = workspace_root.join(path.to_internal_file_string());
         let maybe_metadata = wc_path.symlink_metadata();
         match right_kind {
             Kind::Missing => {
