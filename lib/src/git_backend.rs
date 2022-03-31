@@ -34,8 +34,6 @@ use crate::stacked_table::{TableSegment, TableStore};
 const HASH_LENGTH: usize = 20;
 /// Ref namespace used only for preventing GC.
 const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
-/// Notes ref for commit metadata
-const COMMITS_NOTES_REF: &str = "refs/notes/jj/commits";
 const CONFLICT_SUFFIX: &str = ".jjconflict";
 
 impl From<git2::Error> for BackendError {
@@ -93,35 +91,6 @@ impl GitBackend {
         let git_repo_path_str = String::from_utf8(buf).unwrap();
         let git_repo_path = store_path.join(git_repo_path_str).canonicalize().unwrap();
         let repo = git2::Repository::open(git_repo_path).unwrap();
-        // TODO: Delete this migration code in early 2022 or so
-        if let Ok(notes) = repo.notes(Some(COMMITS_NOTES_REF)) {
-            let extra_path = store_path.join("extra");
-            let extra_metadata_store = if std::fs::create_dir(&extra_path).is_ok() {
-                // It's fine if it already exists. That probably means that we have already done
-                // a migration but the user ran an old version in the repo
-                // afterwards, which resulted in more notes to migrate.
-                TableStore::init(extra_path, HASH_LENGTH)
-            } else {
-                TableStore::load(extra_path, HASH_LENGTH)
-            };
-            let mut mut_table = extra_metadata_store.get_head().unwrap().start_mutation();
-            println!(
-                "Found Git notes ref {}, migrating it to a new format...",
-                COMMITS_NOTES_REF
-            );
-            for note in notes {
-                let (note_id, commit_id) = note.unwrap();
-                let note = repo.find_blob(note_id).unwrap();
-                let note_bytes = hex::decode(note.content()).unwrap();
-                mut_table.add_entry(commit_id.as_bytes().to_vec(), note_bytes);
-            }
-            extra_metadata_store.save_table(mut_table).unwrap();
-            repo.find_reference(COMMITS_NOTES_REF)
-                .unwrap()
-                .delete()
-                .unwrap();
-            println!("Migration complete");
-        }
         let extra_metadata_store = TableStore::load(store_path.join("extra"), HASH_LENGTH);
         GitBackend::new(repo, extra_metadata_store)
     }
