@@ -603,7 +603,8 @@ fn merge_tree_value(
                     value: side2.clone(),
                 });
             }
-            let conflict = simplify_conflict(store, &conflict)?;
+            let filename = dir.join(basename);
+            let conflict = simplify_conflict(store, &filename, &conflict)?;
             if conflict.adds.is_empty() {
                 // If there are no values to add, then the path doesn't exist
                 return Ok(None);
@@ -612,14 +613,13 @@ fn merge_tree_value(
                 // A single add means that the current state is that state.
                 return Ok(Some(conflict.adds[0].value.clone()));
             }
-            let filename = dir.join(basename);
             if let Some((merged_content, executable)) =
                 try_resolve_file_conflict(store, &filename, &conflict)?
             {
                 let id = store.write_file(&filename, &mut merged_content.as_slice())?;
                 Some(TreeValue::Normal { id, executable })
             } else {
-                let conflict_id = store.write_conflict(&conflict)?;
+                let conflict_id = store.write_conflict(&filename, &conflict)?;
                 Some(TreeValue::Conflict(conflict_id))
             }
         }
@@ -703,10 +703,14 @@ fn try_resolve_file_conflict(
     }
 }
 
-fn conflict_part_to_conflict(store: &Store, part: &ConflictPart) -> Result<Conflict, BackendError> {
+fn conflict_part_to_conflict(
+    store: &Store,
+    path: &RepoPath,
+    part: &ConflictPart,
+) -> Result<Conflict, BackendError> {
     match &part.value {
         TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(id)?;
+            let conflict = store.read_conflict(path, id)?;
             Ok(conflict)
         }
         other => Ok(Conflict {
@@ -718,7 +722,11 @@ fn conflict_part_to_conflict(store: &Store, part: &ConflictPart) -> Result<Confl
     }
 }
 
-fn simplify_conflict(store: &Store, conflict: &Conflict) -> Result<Conflict, BackendError> {
+fn simplify_conflict(
+    store: &Store,
+    path: &RepoPath,
+    conflict: &Conflict,
+) -> Result<Conflict, BackendError> {
     // Important cases to simplify:
     //
     // D
@@ -756,7 +764,7 @@ fn simplify_conflict(store: &Store, conflict: &Conflict) -> Result<Conflict, Bac
     for part in &conflict.adds {
         match part.value {
             TreeValue::Conflict(_) => {
-                let conflict = conflict_part_to_conflict(store, part)?;
+                let conflict = conflict_part_to_conflict(store, path, part)?;
                 new_removes.extend_from_slice(&conflict.removes);
                 new_adds.extend_from_slice(&conflict.adds);
             }
@@ -768,7 +776,7 @@ fn simplify_conflict(store: &Store, conflict: &Conflict) -> Result<Conflict, Bac
     for part in &conflict.removes {
         match part.value {
             TreeValue::Conflict(_) => {
-                let conflict = conflict_part_to_conflict(store, part)?;
+                let conflict = conflict_part_to_conflict(store, path, part)?;
                 new_removes.extend_from_slice(&conflict.adds);
                 new_adds.extend_from_slice(&conflict.removes);
             }

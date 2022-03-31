@@ -215,7 +215,7 @@ impl Backend for LocalBackend {
         Ok(id)
     }
 
-    fn read_conflict(&self, id: &ConflictId) -> BackendResult<Conflict> {
+    fn read_conflict(&self, _path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
         let path = self.conflict_path(id);
         let mut file = File::open(path).map_err(not_found_to_backend_error)?;
 
@@ -223,7 +223,7 @@ impl Backend for LocalBackend {
         Ok(conflict_from_proto(&proto))
     }
 
-    fn write_conflict(&self, conflict: &Conflict) -> BackendResult<ConflictId> {
+    fn write_conflict(&self, _path: &RepoPath, conflict: &Conflict) -> BackendResult<ConflictId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
         let proto = conflict_to_proto(conflict);

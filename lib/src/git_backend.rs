@@ -434,7 +434,7 @@ impl Backend for GitBackend {
         Ok(id)
     }
 
-    fn read_conflict(&self, id: &ConflictId) -> BackendResult<Conflict> {
+    fn read_conflict(&self, _path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
         let mut file = self.read_file(
             &RepoPath::from_internal_string("unused"),
             &FileId::new(id.to_bytes()),
@@ -448,7 +448,7 @@ impl Backend for GitBackend {
         })
     }
 
-    fn write_conflict(&self, conflict: &Conflict) -> BackendResult<ConflictId> {
+    fn write_conflict(&self, _path: &RepoPath, conflict: &Conflict) -> BackendResult<ConflictId> {
         let json = serde_json::json!({
             "removes": conflict_part_list_to_json(&conflict.removes),
             "adds": conflict_part_list_to_json(&conflict.adds),

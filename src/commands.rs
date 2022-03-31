@@ -2120,7 +2120,7 @@ fn diff_content(
             Ok(format!("Git submodule checked out at {}", id.hex()).into_bytes())
         }
         TreeValue::Conflict(id) => {
-            let conflict = repo.store().read_conflict(id).unwrap();
+            let conflict = repo.store().read_conflict(path, id).unwrap();
             let mut content = vec![];
             conflicts::materialize_conflict(repo.store(), path, &conflict, &mut content).unwrap();
             Ok(content)
@@ -2271,7 +2271,7 @@ fn git_diff_part(
         TreeValue::Conflict(id) => {
             mode = "100644".to_string();
             hash = id.hex();
-            let conflict = repo.store().read_conflict(id).unwrap();
+            let conflict = repo.store().read_conflict(path, id).unwrap();
             conflicts::materialize_conflict(repo.store(), path, &conflict, &mut content).unwrap();
         }
     }

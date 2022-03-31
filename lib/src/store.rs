@@ -192,12 +192,16 @@ impl Store {
         self.backend.write_symlink(path, contents)
     }
 
-    pub fn read_conflict(&self, id: &ConflictId) -> BackendResult<Conflict> {
-        self.backend.read_conflict(id)
+    pub fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
+        self.backend.read_conflict(path, id)
     }
 
-    pub fn write_conflict(&self, contents: &Conflict) -> BackendResult<ConflictId> {
-        self.backend.write_conflict(contents)
+    pub fn write_conflict(
+        &self,
+        path: &RepoPath,
+        contents: &Conflict,
+    ) -> BackendResult<ConflictId> {
+        self.backend.write_conflict(path, contents)
     }
 
     pub fn tree_builder(self: &Arc<Self>, base_tree_id: TreeId) -> TreeBuilder {
