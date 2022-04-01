@@ -16,6 +16,10 @@ categories = ["command-line-utilities", "development-tools"]
 name = "jj"
 path = "src/main.rs"
 
+[[bin]]
+name = "fake-diff-editor"
+path = "testing/fake-diff-editor.rs"
+
 [[bench]]
 name = "diff_bench"
 harness = false
