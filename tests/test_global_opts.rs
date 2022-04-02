@@ -104,3 +104,27 @@ fn test_invalid_config() {
     insta::assert_snapshot!(stdout, @"Invalid config: expected newline, found an identifier at line 1 column 10 in config.toml
 ");
 }
+
+#[test]
+fn test_help() {
+    // Test that global options are separated out in the help output
+    let test_env = TestEnvironment::default();
+
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["edit", "-h"]);
+    insta::assert_snapshot!(stdout.replace(".exe", ""), @r###"
+    jj-edit 
+    Edit the content changes in a revision
+
+    USAGE:
+        jj edit [OPTIONS]
+
+    OPTIONS:
+        -r, --revision <REVISION>    The revision to edit [default: @]
+
+    GLOBAL OPTIONS:
+            --at-operation <AT_OPERATION>    Operation to load the repo at [default: @]
+        -h, --help                           Print help information, more help with --help than with -h
+            --no-commit-working-copy         Don't commit the working copy
+        -R, --repository <REPOSITORY>        Path to repository to operate on
+    "###);
+}
