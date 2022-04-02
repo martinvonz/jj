@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::{get_stdout_string, TestEnvironment};
+use crate::common::TestEnvironment;
 
 pub mod common;
 
@@ -50,22 +50,16 @@ fn test_no_commit_working_copy() {
 #[test]
 fn test_repo_arg_with_init() {
     let test_env = TestEnvironment::default();
-    let assert = test_env
-        .jj_cmd(test_env.env_root(), &["init", "-R=.", "repo"])
-        .assert()
-        .failure();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"Error: '--repository' cannot be used with 'init'
+    let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["init", "-R=.", "repo"]);
+    insta::assert_snapshot!(stdout, @"Error: '--repository' cannot be used with 'init'
 ");
 }
 
 #[test]
 fn test_repo_arg_with_git_clone() {
     let test_env = TestEnvironment::default();
-    let assert = test_env
-        .jj_cmd(test_env.env_root(), &["git", "clone", "-R=.", "remote"])
-        .assert()
-        .failure();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"Error: '--repository' cannot be used with 'git clone'
+    let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["git", "clone", "-R=.", "remote"]);
+    insta::assert_snapshot!(stdout, @"Error: '--repository' cannot be used with 'git clone'
 ");
 }
 
@@ -106,10 +100,7 @@ fn test_invalid_config() {
         "[section]key = value-missing-quotes",
     )
     .unwrap();
-    let assert = test_env
-        .jj_cmd(test_env.env_root(), &["init", "repo"])
-        .assert()
-        .failure();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"Invalid config: expected newline, found an identifier at line 1 column 10 in config.toml
+    let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo"]);
+    insta::assert_snapshot!(stdout, @"Invalid config: expected newline, found an identifier at line 1 column 10 in config.toml
 ");
 }

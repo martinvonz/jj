@@ -76,6 +76,14 @@ impl TestEnvironment {
         get_stdout_string(&assert)
     }
 
+    /// Run a `jj` command, check that it was successful, and return its stdout
+    // TODO: We should return the stderr instead (or maybe in addition), once we've
+    // fixed errors to go to stderr
+    pub fn jj_cmd_failure(&self, current_dir: &Path, args: &[&str]) -> String {
+        let assert = self.jj_cmd(current_dir, args).assert().failure().stderr("");
+        get_stdout_string(&assert)
+    }
+
     pub fn env_root(&self) -> &Path {
         &self.env_root
     }
