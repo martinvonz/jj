@@ -83,3 +83,67 @@ fn test_edit() {
     insta::assert_snapshot!(contents, @"modified
 ");
 }
+
+#[test]
+fn test_edit_merge() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "a\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "a\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "b"]);
+    std::fs::write(repo_path.join("file1"), "b\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "b\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["co", "@-"]);
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file1"), "c\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "c\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["merge", "@", "b", "-m", "merge"]);
+    // Check out the merge and resolve the conflict in file1, but leave the conflict
+    // in file2
+    test_env.jj_cmd_success(&repo_path, &["co", "@+"]);
+    std::fs::write(repo_path.join("file1"), "d\n").unwrap();
+    std::fs::write(repo_path.join("file3"), "d\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["squash"]);
+    // Test the setup
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-r", "@-", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
+    M file1
+    A file3
+    "###);
+
+    let edit_script = test_env.set_up_fake_diff_editor();
+
+    // Remove file1. The conflict remains in the working copy on top of the merge.
+    std::fs::write(
+        &edit_script,
+        "files-before file1\0files-after JJ-INSTRUCTIONS file1 file3\0rm file1",
+    )
+    .unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["edit", "-r", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Created 608f32ad9e19 merge
+    Rebased 1 descendant commits
+    Working copy now at: a791bdbda05c 
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    R file1
+    A file3
+    "###);
+    assert!(!repo_path.join("file1").exists());
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
+    insta::assert_snapshot!(stdout, @r###"
+    <<<<<<<
+    -------
+    +++++++
+    -a
+    +c
+    +++++++
+    b
+    >>>>>>>
+    "###);
+}
