@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -23,6 +24,7 @@ pub struct TestEnvironment {
     env_root: PathBuf,
     home_dir: PathBuf,
     config_path: PathBuf,
+    env_vars: HashMap<String, String>,
     command_number: RefCell<i64>,
 }
 
@@ -34,11 +36,13 @@ impl Default for TestEnvironment {
         std::fs::create_dir(&home_dir).unwrap();
         let config_path = env_root.join("config.toml");
         std::fs::write(&config_path, b"").unwrap();
+        let env_vars = HashMap::new();
         Self {
             _temp_dir: tmp_dir,
             env_root,
             home_dir,
             config_path,
+            env_vars,
             command_number: RefCell::new(0),
         }
     }
@@ -50,6 +54,9 @@ impl TestEnvironment {
         cmd.current_dir(current_dir);
         cmd.args(args);
         cmd.env_clear();
+        for (key, value) in &self.env_vars {
+            cmd.env(key, value);
+        }
         cmd.env("RUST_BACKTRACE", "1");
         cmd.env("HOME", self.home_dir.to_str().unwrap());
         let timestamp = chrono::DateTime::parse_from_rfc3339("2001-02-03T04:05:06+07:00").unwrap();
@@ -88,6 +95,10 @@ impl TestEnvironment {
             .unwrap();
         config_file.write_all(content).unwrap();
         config_file.flush().unwrap();
+    }
+
+    pub fn add_env_var(&mut self, key: &str, val: &str) {
+        self.env_vars.insert(key.to_string(), val.to_string());
     }
 }
 
