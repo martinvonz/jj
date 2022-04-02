@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Write;
-
 use crate::common::{get_stdout_string, TestEnvironment};
 
 pub mod common;
@@ -76,17 +74,10 @@ fn test_color_config() {
     let test_env = TestEnvironment::default();
 
     // Test that color is used if it's requested in the config file
-    let mut config_file = std::fs::File::options()
-        .append(true)
-        .open(test_env.config_path())
-        .unwrap();
-    config_file
-        .write_all(
-            br#"[ui]
+    test_env.write_config(
+        br#"[ui]
 color="always""#,
-        )
-        .unwrap();
-    config_file.flush().unwrap();
+    );
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
 
     let repo_path = test_env.env_root().join("repo");
