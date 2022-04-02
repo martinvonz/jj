@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::cell::RefCell;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
@@ -78,6 +79,15 @@ impl TestEnvironment {
 
     pub fn config_path(&self) -> &Path {
         &self.config_path
+    }
+
+    pub fn write_config(&self, content: &[u8]) {
+        let mut config_file = std::fs::File::options()
+            .append(true)
+            .open(&self.config_path)
+            .unwrap();
+        config_file.write_all(content).unwrap();
+        config_file.flush().unwrap();
     }
 }
 
