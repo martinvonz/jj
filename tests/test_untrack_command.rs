@@ -14,7 +14,7 @@
 
 use std::path::PathBuf;
 
-use crate::common::{get_stdout_string, TestEnvironment};
+use crate::common::TestEnvironment;
 
 pub mod common;
 
@@ -39,14 +39,9 @@ fn test_untrack() {
     let files_before = test_env.jj_cmd_success(&repo_path, &["files"]);
 
     // Errors out when a specified file is not ignored
-    let assert = test_env
-        .jj_cmd(&repo_path, &["untrack", "file1", "file1.bak"])
-        .assert()
-        .failure();
-    assert.stdout(
-        "Error: 'file1' would be added back because it's not ignored. Make sure it's ignored, \
-         then try again.\n",
-    );
+    let stdout = test_env.jj_cmd_failure(&repo_path, &["untrack", "file1", "file1.bak"]);
+    insta::assert_snapshot!(stdout, @"Error: 'file1' would be added back because it's not ignored. Make sure it's ignored, \
+         then try again.\n");
     let files_after = test_env.jj_cmd_success(&repo_path, &["files"]);
     // There should be no changes to the state when there was an error
     assert_eq!(files_after, files_before);
@@ -65,12 +60,9 @@ fn test_untrack() {
     assert!(repo_path.join("file2.bak").exists());
 
     // Errors out when multiple specified files are not ignored
-    let assert = test_env
-        .jj_cmd(&repo_path, &["untrack", "target"])
-        .assert()
-        .failure();
+    let stdout = test_env.jj_cmd_failure(&repo_path, &["untrack", "target"]);
     assert_eq!(
-        get_stdout_string(&assert),
+        stdout,
         format!(
             "Error: '{}' and 1 other files would be added back because they're not ignored. Make \
              sure they're ignored, then try again.\n",

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::{get_stdout_string, TestEnvironment};
+use crate::common::TestEnvironment;
 
 pub mod common;
 
@@ -43,11 +43,9 @@ fn test_git_push() {
     "###);
 
     // When pushing a specific branch, won't push it if it points to an open commit
-    let assert = test_env
-        .jj_cmd(&workspace_root, &["git", "push", "--branch", "my-branch"])
-        .assert()
-        .failure();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"Error: Won't push open commit
+    let stdout =
+        test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch", "my-branch"]);
+    insta::assert_snapshot!(stdout, @"Error: Won't push open commit
 ");
 
     // Try pushing a conflict
@@ -59,10 +57,7 @@ fn test_git_push() {
     test_env.jj_cmd_success(&workspace_root, &["rebase", "-d", "@--"]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "my-branch"]);
     test_env.jj_cmd_success(&workspace_root, &["close", "-m", "third"]);
-    let assert = test_env
-        .jj_cmd(&workspace_root, &["git", "push"])
-        .assert()
-        .failure();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"Error: Won't push commit 28b5642cb786 since it has conflicts
+    let stdout = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stdout, @"Error: Won't push commit 28b5642cb786 since it has conflicts
 ");
 }
