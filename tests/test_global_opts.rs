@@ -71,7 +71,7 @@ fn test_repo_arg_with_git_clone() {
 
 #[test]
 fn test_color_config() {
-    let test_env = TestEnvironment::default();
+    let mut test_env = TestEnvironment::default();
 
     // Test that color is used if it's requested in the config file
     test_env.write_config(
@@ -88,12 +88,9 @@ color="always""#,
     "###);
 
     // Test that NO_COLOR overrides the request for color in the config file
-    let assert = test_env
-        .jj_cmd(&repo_path, &["log", "-T", "commit_id"])
-        .env("NO_COLOR", "")
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    test_env.add_env_var("NO_COLOR", "");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
+    insta::assert_snapshot!(stdout, @r###"
     @ 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     o 0000000000000000000000000000000000000000
     "###);
