@@ -61,7 +61,7 @@
                 $out/bin/jj debug completion --bash > ./completions.bash
                 installShellCompletion --bash --name ${pname}.bash ./completions.bash
                 $out/bin/jj debug completion --fish > ./completions.fish
-                installShellCompletion --fish --name ${pname}.fish ./completions.fish
+                installShellCompletion --fish --name jj.fish ./completions.fish
                 $out/bin/jj debug completion --zsh > ./completions.zsh
                 installShellCompletion --zsh --name _${pname} ./completions.zsh
               '';
