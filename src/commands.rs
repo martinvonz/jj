@@ -868,7 +868,11 @@ fn update_working_copy(
 /// To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.
 #[derive(clap::Parser, Clone, Debug)]
 #[clap(author = "Martin von Zweigbergk <martinvonz@google.com>", version)]
-#[clap(mut_arg("help", |arg| { arg.help("Print help information, more help with --help than with -h")}))]
+#[clap(mut_arg("help", |arg| {
+    arg
+        .help("Print help information, more help with --help than with -h")
+        .help_heading("GLOBAL OPTIONS")
+    }))]
 struct Args {
     #[clap(subcommand)]
     command: Commands,
@@ -876,7 +880,7 @@ struct Args {
     ///
     /// By default, Jujutsu searches for the closest .jj/ directory in an
     /// ancestor of the current working directory.
-    #[clap(long, short = 'R', global = true)]
+    #[clap(long, short = 'R', global = true, help_heading = "GLOBAL OPTIONS")]
     repository: Option<String>,
     /// Don't commit the working copy
     ///
@@ -886,7 +890,7 @@ struct Args {
     /// stale working copy commit, you can use `--no-commit-working-copy`.
     /// This may be useful e.g. in a command prompt, especially if you have
     /// another process that commits the working copy.
-    #[clap(long, global = true)]
+    #[clap(long, global = true, help_heading = "GLOBAL OPTIONS")]
     no_commit_working_copy: bool,
     /// Operation to load the repo at
     ///
@@ -907,7 +911,13 @@ struct Args {
     /// operation. Doing that is equivalent to having run concurrent commands
     /// starting at the earlier operation. There's rarely a reason to do that,
     /// but it is possible.
-    #[clap(long, alias = "at-op", global = true, default_value = "@")]
+    #[clap(
+        long,
+        alias = "at-op",
+        global = true,
+        help_heading = "GLOBAL OPTIONS",
+        default_value = "@"
+    )]
     at_operation: String,
 }
 
