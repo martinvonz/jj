@@ -713,7 +713,7 @@ dependencies = [
 
 [[package]]
 name = "jujutsu"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "assert_cmd",
  "atty",
@@ -745,7 +745,7 @@ dependencies = [
 
 [[package]]
 name = "jujutsu-lib"
-version = "0.3.3"
+version = "0.4.0"
 dependencies = [
  "assert_matches",
  "backoff",
