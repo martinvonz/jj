@@ -1,6 +1,6 @@
 [package]
 name = "jujutsu-lib"
-version = "0.3.3"
+version = "0.4.0"
 authors = ["Martin von Zweigbergk <martinvonz@google.com>"]
 edition = "2021"
 license = "Apache-2.0"
