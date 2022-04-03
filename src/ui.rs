@@ -143,13 +143,6 @@ impl<'stdout> Ui<'stdout> {
         Ok(())
     }
 
-    pub fn format_file_path(&self, wc_path: &Path, file: &RepoPath) -> String {
-        relative_path(&self.cwd, &file.to_fs_path(wc_path))
-            .to_str()
-            .unwrap()
-            .to_owned()
-    }
-
     /// Parses a path relative to cwd into a RepoPath relative to wc_path
     pub fn parse_file_path(
         &self,
