@@ -32,7 +32,11 @@ fn test_edit() {
     let edit_script = test_env.set_up_fake_diff_editor();
 
     // Nothing happens if we make no changes
-    std::fs::write(&edit_script, "").unwrap();
+    std::fs::write(
+        &edit_script,
+        "files-before file1 file2\0files-after JJ-INSTRUCTIONS file2",
+    )
+    .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["edit"]);
     insta::assert_snapshot!(stdout, @"Nothing changed.
 ");
