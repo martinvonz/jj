@@ -271,6 +271,7 @@ jj init --git-repo=.";
 // Provides utilities for writing a command that works on a workspace (like most
 // commands do).
 struct WorkspaceCommandHelper {
+    cwd: PathBuf,
     string_args: Vec<String>,
     settings: UserSettings,
     workspace: Workspace,
@@ -300,6 +301,7 @@ impl WorkspaceCommandHelper {
             working_copy_shared_with_git = git_workdir == workspace.workspace_root().as_path();
         }
         let mut helper = Self {
+            cwd: ui.cwd().to_owned(),
             string_args,
             settings: ui.settings().clone(),
             workspace,
@@ -402,6 +404,13 @@ impl WorkspaceCommandHelper {
 
     fn working_copy_shared_with_git(&self) -> bool {
         self.working_copy_shared_with_git
+    }
+
+    fn format_file_path(&self, file: &RepoPath) -> String {
+        ui::relative_path(&self.cwd, &file.to_fs_path(self.workspace_root()))
+            .to_str()
+            .unwrap()
+            .to_owned()
     }
 
     fn git_config(&self) -> Result<git2::Config, git2::Error> {
@@ -1847,7 +1856,7 @@ fn cmd_untrack(
         if !added_back.is_empty() {
             locked_working_copy.discard();
             let path = &added_back[0].0;
-            let ui_path = ui.format_file_path(workspace_command.workspace_root(), path);
+            let ui_path = workspace_command.format_file_path(path);
             if added_back.len() > 1 {
                 return Err(CommandError::UserError(format!(
                     "'{}' and {} other files would be added back because they're not ignored. \
@@ -1885,11 +1894,7 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(
     let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
     for (name, _value) in commit.tree().entries_matching(matcher.as_ref()) {
-        writeln!(
-            ui,
-            "{}",
-            &ui.format_file_path(workspace_command.workspace_root(), &name)
-        )?;
+        writeln!(ui, "{}", &workspace_command.format_file_path(&name))?;
     }
     Ok(())
 }
@@ -2086,13 +2091,13 @@ fn show_diff(
     };
     match format {
         Format::Summary => {
-            show_diff_summary(ui, formatter, workspace_command, tree_diff)?;
+            show_diff_summary(formatter, workspace_command, tree_diff)?;
         }
         Format::Git => {
             show_git_diff(formatter, workspace_command, tree_diff)?;
         }
         Format::ColorWords => {
-            show_color_words_diff(ui, formatter, workspace_command, tree_diff)?;
+            show_color_words_diff(formatter, workspace_command, tree_diff)?;
         }
     }
     Ok(())
@@ -2149,7 +2154,6 @@ fn basic_diff_file_type(value: &TreeValue) -> String {
 }
 
 fn show_color_words_diff(
-    ui: &Ui,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
     tree_diff: TreeDiffIterator,
@@ -2157,7 +2161,7 @@ fn show_color_words_diff(
     let repo = workspace_command.repo();
     formatter.add_label(String::from("diff"))?;
     for (path, diff) in tree_diff {
-        let ui_path = ui.format_file_path(workspace_command.workspace_root(), &path);
+        let ui_path = workspace_command.format_file_path(&path);
         match diff {
             tree::Diff::Added(right_value) => {
                 let right_content = diff_content(repo, &path, &right_value)?;
@@ -2500,7 +2504,6 @@ fn show_git_diff(
 }
 
 fn show_diff_summary(
-    ui: &Ui,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
     tree_diff: TreeDiffIterator,
@@ -2513,7 +2516,7 @@ fn show_diff_summary(
                 writeln!(
                     formatter,
                     "M {}",
-                    ui.format_file_path(workspace_command.workspace_root(), &repo_path)
+                    workspace_command.format_file_path(&repo_path)
                 )?;
                 formatter.remove_label()?;
             }
@@ -2522,7 +2525,7 @@ fn show_diff_summary(
                 writeln!(
                     formatter,
                     "A {}",
-                    ui.format_file_path(workspace_command.workspace_root(), &repo_path)
+                    workspace_command.format_file_path(&repo_path)
                 )?;
                 formatter.remove_label()?;
             }
@@ -2531,7 +2534,7 @@ fn show_diff_summary(
                 writeln!(
                     formatter,
                     "R {}",
-                    ui.format_file_path(workspace_command.workspace_root(), &repo_path)
+                    workspace_command.format_file_path(&repo_path)
                 )?;
                 formatter.remove_label()?;
             }
@@ -2620,7 +2623,6 @@ fn cmd_status(
         } else {
             ui.write("Working copy changes:\n")?;
             show_diff_summary(
-                ui,
                 ui.stdout_formatter().as_mut(),
                 &workspace_command,
                 parent_tree.diff(&tree, &EverythingMatcher),
@@ -2633,11 +2635,7 @@ fn cmd_status(
             writeln!(ui, "There are unresolved conflicts at these paths:")?;
             ui.stdout_formatter().remove_label()?;
             for (path, _) in conflicts {
-                writeln!(
-                    ui,
-                    "{}",
-                    &ui.format_file_path(workspace_command.workspace_root(), &path)
-                )?;
+                writeln!(ui, "{}", &workspace_command.format_file_path(&path))?;
             }
         }
     }
