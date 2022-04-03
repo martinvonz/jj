@@ -1014,7 +1014,7 @@ struct FilesArgs {
 
 #[derive(clap::Args, Clone, Debug)]
 #[clap(group(ArgGroup::new("format").args(&["summary", "git", "color-words"])))]
-struct DiffFormat {
+struct DiffFormatArgs {
     /// For each path, show only whether it was modified, added, or removed
     #[clap(long, short)]
     summary: bool,
@@ -1051,7 +1051,7 @@ struct DiffArgs {
     /// Restrict the diff to these paths
     paths: Vec<String>,
     #[clap(flatten)]
-    format: DiffFormat,
+    format: DiffFormatArgs,
 }
 
 /// Show commit description and changes in a revision
@@ -1061,7 +1061,7 @@ struct ShowArgs {
     #[clap(default_value = "@")]
     revision: String,
     #[clap(flatten)]
-    format: DiffFormat,
+    format: DiffFormatArgs,
 }
 
 /// Show high-level repo status
@@ -1093,7 +1093,7 @@ struct LogArgs {
     #[clap(long, short = 'p')]
     patch: bool,
     #[clap(flatten)]
-    format: DiffFormat,
+    format: DiffFormatArgs,
 }
 
 /// Show how a change has evolved
@@ -2065,7 +2065,7 @@ fn show_diff(
     ui: &Ui,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
-    args: &DiffFormat,
+    args: &DiffFormatArgs,
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
     enum Format {
@@ -2775,7 +2775,7 @@ fn show_patch(
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
-    args: &DiffFormat,
+    args: &DiffFormatArgs,
 ) -> Result<(), CommandError> {
     let parents = commit.parents();
     let from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
