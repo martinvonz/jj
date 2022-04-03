@@ -2015,11 +2015,10 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
     let matcher = matcher_from_values(ui, workspace_root, &args.paths)?;
     let diff_iterator = from_tree.diff(&to_tree, matcher.as_ref());
     show_diff(
-        ui,
         ui.stdout_formatter().as_mut(),
         &workspace_command,
-        &args.format,
         diff_iterator,
+        diff_format_for(ui, &args.format),
     )?;
     Ok(())
 }
@@ -2052,51 +2051,52 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
     let formatter = formatter.as_mut();
     template.format(&commit, formatter)?;
     show_diff(
-        ui,
         formatter,
         &workspace_command,
-        &args.format,
         diff_iterator,
+        diff_format_for(ui, &args.format),
     )?;
     Ok(())
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DiffFormat {
+    Summary,
+    Git,
+    ColorWords,
+}
+
+fn diff_format_for(ui: &Ui, args: &DiffFormatArgs) -> DiffFormat {
+    if args.summary {
+        DiffFormat::Summary
+    } else if args.git {
+        DiffFormat::Git
+    } else if args.color_words {
+        DiffFormat::ColorWords
+    } else {
+        match ui.settings().config().get_string("diff.format") {
+            Ok(value) if &value == "summary" => DiffFormat::Summary,
+            Ok(value) if &value == "git" => DiffFormat::Git,
+            Ok(value) if &value == "color-words" => DiffFormat::ColorWords,
+            _ => DiffFormat::ColorWords,
+        }
+    }
+}
+
 fn show_diff(
-    ui: &Ui,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
-    args: &DiffFormatArgs,
     tree_diff: TreeDiffIterator,
+    format: DiffFormat,
 ) -> Result<(), CommandError> {
-    enum Format {
-        Summary,
-        Git,
-        ColorWords,
-    }
-    let format = {
-        if args.summary {
-            Format::Summary
-        } else if args.git {
-            Format::Git
-        } else if args.color_words {
-            Format::ColorWords
-        } else {
-            match ui.settings().config().get_string("diff.format") {
-                Ok(value) if &value == "summary" => Format::Summary,
-                Ok(value) if &value == "git" => Format::Git,
-                Ok(value) if &value == "color-words" => Format::ColorWords,
-                _ => Format::ColorWords,
-            }
-        }
-    };
     match format {
-        Format::Summary => {
+        DiffFormat::Summary => {
             show_diff_summary(formatter, workspace_command, tree_diff)?;
         }
-        Format::Git => {
+        DiffFormat::Git => {
             show_git_diff(formatter, workspace_command, tree_diff)?;
         }
-        Format::ColorWords => {
+        DiffFormat::ColorWords => {
             show_color_words_diff(formatter, workspace_command, tree_diff)?;
         }
     }
@@ -2677,6 +2677,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     let checkout_id = repo.view().get_checkout(&workspace_id);
     let revset = revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_id))?;
     let store = repo.store();
+    let diff_format = diff_format_for(ui, &args.format);
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),
@@ -2739,13 +2740,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             if args.patch {
                 let writer = Box::new(&mut buffer);
                 let mut formatter = ui.new_formatter(writer);
-                show_patch(
-                    ui,
-                    formatter.as_mut(),
-                    &workspace_command,
-                    &commit,
-                    &args.format,
-                )?;
+                show_patch(formatter.as_mut(), &workspace_command, &commit, diff_format)?;
             }
             let node_symbol = if is_checkout { b"@" } else { b"o" };
             graph.add_node(
@@ -2762,7 +2757,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             // TODO: should --summary (without --patch) show diff summary as in hg log
             // --stat?
             if args.patch {
-                show_patch(ui, formatter, &workspace_command, &commit, &args.format)?;
+                show_patch(formatter, &workspace_command, &commit, diff_format)?;
             }
         }
     }
@@ -2771,17 +2766,16 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 }
 
 fn show_patch(
-    ui: &Ui,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
-    args: &DiffFormatArgs,
+    format: DiffFormat,
 ) -> Result<(), CommandError> {
     let parents = commit.parents();
     let from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
     let to_tree = commit.tree();
     let diff_iterator = from_tree.diff(&to_tree, &EverythingMatcher);
-    show_diff(ui, formatter, workspace_command, args, diff_iterator)
+    show_diff(formatter, workspace_command, diff_iterator, format)
 }
 
 fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result<(), CommandError> {
