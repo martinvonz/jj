@@ -2006,15 +2006,13 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
         from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
         to_tree = commit.tree()
     }
-    let repo = workspace_command.repo();
     let workspace_root = workspace_command.workspace_root();
     let matcher = matcher_from_values(ui, workspace_root, &args.paths)?;
     let diff_iterator = from_tree.diff(&to_tree, matcher.as_ref());
     show_diff(
         ui,
         ui.stdout_formatter().as_mut(),
-        repo,
-        workspace_root,
+        &workspace_command,
         &args.format,
         diff_iterator,
     )?;
@@ -2027,9 +2025,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
     let parents = commit.parents();
     let from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
     let to_tree = commit.tree();
-    let repo = workspace_command.repo();
     let diff_iterator = from_tree.diff(&to_tree, &EverythingMatcher);
-    let workspace_root = workspace_command.workspace_root();
     // TODO: Add branches, tags, etc
     // TODO: Indent the description like Git does
     let template_string = r#"
@@ -2043,7 +2039,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
             "\n"
             )"#;
     let template = crate::template_parser::parse_commit_template(
-        repo.as_repo_ref(),
+        workspace_command.repo().as_repo_ref(),
         &workspace_command.workspace_id(),
         template_string,
     );
@@ -2053,8 +2049,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
     show_diff(
         ui,
         formatter,
-        repo,
-        workspace_root,
+        &workspace_command,
         &args.format,
         diff_iterator,
     )?;
@@ -2064,8 +2059,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
 fn show_diff(
     ui: &Ui,
     formatter: &mut dyn Formatter,
-    repo: &Arc<ReadonlyRepo>,
-    workspace_root: &Path,
+    workspace_command: &WorkspaceCommandHelper,
     args: &DiffFormat,
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
@@ -2092,13 +2086,13 @@ fn show_diff(
     };
     match format {
         Format::Summary => {
-            show_diff_summary(ui, formatter, workspace_root, tree_diff)?;
+            show_diff_summary(ui, formatter, workspace_command, tree_diff)?;
         }
         Format::Git => {
-            show_git_diff(formatter, repo, tree_diff)?;
+            show_git_diff(formatter, workspace_command, tree_diff)?;
         }
         Format::ColorWords => {
-            show_color_words_diff(ui, formatter, workspace_root, repo, tree_diff)?;
+            show_color_words_diff(ui, formatter, workspace_command, tree_diff)?;
         }
     }
     Ok(())
@@ -2157,13 +2151,13 @@ fn basic_diff_file_type(value: &TreeValue) -> String {
 fn show_color_words_diff(
     ui: &Ui,
     formatter: &mut dyn Formatter,
-    workspace_root: &Path,
-    repo: &Arc<ReadonlyRepo>,
+    workspace_command: &WorkspaceCommandHelper,
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
+    let repo = workspace_command.repo();
     formatter.add_label(String::from("diff"))?;
     for (path, diff) in tree_diff {
-        let ui_path = ui.format_file_path(workspace_root, &path);
+        let ui_path = ui.format_file_path(workspace_command.workspace_root(), &path);
         match diff {
             tree::Diff::Added(right_value) => {
                 let right_content = diff_content(repo, &path, &right_value)?;
@@ -2448,9 +2442,10 @@ fn show_unified_diff_hunks(
 
 fn show_git_diff(
     formatter: &mut dyn Formatter,
-    repo: &Arc<ReadonlyRepo>,
+    workspace_command: &WorkspaceCommandHelper,
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
+    let repo = workspace_command.repo();
     formatter.add_label(String::from("diff"))?;
     for (path, diff) in tree_diff {
         let path_string = path.to_internal_file_string();
@@ -2507,7 +2502,7 @@ fn show_git_diff(
 fn show_diff_summary(
     ui: &Ui,
     formatter: &mut dyn Formatter,
-    workspace_root: &Path,
+    workspace_command: &WorkspaceCommandHelper,
     tree_diff: TreeDiffIterator,
 ) -> io::Result<()> {
     formatter.add_label(String::from("diff"))?;
@@ -2518,7 +2513,7 @@ fn show_diff_summary(
                 writeln!(
                     formatter,
                     "M {}",
-                    ui.format_file_path(workspace_root, &repo_path)
+                    ui.format_file_path(workspace_command.workspace_root(), &repo_path)
                 )?;
                 formatter.remove_label()?;
             }
@@ -2527,7 +2522,7 @@ fn show_diff_summary(
                 writeln!(
                     formatter,
                     "A {}",
-                    ui.format_file_path(workspace_root, &repo_path)
+                    ui.format_file_path(workspace_command.workspace_root(), &repo_path)
                 )?;
                 formatter.remove_label()?;
             }
@@ -2536,7 +2531,7 @@ fn show_diff_summary(
                 writeln!(
                     formatter,
                     "R {}",
-                    ui.format_file_path(workspace_root, &repo_path)
+                    ui.format_file_path(workspace_command.workspace_root(), &repo_path)
                 )?;
                 formatter.remove_label()?;
             }
@@ -2627,7 +2622,7 @@ fn cmd_status(
             show_diff_summary(
                 ui,
                 ui.stdout_formatter().as_mut(),
-                workspace_command.workspace_root(),
+                &workspace_command,
                 parent_tree.diff(&tree, &EverythingMatcher),
             )?;
         }
@@ -2680,7 +2675,6 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 
     let revset_expression = workspace_command.parse_revset(ui, &args.revisions)?;
     let repo = workspace_command.repo();
-    let workspace_root = workspace_command.workspace_root();
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = repo.view().get_checkout(&workspace_id);
     let revset = revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_id))?;
@@ -2750,9 +2744,8 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 show_patch(
                     ui,
                     formatter.as_mut(),
-                    repo,
+                    &workspace_command,
                     &commit,
-                    workspace_root,
                     &args.format,
                 )?;
             }
@@ -2771,7 +2764,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             // TODO: should --summary (without --patch) show diff summary as in hg log
             // --stat?
             if args.patch {
-                show_patch(ui, formatter, repo, &commit, workspace_root, &args.format)?;
+                show_patch(ui, formatter, &workspace_command, &commit, &args.format)?;
             }
         }
     }
@@ -2782,16 +2775,15 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 fn show_patch(
     ui: &Ui,
     formatter: &mut dyn Formatter,
-    repo: &Arc<ReadonlyRepo>,
+    workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
-    workspace_root: &Path,
     args: &DiffFormat,
 ) -> Result<(), CommandError> {
     let parents = commit.parents();
-    let from_tree = merge_commit_trees(repo.as_repo_ref(), &parents);
+    let from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
     let to_tree = commit.tree();
     let diff_iterator = from_tree.diff(&to_tree, &EverythingMatcher);
-    show_diff(ui, formatter, repo, workspace_root, args, diff_iterator)
+    show_diff(ui, formatter, workspace_command, args, diff_iterator)
 }
 
 fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result<(), CommandError> {
