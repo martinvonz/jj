@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* When rebasing a conflict where one side modified a file and the other side
+  deleted it, we no longer automatically resolve it in favor of the modified
+  content (this was a regression from commit c0ae4b16e8c4).
+
 * Errors are now printed to stderr (they used to be printed to stdout).
 
 * `jj untrack` now requires at least one path (allowing no arguments was a UX
