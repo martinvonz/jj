@@ -936,6 +936,7 @@ enum Commands {
     Checkout(CheckoutArgs),
     Untrack(UntrackArgs),
     Files(FilesArgs),
+    Print(PrintArgs),
     Diff(DiffArgs),
     Show(ShowArgs),
     Status(StatusArgs),
@@ -1010,6 +1011,15 @@ struct FilesArgs {
     #[clap(long, short, default_value = "@")]
     revision: String,
     paths: Vec<String>,
+}
+
+/// Print contents of a file in a revision
+#[derive(clap::Args, Clone, Debug)]
+struct PrintArgs {
+    /// The revision to get the file contents from
+    #[clap(long, short, default_value = "@")]
+    revision: String,
+    path: String,
 }
 
 #[derive(clap::Args, Clone, Debug)]
@@ -1895,6 +1905,34 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(
     let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
     for (name, _value) in commit.tree().entries_matching(matcher.as_ref()) {
         writeln!(ui, "{}", &workspace_command.format_file_path(&name))?;
+    }
+    Ok(())
+}
+
+fn cmd_print(ui: &mut Ui, command: &CommandHelper, args: &PrintArgs) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let path = ui.parse_file_path(workspace_command.workspace_root(), &args.path)?;
+    let repo = workspace_command.repo();
+    match commit.tree().path_value(&path) {
+        None => {
+            return Err(CommandError::UserError("No such path".to_string()));
+        }
+        Some(TreeValue::Normal { id, .. }) => {
+            let mut contents = repo.store().read_file(&path, &id)?;
+            std::io::copy(&mut contents, &mut ui.stdout_formatter().as_mut())?;
+        }
+        Some(TreeValue::Conflict(id)) => {
+            let conflict = repo.store().read_conflict(&path, &id)?;
+            let mut contents = vec![];
+            conflicts::materialize_conflict(repo.store(), &path, &conflict, &mut contents).unwrap();
+            ui.stdout_formatter().write_all(&contents)?;
+        }
+        _ => {
+            return Err(CommandError::UserError(
+                "Path exists but is not a file".to_string(),
+            ));
+        }
     }
     Ok(())
 }
@@ -4556,6 +4594,7 @@ where
         Commands::Checkout(sub_args) => cmd_checkout(&mut ui, &command_helper, sub_args),
         Commands::Untrack(sub_args) => cmd_untrack(&mut ui, &command_helper, sub_args),
         Commands::Files(sub_args) => cmd_files(&mut ui, &command_helper, sub_args),
+        Commands::Print(sub_args) => cmd_print(&mut ui, &command_helper, sub_args),
         Commands::Diff(sub_args) => cmd_diff(&mut ui, &command_helper, sub_args),
         Commands::Show(sub_args) => cmd_show(&mut ui, &command_helper, sub_args),
         Commands::Status(sub_args) => cmd_status(&mut ui, &command_helper, sub_args),
