@@ -143,3 +143,105 @@ fn test_move() {
     o 000000000000 
     "###);
 }
+
+#[test]
+fn test_move_interactive() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Create history like this:
+    //   C
+    //   |
+    // D B
+    // |/
+    // A
+    //
+    // When moving changes between e.g. C and F, we should not get unrelated changes
+    // from B and D.
+    test_env.jj_cmd_success(&repo_path, &["branch", "a"]);
+    std::fs::write(repo_path.join("file1"), "a\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "a\n").unwrap();
+    std::fs::write(repo_path.join("file3"), "a\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "b"]);
+    std::fs::write(repo_path.join("file3"), "b\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "c"]);
+    std::fs::write(repo_path.join("file1"), "c\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "c\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["co", "a"]);
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "d"]);
+    std::fs::write(repo_path.join("file3"), "d\n").unwrap();
+    // Test the setup
+    let template = r#"commit_id.short() " " branches"#;
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ bdd835cae844 d
+    | o 5028db694b6b c
+    | o 55171e33db26 b
+    |/  
+    o 3db0a2f5b535 a
+    o 000000000000 
+    "###);
+
+    let edit_script = test_env.set_up_fake_diff_editor();
+
+    // If we don't make any changes, the whole change is moved
+    std::fs::write(&edit_script, "").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["move", "-i", "--from", "c"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: 71b69e433fbc 
+    Added 0 files, modified 2 files, removed 0 files
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ 71b69e433fbc d
+    | o 55171e33db26 b c
+    |/  
+    o 3db0a2f5b535 a
+    o 000000000000 
+    "###);
+    // The changes from the source has been applied
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
+    insta::assert_snapshot!(stdout, @"c
+");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
+    insta::assert_snapshot!(stdout, @"c
+");
+    // File `file3`, which was not changed in source, is unchanged
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file3"]);
+    insta::assert_snapshot!(stdout, @"d
+");
+
+    // Can move only part of the change
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    std::fs::write(&edit_script, "reset file2").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["move", "-i", "--from", "c"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: 63f1a6e96edb 
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ 63f1a6e96edb d
+    | o d027c6e3e6bc c
+    | o 55171e33db26 b
+    |/  
+    o 3db0a2f5b535 a
+    o 000000000000 
+    "###);
+    // The selected change from the source has been applied
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
+    insta::assert_snapshot!(stdout, @"c
+");
+    // The unselected change from the source has not been applied
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
+    insta::assert_snapshot!(stdout, @"a
+");
+    // File `file2`, which was not changed in source, is unchanged
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file3"]);
+    insta::assert_snapshot!(stdout, @"d
+");
+}
