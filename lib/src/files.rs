@@ -218,6 +218,10 @@ struct SyncRegion {
     right: Range<usize>,
 }
 
+// TODO: Should we require `add.len() == removes.len() + 1`? If that condition
+// is false, it effectively means that we should pretend that there are empty
+// strings in `removes` or `adds` to make it true. Maybe we should have to
+// caller make it explicitly that way.
 pub fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
     let num_removes = removes.len();
     // TODO: Using the first remove as base (first in the inputs) is how it's
@@ -232,7 +236,9 @@ pub fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
     for diff_hunk in diff.hunks() {
         match diff_hunk {
             DiffHunk::Matching(content) => {
-                resolved_hunk.extend(content);
+                if adds.len() > removes.len() {
+                    resolved_hunk.extend(content);
+                }
             }
             DiffHunk::Different(parts) => {
                 let mut removed_parts = parts[..num_removes].to_vec();
@@ -256,12 +262,17 @@ pub fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
                 if removed_parts.is_empty() && added_parts.is_empty() {
                     // The same content was added and removed, so there's
                     // nothing left.
-                } else if distinct_removes.len() <= 1 && distinct_adds.len() == 1 {
-                    // All sides made the same change. This includes:
-                    // removes: [A], adds: [B, B, B]
-                    // removes: [], adds: [B, B]
-                    // removes: [A, A], adds: []
-                    // We consider all these to not be conflicts.
+                } else if distinct_removes.is_empty() && distinct_adds.len() == 1 {
+                    // All sides added the same content
+                    resolved_hunk.extend(added_parts[0]);
+                } else if distinct_removes.len() == 1 && distinct_adds.is_empty() {
+                    // All sides removed the same content
+                } else if distinct_removes.len() == 1
+                    && distinct_adds.len() == 1
+                    && added_parts.len() == removed_parts.len() + 1
+                {
+                    // All sides made the same change, and there's a matching extra base to apply it
+                    // to
                     resolved_hunk.extend(added_parts[0]);
                 } else {
                     if !resolved_hunk.is_empty() {
@@ -301,34 +312,81 @@ mod tests {
 
     #[test]
     fn test_merge() {
+        // Unchanged and empty on all sides
         assert_eq!(
             merge(&[b""], &[b"", b""]),
             MergeResult::Resolved(b"".to_vec())
         );
+        // Unchanged on all sides
         assert_eq!(
             merge(&[b"a"], &[b"a", b"a"]),
             MergeResult::Resolved(b"a".to_vec())
         );
+        // One side removed, one side unchanged
         assert_eq!(
-            merge(&[b"a"], &[b"", b"a"]),
+            merge(&[b"a\n"], &[b"", b"a\n"]),
             MergeResult::Resolved(b"".to_vec())
         );
+        // One side unchanged, one side removed
         assert_eq!(
-            merge(&[b"a"], &[b"a", b""]),
+            merge(&[b"a\n"], &[b"a\n", b""]),
             MergeResult::Resolved(b"".to_vec())
         );
+        // Both sides removed same line
         assert_eq!(
-            merge(&[b"a"], &[b"", b""]),
+            merge(&[b"a\n"], &[b"", b""]),
             MergeResult::Resolved(b"".to_vec())
         );
+        // One side modified, one side unchanged
         assert_eq!(
             merge(&[b"a"], &[b"a b", b"a"]),
             MergeResult::Resolved(b"a b".to_vec())
         );
+        // One side unchanged, one side modified
         assert_eq!(
             merge(&[b"a"], &[b"a", b"a b"]),
             MergeResult::Resolved(b"a b".to_vec())
         );
+        // All sides added same content
+        assert_eq!(
+            merge(&[], &[b"a\n", b"a\n", b"a\n"]),
+            MergeResult::Resolved(b"a\n".to_vec())
+        );
+        // One side modified, two sides added
+        assert_eq!(
+            merge(&[b"a"], &[b"b", b"b", b"b"]),
+            MergeResult::Conflict(vec![MergeHunk::Conflict {
+                removes: vec![b"a".to_vec()],
+                adds: vec![b"b".to_vec(), b"b".to_vec(), b"b".to_vec()]
+            }])
+        );
+        // All sides removed same content
+        assert_eq!(
+            merge(&[b"a\n", b"a\n", b"a\n"], &[]),
+            MergeResult::Resolved(b"".to_vec())
+        );
+        // One side modified, two sides removed
+        assert_eq!(
+            merge(&[b"a\n", b"a\n", b"a\n"], &[b""]),
+            MergeResult::Conflict(vec![MergeHunk::Conflict {
+                removes: vec![b"a\n".to_vec(), b"a\n".to_vec(), b"a\n".to_vec()],
+                adds: vec![b"".to_vec()]
+            }])
+        );
+        // Three sides made the same change
+        assert_eq!(
+            merge(&[b"a", b"a"], &[b"b", b"b", b"b"]),
+            MergeResult::Resolved(b"b".to_vec())
+        );
+        // One side unchanged, one side added
+        assert_eq!(
+            merge(&[b"a\n"], &[b"a\nb\n"]),
+            MergeResult::Conflict(vec![MergeHunk::Conflict {
+                removes: vec![b"".to_vec()],
+                adds: vec![b"b\n".to_vec()]
+            }])
+        );
+        // Two sides left one line unchanged, and added conflicting additional lines
         assert_eq!(
             merge(&[b"a\n"], &[b"a\nb\n", b"a\nc\n"]),
             MergeResult::Conflict(vec![
@@ -339,28 +397,23 @@ mod tests {
                 }
             ])
         );
+        // One side removed, one side modified
         assert_eq!(
-            merge(&[b"a"], &[b"b", b"a"]),
-            MergeResult::Resolved(b"b".to_vec())
-        );
-        assert_eq!(
-            merge(&[b"a"], &[b"a", b"b"]),
-            MergeResult::Resolved(b"b".to_vec())
-        );
-        assert_eq!(
-            merge(&[b"a"], &[b"", b"b"]),
+            merge(&[b"a\n"], &[b"", b"b\n"]),
             MergeResult::Conflict(vec![MergeHunk::Conflict {
-                removes: vec![b"a".to_vec()],
-                adds: vec![b"".to_vec(), b"b".to_vec()]
+                removes: vec![b"a\n".to_vec()],
+                adds: vec![b"".to_vec(), b"b\n".to_vec()]
             }])
         );
+        // One side modified, one side removed
         assert_eq!(
-            merge(&[b"a"], &[b"b", b""]),
+            merge(&[b"a\n"], &[b"b\n", b""]),
             MergeResult::Conflict(vec![MergeHunk::Conflict {
-                removes: vec![b"a".to_vec()],
-                adds: vec![b"b".to_vec(), b"".to_vec()]
+                removes: vec![b"a\n".to_vec()],
+                adds: vec![b"b\n".to_vec(), b"".to_vec()]
             }])
         );
+        // Two sides modified in different ways
         assert_eq!(
             merge(&[b"a"], &[b"b", b"c"]),
             MergeResult::Conflict(vec![MergeHunk::Conflict {
@@ -368,7 +421,7 @@ mod tests {
                 adds: vec![b"b".to_vec(), b"c".to_vec()]
             }])
         );
-        // Two of three sides don't change
+        // Two of three sides don't change, third side changes
         assert_eq!(
             merge(&[b"a", b"a"], &[b"a", b"", b"a"]),
             MergeResult::Resolved(b"".to_vec())
