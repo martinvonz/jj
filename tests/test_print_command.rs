@@ -42,11 +42,11 @@ fn test_print() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", subdir_file]);
     insta::assert_snapshot!(stdout, @"c
 ");
-    let stdout = test_env.jj_cmd_failure(&repo_path, &["print", "non-existent"]);
-    insta::assert_snapshot!(stdout, @"Error: No such path
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["print", "non-existent"]);
+    insta::assert_snapshot!(stderr, @"Error: No such path
 ");
-    let stdout = test_env.jj_cmd_failure(&repo_path, &["print", "dir"]);
-    insta::assert_snapshot!(stdout, @"Error: Path exists but is not a file
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["print", "dir"]);
+    insta::assert_snapshot!(stderr, @"Error: Path exists but is not a file
 ");
 
     // Can print a conflict

@@ -70,8 +70,8 @@ fn test_move() {
     // Doesn't do anything without arguments
     // TODO: We should make this error more helpful (saying that --from and/or --to
     // are required)
-    let stdout = test_env.jj_cmd_failure(&repo_path, &["move"]);
-    insta::assert_snapshot!(stdout, @"Error: Source and destination cannot be the same.
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["move"]);
+    insta::assert_snapshot!(stderr, @"Error: Source and destination cannot be the same.
 ");
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"

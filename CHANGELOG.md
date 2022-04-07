@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The new `jj print` command prints the contents of a file in a revision.
 
+### Fixed bugs
+
+* Errors are now printed to stderr (they used to be printed to stdout).
+
 ## [0.4.0] - 2022-04-02
 
 ### Breaking changes

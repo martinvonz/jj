@@ -30,7 +30,8 @@ use crate::templater::TemplateFormatter;
 pub struct Ui<'a> {
     cwd: PathBuf,
     color: bool,
-    formatter: Mutex<Box<dyn Formatter + 'a>>,
+    stdout_formatter: Mutex<Box<dyn Formatter + 'a>>,
+    stderr_formatter: Mutex<Box<dyn Formatter + 'a>>,
     settings: UserSettings,
 }
 
@@ -65,14 +66,17 @@ impl<'stdout> Ui<'stdout> {
     pub fn new(
         cwd: PathBuf,
         stdout: Box<dyn Write + 'stdout>,
+        stderr: Box<dyn Write + 'stdout>,
         color: bool,
         settings: UserSettings,
     ) -> Ui<'stdout> {
-        let formatter = Mutex::new(new_formatter(&settings, color, stdout));
+        let stdout_formatter = Mutex::new(new_formatter(&settings, color, stdout));
+        let stderr_formatter = Mutex::new(new_formatter(&settings, color, stderr));
         Ui {
             cwd,
             color,
-            formatter,
+            stdout_formatter,
+            stderr_formatter,
             settings,
         }
     }
@@ -80,8 +84,9 @@ impl<'stdout> Ui<'stdout> {
     pub fn for_terminal(settings: UserSettings) -> Ui<'static> {
         let cwd = std::env::current_dir().unwrap();
         let stdout: Box<dyn Write + 'static> = Box::new(io::stdout());
+        let stderr: Box<dyn Write + 'static> = Box::new(io::stderr());
         let color = use_color(&settings);
-        Ui::new(cwd, stdout, color, settings)
+        Ui::new(cwd, stdout, stderr, color, settings)
     }
 
     pub fn cwd(&self) -> &Path {
@@ -100,7 +105,11 @@ impl<'stdout> Ui<'stdout> {
     }
 
     pub fn stdout_formatter(&self) -> MutexGuard<Box<dyn Formatter + 'stdout>> {
-        self.formatter.lock().unwrap()
+        self.stdout_formatter.lock().unwrap()
+    }
+
+    pub fn stderr_formatter(&self) -> MutexGuard<Box<dyn Formatter + 'stdout>> {
+        self.stderr_formatter.lock().unwrap()
     }
 
     pub fn write(&mut self, text: &str) -> io::Result<()> {
@@ -112,8 +121,7 @@ impl<'stdout> Ui<'stdout> {
     }
 
     pub fn write_error(&mut self, text: &str) -> io::Result<()> {
-        // TODO: We should print the error to stderr
-        let mut formatter = self.stdout_formatter();
+        let mut formatter = self.stderr_formatter();
         formatter.add_label(String::from("error"))?;
         formatter.write_str(text)?;
         formatter.remove_label()?;

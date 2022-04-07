@@ -48,8 +48,8 @@ fn test_edit() {
 
     // Nothing happens if the diff-editor exits with an error
     std::fs::write(&edit_script, "rm file2\0fail").unwrap();
-    let stdout = test_env.jj_cmd_failure(&repo_path, &["edit"]);
-    insta::assert_snapshot!(stdout, @"Error: Failed to edit diff: The diff tool exited with a non-zero code
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["edit"]);
+    insta::assert_snapshot!(stderr, @"Error: Failed to edit diff: The diff tool exited with a non-zero code
 ");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
