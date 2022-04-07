@@ -1284,6 +1284,7 @@ struct RestoreArgs {
     /// Interactively choose which parts to restore
     #[clap(long, short)]
     interactive: bool,
+    #[clap(conflicts_with = "interactive")]
     paths: Vec<String>,
 }
 
@@ -3299,11 +3300,6 @@ fn cmd_restore(
     let repo = workspace_command.repo();
     let tree_id;
     if args.interactive {
-        if !args.paths.is_empty() {
-            return Err(UserError(
-                "restore with --interactive and path is not yet supported".to_string(),
-            ));
-        }
         let instructions = format!(
             "\
 You are restoring state from: {}
