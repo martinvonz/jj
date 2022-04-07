@@ -120,3 +120,77 @@ fn test_squash() {
     insta::assert_snapshot!(stdout, @"e
 ");
 }
+
+#[test]
+fn test_squash_interactive() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["branch", "a"]);
+    std::fs::write(repo_path.join("file1"), "a\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "a\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "b"]);
+    std::fs::write(repo_path.join("file1"), "b\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "b\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "c"]);
+    std::fs::write(repo_path.join("file1"), "c\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "c\n").unwrap();
+    // Test the setup
+    let template = r#"commit_id.short() " " branches"#;
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ d989314f3df0 c
+    o 2a2d19a3283f b
+    o 47a1e795d146 a
+    o 000000000000 
+    "###);
+
+    // Everything is moved into the parent if no change is made
+    let edit_script = test_env.set_up_fake_diff_editor();
+    std::fs::write(&edit_script, "").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b", "-i"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 1 descendant commits
+    Working copy now at: f03d5ce4a973 
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ f03d5ce4a973 c
+    o c9f931cd78af a b
+    o 000000000000 
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "a"]);
+    insta::assert_snapshot!(stdout, @"b
+");
+
+    // Can squash only some changes
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    std::fs::write(&edit_script, "reset file1").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b", "-i"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 1 descendant commits
+    Working copy now at: e7a40106bee6 
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ e7a40106bee6 c
+    o 05d951646873 b
+    o 0c5ddc685260 a
+    o 000000000000 
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "a"]);
+    insta::assert_snapshot!(stdout, @"a
+");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "a"]);
+    insta::assert_snapshot!(stdout, @"b
+");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
+    insta::assert_snapshot!(stdout, @"b
+");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "b"]);
+    insta::assert_snapshot!(stdout, @"b
+");
+}
