@@ -50,16 +50,16 @@ fn test_no_commit_working_copy() {
 #[test]
 fn test_repo_arg_with_init() {
     let test_env = TestEnvironment::default();
-    let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["init", "-R=.", "repo"]);
-    insta::assert_snapshot!(stdout, @"Error: '--repository' cannot be used with 'init'
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["init", "-R=.", "repo"]);
+    insta::assert_snapshot!(stderr, @"Error: '--repository' cannot be used with 'init'
 ");
 }
 
 #[test]
 fn test_repo_arg_with_git_clone() {
     let test_env = TestEnvironment::default();
-    let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["git", "clone", "-R=.", "remote"]);
-    insta::assert_snapshot!(stdout, @"Error: '--repository' cannot be used with 'git clone'
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["git", "clone", "-R=.", "remote"]);
+    insta::assert_snapshot!(stderr, @"Error: '--repository' cannot be used with 'git clone'
 ");
 }
 
@@ -100,8 +100,8 @@ fn test_invalid_config() {
         "[section]key = value-missing-quotes",
     )
     .unwrap();
-    let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo"]);
-    insta::assert_snapshot!(stdout, @"Invalid config: expected newline, found an identifier at line 1 column 10 in config.toml
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo"]);
+    insta::assert_snapshot!(stderr, @"Invalid config: expected newline, found an identifier at line 1 column 10 in config.toml
 ");
 }
 

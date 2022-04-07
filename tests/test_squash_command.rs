@@ -94,8 +94,8 @@ fn test_squash() {
     o 90aeefd03044 a
     o 000000000000 
     "###);
-    let stdout = test_env.jj_cmd_failure(&repo_path, &["squash", "-r", "e"]);
-    insta::assert_snapshot!(stdout, @"Error: Cannot squash merge commits
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["squash", "-r", "e"]);
+    insta::assert_snapshot!(stderr, @"Error: Cannot squash merge commits
 ");
 
     // Can squash into a merge commit

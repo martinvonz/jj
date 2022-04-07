@@ -39,8 +39,8 @@ fn test_untrack() {
     let files_before = test_env.jj_cmd_success(&repo_path, &["files"]);
 
     // Errors out when a specified file is not ignored
-    let stdout = test_env.jj_cmd_failure(&repo_path, &["untrack", "file1", "file1.bak"]);
-    insta::assert_snapshot!(stdout, @"Error: 'file1' would be added back because it's not ignored. Make sure it's ignored, \
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack", "file1", "file1.bak"]);
+    insta::assert_snapshot!(stderr, @"Error: 'file1' would be added back because it's not ignored. Make sure it's ignored, \
          then try again.\n");
     let files_after = test_env.jj_cmd_success(&repo_path, &["files"]);
     // There should be no changes to the state when there was an error
@@ -60,9 +60,9 @@ fn test_untrack() {
     assert!(repo_path.join("file2.bak").exists());
 
     // Errors out when multiple specified files are not ignored
-    let stdout = test_env.jj_cmd_failure(&repo_path, &["untrack", "target"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack", "target"]);
     assert_eq!(
-        stdout,
+        stderr,
         format!(
             "Error: '{}' and 1 other files would be added back because they're not ignored. Make \
              sure they're ignored, then try again.\n",

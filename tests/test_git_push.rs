@@ -43,9 +43,9 @@ fn test_git_push() {
     "###);
 
     // When pushing a specific branch, won't push it if it points to an open commit
-    let stdout =
+    let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch", "my-branch"]);
-    insta::assert_snapshot!(stdout, @"Error: Won't push open commit
+    insta::assert_snapshot!(stderr, @"Error: Won't push open commit
 ");
 
     // Try pushing a conflict
@@ -57,7 +57,7 @@ fn test_git_push() {
     test_env.jj_cmd_success(&workspace_root, &["rebase", "-d", "@--"]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "my-branch"]);
     test_env.jj_cmd_success(&workspace_root, &["close", "-m", "third"]);
-    let stdout = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
-    insta::assert_snapshot!(stdout, @"Error: Won't push commit 28b5642cb786 since it has conflicts
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stderr, @"Error: Won't push commit 28b5642cb786 since it has conflicts
 ");
 }

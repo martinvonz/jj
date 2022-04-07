@@ -24,8 +24,16 @@ fn test_parse_file_path_wc_in_cwd() {
     let cwd_path = temp_dir.path().join("repo");
     let wc_path = cwd_path.clone();
     let mut unused_stdout_buf = vec![];
+    let mut unused_stderr_buf = vec![];
     let unused_stdout = Box::new(Cursor::new(&mut unused_stdout_buf));
-    let ui = Ui::new(cwd_path, unused_stdout, false, user_settings());
+    let unused_stderr = Box::new(Cursor::new(&mut unused_stderr_buf));
+    let ui = Ui::new(
+        cwd_path,
+        unused_stdout,
+        unused_stderr,
+        false,
+        user_settings(),
+    );
 
     assert_eq!(ui.parse_file_path(&wc_path, ""), Ok(RepoPath::root()));
     assert_eq!(ui.parse_file_path(&wc_path, "."), Ok(RepoPath::root()));
@@ -58,8 +66,16 @@ fn test_parse_file_path_wc_in_cwd_parent() {
     let cwd_path = temp_dir.path().join("dir");
     let wc_path = cwd_path.parent().unwrap().to_path_buf();
     let mut unused_stdout_buf = vec![];
+    let mut unused_stderr_buf = vec![];
     let unused_stdout = Box::new(Cursor::new(&mut unused_stdout_buf));
-    let ui = Ui::new(cwd_path, unused_stdout, false, user_settings());
+    let unused_stderr = Box::new(Cursor::new(&mut unused_stderr_buf));
+    let ui = Ui::new(
+        cwd_path,
+        unused_stdout,
+        unused_stderr,
+        false,
+        user_settings(),
+    );
 
     assert_eq!(
         ui.parse_file_path(&wc_path, ""),
@@ -94,8 +110,16 @@ fn test_parse_file_path_wc_in_cwd_child() {
     let cwd_path = temp_dir.path().join("cwd");
     let wc_path = cwd_path.join("repo");
     let mut unused_stdout_buf = vec![];
+    let mut unused_stderr_buf = vec![];
     let unused_stdout = Box::new(Cursor::new(&mut unused_stdout_buf));
-    let ui = Ui::new(cwd_path, unused_stdout, false, user_settings());
+    let unused_stderr = Box::new(Cursor::new(&mut unused_stderr_buf));
+    let ui = Ui::new(
+        cwd_path,
+        unused_stdout,
+        unused_stderr,
+        false,
+        user_settings(),
+    );
 
     assert_eq!(
         ui.parse_file_path(&wc_path, ""),
