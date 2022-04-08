@@ -51,7 +51,6 @@ jobs:
       run: |
         outdir="./target/${{ matrix.target }}/release"
         staging="jj-${{ github.event.release.tag_name }}-${{ matrix.target }}"
-        mkdir -p "$staging"/complete
         cp {README.md,LICENSE} "$staging/"
         if [ "${{ matrix.os }}" = "windows-2022" ]; then
           cp "target/${{ matrix.target }}/release/jj.exe" "$staging/"
