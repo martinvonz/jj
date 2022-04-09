@@ -21,8 +21,12 @@ use jujutsu_lib::settings::UserSettings;
 
 fn config_path() -> Option<PathBuf> {
     if let Ok(config_path) = env::var("JJ_CONFIG") {
+        // TODO: We should probably support colon-separated (std::env::split_paths)
+        // paths here
         Some(PathBuf::from(config_path))
     } else {
+        // TODO: Should we drop the final `/config.toml` and read all files in the
+        // directory?
         dirs::config_dir().map(|config_dir| config_dir.join("jj").join("config.toml"))
     }
 }
@@ -31,11 +35,29 @@ fn read_config() -> Result<UserSettings, config::ConfigError> {
     let mut config_builder = config::Config::builder();
 
     if let Some(config_path) = config_path() {
-        config_builder = config_builder.add_source(
-            config::File::from(config_path)
-                .required(false)
-                .format(config::FileFormat::Toml),
-        );
+        let mut files = vec![];
+        if config_path.is_dir() {
+            if let Ok(read_dir) = config_path.read_dir() {
+                // TODO: Walk the directory recursively?
+                for dir_entry in read_dir.flatten() {
+                    let path = dir_entry.path();
+                    if path.is_file() {
+                        files.push(path);
+                    }
+                }
+            }
+            files.sort();
+        } else {
+            files.push(config_path);
+        }
+        for file in files {
+            // TODO: Accept other formats and/or accept only certain file extensions?
+            config_builder = config_builder.add_source(
+                config::File::from(file)
+                    .required(false)
+                    .format(config::FileFormat::Toml),
+            );
+        }
     };
 
     // TODO: Make the config from environment a separate source instead? Seems

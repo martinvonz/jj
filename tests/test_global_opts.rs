@@ -68,7 +68,7 @@ fn test_color_config() {
     let mut test_env = TestEnvironment::default();
 
     // Test that color is used if it's requested in the config file
-    test_env.write_config(
+    test_env.add_config(
         br#"[ui]
 color="always""#,
     );
@@ -95,13 +95,9 @@ fn test_invalid_config() {
     // Test that we get a reasonable error if the config is invalid (#55)
     let test_env = TestEnvironment::default();
 
-    std::fs::write(
-        test_env.config_path(),
-        "[section]key = value-missing-quotes",
-    )
-    .unwrap();
+    test_env.add_config(b"[section]key = value-missing-quotes");
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo"]);
-    insta::assert_snapshot!(stderr, @"Invalid config: expected newline, found an identifier at line 1 column 10 in config.toml
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @"Invalid config: expected newline, found an identifier at line 1 column 10 in config/config0001.toml
 ");
 }
 

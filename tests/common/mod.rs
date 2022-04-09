@@ -14,7 +14,6 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
@@ -23,8 +22,9 @@ pub struct TestEnvironment {
     _temp_dir: TempDir,
     env_root: PathBuf,
     home_dir: PathBuf,
-    config_path: PathBuf,
+    config_dir: PathBuf,
     env_vars: HashMap<String, String>,
+    config_file_number: RefCell<i64>,
     command_number: RefCell<i64>,
 }
 
@@ -34,15 +34,16 @@ impl Default for TestEnvironment {
         let env_root = tmp_dir.path().canonicalize().unwrap();
         let home_dir = env_root.join("home");
         std::fs::create_dir(&home_dir).unwrap();
-        let config_path = env_root.join("config.toml");
-        std::fs::write(&config_path, b"").unwrap();
+        let config_dir = env_root.join("config");
+        std::fs::create_dir(&config_dir).unwrap();
         let env_vars = HashMap::new();
         Self {
             _temp_dir: tmp_dir,
             env_root,
             home_dir,
-            config_path,
+            config_dir,
             env_vars,
+            config_file_number: RefCell::new(0),
             command_number: RefCell::new(0),
         }
     }
@@ -62,7 +63,7 @@ impl TestEnvironment {
         let timestamp = chrono::DateTime::parse_from_rfc3339("2001-02-03T04:05:06+07:00").unwrap();
         let mut command_number = self.command_number.borrow_mut();
         *command_number += 1;
-        cmd.env("JJ_CONFIG", self.config_path.to_str().unwrap());
+        cmd.env("JJ_CONFIG", self.config_dir.to_str().unwrap());
         let timestamp = timestamp + chrono::Duration::seconds(*command_number);
         cmd.env("JJ_TIMESTAMP", timestamp.to_rfc3339());
         cmd.env("JJ_USER", "Test User");
@@ -90,17 +91,18 @@ impl TestEnvironment {
         &self.home_dir
     }
 
-    pub fn config_path(&self) -> &Path {
-        &self.config_path
-    }
-
-    pub fn write_config(&self, content: &[u8]) {
-        let mut config_file = std::fs::File::options()
-            .append(true)
-            .open(&self.config_path)
-            .unwrap();
-        config_file.write_all(content).unwrap();
-        config_file.flush().unwrap();
+    pub fn add_config(&self, content: &[u8]) {
+        // Concatenating two valid TOML files does not (generally) result in a valid
+        // TOML file, so we use create a new file every time instead.
+        let mut config_file_number = self.config_file_number.borrow_mut();
+        *config_file_number += 1;
+        let config_file_number = *config_file_number;
+        std::fs::write(
+            self.config_dir
+                .join(format!("config{config_file_number:04}.toml")),
+            content,
+        )
+        .unwrap();
     }
 
     pub fn add_env_var(&mut self, key: &str, val: &str) {
@@ -115,7 +117,7 @@ impl TestEnvironment {
         // Simplified TOML escaping, hoping that there are no '"' or control characters
         // in it
         let escaped_diff_editor_path = diff_editor_path.to_str().unwrap().replace('\\', r"\\");
-        self.write_config(
+        self.add_config(
             format!(
                 r###"
         [ui]
