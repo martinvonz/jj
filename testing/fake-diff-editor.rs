@@ -48,7 +48,7 @@ fn files_recursively(dir: &PathBuf) -> HashSet<String> {
 
 fn main() {
     let args: Args = Args::parse();
-    let edit_script_path = PathBuf::from(std::env::var_os("EDIT_SCRIPT").unwrap());
+    let edit_script_path = PathBuf::from(std::env::var_os("DIFF_EDIT_SCRIPT").unwrap());
     let edit_script = String::from_utf8(std::fs::read(&edit_script_path).unwrap()).unwrap();
     for instruction in edit_script.split('\0') {
         let (command, payload) = instruction.split_once('\n').unwrap_or((instruction, ""));
