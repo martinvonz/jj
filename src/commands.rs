@@ -1001,6 +1001,7 @@ struct CheckoutArgs {
 /// Stop tracking specified paths in the working copy
 #[derive(clap::Args, Clone, Debug)]
 struct UntrackArgs {
+    #[clap(required = true, min_values = 1)]
     paths: Vec<String>,
 }
 
