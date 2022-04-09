@@ -1001,6 +1001,7 @@ struct CheckoutArgs {
 /// Stop tracking specified paths in the working copy
 #[derive(clap::Args, Clone, Debug)]
 struct UntrackArgs {
+    /// Paths to untrack
     #[clap(required = true, min_values = 1)]
     paths: Vec<String>,
 }
@@ -1011,6 +1012,7 @@ struct FilesArgs {
     /// The revision to list files in
     #[clap(long, short, default_value = "@")]
     revision: String,
+    /// Only list files matching these prefixes (instead of all files)
     paths: Vec<String>,
 }
 
@@ -1020,6 +1022,7 @@ struct PrintArgs {
     /// The revision to get the file contents from
     #[clap(long, short, default_value = "@")]
     revision: String,
+    /// The file to print
     path: String,
 }
 
@@ -1285,6 +1288,7 @@ struct RestoreArgs {
     /// Interactively choose which parts to restore
     #[clap(long, short)]
     interactive: bool,
+    /// Restore only these paths (instead of all paths)
     #[clap(conflicts_with = "interactive")]
     paths: Vec<String>,
 }
@@ -1491,6 +1495,7 @@ struct WorkspaceAddArgs {
 /// before or after running this command.
 #[derive(clap::Args, Clone, Debug)]
 struct WorkspaceForgetArgs {
+    /// Name of the workspace to forget (the current workspace by default)
     workspace: Option<String>,
 }
 
@@ -1661,11 +1666,29 @@ enum DebugCommands {
 /// Print a command-line-completion script
 #[derive(clap::Args, Clone, Debug)]
 struct DebugCompletionArgs {
-    #[clap(long)]
+    /// Print a completion script for Bash
+    ///
+    /// Apply it by running this:
+    ///
+    /// source <(jj debug completion)
+    #[clap(long, verbatim_doc_comment)]
     bash: bool,
-    #[clap(long)]
+    /// Print a completion script for Fish
+    ///
+    /// Apply it by running this:
+    ///
+    /// autoload -U compinit
+    /// compinit
+    /// source <(jj debug completion --zsh | sed '$d')  # remove the last line
+    /// compdef _jj jj
+    #[clap(long, verbatim_doc_comment)]
     fish: bool,
-    #[clap(long)]
+    /// Print a completion script for Zsh
+    ///
+    /// Apply it by running this:
+    ///
+    /// jj debug completion --fish | source
+    #[clap(long, verbatim_doc_comment)]
     zsh: bool,
 }
 
