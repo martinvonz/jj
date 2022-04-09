@@ -1366,6 +1366,8 @@ struct SplitArgs {
     /// The revision to split
     #[clap(long, short, default_value = "@")]
     revision: String,
+    /// Put these paths in the first commit and don't run the diff editor
+    paths: Vec<String>,
 }
 
 /// Merge work from multiple branches
@@ -3497,7 +3499,14 @@ any changes, then the operation will be aborted.
 ",
         short_commit_description(&commit)
     );
-    let tree_id = workspace_command.edit_diff(&base_tree, &commit.tree(), &instructions)?;
+    let tree_id = workspace_command.select_diff(
+        ui,
+        &base_tree,
+        &commit.tree(),
+        &instructions,
+        args.paths.is_empty(),
+        &args.paths,
+    )?;
     if &tree_id == commit.tree().id() {
         ui.write("Nothing changed.\n")?;
     } else {
