@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj untrack` now requires at least one path (allowing no arguments was a UX
   bug).
 
+* You now get a proper error message instead of a crash when `$EDITOR` doesn't
+  exist or exits with an error.
+
 ## [0.4.0] - 2022-04-02
 
 ### Breaking changes

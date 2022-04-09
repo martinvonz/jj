@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::TestEnvironment;
+use crate::common::{get_stderr_string, TestEnvironment};
 
 pub mod common;
 
@@ -42,8 +42,26 @@ fn test_describe() {
 ");
 
     // Lines in editor starting with "JJ: " are ignored
-    std::fs::write(&edit_script, "write\nJJ: ignored\ndescription among comment\nJJ: ignored").unwrap();
+    std::fs::write(
+        &edit_script,
+        "write\nJJ: ignored\ndescription among comment\nJJ: ignored",
+    )
+    .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @"Working copy now at: 95664f6316ae description among comment
 ");
+
+    // Fails if the editor fails
+    std::fs::write(&edit_script, "fail").unwrap();
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["describe"]);
+    assert!(stderr.contains("exited with an error"));
+
+    // Fails if the editor doesn't exist
+    std::fs::write(&edit_script, "").unwrap();
+    let assert = test_env
+        .jj_cmd(&repo_path, &["describe"])
+        .env("EDITOR", "this-editor-does-not-exist")
+        .assert()
+        .failure();
+    assert!(get_stderr_string(&assert).contains("Failed to run"));
 }
