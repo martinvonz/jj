@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mode). For example, use `jj move --to @-- foo` to move the changes to file
   (or directory) `foo` in the working copy to the grandparent commit.
 
+* The `$JJ_CONFIG` environment variable can now point to a directory. If it
+  does, all files in the directory will be read, in alphabetical order.
+
 ### Fixed bugs
 
 * Errors are now printed to stderr (they used to be printed to stdout).
