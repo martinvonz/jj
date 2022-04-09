@@ -988,9 +988,9 @@ struct InitArgs {
 
 /// Update the working copy to another revision
 ///
-///  If the revision is closed or has conflicts, then a new, open
-/// revision will be created on top, and that will be checked out.
-/// For more information, see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
+/// If the revision is closed or has conflicts, then a new, open revision will
+/// be created on top, and that will be checked out. For more information, see
+/// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
 #[clap(alias = "co")]
 struct CheckoutArgs {
@@ -1141,7 +1141,8 @@ struct DescribeArgs {
 
 /// Mark a revision closed
 ///
-/// For information about open/closed revisions, see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
+/// For information about open/closed revisions, see
+/// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
 #[clap(alias = "commit")]
 struct CloseArgs {
@@ -1158,7 +1159,8 @@ struct CloseArgs {
 
 /// Mark a revision open
 ///
-/// For information about open/closed revisions, see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
+/// For information about open/closed revisions,
+/// see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
 #[clap(alias = "uncommit")]
 struct OpenArgs {
@@ -1168,7 +1170,8 @@ struct OpenArgs {
 
 /// Create a new change with the same content as an existing one
 ///
-/// For information about open/closed revisions, see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
+/// For information about open/closed revisions, see
+/// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
 struct DuplicateArgs {
     /// The revision to duplicate
@@ -1190,11 +1193,11 @@ struct AbandonArgs {
 
 /// Create a new, empty change
 ///
-/// This may be useful if you want to make some changes
-/// you're unsure of on top of the working copy. If the changes turned out to
-/// useful, you can `jj squash` them into the previous working copy. If they
-/// turned out to be unsuccessful, you can `jj abandon` them and `jj co @-` the
-/// previous working copy.
+/// This may be useful if you want to make some changes you're unsure of on top
+/// of the working copy. If the changes turned out to useful, you can `jj
+/// squash` them into the previous working copy. If they turned out to be
+/// unsuccessful, you can `jj abandon` them and `jj co @-` the previous working
+/// copy.
 #[derive(clap::Args, Clone, Debug)]
 struct NewArgs {
     /// Parent of the new change
@@ -1210,12 +1213,11 @@ struct NewArgs {
 
 /// Move changes from one revision into another
 ///
-/// Use `--interactive` to move only
-/// part of the source revision into the destination. The selected changes (or
-/// all the changes in the source revision if not using `--interactive`) will be
-/// moved into the destination. The changes will be removed from the source. If
-/// that means that the source is now empty compared to its parent, it will be
-/// abandoned.
+/// Use `--interactive` to move only part of the source revision into the
+/// destination. The selected changes (or all the changes in the source revision
+/// if not using `--interactive`) will be moved into the destination. The
+/// changes will be removed from the source. If that means that the source is
+/// now empty compared to its parent, it will be abandoned.
 #[derive(clap::Args, Clone, Debug)]
 struct MoveArgs {
     /// Move part of this change into the destination
@@ -1343,9 +1345,9 @@ struct MergeArgs {
 /// A          A
 ///
 /// With `-r`, rebases only the specified revision onto the destination. Any
-/// "hole" left behind will              be filled by rebasing descendants onto
-/// the specified revision's parent(s). For              example, `jj rebase -r
-/// B -d D` would transform your history like this:
+/// "hole" left behind will be filled by rebasing descendants onto the specified
+/// revision's parent(s). For example, `jj rebase -r B -d D` would transform
+/// your history like this:
 ///
 /// D          B'
 /// |          |
@@ -1355,6 +1357,7 @@ struct MergeArgs {
 /// |/         |/
 /// A          A
 #[derive(clap::Args, Clone, Debug)]
+#[clap(verbatim_doc_comment)]
 #[clap(group(ArgGroup::new("to_rebase").args(&["revision", "source"])))]
 struct RebaseArgs {
     /// Rebase only this revision, rebasing descendants onto this revision's
@@ -1384,7 +1387,8 @@ struct BackoutArgs {
 
 /// Create, update, or delete a branch
 ///
-/// For information about branches, see https://github.com/martinvonz/jj/blob/main/docs/branches.md.
+/// For information about branches, see
+/// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
 #[derive(clap::Args, Clone, Debug)]
 struct BranchArgs {
     /// The branch's target revision
@@ -1409,7 +1413,8 @@ struct BranchArgs {
 /// A remote branch will be included only if its target is different from the
 /// local target. For a conflicted branch (both local and remote), old target
 /// revisions are preceded by a "-" and new target revisions are preceded by a
-/// "+". For information about branches, see https://github.com/martinvonz/jj/blob/main/docs/branches.md.
+/// "+". For information about branches, see
+/// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
 #[derive(clap::Args, Clone, Debug)]
 struct BranchesArgs {}
 
@@ -1493,7 +1498,8 @@ struct WorkspaceListArgs {}
 
 /// Commands for working with the underlying Git repo
 ///
-/// For a comparison with Git, including a table of commands, see https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.
+/// For a comparison with Git, including a table of commands, see
+/// https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.
 #[derive(clap::Args, Clone, Debug)]
 struct GitArgs {
     #[clap(subcommand)]
