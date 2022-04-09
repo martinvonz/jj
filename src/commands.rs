@@ -4652,6 +4652,6 @@ mod tests {
 
     #[test]
     fn verify_app() {
-        Args::command();
+        Args::command().debug_assert();
     }
 }
