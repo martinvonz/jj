@@ -1292,6 +1292,9 @@ struct SquashArgs {
     /// Interactively choose which parts to squash
     #[clap(long, short)]
     interactive: bool,
+    /// Move only changes to these paths (instead of all paths)
+    #[clap(conflicts_with = "interactive")]
+    paths: Vec<String>,
 }
 
 /// Move changes from a revision's parent into the revision
@@ -3245,10 +3248,8 @@ fn cmd_squash(ui: &mut Ui, command: &CommandHelper, args: &SquashArgs) -> Result
     let mut tx =
         workspace_command.start_transaction(&format!("squash commit {}", commit.id().hex()));
     let mut_repo = tx.mut_repo();
-    let new_parent_tree_id;
-    if args.interactive {
-        let instructions = format!(
-            "\
+    let instructions = format!(
+        "\
 You are moving changes from: {}
 into its parent: {}
 
@@ -3260,16 +3261,19 @@ Adjust the right side until the diff shows the changes you want to move
 to the destination. If you don't make any changes, then all the changes
 from the source will be moved into the parent.
 ",
-            short_commit_description(&commit),
-            short_commit_description(parent)
-        );
-        new_parent_tree_id =
-            workspace_command.edit_diff(&parent.tree(), &commit.tree(), &instructions)?;
-        if &new_parent_tree_id == parent.tree().id() {
-            return Err(CommandError::UserError(String::from("No changes selected")));
-        }
-    } else {
-        new_parent_tree_id = commit.tree().id().clone();
+        short_commit_description(&commit),
+        short_commit_description(parent)
+    );
+    let new_parent_tree_id = workspace_command.select_diff(
+        ui,
+        &parent.tree(),
+        &commit.tree(),
+        &instructions,
+        args.interactive,
+        &args.paths,
+    )?;
+    if &new_parent_tree_id == parent.tree().id() {
+        return Err(CommandError::UserError(String::from("No changes selected")));
     }
     // Abandon the child if the parent now has all the content from the child
     // (always the case in the non-interactive case).

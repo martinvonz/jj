@@ -11,10 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The new `jj print` command prints the contents of a file in a revision.
 
-* `jj move` now lets you limit the set of changes to move by specifying paths
-  on the command line (in addition to the `--interactive` mode). For example,
-  use `jj move --to @-- foo` to move the changes to file (or directory) `foo` in
-  the working copy to the grandparent commit.
+* `jj move` and `jj squash` now lets you limit the set of changes to move by
+  specifying paths on the command line (in addition to the `--interactive`
+  mode). For example, use `jj move --to @-- foo` to move the changes to file
+  (or directory) `foo` in the working copy to the grandparent commit.
 
 ### Fixed bugs
 
