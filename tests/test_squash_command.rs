@@ -122,7 +122,7 @@ fn test_squash() {
 }
 
 #[test]
-fn test_squash_interactive() {
+fn test_squash_partial() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -148,7 +148,8 @@ fn test_squash_interactive() {
     o 000000000000 
     "###);
 
-    // Everything is moved into the parent if no change is made
+    // If we don't make any changes in the diff-editor, the whole change is moved
+    // into the parent
     let edit_script = test_env.set_up_fake_diff_editor();
     std::fs::write(&edit_script, "").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b", "-i"]);
@@ -166,7 +167,7 @@ fn test_squash_interactive() {
     insta::assert_snapshot!(stdout, @"b
 ");
 
-    // Can squash only some changes
+    // Can squash only some changes in interactive mode
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     std::fs::write(&edit_script, "reset file1").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b", "-i"]);
@@ -179,6 +180,35 @@ fn test_squash_interactive() {
     @ e7a40106bee6 c
     o 05d951646873 b
     o 0c5ddc685260 a
+    o 000000000000 
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "a"]);
+    insta::assert_snapshot!(stdout, @"a
+");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "a"]);
+    insta::assert_snapshot!(stdout, @"b
+");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
+    insta::assert_snapshot!(stdout, @"b
+");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "b"]);
+    insta::assert_snapshot!(stdout, @"b
+");
+
+    // Can squash only some changes in non-interactive mode
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    // Clear the script so we know it won't be used even without -i
+    std::fs::write(&edit_script, "").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b", "file2"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 1 descendant commits
+    Working copy now at: a911fa1d0627 
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ a911fa1d0627 c
+    o fb73ad17899f b
+    o 70621f4c7a42 a
     o 000000000000 
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "a"]);
