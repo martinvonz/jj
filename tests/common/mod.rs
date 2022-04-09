@@ -109,6 +109,19 @@ impl TestEnvironment {
         self.env_vars.insert(key.to_string(), val.to_string());
     }
 
+    /// Sets up the fake editor to read an edit script from the returned path
+    pub fn set_up_fake_editor(&mut self) -> PathBuf {
+        let editor_path = assert_cmd::cargo::cargo_bin("fake-editor");
+        assert!(editor_path.is_file());
+        // Simplified TOML escaping, hoping that there are no '"' or control characters
+        // in it
+        let escaped_editor_path = editor_path.to_str().unwrap().replace('\\', r"\\");
+        self.add_env_var("EDITOR", &escaped_editor_path);
+        let edit_script = self.env_root().join("edit_script");
+        self.add_env_var("EDIT_SCRIPT", edit_script.to_str().unwrap());
+        edit_script
+    }
+
     /// Sets up the fake diff-editor to read an edit script from the returned
     /// path
     pub fn set_up_fake_diff_editor(&mut self) -> PathBuf {
@@ -127,8 +140,8 @@ impl TestEnvironment {
             )
             .as_bytes(),
         );
-        let edit_script = self.env_root().join("edit_script");
-        self.add_env_var("EDIT_SCRIPT", edit_script.to_str().unwrap());
+        let edit_script = self.env_root().join("diff_edit_script");
+        self.add_env_var("DIFF_EDIT_SCRIPT", edit_script.to_str().unwrap());
         edit_script
     }
 }

@@ -17,6 +17,10 @@ name = "jj"
 path = "src/main.rs"
 
 [[bin]]
+name = "fake-editor"
+path = "testing/fake-editor.rs"
+
+[[bin]]
 name = "fake-diff-editor"
 path = "testing/fake-diff-editor.rs"
 
