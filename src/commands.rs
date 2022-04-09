@@ -2951,7 +2951,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
     Ok(())
 }
 
-fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
+fn edit_description(repo: &ReadonlyRepo, description: &str) -> Result<String, CommandError> {
     let random: u32 = rand::random();
     let description_file_path = repo.repo_path().join(format!("description-{}", random));
     {
@@ -2975,8 +2975,12 @@ fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
         .args(editor_args)
         .arg(&description_file_path)
         .status()
-        .expect("failed to run editor");
-    assert!(exit_status.success(), "failed to run editor");
+        .map_err(|_| CommandError::UserError(format!("Failed to run editor '{editor}'")))?;
+    if !exit_status.success() {
+        return Err(CommandError::UserError(format!(
+            "Editor '{editor}' exited with an error"
+        )));
+    }
 
     let mut description_file = OpenOptions::new()
         .read(true)
@@ -2996,7 +3000,7 @@ fn edit_description(repo: &ReadonlyRepo, description: &str) -> String {
     while matches!(lines.last(), Some(&"\n") | Some(&"\r\n")) {
         lines.pop().unwrap();
     }
-    lines.join("")
+    Ok(lines.join(""))
 }
 
 fn cmd_describe(
@@ -3016,7 +3020,7 @@ fn cmd_describe(
     } else if let Some(message) = &args.message {
         description = message.to_owned()
     } else {
-        description = edit_description(repo, commit.description());
+        description = edit_description(repo, commit.description())?;
     }
     if description == *commit.description() {
         ui.write("Nothing changed.\n")?;
@@ -3054,9 +3058,9 @@ fn cmd_close(ui: &mut Ui, command: &CommandHelper, args: &CloseArgs) -> Result<(
     let description = if let Some(message) = &args.message {
         message.to_string()
     } else if commit.description().is_empty() {
-        edit_description(repo, "\n\nJJ: Enter commit description.\n")
+        edit_description(repo, "\n\nJJ: Enter commit description.\n")?
     } else if args.edit {
-        edit_description(repo, commit.description())
+        edit_description(repo, commit.description())?
     } else {
         commit.description().to_string()
     };
@@ -3496,7 +3500,7 @@ any changes, then the operation will be aborted.
             repo,
             &("JJ: Enter commit description for the first part.\n".to_string()
                 + commit.description()),
-        );
+        )?;
         let first_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_tree(tree_id)
             .set_description(first_description)
@@ -3505,7 +3509,7 @@ any changes, then the operation will be aborted.
             repo,
             &("JJ: Enter commit description for the second part.\n".to_string()
                 + commit.description()),
-        );
+        )?;
         let second_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_parents(vec![first_commit.id().clone()])
             .set_tree(commit.tree().id().clone())
@@ -3566,7 +3570,7 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &MergeArgs) -> Result<(
         edit_description(
             repo,
             "\n\nJJ: Enter commit description for the merge commit.\n",
-        )
+        )?
     };
     let merged_tree = merge_commit_trees(repo.as_repo_ref(), &commits);
     let mut tx = workspace_command.start_transaction("merge commits");
