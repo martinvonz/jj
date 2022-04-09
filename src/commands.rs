@@ -653,6 +653,46 @@ impl WorkspaceCommandHelper {
         )
     }
 
+    fn select_diff(
+        &self,
+        ui: &Ui,
+        left_tree: &Tree,
+        right_tree: &Tree,
+        instructions: &str,
+        interactive: bool,
+        paths: &[String],
+    ) -> Result<TreeId, CommandError> {
+        if interactive {
+            Ok(crate::diff_edit::edit_diff(
+                &self.settings,
+                left_tree,
+                right_tree,
+                instructions,
+                self.base_ignores(),
+            )?)
+        } else if paths.is_empty() {
+            // Optimization for a common case
+            Ok(right_tree.id().clone())
+        } else {
+            // TODO: It's probably better to have the caller pass in the matcher, but then
+            // we'll want to be able to check if it matches everything so we do
+            // the optimization above.
+            let matcher = matcher_from_values(ui, self.workspace_root(), paths)?;
+            let mut tree_builder = self.repo().store().tree_builder(left_tree.id().clone());
+            for (repo_path, diff) in left_tree.diff(right_tree, matcher.as_ref()) {
+                match diff.into_options().1 {
+                    Some(value) => {
+                        tree_builder.set(repo_path, value);
+                    }
+                    None => {
+                        tree_builder.remove(repo_path);
+                    }
+                }
+            }
+            Ok(tree_builder.write_tree())
+        }
+    }
+
     fn start_transaction(&self, description: &str) -> Transaction {
         let mut tx = self.repo.start_transaction(description);
         // TODO: Either do better shell-escaping here or store the values in some list
@@ -1233,6 +1273,9 @@ struct MoveArgs {
     /// Interactively choose which parts to move
     #[clap(long, short)]
     interactive: bool,
+    /// Move only changes to these paths (instead of all paths)
+    #[clap(conflicts_with = "interactive")]
+    paths: Vec<String>,
 }
 
 /// Move changes from a revision into its parent
@@ -3125,9 +3168,8 @@ fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(),
     let repo = workspace_command.repo();
     let parent_tree = merge_commit_trees(repo.as_repo_ref(), &source.parents());
     let source_tree = source.tree();
-    let new_parent_tree_id = if args.interactive {
-        let instructions = format!(
-            "\
+    let instructions = format!(
+        "\
 You are moving changes from: {}
 into commit: {}
 
@@ -3139,13 +3181,17 @@ Adjust the right side until the diff shows the changes you want to move
 to the destination. If you don't make any changes, then all the changes
 from the source will be moved into the destination.
 ",
-            short_commit_description(&source),
-            short_commit_description(&destination)
-        );
-        workspace_command.edit_diff(&parent_tree, &source_tree, &instructions)?
-    } else {
-        source_tree.id().clone()
-    };
+        short_commit_description(&source),
+        short_commit_description(&destination)
+    );
+    let new_parent_tree_id = workspace_command.select_diff(
+        ui,
+        &parent_tree,
+        &source_tree,
+        &instructions,
+        args.interactive,
+        &args.paths,
+    )?;
     if &new_parent_tree_id == parent_tree.id() {
         return Err(CommandError::UserError(String::from("No changes to move")));
     }

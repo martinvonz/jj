@@ -145,7 +145,7 @@ fn test_move() {
 }
 
 #[test]
-fn test_move_interactive() {
+fn test_move_partial() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -156,9 +156,6 @@ fn test_move_interactive() {
     // D B
     // |/
     // A
-    //
-    // When moving changes between e.g. C and F, we should not get unrelated changes
-    // from B and D.
     test_env.jj_cmd_success(&repo_path, &["branch", "a"]);
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
     std::fs::write(repo_path.join("file2"), "a\n").unwrap();
@@ -188,7 +185,7 @@ fn test_move_interactive() {
 
     let edit_script = test_env.set_up_fake_diff_editor();
 
-    // If we don't make any changes, the whole change is moved
+    // If we don't make any changes in the diff-editor, the whole change is moved
     std::fs::write(&edit_script, "").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "-i", "--from", "c"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -215,7 +212,7 @@ fn test_move_interactive() {
     insta::assert_snapshot!(stdout, @"d
 ");
 
-    // Can move only part of the change
+    // Can move only part of the change in interactive mode
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     std::fs::write(&edit_script, "reset file2").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "-i", "--from", "c"]);
@@ -240,7 +237,38 @@ fn test_move_interactive() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
     insta::assert_snapshot!(stdout, @"a
 ");
-    // File `file2`, which was not changed in source, is unchanged
+    // File `file3`, which was changed in source's parent, is unchanged
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file3"]);
+    insta::assert_snapshot!(stdout, @"d
+");
+
+    // Can move only part of the change in non-interactive mode
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    // Clear the script so we know it won't be used
+    std::fs::write(&edit_script, "").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "c", "file1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: 17c2e6632cc5 
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ 17c2e6632cc5 d
+    | o 6a3ae047a03e c
+    | o 55171e33db26 b
+    |/  
+    o 3db0a2f5b535 a
+    o 000000000000 
+    "###);
+    // The selected change from the source has been applied
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
+    insta::assert_snapshot!(stdout, @"c
+");
+    // The unselected change from the source has not been applied
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
+    insta::assert_snapshot!(stdout, @"a
+");
+    // File `file3`, which was changed in source's parent, is unchanged
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file3"]);
     insta::assert_snapshot!(stdout, @"d
 ");
