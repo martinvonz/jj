@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Errors are now printed to stderr (they used to be printed to stdout).
 
+* `jj untrack` now requires at least one path (allowing no arguments was a UX
+  bug).
+
 ## [0.4.0] - 2022-04-02
 
 ### Breaking changes
