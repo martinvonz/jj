@@ -3,6 +3,7 @@ name = "jujutsu"
 version = "0.4.0"
 authors = ["Martin von Zweigbergk <martinvonz@google.com>"]
 edition = "2021"
+rust-version = "1.58"
 license = "Apache-2.0"
 description = "Jujutsu (an experimental VCS)"
 homepage = "https://github.com/martinvonz/jj"
