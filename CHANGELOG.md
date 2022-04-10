@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   does, all files in the directory will be read, in alphabetical order.
 
 * You can now override the `$EDITOR` environment variable by setting the
-  `ui.editor` config.
+  `ui.editor` config. There is also a new `$JJ_EDITOR` environment variable,
+  which has even higher priority than the config.
 
 ### Fixed bugs
 

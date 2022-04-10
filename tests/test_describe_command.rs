@@ -77,4 +77,12 @@ fn test_describe() {
         .assert()
         .failure();
     assert!(get_stderr_string(&assert).contains("bad-editor-from-config"));
+
+    // `$JJ_EDITOR` overrides `ui.editor` config
+    let assert = test_env
+        .jj_cmd(&repo_path, &["describe"])
+        .env("JJ_EDITOR", "bad-jj-editor-from-env")
+        .assert()
+        .failure();
+    assert!(get_stderr_string(&assert).contains("bad-jj-editor-from-env"));
 }
