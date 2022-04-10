@@ -2951,7 +2951,11 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
     Ok(())
 }
 
-fn edit_description(repo: &ReadonlyRepo, description: &str) -> Result<String, CommandError> {
+fn edit_description(
+    ui: &Ui,
+    repo: &ReadonlyRepo,
+    description: &str,
+) -> Result<String, CommandError> {
     let random: u32 = rand::random();
     let description_file_path = repo.repo_path().join(format!("description-{}", random));
     {
@@ -2967,7 +2971,11 @@ fn edit_description(repo: &ReadonlyRepo, description: &str) -> Result<String, Co
             .unwrap();
     }
 
-    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "pico".to_string());
+    let editor = ui
+        .settings()
+        .config()
+        .get_string("ui.editor")
+        .unwrap_or_else(|_| "pico".to_string());
     // Handle things like `EDITOR=emacs -nw`
     let args = editor.split(' ').collect_vec();
     let editor_args = if args.len() > 1 { &args[1..] } else { &[] };
@@ -3020,7 +3028,7 @@ fn cmd_describe(
     } else if let Some(message) = &args.message {
         description = message.to_owned()
     } else {
-        description = edit_description(repo, commit.description())?;
+        description = edit_description(ui, repo, commit.description())?;
     }
     if description == *commit.description() {
         ui.write("Nothing changed.\n")?;
@@ -3058,9 +3066,9 @@ fn cmd_close(ui: &mut Ui, command: &CommandHelper, args: &CloseArgs) -> Result<(
     let description = if let Some(message) = &args.message {
         message.to_string()
     } else if commit.description().is_empty() {
-        edit_description(repo, "\n\nJJ: Enter commit description.\n")?
+        edit_description(ui, repo, "\n\nJJ: Enter commit description.\n")?
     } else if args.edit {
-        edit_description(repo, commit.description())?
+        edit_description(ui, repo, commit.description())?
     } else {
         commit.description().to_string()
     };
@@ -3497,6 +3505,7 @@ any changes, then the operation will be aborted.
             workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
         let mut_repo = tx.mut_repo();
         let first_description = edit_description(
+            ui,
             repo,
             &("JJ: Enter commit description for the first part.\n".to_string()
                 + commit.description()),
@@ -3506,6 +3515,7 @@ any changes, then the operation will be aborted.
             .set_description(first_description)
             .write_to_repo(mut_repo);
         let second_description = edit_description(
+            ui,
             repo,
             &("JJ: Enter commit description for the second part.\n".to_string()
                 + commit.description()),
@@ -3568,6 +3578,7 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &MergeArgs) -> Result<(
         message.to_string()
     } else {
         edit_description(
+            ui,
             repo,
             "\n\nJJ: Enter commit description for the merge commit.\n",
         )?
