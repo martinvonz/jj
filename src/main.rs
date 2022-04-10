@@ -52,6 +52,9 @@ fn env_overrides() -> config::Config {
     if let Ok(value) = env::var("JJ_TIMESTAMP") {
         builder = builder.set_override("user.timestamp", value).unwrap();
     }
+    if let Ok(value) = env::var("JJ_EDITOR") {
+        builder = builder.set_override("ui.editor", value).unwrap();
+    }
     builder.build().unwrap()
 }
 
