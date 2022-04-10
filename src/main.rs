@@ -31,6 +31,21 @@ fn config_path() -> Option<PathBuf> {
     }
 }
 
+/// Environment variables that override config values
+fn env_overrides() -> config::Config {
+    let mut builder = config::Config::builder();
+    if let Ok(value) = env::var("JJ_USER") {
+        builder = builder.set_override("user.name", value).unwrap();
+    }
+    if let Ok(value) = env::var("JJ_EMAIL") {
+        builder = builder.set_override("user.email", value).unwrap();
+    }
+    if let Ok(value) = env::var("JJ_TIMESTAMP") {
+        builder = builder.set_override("user.timestamp", value).unwrap();
+    }
+    builder.build().unwrap()
+}
+
 fn read_config() -> Result<UserSettings, config::ConfigError> {
     let mut config_builder = config::Config::builder();
 
@@ -60,21 +75,7 @@ fn read_config() -> Result<UserSettings, config::ConfigError> {
         }
     };
 
-    // TODO: Make the config from environment a separate source instead? Seems
-    // cleaner to separate it like that, especially if the config::Config instance
-    // can keep track of where the config comes from then (it doesn't seem like it
-    // can, however - we don't give a name or anything to the Config object).
-    if let Ok(value) = env::var("JJ_USER") {
-        config_builder = config_builder.set_override("user.name", value)?;
-    }
-    if let Ok(value) = env::var("JJ_EMAIL") {
-        config_builder = config_builder.set_override("user.email", value)?;
-    }
-    if let Ok(value) = env::var("JJ_TIMESTAMP") {
-        config_builder = config_builder.set_override("user.timestamp", value)?;
-    }
-
-    let config = config_builder.build()?;
+    let config = config_builder.add_source(env_overrides()).build()?;
     Ok(UserSettings::from_config(config))
 }
 
