@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `$JJ_CONFIG` environment variable can now point to a directory. If it
   does, all files in the directory will be read, in alphabetical order.
 
+* You can now override the `$EDITOR` environment variable by setting the
+  `ui.editor` config.
+
 ### Fixed bugs
 
 * Errors are now printed to stderr (they used to be printed to stdout).

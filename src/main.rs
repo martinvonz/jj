@@ -31,6 +31,15 @@ fn config_path() -> Option<PathBuf> {
     }
 }
 
+/// Environment variables that should be overridden by config values
+fn env_base() -> config::Config {
+    let mut builder = config::Config::builder();
+    if let Ok(value) = env::var("EDITOR") {
+        builder = builder.set_override("ui.editor", value).unwrap();
+    }
+    builder.build().unwrap()
+}
+
 /// Environment variables that override config values
 fn env_overrides() -> config::Config {
     let mut builder = config::Config::builder();
@@ -47,7 +56,7 @@ fn env_overrides() -> config::Config {
 }
 
 fn read_config() -> Result<UserSettings, config::ConfigError> {
-    let mut config_builder = config::Config::builder();
+    let mut config_builder = config::Config::builder().add_source(env_base());
 
     if let Some(config_path) = config_path() {
         let mut files = vec![];
