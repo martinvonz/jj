@@ -1422,7 +1422,7 @@ struct RebaseArgs {
     #[clap(long, short)]
     source: Option<String>,
     /// The revision to rebase onto
-    #[clap(long, short)]
+    #[clap(long, short, required = true, min_values = 1)]
     destination: Vec<String>,
 }
 
