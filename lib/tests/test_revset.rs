@@ -462,7 +462,7 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
-fn test_evaluate_expression_heads_of(use_git: bool) {
+fn test_evaluate_expression_heads(use_git: bool) {
     let settings = testutils::user_settings();
     let test_repo = testutils::init_repo(&settings, use_git);
     let repo = &test_repo.repo;
@@ -896,7 +896,7 @@ fn test_evaluate_expression_all(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
-fn test_evaluate_expression_heads(use_git: bool) {
+fn test_evaluate_expression_visible_heads(use_git: bool) {
     let settings = testutils::user_settings();
     let test_repo = testutils::init_repo(&settings, use_git);
     let repo = &test_repo.repo;
