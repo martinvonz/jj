@@ -58,6 +58,10 @@ fn test_rebase_invalid() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-s", "a", "-d", "b"]);
     insta::assert_snapshot!(stderr.lines().next().unwrap(), @"error: The argument '--revision <REVISION>' cannot be used with '--source <SOURCE>'");
 
+    // Both -b and -s
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-b", "a", "-s", "a", "-d", "b"]);
+    insta::assert_snapshot!(stderr.lines().next().unwrap(), @"error: The argument '--branch <BRANCH>' cannot be used with '--source <SOURCE>'");
+
     // Rebase onto descendant with -r
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b"]);
     insta::assert_snapshot!(stderr, @"Error: Cannot rebase 247da0ddee3d onto descendant 18db23c14b3c
@@ -67,6 +71,110 @@ fn test_rebase_invalid() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-s", "a", "-d", "b"]);
     insta::assert_snapshot!(stderr, @"Error: Cannot rebase 247da0ddee3d onto descendant 18db23c14b3c
 ");
+}
+
+#[test]
+fn test_rebase_branch() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "a", &[]);
+    create_commit(&test_env, &repo_path, "b", &["a"]);
+    create_commit(&test_env, &repo_path, "c", &["b"]);
+    create_commit(&test_env, &repo_path, "d", &["b"]);
+    create_commit(&test_env, &repo_path, "e", &["a"]);
+    // Test the setup
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ 
+    o e
+    | o d
+    | | o c
+    | |/  
+    | o b
+    |/  
+    o a
+    o 
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b", "c", "-d", "e"]);
+    insta::assert_snapshot!(stdout, @"Rebased 3 commits
+");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
+    insta::assert_snapshot!(stdout, @r###"
+    o d
+    | o c
+    |/  
+    o b
+    | @ 
+    |/  
+    o e
+    o a
+    o 
+    "###);
+}
+
+#[test]
+fn test_rebase_branch_with_merge() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "a", &[]);
+    create_commit(&test_env, &repo_path, "b", &["a"]);
+    create_commit(&test_env, &repo_path, "c", &[]);
+    create_commit(&test_env, &repo_path, "d", &["c"]);
+    create_commit(&test_env, &repo_path, "e", &["a", "d"]);
+    // Test the setup
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ 
+    o   e
+    |\  
+    o | d
+    o | c
+    | | o b
+    | |/  
+    | o a
+    |/  
+    o 
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b", "d", "-d", "b"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 4 commits
+    Working copy now at: f6eecf0d8f36 
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ 
+    o e
+    o d
+    o c
+    o b
+    o a
+    o 
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b", "e", "-d", "b"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 4 commits
+    Working copy now at: a15dfb947f3f 
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ 
+    o e
+    o d
+    o c
+    o b
+    o a
+    o 
+    "###);
 }
 
 #[test]
