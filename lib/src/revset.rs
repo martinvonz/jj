@@ -213,8 +213,9 @@ pub enum RevsetExpression {
         roots: Rc<RevsetExpression>,
         heads: Rc<RevsetExpression>,
     },
-    VisibleHeads,
     Heads(Rc<RevsetExpression>),
+    Roots(Rc<RevsetExpression>),
+    VisibleHeads,
     PublicHeads,
     Branches,
     RemoteBranches,
@@ -296,6 +297,11 @@ impl RevsetExpression {
     /// Commits in `self` that don't have descendants in `self`.
     pub fn heads(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Heads(self.clone()))
+    }
+
+    /// Commits in `self` that don't have ancestors in `self`.
+    pub fn roots(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Roots(self.clone()))
     }
 
     /// Parents of `self`.
@@ -649,6 +655,18 @@ fn parse_function_expression(
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
                     message: "Expected 0 or 1 arguments".to_string(),
+                })
+            }
+        }
+        "roots" => {
+            if arg_count == 1 {
+                let candidates =
+                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
+                Ok(candidates.roots())
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 1 argument".to_string(),
                 })
             }
         }
@@ -1185,6 +1203,22 @@ pub fn evaluate_expression<'repo>(
                 &repo.index().heads(&candidate_ids),
             ))
         }
+        RevsetExpression::Roots(candidates) => {
+            let connected_set = candidates.connected().evaluate(repo, workspace_id)?;
+            let filled: HashSet<_> = connected_set.iter().map(|entry| entry.position()).collect();
+            let mut index_entries = vec![];
+            let candidate_set = candidates.evaluate(repo, workspace_id)?;
+            for candidate in candidate_set.iter() {
+                if !candidate
+                    .parent_positions()
+                    .iter()
+                    .any(|parent| filled.contains(parent))
+                {
+                    index_entries.push(candidate);
+                }
+            }
+            Ok(Box::new(EagerRevset { index_entries }))
+        }
         RevsetExpression::ParentCount {
             candidates,
             parent_count_range,
@@ -1342,6 +1376,10 @@ mod tests {
         assert_eq!(
             checkout_symbol.heads(),
             Rc::new(RevsetExpression::Heads(checkout_symbol.clone()))
+        );
+        assert_eq!(
+            checkout_symbol.roots(),
+            Rc::new(RevsetExpression::Roots(checkout_symbol.clone()))
         );
         assert_eq!(
             checkout_symbol.parents(),
