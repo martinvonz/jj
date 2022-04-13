@@ -1384,21 +1384,42 @@ struct MergeArgs {
     message: Option<String>,
 }
 
-/// Move a revision to a different parent
+/// Move revisions to a different parent
 ///
-/// With `-s`, rebases the specified revision and its descendants onto the
-/// destination. For example, `jj rebase -s B -d D` would transform your history
+/// There are three different ways of specifying which revisions to rebase:
+/// `-b` to rebase a whole branch, `-s` to rebase a revision and its
+/// descendants, and `-r` to rebase a single commit. If none if them is
+/// specified, it defaults to `-r @`.
+///
+/// With `-b`, it rebases the whole branch containing the specified revision.
+/// Unlike `-s` and `-r`, the `-b` mode takes the destination into account
+/// when calculating the set of revisions to rebase. That set includes the
+/// specified revision and all ancestors that are not also ancestors
+/// of the destination. It also includes all descendants of those commits. For
+/// example, `jj rebase -b B -d D` or `jj rebase -b C -d D`  would transform
+/// your history like this:
+///
+/// D          B'
+/// |          |
+/// | C        D
+/// | |   =>   |
+/// | B        | C'
+/// |/         |/
+/// A          A
+///
+/// With `-s`, it rebases the specified revision and its descendants onto the
+/// destination. For example, `jj rebase -s C -d D` would transform your history
 /// like this:
 ///
 /// D          C'
 /// |          |
-/// | C        B'
+/// | C        D
 /// | |   =>   |
-/// | B        D
-/// |/         |
+/// | B        | B
+/// |/         |/
 /// A          A
 ///
-/// With `-r`, rebases only the specified revision onto the destination. Any
+/// With `-r`, it rebases only the specified revision onto the destination. Any
 /// "hole" left behind will be filled by rebasing descendants onto the specified
 /// revision's parent(s). For example, `jj rebase -r B -d D` would transform
 /// your history like this:
@@ -1412,15 +1433,18 @@ struct MergeArgs {
 /// A          A
 #[derive(clap::Args, Clone, Debug)]
 #[clap(verbatim_doc_comment)]
-#[clap(group(ArgGroup::new("to_rebase").args(&["revision", "source"])))]
+#[clap(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revision"])))]
 struct RebaseArgs {
+    /// Rebase the whole branch (relative to destination's ancestors)
+    #[clap(long, short)]
+    branch: Option<String>,
+    /// Rebase this revision and its descendants
+    #[clap(long, short)]
+    source: Option<String>,
     /// Rebase only this revision, rebasing descendants onto this revision's
     /// parent(s)
     #[clap(long, short)]
     revision: Option<String>,
-    /// Rebase this revision and its descendants
-    #[clap(long, short)]
-    source: Option<String>,
     /// The revision to rebase onto
     #[clap(long, short, required = true)]
     destination: Vec<String>,
@@ -3611,14 +3635,54 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
         let destination = workspace_command.resolve_single_rev(ui, revision_str)?;
         new_parents.push(destination);
     }
-    // TODO: Unless we want to allow both --revision and --source, is it better to
-    // replace   --source by --rebase-descendants?
-    if let Some(source_str) = &args.source {
+    if let Some(branch_str) = &args.branch {
+        rebase_branch(ui, &mut workspace_command, &new_parents, branch_str)?;
+    } else if let Some(source_str) = &args.source {
         rebase_descendants(ui, &mut workspace_command, &new_parents, source_str)?;
     } else {
         let rev_str = args.revision.as_deref().unwrap_or("@");
         rebase_revision(ui, &mut workspace_command, &new_parents, rev_str)?;
     }
+    Ok(())
+}
+
+fn rebase_branch(
+    ui: &mut Ui,
+    workspace_command: &mut WorkspaceCommandHelper,
+    new_parents: &[Commit],
+    branch_str: &str,
+) -> Result<(), CommandError> {
+    let branch_commit = workspace_command.resolve_single_rev(ui, branch_str)?;
+    let mut tx = workspace_command
+        .start_transaction(&format!("rebase branch at {}", branch_commit.id().hex()));
+    check_rebase_destinations(workspace_command, new_parents, &branch_commit)?;
+
+    let parent_ids = new_parents
+        .iter()
+        .map(|commit| commit.id().clone())
+        .collect_vec();
+    let roots_expression = RevsetExpression::commits(parent_ids)
+        .range(&RevsetExpression::commit(branch_commit.id().clone()))
+        .roots();
+    let mut num_rebased = 0;
+    let store = workspace_command.repo.store();
+    for root_result in roots_expression
+        .evaluate(
+            workspace_command.repo().as_repo_ref(),
+            Some(&workspace_command.workspace_id()),
+        )
+        .unwrap()
+        .iter()
+        .commits(store)
+    {
+        let root_commit = root_result?;
+        workspace_command.check_rewriteable(&root_commit)?;
+        rebase_commit(ui.settings(), tx.mut_repo(), &root_commit, new_parents);
+        num_rebased += 1;
+    }
+    num_rebased += tx.mut_repo().rebase_descendants(ui.settings());
+    writeln!(ui, "Rebased {} commits", num_rebased)?;
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
