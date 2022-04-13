@@ -1042,7 +1042,7 @@ struct CheckoutArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct UntrackArgs {
     /// Paths to untrack
-    #[clap(required = true, min_values = 1)]
+    #[clap(required = true)]
     paths: Vec<String>,
 }
 
@@ -1422,7 +1422,7 @@ struct RebaseArgs {
     #[clap(long, short)]
     source: Option<String>,
     /// The revision to rebase onto
-    #[clap(long, short, required = true, min_values = 1)]
+    #[clap(long, short, required = true)]
     destination: Vec<String>,
 }
 
