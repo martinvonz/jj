@@ -213,8 +213,8 @@ pub enum RevsetExpression {
         roots: Rc<RevsetExpression>,
         heads: Rc<RevsetExpression>,
     },
-    Heads,
-    HeadsOf(Rc<RevsetExpression>),
+    VisibleHeads,
+    Heads(Rc<RevsetExpression>),
     PublicHeads,
     Branches,
     RemoteBranches,
@@ -250,7 +250,7 @@ impl RevsetExpression {
     }
 
     pub fn all() -> Rc<RevsetExpression> {
-        RevsetExpression::heads().ancestors()
+        RevsetExpression::visible_heads().ancestors()
     }
 
     pub fn symbol(value: String) -> Rc<RevsetExpression> {
@@ -265,8 +265,8 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Commits(commit_ids))
     }
 
-    pub fn heads() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Heads)
+    pub fn visible_heads() -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::VisibleHeads)
     }
 
     pub fn public_heads() -> Rc<RevsetExpression> {
@@ -294,10 +294,8 @@ impl RevsetExpression {
     }
 
     /// Commits in `self` that don't have descendants in `self`.
-    // TODO: Perhaps this should be renamed to just `heads()` and the current
-    // `heads()` should become `visible_heads()` or `current_heads()`.
-    pub fn heads_of(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::HeadsOf(self.clone()))
+    pub fn heads(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Heads(self.clone()))
     }
 
     /// Parents of `self`.
@@ -317,7 +315,7 @@ impl RevsetExpression {
 
     /// Descendants of `self`, including `self`.
     pub fn descendants(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        self.dag_range_to(&RevsetExpression::heads())
+        self.dag_range_to(&RevsetExpression::visible_heads())
     }
 
     /// Commits that are descendants of `self` and ancestors of `heads`, both
@@ -481,7 +479,7 @@ fn parse_range_expression_rule(
                         parse_neighbors_expression_rule(heads_pair.into_inner())?;
                     expression = expression.range(&heads_expression);
                 } else {
-                    expression = expression.range(&RevsetExpression::heads());
+                    expression = expression.range(&RevsetExpression::visible_heads());
                 }
             }
             _ => {
@@ -624,11 +622,11 @@ fn parse_function_expression(
         }
         "heads" => {
             if arg_count == 0 {
-                Ok(RevsetExpression::heads())
+                Ok(RevsetExpression::visible_heads())
             } else if arg_count == 1 {
                 let candidates =
                     parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
-                Ok(candidates.heads_of())
+                Ok(candidates.heads())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -1157,11 +1155,11 @@ pub fn evaluate_expression<'repo>(
                 index_entries: result,
             }))
         }
-        RevsetExpression::Heads => Ok(revset_for_commit_ids(
+        RevsetExpression::VisibleHeads => Ok(revset_for_commit_ids(
             repo,
             &repo.view().heads().iter().cloned().collect_vec(),
         )),
-        RevsetExpression::HeadsOf(candidates) => {
+        RevsetExpression::Heads(candidates) => {
             let candidate_set = candidates.evaluate(repo, workspace_id)?;
             let candidate_ids = candidate_set.iter().commit_ids().collect_vec();
             Ok(revset_for_commit_ids(
@@ -1324,8 +1322,8 @@ mod tests {
             Rc::new(RevsetExpression::Symbol("@".to_string()))
         );
         assert_eq!(
-            checkout_symbol.heads_of(),
-            Rc::new(RevsetExpression::HeadsOf(checkout_symbol.clone()))
+            checkout_symbol.heads(),
+            Rc::new(RevsetExpression::Heads(checkout_symbol.clone()))
         );
         assert_eq!(
             checkout_symbol.parents(),
@@ -1343,7 +1341,7 @@ mod tests {
             foo_symbol.descendants(),
             Rc::new(RevsetExpression::DagRange {
                 roots: foo_symbol.clone(),
-                heads: RevsetExpression::heads(),
+                heads: RevsetExpression::visible_heads(),
             })
         );
         assert_eq!(
@@ -1438,7 +1436,7 @@ mod tests {
         assert_eq!(parse("..@"), Ok(checkout_symbol.ancestors()));
         assert_eq!(
             parse("@.."),
-            Ok(checkout_symbol.range(&RevsetExpression::heads()))
+            Ok(checkout_symbol.range(&RevsetExpression::visible_heads()))
         );
         assert_eq!(parse("foo..bar"), Ok(foo_symbol.range(&bar_symbol)));
         // Parse the "intersection" operator
@@ -1461,7 +1459,7 @@ mod tests {
             Ok(RevsetExpression::symbol("arg2".to_string())
                 .with_description("arg1".to_string())
                 .minus(&RevsetExpression::symbol("arg1".to_string()).parents())
-                .minus(&RevsetExpression::heads()))
+                .minus(&RevsetExpression::visible_heads()))
         );
     }
 
