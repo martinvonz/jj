@@ -524,6 +524,68 @@ fn test_evaluate_expression_heads(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
+fn test_evaluate_expression_roots(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
+
+    let root_commit = repo.store().root_commit();
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+
+    // Roots of an empty set is an empty set
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "roots(none())"),
+        vec![]
+    );
+
+    // Roots of the root is the root
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "roots(root)"),
+        vec![root_commit.id().clone()]
+    );
+
+    // Roots of a single commit is that commit
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("roots({})", commit2.id().hex())
+        ),
+        vec![commit2.id().clone()]
+    );
+
+    // Roots of a parent and a child is the parent
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("roots({} | {})", commit2.id().hex(), commit3.id().hex())
+        ),
+        vec![commit2.id().clone()]
+    );
+
+    // Roots of a grandparent and a grandchild is the grandparent (unlike
+    // Mercurial's roots() revset, which would include both)
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("roots({} | {})", commit1.id().hex(), commit3.id().hex())
+        ),
+        vec![commit1.id().clone()]
+    );
+
+    // Roots of all commits is the root commit
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "roots(all())"),
+        vec![root_commit.id().clone()]
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_evaluate_expression_parents(use_git: bool) {
     let settings = testutils::user_settings();
     let test_repo = testutils::init_repo(&settings, use_git);

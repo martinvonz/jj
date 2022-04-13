@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The new revset function `connected(x)` is the same as `x:x`.
 
+* The new revset function `roots(x)` finds commits in the set that are not
+  descendants of other commits in the set.
+
 ### Fixed bugs
 
 * When rebasing a conflict where one side modified a file and the other side
