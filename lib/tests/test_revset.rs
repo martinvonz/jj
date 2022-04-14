@@ -765,7 +765,7 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
             mut_repo.as_repo_ref(),
             &format!("{}:{}", root_commit_id.hex(), commit2.id().hex())
         ),
-        vec![commit2.id().clone(), commit1.id().clone(), root_commit_id,]
+        vec![commit2.id().clone(), commit1.id().clone(), root_commit_id]
     );
 
     // Empty range
@@ -792,11 +792,91 @@ fn test_evaluate_expression_dag_range(use_git: bool) {
         ]
     );
 
-    // Including a merge, but only ancestors only from one side
+    // Including a merge, but ancestors only from one side
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
             &format!("{}:{}", commit2.id().hex(), commit5.id().hex())
+        ),
+        vec![
+            commit5.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+        ]
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_evaluate_expression_connected(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
+
+    let root_commit_id = repo.store().root_commit_id().clone();
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit3 = graph_builder.commit_with_parents(&[&commit2]);
+    let commit4 = graph_builder.commit_with_parents(&[&commit1]);
+    let commit5 = graph_builder.commit_with_parents(&[&commit3, &commit4]);
+
+    // Connecting an empty set yields an empty set
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "connected(none())"),
+        vec![]
+    );
+
+    // Can connect just the root commit
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), "connected(root)"),
+        vec![root_commit_id.clone()]
+    );
+
+    // Can connect linearly
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!(
+                "connected({} | {})",
+                root_commit_id.hex(),
+                commit2.id().hex()
+            )
+        ),
+        vec![commit2.id().clone(), commit1.id().clone(), root_commit_id]
+    );
+
+    // Siblings don't get connected
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("connected({} | {})", commit2.id().hex(), commit4.id().hex())
+        ),
+        vec![commit4.id().clone(), commit2.id().clone()]
+    );
+
+    // Including a merge
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("connected({} | {})", commit1.id().hex(), commit5.id().hex())
+        ),
+        vec![
+            commit5.id().clone(),
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+        ]
+    );
+
+    // Including a merge, but ancestors only from one side
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("connected({} | {})", commit2.id().hex(), commit5.id().hex())
         ),
         vec![
             commit5.id().clone(),
