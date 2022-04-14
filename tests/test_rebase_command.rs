@@ -159,7 +159,7 @@ fn test_rebase_branch_with_merge() {
     "###);
 
     test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b", "e", "-d", "b"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-d", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 4 commits
     Working copy now at: a15dfb947f3f 

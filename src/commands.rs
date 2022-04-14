@@ -1389,7 +1389,7 @@ struct MergeArgs {
 /// There are three different ways of specifying which revisions to rebase:
 /// `-b` to rebase a whole branch, `-s` to rebase a revision and its
 /// descendants, and `-r` to rebase a single commit. If none if them is
-/// specified, it defaults to `-r @`.
+/// specified, it defaults to `-b @`.
 ///
 /// With `-b`, it rebases the whole branch containing the specified revision.
 /// Unlike `-s` and `-r`, the `-b` mode takes the destination into account
@@ -3635,13 +3635,13 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
         let destination = workspace_command.resolve_single_rev(ui, revision_str)?;
         new_parents.push(destination);
     }
-    if let Some(branch_str) = &args.branch {
-        rebase_branch(ui, &mut workspace_command, &new_parents, branch_str)?;
+    if let Some(rev_str) = &args.revision {
+        rebase_revision(ui, &mut workspace_command, &new_parents, rev_str)?;
     } else if let Some(source_str) = &args.source {
         rebase_descendants(ui, &mut workspace_command, &new_parents, source_str)?;
     } else {
-        let rev_str = args.revision.as_deref().unwrap_or("@");
-        rebase_revision(ui, &mut workspace_command, &new_parents, rev_str)?;
+        let branch_str = args.branch.as_deref().unwrap_or("@");
+        rebase_branch(ui, &mut workspace_command, &new_parents, branch_str)?;
     }
     Ok(())
 }
