@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj rebase` now accepts a `--branch/-b <revision>` argument, which can be used
   instead of `-r` or `-s` to specify which commits to rebase. It will rebase the
-  whole branch, relative to the destination.
+  whole branch, relative to the destination. The default mode has changed from
+  `-r @` to `-b @`.
 
 * The new `jj print` command prints the contents of a file in a revision.
 

@@ -52,7 +52,7 @@ fn test_print() {
     // Can print a conflict
     test_env.jj_cmd_success(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["rebase", "-d", "@--"]);
+    test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "@", "-d", "@--"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     <<<<<<<

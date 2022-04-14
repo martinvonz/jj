@@ -54,7 +54,7 @@ fn test_git_push() {
     std::fs::write(workspace_root.join("file"), "second").unwrap();
     test_env.jj_cmd_success(&workspace_root, &["close", "-m", "second"]);
     std::fs::write(workspace_root.join("file"), "third").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["rebase", "-d", "@--"]);
+    test_env.jj_cmd_success(&workspace_root, &["rebase", "-r", "@", "-d", "@--"]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "my-branch"]);
     test_env.jj_cmd_success(&workspace_root, &["close", "-m", "third"]);
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
