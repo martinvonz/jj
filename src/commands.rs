@@ -3613,78 +3613,100 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
     }
     // TODO: Unless we want to allow both --revision and --source, is it better to
     // replace   --source by --rebase-descendants?
-    let old_commit;
-    let rebase_descendants;
     if let Some(source_str) = &args.source {
-        rebase_descendants = true;
-        old_commit = workspace_command.resolve_single_rev(ui, source_str)?;
+        rebase_descendants(ui, &mut workspace_command, &new_parents, source_str)?;
     } else {
-        rebase_descendants = false;
-        old_commit =
-            workspace_command.resolve_single_rev(ui, args.revision.as_deref().unwrap_or("@"))?;
+        let rev_str = args.revision.as_deref().unwrap_or("@");
+        rebase_revision(ui, &mut workspace_command, &new_parents, rev_str)?;
     }
+    Ok(())
+}
+
+fn rebase_descendants(
+    ui: &mut Ui,
+    workspace_command: &mut WorkspaceCommandHelper,
+    new_parents: &[Commit],
+    source_str: &str,
+) -> Result<(), CommandError> {
+    let old_commit = workspace_command.resolve_single_rev(ui, source_str)?;
     workspace_command.check_rewriteable(&old_commit)?;
-    for parent in &new_parents {
+    check_rebase_destinations(workspace_command, new_parents, &old_commit)?;
+    let mut tx = workspace_command.start_transaction(&format!(
+        "rebase commit {} and descendants",
+        old_commit.id().hex()
+    ));
+    rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, new_parents);
+    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings()) + 1;
+    writeln!(ui, "Rebased {} commits", num_rebased)?;
+    workspace_command.finish_transaction(ui, tx)?;
+    Ok(())
+}
+
+fn rebase_revision(
+    ui: &mut Ui,
+    workspace_command: &mut WorkspaceCommandHelper,
+    new_parents: &[Commit],
+    rev_str: &str,
+) -> Result<(), CommandError> {
+    let old_commit = workspace_command.resolve_single_rev(ui, rev_str)?;
+    workspace_command.check_rewriteable(&old_commit)?;
+    check_rebase_destinations(workspace_command, new_parents, &old_commit)?;
+    let mut tx =
+        workspace_command.start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
+    rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, new_parents);
+    // Manually rebase children because we don't want to rebase them onto the
+    // rewritten commit. (But we still want to record the commit as rewritten so
+    // branches and the working copy get updated to the rewritten commit.)
+    let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
+    let mut num_rebased_descendants = 0;
+    let store = workspace_command.repo.store();
+    for child_commit in children_expression
+        .evaluate(
+            workspace_command.repo().as_repo_ref(),
+            Some(&workspace_command.workspace_id()),
+        )
+        .unwrap()
+        .iter()
+        .commits(store)
+    {
+        rebase_commit(
+            ui.settings(),
+            tx.mut_repo(),
+            &child_commit?,
+            &old_commit.parents(),
+        );
+        num_rebased_descendants += 1;
+    }
+    num_rebased_descendants += tx.mut_repo().rebase_descendants(ui.settings());
+    if num_rebased_descendants > 0 {
+        writeln!(
+            ui,
+            "Also rebased {} descendant commits onto parent of rebased commit",
+            num_rebased_descendants
+        )?;
+    }
+    workspace_command.finish_transaction(ui, tx)?;
+    Ok(())
+}
+
+fn check_rebase_destinations(
+    workspace_command: &WorkspaceCommandHelper,
+    new_parents: &[Commit],
+    commit: &Commit,
+) -> Result<(), CommandError> {
+    for parent in new_parents {
         if workspace_command
             .repo
             .index()
-            .is_ancestor(old_commit.id(), parent.id())
+            .is_ancestor(commit.id(), parent.id())
         {
             return Err(CommandError::UserError(format!(
                 "Cannot rebase {} onto descendant {}",
-                short_commit_hash(old_commit.id()),
+                short_commit_hash(commit.id()),
                 short_commit_hash(parent.id())
             )));
         }
     }
-
-    if rebase_descendants {
-        let mut tx = workspace_command.start_transaction(&format!(
-            "rebase commit {} and descendants",
-            old_commit.id().hex()
-        ));
-        rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &new_parents);
-        let num_rebased = tx.mut_repo().rebase_descendants(ui.settings()) + 1;
-        writeln!(ui, "Rebased {} commits", num_rebased)?;
-        workspace_command.finish_transaction(ui, tx)?;
-    } else {
-        let mut tx = workspace_command
-            .start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
-        rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, &new_parents);
-        // Manually rebase children because we don't want to rebase them onto the
-        // rewritten commit. (But we still want to record the commit as rewritten so
-        // branches and the working copy get updated to the rewritten commit.)
-        let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
-        let mut num_rebased_descendants = 0;
-        let store = workspace_command.repo.store();
-        for child_commit in children_expression
-            .evaluate(
-                workspace_command.repo().as_repo_ref(),
-                Some(&workspace_command.workspace_id()),
-            )
-            .unwrap()
-            .iter()
-            .commits(store)
-        {
-            rebase_commit(
-                ui.settings(),
-                tx.mut_repo(),
-                &child_commit?,
-                &old_commit.parents(),
-            );
-            num_rebased_descendants += 1;
-        }
-        num_rebased_descendants += tx.mut_repo().rebase_descendants(ui.settings());
-        if num_rebased_descendants > 0 {
-            writeln!(
-                ui,
-                "Also rebased {} descendant commits onto parent of rebased commit",
-                num_rebased_descendants
-            )?;
-        }
-        workspace_command.finish_transaction(ui, tx)?;
-    }
-
     Ok(())
 }
 
