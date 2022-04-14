@@ -330,6 +330,12 @@ impl RevsetExpression {
         })
     }
 
+    /// Connects any ancestors and descendants in the set by adding the commits
+    /// between them.
+    pub fn connected(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+        self.dag_range_to(self)
+    }
+
     /// Commits reachable from `heads` but not from `self`.
     pub fn range(
         self: &Rc<RevsetExpression>,
@@ -593,6 +599,18 @@ fn parse_function_expression(
                 let expression =
                     parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
                 Ok(expression.descendants())
+            } else {
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 1 argument".to_string(),
+                })
+            }
+        }
+        "connected" => {
+            if arg_count == 1 {
+                let candidates =
+                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
+                Ok(candidates.connected())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -1349,6 +1367,13 @@ mod tests {
             Rc::new(RevsetExpression::DagRange {
                 roots: foo_symbol.clone(),
                 heads: checkout_symbol.clone(),
+            })
+        );
+        assert_eq!(
+            foo_symbol.connected(),
+            Rc::new(RevsetExpression::DagRange {
+                roots: foo_symbol.clone(),
+                heads: foo_symbol.clone(),
             })
         );
         assert_eq!(

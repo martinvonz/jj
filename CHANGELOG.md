@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ui.editor` config. There is also a new `$JJ_EDITOR` environment variable,
   which has even higher priority than the config.
 
+* The new revset function `connected(x)` is the same as `x:x`.
+
 ### Fixed bugs
 
 * When rebasing a conflict where one side modified a file and the other side
