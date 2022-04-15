@@ -592,23 +592,23 @@ impl TreeState {
                     self.file_states.insert(path.clone(), file_state);
                     stats.added_files += 1;
                 }
+                Diff::Modified(
+                    TreeValue::Normal {
+                        id: old_id,
+                        executable: old_executable,
+                    },
+                    TreeValue::Normal { id, executable },
+                ) if id == old_id => {
+                    // Optimization for when only the executable bit changed
+                    assert_ne!(executable, old_executable);
+                    self.set_executable(&disk_path, executable);
+                    let file_state = self.file_states.get_mut(&path).unwrap();
+                    file_state.mark_executable(executable);
+                    stats.updated_files += 1;
+                }
                 Diff::Modified(before, after) => {
                     fs::remove_file(&disk_path).ok();
                     let file_state = match (before, after) {
-                        (
-                            TreeValue::Normal {
-                                id: old_id,
-                                executable: old_executable,
-                            },
-                            TreeValue::Normal { id, executable },
-                        ) if id == old_id => {
-                            // Optimization for when only the executable bit changed
-                            assert_ne!(executable, old_executable);
-                            self.set_executable(&disk_path, executable);
-                            let mut file_state = self.file_states.get(&path).unwrap().clone();
-                            file_state.mark_executable(executable);
-                            file_state
-                        }
                         (_, TreeValue::Normal { id, executable }) => {
                             self.write_file(&disk_path, &path, &id, executable)
                         }
