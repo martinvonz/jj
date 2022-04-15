@@ -44,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Errors are now printed to stderr (they used to be printed to stdout).
 
+* Updating the working copy to a commit where a file's executable bit changed
+  but the contents was the same used to lead to a crash. That has now been
+  fixed. 
+
 * `jj untrack` now requires at least one path (allowing no arguments was a UX
   bug).
 

@@ -66,6 +66,8 @@ fn test_checkout_file_transitions(use_git: bool) {
         Missing,
         Normal,
         Executable,
+        // Executable, but same content as Normal, to test transition where only the bit changed
+        ExecutableNormalContent,
         Conflict,
         #[cfg_attr(windows, allow(dead_code))]
         Symlink,
@@ -94,6 +96,13 @@ fn test_checkout_file_transitions(use_git: bool) {
             }
             Kind::Executable => {
                 let id = testutils::write_file(store, path, "executable file contents");
+                TreeValue::Normal {
+                    id,
+                    executable: true,
+                }
+            }
+            Kind::ExecutableNormalContent => {
+                let id = testutils::write_file(store, path, "normal file contents");
                 TreeValue::Normal {
                     id,
                     executable: true,
@@ -162,6 +171,7 @@ fn test_checkout_file_transitions(use_git: bool) {
         Kind::Missing,
         Kind::Normal,
         Kind::Executable,
+        Kind::ExecutableNormalContent,
         Kind::Conflict,
         Kind::Tree,
     ];
@@ -217,7 +227,7 @@ fn test_checkout_file_transitions(use_git: bool) {
                     path
                 );
             }
-            Kind::Executable => {
+            Kind::Executable | Kind::ExecutableNormalContent => {
                 assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
                 let metadata = maybe_metadata.unwrap();
                 assert!(metadata.is_file(), "{:?} should be a file", path);
