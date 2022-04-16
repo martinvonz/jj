@@ -42,7 +42,7 @@ use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::git::{GitExportError, GitFetchError, GitImportError, GitRefUpdate};
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::index::HexPrefix;
-use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
+use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jujutsu_lib::op_heads_store::{OpHeadResolutionError, OpHeads, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
@@ -673,12 +673,11 @@ impl WorkspaceCommandHelper {
 
     fn select_diff(
         &self,
-        ui: &Ui,
         left_tree: &Tree,
         right_tree: &Tree,
         instructions: &str,
         interactive: bool,
-        paths: &[String],
+        matcher: &dyn Matcher,
     ) -> Result<TreeId, CommandError> {
         if interactive {
             Ok(crate::diff_edit::edit_diff(
@@ -688,16 +687,12 @@ impl WorkspaceCommandHelper {
                 instructions,
                 self.base_ignores(),
             )?)
-        } else if paths.is_empty() {
+        } else if matcher.visit(&RepoPath::root()) == Visit::AllRecursively {
             // Optimization for a common case
             Ok(right_tree.id().clone())
         } else {
-            // TODO: It's probably better to have the caller pass in the matcher, but then
-            // we'll want to be able to check if it matches everything so we do
-            // the optimization above.
-            let matcher = matcher_from_values(ui, self.workspace_root(), paths)?;
             let mut tree_builder = self.repo().store().tree_builder(left_tree.id().clone());
-            for (repo_path, diff) in left_tree.diff(right_tree, matcher.as_ref()) {
+            for (repo_path, diff) in left_tree.diff(right_tree, matcher) {
                 match diff.into_options().1 {
                     Some(value) => {
                         tree_builder.set(repo_path, value);
@@ -3290,13 +3285,13 @@ from the source will be moved into the destination.
         short_commit_description(&source),
         short_commit_description(&destination)
     );
+    let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
     let new_parent_tree_id = workspace_command.select_diff(
-        ui,
         &parent_tree,
         &source_tree,
         &instructions,
         args.interactive,
-        &args.paths,
+        matcher.as_ref(),
     )?;
     if &new_parent_tree_id == parent_tree.id() {
         return Err(CommandError::UserError(String::from("No changes to move")));
@@ -3367,13 +3362,13 @@ from the source will be moved into the parent.
         short_commit_description(&commit),
         short_commit_description(parent)
     );
+    let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
     let new_parent_tree_id = workspace_command.select_diff(
-        ui,
         &parent.tree(),
         &commit.tree(),
         &instructions,
         args.interactive,
-        &args.paths,
+        matcher.as_ref(),
     )?;
     if &new_parent_tree_id == parent.tree_id() {
         return Err(CommandError::UserError(String::from("No changes selected")));
@@ -3594,13 +3589,13 @@ any changes, then the operation will be aborted.
 ",
         short_commit_description(&commit)
     );
+    let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
     let tree_id = workspace_command.select_diff(
-        ui,
         &base_tree,
         &commit.tree(),
         &instructions,
         args.paths.is_empty(),
-        &args.paths,
+        matcher.as_ref(),
     )?;
     if &tree_id == commit.tree_id() {
         ui.write("Nothing changed.\n")?;
