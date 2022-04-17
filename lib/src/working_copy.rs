@@ -327,6 +327,7 @@ impl TreeState {
     // Look for changes to the working copy. If there are any changes, create
     // a new tree from it and return it, and also update the dirstate on disk.
     pub fn write_tree(&mut self, base_ignores: Arc<GitIgnoreFile>) -> TreeId {
+        let sparse_matcher = self.sparse_matcher();
         let mut work = vec![(
             RepoPath::root(),
             self.working_copy_path.clone(),
@@ -336,6 +337,9 @@ impl TreeState {
         let mut deleted_files: HashSet<_> = self.file_states.keys().cloned().collect();
         while !work.is_empty() {
             let (dir, disk_dir, git_ignore) = work.pop().unwrap();
+            if sparse_matcher.visit(&dir).is_nothing() {
+                continue;
+            }
             let git_ignore = git_ignore
                 .chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"));
             for maybe_entry in disk_dir.read_dir().unwrap() {
@@ -367,12 +371,14 @@ impl TreeState {
                     work.push((sub_path, entry.path(), git_ignore.clone()));
                 } else {
                     deleted_files.remove(&sub_path);
-                    self.update_file_state(
-                        sub_path,
-                        entry.path(),
-                        git_ignore.as_ref(),
-                        &mut tree_builder,
-                    );
+                    if sparse_matcher.matches(&sub_path) {
+                        self.update_file_state(
+                            sub_path,
+                            entry.path(),
+                            git_ignore.as_ref(),
+                            &mut tree_builder,
+                        );
+                    }
                 }
             }
         }
