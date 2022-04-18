@@ -48,6 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   but the contents was the same used to lead to a crash. That has now been
   fixed. 
 
+* If one side of a merge modified a directory and the other side deleted it, it
+  used to be considered a conflict. The same was true if both sides added a
+  directory with different files in. They are now merged as if the missing
+  directory had been empty.
+
 * `jj untrack` now requires at least one path (allowing no arguments was a UX
   bug).
 

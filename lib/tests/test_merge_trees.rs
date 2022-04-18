@@ -299,6 +299,52 @@ fn test_subtree_becomes_empty(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
+fn test_subtree_one_missing(use_git: bool) {
+    // Tests that merging trees where one side is missing is resolved as if the
+    // missing side was empty.
+    let settings = testutils::user_settings();
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
+    let store = repo.store();
+
+    let write_tree = |paths: Vec<&str>| -> Tree {
+        let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
+        for path in paths {
+            testutils::write_normal_file(
+                &mut tree_builder,
+                &RepoPath::from_internal_string(path),
+                &format!("contents of {:?}", path),
+            );
+        }
+        let tree_id = tree_builder.write_tree();
+        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
+    };
+
+    let tree1 = write_tree(vec![]);
+    let tree2 = write_tree(vec!["d1/f1"]);
+    let tree3 = write_tree(vec!["d1/f1", "d1/f2"]);
+
+    // The two sides add different trees
+    let merged_tree_id = tree::merge_trees(&tree2, &tree1, &tree3).unwrap();
+    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
+    let expected_entries = write_tree(vec!["d1/f1", "d1/f2"]).entries().collect_vec();
+    assert_eq!(merged_tree.entries().collect_vec(), expected_entries);
+    // Same tree other way
+    let merged_tree_id = tree::merge_trees(&tree3, &tree1, &tree2).unwrap();
+    assert_eq!(merged_tree_id, *merged_tree.id());
+
+    // One side removes, the other side modifies
+    let merged_tree_id = tree::merge_trees(&tree1, &tree2, &tree3).unwrap();
+    let merged_tree = store.get_tree(&RepoPath::root(), &merged_tree_id).unwrap();
+    let expected_entries = write_tree(vec!["d1/f2"]).entries().collect_vec();
+    assert_eq!(merged_tree.entries().collect_vec(), expected_entries);
+    // Same tree other way
+    let merged_tree_id = tree::merge_trees(&tree3, &tree2, &tree1).unwrap();
+    assert_eq!(merged_tree_id, *merged_tree.id());
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
 fn test_types(use_git: bool) {
     // Tests conflicts between different types. This is mostly to test that the
     // conflicts survive the roundtrip to the store.
