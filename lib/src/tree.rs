@@ -552,6 +552,19 @@ pub fn merge_trees(
     store.write_tree(dir, &new_tree)
 }
 
+/// Returns `Some(TreeId)` if this is a directory or missing. If it's missing,
+/// we treat it as an empty tree.
+fn maybe_tree_id<'id>(
+    value: Option<&'id TreeValue>,
+    empty_tree_id: &'id TreeId,
+) -> Option<&'id TreeId> {
+    match value {
+        Some(TreeValue::Tree(id)) => Some(id),
+        None => Some(empty_tree_id),
+        _ => None,
+    }
+}
+
 fn merge_tree_value(
     store: &Arc<Store>,
     dir: &RepoPath,
@@ -566,19 +579,18 @@ fn merge_tree_value(
     //   * leave other conflicts (e.g. file/dir conflicts, remove/modify conflicts)
     //     unresolved
 
-    Ok(match (maybe_base, maybe_side1, maybe_side2) {
-        (
-            Some(TreeValue::Tree(base)),
-            Some(TreeValue::Tree(side1)),
-            Some(TreeValue::Tree(side2)),
-        ) => {
+    let empty_tree_id = store.empty_tree_id();
+    let base_tree_id = maybe_tree_id(maybe_base, empty_tree_id);
+    let side1_tree_id = maybe_tree_id(maybe_side1, empty_tree_id);
+    let side2_tree_id = maybe_tree_id(maybe_side2, empty_tree_id);
+    Ok(match (base_tree_id, side1_tree_id, side2_tree_id) {
+        (Some(base_id), Some(side1_id), Some(side2_id)) => {
             let subdir = dir.join(basename);
-            let merged_tree_id = merge_trees(
-                &store.get_tree(&subdir, side1).unwrap(),
-                &store.get_tree(&subdir, base).unwrap(),
-                &store.get_tree(&subdir, side2).unwrap(),
-            )?;
-            if &merged_tree_id == store.empty_tree_id() {
+            let base_tree = store.get_tree(&subdir, base_id)?;
+            let side1_tree = store.get_tree(&subdir, side1_id)?;
+            let side2_tree = store.get_tree(&subdir, side2_id)?;
+            let merged_tree_id = merge_trees(&side1_tree, &base_tree, &side2_tree)?;
+            if merged_tree_id == *empty_tree_id {
                 None
             } else {
                 Some(TreeValue::Tree(merged_tree_id))
