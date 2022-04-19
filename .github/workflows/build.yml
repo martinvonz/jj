@@ -10,17 +10,31 @@ permissions: read-all
 
 jobs:
   build:
-    runs-on: ${{ matrix.operating-system }}
     strategy:
+      fail-fast: false
       matrix:
-        operating-system: [ ubuntu-latest, windows-latest, macos-latest ]
+        build: [linux, linux-msrv, macos, win]
+        include:
+        - build: linux
+          os: ubuntu-latest
+          rust_version: stable
+        - build: linux-msrv
+          os: ubuntu-latest
+          rust_version: 1.58
+        - build: macos
+          os: macos-latest
+          rust_version: stable
+        - build: win
+          os: windows-latest
+          rust_version: stable
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@dcd71f646680f2efd8db4afa5ad64fdcba30e748
-    - name: Install Rust (stable)
+    - name: Install Rust (${{ matrix.rust_version }})
       uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
       with:
-        toolchain: stable
+        toolchain:  ${{ matrix.rust_version }}
         override: true
         profile: minimal
     - name: Build
