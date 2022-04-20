@@ -117,8 +117,7 @@ fn test_init_git_colocated() {
     let workspace_root = test_env.env_root().join("repo");
     init_git_repo(&workspace_root);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
-    // TODO: We should say "." instead of "" here
-    insta::assert_snapshot!(stdout, @r###"Initialized repo in ""
+    insta::assert_snapshot!(stdout, @r###"Initialized repo in "."
 "###);
 
     let jj_path = workspace_root.join(".jj");
