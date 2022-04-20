@@ -43,11 +43,11 @@ use jujutsu_lib::git::{GitExportError, GitFetchError, GitImportError, GitRefUpda
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::index::HexPrefix;
 use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
-use jujutsu_lib::op_heads_store::OpHeadsStore;
+use jujutsu_lib::op_heads_store::{OpHeadResolutionError, OpHeads, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction};
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoAtHead, RepoRef};
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
@@ -98,6 +98,16 @@ impl From<BackendError> for CommandError {
 impl From<WorkspaceInitError> for CommandError {
     fn from(_: WorkspaceInitError) -> Self {
         CommandError::UserError("The target repo already exists".to_string())
+    }
+}
+
+impl From<OpHeadResolutionError> for CommandError {
+    fn from(err: OpHeadResolutionError) -> Self {
+        match err {
+            OpHeadResolutionError::NoHeads => {
+                CommandError::InternalError("Corrupt repository: the are no operations".to_string())
+            }
+        }
     }
 }
 
@@ -211,19 +221,25 @@ jj init --git-repo=.";
         let repo_loader = workspace.repo_loader();
         let op_str = &self.args.at_operation;
         let repo = if op_str == "@" {
-            match repo_loader.load_at_head() {
-                RepoAtHead::Single(repo) => repo,
-                RepoAtHead::Unresolved(unresolved) => {
+            let op_heads = repo_loader
+                .op_heads_store()
+                .get_heads(repo_loader.op_store())?;
+            match op_heads {
+                OpHeads::Single(op) => repo_loader.load_at(&op),
+                OpHeads::Unresolved {
+                    locked_op_heads,
+                    op_heads,
+                } => {
                     writeln!(
                         ui,
                         "Concurrent modification detected, resolving automatically.",
                     )?;
-                    let base_repo = repo_loader.load_at(&unresolved.op_heads[0]);
+                    let base_repo = repo_loader.load_at(&op_heads[0]);
                     // TODO: It may be helpful to print each operation we're merging here
                     let mut workspace_command = self.for_loaded_repo(ui, workspace, base_repo)?;
                     let mut tx =
                         workspace_command.start_transaction("resolve concurrent operations");
-                    for other_op_head in unresolved.op_heads.into_iter().skip(1) {
+                    for other_op_head in op_heads.into_iter().skip(1) {
                         tx.merge_operation(other_op_head);
                         let num_rebased = tx.mut_repo().rebase_descendants(ui.settings());
                         if num_rebased > 0 {
@@ -236,7 +252,7 @@ jj init --git-repo=.";
                         }
                     }
                     let merged_repo = tx.write().leave_unpublished();
-                    unresolved.locked_op_heads.finish(merged_repo.operation());
+                    locked_op_heads.finish(merged_repo.operation());
                     workspace_command.repo = merged_repo;
                     return Ok(workspace_command);
                 }
