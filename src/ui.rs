@@ -190,13 +190,19 @@ pub fn relative_path(mut from: &Path, to: &Path) -> PathBuf {
     let mut result = PathBuf::from("");
     loop {
         if let Ok(suffix) = to.strip_prefix(from) {
-            return result.join(suffix);
+            result = result.join(suffix);
+            break;
         }
         if let Some(parent) = from.parent() {
             result = result.join("..");
             from = parent;
         } else {
-            return to.to_owned();
+            result = to.to_path_buf();
+            break;
         }
     }
+    if result.as_os_str().is_empty() {
+        result = PathBuf::from(".");
+    }
+    result
 }

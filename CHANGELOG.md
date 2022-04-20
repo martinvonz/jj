@@ -57,6 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * You now get a proper error message instead of a crash when `$EDITOR` doesn't
   exist or exits with an error.
 
+* Fixed relative path to the current directory in output to be `.` instead of
+  empty string.
+
 ## [0.4.0] - 2022-04-02
 
 ### Breaking changes
