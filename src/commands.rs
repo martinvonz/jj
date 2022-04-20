@@ -543,7 +543,7 @@ impl WorkspaceCommandHelper {
     fn commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         if !self.may_update_working_copy {
             return Err(UserError(
-                "Refusing to update working copy (maybe because you're using --at-op)".to_string(),
+                "Refusing to commit working copy (maybe because you're using --at-op)".to_string(),
             ));
         }
         self.maybe_commit_working_copy(ui)?;
@@ -1988,9 +1988,8 @@ fn cmd_untrack(
     command: &CommandHelper,
     args: &UntrackArgs,
 ) -> Result<(), CommandError> {
-    // TODO: We should probably check that the repo was loaded at head.
     let mut workspace_command = command.workspace_helper(ui)?;
-    workspace_command.maybe_commit_working_copy(ui)?;
+    workspace_command.commit_working_copy(ui)?;
     let store = workspace_command.repo().store().clone();
     let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
 
