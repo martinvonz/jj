@@ -147,7 +147,7 @@ fn create_no_gc_ref() -> String {
     let mut no_gc_ref = NO_GC_REF_NAMESPACE.to_owned();
     let mut uuid_buffer = Uuid::encode_buffer();
     let uuid_str = Uuid::new_v4()
-        .to_hyphenated()
+        .as_hyphenated()
         .encode_lower(&mut uuid_buffer);
     no_gc_ref.push_str(uuid_str);
     no_gc_ref
