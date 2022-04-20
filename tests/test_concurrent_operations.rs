@@ -22,13 +22,10 @@ fn test_concurrent_operation_divergence() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
-    let op_id_hex = stdout[2..14].to_string();
-
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "message 1"]);
     test_env.jj_cmd_success(
         &repo_path,
-        &["describe", "-m", "message 2", "--at-op", &op_id_hex],
+        &["describe", "-m", "message 2", "--at-op", "@-"],
     );
 
     // We should be informed about the concurrent modification
