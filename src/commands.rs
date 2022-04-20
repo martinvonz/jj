@@ -56,7 +56,7 @@ use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::{merge_trees, Tree, TreeDiffIterator};
-use jujutsu_lib::working_copy::{CheckoutStats, ResetError, WorkingCopy};
+use jujutsu_lib::working_copy::{CheckoutStats, LockedWorkingCopy, ResetError, WorkingCopy};
 use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
 use jujutsu_lib::{conflicts, dag_walk, diff, files, git, revset, tree};
 use maplit::{hashmap, hashset};
@@ -397,8 +397,24 @@ impl WorkspaceCommandHelper {
         self.workspace.working_copy()
     }
 
-    fn working_copy_mut(&mut self) -> &mut WorkingCopy {
-        self.workspace.working_copy_mut()
+    fn start_working_copy_mutation(&mut self) -> Result<(LockedWorkingCopy, Commit), CommandError> {
+        let current_checkout_id = self.repo.view().get_checkout(&self.workspace_id());
+        let current_checkout = if let Some(current_checkout_id) = current_checkout_id {
+            self.repo.store().get_commit(current_checkout_id).unwrap()
+        } else {
+            return Err(CommandError::UserError(
+                "Nothing checked out in this workspace".to_string(),
+            ));
+        };
+
+        let locked_working_copy = self.workspace.working_copy_mut().start_mutation();
+        if current_checkout.tree_id() != locked_working_copy.old_tree_id() {
+            return Err(CommandError::UserError(
+                "Concurrent working copy operation. Try again.".to_string(),
+            ));
+        }
+
+        Ok((locked_working_copy, current_checkout))
     }
 
     fn workspace_root(&self) -> &PathBuf {
@@ -1988,26 +2004,10 @@ fn cmd_untrack(
     let store = workspace_command.repo().store().clone();
     let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
 
-    let current_checkout_id = workspace_command
-        .repo
-        .view()
-        .get_checkout(&workspace_command.workspace_id());
-    let current_checkout = if let Some(current_checkout_id) = current_checkout_id {
-        store.get_commit(current_checkout_id).unwrap()
-    } else {
-        return Err(CommandError::UserError(
-            "Nothing checked out in this workspace".to_string(),
-        ));
-    };
-
     let mut tx = workspace_command.start_transaction("untrack paths");
     let base_ignores = workspace_command.base_ignores();
-    let mut locked_working_copy = workspace_command.working_copy_mut().start_mutation();
-    if current_checkout.tree_id() != locked_working_copy.old_tree_id() {
-        return Err(CommandError::UserError(
-            "Concurrent working copy operation. Try again.".to_string(),
-        ));
-    }
+    let (mut locked_working_copy, current_checkout) =
+        workspace_command.start_working_copy_mutation()?;
     // Create a new tree without the unwanted files
     let mut tree_builder = store.tree_builder(current_checkout.tree_id().clone());
     for (path, _value) in current_checkout.tree().entries_matching(matcher.as_ref()) {
