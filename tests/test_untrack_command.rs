@@ -38,6 +38,10 @@ fn test_untrack() {
     std::fs::write(repo_path.join(".gitignore"), "*.bak\n").unwrap();
     let files_before = test_env.jj_cmd_success(&repo_path, &["files"]);
 
+    // Errors out when not run at the head operation
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack", "file1", "--at-op", "@-"]);
+    insta::assert_snapshot!(stderr.replace("jj.exe", "jj"), @"Error: Refusing to commit working copy (maybe because you're using --at-op)
+");
     // Errors out when no path is specified
     let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack"]);
     insta::assert_snapshot!(stderr.replace("jj.exe", "jj"), @r###"
