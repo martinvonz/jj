@@ -219,51 +219,42 @@ jj init --git-repo=.";
             }
         };
         let repo_loader = workspace.repo_loader();
-        let op_str = &self.args.at_operation;
-        let repo = if op_str == "@" {
-            let op_heads = repo_loader
-                .op_heads_store()
-                .get_heads(repo_loader.op_store())?;
-            match op_heads {
-                OpHeads::Single(op) => repo_loader.load_at(&op),
-                OpHeads::Unresolved {
-                    locked_op_heads,
-                    op_heads,
-                } => {
-                    writeln!(
-                        ui,
-                        "Concurrent modification detected, resolving automatically.",
-                    )?;
-                    let base_repo = repo_loader.load_at(&op_heads[0]);
-                    // TODO: It may be helpful to print each operation we're merging here
-                    let mut workspace_command = self.for_loaded_repo(ui, workspace, base_repo)?;
-                    let mut tx =
-                        workspace_command.start_transaction("resolve concurrent operations");
-                    for other_op_head in op_heads.into_iter().skip(1) {
-                        tx.merge_operation(other_op_head);
-                        let num_rebased = tx.mut_repo().rebase_descendants(ui.settings());
-                        if num_rebased > 0 {
-                            writeln!(
-                                ui,
-                                "Rebased {} descendant commits onto commits rewritten by other \
-                                 operation",
-                                num_rebased
-                            )?;
-                        }
+        let op_heads = resolve_op_for_load(
+            repo_loader.op_store(),
+            repo_loader.op_heads_store(),
+            &self.args.at_operation,
+        )?;
+        let repo = match op_heads {
+            OpHeads::Single(op) => repo_loader.load_at(&op),
+            OpHeads::Unresolved {
+                locked_op_heads,
+                op_heads,
+            } => {
+                writeln!(
+                    ui,
+                    "Concurrent modification detected, resolving automatically.",
+                )?;
+                let base_repo = repo_loader.load_at(&op_heads[0]);
+                // TODO: It may be helpful to print each operation we're merging here
+                let mut workspace_command = self.for_loaded_repo(ui, workspace, base_repo)?;
+                let mut tx = workspace_command.start_transaction("resolve concurrent operations");
+                for other_op_head in op_heads.into_iter().skip(1) {
+                    tx.merge_operation(other_op_head);
+                    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings());
+                    if num_rebased > 0 {
+                        writeln!(
+                            ui,
+                            "Rebased {} descendant commits onto commits rewritten by other \
+                             operation",
+                            num_rebased
+                        )?;
                     }
-                    let merged_repo = tx.write().leave_unpublished();
-                    locked_op_heads.finish(merged_repo.operation());
-                    workspace_command.repo = merged_repo;
-                    return Ok(workspace_command);
                 }
+                let merged_repo = tx.write().leave_unpublished();
+                locked_op_heads.finish(merged_repo.operation());
+                workspace_command.repo = merged_repo;
+                return Ok(workspace_command);
             }
-        } else {
-            let op = resolve_single_op_from_store(
-                repo_loader.op_store(),
-                repo_loader.op_heads_store(),
-                op_str,
-            )?;
-            repo_loader.load_at(&op)
         };
         self.for_loaded_repo(ui, workspace, repo)
     }
@@ -792,6 +783,19 @@ fn expand_git_path(path_str: String) -> PathBuf {
         }
     }
     PathBuf::from(path_str)
+}
+
+fn resolve_op_for_load(
+    op_store: &Arc<dyn OpStore>,
+    op_heads_store: &Arc<OpHeadsStore>,
+    op_str: &str,
+) -> Result<OpHeads, CommandError> {
+    if op_str == "@" {
+        Ok(op_heads_store.get_heads(op_store)?)
+    } else {
+        let operation = resolve_single_op_from_store(op_store, op_heads_store, op_str)?;
+        Ok(OpHeads::Single(operation))
+    }
 }
 
 fn resolve_single_op(repo: &ReadonlyRepo, op_str: &str) -> Result<Operation, CommandError> {
