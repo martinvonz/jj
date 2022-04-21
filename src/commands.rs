@@ -444,6 +444,17 @@ impl WorkspaceCommandHelper {
         git_ignores
     }
 
+    fn resolve_single_op(&self, op_str: &str) -> Result<Operation, CommandError> {
+        // When resolving the "@" operation in a `ReadonlyRepo`, we resolve it to the
+        // operation the repo was loaded at.
+        resolve_single_op(
+            self.repo.op_store(),
+            self.repo.op_heads_store(),
+            self.repo.operation(),
+            op_str,
+        )
+    }
+
     fn resolve_single_rev(
         &mut self,
         ui: &mut Ui,
@@ -798,13 +809,16 @@ fn resolve_op_for_load(
     }
 }
 
-fn resolve_single_op(repo: &ReadonlyRepo, op_str: &str) -> Result<Operation, CommandError> {
+fn resolve_single_op(
+    op_store: &Arc<dyn OpStore>,
+    op_heads_store: &Arc<OpHeadsStore>,
+    current_op: &Operation,
+    op_str: &str,
+) -> Result<Operation, CommandError> {
     if op_str == "@" {
-        // Get it from the repo to make sure that it refers to the operation the repo
-        // was loaded at
-        Ok(repo.operation().clone())
+        Ok(current_op.clone())
     } else {
-        resolve_single_op_from_store(repo.op_store(), repo.op_heads_store(), op_str)
+        resolve_single_op_from_store(op_store, op_heads_store, op_str)
     }
 }
 
@@ -4249,8 +4263,7 @@ fn cmd_op_undo(
     args: &OperationUndoArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
-    let bad_op = resolve_single_op(repo, &args.operation)?;
+    let bad_op = workspace_command.resolve_single_op(&args.operation)?;
     let parent_ops = bad_op.parents();
     if parent_ops.len() > 1 {
         return Err(CommandError::UserError(
@@ -4265,8 +4278,9 @@ fn cmd_op_undo(
 
     let mut tx =
         workspace_command.start_transaction(&format!("undo operation {}", bad_op.id().hex()));
-    let bad_repo = repo.loader().load_at(&bad_op);
-    let parent_repo = repo.loader().load_at(&parent_ops[0]);
+    let repo_loader = workspace_command.repo().loader();
+    let bad_repo = repo_loader.load_at(&bad_op);
+    let parent_repo = repo_loader.load_at(&parent_ops[0]);
     tx.mut_repo().merge(&bad_repo, &parent_repo);
     workspace_command.finish_transaction(ui, tx)?;
 
@@ -4279,8 +4293,7 @@ fn cmd_op_restore(
     args: &OperationRestoreArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
-    let target_op = resolve_single_op(repo, &args.operation)?;
+    let target_op = workspace_command.resolve_single_op(&args.operation)?;
     let mut tx = workspace_command
         .start_transaction(&format!("restore to operation {}", target_op.id().hex()));
     tx.mut_repo().set_view(target_op.view().take_store_view());
