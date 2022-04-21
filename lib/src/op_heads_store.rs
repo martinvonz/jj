@@ -23,7 +23,6 @@ use crate::backend::Timestamp;
 use crate::lock::FileLock;
 use crate::op_store::{OpStore, OperationId, OperationMetadata};
 use crate::operation::Operation;
-use crate::repo::RepoLoader;
 use crate::{dag_walk, op_store};
 
 /// Manages the very set of current heads of the operation log. The store is
@@ -124,15 +123,13 @@ impl OpHeadsStore {
 
     pub fn get_heads(
         self: &Arc<Self>,
-        repo_loader: &RepoLoader,
+        op_store: &Arc<dyn OpStore>,
     ) -> Result<OpHeads, OpHeadResolutionError> {
         let mut op_heads = self.get_op_heads();
 
         if op_heads.is_empty() {
             return Err(OpHeadResolutionError::NoHeads);
         }
-
-        let op_store = repo_loader.op_store();
 
         if op_heads.len() == 1 {
             let operation_id = op_heads.pop().unwrap();

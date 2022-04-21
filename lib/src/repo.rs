@@ -373,7 +373,7 @@ impl RepoLoader {
     }
 
     pub fn load_at_head(&self) -> RepoAtHead {
-        let op_heads = self.op_heads_store.get_heads(self).unwrap();
+        let op_heads = self.op_heads_store.get_heads(&self.op_store).unwrap();
         match op_heads {
             OpHeads::Single(op) => {
                 let view = View::new(op.view().take_store_view());
