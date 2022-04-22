@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -54,9 +56,7 @@ fn test_move() {
     test_env.jj_cmd_success(&repo_path, &["branch", "f"]);
     std::fs::write(repo_path.join("file2"), "f\n").unwrap();
     // Test the setup
-    let template = r#"commit_id.short() " " branches"#;
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 0d7353584003 f
     o e9515f21068c e
     o bdd835cae844 d
@@ -73,8 +73,7 @@ fn test_move() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["move"]);
     insta::assert_snapshot!(stderr, @"Error: Source and destination cannot be the same.
 ");
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 0d7353584003 f
     o e9515f21068c e
     o bdd835cae844 d
@@ -91,8 +90,7 @@ fn test_move() {
     Working copy now at: 1c03e3d3c63f 
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 1c03e3d3c63f f
     o e9515f21068c e
     o bdd835cae844 d
@@ -115,8 +113,7 @@ fn test_move() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "@--"]);
     insta::assert_snapshot!(stdout, @"Working copy now at: c8d83075e8c2 
 ");
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ c8d83075e8c2 f
     o 2c50bfc59c68 e
     | o caa4d0b23201 c
@@ -132,8 +129,7 @@ fn test_move() {
 ");
     // The change has been removed from the source (the change pointed to by 'd' was
     // abandoned)
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ c8d83075e8c2 f
     o 2c50bfc59c68 e
     | o caa4d0b23201 c
@@ -172,9 +168,7 @@ fn test_move_partial() {
     test_env.jj_cmd_success(&repo_path, &["branch", "d"]);
     std::fs::write(repo_path.join("file3"), "d\n").unwrap();
     // Test the setup
-    let template = r#"commit_id.short() " " branches"#;
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ bdd835cae844 d
     | o 5028db694b6b c
     | o 55171e33db26 b
@@ -192,8 +186,7 @@ fn test_move_partial() {
     Working copy now at: 71b69e433fbc 
     Added 0 files, modified 2 files, removed 0 files
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 71b69e433fbc d
     | o 55171e33db26 b c
     |/  
@@ -220,8 +213,7 @@ fn test_move_partial() {
     Working copy now at: 63f1a6e96edb 
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 63f1a6e96edb d
     | o d027c6e3e6bc c
     | o 55171e33db26 b
@@ -251,8 +243,7 @@ fn test_move_partial() {
     Working copy now at: 17c2e6632cc5 
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 17c2e6632cc5 d
     | o 6a3ae047a03e c
     | o 55171e33db26 b
@@ -272,4 +263,8 @@ fn test_move_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file3"]);
     insta::assert_snapshot!(stdout, @"d
 ");
+}
+
+fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
+    test_env.jj_cmd_success(cwd, &["log", "-T", r#"commit_id.short() " " branches"#])
 }
