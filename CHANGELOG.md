@@ -65,6 +65,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed relative path to the current directory in output to be `.` instead of
   empty string.
 
+* When adding a new workspace, the parent of the current workspace's current
+  checkout will be checked out. That was always the intent, but the root commit
+  was accidentally checked out instead.
+
 ## [0.4.0] - 2022-04-02
 
 ### Breaking changes
