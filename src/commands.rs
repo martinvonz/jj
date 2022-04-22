@@ -2707,6 +2707,8 @@ fn cmd_status(
         ui.write("Working copy : ")?;
         ui.write_commit_summary(repo.as_repo_ref(), &workspace_id, checkout_commit)?;
         ui.write("\n")?;
+    } else {
+        ui.write("No working copy\n")?;
     }
 
     let mut conflicted_local_branches = vec![];
@@ -4318,7 +4320,7 @@ fn cmd_workspace_add(
     writeln!(
         ui,
         "Created workspace in \"{}\"",
-        destination_path.display()
+        ui::relative_path(old_workspace_command.workspace_root(), &destination_path).display()
     )?;
 
     let mut new_workspace_command = WorkspaceCommandHelper::for_loaded_repo(
@@ -4335,7 +4337,7 @@ fn cmd_workspace_add(
     let new_checkout_commit = if let Some(old_checkout_id) = new_workspace_command
         .repo()
         .view()
-        .get_checkout(&new_workspace_command.workspace_id())
+        .get_checkout(&old_workspace_command.workspace_id())
     {
         new_workspace_command
             .repo()
