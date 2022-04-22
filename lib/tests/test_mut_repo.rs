@@ -66,7 +66,7 @@ fn test_checkout_closed(use_git: bool) {
     let actual_checkout = tx
         .mut_repo()
         .check_out(ws_id.clone(), &settings, &requested_checkout);
-    assert_eq!(actual_checkout.tree().id(), requested_checkout.tree().id());
+    assert_eq!(actual_checkout.tree_id(), requested_checkout.tree_id());
     assert_eq!(actual_checkout.parents().len(), 1);
     assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
     let repo = tx.commit();

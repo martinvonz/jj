@@ -593,7 +593,7 @@ impl MutableRepo {
                 settings,
                 self.store(),
                 commit.id().clone(),
-                commit.tree().id().clone(),
+                commit.tree_id().clone(),
             )
             .write_to_repo(self)
         } else {

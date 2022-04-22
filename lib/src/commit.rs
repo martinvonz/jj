@@ -131,7 +131,7 @@ impl Commit {
     pub fn is_empty(&self) -> bool {
         let parents = self.parents();
         // TODO: Perhaps the root commit should also be considered empty.
-        parents.len() == 1 && parents[0].tree().id() == self.tree().id()
+        parents.len() == 1 && parents[0].tree_id() == self.tree_id()
     }
 
     pub fn description(&self) -> &str {
