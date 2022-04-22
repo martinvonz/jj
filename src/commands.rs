@@ -3175,7 +3175,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
         ui.settings(),
         repo.store(),
         parent.id().clone(),
-        parent.tree().id().clone(),
+        parent.tree_id().clone(),
     )
     .set_description(args.message.clone());
     let mut tx = workspace_command.start_transaction("new empty commit");
@@ -3310,12 +3310,12 @@ from the source will be moved into the parent.
         args.interactive,
         &args.paths,
     )?;
-    if &new_parent_tree_id == parent.tree().id() {
+    if &new_parent_tree_id == parent.tree_id() {
         return Err(CommandError::UserError(String::from("No changes selected")));
     }
     // Abandon the child if the parent now has all the content from the child
     // (always the case in the non-interactive case).
-    let abandon_child = &new_parent_tree_id == commit.tree().id();
+    let abandon_child = &new_parent_tree_id == commit.tree_id();
     let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), parent)
         .set_tree(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
@@ -3431,7 +3431,7 @@ side. If you don't make any changes, then the operation will be aborted.
             workspace_command.edit_diff(&from_commit.tree(), &to_commit.tree(), &instructions)?;
     } else if !args.paths.is_empty() {
         let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
-        let mut tree_builder = repo.store().tree_builder(to_commit.tree().id().clone());
+        let mut tree_builder = repo.store().tree_builder(to_commit.tree_id().clone());
         for (repo_path, diff) in from_commit.tree().diff(&to_commit.tree(), matcher.as_ref()) {
             match diff.into_options().0 {
                 Some(value) => {
@@ -3444,9 +3444,9 @@ side. If you don't make any changes, then the operation will be aborted.
         }
         tree_id = tree_builder.write_tree();
     } else {
-        tree_id = from_commit.tree().id().clone();
+        tree_id = from_commit.tree_id().clone();
     }
-    if &tree_id == to_commit.tree().id() {
+    if &tree_id == to_commit.tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
         let mut tx = workspace_command
@@ -3484,7 +3484,7 @@ don't make any changes, then the operation will be aborted.",
         short_commit_description(&commit)
     );
     let tree_id = workspace_command.edit_diff(&base_tree, &commit.tree(), &instructions)?;
-    if &tree_id == commit.tree().id() {
+    if &tree_id == commit.tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
         let mut tx =
@@ -3531,7 +3531,7 @@ any changes, then the operation will be aborted.
         args.paths.is_empty(),
         &args.paths,
     )?;
-    if &tree_id == commit.tree().id() {
+    if &tree_id == commit.tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
         let mut tx =
@@ -3555,7 +3555,7 @@ any changes, then the operation will be aborted.
         )?;
         let second_commit = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)
             .set_parents(vec![first_commit.id().clone()])
-            .set_tree(commit.tree().id().clone())
+            .set_tree(commit.tree_id().clone())
             .generate_new_change_id()
             .set_description(second_description)
             .write_to_repo(mut_repo);

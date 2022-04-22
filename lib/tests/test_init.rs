@@ -114,7 +114,7 @@ fn test_init_checkout(use_git: bool) {
     let repo = &test_workspace.repo;
     let checkout_id = repo.view().get_checkout(&WorkspaceId::default()).unwrap();
     let checkout_commit = repo.store().get_commit(checkout_id).unwrap();
-    assert_eq!(checkout_commit.tree().id(), repo.store().empty_tree_id());
+    assert_eq!(checkout_commit.tree_id(), repo.store().empty_tree_id());
     assert_eq!(checkout_commit.store_commit().parents, vec![]);
     assert_eq!(checkout_commit.predecessors(), vec![]);
     assert_eq!(checkout_commit.description(), "");
