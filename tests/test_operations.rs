@@ -48,7 +48,7 @@ fn test_op_log() {
     "###);
 
     // We get a reasonable message if an invalid operation ID is specified
-    insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "foo"]), @r###"Error: No operation ID matching "foo"
+    insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "foo"]), @r###"Error: Operation ID "foo" is not a valid hexadecimal prefix
 "###);
     // Odd length
     insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "123456789"]), @r###"Error: No operation ID matching "123456789"
@@ -57,8 +57,7 @@ fn test_op_log() {
     insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "0123456789"]), @r###"Error: No operation ID matching "0123456789"
 "###);
     // Empty ID
-    // TODO: This is not a reasonable message
-    insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", ""]), @r###"Internal error: Failed to read operation: Other("IO error: Is a directory (os error 21)")
+    insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", ""]), @r###"Error: Operation ID "" is not a valid hexadecimal prefix
 "###);
 }
 
