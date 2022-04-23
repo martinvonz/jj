@@ -251,10 +251,6 @@ fn find_jj_dir(mut workspace_root: &Path) -> Option<PathBuf> {
         if jj_path.is_dir() {
             return Some(jj_path);
         }
-        if let Some(wc_dir_parent) = workspace_root.parent() {
-            workspace_root = wc_dir_parent;
-        } else {
-            return None;
-        }
+        workspace_root = workspace_root.parent()?;
     }
 }
