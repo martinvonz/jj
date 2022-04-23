@@ -286,9 +286,8 @@ fn test_move_partial() {
         test_env.jj_cmd_success(&repo_path, &["move", "--from", "c", "--to", "b", "file1"]);
     insta::assert_snapshot!(stdout, @"Rebased 1 descendant commits
 ");
-    // TODO: The 'c' branch got lost
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o 21253406d416 
+    o 21253406d416 c
     o e1cf08aae711 b
     | @ bdd835cae844 d
     |/  
