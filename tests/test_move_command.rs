@@ -113,6 +113,8 @@ fn test_move() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "@--"]);
     insta::assert_snapshot!(stdout, @"Working copy now at: c8d83075e8c2 
 ");
+    // The change has been removed from the source (the change pointed to by 'd'
+    // became empty and was abandoned)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ c8d83075e8c2 f
     o 2c50bfc59c68 e
@@ -127,17 +129,6 @@ fn test_move() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
     insta::assert_snapshot!(stdout, @"f
 ");
-    // The change has been removed from the source (the change pointed to by 'd' was
-    // abandoned)
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ c8d83075e8c2 f
-    o 2c50bfc59c68 e
-    | o caa4d0b23201 c
-    | o 55171e33db26 b
-    |/  
-    o 3db0a2f5b535 a d
-    o 000000000000 
-    "###);
 }
 
 #[test]
