@@ -812,6 +812,12 @@ fn resolve_single_op_from_store(
     op_heads_store: &Arc<OpHeadsStore>,
     op_str: &str,
 ) -> Result<Operation, CommandError> {
+    if op_str.is_empty() || !op_str.as_bytes().iter().all(|b| b.is_ascii_hexdigit()) {
+        return Err(CommandError::UserError(format!(
+            "Operation ID \"{}\" is not a valid hexadecimal prefix",
+            op_str
+        )));
+    }
     if let Ok(binary_op_id) = hex::decode(op_str) {
         let op_id = OperationId::new(binary_op_id);
         match op_store.read_operation(&op_id) {
