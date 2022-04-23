@@ -899,7 +899,7 @@ fn test_rebase_descendants_basic_branch_update() {
     let test_repo = testutils::init_repo(&settings, false);
     let repo = &test_repo.repo;
 
-    // Branch "main" points to branch B. B gets rewritten as B2. Branch main should
+    // Branch "main" points to commit B. B gets rewritten as B2. Branch main should
     // be updated to point to B2.
     //
     // B main         B2 main
@@ -929,12 +929,55 @@ fn test_rebase_descendants_basic_branch_update() {
 }
 
 #[test]
+fn test_rebase_descendants_branch_move_two_steps() {
+    let settings = testutils::user_settings();
+    let test_repo = testutils::init_repo(&settings, false);
+    let repo = &test_repo.repo;
+
+    // Branch "main" points to branch C. C gets rewritten as C2 and B gets rewritten
+    // as B2. C2 should be rebased onto B2, creating C3, and main should be
+    // updated to point to C3.
+    //
+    // C2 C main      C3 main
+    // | /            |
+    // |/        =>   |
+    // B B2           B2
+    // |/             |
+    // A              A
+    let mut tx = repo.start_transaction("test");
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
+    tx.mut_repo()
+        .set_local_branch("main".to_string(), RefTarget::Normal(commit_c.id().clone()));
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+        .write_to_repo(tx.mut_repo());
+    let commit_c2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_c)
+        .write_to_repo(tx.mut_repo());
+    tx.mut_repo().rebase_descendants(&settings);
+    let heads = tx.mut_repo().view().heads();
+    assert_eq!(heads.len(), 1);
+    let c3_id = heads.iter().next().unwrap().clone();
+    let commit_c3 = repo.store().get_commit(&c3_id).unwrap();
+    assert_ne!(commit_c3.id(), commit_c2.id());
+    assert_eq!(commit_c3.parent_ids(), vec![commit_b2.id().clone()]);
+    assert_eq!(
+        tx.mut_repo().get_local_branch("main"),
+        Some(RefTarget::Normal(commit_c3.id().clone()))
+    );
+}
+
+#[test]
 fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
     let settings = testutils::user_settings();
     let test_repo = testutils::init_repo(&settings, false);
     let repo = &test_repo.repo;
 
-    // Branch "main" points to branch B. B gets rewritten as B2. Branch main should
+    // Branch "main" points to commit B. B gets rewritten as B2. Branch main should
     // be updated to point to B2. Remote branch main@origin and tag v1 should not
     // get updated.
     //
@@ -989,7 +1032,7 @@ fn test_rebase_descendants_update_branch_after_abandon() {
     let test_repo = testutils::init_repo(&settings, false);
     let repo = &test_repo.repo;
 
-    // Branch "main" points to branch B. B is then abandoned. Branch main should
+    // Branch "main" points to commit B. B is then abandoned. Branch main should
     // be updated to point to A.
     //
     // B main

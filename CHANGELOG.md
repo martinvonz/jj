@@ -53,6 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   directory with different files in. They are now merged as if the missing
   directory had been empty.
 
+* When using `jj move` to move part of a commit into an ancestor, any branches
+  pointing to the source commit used to be left on a hidden intermediate commit.
+  They are now correctly updated.
+
 * `jj untrack` now requires at least one path (allowing no arguments was a UX
   bug).
 
