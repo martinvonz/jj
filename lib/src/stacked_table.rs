@@ -37,7 +37,7 @@ use crate::lock::FileLock;
 
 pub trait TableSegment {
     fn segment_num_entries(&self) -> usize;
-    fn segment_parent_file(&self) -> &Option<Arc<ReadonlyTable>>;
+    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyTable>>;
     fn segment_get_value(&self, key: &[u8]) -> Option<&[u8]>;
     fn segment_add_entries_to(&self, mut_table: &mut MutableTable);
 
@@ -130,8 +130,8 @@ impl TableSegment for ReadonlyTable {
         self.num_local_entries
     }
 
-    fn segment_parent_file(&self) -> &Option<Arc<ReadonlyTable>> {
-        &self.parent_file
+    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyTable>> {
+        self.parent_file.as_ref()
     }
 
     fn segment_get_value(&self, key: &[u8]) -> Option<&[u8]> {
@@ -350,8 +350,8 @@ impl TableSegment for MutableTable {
         self.entries.len()
     }
 
-    fn segment_parent_file(&self) -> &Option<Arc<ReadonlyTable>> {
-        &self.parent_file
+    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyTable>> {
+        self.parent_file.as_ref()
     }
 
     fn segment_get_value(&self, key: &[u8]) -> Option<&[u8]> {
