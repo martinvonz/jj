@@ -938,7 +938,8 @@ impl<'repo> Iterator for ChildrenRevsetIterator<'_, 'repo> {
     type Item = IndexEntry<'repo>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(candidate) = self.candidate_iter.next() {
+        loop {
+            let candidate = self.candidate_iter.next()?;
             if candidate
                 .parent_positions()
                 .iter()
@@ -947,7 +948,6 @@ impl<'repo> Iterator for ChildrenRevsetIterator<'_, 'repo> {
                 return Some(candidate);
             }
         }
-        None
     }
 }
 

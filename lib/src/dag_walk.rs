@@ -33,8 +33,8 @@ where
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while !self.work.is_empty() {
-            let c = self.work.pop().unwrap();
+        loop {
+            let c = self.work.pop()?;
             let id = (self.id_fn)(&c);
             if self.visited.contains(&id) {
                 continue;
@@ -45,7 +45,6 @@ where
             self.visited.insert(id);
             return Some(c);
         }
-        None
     }
 }
 
