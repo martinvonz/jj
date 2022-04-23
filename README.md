@@ -177,7 +177,7 @@ You may need to run some or all of these:
 xcode-select --install
 brew install openssl
 brew install pkg-config
-export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
+export PKG_CONFIG_PATH="$(brew --prefix)/opt/openssl@3/lib/pkgconfig"
 ```
 
 Now run:
