@@ -36,9 +36,11 @@ one [^native-backend]). This lets you use Jujutsu as an alternative interface to
 you create will look like regular Git commits. You can always switch back to
 Git. The Git support uses the [libgit2](https://libgit2.org/) C library.
 
-[^native-backend]: There's currently practically no reason to use the native
-backend. It exists to make sure that it's possible to eventually add
-functionality that cannot easily be added the Git backend.
+[^native-backend]: At this time, there's practically no reason to use the native
+backend (the only minor reason might be
+[#27](https://github.com/martinvonz/jj/issues/27)).
+The backend exists mainly to make sure that it's possible to eventually add
+functionality that cannot easily be added to the Git backend.
 
 <a href="https://asciinema.org/a/DRCzktCyEAxH6j788ZDT6aSjS" target="_blank">
   <img src="https://asciinema.org/a/DRCzktCyEAxH6j788ZDT6aSjS.svg" />
