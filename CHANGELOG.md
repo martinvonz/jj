@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The new revset function `roots(x)` finds commits in the set that are not
   descendants of other commits in the set.
 
+* ssh-agent is now detected even if `$SSH_AGENT_PID` is not set (as long as
+  `$SSH_AUTH_SOCK` is set). This should help at least macOS users where
+  ssh-agent is launched by default and only `$SSH_AUTH_SOCK` is set.
+
 ### Fixed bugs
 
 * When rebasing a conflict where one side modified a file and the other side
