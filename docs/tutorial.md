@@ -51,10 +51,9 @@ that in a bit.)
 
 ## Creating our first change
 
-Now let's say we want to edit the `README.md` file in the repo (i.e. what you're
-reading right now) to say that Jujutsu is ready for use. Let's start by
-describing the change (adding a commit message) so we don't forget what we're
-working on:
+Now let's say we want to edit the `README.md` file in the repo to say that Jujutsu
+is ready for use. Let's start by describing the change (adding a commit message)
+so we don't forget what we're working on:
 ```shell script
 # This will bring up $EDITOR (or `pico` by default). Enter something like
 # "Jujutsu is ready!" in the editor and then close it.
