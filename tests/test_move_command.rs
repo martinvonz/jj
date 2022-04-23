@@ -129,6 +129,29 @@ fn test_move() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
     insta::assert_snapshot!(stdout, @"f
 ");
+
+    // Can move from descendant
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "e", "--to", "d"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 1 descendant commits
+    Working copy now at: 2b723b1d6033 
+    "###);
+    // The change has been removed from the source (the change pointed to by 'e'
+    // became empty and was abandoned)
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @ 2b723b1d6033 f
+    o 4293930d6333 d e
+    | o caa4d0b23201 c
+    | o 55171e33db26 b
+    |/  
+    o 3db0a2f5b535 a
+    o 000000000000 
+    "###);
+    // The change from the source has been applied
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "d"]);
+    insta::assert_snapshot!(stdout, @"e
+");
 }
 
 #[test]
@@ -225,7 +248,7 @@ fn test_move_partial() {
     insta::assert_snapshot!(stdout, @"d
 ");
 
-    // Can move only part of the change in non-interactive mode
+    // Can move only part of the change from a sibling in non-interactive mode
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     // Clear the script so we know it won't be used
     std::fs::write(&edit_script, "").unwrap();
@@ -253,6 +276,32 @@ fn test_move_partial() {
     // File `file3`, which was changed in source's parent, is unchanged
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file3"]);
     insta::assert_snapshot!(stdout, @"d
+");
+
+    // Can move only part of the change from a descendant in non-interactive mode
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    // Clear the script so we know it won't be used
+    std::fs::write(&edit_script, "").unwrap();
+    let stdout =
+        test_env.jj_cmd_success(&repo_path, &["move", "--from", "c", "--to", "b", "file1"]);
+    insta::assert_snapshot!(stdout, @"Rebased 1 descendant commits
+");
+    // TODO: The 'c' branch got lost
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o 21253406d416 
+    o e1cf08aae711 b
+    | @ bdd835cae844 d
+    |/  
+    o 3db0a2f5b535 a
+    o 000000000000 
+    "###);
+    // The selected change from the source has been applied
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
+    insta::assert_snapshot!(stdout, @"c
+");
+    // The unselected change from the source has not been applied
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "b"]);
+    insta::assert_snapshot!(stdout, @"a
 ");
 }
 
