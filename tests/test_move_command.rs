@@ -14,6 +14,8 @@
 
 use std::path::Path;
 
+use itertools::Itertools;
+
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -67,22 +69,16 @@ fn test_move() {
     o 000000000000 
     "###);
 
-    // Doesn't do anything without arguments
-    // TODO: We should make this error more helpful (saying that --from and/or --to
-    // are required)
+    // Errors out without arguments
     let stderr = test_env.jj_cmd_failure(&repo_path, &["move"]);
+    insta::assert_snapshot!(stderr.lines().take(2).join("\n"), @r###"
+    error: The following required arguments were not provided:
+        <--from <FROM>|--to <TO>>
+    "###);
+    // Errors out if source and destination are the same
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["move", "--to", "@"]);
     insta::assert_snapshot!(stderr, @"Error: Source and destination cannot be the same.
 ");
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ 0d7353584003 f
-    o e9515f21068c e
-    o bdd835cae844 d
-    | o caa4d0b23201 c
-    | o 55171e33db26 b
-    |/  
-    o 3db0a2f5b535 a
-    o 000000000000 
-    "###);
 
     // Can move from sibling, which results in the source being abandoned
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "c"]);
