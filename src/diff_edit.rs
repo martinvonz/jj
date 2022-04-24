@@ -18,13 +18,14 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
+use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, TreeId};
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
-use jujutsu_lib::tree::{merge_trees, Tree};
+use jujutsu_lib::tree::Tree;
 use jujutsu_lib::working_copy::{CheckoutError, TreeState};
 use tempfile::tempdir;
 use thiserror::Error;
@@ -56,10 +57,12 @@ fn check_out(
     wc_dir: PathBuf,
     state_dir: PathBuf,
     tree: &Tree,
+    sparse_patterns: Vec<RepoPath>,
 ) -> Result<TreeState, DiffEditError> {
     std::fs::create_dir(&wc_dir).unwrap();
     std::fs::create_dir(&state_dir).unwrap();
     let mut tree_state = TreeState::init(store, wc_dir, state_dir);
+    tree_state.set_sparse_patterns(sparse_patterns)?;
     tree_state.check_out(tree)?;
     Ok(tree_state)
 }
@@ -82,26 +85,14 @@ pub fn edit_diff(
     instructions: &str,
     base_ignores: Arc<GitIgnoreFile>,
 ) -> Result<TreeId, DiffEditError> {
-    // First create partial Trees of only the subset of the left and right trees
-    // that affect files changed between them.
     let store = left_tree.store();
-    let mut left_tree_builder = store.tree_builder(store.empty_tree_id().clone());
-    let mut right_tree_builder = store.tree_builder(store.empty_tree_id().clone());
-    for (file_path, diff) in left_tree.diff(right_tree, &EverythingMatcher) {
-        let (left_value, right_value) = diff.as_options();
-        if let Some(value) = left_value {
-            left_tree_builder.set(file_path.clone(), value.clone());
-        }
-        if let Some(value) = right_value {
-            right_tree_builder.set(file_path.clone(), value.clone());
-        }
-    }
-    let left_partial_tree_id = left_tree_builder.write_tree();
-    let right_partial_tree_id = right_tree_builder.write_tree();
-    let left_partial_tree = store.get_tree(&RepoPath::root(), &left_partial_tree_id)?;
-    let right_partial_tree = store.get_tree(&RepoPath::root(), &right_partial_tree_id)?;
+    let changed_files = left_tree
+        .diff(right_tree, &EverythingMatcher)
+        .map(|(path, _value)| path)
+        .collect_vec();
 
-    // Check out the two partial trees in temporary directories.
+    // Check out the two trees in temporary directories. Only include changed files
+    // in the sparse checkout patterns.
     let temp_dir = tempdir().unwrap();
     let left_wc_dir = temp_dir.path().join("left");
     let left_state_dir = temp_dir.path().join("left_state");
@@ -111,14 +102,16 @@ pub fn edit_diff(
         store.clone(),
         left_wc_dir.clone(),
         left_state_dir,
-        &left_partial_tree,
+        left_tree,
+        changed_files.clone(),
     )?;
     set_readonly_recursively(&left_wc_dir);
     let mut right_tree_state = check_out(
         store.clone(),
         right_wc_dir.clone(),
         right_state_dir,
-        &right_partial_tree,
+        right_tree,
+        changed_files,
     )?;
     let instructions_path = right_wc_dir.join("JJ-INSTRUCTIONS");
     // In the unlikely event that the file already exists, then the user will simply
@@ -148,11 +141,5 @@ pub fn edit_diff(
         std::fs::remove_file(instructions_path).ok();
     }
 
-    // Create a Tree based on the initial right tree, applying the changes made to
-    // that directory by the diff editor.
-    let new_right_partial_tree_id = right_tree_state.write_tree(base_ignores);
-    let new_right_partial_tree = store.get_tree(&RepoPath::root(), &new_right_partial_tree_id)?;
-    let new_tree_id = merge_trees(right_tree, &right_partial_tree, &new_right_partial_tree)?;
-
-    Ok(new_tree_id)
+    Ok(right_tree_state.write_tree(base_ignores))
 }
