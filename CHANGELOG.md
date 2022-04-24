@@ -63,6 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj rebase` now requires at least one destination (allowing no arguments was a
   UX bug).
 
+* `jj restore --to <rev>` now restores from the working copy (it used to restore
+  from the working copy's parent).
+
 * You now get a proper error message instead of a crash when `$EDITOR` doesn't
   exist or exits with an error.
 
