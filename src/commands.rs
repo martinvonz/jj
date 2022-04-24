@@ -1263,13 +1263,14 @@ struct NewArgs {
 /// changes will be removed from the source. If that means that the source is
 /// now empty compared to its parent, it will be abandoned.
 #[derive(clap::Args, Clone, Debug)]
+#[clap(group(ArgGroup::new("to_move").args(&["from", "to"]).multiple(true).required(true)))]
 struct MoveArgs {
     /// Move part of this change into the destination
-    #[clap(long, default_value = "@")]
-    from: String,
+    #[clap(long)]
+    from: Option<String>,
     /// Move part of the source into this change
-    #[clap(long, default_value = "@")]
-    to: String,
+    #[clap(long)]
+    to: Option<String>,
     /// Interactively choose which parts to move
     #[clap(long, short)]
     interactive: bool,
@@ -3193,8 +3194,9 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
 
 fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let source = workspace_command.resolve_single_rev(ui, &args.from)?;
-    let mut destination = workspace_command.resolve_single_rev(ui, &args.to)?;
+    let source = workspace_command.resolve_single_rev(ui, args.from.as_deref().unwrap_or("@"))?;
+    let mut destination =
+        workspace_command.resolve_single_rev(ui, args.to.as_deref().unwrap_or("@"))?;
     if source.id() == destination.id() {
         return Err(CommandError::UserError(String::from(
             "Source and destination cannot be the same.",
