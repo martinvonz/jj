@@ -35,7 +35,7 @@ fn test_undo_rewrite_with_child() {
     o modified
     o 
     "###);
-    test_env.jj_cmd_success(&repo_path, &["undo", "-o", &op_id_hex]);
+    test_env.jj_cmd_success(&repo_path, &["undo", &op_id_hex]);
 
     // Since we undid the description-change, the child commit should now be on top
     // of the initial commit

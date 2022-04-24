@@ -1527,7 +1527,7 @@ struct OperationLogArgs {}
 #[derive(clap::Args, Clone, Debug)]
 struct OperationRestoreArgs {
     /// The operation to restore to
-    #[clap(long, alias = "op", short, default_value = "@")]
+    #[clap(default_value = "@")]
     operation: String,
 }
 
@@ -1535,7 +1535,7 @@ struct OperationRestoreArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct OperationUndoArgs {
     /// The operation to undo
-    #[clap(long, alias = "op", short, default_value = "@")]
+    #[clap(default_value = "@")]
     operation: String,
 }
 
