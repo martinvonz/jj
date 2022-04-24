@@ -53,11 +53,8 @@ fn test_restore() {
 ");
 
     // Can restore into other revision
-    // TODO: Maybe we should make `--from @` be the default when using `--to`. That
-    // would probably mean declaring both `--from` and `--to` optional and
-    // without default values and handle the defaults in code.
     test_env.jj_cmd_success(&repo_path, &["undo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--from", "@", "--to", "@-"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--to", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     Created 5ed06151e039 
     Rebased 1 descendant commits
@@ -72,12 +69,29 @@ fn test_restore() {
     A file3
     "###);
 
+    // Can combine `--from` and `--to`
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--from", "@", "--to", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Created c83e17dc46fd 
+    Rebased 1 descendant commits
+    Working copy now at: df9fb6892f99 
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
+    insta::assert_snapshot!(stdout, @"");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    R file1
+    A file2
+    A file3
+    "###);
+
     // Can restore only specified paths
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "file2", "file3"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created a5bd47134d7e 
-    Working copy now at: a5bd47134d7e 
+    Created 28647642d4a5 
+    Working copy now at: 28647642d4a5 
     Added 0 files, modified 1 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
