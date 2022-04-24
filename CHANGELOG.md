@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking changes
+
+* `jj [op] undo` and `jj op restore` used to take the operation to undo or
+  restore to as an argument to `-o/--operation`. It is now a positional
+  argument instead (i.e. `jj undo -o abc123` is now written `jj undo abc123`).
+
 ### New features
 
 * `jj rebase` now accepts a `--branch/-b <revision>` argument, which can be used
