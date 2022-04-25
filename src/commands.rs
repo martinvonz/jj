@@ -1721,6 +1721,7 @@ struct GitRemoteArgs {
 enum GitRemoteCommands {
     Add(GitRemoteAddArgs),
     Remove(GitRemoteRemoveArgs),
+    List(GitRemoteListArgs),
 }
 
 /// Add a Git remote
@@ -1738,6 +1739,10 @@ struct GitRemoteRemoveArgs {
     /// The remote's name
     remote: String,
 }
+
+/// List Git remotes
+#[derive(clap::Args, Clone, Debug)]
+struct GitRemoteListArgs {}
 
 /// Fetch from a Git remote
 #[derive(clap::Args, Clone, Debug)]
@@ -4576,6 +4581,9 @@ fn cmd_git_remote(
         GitRemoteCommands::Remove(command_matches) => {
             cmd_git_remote_remove(ui, command, command_matches)
         }
+        GitRemoteCommands::List(command_matches) => {
+            cmd_git_remote_list(ui, command, command_matches)
+        }
     }
 }
 
@@ -4605,7 +4613,7 @@ fn cmd_git_remote_remove(
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     if git_repo.find_remote(&args.remote).is_err() {
-        return Err(CommandError::UserError("Remote doesn't exists".to_string()));
+        return Err(CommandError::UserError("Remote doesn't exist".to_string()));
     }
     git_repo
         .remote_delete(&args.remote)
@@ -4623,6 +4631,21 @@ fn cmd_git_remote_remove(
             tx.mut_repo().remove_remote_branch(&branch, &args.remote);
         }
         workspace_command.finish_transaction(ui, tx)?;
+    }
+    Ok(())
+}
+
+fn cmd_git_remote_list(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &GitRemoteListArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
+    let git_repo = get_git_repo(repo.store())?;
+    for remote_name in git_repo.remotes()?.iter().flatten() {
+        let remote = git_repo.find_remote(remote_name)?;
+        writeln!(ui, "{} {}", remote_name, remote.url().unwrap_or("<no URL>"))?;
     }
     Ok(())
 }
