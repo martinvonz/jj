@@ -436,7 +436,7 @@ fn create_remote_callbacks() -> RemoteCallbacks<'static> {
     // crate shouldn't look in $HOME etc.
     callbacks.credentials(|_url, username_from_url, allowed_types| {
         if allowed_types.contains(git2::CredentialType::SSH_KEY) {
-            if std::env::var("SSH_AGENT_PID").is_ok() {
+            if std::env::var("SSH_AUTH_SOCK").is_ok() || std::env::var("SSH_AGENT_PID").is_ok() {
                 return git2::Cred::ssh_key_from_agent(username_from_url.unwrap());
             }
             if let Ok(home_dir) = std::env::var("HOME") {
