@@ -12,6 +12,7 @@ documentation = "https://docs.rs/jujutsu"
 readme = "README.md"
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 categories = ["command-line-utilities", "development-tools"]
+default-run = "jj"
 
 [[bin]]
 name = "jj"
