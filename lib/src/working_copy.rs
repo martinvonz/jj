@@ -352,21 +352,12 @@ impl TreeState {
                 }
                 let sub_path = dir.join(&RepoPathComponent::from(name));
                 if file_type.is_dir() {
-                    if git_ignore.matches_all_files_in(&sub_path.to_internal_dir_string()) {
-                        // If the whole directory is ignored, skip it unless we're already tracking
-                        // some file in it. TODO: This is pretty ugly... Also, we should
-                        // optimize it to check exactly the already-tracked files (we know that
-                        // we won't have to consider new files in the directory).
-                        let first_file_in_dir = dir.join(&RepoPathComponent::from("\0"));
-                        if let Some((maybe_subdir_file, _)) = self
-                            .file_states
-                            .range((Bound::Included(&first_file_in_dir), Bound::Unbounded))
-                            .next()
-                        {
-                            if !dir.contains(&maybe_subdir_file.parent().unwrap()) {
-                                continue;
-                            }
-                        }
+                    // If the whole directory is ignored, skip it unless we're already tracking
+                    // some file in it.
+                    if git_ignore.matches_all_files_in(&sub_path.to_internal_dir_string())
+                        && !self.has_files_under(&sub_path)
+                    {
+                        continue;
                     }
                     work.push((sub_path, entry.path(), git_ignore.clone()));
                 } else {
@@ -389,6 +380,24 @@ impl TreeState {
         }
         self.tree_id = tree_builder.write_tree();
         self.tree_id.clone()
+    }
+
+    fn has_files_under(&self, dir: &RepoPath) -> bool {
+        // TODO: This is pretty ugly... Also, we should
+        // optimize it to check exactly the already-tracked files (we know that
+        // we won't have to consider new files in the directory).
+        let first_file_in_dir = dir.join(&RepoPathComponent::from("\0"));
+        if let Some((subdir_file, _)) = self
+            .file_states
+            .range((Bound::Included(&first_file_in_dir), Bound::Unbounded))
+            .next()
+        {
+            dir.contains(subdir_file)
+        } else {
+            // There are no tracked paths at all after `dir/` in alphabetical order, so
+            // there are no paths under `dir/`.
+            false
+        }
     }
 
     fn update_file_state(
