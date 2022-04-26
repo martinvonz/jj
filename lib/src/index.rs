@@ -634,7 +634,7 @@ trait IndexSegment {
 
     fn segment_num_commits(&self) -> u32;
 
-    fn segment_parent_file(&self) -> &Option<Arc<ReadonlyIndex>>;
+    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndex>>;
 
     fn segment_name(&self) -> Option<String>;
 
@@ -686,14 +686,14 @@ impl<'a> CompositeIndex<'a> {
             num_commits: self.0.segment_num_commits(),
             name: self.0.segment_name(),
         }];
-        let mut parent_file = self.0.segment_parent_file().clone();
+        let mut parent_file = self.0.segment_parent_file().cloned();
         while parent_file.is_some() {
             let file = parent_file.as_ref().unwrap();
             levels.push(IndexLevelStats {
                 num_commits: file.segment_num_commits(),
                 name: file.segment_name(),
             });
-            parent_file = file.segment_parent_file().clone();
+            parent_file = file.segment_parent_file().cloned();
         }
         levels.reverse();
 
@@ -712,8 +712,7 @@ impl<'a> CompositeIndex<'a> {
         if pos.0 >= num_parent_commits {
             self.0.segment_entry_by_pos(pos, pos.0 - num_parent_commits)
         } else {
-            let parent_file: &ReadonlyIndex =
-                self.0.segment_parent_file().as_ref().unwrap().as_ref();
+            let parent_file: &ReadonlyIndex = self.0.segment_parent_file().unwrap().as_ref();
             // The parent ReadonlyIndex outlives the child
             let parent_file: &'a ReadonlyIndex = unsafe { std::mem::transmute(parent_file) };
 
@@ -726,7 +725,6 @@ impl<'a> CompositeIndex<'a> {
         local_match.or_else(|| {
             self.0
                 .segment_parent_file()
-                .as_ref()
                 .and_then(|file| IndexRef::Readonly(file).commit_id_to_pos(commit_id))
         })
     }
@@ -740,7 +738,6 @@ impl<'a> CompositeIndex<'a> {
         let parent_match = self
             .0
             .segment_parent_file()
-            .as_ref()
             .map_or(PrefixResolution::NoMatch, |file| {
                 file.resolve_prefix(prefix)
             });
@@ -1051,8 +1048,8 @@ impl IndexSegment for ReadonlyIndex {
         self.num_local_commits
     }
 
-    fn segment_parent_file(&self) -> &Option<Arc<ReadonlyIndex>> {
-        &self.parent_file
+    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndex>> {
+        self.parent_file.as_ref()
     }
 
     fn segment_name(&self) -> Option<String> {
@@ -1164,8 +1161,8 @@ impl IndexSegment for MutableIndex {
         self.graph.len() as u32
     }
 
-    fn segment_parent_file(&self) -> &Option<Arc<ReadonlyIndex>> {
-        &self.parent_file
+    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndex>> {
+        self.parent_file.as_ref()
     }
 
     fn segment_name(&self) -> Option<String> {

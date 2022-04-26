@@ -37,7 +37,7 @@ use crate::lock::FileLock;
 
 pub trait TableSegment {
     fn segment_num_entries(&self) -> usize;
-    fn segment_parent_file(&self) -> &Option<Arc<ReadonlyTable>>;
+    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyTable>>;
     fn segment_get_value(&self, key: &[u8]) -> Option<&[u8]>;
     fn segment_add_entries_to(&self, mut_table: &mut MutableTable);
 
@@ -51,15 +51,13 @@ pub trait TableSegment {
 
     fn get_value<'a>(&'a self, key: &[u8]) -> Option<&'a [u8]> {
         if let Some(value) = self.segment_get_value(key) {
-            Some(value)
-        } else if let Some(parent_file) = self.segment_parent_file() {
-            let parent_file: &ReadonlyTable = parent_file.as_ref();
-            // The parent ReadonlyIndex outlives the child
-            let parent_file: &'a ReadonlyTable = unsafe { std::mem::transmute(parent_file) };
-            parent_file.get_value(key)
-        } else {
-            None
+            return Some(value);
         }
+        let parent_file = self.segment_parent_file()?;
+        let parent_file: &ReadonlyTable = parent_file.as_ref();
+        // The parent ReadonlyIndex outlives the child
+        let parent_file: &'a ReadonlyTable = unsafe { std::mem::transmute(parent_file) };
+        parent_file.get_value(key)
     }
 }
 
@@ -130,8 +128,8 @@ impl TableSegment for ReadonlyTable {
         self.num_local_entries
     }
 
-    fn segment_parent_file(&self) -> &Option<Arc<ReadonlyTable>> {
-        &self.parent_file
+    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyTable>> {
+        self.parent_file.as_ref()
     }
 
     fn segment_get_value(&self, key: &[u8]) -> Option<&[u8]> {
@@ -350,8 +348,8 @@ impl TableSegment for MutableTable {
         self.entries.len()
     }
 
-    fn segment_parent_file(&self) -> &Option<Arc<ReadonlyTable>> {
-        &self.parent_file
+    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyTable>> {
+        self.parent_file.as_ref()
     }
 
     fn segment_get_value(&self, key: &[u8]) -> Option<&[u8]> {

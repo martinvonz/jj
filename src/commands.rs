@@ -1263,13 +1263,14 @@ struct NewArgs {
 /// changes will be removed from the source. If that means that the source is
 /// now empty compared to its parent, it will be abandoned.
 #[derive(clap::Args, Clone, Debug)]
+#[clap(group(ArgGroup::new("to_move").args(&["from", "to"]).multiple(true).required(true)))]
 struct MoveArgs {
     /// Move part of this change into the destination
-    #[clap(long, default_value = "@")]
-    from: String,
+    #[clap(long)]
+    from: Option<String>,
     /// Move part of the source into this change
-    #[clap(long, default_value = "@")]
-    to: String,
+    #[clap(long)]
+    to: Option<String>,
     /// Interactively choose which parts to move
     #[clap(long, short)]
     interactive: bool,
@@ -1316,6 +1317,10 @@ struct UnsquashArgs {
 /// as they had in the source (`--from`). This is typically used for undoing
 /// changes to some paths in the working copy (`jj restore <paths>`).
 ///
+/// When neither `--from` nor `--to` is specified, the command restores into the
+/// working copy from its parent. If one of `--from` or `--to` is specified, the
+/// other one defaults to the working copy.
+///
 /// If you restore from a revision where the path has conflicts, then the
 /// destination revision will have the same conflict. If the destination is the
 /// working copy, then a new commit will be created on top for resolving the
@@ -1326,11 +1331,11 @@ struct UnsquashArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct RestoreArgs {
     /// Revision to restore from (source)
-    #[clap(long, default_value = "@-")]
-    from: String,
+    #[clap(long)]
+    from: Option<String>,
     /// Revision to restore into (destination)
-    #[clap(long, default_value = "@")]
-    to: String,
+    #[clap(long)]
+    to: Option<String>,
     /// Interactively choose which parts to restore
     #[clap(long, short)]
     interactive: bool,
@@ -1522,7 +1527,7 @@ struct OperationLogArgs {}
 #[derive(clap::Args, Clone, Debug)]
 struct OperationRestoreArgs {
     /// The operation to restore to
-    #[clap(long, alias = "op", short, default_value = "@")]
+    #[clap(default_value = "@")]
     operation: String,
 }
 
@@ -1530,7 +1535,7 @@ struct OperationRestoreArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct OperationUndoArgs {
     /// The operation to undo
-    #[clap(long, alias = "op", short, default_value = "@")]
+    #[clap(default_value = "@")]
     operation: String,
 }
 
@@ -3193,8 +3198,9 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
 
 fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let source = workspace_command.resolve_single_rev(ui, &args.from)?;
-    let mut destination = workspace_command.resolve_single_rev(ui, &args.to)?;
+    let source = workspace_command.resolve_single_rev(ui, args.from.as_deref().unwrap_or("@"))?;
+    let mut destination =
+        workspace_command.resolve_single_rev(ui, args.to.as_deref().unwrap_or("@"))?;
     if source.id() == destination.id() {
         return Err(CommandError::UserError(String::from(
             "Source and destination cannot be the same.",
@@ -3408,8 +3414,14 @@ fn cmd_restore(
     args: &RestoreArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let from_commit = workspace_command.resolve_single_rev(ui, &args.from)?;
-    let to_commit = workspace_command.resolve_single_rev(ui, &args.to)?;
+    let (from_str, to_str) = match (args.from.as_deref(), args.to.as_deref()) {
+        (None, None) => ("@-", "@"),
+        (Some(from), None) => (from, "@"),
+        (None, Some(to)) => ("@", to),
+        (Some(from), Some(to)) => (from, to),
+    };
+    let from_commit = workspace_command.resolve_single_rev(ui, from_str)?;
+    let to_commit = workspace_command.resolve_single_rev(ui, to_str)?;
     workspace_command.check_rewriteable(&to_commit)?;
     let repo = workspace_command.repo();
     let tree_id;

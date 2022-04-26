@@ -209,8 +209,8 @@ pub fn export_changes(
 
 /// Reflect changes made in the Jujutsu repo since last export in the underlying
 /// Git repo. If this is the first export, nothing will be exported. The
-/// exported state's operation ID is recorded in the repo (`.jj/
-/// git_export_operation_id`).
+/// exported state's operation ID is recorded in the repo
+/// (`.jj/repo/git_export_operation_id`).
 pub fn export_refs(
     repo: &Arc<ReadonlyRepo>,
     git_repo: &git2::Repository,

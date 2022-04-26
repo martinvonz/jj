@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking changes
+
+* `jj [op] undo` and `jj op restore` used to take the operation to undo or
+  restore to as an argument to `-o/--operation`. It is now a positional
+  argument instead (i.e. `jj undo -o abc123` is now written `jj undo abc123`).
+
 ### New features
 
 * `jj rebase` now accepts a `--branch/-b <revision>` argument, which can be used
@@ -57,11 +63,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   directory with different files in. They are now merged as if the missing
   directory had been empty.
 
+* When using `jj move` to move part of a commit into an ancestor, any branches
+  pointing to the source commit used to be left on a hidden intermediate commit.
+  They are now correctly updated.
+
 * `jj untrack` now requires at least one path (allowing no arguments was a UX
   bug).
 
 * `jj rebase` now requires at least one destination (allowing no arguments was a
   UX bug).
+
+* `jj restore --to <rev>` now restores from the working copy (it used to restore
+  from the working copy's parent).
 
 * You now get a proper error message instead of a crash when `$EDITOR` doesn't
   exist or exits with an error.
