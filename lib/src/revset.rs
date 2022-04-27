@@ -1481,6 +1481,18 @@ mod tests {
         assert_eq!(parse("@"), Ok(checkout_symbol.clone()));
         // Parse a single symbol
         assert_eq!(parse("foo"), Ok(foo_symbol.clone()));
+        // Internal '.', '-', and '+' are allowed
+        assert_eq!(
+            parse("foo.bar-v1+7"),
+            Ok(RevsetExpression::symbol("foo.bar-v1+7".to_string()))
+        );
+        // '.' is not allowed at the beginning or end
+        assert_matches!(parse(".foo"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo."), Err(RevsetParseError::SyntaxError(_)));
+        // Multiple '.', '-', '+' are not allowed
+        assert_matches!(parse("foo.+bar"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo--bar"), Err(RevsetParseError::SyntaxError(_)));
+        assert_matches!(parse("foo+-bar"), Err(RevsetParseError::SyntaxError(_)));
         // Parse a parenthesized symbol
         assert_eq!(parse("(foo)"), Ok(foo_symbol.clone()));
         // Parse a quoted symbol

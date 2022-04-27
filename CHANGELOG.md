@@ -41,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ui.editor` config. There is also a new `$JJ_EDITOR` environment variable,
   which has even higher priority than the config.
 
+* You can now use `-` and `+` in revset symbols. You used to have to quote
+  branch names like `my-feature` in nested quotes (outer layer for your shell)
+  like `jj co '"my-feature"'`. The quoting is no longer needed.
+
 * The new revset function `connected(x)` is the same as `x:x`.
 
 * The new revset function `roots(x)` finds commits in the set that are not
