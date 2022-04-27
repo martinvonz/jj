@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-non_period_identifier = @{ (ASCII_ALPHANUMERIC | "_" | "@" | "/")+ }
+identifier_part = @{ (ASCII_ALPHANUMERIC | "_" | "@" | "/")+ }
 identifier = @{
-  (non_period_identifier+ ~ ".")+ ~ non_period_identifier+
-  | non_period_identifier+
+  (identifier_part+ ~ ("." | "-" | "+" ))+ ~ identifier_part+
+  | identifier_part+
 } 
 symbol = {
   identifier
