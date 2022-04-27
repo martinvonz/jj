@@ -387,16 +387,17 @@ impl TreeState {
         // optimize it to check exactly the already-tracked files (we know that
         // we won't have to consider new files in the directory).
         let first_file_in_dir = dir.join(&RepoPathComponent::from("\0"));
-        if let Some((subdir_file, _)) = self
+        match self
             .file_states
             .range((Bound::Included(&first_file_in_dir), Bound::Unbounded))
             .next()
         {
-            dir.contains(subdir_file)
-        } else {
-            // There are no tracked paths at all after `dir/` in alphabetical order, so
-            // there are no paths under `dir/`.
-            false
+            Some((subdir_file, _)) => dir.contains(subdir_file),
+            None => {
+                // There are no tracked paths at all after `dir/` in alphabetical order, so
+                // there are no paths under `dir/`.
+                false
+            }
         }
     }
 
