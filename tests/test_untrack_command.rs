@@ -40,8 +40,9 @@ fn test_untrack() {
 
     // Errors out when not run at the head operation
     let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack", "file1", "--at-op", "@-"]);
-    insta::assert_snapshot!(stderr.replace("jj.exe", "jj"), @"Error: Refusing to commit working copy (maybe because you're using --at-op)
-");
+    insta::assert_snapshot!(stderr.replace("jj.exe", "jj"), @r###"
+    Error: Refusing to commit working copy (maybe because you're using --at-op)
+    "###);
     // Errors out when no path is specified
     let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack"]);
     insta::assert_snapshot!(stderr.replace("jj.exe", "jj"), @r###"
@@ -114,6 +115,7 @@ fn test_untrack_sparse() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["untrack", "file2"]);
     insta::assert_snapshot!(stdout, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["files"]);
-    insta::assert_snapshot!(stdout, @"file1
-");
+    insta::assert_snapshot!(stdout, @r###"
+    file1
+    "###);
 }

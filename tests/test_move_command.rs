@@ -77,8 +77,9 @@ fn test_move() {
     "###);
     // Errors out if source and destination are the same
     let stderr = test_env.jj_cmd_failure(&repo_path, &["move", "--to", "@"]);
-    insta::assert_snapshot!(stderr, @"Error: Source and destination cannot be the same.
-");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Source and destination cannot be the same.
+    "###);
 
     // Can move from sibling, which results in the source being abandoned
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "c"]);
@@ -97,18 +98,21 @@ fn test_move() {
     "###);
     // The change from the source has been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
-    insta::assert_snapshot!(stdout, @"c
-");
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    "###);
     // File `file2`, which was not changed in source, is unchanged
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
-    insta::assert_snapshot!(stdout, @"f
-");
+    insta::assert_snapshot!(stdout, @r###"
+    f
+    "###);
 
     // Can move from ancestor
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "--from", "@--"]);
-    insta::assert_snapshot!(stdout, @"Working copy now at: c8d83075e8c2 
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: c8d83075e8c2 
+    "###);
     // The change has been removed from the source (the change pointed to by 'd'
     // became empty and was abandoned)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -123,8 +127,9 @@ fn test_move() {
     // The change from the source has been applied (the file contents were already
     // "f", as is typically the case when moving changes from an ancestor)
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
-    insta::assert_snapshot!(stdout, @"f
-");
+    insta::assert_snapshot!(stdout, @r###"
+    f
+    "###);
 
     // Can move from descendant
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -146,8 +151,9 @@ fn test_move() {
     "###);
     // The change from the source has been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "d"]);
-    insta::assert_snapshot!(stdout, @"e
-");
+    insta::assert_snapshot!(stdout, @r###"
+    e
+    "###);
 }
 
 #[test]
@@ -205,15 +211,18 @@ fn test_move_partial() {
     "###);
     // The changes from the source has been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
-    insta::assert_snapshot!(stdout, @"c
-");
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
-    insta::assert_snapshot!(stdout, @"c
-");
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    "###);
     // File `file3`, which was not changed in source, is unchanged
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file3"]);
-    insta::assert_snapshot!(stdout, @"d
-");
+    insta::assert_snapshot!(stdout, @r###"
+    d
+    "###);
 
     // Can move only part of the change in interactive mode
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -233,16 +242,19 @@ fn test_move_partial() {
     "###);
     // The selected change from the source has been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
-    insta::assert_snapshot!(stdout, @"c
-");
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    "###);
     // The unselected change from the source has not been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
-    insta::assert_snapshot!(stdout, @"a
-");
+    insta::assert_snapshot!(stdout, @r###"
+    a
+    "###);
     // File `file3`, which was changed in source's parent, is unchanged
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file3"]);
-    insta::assert_snapshot!(stdout, @"d
-");
+    insta::assert_snapshot!(stdout, @r###"
+    d
+    "###);
 
     // Can move only part of the change from a sibling in non-interactive mode
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -263,16 +275,19 @@ fn test_move_partial() {
     "###);
     // The selected change from the source has been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
-    insta::assert_snapshot!(stdout, @"c
-");
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    "###);
     // The unselected change from the source has not been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
-    insta::assert_snapshot!(stdout, @"a
-");
+    insta::assert_snapshot!(stdout, @r###"
+    a
+    "###);
     // File `file3`, which was changed in source's parent, is unchanged
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file3"]);
-    insta::assert_snapshot!(stdout, @"d
-");
+    insta::assert_snapshot!(stdout, @r###"
+    d
+    "###);
 
     // Can move only part of the change from a descendant in non-interactive mode
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -280,8 +295,9 @@ fn test_move_partial() {
     std::fs::write(&edit_script, "").unwrap();
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["move", "--from", "c", "--to", "b", "file1"]);
-    insta::assert_snapshot!(stdout, @"Rebased 1 descendant commits
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 1 descendant commits
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     o 21253406d416 c
     o e1cf08aae711 b
@@ -292,12 +308,14 @@ fn test_move_partial() {
     "###);
     // The selected change from the source has been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
-    insta::assert_snapshot!(stdout, @"c
-");
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    "###);
     // The unselected change from the source has not been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "b"]);
-    insta::assert_snapshot!(stdout, @"a
-");
+    insta::assert_snapshot!(stdout, @r###"
+    a
+    "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {

@@ -52,11 +52,13 @@ fn smoke_test() {
 
     // Add a commit description
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "-m", "add some files"]);
-    insta::assert_snapshot!(stdout, @"Working copy now at: 701b3d5a2eb3 add some files
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: 701b3d5a2eb3 add some files
+    "###);
 
     // Close the commit
     let stdout = test_env.jj_cmd_success(&repo_path, &["close"]);
-    insta::assert_snapshot!(stdout, @"Working copy now at: a13f828fab1a 
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: a13f828fab1a 
+    "###);
 }

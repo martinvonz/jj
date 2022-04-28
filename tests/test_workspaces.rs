@@ -32,8 +32,9 @@ fn test_workspaces_add_second_workspace() {
     test_env.jj_cmd_success(&main_path, &["close", "-m", "initial"]);
 
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
-    insta::assert_snapshot!(stdout, @"default: 988d8c1dca7e 
-");
+    insta::assert_snapshot!(stdout, @r###"
+    default: 988d8c1dca7e 
+    "###);
 
     let stdout = test_env.jj_cmd_success(
         &main_path,
@@ -141,13 +142,15 @@ fn test_workspaces_forget() {
 
     // When listing workspaces, only the secondary workspace shows up
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
-    insta::assert_snapshot!(stdout, @"secondary: 39a6d6c6f295 
-");
+    insta::assert_snapshot!(stdout, @r###"
+    secondary: 39a6d6c6f295 
+    "###);
 
     // `jj status` tells us that there's no working copy here
     let stdout = test_env.jj_cmd_success(&main_path, &["st"]);
-    insta::assert_snapshot!(stdout, @"No working copy
-");
+    insta::assert_snapshot!(stdout, @r###"
+    No working copy
+    "###);
 
     // The old checkout doesn't get an "@" in the log output
     // TODO: We should abandon the empty working copy commit
@@ -164,14 +167,16 @@ fn test_workspaces_forget() {
 
     // Revision "@" cannot be used
     let stderr = test_env.jj_cmd_failure(&main_path, &["log", "-r", "@"]);
-    insta::assert_snapshot!(stderr, @r###"Error: Revision "@" doesn't exist
-"###);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revision "@" doesn't exist
+    "###);
 
     // Try to add back the workspace
     // TODO: We should make this just add it back instead of failing
     let stderr = test_env.jj_cmd_failure(&main_path, &["workspace", "add", "."]);
-    insta::assert_snapshot!(stderr, @"Error: Workspace already exists
-");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Workspace already exists
+    "###);
 
     // Forget the secondary workspace
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "forget", "secondary"]);

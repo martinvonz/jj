@@ -30,8 +30,9 @@ fn test_git_push() {
 
     // No branches to push yet
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
-    insta::assert_snapshot!(stdout, @"Nothing changed.
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
 
     // When pushing everything, won't push an open commit even if there's a branch
     // on it
@@ -45,8 +46,9 @@ fn test_git_push() {
     // When pushing a specific branch, won't push it if it points to an open commit
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch", "my-branch"]);
-    insta::assert_snapshot!(stderr, @"Error: Won't push open commit
-");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Won't push open commit
+    "###);
 
     // Try pushing a conflict
     std::fs::write(workspace_root.join("file"), "first").unwrap();
@@ -58,6 +60,7 @@ fn test_git_push() {
     test_env.jj_cmd_success(&workspace_root, &["branch", "my-branch"]);
     test_env.jj_cmd_success(&workspace_root, &["close", "-m", "third"]);
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
-    insta::assert_snapshot!(stderr, @"Error: Won't push commit 28b5642cb786 since it has conflicts
-");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Won't push commit 28b5642cb786 since it has conflicts
+    "###);
 }

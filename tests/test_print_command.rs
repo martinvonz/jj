@@ -29,25 +29,30 @@ fn test_print() {
     std::fs::write(repo_path.join("dir").join("file2"), "c\n").unwrap();
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @"a
-");
+    insta::assert_snapshot!(stdout, @r###"
+    a
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
-    insta::assert_snapshot!(stdout, @"b
-");
+    insta::assert_snapshot!(stdout, @r###"
+    b
+    "###);
     let subdir_file = if cfg!(unix) {
         "dir/file2"
     } else {
         "dir\\file2"
     };
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", subdir_file]);
-    insta::assert_snapshot!(stdout, @"c
-");
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["print", "non-existent"]);
-    insta::assert_snapshot!(stderr, @"Error: No such path
-");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No such path
+    "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["print", "dir"]);
-    insta::assert_snapshot!(stderr, @"Error: Path exists but is not a file
-");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Path exists but is not a file
+    "###);
 
     // Can print a conflict
     test_env.jj_cmd_success(&repo_path, &["new"]);

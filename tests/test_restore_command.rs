@@ -49,8 +49,9 @@ fn test_restore() {
     Added 1 files, modified 0 files, removed 2 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
-    insta::assert_snapshot!(stdout, @"R file2
-");
+    insta::assert_snapshot!(stdout, @r###"
+    R file2
+    "###);
 
     // Can restore into other revision
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -95,8 +96,9 @@ fn test_restore() {
     Added 0 files, modified 1 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
-    insta::assert_snapshot!(stdout, @"R file1
-");
+    insta::assert_snapshot!(stdout, @r###"
+    R file1
+    "###);
 }
 
 #[test]
@@ -117,8 +119,9 @@ fn test_restore_interactive() {
     // Nothing happens if we make no changes
     std::fs::write(&edit_script, "").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "-i"]);
-    insta::assert_snapshot!(stdout, @"Nothing changed.
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -129,8 +132,9 @@ fn test_restore_interactive() {
     // Nothing happens if the diff-editor exits with an error
     std::fs::write(&edit_script, "rm file2\0fail").unwrap();
     let stderr = test_env.jj_cmd_failure(&repo_path, &["restore", "-i"]);
-    insta::assert_snapshot!(stderr, @"Error: Failed to edit diff: The diff tool exited with a non-zero code
-");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to edit diff: The diff tool exited with a non-zero code
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -147,8 +151,9 @@ fn test_restore_interactive() {
     Added 0 files, modified 1 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
-    insta::assert_snapshot!(stdout, @"R file1
-");
+    insta::assert_snapshot!(stdout, @r###"
+    R file1
+    "###);
 
     // Can make unrelated edits
     test_env.jj_cmd_success(&repo_path, &["undo"]);

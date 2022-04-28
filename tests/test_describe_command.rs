@@ -26,20 +26,23 @@ fn test_describe() {
 
     // Set a description using `-m` flag
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description from CLI"]);
-    insta::assert_snapshot!(stdout, @"Working copy now at: 7e0db3b0ad17 description from CLI
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: 7e0db3b0ad17 description from CLI
+    "###);
 
     // Test making no changes
     std::fs::write(&edit_script, "").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
-    insta::assert_snapshot!(stdout, @"Working copy now at: 45bfa10db64d description from CLI
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: 45bfa10db64d description from CLI
+    "###);
 
     // Set a description in editor
     std::fs::write(&edit_script, "write\ndescription from editor").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
-    insta::assert_snapshot!(stdout, @"Working copy now at: f2ce8f1ad8fa description from editor
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: f2ce8f1ad8fa description from editor
+    "###);
 
     // Lines in editor starting with "JJ: " are ignored
     std::fs::write(
@@ -48,8 +51,9 @@ fn test_describe() {
     )
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
-    insta::assert_snapshot!(stdout, @"Working copy now at: 95664f6316ae description among comment
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: 95664f6316ae description among comment
+    "###);
 
     // Fails if the editor fails
     std::fs::write(&edit_script, "fail").unwrap();

@@ -38,8 +38,9 @@ fn test_edit() {
     )
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["edit"]);
-    insta::assert_snapshot!(stdout, @"Nothing changed.
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -49,8 +50,9 @@ fn test_edit() {
     // Nothing happens if the diff-editor exits with an error
     std::fs::write(&edit_script, "rm file2\0fail").unwrap();
     let stderr = test_env.jj_cmd_failure(&repo_path, &["edit"]);
-    insta::assert_snapshot!(stderr, @"Error: Failed to edit diff: The diff tool exited with a non-zero code
-");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to edit diff: The diff tool exited with a non-zero code
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     R file1
@@ -66,8 +68,9 @@ fn test_edit() {
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
-    insta::assert_snapshot!(stdout, @"R file1
-");
+    insta::assert_snapshot!(stdout, @r###"
+    R file1
+    "###);
 
     // Changes to a commit are propagated to descendants
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -80,8 +83,9 @@ fn test_edit() {
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let contents = String::from_utf8(std::fs::read(repo_path.join("file3")).unwrap()).unwrap();
-    insta::assert_snapshot!(contents, @"modified
-");
+    insta::assert_snapshot!(contents, @r###"
+    modified
+    "###);
 }
 
 #[test]

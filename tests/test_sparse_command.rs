@@ -29,13 +29,15 @@ fn test_sparse_manage_patterns() {
 
     // By default, all files are tracked
     let stdout = test_env.jj_cmd_success(&repo_path, &["sparse", "--list"]);
-    insta::assert_snapshot!(stdout, @".
-");
+    insta::assert_snapshot!(stdout, @r###"
+    .
+    "###);
 
     // Can stop tracking all files
     let stdout = test_env.jj_cmd_success(&repo_path, &["sparse", "--remove", "."]);
-    insta::assert_snapshot!(stdout, @"Added 0 files, modified 0 files, removed 3 files
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Added 0 files, modified 0 files, removed 3 files
+    "###);
     // The list is now empty
     let stdout = test_env.jj_cmd_success(&repo_path, &["sparse", "--list"]);
     insta::assert_snapshot!(stdout, @"");
@@ -54,8 +56,9 @@ fn test_sparse_manage_patterns() {
     // Can `--add` a few files
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["sparse", "--add", "file2", "--add", "file3"]);
-    insta::assert_snapshot!(stdout, @"Added 2 files, modified 0 files, removed 0 files
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Added 2 files, modified 0 files, removed 0 files
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["sparse", "--list"]);
     insta::assert_snapshot!(stdout, @r###"
     file2
@@ -72,33 +75,39 @@ fn test_sparse_manage_patterns() {
             "sparse", "--add", "file1", "--remove", "file2", "--remove", "file3",
         ],
     );
-    insta::assert_snapshot!(stdout, @"Added 1 files, modified 0 files, removed 2 files
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Added 1 files, modified 0 files, removed 2 files
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["sparse", "--list"]);
-    insta::assert_snapshot!(stdout, @"file1
-");
+    insta::assert_snapshot!(stdout, @r###"
+    file1
+    "###);
     assert!(repo_path.join("file1").exists());
     assert!(!repo_path.join("file2").exists());
     assert!(!repo_path.join("file3").exists());
 
     // Can use `--clear` and `--add`
     let stdout = test_env.jj_cmd_success(&repo_path, &["sparse", "--clear", "--add", "file2"]);
-    insta::assert_snapshot!(stdout, @"Added 1 files, modified 0 files, removed 1 files
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Added 1 files, modified 0 files, removed 1 files
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["sparse", "--list"]);
-    insta::assert_snapshot!(stdout, @"file2
-");
+    insta::assert_snapshot!(stdout, @r###"
+    file2
+    "###);
     assert!(!repo_path.join("file1").exists());
     assert!(repo_path.join("file2").exists());
     assert!(!repo_path.join("file3").exists());
 
     // Can reset back to all files
     let stdout = test_env.jj_cmd_success(&repo_path, &["sparse", "--reset"]);
-    insta::assert_snapshot!(stdout, @"Added 2 files, modified 0 files, removed 0 files
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Added 2 files, modified 0 files, removed 0 files
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["sparse", "--list"]);
-    insta::assert_snapshot!(stdout, @".
-");
+    insta::assert_snapshot!(stdout, @r###"
+    .
+    "###);
     assert!(repo_path.join("file1").exists());
     assert!(repo_path.join("file2").exists());
     assert!(repo_path.join("file3").exists());

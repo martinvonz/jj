@@ -42,8 +42,9 @@ fn test_squash() {
 
     // Squashes the working copy into the parent by default
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
-    insta::assert_snapshot!(stdout, @"Working copy now at: 6ca29c9d2e7c 
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: 6ca29c9d2e7c 
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"
     @ 6ca29c9d2e7c b c
@@ -51,8 +52,9 @@ fn test_squash() {
     o 000000000000 
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
-    insta::assert_snapshot!(stdout, @"c
-");
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    "###);
 
     // Can squash a given commit into its parent
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -68,11 +70,13 @@ fn test_squash() {
     o 000000000000 
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
-    insta::assert_snapshot!(stdout, @"b
-");
+    insta::assert_snapshot!(stdout, @r###"
+    b
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
-    insta::assert_snapshot!(stdout, @"c
-");
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    "###);
 
     // Cannot squash a merge commit (because it's unclear which parent it should go
     // into)
@@ -95,15 +99,17 @@ fn test_squash() {
     o 000000000000 
     "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["squash", "-r", "e"]);
-    insta::assert_snapshot!(stderr, @"Error: Cannot squash merge commits
-");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot squash merge commits
+    "###);
 
     // Can squash into a merge commit
     test_env.jj_cmd_success(&repo_path, &["co", "e"]);
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
-    insta::assert_snapshot!(stdout, @"Working copy now at: 626d78245205 
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: 626d78245205 
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"
     @ 626d78245205 
@@ -117,8 +123,9 @@ fn test_squash() {
     o 000000000000 
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "e"]);
-    insta::assert_snapshot!(stdout, @"e
-");
+    insta::assert_snapshot!(stdout, @r###"
+    e
+    "###);
 }
 
 #[test]
@@ -164,8 +171,9 @@ fn test_squash_partial() {
     o 000000000000 
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "a"]);
-    insta::assert_snapshot!(stdout, @"b
-");
+    insta::assert_snapshot!(stdout, @r###"
+    b
+    "###);
 
     // Can squash only some changes in interactive mode
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -183,17 +191,21 @@ fn test_squash_partial() {
     o 000000000000 
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "a"]);
-    insta::assert_snapshot!(stdout, @"a
-");
+    insta::assert_snapshot!(stdout, @r###"
+    a
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "a"]);
-    insta::assert_snapshot!(stdout, @"b
-");
+    insta::assert_snapshot!(stdout, @r###"
+    b
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
-    insta::assert_snapshot!(stdout, @"b
-");
+    insta::assert_snapshot!(stdout, @r###"
+    b
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "b"]);
-    insta::assert_snapshot!(stdout, @"b
-");
+    insta::assert_snapshot!(stdout, @r###"
+    b
+    "###);
 
     // Can squash only some changes in non-interactive mode
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -212,15 +224,19 @@ fn test_squash_partial() {
     o 000000000000 
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "a"]);
-    insta::assert_snapshot!(stdout, @"a
-");
+    insta::assert_snapshot!(stdout, @r###"
+    a
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "a"]);
-    insta::assert_snapshot!(stdout, @"b
-");
+    insta::assert_snapshot!(stdout, @r###"
+    b
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
-    insta::assert_snapshot!(stdout, @"b
-");
+    insta::assert_snapshot!(stdout, @r###"
+    b
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "b"]);
-    insta::assert_snapshot!(stdout, @"b
-");
+    insta::assert_snapshot!(stdout, @r###"
+    b
+    "###);
 }
