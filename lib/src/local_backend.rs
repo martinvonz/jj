@@ -192,29 +192,6 @@ impl Backend for LocalBackend {
         Ok(id)
     }
 
-    fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
-        let path = self.commit_path(id);
-        let mut file = File::open(path).map_err(not_found_to_backend_error)?;
-
-        let proto: crate::protos::store::Commit = Message::parse_from_reader(&mut file)?;
-        Ok(commit_from_proto(&proto))
-    }
-
-    fn write_commit(&self, commit: &Commit) -> BackendResult<CommitId> {
-        let temp_file = NamedTempFile::new_in(&self.path)?;
-
-        let proto = commit_to_proto(commit);
-        let mut proto_bytes: Vec<u8> = Vec::new();
-        proto.write_to_writer(&mut proto_bytes)?;
-
-        temp_file.as_file().write_all(&proto_bytes)?;
-
-        let id = CommitId::new(Blake2b512::digest(&proto_bytes).to_vec());
-
-        persist_content_addressed_temp_file(temp_file, self.commit_path(&id))?;
-        Ok(id)
-    }
-
     fn read_conflict(&self, _path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
         let path = self.conflict_path(id);
         let mut file = File::open(path).map_err(not_found_to_backend_error)?;
@@ -235,6 +212,29 @@ impl Backend for LocalBackend {
         let id = ConflictId::new(Blake2b512::digest(&proto_bytes).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.conflict_path(&id))?;
+        Ok(id)
+    }
+
+    fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
+        let path = self.commit_path(id);
+        let mut file = File::open(path).map_err(not_found_to_backend_error)?;
+
+        let proto: crate::protos::store::Commit = Message::parse_from_reader(&mut file)?;
+        Ok(commit_from_proto(&proto))
+    }
+
+    fn write_commit(&self, commit: &Commit) -> BackendResult<CommitId> {
+        let temp_file = NamedTempFile::new_in(&self.path)?;
+
+        let proto = commit_to_proto(commit);
+        let mut proto_bytes: Vec<u8> = Vec::new();
+        proto.write_to_writer(&mut proto_bytes)?;
+
+        temp_file.as_file().write_all(&proto_bytes)?;
+
+        let id = CommitId::new(Blake2b512::digest(&proto_bytes).to_vec());
+
+        persist_content_addressed_temp_file(temp_file, self.commit_path(&id))?;
         Ok(id)
     }
 }

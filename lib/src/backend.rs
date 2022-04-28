@@ -389,11 +389,11 @@ pub trait Backend: Send + Sync + Debug {
 
     fn write_tree(&self, path: &RepoPath, contents: &Tree) -> BackendResult<TreeId>;
 
-    fn read_commit(&self, id: &CommitId) -> BackendResult<Commit>;
-
-    fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId>;
-
     fn read_conflict(&self, path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict>;
 
     fn write_conflict(&self, path: &RepoPath, contents: &Conflict) -> BackendResult<ConflictId>;
+
+    fn read_commit(&self, id: &CommitId) -> BackendResult<Commit>;
+
+    fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId>;
 }
