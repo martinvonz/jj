@@ -14,9 +14,9 @@
 
 use std::collections::{HashMap, HashSet};
 
-use itertools::Itertools;
+use itertools::{process_results, Itertools};
 
-use crate::backend::CommitId;
+use crate::backend::{BackendError, CommitId};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk;
@@ -290,8 +290,12 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         )
     }
 
-    fn update_references(&mut self, old_commit_id: CommitId, new_commit_ids: Vec<CommitId>) {
-        self.update_checkouts(&old_commit_id, &new_commit_ids);
+    fn update_references(
+        &mut self,
+        old_commit_id: CommitId,
+        new_commit_ids: Vec<CommitId>,
+    ) -> Result<(), BackendError> {
+        self.update_checkouts(&old_commit_id, &new_commit_ids)?;
 
         if let Some(branch_names) = self.branches.get(&old_commit_id).cloned() {
             let mut branch_updates = vec![];
@@ -324,9 +328,14 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         if !self.new_commits.contains(&old_commit_id) || self.rebased.contains_key(&old_commit_id) {
             self.heads_to_remove.push(old_commit_id);
         }
+        Ok(())
     }
 
-    fn update_checkouts(&mut self, old_commit_id: &CommitId, new_commit_ids: &[CommitId]) {
+    fn update_checkouts(
+        &mut self,
+        old_commit_id: &CommitId,
+        new_commit_ids: &[CommitId],
+    ) -> Result<(), BackendError> {
         let mut workspaces_to_update = vec![];
         for (workspace_id, checkout_id) in self.mut_repo.view().checkouts() {
             if checkout_id == old_commit_id {
@@ -335,7 +344,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         }
 
         if workspaces_to_update.is_empty() {
-            return;
+            return Ok(());
         }
 
         // If several workspaces had the same old commit checked out, we want them all
@@ -344,7 +353,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         // otherwise create a separate new commit for each workspace.
         // We arbitrarily pick a new checkout among the candidates.
         let new_commit_id = new_commit_ids[0].clone();
-        let new_commit = self.mut_repo.store().get_commit(&new_commit_id).unwrap();
+        let new_commit = self.mut_repo.store().get_commit(&new_commit_id)?;
         let new_checkout_commit =
             self.mut_repo
                 .check_out(workspaces_to_update[0].clone(), self.settings, &new_commit);
@@ -352,34 +361,35 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             self.mut_repo
                 .check_out(workspace_id, self.settings, &new_checkout_commit);
         }
+        Ok(())
     }
 
     // TODO: Perhaps change the interface since it's not just about rebasing
     // commits.
-    pub fn rebase_next(&mut self) -> Option<RebasedDescendant> {
+    pub fn rebase_next(&mut self) -> Result<Option<RebasedDescendant>, BackendError> {
         while let Some(old_commit_id) = self.to_visit.pop() {
             if let Some(new_parent_ids) = self.new_parents.get(&old_commit_id).cloned() {
                 // This is a commit that had already been rebased before `self` was created
                 // (i.e. it's part of the input for this rebase). We don't need
                 // to rebase it, but we still want to update branches pointing
                 // to the old commit.
-                self.update_references(old_commit_id, new_parent_ids);
+                self.update_references(old_commit_id, new_parent_ids)?;
                 continue;
             }
             if let Some(divergent_ids) = self.divergent.get(&old_commit_id).cloned() {
                 // Leave divergent commits in place. Don't update `new_parents` since we don't
                 // want to rebase descendants either.
-                self.update_references(old_commit_id, divergent_ids);
+                self.update_references(old_commit_id, divergent_ids)?;
                 continue;
             }
-            let old_commit = self.mut_repo.store().get_commit(&old_commit_id).unwrap();
+            let old_commit = self.mut_repo.store().get_commit(&old_commit_id)?;
             let old_parent_ids = old_commit.parent_ids();
             let new_parent_ids = self.new_parents(&old_parent_ids);
             if self.to_skip.contains(&old_commit_id) {
                 // Update the `new_parents` map so descendants are rebased correctly.
                 self.new_parents
                     .insert(old_commit_id.clone(), new_parent_ids.clone());
-                self.update_references(old_commit_id, new_parent_ids);
+                self.update_references(old_commit_id, new_parent_ids)?;
                 continue;
             } else if new_parent_ids == old_parent_ids {
                 // The commit is already in place.
@@ -394,19 +404,21 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 .iter()
                 .cloned()
                 .collect();
-            let new_parents = new_parent_ids
-                .iter()
-                .filter(|new_parent| head_set.contains(new_parent))
-                .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id).unwrap())
-                .collect_vec();
+            let new_parents = process_results(
+                new_parent_ids
+                    .iter()
+                    .filter(|new_parent| head_set.contains(new_parent))
+                    .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id)),
+                |iter| iter.collect_vec(),
+            )?;
             let new_commit = rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents);
             self.rebased
                 .insert(old_commit_id.clone(), new_commit.id().clone());
-            self.update_references(old_commit_id, vec![new_commit.id().clone()]);
-            return Some(RebasedDescendant {
+            self.update_references(old_commit_id, vec![new_commit.id().clone()])?;
+            return Ok(Some(RebasedDescendant {
                 old_commit,
                 new_commit,
-            });
+            }));
         }
         // TODO: As the TODO above says, we should probably change the API. Even if we
         // don't, we should at least make this code not do any work if you call
@@ -423,11 +435,12 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         self.mut_repo.set_view(view);
         self.mut_repo.clear_rewritten_commits();
         self.mut_repo.clear_abandoned_commits();
-        None
+        Ok(None)
     }
 
-    pub fn rebase_all(&mut self) {
-        while self.rebase_next().is_some() {}
+    pub fn rebase_all(&mut self) -> Result<(), BackendError> {
+        while self.rebase_next()?.is_some() {}
+        Ok(())
     }
 }
 

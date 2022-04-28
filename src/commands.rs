@@ -240,7 +240,7 @@ jj init --git-repo=.";
                 let mut tx = workspace_command.start_transaction("resolve concurrent operations");
                 for other_op_head in op_heads.into_iter().skip(1) {
                     tx.merge_operation(other_op_head);
-                    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings());
+                    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
                     if num_rebased > 0 {
                         writeln!(
                             ui,
@@ -347,7 +347,7 @@ impl WorkspaceCommandHelper {
                 // so we just need to reset our working copy state to it without updating
                 // working copy files.
                 locked_working_copy.reset(&new_checkout.tree())?;
-                tx.mut_repo().rebase_descendants(&self.settings);
+                tx.mut_repo().rebase_descendants(&self.settings)?;
                 self.repo = tx.commit();
                 locked_working_copy.finish(self.repo.op_id().clone());
             } else {
@@ -654,7 +654,7 @@ impl WorkspaceCommandHelper {
             mut_repo.set_checkout(workspace_id, commit.id().clone());
 
             // Rebase descendants
-            let num_rebased = mut_repo.rebase_descendants(&self.settings);
+            let num_rebased = mut_repo.rebase_descendants(&self.settings)?;
             if num_rebased > 0 {
                 writeln!(
                     ui,
@@ -758,7 +758,7 @@ impl WorkspaceCommandHelper {
             writeln!(ui, "Nothing changed.")?;
             return Ok(());
         }
-        let num_rebased = mut_repo.rebase_descendants(ui.settings());
+        let num_rebased = mut_repo.rebase_descendants(ui.settings())?;
         if num_rebased > 0 {
             writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
         }
@@ -2108,7 +2108,7 @@ fn cmd_untrack(
     CommitBuilder::for_rewrite_from(ui.settings(), &store, &current_checkout)
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
-    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings());
+    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
     if num_rebased > 0 {
         writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
     }
@@ -3274,7 +3274,7 @@ fn cmd_abandon(
     for commit in to_abandon {
         tx.mut_repo().record_abandoned_commit(commit.id().clone());
     }
-    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings());
+    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
     if num_rebased > 0 {
         writeln!(
             ui,
@@ -3374,7 +3374,7 @@ from the source will be moved into the destination.
         // changes we're moving, so applying them will have no effect and the
         // changes will disappear.
         let mut rebaser = mut_repo.create_descendant_rebaser(ui.settings());
-        rebaser.rebase_all();
+        rebaser.rebase_all()?;
         let rebased_destination_id = rebaser.rebased().get(destination.id()).unwrap().clone();
         destination = mut_repo.store().get_commit(&rebased_destination_id)?;
     }
@@ -3688,7 +3688,7 @@ any changes, then the operation will be aborted.
             hashmap! { commit.id().clone() => hashset!{second_commit.id().clone()} },
             hashset! {},
         );
-        rebaser.rebase_all();
+        rebaser.rebase_all()?;
         let num_rebased = rebaser.rebased().len();
         if num_rebased > 0 {
             writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
@@ -3803,7 +3803,7 @@ fn rebase_branch(
         rebase_commit(ui.settings(), tx.mut_repo(), &root_commit, new_parents);
         num_rebased += 1;
     }
-    num_rebased += tx.mut_repo().rebase_descendants(ui.settings());
+    num_rebased += tx.mut_repo().rebase_descendants(ui.settings())?;
     writeln!(ui, "Rebased {} commits", num_rebased)?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -3823,7 +3823,7 @@ fn rebase_descendants(
         old_commit.id().hex()
     ));
     rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, new_parents);
-    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings()) + 1;
+    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())? + 1;
     writeln!(ui, "Rebased {} commits", num_rebased)?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -3864,7 +3864,7 @@ fn rebase_revision(
         );
         num_rebased_descendants += 1;
     }
-    num_rebased_descendants += tx.mut_repo().rebase_descendants(ui.settings());
+    num_rebased_descendants += tx.mut_repo().rebase_descendants(ui.settings())?;
     if num_rebased_descendants > 0 {
         writeln!(
             ui,

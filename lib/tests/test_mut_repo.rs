@@ -97,7 +97,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
         .set_open(true)
         .write_to_repo(mut_repo);
     mut_repo.check_out(ws_id, &settings, &new_checkout);
-    mut_repo.rebase_descendants(&settings);
+    mut_repo.rebase_descendants(&settings).unwrap();
     assert!(mut_repo.view().heads().contains(old_checkout.id()));
 }
 
@@ -129,7 +129,7 @@ fn test_checkout_previous_empty(use_git: bool) {
         .set_open(true)
         .write_to_repo(mut_repo);
     mut_repo.check_out(ws_id, &settings, &new_checkout);
-    mut_repo.rebase_descendants(&settings);
+    mut_repo.rebase_descendants(&settings).unwrap();
     assert!(!mut_repo.view().heads().contains(old_checkout.id()));
 }
 
@@ -168,7 +168,7 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
         .set_open(true)
         .write_to_repo(mut_repo);
     mut_repo.check_out(ws_id, &settings, &new_checkout);
-    mut_repo.rebase_descendants(&settings);
+    mut_repo.rebase_descendants(&settings).unwrap();
     assert_eq!(
         *mut_repo.view().heads(),
         hashset! {old_child.id().clone(), new_checkout.id().clone()}
@@ -540,14 +540,15 @@ fn test_rebase_descendants_simple(use_git: bool) {
     mut_repo.record_abandoned_commit(commit4.id().clone());
     let mut rebaser = mut_repo.create_descendant_rebaser(&settings);
     // Commit 3 got rebased onto commit 2's replacement, i.e. commit 6
-    assert_rebased(rebaser.rebase_next(), &commit3, &[&commit6]);
+    assert_rebased(rebaser.rebase_next().unwrap(), &commit3, &[&commit6]);
     // Commit 5 got rebased onto commit 4's parent, i.e. commit 1
-    assert_rebased(rebaser.rebase_next(), &commit5, &[&commit1]);
-    assert!(rebaser.rebase_next().is_none());
+    assert_rebased(rebaser.rebase_next().unwrap(), &commit5, &[&commit1]);
+    assert!(rebaser.rebase_next().unwrap().is_none());
     // No more descendants to rebase if we try again.
     assert!(mut_repo
         .create_descendant_rebaser(&settings)
         .rebase_next()
+        .unwrap()
         .is_none());
 }
 
@@ -577,10 +578,11 @@ fn test_rebase_descendants_conflicting_rewrite(use_git: bool) {
     let mut rebaser = mut_repo.create_descendant_rebaser(&settings);
     // Commit 3 does *not* get rebased because it's unclear if it should go onto
     // commit 4 or commit 5
-    assert!(rebaser.rebase_next().is_none());
+    assert!(rebaser.rebase_next().unwrap().is_none());
     // No more descendants to rebase if we try again.
     assert!(mut_repo
         .create_descendant_rebaser(&settings)
         .rebase_next()
+        .unwrap()
         .is_none());
 }

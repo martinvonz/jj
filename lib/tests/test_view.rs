@@ -127,7 +127,7 @@ fn test_merge_views_heads() {
     tx2.mut_repo().add_public_head(&public_head_add_tx2);
     tx2.commit();
 
-    let repo = repo.reload_at_head(&settings);
+    let repo = repo.reload_at_head(&settings).unwrap();
 
     let expected_heads = hashset! {
         head_unchanged.id().clone(),
@@ -221,7 +221,7 @@ fn test_merge_views_checkout() {
     std::thread::sleep(std::time::Duration::from_millis(1));
     tx2.commit();
 
-    let repo = repo.reload_at_head(&settings);
+    let repo = repo.reload_at_head(&settings).unwrap();
 
     // We currently arbitrarily pick the first transaction's checkout (first by
     // transaction end time).
@@ -308,7 +308,7 @@ fn test_merge_views_branches() {
     );
     tx2.commit();
 
-    let repo = repo.reload_at_head(&settings);
+    let repo = repo.reload_at_head(&settings).unwrap();
     let expected_main_branch = BranchTarget {
         local_target: Some(RefTarget::Conflict {
             removes: vec![main_branch_local_tx0.id().clone()],
@@ -366,7 +366,7 @@ fn test_merge_views_tags() {
         .set_tag("v1.0".to_string(), RefTarget::Normal(v1_tx2.id().clone()));
     tx2.commit();
 
-    let repo = repo.reload_at_head(&settings);
+    let repo = repo.reload_at_head(&settings).unwrap();
     let expected_v1 = RefTarget::Conflict {
         removes: vec![v1_tx0.id().clone()],
         adds: vec![v1_tx1.id().clone(), v1_tx2.id().clone()],
@@ -428,7 +428,7 @@ fn test_merge_views_git_refs() {
     );
     tx2.commit();
 
-    let repo = repo.reload_at_head(&settings);
+    let repo = repo.reload_at_head(&settings).unwrap();
     let expected_main_branch = RefTarget::Conflict {
         removes: vec![main_branch_tx0.id().clone()],
         adds: vec![main_branch_tx1.id().clone(), main_branch_tx2.id().clone()],
@@ -450,7 +450,7 @@ fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<Re
         op_ids.push(tx.commit().op_id().clone());
         std::thread::sleep(std::time::Duration::from_millis(1));
     }
-    let repo = repo_loader.load_at_head().resolve(settings);
+    let repo = repo_loader.load_at_head().resolve(settings).unwrap();
     // Test the setup. The assumption here is that the parent order matches the
     // order in which they were merged (which currently matches the transaction
     // commit order), so we want to know make sure they appear in a certain
@@ -482,7 +482,7 @@ fn test_merge_views_child_on_rewritten(child_first: bool) {
     let commit_a2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_a)
         .set_description("A2".to_string())
         .write_to_repo(tx2.mut_repo());
-    tx2.mut_repo().rebase_descendants(&settings);
+    tx2.mut_repo().rebase_descendants(&settings).unwrap();
 
     let repo = if child_first {
         commit_transactions(&settings, vec![tx1, tx2])
@@ -529,7 +529,7 @@ fn test_merge_views_child_on_rewritten_divergent(on_rewritten: bool, child_first
     let commit_a4 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_a2)
         .set_description("A4".to_string())
         .write_to_repo(tx2.mut_repo());
-    tx2.mut_repo().rebase_descendants(&settings);
+    tx2.mut_repo().rebase_descendants(&settings).unwrap();
 
     let repo = if child_first {
         commit_transactions(&settings, vec![tx1, tx2])
@@ -579,7 +579,7 @@ fn test_merge_views_child_on_abandoned(child_first: bool) {
     let mut tx2 = repo.start_transaction("test");
     tx2.mut_repo()
         .record_abandoned_commit(commit_b.id().clone());
-    tx2.mut_repo().rebase_descendants(&settings);
+    tx2.mut_repo().rebase_descendants(&settings).unwrap();
 
     let repo = if child_first {
         commit_transactions(&settings, vec![tx1, tx2])
