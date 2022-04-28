@@ -64,13 +64,15 @@ fn test_rebase_invalid() {
 
     // Rebase onto descendant with -r
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b"]);
-    insta::assert_snapshot!(stderr, @"Error: Cannot rebase 247da0ddee3d onto descendant 18db23c14b3c
-");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot rebase 247da0ddee3d onto descendant 18db23c14b3c
+    "###);
 
     // Rebase onto descendant with -s
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-s", "a", "-d", "b"]);
-    insta::assert_snapshot!(stderr, @"Error: Cannot rebase 247da0ddee3d onto descendant 18db23c14b3c
-");
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot rebase 247da0ddee3d onto descendant 18db23c14b3c
+    "###);
 }
 
 #[test]
@@ -99,8 +101,9 @@ fn test_rebase_branch() {
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b", "c", "-d", "e"]);
-    insta::assert_snapshot!(stdout, @"Rebased 3 commits
-");
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 3 commits
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
     insta::assert_snapshot!(stdout, @r###"
     o d

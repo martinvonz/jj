@@ -50,8 +50,9 @@ fn init_git_repo(git_repo_path: &PathBuf) {
 fn test_init_git_internal() {
     let test_env = TestEnvironment::default();
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
-    insta::assert_snapshot!(stdout, @r###"Initialized repo in "repo"
-"###);
+    insta::assert_snapshot!(stdout, @r###"
+    Initialized repo in "repo"
+    "###);
 
     let workspace_root = test_env.env_root().join("repo");
     let jj_path = workspace_root.join(".jj");
@@ -117,8 +118,9 @@ fn test_init_git_colocated() {
     let workspace_root = test_env.env_root().join("repo");
     init_git_repo(&workspace_root);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
-    insta::assert_snapshot!(stdout, @r###"Initialized repo in "."
-"###);
+    insta::assert_snapshot!(stdout, @r###"
+    Initialized repo in "."
+    "###);
 
     let jj_path = workspace_root.join(".jj");
     let repo_path = jj_path.join("repo");
@@ -145,8 +147,9 @@ fn test_init_git_colocated() {
 fn test_init_local() {
     let test_env = TestEnvironment::default();
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["init", "repo"]);
-    insta::assert_snapshot!(stdout, @r###"Initialized repo in "repo"
-"###);
+    insta::assert_snapshot!(stdout, @r###"
+    Initialized repo in "repo"
+    "###);
 
     let workspace_root = test_env.env_root().join("repo");
     let jj_path = workspace_root.join(".jj");

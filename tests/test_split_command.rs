@@ -49,8 +49,9 @@ fn test_split() {
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @"A file2
-");
+    insta::assert_snapshot!(stdout, @r###"
+    A file2
+    "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     A file1
