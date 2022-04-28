@@ -309,6 +309,32 @@ impl Backend for GitBackend {
         Ok(TreeId::from_bytes(oid.as_bytes()))
     }
 
+    fn read_conflict(&self, _path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
+        let mut file = self.read_file(
+            &RepoPath::from_internal_string("unused"),
+            &FileId::new(id.to_bytes()),
+        )?;
+        let mut data = String::new();
+        file.read_to_string(&mut data)?;
+        let json: serde_json::Value = serde_json::from_str(&data).unwrap();
+        Ok(Conflict {
+            removes: conflict_part_list_from_json(json.get("removes").unwrap()),
+            adds: conflict_part_list_from_json(json.get("adds").unwrap()),
+        })
+    }
+
+    fn write_conflict(&self, _path: &RepoPath, conflict: &Conflict) -> BackendResult<ConflictId> {
+        let json = serde_json::json!({
+            "removes": conflict_part_list_to_json(&conflict.removes),
+            "adds": conflict_part_list_to_json(&conflict.adds),
+        });
+        let json_string = json.to_string();
+        let bytes = json_string.as_bytes();
+        let locked_repo = self.repo.lock().unwrap();
+        let oid = locked_repo.blob(bytes).unwrap();
+        Ok(ConflictId::from_bytes(oid.as_bytes()))
+    }
+
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
         if id.as_bytes().len() != self.hash_length() {
             return Err(BackendError::NotFound);
@@ -399,32 +425,6 @@ impl Backend for GitBackend {
         mut_table.add_entry(git_id.as_bytes().to_vec(), extras);
         self.extra_metadata_store.save_table(mut_table).unwrap();
         Ok(id)
-    }
-
-    fn read_conflict(&self, _path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
-        let mut file = self.read_file(
-            &RepoPath::from_internal_string("unused"),
-            &FileId::new(id.to_bytes()),
-        )?;
-        let mut data = String::new();
-        file.read_to_string(&mut data)?;
-        let json: serde_json::Value = serde_json::from_str(&data).unwrap();
-        Ok(Conflict {
-            removes: conflict_part_list_from_json(json.get("removes").unwrap()),
-            adds: conflict_part_list_from_json(json.get("adds").unwrap()),
-        })
-    }
-
-    fn write_conflict(&self, _path: &RepoPath, conflict: &Conflict) -> BackendResult<ConflictId> {
-        let json = serde_json::json!({
-            "removes": conflict_part_list_to_json(&conflict.removes),
-            "adds": conflict_part_list_to_json(&conflict.adds),
-        });
-        let json_string = json.to_string();
-        let bytes = json_string.as_bytes();
-        let locked_repo = self.repo.lock().unwrap();
-        let oid = locked_repo.blob(bytes).unwrap();
-        Ok(ConflictId::from_bytes(oid.as_bytes()))
     }
 }
 
