@@ -612,7 +612,7 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
         .set_tree(tree_b3.id().clone())
         .write_to_repo(tx.mut_repo());
     let commit_c3 = rebase_commit(&settings, tx.mut_repo(), &commit_c2, &[commit_b3]);
-    tx.mut_repo().rebase_descendants(&settings);
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
 
     // The conflict should now be resolved.

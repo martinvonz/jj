@@ -195,7 +195,10 @@ impl ReadonlyRepo {
         })
     }
 
-    pub fn load_at_head(user_settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
+    pub fn load_at_head(
+        user_settings: &UserSettings,
+        repo_path: PathBuf,
+    ) -> Result<Arc<ReadonlyRepo>, BackendError> {
         RepoLoader::init(user_settings, repo_path)
             .load_at_head()
             .resolve(user_settings)
@@ -282,7 +285,10 @@ impl ReadonlyRepo {
         Transaction::new(mut_repo, description)
     }
 
-    pub fn reload_at_head(&self, user_settings: &UserSettings) -> Arc<ReadonlyRepo> {
+    pub fn reload_at_head(
+        &self,
+        user_settings: &UserSettings,
+    ) -> Result<Arc<ReadonlyRepo>, BackendError> {
         self.loader().load_at_head().resolve(user_settings)
     }
 
@@ -297,9 +303,9 @@ pub enum RepoAtHead {
 }
 
 impl RepoAtHead {
-    pub fn resolve(self, user_settings: &UserSettings) -> Arc<ReadonlyRepo> {
+    pub fn resolve(self, user_settings: &UserSettings) -> Result<Arc<ReadonlyRepo>, BackendError> {
         match self {
-            RepoAtHead::Single(repo) => repo,
+            RepoAtHead::Single(repo) => Ok(repo),
             RepoAtHead::Unresolved(unresolved) => unresolved.resolve(user_settings),
         }
     }
@@ -312,16 +318,16 @@ pub struct UnresolvedHeadRepo {
 }
 
 impl UnresolvedHeadRepo {
-    pub fn resolve(self, user_settings: &UserSettings) -> Arc<ReadonlyRepo> {
+    pub fn resolve(self, user_settings: &UserSettings) -> Result<Arc<ReadonlyRepo>, BackendError> {
         let base_repo = self.repo_loader.load_at(&self.op_heads[0]);
         let mut tx = base_repo.start_transaction("resolve concurrent operations");
         for other_op_head in self.op_heads.into_iter().skip(1) {
             tx.merge_operation(other_op_head);
-            tx.mut_repo().rebase_descendants(user_settings);
+            tx.mut_repo().rebase_descendants(user_settings)?;
         }
         let merged_repo = tx.write().leave_unpublished();
         self.locked_op_heads.finish(merged_repo.operation());
-        merged_repo
+        Ok(merged_repo)
     }
 }
 
@@ -554,14 +560,14 @@ impl MutableRepo {
         )
     }
 
-    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> usize {
+    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, BackendError> {
         if !self.has_rewrites() {
             // Optimization
-            return 0;
+            return Ok(0);
         }
         let mut rebaser = self.create_descendant_rebaser(settings);
-        rebaser.rebase_all();
-        rebaser.rebased().len()
+        rebaser.rebase_all()?;
+        Ok(rebaser.rebased().len())
     }
 
     pub fn set_checkout(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {

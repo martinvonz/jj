@@ -112,7 +112,7 @@ fn test_rewrite(use_git: bool) {
         CommitBuilder::for_rewrite_from(&rewrite_settings, &store, &initial_commit)
             .set_tree(rewritten_tree.id().clone())
             .write_to_repo(tx.mut_repo());
-    tx.mut_repo().rebase_descendants(&settings);
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
     tx.commit();
     assert_eq!(rewritten_commit.parents(), vec![store.root_commit()]);
     assert_eq!(
@@ -173,7 +173,7 @@ fn test_commit_builder_descendants(use_git: bool) {
     CommitBuilder::for_new_commit(&settings, &store, store.empty_tree_id().clone())
         .write_to_repo(tx.mut_repo());
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
-    assert!(rebaser.rebase_next().is_none());
+    assert!(rebaser.rebase_next().unwrap().is_none());
 
     // Test with for_open_commit()
     let mut tx = repo.start_transaction("test");
@@ -185,15 +185,15 @@ fn test_commit_builder_descendants(use_git: bool) {
     )
     .write_to_repo(tx.mut_repo());
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
-    assert!(rebaser.rebase_next().is_none());
+    assert!(rebaser.rebase_next().unwrap().is_none());
 
     // Test with for_rewrite_from()
     let mut tx = repo.start_transaction("test");
     let commit4 =
         CommitBuilder::for_rewrite_from(&settings, &store, &commit2).write_to_repo(tx.mut_repo());
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
-    assert_rebased(rebaser.rebase_next(), &commit3, &[&commit4]);
-    assert!(rebaser.rebase_next().is_none());
+    assert_rebased(rebaser.rebase_next().unwrap(), &commit3, &[&commit4]);
+    assert!(rebaser.rebase_next().unwrap().is_none());
 
     // Test with for_rewrite_from() but new change id
     let mut tx = repo.start_transaction("test");
@@ -201,5 +201,5 @@ fn test_commit_builder_descendants(use_git: bool) {
         .generate_new_change_id()
         .write_to_repo(tx.mut_repo());
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
-    assert!(rebaser.rebase_next().is_none());
+    assert!(rebaser.rebase_next().unwrap().is_none());
 }
