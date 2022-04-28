@@ -31,6 +31,7 @@ use std::sync::{Arc, RwLock};
 use blake2::{Blake2b512, Digest};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use tempfile::NamedTempFile;
+use thiserror::Error;
 
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::lock::FileLock;
@@ -78,7 +79,7 @@ impl ReadonlyTable {
         store: &TableStore,
         name: String,
         key_size: usize,
-    ) -> io::Result<Arc<ReadonlyTable>> {
+    ) -> TableStoreResult<Arc<ReadonlyTable>> {
         let parent_filename_len = file.read_u32::<LittleEndian>()?;
         let maybe_parent_file = if parent_filename_len > 0 {
             let mut parent_filename_bytes = vec![0; parent_filename_len as usize];
@@ -322,7 +323,7 @@ impl MutableTable {
         squashed
     }
 
-    fn save_in(self, store: &TableStore) -> io::Result<Arc<ReadonlyTable>> {
+    fn save_in(self, store: &TableStore) -> TableStoreResult<Arc<ReadonlyTable>> {
         if self.entries.is_empty() && self.parent_file.is_some() {
             return Ok(self.parent_file.unwrap());
         }
@@ -363,6 +364,15 @@ impl TableSegment for MutableTable {
     }
 }
 
+#[derive(Debug, Error)]
+#[error(transparent)]
+pub enum TableStoreError {
+    IoError(#[from] io::Error),
+    PersistError(#[from] tempfile::PersistError),
+}
+
+pub type TableStoreResult<T> = Result<T, TableStoreError>;
+
 pub struct TableStore {
     dir: PathBuf,
     key_size: usize,
@@ -396,7 +406,7 @@ impl TableStore {
         }
     }
 
-    pub fn save_table(&self, mut_table: MutableTable) -> io::Result<Arc<ReadonlyTable>> {
+    pub fn save_table(&self, mut_table: MutableTable) -> TableStoreResult<Arc<ReadonlyTable>> {
         let maybe_parent_table = mut_table.parent_file.clone();
         let table = mut_table.save_in(self)?;
         self.add_head(&table)?;
@@ -426,7 +436,7 @@ impl TableStore {
         FileLock::lock(self.dir.join("lock"))
     }
 
-    fn load_table(&self, name: String) -> std::io::Result<Arc<ReadonlyTable>> {
+    fn load_table(&self, name: String) -> TableStoreResult<Arc<ReadonlyTable>> {
         {
             let read_locked_cached = self.cached_tables.read().unwrap();
             if let Some(table) = read_locked_cached.get(&name).cloned() {
@@ -443,7 +453,7 @@ impl TableStore {
         Ok(table)
     }
 
-    fn get_head_tables(&self) -> io::Result<Vec<Arc<ReadonlyTable>>> {
+    fn get_head_tables(&self) -> TableStoreResult<Vec<Arc<ReadonlyTable>>> {
         let mut tables = vec![];
         for head_entry in std::fs::read_dir(self.dir.join("heads"))? {
             let head_file_name = head_entry?.file_name();
@@ -453,7 +463,7 @@ impl TableStore {
         Ok(tables)
     }
 
-    pub fn get_head(&self) -> io::Result<Arc<ReadonlyTable>> {
+    pub fn get_head(&self) -> TableStoreResult<Arc<ReadonlyTable>> {
         let mut tables = self.get_head_tables()?;
 
         if tables.is_empty() {
