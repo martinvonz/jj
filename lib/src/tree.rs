@@ -20,16 +20,28 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use itertools::Itertools;
+use thiserror::Error;
 
 use crate::backend::{
-    BackendError, Conflict, ConflictId, ConflictPart, TreeEntriesNonRecursiveIterator, TreeEntry,
-    TreeId, TreeValue,
+    BackendError, Conflict, ConflictId, ConflictPart, FileId, TreeEntriesNonRecursiveIterator,
+    TreeEntry, TreeId, TreeValue,
 };
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use crate::store::Store;
 use crate::{backend, files};
+
+#[derive(Debug, Error)]
+pub enum TreeMergeError {
+    #[error("Failed to read file with ID {} ", .file_id.hex())]
+    ReadError {
+        source: std::io::Error,
+        file_id: FileId,
+    },
+    #[error("Backend error: {0}")]
+    BackendError(#[from] BackendError),
+}
 
 #[derive(Clone)]
 pub struct Tree {
@@ -502,7 +514,7 @@ pub fn merge_trees(
     side1_tree: &Tree,
     base_tree: &Tree,
     side2_tree: &Tree,
-) -> Result<TreeId, BackendError> {
+) -> Result<TreeId, TreeMergeError> {
     let store = base_tree.store();
     let dir = base_tree.dir();
     assert_eq!(side1_tree.dir(), dir);
@@ -541,7 +553,7 @@ pub fn merge_trees(
             }
         }
     }
-    store.write_tree(dir, &new_tree)
+    Ok(store.write_tree(dir, &new_tree)?)
 }
 
 /// Returns `Some(TreeId)` if this is a directory or missing. If it's missing,
@@ -564,7 +576,7 @@ fn merge_tree_value(
     maybe_base: Option<&TreeValue>,
     maybe_side1: Option<&TreeValue>,
     maybe_side2: Option<&TreeValue>,
-) -> Result<Option<TreeValue>, BackendError> {
+) -> Result<Option<TreeValue>, TreeMergeError> {
     // Resolve non-trivial conflicts:
     //   * resolve tree conflicts by recursing
     //   * try to resolve file conflicts by merging the file contents
@@ -634,7 +646,7 @@ fn try_resolve_file_conflict(
     store: &Store,
     filename: &RepoPath,
     conflict: &Conflict,
-) -> Result<Option<(Vec<u8>, bool)>, BackendError> {
+) -> Result<Option<(Vec<u8>, bool)>, TreeMergeError> {
     // If there are any non-file parts in the conflict, we can't merge it. We check
     // early so we don't waste time reading file contents if we can't merge them
     // anyway. At the same time we determine whether the resulting file should
@@ -687,14 +699,22 @@ fn try_resolve_file_conflict(
         let mut content = vec![];
         store
             .read_file(filename, &file_id)?
-            .read_to_end(&mut content)?;
+            .read_to_end(&mut content)
+            .map_err(|err| TreeMergeError::ReadError {
+                source: err,
+                file_id,
+            })?;
         removed_contents.push(content);
     }
     for file_id in added_file_ids {
         let mut content = vec![];
         store
             .read_file(filename, &file_id)?
-            .read_to_end(&mut content)?;
+            .read_to_end(&mut content)
+            .map_err(|err| TreeMergeError::ReadError {
+                source: err,
+                file_id,
+            })?;
         added_contents.push(content);
     }
     let merge_result = files::merge(

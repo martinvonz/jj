@@ -55,7 +55,7 @@ use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, D
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
-use jujutsu_lib::tree::{merge_trees, Tree, TreeDiffIterator};
+use jujutsu_lib::tree::{merge_trees, Tree, TreeDiffIterator, TreeMergeError};
 use jujutsu_lib::working_copy::{
     CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, WorkingCopy,
 };
@@ -116,6 +116,12 @@ impl From<OpHeadResolutionError> for CommandError {
 impl From<SnapshotError> for CommandError {
     fn from(err: SnapshotError) -> Self {
         CommandError::InternalError(format!("Failed to snapshot the working copy: {:?}", err))
+    }
+}
+
+impl From<TreeMergeError> for CommandError {
+    fn from(err: TreeMergeError) -> Self {
+        CommandError::InternalError(format!("Merge failed: {}", err))
     }
 }
 
