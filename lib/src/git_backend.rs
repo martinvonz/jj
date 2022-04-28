@@ -376,7 +376,9 @@ impl Backend for GitBackend {
             is_open: false,
         };
 
-        let table = self.extra_metadata_store.get_head()?;
+        let table = self.extra_metadata_store.get_head().map_err(|err| {
+            BackendError::Other(format!("Failed to read non-git metadata: {:?}", err))
+        })?;
         let maybe_extras = table.get_value(git_commit_id.as_bytes());
         if let Some(extras) = maybe_extras {
             deserialize_extras(&mut commit, extras);
@@ -423,7 +425,11 @@ impl Backend for GitBackend {
             }
         }
         mut_table.add_entry(git_id.as_bytes().to_vec(), extras);
-        self.extra_metadata_store.save_table(mut_table).unwrap();
+        self.extra_metadata_store
+            .save_table(mut_table)
+            .map_err(|err| {
+                BackendError::Other(format!("Failed to write non-git metadata: {:?}", err))
+            })?;
         Ok(id)
     }
 }
