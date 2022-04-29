@@ -58,10 +58,10 @@ pub fn import_refs(
 ) -> Result<(), GitImportError> {
     let store = mut_repo.store().clone();
     let mut existing_git_refs = mut_repo.view().git_refs().clone();
-    let old_git_heads: HashSet<_> = existing_git_refs
+    let old_git_heads = existing_git_refs
         .values()
         .flat_map(|old_target| old_target.adds())
-        .collect();
+        .collect_vec();
     let mut new_git_heads = HashSet::new();
     let mut changed_git_refs = BTreeMap::new();
     let git_refs = git_repo.references()?;
@@ -122,7 +122,6 @@ pub fn import_refs(
 
     // Find commits that are no longer referenced in the git repo and abandon them
     // in jj as well.
-    let old_git_heads = old_git_heads.into_iter().collect_vec();
     let new_git_heads = new_git_heads.into_iter().collect_vec();
     // We could use mut_repo.record_rewrites() here but we know we only need to care
     // about abandoned commits for now. We may want to change this if we ever
