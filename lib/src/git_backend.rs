@@ -360,8 +360,6 @@ impl Backend for GitBackend {
     }
 
     fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId> {
-        // TODO: We shouldn't have to create an in-memory index just to write an
-        // object...
         let locked_repo = self.repo.lock().unwrap();
         let git_tree = locked_repo.find_tree(Oid::from_bytes(contents.root_tree.as_bytes())?)?;
         let author = signature_to_git(&contents.author);
