@@ -46,7 +46,7 @@ use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jujutsu_lib::op_heads_store::{OpHeadResolutionError, OpHeads, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
-use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction};
+use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
@@ -4742,48 +4742,14 @@ fn cmd_git_push(
 
     let mut branch_updates = HashMap::new();
     if let Some(branch_name) = &args.branch {
-        let maybe_branch_target = repo.view().get_branch(branch_name);
-        if maybe_branch_target.is_none() {
-            return Err(CommandError::UserError(format!(
-                "Branch {} doesn't exist",
-                branch_name
-            )));
-        }
-        let branch_target = maybe_branch_target.unwrap();
-        let push_action = classify_branch_push_action(branch_target, &args.remote);
-
-        match push_action {
-            BranchPushAction::AlreadyMatches => {
-                writeln!(
-                    ui,
-                    "Branch {}@{} already matches {}",
-                    branch_name, &args.remote, branch_name
-                )?;
-                return Ok(());
-            }
-            BranchPushAction::LocalConflicted => {
-                return Err(CommandError::UserError(format!(
-                    "Branch {} is conflicted",
-                    branch_name
-                )));
-            }
-            BranchPushAction::RemoteConflicted => {
-                return Err(CommandError::UserError(format!(
-                    "Branch {}@{} is conflicted",
-                    branch_name, &args.remote
-                )));
-            }
-            BranchPushAction::Update(update) => {
-                if let Some(new_target) = &update.new_target {
-                    let new_target_commit = repo.store().get_commit(new_target)?;
-                    if new_target_commit.is_open() {
-                        return Err(CommandError::UserError(
-                            "Won't push open commit".to_string(),
-                        ));
-                    }
-                }
-                branch_updates.insert(branch_name, update);
-            }
+        if let Some(update) = branch_updates_for_push(repo, &args.remote, branch_name)? {
+            branch_updates.insert(branch_name, update);
+        } else {
+            writeln!(
+                ui,
+                "Branch {}@{} already matches {}",
+                branch_name, &args.remote, branch_name
+            )?;
         }
     } else {
         // TODO: Is it useful to warn about conflicted branches?
@@ -4866,6 +4832,45 @@ fn cmd_git_push(
     git::import_refs(tx.mut_repo(), &git_repo)?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
+}
+
+fn branch_updates_for_push(
+    repo: &Arc<ReadonlyRepo>,
+    remote_name: &str,
+    branch_name: &str,
+) -> Result<Option<BranchPushUpdate>, CommandError> {
+    let maybe_branch_target = repo.view().get_branch(branch_name);
+    if maybe_branch_target.is_none() {
+        return Err(CommandError::UserError(format!(
+            "Branch {} doesn't exist",
+            branch_name
+        )));
+    }
+    let branch_target = maybe_branch_target.unwrap();
+    let push_action = classify_branch_push_action(branch_target, remote_name);
+
+    match push_action {
+        BranchPushAction::AlreadyMatches => Ok(None),
+        BranchPushAction::LocalConflicted => Err(CommandError::UserError(format!(
+            "Branch {} is conflicted",
+            branch_name
+        ))),
+        BranchPushAction::RemoteConflicted => Err(CommandError::UserError(format!(
+            "Branch {}@{} is conflicted",
+            branch_name, remote_name
+        ))),
+        BranchPushAction::Update(update) => {
+            if let Some(new_target) = &update.new_target {
+                let new_target_commit = repo.store().get_commit(new_target)?;
+                if new_target_commit.is_open() {
+                    return Err(CommandError::UserError(
+                        "Won't push open commit".to_string(),
+                    ));
+                }
+            }
+            Ok(Some(update))
+        }
+    }
 }
 
 fn cmd_git_import(
