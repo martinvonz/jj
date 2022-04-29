@@ -400,7 +400,7 @@ impl WorkspaceCommandHelper {
     fn start_working_copy_mutation(&mut self) -> Result<(LockedWorkingCopy, Commit), CommandError> {
         let current_checkout_id = self.repo.view().get_checkout(&self.workspace_id());
         let current_checkout = if let Some(current_checkout_id) = current_checkout_id {
-            self.repo.store().get_commit(current_checkout_id).unwrap()
+            self.repo.store().get_commit(current_checkout_id)?
         } else {
             return Err(CommandError::UserError(
                 "Nothing checked out in this workspace".to_string(),
@@ -586,7 +586,7 @@ impl WorkspaceCommandHelper {
         // doesn't, but we'll need to reload the repo so the new commit is
         // in the index and view, and so we don't cause unnecessary
         // divergence.
-        let checkout_commit = repo.store().get_commit(&checkout_id).unwrap();
+        let checkout_commit = repo.store().get_commit(&checkout_id)?;
         let wc_tree_id = locked_wc.old_tree_id().clone();
         if *checkout_commit.tree_id() != wc_tree_id {
             let wc_operation_data = self
@@ -769,7 +769,8 @@ impl WorkspaceCommandHelper {
             .base_repo()
             .view()
             .get_checkout(&self.workspace_id())
-            .map(|commit_id| store.get_commit(commit_id).unwrap());
+            .map(|commit_id| store.get_commit(commit_id))
+            .transpose()?;
         self.repo = tx.commit();
         if self.may_update_working_copy {
             let stats = update_working_copy(
@@ -969,7 +970,7 @@ fn update_working_copy(
             return Ok(None);
         }
     };
-    let new_commit = repo.store().get_commit(new_commit_id).unwrap();
+    let new_commit = repo.store().get_commit(new_commit_id)?;
     let old_tree_id = old_commit.map(|commit| commit.tree_id().clone());
     let stats = if Some(new_commit.tree_id()) != old_tree_id.as_ref() {
         // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
@@ -2790,7 +2791,9 @@ fn cmd_status(
     workspace_command.maybe_commit_working_copy(ui)?;
     let repo = workspace_command.repo();
     let maybe_checkout_id = repo.view().get_checkout(&workspace_command.workspace_id());
-    let maybe_checkout = maybe_checkout_id.map(|id| repo.store().get_commit(id).unwrap());
+    let maybe_checkout = maybe_checkout_id
+        .map(|id| repo.store().get_commit(id))
+        .transpose()?;
     if let Some(checkout_commit) = &maybe_checkout {
         ui.write("Parent commit: ")?;
         let workspace_id = workspace_command.workspace_id();
@@ -2960,7 +2963,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             }
             let mut buffer = vec![];
             let commit_id = index_entry.commit_id();
-            let commit = store.get_commit(&commit_id).unwrap();
+            let commit = store.get_commit(&commit_id)?;
             let is_checkout = Some(&commit_id) == checkout_id;
             {
                 let writer = Box::new(&mut buffer);
@@ -2991,7 +2994,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         }
     } else {
         for index_entry in revset.iter() {
-            let commit = store.get_commit(&index_entry.commit_id()).unwrap();
+            let commit = store.get_commit(&index_entry.commit_id())?;
             template.format(&commit, formatter)?;
             // TODO: should --summary (without --patch) show diff summary as in hg log
             // --stat?
@@ -3355,10 +3358,7 @@ from the source will be moved into the destination.
         let mut rebaser = mut_repo.create_descendant_rebaser(ui.settings());
         rebaser.rebase_all();
         let rebased_destination_id = rebaser.rebased().get(destination.id()).unwrap().clone();
-        destination = mut_repo
-            .store()
-            .get_commit(&rebased_destination_id)
-            .unwrap();
+        destination = mut_repo.store().get_commit(&rebased_destination_id)?;
     }
     // Apply the selected changes onto the destination
     let new_destination_tree_id = merge_trees(&destination.tree(), &parent_tree, &new_parent_tree)?;
@@ -4444,8 +4444,7 @@ fn cmd_workspace_add(
         new_workspace_command
             .repo()
             .store()
-            .get_commit(old_checkout_id)
-            .unwrap()
+            .get_commit(old_checkout_id)?
             .parents()[0]
             .clone()
     } else {
