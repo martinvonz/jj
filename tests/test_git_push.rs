@@ -49,6 +49,12 @@ fn test_git_push() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push open commit
     "###);
+    // When pushing with `--change`, won't push if it points to an open commit
+    let stderr =
+        test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--change", "my-branch"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Won't push open commit
+    "###);
 
     // Try pushing a conflict
     std::fs::write(workspace_root.join("file"), "first").unwrap();
@@ -61,6 +67,6 @@ fn test_git_push() {
     test_env.jj_cmd_success(&workspace_root, &["close", "-m", "third"]);
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit 28b5642cb786 since it has conflicts
+    Error: Won't push commit fcd0490f7df7 since it has conflicts
     "###);
 }
