@@ -1846,6 +1846,7 @@ enum DebugCommands {
     Index(DebugIndexArgs),
     #[clap(name = "reindex")]
     ReIndex(DebugReIndexArgs),
+    Operation(DebugOperationArgs),
 }
 
 /// Print a command-line-completion script
@@ -1905,6 +1906,13 @@ struct DebugIndexArgs {}
 /// Rebuild commit index
 #[derive(clap::Args, Clone, Debug)]
 struct DebugReIndexArgs {}
+
+/// Show information about an operation and its view
+#[derive(clap::Args, Clone, Debug)]
+struct DebugOperationArgs {
+    #[clap(default_value = "@")]
+    operation: String,
+}
 
 fn short_commit_description(commit: &Commit) -> String {
     let first_line = commit.description().split('\n').next().unwrap();
@@ -4122,6 +4130,12 @@ fn cmd_debug(ui: &mut Ui, command: &CommandHelper, args: &DebugArgs) -> Result<(
             let mut_repo = Arc::get_mut(workspace_command.repo_mut()).unwrap();
             let index = mut_repo.reindex();
             writeln!(ui, "Finished indexing {:?} commits.", index.num_commits())?;
+        }
+        DebugCommands::Operation(operation_args) => {
+            let workspace_command = command.workspace_helper(ui)?;
+            let op = workspace_command.resolve_single_op(&operation_args.operation)?;
+            writeln!(ui, "{:#?}", op.store_operation())?;
+            writeln!(ui, "{:#?}", op.view().store_view())?;
         }
     }
     Ok(())
