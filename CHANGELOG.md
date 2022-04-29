@@ -62,6 +62,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `jj git fetch` will now abandon unreferenced commits and rebase any local
   changes you had on top.
 
+* `jj git push` gained a `--change <revision>` argument. When that's used, it
+  will create a branch named after the revision's change ID, so you don't have
+  to create a branch yourself.
+
 ### Fixed bugs
 
 * When rebasing a conflict where one side modified a file and the other side

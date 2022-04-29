@@ -1776,6 +1776,9 @@ struct GitPushArgs {
     /// Push only this branch
     #[clap(long)]
     branch: Option<String>,
+    /// Push this commit by creating a branch based on its change ID
+    #[clap(long)]
+    change: Option<String>,
 }
 
 /// Update repo with changes made in the underlying Git repo
@@ -4738,12 +4741,31 @@ fn cmd_git_push(
     args: &GitPushArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
+    let repo = workspace_command.repo().clone();
 
+    let mut tx = workspace_command.start_transaction("import git refs");
     let mut branch_updates = HashMap::new();
     if let Some(branch_name) = &args.branch {
-        if let Some(update) = branch_updates_for_push(repo, &args.remote, branch_name)? {
-            branch_updates.insert(branch_name, update);
+        if let Some(update) =
+            branch_updates_for_push(repo.as_repo_ref(), &args.remote, branch_name)?
+        {
+            branch_updates.insert(branch_name.clone(), update);
+        } else {
+            writeln!(
+                ui,
+                "Branch {}@{} already matches {}",
+                branch_name, &args.remote, branch_name
+            )?;
+        }
+    } else if let Some(change_str) = &args.change {
+        let commit = workspace_command.resolve_single_rev(ui, change_str)?;
+        let branch_name = format!("push-{}", commit.change_id().hex());
+        tx.mut_repo()
+            .set_local_branch(branch_name.clone(), RefTarget::Normal(commit.id().clone()));
+        if let Some(update) =
+            branch_updates_for_push(tx.mut_repo().as_repo_ref(), &args.remote, &branch_name)?
+        {
+            branch_updates.insert(branch_name.clone(), update);
         } else {
             writeln!(
                 ui,
@@ -4772,7 +4794,7 @@ fn cmd_git_push(
                             continue;
                         }
                     }
-                    branch_updates.insert(branch_name, update);
+                    branch_updates.insert(branch_name.clone(), update);
                 }
             }
         }
@@ -4828,25 +4850,19 @@ fn cmd_git_push(
     let git_repo = get_git_repo(repo.store())?;
     git::push_updates(&git_repo, &args.remote, &ref_updates)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
-    let mut tx = workspace_command.start_transaction("import git refs");
     git::import_refs(tx.mut_repo(), &git_repo)?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
 fn branch_updates_for_push(
-    repo: &Arc<ReadonlyRepo>,
+    repo: RepoRef,
     remote_name: &str,
     branch_name: &str,
 ) -> Result<Option<BranchPushUpdate>, CommandError> {
     let maybe_branch_target = repo.view().get_branch(branch_name);
-    if maybe_branch_target.is_none() {
-        return Err(CommandError::UserError(format!(
-            "Branch {} doesn't exist",
-            branch_name
-        )));
-    }
-    let branch_target = maybe_branch_target.unwrap();
+    let branch_target = maybe_branch_target
+        .ok_or_else(|| CommandError::UserError(format!("Branch {} doesn't exist", branch_name)))?;
     let push_action = classify_branch_push_action(branch_target, remote_name);
 
     match push_action {
