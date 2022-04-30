@@ -39,3 +39,32 @@ fn test_git_colocated() {
         "172b1cbfe88c97cbd1b1c8a98a48e729a4540e85".to_string()
     );
 }
+
+#[test]
+fn test_git_colocated_rebase_on_import() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&workspace_root).unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+
+    // Make some changes in jj and check that they're reflected in git
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["close", "-m", "add a file"]);
+    std::fs::write(workspace_root.join("file"), "modified").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["branch", "master"]);
+    test_env.jj_cmd_success(&workspace_root, &["close", "-m", "modify a file"]);
+
+    // Move `master` backwards, which should cause the working copy to be rebased
+    // off of the old position.
+    let commit2_oid = git_repo
+        .find_branch("master", git2::BranchType::Local)
+        .unwrap()
+        .get()
+        .target()
+        .unwrap();
+    let commit2 = git_repo.find_commit(commit2_oid).unwrap();
+    let commit1 = commit2.parents().next().unwrap();
+    git_repo.branch("master", &commit1, true).unwrap();
+    // TODO: This shouldn't fail
+    test_env.jj_cmd_failure(&workspace_root, &["log", "-T", "commit_id \" \" branches"]);
+}
