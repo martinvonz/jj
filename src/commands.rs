@@ -261,7 +261,7 @@ jj init --git-repo=.";
 
     fn for_loaded_repo(
         &self,
-        ui: &Ui,
+        ui: &mut Ui,
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
@@ -290,7 +290,7 @@ struct WorkspaceCommandHelper {
 
 impl WorkspaceCommandHelper {
     fn for_loaded_repo(
-        ui: &Ui,
+        ui: &mut Ui,
         workspace: Workspace,
         string_args: Vec<String>,
         root_args: &Args,
@@ -318,12 +318,16 @@ impl WorkspaceCommandHelper {
             working_copy_committed: false,
         };
         if working_copy_shared_with_git && may_update_working_copy {
-            helper.import_git_refs_and_head(maybe_git_repo.as_ref().unwrap())?;
+            helper.import_git_refs_and_head(ui, maybe_git_repo.as_ref().unwrap())?;
         }
         Ok(helper)
     }
 
-    fn import_git_refs_and_head(&mut self, git_repo: &Repository) -> Result<(), CommandError> {
+    fn import_git_refs_and_head(
+        &mut self,
+        ui: &mut Ui,
+        git_repo: &Repository,
+    ) -> Result<(), CommandError> {
         let mut tx = self.start_transaction("import git refs");
         git::import_refs(tx.mut_repo(), git_repo)?;
         if tx.mut_repo().has_changes() {
@@ -351,7 +355,15 @@ impl WorkspaceCommandHelper {
                 self.repo = tx.commit();
                 locked_working_copy.finish(self.repo.op_id().clone());
             } else {
-                self.repo = tx.commit();
+                let num_rebased = tx.mut_repo().rebase_descendants(ui.settings());
+                if num_rebased > 0 {
+                    writeln!(
+                        ui,
+                        "Rebased {} descendant commits off of commits rewritten from git",
+                        num_rebased
+                    )?;
+                }
+                self.finish_transaction(ui, tx)?;
             }
         }
         Ok(())
