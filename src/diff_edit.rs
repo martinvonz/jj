@@ -30,12 +30,22 @@ use jujutsu_lib::working_copy::{CheckoutError, TreeState};
 use tempfile::tempdir;
 use thiserror::Error;
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum DiffEditError {
     #[error("The diff tool exited with a non-zero code")]
     DifftoolAborted,
     #[error("Failed to write directories to diff: {0:?}")]
     CheckoutError(CheckoutError),
+    #[error("Error setting up temporary directory: {0:?}")]
+    SetUpDirError(#[source] std::io::Error),
+    #[error("Error executing editor '{editor_binary}': {source}")]
+    ExecuteEditorError {
+        editor_binary: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("I/O error: {0:?}")]
+    IoError(#[source] std::io::Error),
     #[error("Internal error: {0:?}")]
     InternalBackendError(BackendError),
 }
@@ -59,23 +69,23 @@ fn check_out(
     tree: &Tree,
     sparse_patterns: Vec<RepoPath>,
 ) -> Result<TreeState, DiffEditError> {
-    std::fs::create_dir(&wc_dir).unwrap();
-    std::fs::create_dir(&state_dir).unwrap();
+    std::fs::create_dir(&wc_dir).map_err(DiffEditError::SetUpDirError)?;
+    std::fs::create_dir(&state_dir).map_err(DiffEditError::SetUpDirError)?;
     let mut tree_state = TreeState::init(store, wc_dir, state_dir);
     tree_state.set_sparse_patterns(sparse_patterns)?;
     tree_state.check_out(tree)?;
     Ok(tree_state)
 }
 
-fn set_readonly_recursively(path: &Path) {
+fn set_readonly_recursively(path: &Path) -> Result<(), std::io::Error> {
     if path.is_dir() {
-        for entry in path.read_dir().unwrap() {
-            set_readonly_recursively(&entry.unwrap().path());
+        for entry in path.read_dir()? {
+            set_readonly_recursively(&entry?.path())?;
         }
     }
-    let mut perms = std::fs::metadata(path).unwrap().permissions();
+    let mut perms = std::fs::metadata(path)?.permissions();
     perms.set_readonly(true);
-    std::fs::set_permissions(path, perms).unwrap();
+    std::fs::set_permissions(path, perms)
 }
 
 pub fn edit_diff(
@@ -93,7 +103,7 @@ pub fn edit_diff(
 
     // Check out the two trees in temporary directories. Only include changed files
     // in the sparse checkout patterns.
-    let temp_dir = tempdir().unwrap();
+    let temp_dir = tempdir().map_err(DiffEditError::SetUpDirError)?;
     let left_wc_dir = temp_dir.path().join("left");
     let left_state_dir = temp_dir.path().join("left_state");
     let right_wc_dir = temp_dir.path().join("right");
@@ -105,7 +115,7 @@ pub fn edit_diff(
         left_tree,
         changed_files.clone(),
     )?;
-    set_readonly_recursively(&left_wc_dir);
+    set_readonly_recursively(&left_wc_dir).map_err(DiffEditError::SetUpDirError)?;
     let mut right_tree_state = check_out(
         store.clone(),
         right_wc_dir.clone(),
@@ -118,8 +128,9 @@ pub fn edit_diff(
     // not get any instructions.
     let add_instructions = !instructions.is_empty() && !instructions_path.exists();
     if add_instructions {
-        let mut file = File::create(&instructions_path).unwrap();
-        file.write_all(instructions.as_bytes()).unwrap();
+        let mut file = File::create(&instructions_path).map_err(DiffEditError::SetUpDirError)?;
+        file.write_all(instructions.as_bytes())
+            .map_err(DiffEditError::SetUpDirError)?;
     }
 
     // TODO: Make this configuration have a table of possible editors and detect the
@@ -133,7 +144,10 @@ pub fn edit_diff(
         .arg(&left_wc_dir)
         .arg(&right_wc_dir)
         .status()
-        .expect("failed to run diff editor");
+        .map_err(|e| DiffEditError::ExecuteEditorError {
+            editor_binary,
+            source: e,
+        })?;
     if !exit_status.success() {
         return Err(DiffEditError::DifftoolAborted);
     }
