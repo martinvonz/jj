@@ -1791,6 +1791,7 @@ struct GitExportArgs {}
 
 /// Commands for benchmarking internal operations
 #[derive(clap::Args, Clone, Debug)]
+#[clap(hide = true)]
 struct BenchArgs {
     #[clap(subcommand)]
     command: BenchCommands,
@@ -1844,6 +1845,7 @@ struct DebugArgs {
 }
 
 #[derive(Subcommand, Clone, Debug)]
+#[clap(hide = true)]
 enum DebugCommands {
     Completion(DebugCompletionArgs),
     Mangen(DebugMangenArgs),
