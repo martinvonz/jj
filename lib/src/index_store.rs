@@ -187,8 +187,7 @@ fn topo_order_earlier_first(
     let mut visited = HashSet::new();
     let mut in_parent_file = HashSet::new();
     let parent_file_source = parent_file.as_ref().map(|file| file.as_ref());
-    while !work.is_empty() {
-        let commit = work.pop().unwrap();
+    while let Some(commit) = work.pop() {
         if parent_file_source.map_or(false, |index| index.has_id(commit.id())) {
             in_parent_file.insert(commit.id().clone());
             continue;
@@ -213,8 +212,7 @@ fn topo_order_earlier_first(
 
     let mut result = vec![];
     let mut visited = in_parent_file;
-    while !commits.is_empty() {
-        let commit = commits.pop().unwrap();
+    while let Some(commit) = commits.pop() {
         let mut waiting_for_earlier_commit = false;
         for earlier in commit.parents().iter().chain(commit.predecessors().iter()) {
             if !visited.contains(earlier.id()) {

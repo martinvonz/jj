@@ -763,8 +763,7 @@ impl<'a> CompositeIndex<'a> {
         let ancestor_generation = self.entry_by_pos(ancestor_pos).generation_number();
         let mut work = vec![descendant_pos];
         let mut visited = HashSet::new();
-        while !work.is_empty() {
-            let descendant_pos = work.pop().unwrap();
+        while let Some(descendant_pos) = work.pop() {
             let descendant_entry = self.entry_by_pos(descendant_pos);
             if descendant_pos == ancestor_pos {
                 return true;
@@ -889,8 +888,7 @@ impl<'a> CompositeIndex<'a> {
         // set of candidates. Stop walking when we have gone past the minimum
         // candidate generation.
         let mut visited = HashSet::new();
-        while !work.is_empty() {
-            let item = work.pop().unwrap().0;
+        while let Some(IndexEntryByGeneration(item)) = work.pop() {
             if !visited.insert(item.pos) {
                 continue;
             }
@@ -1017,8 +1015,7 @@ impl<'a> Iterator for RevWalk<'a> {
     type Item = IndexEntry<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while !self.wanted_boundary_set.is_empty() {
-            let item = self.items.pop().unwrap();
+        while let Some(item) = self.items.pop() {
             if item.wanted {
                 self.wanted_boundary_set.remove(&item.entry.0.pos);
                 if self.unwanted_boundary_set.contains(&item.entry.0.pos) {
