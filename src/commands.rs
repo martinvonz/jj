@@ -1042,7 +1042,11 @@ fn update_working_copy(
 ///
 /// To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.
 #[derive(clap::Parser, Clone, Debug)]
-#[clap(author = "Martin von Zweigbergk <martinvonz@google.com>", version)]
+#[clap(
+    name = "jj",
+    author = "Martin von Zweigbergk <martinvonz@google.com>",
+    version
+)]
 #[clap(mut_arg("help", |arg| {
     arg
         .help("Print help information, more help with --help than with -h")
@@ -1139,6 +1143,9 @@ enum Commands {
     Git(GitArgs),
     Bench(BenchArgs),
     Debug(DebugArgs),
+    /// An alias or an unknown command
+    #[clap(external_subcommand)]
+    Alias(Vec<String>),
 }
 
 /// Create a new repo in the given directory
@@ -5034,34 +5041,48 @@ fn string_list_from_config(value: config::Value) -> Option<Vec<String>> {
     }
 }
 
-fn resolve_alias(settings: &UserSettings, args: Vec<String>) -> Result<Vec<String>, CommandError> {
-    if args.len() >= 2 {
-        let command_name = args[1].clone();
-        match settings
-            .config()
-            .get::<config::Value>(&format!("alias.{}", command_name))
-        {
-            Ok(value) => {
-                if let Some(alias_definition) = string_list_from_config(value) {
-                    let mut resolved_args = vec![args[0].clone()];
-                    resolved_args.extend(alias_definition);
-                    resolved_args.extend_from_slice(&args[2..]);
-                    Ok(resolved_args)
-                } else {
-                    Err(CommandError::UserError(format!(
-                        r#"Alias definition for "{}" must be a string list"#,
-                        command_name,
-                    )))
+fn parse_args(settings: &UserSettings, string_args: &[String]) -> Result<Args, CommandError> {
+    let mut resolved_aliases = HashSet::new();
+    let mut string_args = string_args.to_vec();
+    loop {
+        let args: Args = clap::Parser::parse_from(&string_args);
+        if let Commands::Alias(alias_args) = &args.command {
+            let alias_name = &alias_args[0];
+            if resolved_aliases.contains(alias_name) {
+                return Err(CommandError::UserError(format!(
+                    r#"Recursive alias definition involving "{alias_name}""#
+                )));
+            }
+            match settings
+                .config()
+                .get::<config::Value>(&format!("alias.{}", alias_name))
+            {
+                Ok(value) => {
+                    if let Some(alias_definition) = string_list_from_config(value) {
+                        assert!(string_args.ends_with(alias_args.as_slice()));
+                        string_args.truncate(string_args.len() - alias_args.len());
+                        string_args.extend(alias_definition);
+                        string_args.extend_from_slice(&alias_args[1..]);
+                        resolved_aliases.insert(alias_name.clone());
+                    } else {
+                        return Err(CommandError::UserError(format!(
+                            r#"Alias definition for "{alias_name}" must be a string list"#
+                        )));
+                    }
+                }
+                Err(config::ConfigError::NotFound(_)) => {
+                    let mut app = Args::command();
+                    app.error(clap::ErrorKind::ArgumentNotFound, format!(
+                        r#"Found argument '{alias_name}' which wasn't expected, or isn't valid in this context"#
+                    )).exit();
+                }
+                Err(err) => {
+                    return Err(CommandError::from(err));
                 }
             }
-            Err(config::ConfigError::NotFound(_)) => {
-                // The command is not an alias
-                Ok(args)
-            }
-            Err(err) => Err(CommandError::from(err)),
+        } else {
+            return Ok(args);
         }
-    } else {
-        Ok(args)
     }
 }
 
@@ -5080,9 +5101,8 @@ where
         }
     }
 
-    let string_args = resolve_alias(ui.settings(), string_args)?;
+    let args = parse_args(ui.settings(), &string_args)?;
     let app = Args::command();
-    let args: Args = clap::Parser::parse_from(&string_args);
     let command_helper = CommandHelper::new(app, string_args, args.global_args.clone());
     match &args.command {
         Commands::Init(sub_args) => cmd_init(ui, &command_helper, sub_args),
@@ -5119,6 +5139,7 @@ where
         Commands::Git(sub_args) => cmd_git(ui, &command_helper, sub_args),
         Commands::Bench(sub_args) => cmd_bench(ui, &command_helper, sub_args),
         Commands::Debug(sub_args) => cmd_debug(ui, &command_helper, sub_args),
+        Commands::Alias(_) => panic!("Unresolved alias"),
     }
 }
 
