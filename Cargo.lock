@@ -748,6 +748,7 @@ dependencies = [
  "predicates",
  "rand",
  "regex",
+ "serde",
  "tempfile",
  "test-case",
  "textwrap 0.15.0",
