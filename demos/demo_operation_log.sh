@@ -47,7 +47,7 @@ expect_prompt
 pause 7
 run_command ""
 run_command "# Let'\''s undo that rebase operation:"
-run_command "jj undo -o $rebase_op"
+run_command "jj undo $rebase_op"
 pause 3
 run_command "# The \"stuff\" change is now back on master as"
 run_command "# expected:"
@@ -58,7 +58,7 @@ run_command "# after the rebase operation:"
 run_command "jj --at-op $rebase_op log"
 pause 5
 run_command "# Looks nice, let'\''s go back to that point:"
-run_command "jj op restore -o $rebase_op"
+run_command "jj op restore $rebase_op"
 pause 2
 run_command ""
 run_command "# We'\''re now back to before the \"other stuff\""
