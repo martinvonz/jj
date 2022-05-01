@@ -201,24 +201,24 @@ impl From<FilePathParseError> for CommandError {
 struct CommandHelper<'help> {
     app: clap::Command<'help>,
     string_args: Vec<String>,
-    args: Args,
+    global_args: GlobalArgs,
 }
 
 impl<'help> CommandHelper<'help> {
-    fn new(app: clap::Command<'help>, string_args: Vec<String>, root_args: Args) -> Self {
+    fn new(app: clap::Command<'help>, string_args: Vec<String>, global_args: GlobalArgs) -> Self {
         Self {
             app,
             string_args,
-            args: root_args,
+            global_args,
         }
     }
 
-    fn args(&self) -> &Args {
-        &self.args
+    fn global_args(&self) -> &GlobalArgs {
+        &self.global_args
     }
 
     fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
-        let wc_path_str = self.args.repository.as_deref().unwrap_or(".");
+        let wc_path_str = self.global_args.repository.as_deref().unwrap_or(".");
         let wc_path = ui.cwd().join(wc_path_str);
         let workspace = match Workspace::load(ui.settings(), wc_path) {
             Ok(workspace) => workspace,
@@ -245,7 +245,7 @@ jj init --git-repo=.";
         let op_heads = resolve_op_for_load(
             repo_loader.op_store(),
             repo_loader.op_heads_store(),
-            &self.args.at_operation,
+            &self.global_args.at_operation,
         )?;
         let repo = match op_heads {
             OpHeads::Single(op) => repo_loader.load_at(&op),
@@ -292,7 +292,7 @@ jj init --git-repo=.";
             ui,
             workspace,
             self.string_args.clone(),
-            &self.args,
+            &self.global_args,
             repo,
         )
     }
@@ -316,11 +316,11 @@ impl WorkspaceCommandHelper {
         ui: &mut Ui,
         workspace: Workspace,
         string_args: Vec<String>,
-        root_args: &Args,
+        global_args: &GlobalArgs,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<Self, CommandError> {
-        let loaded_at_head = &root_args.at_operation == "@";
-        let may_update_working_copy = loaded_at_head && !root_args.no_commit_working_copy;
+        let loaded_at_head = &global_args.at_operation == "@";
+        let may_update_working_copy = loaded_at_head && !global_args.no_commit_working_copy;
         let mut working_copy_shared_with_git = false;
         let maybe_git_repo = repo.store().git_repo();
         if let Some(git_workdir) = maybe_git_repo
@@ -1049,8 +1049,14 @@ fn update_working_copy(
         .help_heading("GLOBAL OPTIONS")
     }))]
 struct Args {
+    #[clap(flatten)]
+    global_args: GlobalArgs,
     #[clap(subcommand)]
     command: Commands,
+}
+
+#[derive(clap::Args, Clone, Debug)]
+struct GlobalArgs {
     /// Path to repository to operate on
     ///
     /// By default, Jujutsu searches for the closest .jj/ directory in an
@@ -2015,7 +2021,7 @@ fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), Co
 }
 
 fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(), CommandError> {
-    if command.args().repository.is_some() {
+    if command.global_args().repository.is_some() {
         return Err(CommandError::UserError(
             "'--repository' cannot be used with 'init'".to_string(),
         ));
@@ -4527,7 +4533,7 @@ fn cmd_workspace_add(
         ui,
         new_workspace,
         command.string_args.clone(),
-        command.args(),
+        command.global_args(),
         repo,
     )?;
     let mut tx = new_workspace_command
@@ -4757,7 +4763,7 @@ fn cmd_git_clone(
     command: &CommandHelper,
     args: &GitCloneArgs,
 ) -> Result<(), CommandError> {
-    if command.args().repository.is_some() {
+    if command.global_args().repository.is_some() {
         return Err(CommandError::UserError(
             "'--repository' cannot be used with 'git clone'".to_string(),
         ));
@@ -5077,7 +5083,7 @@ where
     let string_args = resolve_alias(ui.settings(), string_args)?;
     let app = Args::command();
     let args: Args = clap::Parser::parse_from(&string_args);
-    let command_helper = CommandHelper::new(app, string_args, args.clone());
+    let command_helper = CommandHelper::new(app, string_args, args.global_args.clone());
     match &args.command {
         Commands::Init(sub_args) => cmd_init(ui, &command_helper, sub_args),
         Commands::Checkout(sub_args) => cmd_checkout(ui, &command_helper, sub_args),
