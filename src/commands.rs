@@ -56,7 +56,9 @@ use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::{merge_trees, Tree, TreeDiffIterator};
-use jujutsu_lib::working_copy::{CheckoutStats, LockedWorkingCopy, ResetError, WorkingCopy};
+use jujutsu_lib::working_copy::{
+    CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, WorkingCopy,
+};
 use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
 use jujutsu_lib::{conflicts, dag_walk, diff, files, git, revset, tree};
 use maplit::{hashmap, hashset};
@@ -108,6 +110,12 @@ impl From<OpHeadResolutionError> for CommandError {
                 CommandError::InternalError("Corrupt repository: the are no operations".to_string())
             }
         }
+    }
+}
+
+impl From<SnapshotError> for CommandError {
+    fn from(err: SnapshotError) -> Self {
+        CommandError::InternalError(format!("Failed to snapshot the working copy: {:?}", err))
     }
 }
 
@@ -640,7 +648,7 @@ impl WorkspaceCommandHelper {
                 )));
             }
         }
-        let new_tree_id = locked_wc.snapshot(base_ignores);
+        let new_tree_id = locked_wc.snapshot(base_ignores)?;
         if new_tree_id != *checkout_commit.tree_id() {
             let mut tx = self.repo.start_transaction("commit working copy");
             let mut_repo = tx.mut_repo();
@@ -2080,7 +2088,7 @@ fn cmd_untrack(
     locked_working_copy.reset(&new_tree)?;
     // Commit the working copy again so we can inform the user if paths couldn't be
     // untracked because they're not ignored.
-    let wc_tree_id = locked_working_copy.snapshot(base_ignores);
+    let wc_tree_id = locked_working_copy.snapshot(base_ignores)?;
     if wc_tree_id != new_tree_id {
         let wc_tree = store.get_tree(&RepoPath::root(), &wc_tree_id)?;
         let added_back = wc_tree.entries_matching(matcher.as_ref()).collect_vec();

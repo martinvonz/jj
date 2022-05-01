@@ -129,7 +129,7 @@ fn test_checkout_parallel(use_git: bool) {
             // write_tree() should take the same lock as check_out(), write_tree()
             // should never produce a different tree.
             let mut locked_wc = workspace.working_copy_mut().start_mutation();
-            let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty());
+            let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
             locked_wc.discard();
             assert!(tree_ids.contains(&new_tree_id));
         });

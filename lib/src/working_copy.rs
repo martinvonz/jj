@@ -15,6 +15,7 @@
 use std::cell::{RefCell, RefMut};
 use std::collections::{BTreeMap, HashSet};
 use std::convert::TryInto;
+use std::ffi::OsString;
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Read;
@@ -189,6 +190,18 @@ pub struct CheckoutStats {
     pub removed_files: u32,
 }
 
+#[derive(Debug, Error)]
+pub enum SnapshotError {
+    #[error("Failed to open file {path}: {err:?}")]
+    FileOpenError { path: PathBuf, err: std::io::Error },
+    #[error("Working copy path {} is not valid UTF-8", path.to_string_lossy())]
+    InvalidUtf8Path { path: OsString },
+    #[error("Symlink {path} target is not valid UTF-8")]
+    InvalidUtf8SymlinkTarget { path: PathBuf, target: PathBuf },
+    #[error("Internal backend error: {0:?}")]
+    InternalBackendError(BackendError),
+}
+
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum CheckoutError {
     // The current checkout was deleted, maybe by an overly aggressive GC that happened while
@@ -313,20 +326,46 @@ impl TreeState {
             .unwrap();
     }
 
-    fn write_file_to_store(&self, path: &RepoPath, disk_path: &Path) -> FileId {
-        let file = File::open(disk_path).unwrap();
-        self.store.write_file(path, &mut Box::new(file)).unwrap()
+    fn write_file_to_store(
+        &self,
+        path: &RepoPath,
+        disk_path: &Path,
+    ) -> Result<FileId, SnapshotError> {
+        let file = File::open(disk_path).map_err(|err| SnapshotError::FileOpenError {
+            path: disk_path.to_path_buf(),
+            err,
+        })?;
+        self.store
+            .write_file(path, &mut Box::new(file))
+            .map_err(SnapshotError::InternalBackendError)
     }
 
-    fn write_symlink_to_store(&self, path: &RepoPath, disk_path: &Path) -> SymlinkId {
-        let target = disk_path.read_link().unwrap();
-        let str_target = target.to_str().unwrap();
-        self.store.write_symlink(path, str_target).unwrap()
+    fn write_symlink_to_store(
+        &self,
+        path: &RepoPath,
+        disk_path: &Path,
+    ) -> Result<SymlinkId, SnapshotError> {
+        let target = disk_path
+            .read_link()
+            .map_err(|err| SnapshotError::FileOpenError {
+                path: disk_path.to_path_buf(),
+                err,
+            })?;
+        let str_target =
+            target
+                .to_str()
+                .ok_or_else(|| SnapshotError::InvalidUtf8SymlinkTarget {
+                    path: disk_path.to_path_buf(),
+                    target: target.clone(),
+                })?;
+        self.store
+            .write_symlink(path, str_target)
+            .map_err(SnapshotError::InternalBackendError)
     }
 
     /// Look for changes to the working copy. If there are any changes, create
     /// a new tree from it and return it, and also update the dirstate on disk.
-    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> TreeId {
+    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<TreeId, SnapshotError> {
         let sparse_matcher = self.sparse_matcher();
         let mut work = vec![(
             RepoPath::root(),
@@ -345,7 +384,11 @@ impl TreeState {
                 let entry = maybe_entry.unwrap();
                 let file_type = entry.file_type().unwrap();
                 let file_name = entry.file_name();
-                let name = file_name.to_str().unwrap();
+                let name = file_name
+                    .to_str()
+                    .ok_or_else(|| SnapshotError::InvalidUtf8Path {
+                        path: file_name.clone(),
+                    })?;
                 if name == ".jj" || name == ".git" {
                     continue;
                 }
@@ -367,7 +410,7 @@ impl TreeState {
                             entry.path(),
                             git_ignore.as_ref(),
                             &mut tree_builder,
-                        );
+                        )?;
                     }
                 }
             }
@@ -378,7 +421,7 @@ impl TreeState {
             tree_builder.remove(file.clone());
         }
         self.tree_id = tree_builder.write_tree();
-        self.tree_id.clone()
+        Ok(self.tree_id.clone())
     }
 
     fn has_files_under(&self, dir: &RepoPath) -> bool {
@@ -406,14 +449,14 @@ impl TreeState {
         disk_path: PathBuf,
         git_ignore: &GitIgnoreFile,
         tree_builder: &mut TreeBuilder,
-    ) {
+    ) -> Result<(), SnapshotError> {
         let maybe_current_file_state = self.file_states.get_mut(&repo_path);
         if maybe_current_file_state.is_none()
             && git_ignore.matches_file(&repo_path.to_internal_file_string())
         {
             // If it wasn't already tracked and it matches the ignored paths, then
             // ignore it.
-            return;
+            return Ok(());
         }
         #[cfg_attr(unix, allow(unused_mut))]
         let mut new_file_state = file_state(&disk_path).unwrap();
@@ -422,7 +465,7 @@ impl TreeState {
                 // untracked
                 let file_type = new_file_state.file_type.clone();
                 self.file_states.insert(repo_path.clone(), new_file_state);
-                let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type);
+                let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
                 tree_builder.set(repo_path, file_value);
             }
             Some(current_file_state) => {
@@ -477,7 +520,7 @@ impl TreeState {
                                 };
                                 *current_file_state = new_file_state;
                                 tree_builder.set(repo_path, TreeValue::Conflict(new_conflict_id));
-                                return;
+                                return Ok(());
                             }
                         }
                     }
@@ -485,11 +528,12 @@ impl TreeState {
                 if !clean {
                     let file_type = new_file_state.file_type.clone();
                     *current_file_state = new_file_state;
-                    let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type);
+                    let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
                     tree_builder.set(repo_path, file_value);
                 }
             }
         };
+        Ok(())
     }
 
     fn write_path_to_store(
@@ -497,15 +541,15 @@ impl TreeState {
         repo_path: &RepoPath,
         disk_path: &Path,
         file_type: FileType,
-    ) -> TreeValue {
+    ) -> Result<TreeValue, SnapshotError> {
         match file_type {
             FileType::Normal { executable } => {
-                let id = self.write_file_to_store(repo_path, disk_path);
-                TreeValue::Normal { id, executable }
+                let id = self.write_file_to_store(repo_path, disk_path)?;
+                Ok(TreeValue::Normal { id, executable })
             }
             FileType::Symlink => {
-                let id = self.write_symlink_to_store(repo_path, disk_path);
-                TreeValue::Symlink(id)
+                let id = self.write_symlink_to_store(repo_path, disk_path)?;
+                Ok(TreeValue::Symlink(id))
             }
             FileType::Conflict { .. } => panic!("conflicts should be handled by the caller"),
         }
@@ -965,7 +1009,7 @@ impl LockedWorkingCopy<'_> {
     // The base_ignores are passed in here rather than being set on the TreeState
     // because the TreeState may be long-lived if the library is used in a
     // long-lived process.
-    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> TreeId {
+    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<TreeId, SnapshotError> {
         self.wc
             .tree_state()
             .as_mut()
