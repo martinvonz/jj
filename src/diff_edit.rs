@@ -26,7 +26,7 @@ use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::tree::Tree;
-use jujutsu_lib::working_copy::{CheckoutError, TreeState};
+use jujutsu_lib::working_copy::{CheckoutError, SnapshotError, TreeState};
 use tempfile::tempdir;
 use thiserror::Error;
 
@@ -48,11 +48,19 @@ pub enum DiffEditError {
     },
     #[error("I/O error: {0:?}")]
     IoError(#[source] std::io::Error),
+    #[error("Failed to snapshot changes: {0:?}")]
+    SnapshotError(SnapshotError),
 }
 
 impl From<CheckoutError> for DiffEditError {
     fn from(err: CheckoutError) -> Self {
         DiffEditError::CheckoutError(err)
+    }
+}
+
+impl From<SnapshotError> for DiffEditError {
+    fn from(err: SnapshotError) -> Self {
+        DiffEditError::SnapshotError(err)
     }
 }
 
@@ -159,5 +167,5 @@ pub fn edit_diff(
         std::fs::remove_file(instructions_path).ok();
     }
 
-    Ok(right_tree_state.snapshot(base_ignores))
+    Ok(right_tree_state.snapshot(base_ignores)?)
 }
