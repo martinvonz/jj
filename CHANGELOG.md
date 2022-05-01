@@ -81,6 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj branch` can accept any number of branches to update, rather than just one.
 
+* Aliases can now call other aliases.
+
 ### Fixed bugs
 
 * When rebasing a conflict where one side modified a file and the other side
@@ -113,6 +115,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * You now get a proper error message instead of a crash when `$EDITOR` doesn't
   exist or exits with an error.
+
+* Global arguments, such as `--at-op=<operation>`, can now be passed before
+  an alias.
 
 * Fixed relative path to the current directory in output to be `.` instead of
   empty string.
