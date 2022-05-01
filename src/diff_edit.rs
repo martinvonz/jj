@@ -19,7 +19,7 @@ use std::process::Command;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{BackendError, TreeId};
+use jujutsu_lib::backend::TreeId;
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
@@ -46,19 +46,11 @@ pub enum DiffEditError {
     },
     #[error("I/O error: {0:?}")]
     IoError(#[source] std::io::Error),
-    #[error("Internal error: {0:?}")]
-    InternalBackendError(BackendError),
 }
 
 impl From<CheckoutError> for DiffEditError {
     fn from(err: CheckoutError) -> Self {
         DiffEditError::CheckoutError(err)
-    }
-}
-
-impl From<BackendError> for DiffEditError {
-    fn from(err: BackendError) -> Self {
-        DiffEditError::InternalBackendError(err)
     }
 }
 
