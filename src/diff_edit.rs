@@ -147,5 +147,5 @@ pub fn edit_diff(
         std::fs::remove_file(instructions_path).ok();
     }
 
-    Ok(right_tree_state.write_tree(base_ignores))
+    Ok(right_tree_state.snapshot(base_ignores))
 }
