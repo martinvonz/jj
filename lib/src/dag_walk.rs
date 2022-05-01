@@ -87,8 +87,7 @@ where
 
     for start_node in start_nodes {
         let mut stack = vec![(start_node, false)];
-        while !stack.is_empty() {
-            let (node, neighbors_visited) = stack.pop().unwrap();
+        while let Some((node, neighbors_visited)) = stack.pop() {
             let id = id_fn(&node);
             if emitted.contains(&id) {
                 continue;

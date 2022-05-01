@@ -864,8 +864,7 @@ fn find_all_operations(
     let mut visited = HashSet::new();
     let mut work: VecDeque<_> = op_heads_store.get_op_heads().into_iter().collect();
     let mut operations = vec![];
-    while !work.is_empty() {
-        let op_id = work.pop_front().unwrap();
+    while let Some(op_id) = work.pop_front() {
         if visited.insert(op_id.clone()) {
             let store_operation = op_store.read_operation(&op_id).unwrap();
             work.extend(store_operation.parents.iter().cloned());

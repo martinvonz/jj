@@ -335,8 +335,7 @@ impl TreeState {
         )];
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
         let mut deleted_files: HashSet<_> = self.file_states.keys().cloned().collect();
-        while !work.is_empty() {
-            let (dir, disk_dir, git_ignore) = work.pop().unwrap();
+        while let Some((dir, disk_dir, git_ignore)) = work.pop() {
             if sparse_matcher.visit(&dir).is_nothing() {
                 continue;
             }
