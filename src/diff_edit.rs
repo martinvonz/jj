@@ -18,6 +18,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
+use config::ConfigError;
 use itertools::Itertools;
 use jujutsu_lib::backend::TreeId;
 use jujutsu_lib::gitignore::GitIgnoreFile;
@@ -34,6 +35,8 @@ use crate::ui::Ui;
 
 #[derive(Debug, Error)]
 pub enum DiffEditError {
+    #[error("Invalid config: {0}")]
+    ConfigError(#[from] ConfigError),
     #[error("The diff tool exited with a non-zero code")]
     DifftoolAborted,
     #[error("Failed to write directories to diff: {0:?}")]
@@ -138,7 +141,7 @@ pub fn edit_diff(
 
     // TODO: Make this configuration have a table of possible editors and detect the
     // best one here.
-    let editor_binary = match settings.config().get_string("ui.diff-editor") {
+    let editor_name = match settings.config().get_string("ui.diff-editor") {
         Ok(editor_binary) => editor_binary,
         Err(_) => {
             let default_editor = "meld".to_string();
@@ -150,14 +153,15 @@ pub fn edit_diff(
             default_editor
         }
     };
-
+    let editor = get_tool(settings, &editor_name)?;
     // Start a diff editor on the two directories.
-    let exit_status = Command::new(&editor_binary)
+    let exit_status = Command::new(&editor.program)
+        .args(&editor.edit_args)
         .arg(&left_wc_dir)
         .arg(&right_wc_dir)
         .status()
         .map_err(|e| DiffEditError::ExecuteEditorError {
-            editor_binary,
+            editor_binary: editor.program,
             source: e,
         })?;
     if !exit_status.success() {
@@ -168,4 +172,43 @@ pub fn edit_diff(
     }
 
     Ok(right_tree_state.snapshot(base_ignores)?)
+}
+
+/// Merge/diff tool loaded from the settings.
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+struct MergeTool {
+    /// Program to execute.
+    pub program: String,
+    /// Arguments to pass to the program when editing diffs.
+    #[serde(default)]
+    pub edit_args: Vec<String>,
+}
+
+impl MergeTool {
+    pub fn with_program(program: &str) -> Self {
+        MergeTool {
+            program: program.to_owned(),
+            edit_args: vec![],
+        }
+    }
+}
+
+/// Loads merge tool options from `[merge-tools.<name>]`. The given name is used
+/// as an executable name if no configuration found for that name.
+fn get_tool(settings: &UserSettings, name: &str) -> Result<MergeTool, ConfigError> {
+    const TABLE_KEY: &'static str = "merge-tools";
+    let tools_table = match settings.config().get_table(TABLE_KEY) {
+        Ok(table) => table,
+        Err(ConfigError::NotFound(_)) => return Ok(MergeTool::with_program(name)),
+        Err(err) => return Err(err),
+    };
+    if let Some(v) = tools_table.get(name) {
+        v.clone()
+            .try_deserialize()
+            // add config key, deserialize error is otherwise unclear
+            .map_err(|e| ConfigError::Message(format!("{TABLE_KEY}.{name}: {e}")))
+    } else {
+        Ok(MergeTool::with_program(name))
+    }
 }

@@ -66,6 +66,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   will create a branch named after the revision's change ID, so you don't have
   to create a branch yourself.
 
+* Diff editor command arguments can now be specified by config file.
+  Example:
+
+      [merge-tools.kdiff3]
+      program = "kdiff3"
+      edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
+
 ### Fixed bugs
 
 * When rebasing a conflict where one side modified a file and the other side
