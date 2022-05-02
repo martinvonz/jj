@@ -54,7 +54,7 @@ rand = "0.8.5"
 regex = "1.5.5"
 tempfile = "3.3.0"
 textwrap = "0.15.0"
-thiserror = "1.0.30"
+thiserror = "1.0.31"
 
 [dev-dependencies]
 assert_cmd = "2.0.4"
