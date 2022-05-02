@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate protobuf_codegen_pure;
+extern crate protobuf_codegen;
 extern crate version_check;
 
 use std::path::Path;
-
-use protobuf_codegen_pure::Customize;
 
 fn main() {
     let out_dir = format!("{}/protos", std::env::var("OUT_DIR").unwrap());
@@ -32,14 +30,12 @@ fn main() {
         "protos/store.proto",
         "protos/working_copy.proto",
     ];
-    protobuf_codegen_pure::Codegen::new()
-        .customize(Customize {
-            gen_mod_rs: Some(true),
-            ..Default::default()
-        })
+    protobuf_codegen::Codegen::new()
+        .pure()
         .out_dir(out_dir)
         .inputs(input)
         .include("protos")
+        .cargo_out_dir("protos")
         .run()
         .expect("protoc");
     println!("cargo:rerun-if-changed=build.rs");

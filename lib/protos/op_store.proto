@@ -14,6 +14,8 @@
 
 syntax = "proto3";
 
+package op_store;
+
 message RefConflict {
   repeated bytes removes = 1;
   repeated bytes adds = 2;

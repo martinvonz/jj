@@ -19,7 +19,7 @@ use std::io::{ErrorKind, Read, Write};
 use std::path::PathBuf;
 
 use blake2::{Blake2b512, Digest};
-use protobuf::{Message, ProtobufError};
+use protobuf::{Message, MessageField};
 use tempfile::{NamedTempFile, PersistError};
 
 use crate::backend::{
@@ -42,8 +42,8 @@ impl From<PersistError> for BackendError {
     }
 }
 
-impl From<ProtobufError> for BackendError {
-    fn from(err: ProtobufError) -> Self {
+impl From<protobuf::Error> for BackendError {
+    fn from(err: protobuf::Error) -> Self {
         BackendError::Other(err.to_string())
     }
 }
@@ -247,12 +247,12 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::store::Commit {
     for predecessor in &commit.predecessors {
         proto.predecessors.push(predecessor.to_bytes());
     }
-    proto.set_root_tree(commit.root_tree.to_bytes());
-    proto.set_change_id(commit.change_id.to_bytes());
-    proto.set_description(commit.description.clone());
-    proto.set_author(signature_to_proto(&commit.author));
-    proto.set_committer(signature_to_proto(&commit.committer));
-    proto.set_is_open(commit.is_open);
+    proto.root_tree = commit.root_tree.to_bytes();
+    proto.change_id = commit.change_id.to_bytes();
+    proto.description = commit.description.clone();
+    proto.author = MessageField::some(signature_to_proto(&commit.author));
+    proto.committer = MessageField::some(signature_to_proto(&commit.committer));
+    proto.is_open = commit.is_open;
     proto
 }
 
@@ -272,8 +272,8 @@ fn commit_from_proto(proto: &crate::protos::store::Commit) -> Commit {
         root_tree,
         change_id,
         description: proto.description.clone(),
-        author: signature_from_proto(proto.author.get_ref()),
-        committer: signature_from_proto(proto.committer.get_ref()),
+        author: signature_from_proto(&proto.author),
+        committer: signature_from_proto(&proto.committer),
         is_open: proto.is_open,
     }
 }
@@ -281,9 +281,9 @@ fn commit_from_proto(proto: &crate::protos::store::Commit) -> Commit {
 fn tree_to_proto(tree: &Tree) -> crate::protos::store::Tree {
     let mut proto = crate::protos::store::Tree::new();
     for entry in tree.entries() {
-        let mut proto_entry = crate::protos::store::Tree_Entry::new();
-        proto_entry.set_name(entry.name().string());
-        proto_entry.set_value(tree_value_to_proto(entry.value()));
+        let mut proto_entry = crate::protos::store::tree::Entry::new();
+        proto_entry.name = entry.name().string();
+        proto_entry.value = MessageField::some(tree_value_to_proto(entry.value()));
         proto.entries.push(proto_entry);
     }
     proto
@@ -302,9 +302,9 @@ fn tree_value_to_proto(value: &TreeValue) -> crate::protos::store::TreeValue {
     let mut proto = crate::protos::store::TreeValue::new();
     match value {
         TreeValue::Normal { id, executable } => {
-            let mut file = crate::protos::store::TreeValue_NormalFile::new();
-            file.set_id(id.to_bytes());
-            file.set_executable(*executable);
+            let mut file = crate::protos::store::tree_value::NormalFile::new();
+            file.id = id.to_bytes();
+            file.executable = *executable;
             proto.set_normal_file(file);
         }
         TreeValue::Symlink(id) => {
@@ -325,37 +325,37 @@ fn tree_value_to_proto(value: &TreeValue) -> crate::protos::store::TreeValue {
 
 fn tree_value_from_proto(proto: &crate::protos::store::TreeValue) -> TreeValue {
     match proto.value.as_ref().unwrap() {
-        crate::protos::store::TreeValue_oneof_value::tree_id(id) => {
+        crate::protos::store::tree_value::Value::TreeId(id) => {
             TreeValue::Tree(TreeId::new(id.clone()))
         }
-        crate::protos::store::TreeValue_oneof_value::normal_file(
-            crate::protos::store::TreeValue_NormalFile { id, executable, .. },
+        crate::protos::store::tree_value::Value::NormalFile(
+            crate::protos::store::tree_value::NormalFile { id, executable, .. },
         ) => TreeValue::Normal {
             id: FileId::new(id.clone()),
             executable: *executable,
         },
-        crate::protos::store::TreeValue_oneof_value::symlink_id(id) => {
+        crate::protos::store::tree_value::Value::SymlinkId(id) => {
             TreeValue::Symlink(SymlinkId::new(id.clone()))
         }
-        crate::protos::store::TreeValue_oneof_value::conflict_id(id) => {
+        crate::protos::store::tree_value::Value::ConflictId(id) => {
             TreeValue::Conflict(ConflictId::new(id.clone()))
         }
     }
 }
 
-fn signature_to_proto(signature: &Signature) -> crate::protos::store::Commit_Signature {
-    let mut proto = crate::protos::store::Commit_Signature::new();
-    proto.set_name(signature.name.clone());
-    proto.set_email(signature.email.clone());
-    let mut timestamp_proto = crate::protos::store::Commit_Timestamp::new();
-    timestamp_proto.set_millis_since_epoch(signature.timestamp.timestamp.0);
-    timestamp_proto.set_tz_offset(signature.timestamp.tz_offset);
-    proto.set_timestamp(timestamp_proto);
+fn signature_to_proto(signature: &Signature) -> crate::protos::store::commit::Signature {
+    let mut proto = crate::protos::store::commit::Signature::new();
+    proto.name = signature.name.clone();
+    proto.email = signature.email.clone();
+    let mut timestamp_proto = crate::protos::store::commit::Timestamp::new();
+    timestamp_proto.millis_since_epoch = signature.timestamp.timestamp.0;
+    timestamp_proto.tz_offset = signature.timestamp.tz_offset;
+    proto.timestamp = MessageField::some(timestamp_proto);
     proto
 }
 
-fn signature_from_proto(proto: &crate::protos::store::Commit_Signature) -> Signature {
-    let timestamp = proto.get_timestamp();
+fn signature_from_proto(proto: &crate::protos::store::commit::Signature) -> Signature {
+    let timestamp = &proto.timestamp;
     Signature {
         name: proto.name.clone(),
         email: proto.email.clone(),
@@ -388,14 +388,14 @@ fn conflict_from_proto(proto: &crate::protos::store::Conflict) -> Conflict {
     conflict
 }
 
-fn conflict_part_from_proto(proto: &crate::protos::store::Conflict_Part) -> ConflictPart {
+fn conflict_part_from_proto(proto: &crate::protos::store::conflict::Part) -> ConflictPart {
     ConflictPart {
         value: tree_value_from_proto(proto.content.as_ref().unwrap()),
     }
 }
 
-fn conflict_part_to_proto(part: &ConflictPart) -> crate::protos::store::Conflict_Part {
-    let mut proto = crate::protos::store::Conflict_Part::new();
-    proto.set_content(tree_value_to_proto(&part.value));
+fn conflict_part_to_proto(part: &ConflictPart) -> crate::protos::store::conflict::Part {
+    let mut proto = crate::protos::store::conflict::Part::new();
+    proto.content = MessageField::some(tree_value_to_proto(&part.value));
     proto
 }

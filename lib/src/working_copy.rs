@@ -28,7 +28,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
-use protobuf::Message;
+use protobuf::{EnumOrUnknown, Message, MessageField};
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
@@ -91,7 +91,7 @@ pub struct TreeState {
 }
 
 fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> FileState {
-    let file_type = match proto.file_type {
+    let file_type = match proto.file_type.enum_value_or_default() {
         crate::protos::working_copy::FileType::Normal => FileType::Normal { executable: false },
         crate::protos::working_copy::FileType::Executable => FileType::Normal { executable: true },
         crate::protos::working_copy::FileType::Symlink => FileType::Symlink,
@@ -118,7 +118,7 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
             crate::protos::working_copy::FileType::Conflict
         }
     };
-    proto.file_type = file_type;
+    proto.file_type = EnumOrUnknown::new(file_type);
     proto.mtime_millis_since_epoch = file_state.mtime.0;
     proto.size = file_state.size;
     proto
@@ -137,8 +137,8 @@ fn file_states_from_proto(
 
 fn sparse_patterns_from_proto(proto: &crate::protos::working_copy::TreeState) -> Vec<RepoPath> {
     let mut sparse_patterns = vec![];
-    if proto.has_sparse_patterns() {
-        for prefix in &proto.get_sparse_patterns().prefixes {
+    if let Some(proto_sparse_patterns) = proto.sparse_patterns.as_ref() {
+        for prefix in &proto_sparse_patterns.prefixes {
             sparse_patterns.push(RepoPath::from_internal_string(prefix.as_str()));
         }
     } else {
@@ -312,7 +312,7 @@ impl TreeState {
                 .prefixes
                 .push(path.to_internal_file_string());
         }
-        proto.set_sparse_patterns(sparse_patterns);
+        proto.sparse_patterns = MessageField::some(sparse_patterns);
 
         let mut temp_file = NamedTempFile::new_in(&self.state_path).unwrap();
         proto.write_to_writer(temp_file.as_file_mut()).unwrap();
