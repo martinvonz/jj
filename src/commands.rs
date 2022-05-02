@@ -1604,7 +1604,8 @@ struct BranchArgs {
     #[clap(long, group = "action")]
     forget: bool,
 
-    name: String,
+    /// The branches to update.
+    names: Vec<String>,
 }
 
 /// List branches and their targets
@@ -3966,53 +3967,76 @@ fn is_fast_forward(repo: RepoRef, branch_name: &str, new_target_id: &CommitId) -
 
 fn cmd_branch(ui: &mut Ui, command: &CommandHelper, args: &BranchArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let branch_name = &args.name;
+    let branch_names: Vec<&str> = if args.delete || args.forget {
+        let view = workspace_command.repo().view();
+        args.names
+            .iter()
+            .map(|branch_name| match view.get_local_branch(branch_name) {
+                Some(_) => Ok(branch_name.as_str()),
+                None => Err(CommandError::UserError(format!(
+                    "No such branch: {}",
+                    branch_name
+                ))),
+            })
+            .try_collect()?
+    } else {
+        args.names.iter().map(|name| name.as_str()).collect()
+    };
+
+    if branch_names.is_empty() {
+        ui.write_warn("warning: No branches provided.\n")?;
+    }
+    let branch_term = if branch_names.len() == 1 {
+        "branch"
+    } else {
+        "branches"
+    };
+    let branch_term = format!("{branch_term} {}", branch_names.join(", "));
+
     if args.delete {
-        if workspace_command
-            .repo()
-            .view()
-            .get_local_branch(branch_name)
-            .is_none()
-        {
-            return Err(CommandError::UserError("No such branch".to_string()));
+        let mut tx = workspace_command.start_transaction(&format!("delete {branch_term}"));
+        for branch_name in branch_names {
+            tx.mut_repo().remove_local_branch(branch_name);
         }
-        let mut tx = workspace_command.start_transaction(&format!("delete branch {}", branch_name));
-        tx.mut_repo().remove_local_branch(branch_name);
         workspace_command.finish_transaction(ui, tx)?;
     } else if args.forget {
-        if workspace_command
-            .repo()
-            .view()
-            .get_local_branch(branch_name)
-            .is_none()
-        {
-            return Err(CommandError::UserError("No such branch".to_string()));
+        let mut tx = workspace_command.start_transaction(&format!("forget {branch_term}"));
+        for branch_name in branch_names {
+            tx.mut_repo().remove_branch(branch_name);
         }
-        let mut tx = workspace_command.start_transaction(&format!("forget branch {}", branch_name));
-        tx.mut_repo().remove_branch(branch_name);
         workspace_command.finish_transaction(ui, tx)?;
     } else {
+        if branch_names.len() > 1 {
+            ui.write_warn(format!(
+                "warning: Updating multiple branches ({}).\n",
+                branch_names.len()
+            ))?;
+        }
+
         let target_commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
         if !args.allow_backwards
-            && !is_fast_forward(
-                workspace_command.repo().as_repo_ref(),
-                branch_name,
-                target_commit.id(),
-            )
+            && !branch_names.iter().all(|branch_name| {
+                is_fast_forward(
+                    workspace_command.repo().as_repo_ref(),
+                    branch_name,
+                    target_commit.id(),
+                )
+            })
         {
             return Err(CommandError::UserError(
                 "Use --allow-backwards to allow moving a branch backwards or sideways".to_string(),
             ));
         }
         let mut tx = workspace_command.start_transaction(&format!(
-            "point branch {} to commit {}",
-            branch_name,
+            "point {branch_term} to commit {}",
             target_commit.id().hex()
         ));
-        tx.mut_repo().set_local_branch(
-            branch_name.to_string(),
-            RefTarget::Normal(target_commit.id().clone()),
-        );
+        for branch_name in branch_names {
+            tx.mut_repo().set_local_branch(
+                branch_name.to_string(),
+                RefTarget::Normal(target_commit.id().clone()),
+            );
+        }
         workspace_command.finish_transaction(ui, tx)?;
     }
 

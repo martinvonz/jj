@@ -128,6 +128,14 @@ impl<'stdout> Ui<'stdout> {
         Ok(())
     }
 
+    pub fn write_warn(&mut self, text: impl AsRef<str>) -> io::Result<()> {
+        let mut formatter = self.stderr_formatter();
+        formatter.add_label(String::from("warning"))?;
+        formatter.write_str(text.as_ref())?;
+        formatter.remove_label()?;
+        Ok(())
+    }
+
     pub fn write_error(&mut self, text: &str) -> io::Result<()> {
         let mut formatter = self.stderr_formatter();
         formatter.add_label(String::from("error"))?;
