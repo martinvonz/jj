@@ -14,8 +14,15 @@
 
 use std::env;
 use std::path::PathBuf;
+use thiserror::Error;
 
 use jujutsu_lib::settings::UserSettings;
+
+#[derive(Error, Debug)]
+pub enum ConfigError {
+    #[error(transparent)]
+    ConfigReadError(#[from] config::ConfigError),
+}
 
 fn config_path() -> Option<PathBuf> {
     if let Ok(config_path) = env::var("JJ_CONFIG") {
@@ -56,7 +63,7 @@ fn env_overrides() -> config::Config {
     builder.build().unwrap()
 }
 
-pub fn read_config() -> Result<UserSettings, config::ConfigError> {
+pub fn read_config() -> Result<UserSettings, ConfigError> {
     let mut config_builder = config::Config::builder().add_source(env_base());
 
     if let Some(config_path) = config_path() {
