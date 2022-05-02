@@ -674,11 +674,13 @@ impl WorkspaceCommandHelper {
 
     fn edit_diff(
         &self,
+        ui: &mut Ui,
         left_tree: &Tree,
         right_tree: &Tree,
         instructions: &str,
     ) -> Result<TreeId, DiffEditError> {
         crate::diff_edit::edit_diff(
+            ui,
             &self.settings,
             left_tree,
             right_tree,
@@ -689,6 +691,7 @@ impl WorkspaceCommandHelper {
 
     fn select_diff(
         &self,
+        ui: &mut Ui,
         left_tree: &Tree,
         right_tree: &Tree,
         instructions: &str,
@@ -697,6 +700,7 @@ impl WorkspaceCommandHelper {
     ) -> Result<TreeId, CommandError> {
         if interactive {
             Ok(crate::diff_edit::edit_diff(
+                ui,
                 &self.settings,
                 left_tree,
                 right_tree,
@@ -3346,6 +3350,7 @@ from the source will be moved into the destination.
     );
     let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
     let new_parent_tree_id = workspace_command.select_diff(
+        ui,
         &parent_tree,
         &source_tree,
         &instructions,
@@ -3420,6 +3425,7 @@ from the source will be moved into the parent.
     );
     let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
     let new_parent_tree_id = workspace_command.select_diff(
+        ui,
         &parent.tree(),
         &commit.tree(),
         &instructions,
@@ -3487,7 +3493,7 @@ aborted.
             short_commit_description(&commit)
         );
         new_parent_tree_id =
-            workspace_command.edit_diff(&parent_base_tree, &parent.tree(), &instructions)?;
+            workspace_command.edit_diff(ui, &parent_base_tree, &parent.tree(), &instructions)?;
         if &new_parent_tree_id == parent_base_tree.id() {
             return Err(CommandError::UserError(String::from("No changes selected")));
         }
@@ -3549,8 +3555,12 @@ side. If you don't make any changes, then the operation will be aborted.
             short_commit_description(&from_commit),
             short_commit_description(&to_commit)
         );
-        tree_id =
-            workspace_command.edit_diff(&from_commit.tree(), &to_commit.tree(), &instructions)?;
+        tree_id = workspace_command.edit_diff(
+            ui,
+            &from_commit.tree(),
+            &to_commit.tree(),
+            &instructions,
+        )?;
     } else if !args.paths.is_empty() {
         let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
         let mut tree_builder = repo.store().tree_builder(to_commit.tree_id().clone());
@@ -3605,7 +3615,7 @@ Adjust the right side until it shows the contents you want. If you
 don't make any changes, then the operation will be aborted.",
         short_commit_description(&commit)
     );
-    let tree_id = workspace_command.edit_diff(&base_tree, &commit.tree(), &instructions)?;
+    let tree_id = workspace_command.edit_diff(ui, &base_tree, &commit.tree(), &instructions)?;
     if &tree_id == commit.tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
@@ -3647,6 +3657,7 @@ any changes, then the operation will be aborted.
     );
     let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
     let tree_id = workspace_command.select_diff(
+        ui,
         &base_tree,
         &commit.tree(),
         &instructions,
