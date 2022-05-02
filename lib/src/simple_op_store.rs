@@ -21,7 +21,7 @@ use std::path::PathBuf;
 
 use blake2::{Blake2b512, Digest};
 use itertools::Itertools;
-use protobuf::{Message, ProtobufError};
+use protobuf::{Message, MessageField};
 use tempfile::{NamedTempFile, PersistError};
 
 use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
@@ -43,8 +43,8 @@ impl From<PersistError> for OpStoreError {
     }
 }
 
-impl From<ProtobufError> for OpStoreError {
-    fn from(err: ProtobufError) -> Self {
+impl From<protobuf::Error> for OpStoreError {
+    fn from(err: protobuf::Error) -> Self {
         OpStoreError::Other(err.to_string())
     }
 }
@@ -132,8 +132,8 @@ impl OpStore for SimpleOpStore {
 
 fn timestamp_to_proto(timestamp: &Timestamp) -> crate::protos::op_store::Timestamp {
     let mut proto = crate::protos::op_store::Timestamp::new();
-    proto.set_millis_since_epoch(timestamp.timestamp.0);
-    proto.set_tz_offset(timestamp.tz_offset);
+    proto.millis_since_epoch = timestamp.timestamp.0;
+    proto.tz_offset = timestamp.tz_offset;
     proto
 }
 
@@ -148,24 +148,24 @@ fn operation_metadata_to_proto(
     metadata: &OperationMetadata,
 ) -> crate::protos::op_store::OperationMetadata {
     let mut proto = crate::protos::op_store::OperationMetadata::new();
-    proto.set_start_time(timestamp_to_proto(&metadata.start_time));
-    proto.set_end_time(timestamp_to_proto(&metadata.end_time));
-    proto.set_description(metadata.description.clone());
-    proto.set_hostname(metadata.hostname.clone());
-    proto.set_username(metadata.username.clone());
-    proto.set_tags(metadata.tags.clone());
+    proto.start_time = MessageField::some(timestamp_to_proto(&metadata.start_time));
+    proto.end_time = MessageField::some(timestamp_to_proto(&metadata.end_time));
+    proto.description = metadata.description.clone();
+    proto.hostname = metadata.hostname.clone();
+    proto.username = metadata.username.clone();
+    proto.tags = metadata.tags.clone();
     proto
 }
 
 fn operation_metadata_from_proto(
     proto: &crate::protos::op_store::OperationMetadata,
 ) -> OperationMetadata {
-    let start_time = timestamp_from_proto(proto.get_start_time());
-    let end_time = timestamp_from_proto(proto.get_end_time());
-    let description = proto.get_description().to_owned();
-    let hostname = proto.get_hostname().to_owned();
-    let username = proto.get_username().to_owned();
-    let tags = proto.get_tags().clone();
+    let start_time = timestamp_from_proto(&proto.start_time);
+    let end_time = timestamp_from_proto(&proto.end_time);
+    let description = proto.description.to_owned();
+    let hostname = proto.hostname.to_owned();
+    let username = proto.username.to_owned();
+    let tags = proto.tags.clone();
     OperationMetadata {
         start_time,
         end_time,
@@ -178,11 +178,11 @@ fn operation_metadata_from_proto(
 
 fn operation_to_proto(operation: &Operation) -> crate::protos::op_store::Operation {
     let mut proto = crate::protos::op_store::Operation::new();
-    proto.set_view_id(operation.view_id.as_bytes().to_vec());
+    proto.view_id = operation.view_id.as_bytes().to_vec();
     for parent in &operation.parents {
         proto.parents.push(parent.to_bytes());
     }
-    proto.set_metadata(operation_metadata_to_proto(&operation.metadata));
+    proto.metadata = MessageField::some(operation_metadata_to_proto(&operation.metadata));
     proto
 }
 
@@ -190,7 +190,7 @@ fn operation_from_proto(proto: &crate::protos::op_store::Operation) -> Operation
     let operation_id_from_proto = |parent: &Vec<u8>| OperationId::new(parent.clone());
     let parents = proto.parents.iter().map(operation_id_from_proto).collect();
     let view_id = ViewId::new(proto.view_id.clone());
-    let metadata = operation_metadata_from_proto(proto.get_metadata());
+    let metadata = operation_metadata_from_proto(&proto.metadata);
     Operation {
         view_id,
         parents,
@@ -214,14 +214,14 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
 
     for (name, target) in &view.branches {
         let mut branch_proto = crate::protos::op_store::Branch::new();
-        branch_proto.set_name(name.clone());
+        branch_proto.name = name.clone();
         if let Some(local_target) = &target.local_target {
-            branch_proto.set_local_target(ref_target_to_proto(local_target));
+            branch_proto.local_target = MessageField::some(ref_target_to_proto(local_target));
         }
         for (remote_name, target) in &target.remote_targets {
             let mut remote_branch_proto = crate::protos::op_store::RemoteBranch::new();
-            remote_branch_proto.set_remote_name(remote_name.clone());
-            remote_branch_proto.set_target(ref_target_to_proto(target));
+            remote_branch_proto.remote_name = remote_name.clone();
+            remote_branch_proto.target = MessageField::some(ref_target_to_proto(target));
             branch_proto.remote_branches.push(remote_branch_proto);
         }
         proto.branches.push(branch_proto);
@@ -229,20 +229,20 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
 
     for (name, target) in &view.tags {
         let mut tag_proto = crate::protos::op_store::Tag::new();
-        tag_proto.set_name(name.clone());
-        tag_proto.set_target(ref_target_to_proto(target));
+        tag_proto.name = name.clone();
+        tag_proto.target = MessageField::some(ref_target_to_proto(target));
         proto.tags.push(tag_proto);
     }
 
     for (git_ref_name, target) in &view.git_refs {
         let mut git_ref_proto = crate::protos::op_store::GitRef::new();
-        git_ref_proto.set_name(git_ref_name.clone());
-        git_ref_proto.set_target(ref_target_to_proto(target));
+        git_ref_proto.name = git_ref_name.clone();
+        git_ref_proto.target = MessageField::some(ref_target_to_proto(target));
         proto.git_refs.push(git_ref_proto);
     }
 
     if let Some(git_head) = &view.git_head {
-        proto.set_git_head(git_head.to_bytes());
+        proto.git_head = git_head.to_bytes();
     }
 
     proto
@@ -282,7 +282,7 @@ fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
         for remote_branch in &branch_proto.remote_branches {
             remote_targets.insert(
                 remote_branch.remote_name.clone(),
-                ref_target_from_proto(remote_branch.target.get_ref()),
+                ref_target_from_proto(&remote_branch.target),
             );
         }
 
@@ -298,16 +298,14 @@ fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
     for tag_proto in &proto.tags {
         view.tags.insert(
             tag_proto.name.clone(),
-            ref_target_from_proto(tag_proto.target.get_ref()),
+            ref_target_from_proto(&tag_proto.target),
         );
     }
 
     for git_ref in &proto.git_refs {
-        if git_ref.has_target() {
-            view.git_refs.insert(
-                git_ref.name.clone(),
-                ref_target_from_proto(git_ref.target.as_ref().unwrap()),
-            );
+        if let Some(target) = git_ref.target.as_ref() {
+            view.git_refs
+                .insert(git_ref.name.clone(), ref_target_from_proto(target));
         } else {
             // Legacy format
             view.git_refs.insert(
@@ -346,10 +344,10 @@ fn ref_target_to_proto(value: &RefTarget) -> crate::protos::op_store::RefTarget 
 
 fn ref_target_from_proto(proto: &crate::protos::op_store::RefTarget) -> RefTarget {
     match proto.value.as_ref().unwrap() {
-        crate::protos::op_store::RefTarget_oneof_value::commit_id(id) => {
+        crate::protos::op_store::ref_target::Value::CommitId(id) => {
             RefTarget::Normal(CommitId::from_bytes(id))
         }
-        crate::protos::op_store::RefTarget_oneof_value::conflict(conflict) => {
+        crate::protos::op_store::ref_target::Value::Conflict(conflict) => {
             let removes = conflict
                 .removes
                 .iter()
