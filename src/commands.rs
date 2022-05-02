@@ -1575,19 +1575,23 @@ struct BackoutArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct BranchArgs {
     /// The branch's target revision
-    #[clap(long, short, default_value = "@")]
+    #[clap(long, short, default_value = "@", group = "action")]
     revision: String,
+
     /// Allow moving the branch backwards or sideways
-    #[clap(long)]
+    #[clap(long, requires = "revision")]
     allow_backwards: bool,
+
     /// Delete the branch locally
     ///
     /// The deletion will be propagated to remotes on push.
-    #[clap(long)]
+    #[clap(long, group = "action")]
     delete: bool,
+
     /// The name of the branch to move or delete
-    #[clap(long)]
+    #[clap(long, group = "action")]
     forget: bool,
+
     name: String,
 }
 
