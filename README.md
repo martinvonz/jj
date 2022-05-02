@@ -1,5 +1,12 @@
 # Jujutsu
 
+- [Disclaimer](#disclaimer)
+- [Introduction](#introduction)
+- [Status](#status)
+- [Installation](#installation)
+- [Command-line completion](#command-line-completion)
+- [Getting started](#getting-started)
+- [Related work](#related-work)
 
 ## Disclaimer
 
