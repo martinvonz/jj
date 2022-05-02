@@ -80,6 +80,7 @@ pub struct ColorFormatter<'output> {
 fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     let mut result = HashMap::new();
     result.insert(String::from("error"), String::from("red"));
+    result.insert(String::from("hint"), String::from("yellow"));
 
     result.insert(String::from("commit_id"), String::from("blue"));
     result.insert(String::from("commit_id open"), String::from("green"));
