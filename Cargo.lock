@@ -772,7 +772,7 @@ dependencies = [
  "num_cpus",
  "pest",
  "pest_derive",
- "protobuf",
+ "protobuf 3.0.1",
  "protobuf-codegen-pure",
  "rand",
  "regex",
@@ -1157,8 +1157,17 @@ name = "protobuf"
 version = "2.27.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf7e6d18738ecd0902d30d1ad232c9125985a3422929b16c65517b38adc14f96"
+
+[[package]]
+name = "protobuf"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "430ff91293021cc9369e04edced9594c9c7a03760e62afcf98b0f8ad99a56ef7"
 dependencies = [
  "bytes",
+ "once_cell",
+ "protobuf-support",
+ "thiserror",
 ]
 
 [[package]]
@@ -1167,7 +1176,7 @@ version = "2.27.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aec1632b7c8f2e620343439a7dfd1f3c47b18906c4be58982079911482b5d707"
 dependencies = [
- "protobuf",
+ "protobuf 2.27.1",
 ]
 
 [[package]]
@@ -1176,8 +1185,17 @@ version = "2.27.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f8122fdb18e55190c796b088a16bdb70cd7acdcd48f7a8b796b58c62e532cc6"
 dependencies = [
- "protobuf",
+ "protobuf 2.27.1",
  "protobuf-codegen",
+]
+
+[[package]]
+name = "protobuf-support"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9553cd16fcb53a9b33da0735313393ba2697d090ae9af4a96f160992513ce8cb"
+dependencies = [
+ "thiserror",
 ]
 
 [[package]]
