@@ -35,7 +35,7 @@ rand = "0.8.5"
 regex = "1.5.5"
 serde_json = "1.0.79"
 tempfile = "3.3.0"
-thiserror = "1.0.30"
+thiserror = "1.0.31"
 uuid = { version = "1.0.0", features = ["v4"] }
 whoami = "1.2.1"
 zstd = "0.11.1"
