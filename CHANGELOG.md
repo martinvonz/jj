@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Sparse checkouts are now supported. In fact, all working copies are now
   "sparse", only to different degrees. Use the `jj sparse` command to manage
-  the paths included in the sparse checkout.  
+  the paths included in the sparse checkout.
 
 * The `$JJ_CONFIG` environment variable can now point to a directory. If it
   does, all files in the directory will be read, in alphabetical order.
@@ -73,6 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       program = "kdiff3"
       edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
 
+* `jj branch` can accept any number of branches to update, rather than just one.
+
 ### Fixed bugs
 
 * When rebasing a conflict where one side modified a file and the other side
@@ -83,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Updating the working copy to a commit where a file's executable bit changed
   but the contents was the same used to lead to a crash. That has now been
-  fixed. 
+  fixed.
 
 * If one side of a merge modified a directory and the other side deleted it, it
   used to be considered a conflict. The same was true if both sides added a
