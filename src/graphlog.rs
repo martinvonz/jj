@@ -180,7 +180,7 @@ where
 
         // Emit any remaining lines of text.
         while !self.pending_text.is_empty() {
-            for edge in self.edges.iter() {
+            for edge in &self.edges {
                 AsciiGraphDrawer::straight_edge(&mut self.writer, edge)?;
             }
             for _ in self.edges.len()..pad_to_index {
