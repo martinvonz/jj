@@ -26,15 +26,15 @@ fn main() {
     std::fs::create_dir(&out_dir).unwrap();
 
     let input = &[
-        "protos/op_store.proto",
-        "protos/store.proto",
-        "protos/working_copy.proto",
+        "src/protos/op_store.proto",
+        "src/protos/store.proto",
+        "src/protos/working_copy.proto",
     ];
     protobuf_codegen::Codegen::new()
         .pure()
         .out_dir(out_dir)
         .inputs(input)
-        .include("protos")
+        .include("src/protos")
         .cargo_out_dir("protos")
         .run()
         .expect("protoc");
