@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::exit;
 
 use clap::Parser;
@@ -30,7 +30,7 @@ struct Args {
     after: PathBuf,
 }
 
-fn files_recursively(dir: &PathBuf) -> HashSet<String> {
+fn files_recursively(dir: &Path) -> HashSet<String> {
     let mut files = HashSet::new();
     for dir_entry in std::fs::read_dir(dir).unwrap() {
         let dir_entry = dir_entry.unwrap();
