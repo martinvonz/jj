@@ -197,7 +197,7 @@ impl MergeTool {
 /// Loads merge tool options from `[merge-tools.<name>]`. The given name is used
 /// as an executable name if no configuration found for that name.
 fn get_tool(settings: &UserSettings, name: &str) -> Result<MergeTool, ConfigError> {
-    const TABLE_KEY: &'static str = "merge-tools";
+    const TABLE_KEY: &str = "merge-tools";
     let tools_table = match settings.config().get_table(TABLE_KEY) {
         Ok(table) => table,
         Err(ConfigError::NotFound(_)) => return Ok(MergeTool::with_program(name)),
