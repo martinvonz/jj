@@ -363,7 +363,7 @@ impl WorkspaceCommandHelper {
                 self.repo = tx.commit();
                 locked_working_copy.finish(self.repo.op_id().clone());
             } else {
-                let num_rebased = tx.mut_repo().rebase_descendants(ui.settings());
+                let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
                 if num_rebased > 0 {
                     writeln!(
                         ui,
