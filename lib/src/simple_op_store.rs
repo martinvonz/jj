@@ -264,22 +264,22 @@ fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
             CommitId::new(commit_id.clone()),
         );
     }
-    for head_id_bytes in proto.head_ids.iter() {
+    for head_id_bytes in &proto.head_ids {
         view.head_ids.insert(CommitId::from_bytes(head_id_bytes));
     }
-    for head_id_bytes in proto.public_head_ids.iter() {
+    for head_id_bytes in &proto.public_head_ids {
         view.public_head_ids
             .insert(CommitId::from_bytes(head_id_bytes));
     }
 
-    for branch_proto in proto.branches.iter() {
+    for branch_proto in &proto.branches {
         let local_target = branch_proto
             .local_target
             .as_ref()
             .map(ref_target_from_proto);
 
         let mut remote_targets = BTreeMap::new();
-        for remote_branch in branch_proto.remote_branches.iter() {
+        for remote_branch in &branch_proto.remote_branches {
             remote_targets.insert(
                 remote_branch.remote_name.clone(),
                 ref_target_from_proto(remote_branch.target.get_ref()),
@@ -295,14 +295,14 @@ fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
         );
     }
 
-    for tag_proto in proto.tags.iter() {
+    for tag_proto in &proto.tags {
         view.tags.insert(
             tag_proto.name.clone(),
             ref_target_from_proto(tag_proto.target.get_ref()),
         );
     }
 
-    for git_ref in proto.git_refs.iter() {
+    for git_ref in &proto.git_refs {
         if git_ref.has_target() {
             view.git_refs.insert(
                 git_ref.name.clone(),

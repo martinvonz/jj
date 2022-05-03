@@ -291,7 +291,7 @@ fn tree_to_proto(tree: &Tree) -> crate::protos::store::Tree {
 
 fn tree_from_proto(proto: &crate::protos::store::Tree) -> Tree {
     let mut tree = Tree::default();
-    for proto_entry in proto.entries.iter() {
+    for proto_entry in &proto.entries {
         let value = tree_value_from_proto(proto_entry.value.as_ref().unwrap());
         tree.set(RepoPathComponent::from(proto_entry.name.as_str()), value);
     }

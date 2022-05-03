@@ -4169,7 +4169,7 @@ fn cmd_debug(ui: &mut Ui, command: &CommandHelper, args: &DebugArgs) -> Result<(
             let wc = workspace_command.working_copy();
             writeln!(ui, "Current operation: {:?}", wc.operation_id())?;
             writeln!(ui, "Current tree: {:?}", wc.current_tree_id())?;
-            for (file, state) in wc.file_states().iter() {
+            for (file, state) in wc.file_states() {
                 writeln!(
                     ui,
                     "{:?} {:13?} {:10?} {:?}",
