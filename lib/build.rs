@@ -36,8 +36,7 @@ fn main() {
         .inputs(input)
         .include("src/protos")
         .cargo_out_dir("protos")
-        .run()
-        .expect("protoc");
+        .run_from_script();
     println!("cargo:rerun-if-changed=build.rs");
     for file in input {
         println!("cargo:rerun-if-changed={}", file);
