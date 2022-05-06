@@ -3,7 +3,7 @@ name: Nix on Linux
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
 
 permissions: read-all
