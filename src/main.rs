@@ -15,7 +15,7 @@
 use std::env;
 use std::path::PathBuf;
 
-use jujutsu::commands::dispatch;
+use jujutsu::commands::{dispatch, CommandError};
 use jujutsu::ui::Ui;
 use jujutsu_lib::settings::UserSettings;
 
@@ -98,8 +98,23 @@ fn main() {
     match read_config() {
         Ok(user_settings) => {
             let mut ui = Ui::for_terminal(user_settings);
-            let status = dispatch(&mut ui, &mut std::env::args_os());
-            std::process::exit(status);
+            match dispatch(&mut ui, &mut std::env::args_os()) {
+                Ok(_) => {
+                    std::process::exit(0);
+                }
+                Err(CommandError::UserError(message)) => {
+                    ui.write_error(&format!("Error: {}\n", message)).unwrap();
+                    std::process::exit(1);
+                }
+                Err(CommandError::BrokenPipe) => {
+                    std::process::exit(2);
+                }
+                Err(CommandError::InternalError(message)) => {
+                    ui.write_error(&format!("Internal error: {}\n", message))
+                        .unwrap();
+                    std::process::exit(255);
+                }
+            }
         }
         Err(err) => {
             let mut ui = Ui::for_terminal(UserSettings::default());
