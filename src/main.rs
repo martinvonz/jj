@@ -107,7 +107,7 @@ fn main() {
                     std::process::exit(1);
                 }
                 Err(CommandError::BrokenPipe) => {
-                    std::process::exit(2);
+                    std::process::exit(3);
                 }
                 Err(CommandError::InternalError(message)) => {
                     ui.write_error(&format!("Internal error: {}\n", message))
