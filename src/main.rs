@@ -97,8 +97,8 @@ fn main() {
     // -R.
     match read_config() {
         Ok(user_settings) => {
-            let ui = Ui::for_terminal(user_settings);
-            let status = dispatch(ui, &mut std::env::args_os());
+            let mut ui = Ui::for_terminal(user_settings);
+            let status = dispatch(&mut ui, &mut std::env::args_os());
             std::process::exit(status);
         }
         Err(err) => {
