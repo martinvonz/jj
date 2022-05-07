@@ -106,6 +106,10 @@ fn main() {
                     ui.write_error(&format!("Error: {}\n", message)).unwrap();
                     std::process::exit(1);
                 }
+                Err(CommandError::CliError(message)) => {
+                    ui.write_error(&format!("Error: {}\n", message)).unwrap();
+                    std::process::exit(2);
+                }
                 Err(CommandError::BrokenPipe) => {
                     std::process::exit(3);
                 }

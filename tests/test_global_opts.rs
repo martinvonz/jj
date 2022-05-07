@@ -12,9 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::TestEnvironment;
+use std::ffi::OsString;
+
+use crate::common::{get_stderr_string, TestEnvironment};
 
 pub mod common;
+
+#[test]
+fn test_non_utf8_arg() {
+    let test_env = TestEnvironment::default();
+    #[cfg(unix)]
+    let invalid_utf = {
+        use std::os::unix::ffi::OsStringExt;
+        OsString::from_vec(vec![0x66, 0x6f, 0x80, 0x6f])
+    };
+    #[cfg(windows)]
+    let invalid_utf = {
+        use std::os::windows::prelude::*;
+        OsString::from_wide(&[0x0066, 0x006f, 0xD800, 0x006f])
+    };
+    let assert = test_env
+        .jj_cmd(test_env.env_root(), &[])
+        .args(&[invalid_utf])
+        .assert()
+        .code(2);
+    let stderr = get_stderr_string(&assert);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Non-utf8 argument
+    "###);
+}
 
 #[test]
 fn test_no_commit_working_copy() {

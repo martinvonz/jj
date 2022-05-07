@@ -76,6 +76,8 @@ use crate::ui::{FilePathParseError, Ui};
 
 pub enum CommandError {
     UserError(String),
+    /// Invalid command line
+    CliError(String),
     BrokenPipe,
     InternalError(String),
 }
@@ -5033,9 +5035,7 @@ where
         if let Some(string_arg) = os_string_arg.to_str() {
             string_args.push(string_arg.to_owned());
         } else {
-            return Err(CommandError::UserError(
-                "Error: Non-utf8 argument".to_string(),
-            ));
+            return Err(CommandError::CliError("Non-utf8 argument".to_string()));
         }
     }
 
