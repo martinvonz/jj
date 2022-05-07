@@ -74,7 +74,7 @@ use crate::templater::Template;
 use crate::ui;
 use crate::ui::{FilePathParseError, Ui};
 
-enum CommandError {
+pub enum CommandError {
     UserError(String),
     BrokenPipe,
     InternalError(String),
@@ -5022,7 +5022,7 @@ fn resolve_alias(ui: &mut Ui, args: Vec<String>) -> Vec<String> {
     args
 }
 
-pub fn dispatch<I, T>(ui: &mut Ui, args: I) -> i32
+pub fn dispatch<I, T>(ui: &mut Ui, args: I) -> Result<(), CommandError>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
@@ -5033,8 +5033,9 @@ where
         if let Some(string_arg) = os_string_arg.to_str() {
             string_args.push(string_arg.to_owned());
         } else {
-            ui.write_error("Error: Non-utf8 argument\n").unwrap();
-            return 1;
+            return Err(CommandError::UserError(
+                "Error: Non-utf8 argument".to_string(),
+            ));
         }
     }
 
@@ -5042,7 +5043,7 @@ where
     let app = Args::command();
     let args: Args = clap::Parser::parse_from(&string_args);
     let command_helper = CommandHelper::new(app, string_args, args.clone());
-    let result = match &args.command {
+    match &args.command {
         Commands::Init(sub_args) => cmd_init(ui, &command_helper, sub_args),
         Commands::Checkout(sub_args) => cmd_checkout(ui, &command_helper, sub_args),
         Commands::Untrack(sub_args) => cmd_untrack(ui, &command_helper, sub_args),
@@ -5077,20 +5078,6 @@ where
         Commands::Git(sub_args) => cmd_git(ui, &command_helper, sub_args),
         Commands::Bench(sub_args) => cmd_bench(ui, &command_helper, sub_args),
         Commands::Debug(sub_args) => cmd_debug(ui, &command_helper, sub_args),
-    };
-
-    match result {
-        Ok(()) => 0,
-        Err(CommandError::UserError(message)) => {
-            ui.write_error(&format!("Error: {}\n", message)).unwrap();
-            1
-        }
-        Err(CommandError::BrokenPipe) => 2,
-        Err(CommandError::InternalError(message)) => {
-            ui.write_error(&format!("Internal error: {}\n", message))
-                .unwrap();
-            255
-        }
     }
 }
 
