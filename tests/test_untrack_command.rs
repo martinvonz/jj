@@ -44,16 +44,7 @@ fn test_untrack() {
     Error: Refusing to commit working copy (maybe because you're using --at-op)
     "###);
     // Errors out when no path is specified
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack"]);
-    insta::assert_snapshot!(stderr.replace("jj.exe", "jj"), @r###"
-    error: The following required arguments were not provided:
-        <PATHS>...
-
-    USAGE:
-        jj untrack [OPTIONS] <PATHS>...
-
-    For more information try --help
-    "###);
+    test_env.jj_cmd_cli_error(&repo_path, &["untrack"]);
     // Errors out when a specified file is not ignored
     let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack", "file1", "file1.bak"]);
     insta::assert_snapshot!(stderr, @"Error: 'file1' would be added back because it's not ignored. Make sure it's ignored, \

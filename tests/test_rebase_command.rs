@@ -14,8 +14,6 @@
 
 use std::path::Path;
 
-use itertools::Itertools;
-
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -48,19 +46,13 @@ fn test_rebase_invalid() {
     create_commit(&test_env, &repo_path, "b", &["a"]);
 
     // Missing destination
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase"]);
-    insta::assert_snapshot!(stderr.lines().take(3).join("\n"), @r###"
-    error: The following required arguments were not provided:
-        --destination <DESTINATION>
-    "###);
+    test_env.jj_cmd_cli_error(&repo_path, &["rebase"]);
 
     // Both -r and -s
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-s", "a", "-d", "b"]);
-    insta::assert_snapshot!(stderr.lines().next().unwrap(), @"error: The argument '--revision <REVISION>' cannot be used with '--source <SOURCE>'");
+    test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-r", "a", "-s", "a", "-d", "b"]);
 
     // Both -b and -s
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-b", "a", "-s", "a", "-d", "b"]);
-    insta::assert_snapshot!(stderr.lines().next().unwrap(), @"error: The argument '--branch <BRANCH>' cannot be used with '--source <SOURCE>'");
+    test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-b", "a", "-s", "a", "-d", "b"]);
 
     // Rebase onto descendant with -r
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b"]);

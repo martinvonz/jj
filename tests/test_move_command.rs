@@ -14,8 +14,6 @@
 
 use std::path::Path;
 
-use itertools::Itertools;
-
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -70,11 +68,7 @@ fn test_move() {
     "###);
 
     // Errors out without arguments
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["move"]);
-    insta::assert_snapshot!(stderr.lines().take(2).join("\n"), @r###"
-    error: The following required arguments were not provided:
-        <--from <FROM>|--to <TO>>
-    "###);
+    test_env.jj_cmd_cli_error(&repo_path, &["move"]);
     // Errors out if source and destination are the same
     let stderr = test_env.jj_cmd_failure(&repo_path, &["move", "--to", "@"]);
     insta::assert_snapshot!(stderr, @r###"
