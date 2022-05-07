@@ -24,11 +24,8 @@ fn test_branch_mutually_exclusive_actions() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_failure(&repo_path, &["branch", "--forget", "--delete", "foo"]);
-    test_env.jj_cmd_failure(
-        &repo_path,
-        &["branch", "--delete", "--allow-backwards", "foo"],
-    );
+    test_env.jj_cmd_cli_error(&repo_path, &["branch", "--forget", "--delete", "foo"]);
+    test_env.jj_cmd_cli_error(&repo_path, &["branch", "--allow-backwards", "foo"]);
 }
 
 #[test]

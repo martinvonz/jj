@@ -77,10 +77,17 @@ impl TestEnvironment {
         get_stdout_string(&assert)
     }
 
-    /// Run a `jj` command, check that it was successful, and return its stdout
+    /// Run a `jj` command, check that it failed with code 1, and return its
+    /// stderr
     pub fn jj_cmd_failure(&self, current_dir: &Path, args: &[&str]) -> String {
-        let assert = self.jj_cmd(current_dir, args).assert().failure().stdout("");
+        let assert = self.jj_cmd(current_dir, args).assert().code(1).stdout("");
         get_stderr_string(&assert)
+    }
+
+    /// Run a `jj` command and check that it failed with code 2 (for invalid
+    /// usage)
+    pub fn jj_cmd_cli_error(&self, current_dir: &Path, args: &[&str]) {
+        self.jj_cmd(current_dir, args).assert().code(2).stdout("");
     }
 
     pub fn env_root(&self) -> &Path {

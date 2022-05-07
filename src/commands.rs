@@ -1593,8 +1593,8 @@ struct BackoutArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct BranchArgs {
     /// The branch's target revision
-    #[clap(long, short, default_value = "@", group = "action")]
-    revision: String,
+    #[clap(long, short, group = "action")]
+    revision: Option<String>,
 
     /// Allow moving the branch backwards or sideways
     #[clap(long, requires = "revision")]
@@ -4019,7 +4019,8 @@ fn cmd_branch(ui: &mut Ui, command: &CommandHelper, args: &BranchArgs) -> Result
             ))?;
         }
 
-        let target_commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+        let target_commit =
+            workspace_command.resolve_single_rev(ui, args.revision.as_deref().unwrap_or("@"))?;
         if !args.allow_backwards
             && !branch_names.iter().all(|branch_name| {
                 is_fast_forward(
