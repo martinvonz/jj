@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   restore to as an argument to `-o/--operation`. It is now a positional
   argument instead (i.e. `jj undo -o abc123` is now written `jj undo abc123`).
 
+* An alias that is not configured as a string list (e.g. `my-status = "status"`
+  instead of `my-status = ["status"]`) is now an error instead of a warning.
+
 ### New features
 
 * `jj rebase` now accepts a `--branch/-b <revision>` argument, which can be used

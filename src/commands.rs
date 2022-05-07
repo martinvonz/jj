@@ -30,6 +30,7 @@ use std::time::Instant;
 use std::{fs, io};
 
 use clap::{ArgGroup, CommandFactory, Subcommand};
+use config::Value;
 use criterion::Criterion;
 use git2::{Oid, Repository};
 use itertools::Itertools;
@@ -90,6 +91,12 @@ impl From<std::io::Error> for CommandError {
             // TODO: Record the error as a chained cause
             CommandError::InternalError(format!("I/O error: {}", err))
         }
+    }
+}
+
+impl From<config::ConfigError> for CommandError {
+    fn from(err: config::ConfigError) -> Self {
+        CommandError::UserError(format!("Config error: {}", err))
     }
 }
 
@@ -4995,33 +5002,61 @@ fn cmd_git(ui: &mut Ui, command: &CommandHelper, args: &GitArgs) -> Result<(), C
     }
 }
 
-fn resolve_alias(ui: &mut Ui, args: Vec<String>) -> Vec<String> {
-    if args.len() >= 2 {
-        let command_name = args[1].clone();
-        if let Ok(alias_definition) = ui
-            .settings()
-            .config()
-            .get_array(&format!("alias.{}", command_name))
-        {
-            let mut resolved_args = vec![args[0].clone()];
-            for arg in alias_definition {
-                match arg.into_string() {
-                    Ok(string_arg) => resolved_args.push(string_arg),
-                    Err(err) => {
-                        ui.write_error(&format!(
-                            "Warning: Ignoring bad alias definition: {:?}\n",
-                            err
-                        ))
-                        .unwrap();
-                        return args;
+fn string_list_from_config(value: config::Value) -> Option<Vec<String>> {
+    match value {
+        Value {
+            kind: config::ValueKind::Array(elements),
+            ..
+        } => {
+            let mut strings = vec![];
+            for arg in elements {
+                match arg {
+                    config::Value {
+                        kind: config::ValueKind::String(string_value),
+                        ..
+                    } => {
+                        strings.push(string_value);
+                    }
+                    _ => {
+                        return None;
                     }
                 }
             }
-            resolved_args.extend_from_slice(&args[2..]);
-            return resolved_args;
+            Some(strings)
         }
+        _ => None,
     }
-    args
+}
+
+fn resolve_alias(settings: &UserSettings, args: Vec<String>) -> Result<Vec<String>, CommandError> {
+    if args.len() >= 2 {
+        let command_name = args[1].clone();
+        match settings
+            .config()
+            .get::<config::Value>(&format!("alias.{}", command_name))
+        {
+            Ok(value) => {
+                if let Some(alias_definition) = string_list_from_config(value) {
+                    let mut resolved_args = vec![args[0].clone()];
+                    resolved_args.extend(alias_definition);
+                    resolved_args.extend_from_slice(&args[2..]);
+                    Ok(resolved_args)
+                } else {
+                    Err(CommandError::UserError(format!(
+                        r#"Alias definition for "{}" must be a string list"#,
+                        command_name,
+                    )))
+                }
+            }
+            Err(config::ConfigError::NotFound(_)) => {
+                // The command is not an alias
+                Ok(args)
+            }
+            Err(err) => Err(CommandError::from(err)),
+        }
+    } else {
+        Ok(args)
+    }
 }
 
 pub fn dispatch<I, T>(ui: &mut Ui, args: I) -> Result<(), CommandError>
@@ -5039,7 +5074,7 @@ where
         }
     }
 
-    let string_args = resolve_alias(ui, string_args);
+    let string_args = resolve_alias(ui.settings(), string_args)?;
     let app = Args::command();
     let args: Args = clap::Parser::parse_from(&string_args);
     let command_helper = CommandHelper::new(app, string_args, args.clone());
