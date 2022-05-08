@@ -175,7 +175,7 @@ ancestors (`:foo`), descendants (`foo:`), DAG range (`foo:bar`, like
 `git log --ancestry-path`), range (`foo..bar`, same as Git's). There are also a
 few more functions, such as `heads(<set>)`, which filters out revisions in the
 input set if they're ancestors of other revisions in the set. Let's define an
-alias based on that by adding the following to `~/.config/jj/config.toml`:
+alias based on that by adding the following to `~/.jjconfig.toml`:
 ```
 [alias]
 l = ["log", "-r", "(heads(remote_branches())..@):"]
@@ -348,7 +348,7 @@ try `jj l --at-op=401652a2f61e` but use the hash from your own `jj op log`.
 You have already seen how `jj squash` can combine the changes from two commits
 into one. There are several other commands for changing the contents of existing
 commits. These commands assume that you have `meld` installed. If you prefer
-`vimdiff`, add this to your `~/.config/jj/config.toml` file:
+`vimdiff`, add this to your `~/.jjconfig.toml` file:
 ```
 [ui]
 diff-editor = "vimdiff"
