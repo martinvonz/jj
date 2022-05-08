@@ -126,7 +126,7 @@ fn test_invalid_config() {
     test_env.add_config(b"[section]key = value-missing-quotes");
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo"]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
-    Invalid config: expected newline, found an identifier at line 1 column 10 in config/config0001.toml
+    Config error: expected newline, found an identifier at line 1 column 10 in config/config0001.toml
     "###);
 }
 
