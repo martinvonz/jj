@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "sparse", only to different degrees. Use the `jj sparse` command to manage
   the paths included in the sparse checkout.
 
+* Configuration is now also read from `~/.jjconfig.toml`.
+
 * The `$JJ_CONFIG` environment variable can now point to a directory. If it
   does, all files in the directory will be read, in alphabetical order.
 

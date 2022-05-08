@@ -48,8 +48,7 @@ fn main() {
         }
         Err(err) => {
             let mut ui = Ui::for_terminal(UserSettings::default());
-            ui.write_error(&format!("Invalid config: {}\n", err))
-                .unwrap();
+            ui.write_error(&format!("Config error: {}\n", err)).unwrap();
             std::process::exit(1);
         }
     }

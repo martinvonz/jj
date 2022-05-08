@@ -14,25 +14,39 @@
 
 use std::env;
 use std::path::PathBuf;
-use thiserror::Error;
 
 use jujutsu_lib::settings::UserSettings;
+use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ConfigError {
     #[error(transparent)]
     ConfigReadError(#[from] config::ConfigError),
+    #[error("Both {0} and {1} exist. Please consolidate you configs in one of them.")]
+    AmbiguousSource(PathBuf, PathBuf),
 }
 
-fn config_path() -> Option<PathBuf> {
+fn config_path() -> Result<Option<PathBuf>, ConfigError> {
     if let Ok(config_path) = env::var("JJ_CONFIG") {
         // TODO: We should probably support colon-separated (std::env::split_paths)
         // paths here
-        Some(PathBuf::from(config_path))
+        Ok(Some(PathBuf::from(config_path)))
     } else {
         // TODO: Should we drop the final `/config.toml` and read all files in the
         // directory?
-        dirs::config_dir().map(|config_dir| config_dir.join("jj").join("config.toml"))
+        let platform_specific_config_path = dirs::config_dir()
+            .map(|config_dir| config_dir.join("jj").join("config.toml"))
+            .filter(|path| path.exists());
+        let home_config_path = dirs::home_dir()
+            .map(|home_dir| home_dir.join(".jjconfig.toml"))
+            .filter(|path| path.exists());
+        match (&platform_specific_config_path, &home_config_path) {
+            (Some(xdg_config_path), Some(home_config_path)) => Err(ConfigError::AmbiguousSource(
+                xdg_config_path.clone(),
+                home_config_path.clone(),
+            )),
+            _ => Ok(platform_specific_config_path.or(home_config_path)),
+        }
     }
 }
 
@@ -66,7 +80,7 @@ fn env_overrides() -> config::Config {
 pub fn read_config() -> Result<UserSettings, ConfigError> {
     let mut config_builder = config::Config::builder().add_source(env_base());
 
-    if let Some(config_path) = config_path() {
+    if let Some(config_path) = config_path()? {
         let mut files = vec![];
         if config_path.is_dir() {
             if let Ok(read_dir) = config_path.read_dir() {
