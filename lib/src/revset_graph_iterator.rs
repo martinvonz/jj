@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::cmp::min;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::index::{IndexEntry, IndexPosition};
 use crate::nightly_shims::BTreeMapExt;
@@ -147,6 +147,10 @@ impl<'revset, 'repo> RevsetGraphIterator<'revset, 'repo> {
     pub fn set_skip_transitive_edges(mut self, skip_transitive_edges: bool) -> Self {
         self.skip_transitive_edges = skip_transitive_edges;
         self
+    }
+
+    pub fn reversed(self) -> ReverseRevsetGraphIterator<'repo> {
+        ReverseRevsetGraphIterator::new(self)
     }
 
     fn next_index_entry(&mut self) -> Option<IndexEntry<'repo>> {
@@ -302,5 +306,46 @@ impl<'revset, 'repo> Iterator for RevsetGraphIterator<'revset, 'repo> {
         let mut edges: Vec<_> = edges.into_iter().collect();
         edges.sort_by(|edge1, edge2| edge2.target.cmp(&edge1.target));
         Some((index_entry, edges))
+    }
+}
+
+pub struct ReverseRevsetGraphIterator<'repo> {
+    items: Vec<(IndexEntry<'repo>, Vec<RevsetGraphEdge>)>,
+}
+
+impl<'repo> ReverseRevsetGraphIterator<'repo> {
+    fn new<'revset>(input: RevsetGraphIterator<'revset, 'repo>) -> Self {
+        let mut entries = vec![];
+        let mut reverse_edges: HashMap<IndexPosition, Vec<RevsetGraphEdge>> = HashMap::new();
+        for (entry, edges) in input {
+            for RevsetGraphEdge { target, edge_type } in edges {
+                reverse_edges
+                    .entry(target)
+                    .or_default()
+                    .push(RevsetGraphEdge {
+                        target: entry.position(),
+                        edge_type,
+                    })
+            }
+            entries.push(entry);
+        }
+
+        let mut items = vec![];
+        for entry in entries.into_iter() {
+            let edges = reverse_edges
+                .get(&entry.position())
+                .cloned()
+                .unwrap_or_default();
+            items.push((entry, edges));
+        }
+        Self { items }
+    }
+}
+
+impl<'repo> Iterator for ReverseRevsetGraphIterator<'repo> {
+    type Item = (IndexEntry<'repo>, Vec<RevsetGraphEdge>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.items.pop()
     }
 }
