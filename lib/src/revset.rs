@@ -833,6 +833,12 @@ impl<'revset, 'repo> RevsetIterator<'revset, 'repo> {
         }
     }
 
+    pub fn reversed(self) -> ReverseRevsetIterator<'repo> {
+        ReverseRevsetIterator {
+            entries: self.into_iter().collect_vec(),
+        }
+    }
+
     pub fn graph(self) -> RevsetGraphIterator<'revset, 'repo> {
         RevsetGraphIterator::new(self)
     }
@@ -870,6 +876,18 @@ impl Iterator for RevsetCommitIterator<'_, '_> {
         self.iter
             .next()
             .map(|index_entry| self.store.get_commit(&index_entry.commit_id()))
+    }
+}
+
+pub struct ReverseRevsetIterator<'repo> {
+    entries: Vec<IndexEntry<'repo>>,
+}
+
+impl<'repo> Iterator for ReverseRevsetIterator<'repo> {
+    type Item = IndexEntry<'repo>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.entries.pop()
     }
 }
 
