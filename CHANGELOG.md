@@ -88,6 +88,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Aliases can now call other aliases.
 
+* `jj log` now accepts a `--reversed` option, which will show older commits
+  first.
+
 ### Fixed bugs
 
 * When rebasing a conflict where one side modified a file and the other side

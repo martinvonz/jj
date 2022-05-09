@@ -42,7 +42,7 @@ use jujutsu_lib::diff::{Diff, DiffHunk};
 use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::git::{GitExportError, GitFetchError, GitImportError, GitRefUpdate};
 use jujutsu_lib::gitignore::GitIgnoreFile;
-use jujutsu_lib::index::HexPrefix;
+use jujutsu_lib::index::{HexPrefix, IndexEntry};
 use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jujutsu_lib::op_heads_store::{OpHeadResolutionError, OpHeads, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
@@ -51,7 +51,7 @@ use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPus
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
-use jujutsu_lib::revset_graph_iterator::RevsetGraphEdgeType;
+use jujutsu_lib::revset_graph_iterator::{RevsetGraphEdge, RevsetGraphEdgeType};
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
@@ -1280,6 +1280,9 @@ struct LogArgs {
         default_value = "remote_branches().. | (remote_branches()..)-"
     )]
     revisions: String,
+    /// Show revisions in the opposite order (older revisions first)
+    #[clap(long)]
+    reversed: bool,
     /// Don't show the graph, show a flat list of revisions
     #[clap(long)]
     no_graph: bool,
@@ -3016,7 +3019,12 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 
     if !args.no_graph {
         let mut graph = AsciiGraphDrawer::new(&mut formatter);
-        for (index_entry, edges) in revset.iter().graph() {
+        let iter: Box<dyn Iterator<Item = (IndexEntry, Vec<RevsetGraphEdge>)>> = if args.reversed {
+            Box::new(revset.iter().graph().reversed())
+        } else {
+            Box::new(revset.iter().graph())
+        };
+        for (index_entry, edges) in iter {
             let mut graphlog_edges = vec![];
             // TODO: Should we update RevsetGraphIterator to yield this flag instead of all
             // the missing edges since we don't care about where they point here
@@ -3072,7 +3080,12 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             )?;
         }
     } else {
-        for index_entry in revset.iter() {
+        let iter: Box<dyn Iterator<Item = IndexEntry>> = if args.reversed {
+            Box::new(revset.iter().reversed())
+        } else {
+            Box::new(revset.iter())
+        };
+        for index_entry in iter {
             let commit = store.get_commit(&index_entry.commit_id())?;
             template.format(&commit, formatter)?;
             if let Some(diff_format) = diff_format {

@@ -128,3 +128,30 @@ fn test_log_with_or_without_diff() {
     +bar
     "###);
 }
+
+#[test]
+fn test_log_reversed() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "second"]);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "--reversed"]);
+    insta::assert_snapshot!(stdout, @r###"
+    o 
+    o first
+    @ second
+    "###);
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "description", "--reversed", "--no-graph"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    
+    first
+    second
+    "###);
+}
