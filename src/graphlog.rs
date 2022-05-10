@@ -319,8 +319,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use indoc::indoc;
-
     use super::*;
 
     #[test]
@@ -329,8 +327,9 @@ mod tests {
         let mut graph = AsciiGraphDrawer::new(&mut buffer);
         graph.add_node(&1, &[], b"@", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(String::from_utf8_lossy(&buffer), "@ node 1\n");
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        @ node 1
+        "###);
 
         Ok(())
     }
@@ -342,18 +341,13 @@ mod tests {
         graph.add_node(&2, &[Edge::direct(1)], b"@", b"many\nlines\nof\ntext\n")?;
         graph.add_node(&1, &[], b"o", b"single line")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            @ many
-            | lines
-            | of
-            | text
-            o single line
-            "
-            }
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        @ many
+        | lines
+        | of
+        | text
+        o single line
+        "###);
 
         Ok(())
     }
@@ -371,25 +365,20 @@ mod tests {
         graph.add_node(&1, &[], b"o", b"single line")?;
 
         // A final newline is ignored but all other newlines are respected.
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            @ 
-            | 
-            | many
-            | 
-            | lines
-            | 
-            | of
-            | 
-            | text
-            | 
-            | 
-            o single line
-            "
-            }
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        @ 
+        | 
+        | many
+        | 
+        | lines
+        | 
+        | of
+        | 
+        | text
+        | 
+        | 
+        o single line
+        "###);
 
         Ok(())
     }
@@ -402,15 +391,11 @@ mod tests {
         graph.add_node(&2, &[Edge::direct(1)], b"o", b"node 2")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            @ node 3
-            o node 2
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        @ node 3
+        o node 2
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -427,19 +412,15 @@ mod tests {
         graph.add_node(&2, &[], b"o", b"node 2")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 7
-            | o node 6
-            o | node 5
-            | o node 4
-            @ | node 3
-            | o node 2
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 7
+        | o node 6
+        o | node 5
+        | o node 4
+        @ | node 3
+        | o node 2
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -452,18 +433,14 @@ mod tests {
         graph.add_node(&2, &[Edge::missing()], b"o", b"node 2")?;
         graph.add_node(&1, &[Edge::missing()], b"@", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 3
-            ~ 
-            o node 2
-            ~ 
-            @ node 1
-            ~ 
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 3
+        ~ 
+        o node 2
+        ~ 
+        @ node 1
+        ~ 
+        "###);
 
         Ok(())
     }
@@ -477,17 +454,13 @@ mod tests {
         graph.add_node(&2, &[Edge::missing()], b"o", b"node 2")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 4
-            | o node 3
-            o | node 2
-            ~/  
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 4
+        | o node 3
+        o | node 2
+        ~/  
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -501,17 +474,13 @@ mod tests {
         graph.add_node(&2, &[], b"o", b"node 2")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 4
-            | o node 3
-            o | node 2
-             /  
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 4
+        | o node 3
+        o | node 2
+         /  
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -525,17 +494,13 @@ mod tests {
         graph.add_node(&2, &[Edge::missing()], b"o", b"node 2")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 4
-            | o node 3
-            | o node 2
-            | ~ 
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 4
+        | o node 3
+        | o node 2
+        | ~ 
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -553,18 +518,14 @@ mod tests {
         )?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 3
-            | o node 2
-            | ~ with
-            |   long
-            |   description
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 3
+        | o node 2
+        | ~ with
+        |   long
+        |   description
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -578,18 +539,14 @@ mod tests {
         graph.add_node(&2, &[Edge::direct(1)], b"o", b"node 2")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            @ node 4
-            | o node 3
-            |/  
-            | o node 2
-            |/  
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        @ node 4
+        | o node 3
+        |/  
+        | o node 2
+        |/  
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -609,24 +566,20 @@ mod tests {
         graph.add_node(&2, &[Edge::direct(1)], b"o", b"node 2")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 10
-            | o node 9
-            | | o node 8
-            o | | node 7
-            | o | node 6
-            | | o node 5
-            o | | node 4
-            | o | node 3
-            |/ /  
-            | o node 2
-            |/  
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 10
+        | o node 9
+        | | o node 8
+        o | | node 7
+        | o | node 6
+        | | o node 5
+        o | | node 4
+        | o | node 3
+        |/ /  
+        | o node 2
+        |/  
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -641,20 +594,16 @@ mod tests {
         graph.add_node(&2, &[Edge::direct(1)], b"o", b"node 2")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 5
-            | o node 4
-            | | o node 3
-            | |/  
-            |/|   
-            | o node 2
-            |/  
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 5
+        | o node 4
+        | | o node 3
+        | |/  
+        |/|   
+        | o node 2
+        |/  
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -671,23 +620,19 @@ mod tests {
         graph.add_node(&2, &[Edge::direct(1)], b"o", b"node 2")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 7
-            | o node 6
-            | | o node 5
-            | | | o node 4
-            | |_|/  
-            |/| |   
-            | o | node 3
-            |/ /  
-            | o node 2
-            |/  
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 7
+        | o node 6
+        | | o node 5
+        | | | o node 4
+        | |_|/  
+        |/| |   
+        | o | node 3
+        |/ /  
+        | o node 2
+        |/  
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -703,21 +648,17 @@ mod tests {
         graph.add_node(&2, &[Edge::direct(1)], b"o", b"node 2")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 6
-            | o node 5
-            | | o node 4
-            o | | node 3
-            | |/  
-            |/|   
-            | o node 2
-            |/  
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 6
+        | o node 5
+        | | o node 4
+        o | | node 3
+        | |/  
+        |/|   
+        | o node 2
+        |/  
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -742,23 +683,20 @@ mod tests {
         graph.add_node(&2, &[Edge::missing()], b"o", b"node 2")?;
         graph.add_node(&1, &[Edge::missing()], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            @---.   node 5
-            |\ \ \  more
-            | | | | text
-            | | | o node 4
-            | | | ~ 
-            | | o node 3
-            | | ~ 
-            | o node 2
-            | ~ 
-            o node 1
-            ~ 
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        @---.   node 5
+        |\ \ \  more
+        | | | | text
+        | | | o node 4
+        | | | ~ 
+        | | o node 3
+        | | ~ 
+        | o node 2
+        | ~ 
+        o node 1
+        ~ 
+        "###);
+
         Ok(())
     }
 
@@ -780,28 +718,24 @@ mod tests {
         graph.add_node(&2, &[Edge::direct(1)], b"o", b"node 2")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 8
-            | o node 7
-            | | o node 6
-            | | | with
-            | | | some
-            | | | more
-            | | | lines
-            | o |   node 5
-            | |\ \  
-            | o | | node 4
-            |/ / /  
-            | o | node 3
-            |/ /  
-            | o node 2
-            |/  
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 8
+        | o node 7
+        | | o node 6
+        | | | with
+        | | | some
+        | | | more
+        | | | lines
+        | o |   node 5
+        | |\ \  
+        | o | | node 4
+        |/ / /  
+        | o | node 3
+        |/ /  
+        | o node 2
+        |/  
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -822,21 +756,17 @@ mod tests {
         graph.add_node(&2, &[Edge::direct(1)], b"o", b"node 2")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 6
-            o-.   node 5
-            |\ \  
-            | | o node 4
-            | o | node 3
-            | |/  
-            o | node 2
-            |/  
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 6
+        o-.   node 5
+        |\ \  
+        | | o node 4
+        | o | node 3
+        | |/  
+        o | node 2
+        |/  
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -866,30 +796,26 @@ mod tests {
         graph.add_node(&2, &[Edge::direct(1)], b"o", b"node 2")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 10
-            | o node 9
-            | | o node 8
-            | |  \
-            | |    \
-            | o---. |   node 7
-            | |\ \ \ \  
-            | o | | | | node 6
-            |/ / / / /  
-            | o | | | node 5
-            |/ / / /  
-            | o | | node 4
-            |/ / /  
-            | o | node 3
-            |/ /  
-            | o node 2
-            |/  
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 10
+        | o node 9
+        | | o node 8
+        | |  \
+        | |    \
+        | o---. |   node 7
+        | |\ \ \ \  
+        | o | | | | node 6
+        |/ / / / /  
+        | o | | | node 5
+        |/ / / /  
+        | o | | node 4
+        |/ / /  
+        | o | node 3
+        |/ /  
+        | o node 2
+        |/  
+        o node 1
+        "###);
 
         Ok(())
     }
@@ -910,18 +836,14 @@ mod tests {
             b"node 1\nwith\nmany\nlines\nof\ntext",
         )?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            @---.   node 1
-            |\ \ \  with
-            | | | ~ many
-            | | ~   lines
-            | ~     of
-            ~       text
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        @---.   node 1
+        |\ \ \  with
+        | | | ~ many
+        | | ~   lines
+        | ~     of
+        ~       text
+        "###);
 
         Ok(())
     }
@@ -944,20 +866,16 @@ mod tests {
         )?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
-        println!("{}", String::from_utf8_lossy(&buffer));
-        assert_eq!(
-            String::from_utf8_lossy(&buffer),
-            indoc! {r"
-            o node 3
-            | o---.   node 2
-            | |\ \ \  with
-            | | : ~/  many
-            | ~/ /    lines
-            |/ /      of
-            |/        text
-            o node 1
-            "}
-        );
+        insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
+        o node 3
+        | o---.   node 2
+        | |\ \ \  with
+        | | : ~/  many
+        | ~/ /    lines
+        |/ /      of
+        |/        text
+        o node 1
+        "###);
 
         Ok(())
     }
