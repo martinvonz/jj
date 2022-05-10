@@ -53,7 +53,9 @@ fn config_path() -> Result<Option<PathBuf>, ConfigError> {
 /// Environment variables that should be overridden by config values
 fn env_base() -> config::Config {
     let mut builder = config::Config::builder();
-    if let Ok(value) = env::var("EDITOR") {
+    if let Ok(value) = env::var("VISUAL") {
+        builder = builder.set_override("ui.editor", value).unwrap();
+    } else if let Ok(value) = env::var("EDITOR") {
         builder = builder.set_override("ui.editor", value).unwrap();
     }
     builder.build().unwrap()
