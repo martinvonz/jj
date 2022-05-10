@@ -471,14 +471,15 @@ mod tests {
         let mut graph = AsciiGraphDrawer::new(&mut buffer);
         graph.add_node(&4, &[Edge::direct(2)], b"o", b"node 4")?;
         graph.add_node(&3, &[Edge::direct(1)], b"o", b"node 3")?;
-        graph.add_node(&2, &[], b"o", b"node 2")?;
+        graph.add_node(&2, &[], b"o", b"node 2\nmore\ntext")?;
         graph.add_node(&1, &[], b"o", b"node 1")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
         o node 4
         | o node 3
         o | node 2
-         /  
+         /  more
+        | text
         o node 1
         "###);
 
@@ -492,7 +493,7 @@ mod tests {
         graph.add_node(&4, &[Edge::direct(1)], b"o", b"node 4")?;
         graph.add_node(&3, &[Edge::direct(2)], b"o", b"node 3")?;
         graph.add_node(&2, &[Edge::missing()], b"o", b"node 2")?;
-        graph.add_node(&1, &[], b"o", b"node 1")?;
+        graph.add_node(&1, &[], b"o", b"node 1\nmore\ntext")?;
 
         insta::assert_snapshot!(String::from_utf8_lossy(&buffer), @r###"
         o node 4
@@ -500,6 +501,8 @@ mod tests {
         | o node 2
         | ~ 
         o node 1
+        more
+        text
         "###);
 
         Ok(())
