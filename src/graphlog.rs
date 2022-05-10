@@ -148,7 +148,7 @@ where
             self.maybe_write_pending_text()?;
         }
 
-        let pad_to_index = self.edges.len();
+        let pad_to_index = self.edges.len() + if edges.is_empty() { 1 } else { 0 };
         // Close any edges to missing nodes.
         for (i, edge) in edges.iter().enumerate().rev() {
             if *edge == Edge::Missing {
@@ -479,7 +479,7 @@ mod tests {
         | o node 3
         o | node 2
          /  more
-        | text
+        |   text
         o node 1
         "###);
 
@@ -501,8 +501,8 @@ mod tests {
         | o node 2
         | ~ 
         o node 1
-        more
-        text
+          more
+          text
         "###);
 
         Ok(())
