@@ -69,15 +69,23 @@ fn test_describe() {
         .failure();
     assert!(get_stderr_string(&assert).contains("Failed to run"));
 
-    // `ui.editor` config overrides `$EDITOR`
-    std::fs::write(&edit_script, "").unwrap();
+    // `$VISUAL` overrides `$EDITOR`
+    let assert = test_env
+        .jj_cmd(&repo_path, &["describe"])
+        .env("VISUAL", "bad-editor-from-visual-env")
+        .env("EDITOR", "bad-editor-from-editor-env")
+        .assert()
+        .failure();
+    assert!(get_stderr_string(&assert).contains("bad-editor-from-visual-env"));
+
+    // `ui.editor` config overrides `$VISUAL`
     test_env.add_config(
         br#"[ui]
     editor = "bad-editor-from-config""#,
     );
     let assert = test_env
         .jj_cmd(&repo_path, &["describe"])
-        .env("EDITOR", "bad-editor-from-env")
+        .env("VISUAL", "bad-editor-from-visual-env")
         .assert()
         .failure();
     assert!(get_stderr_string(&assert).contains("bad-editor-from-config"));
@@ -85,8 +93,8 @@ fn test_describe() {
     // `$JJ_EDITOR` overrides `ui.editor` config
     let assert = test_env
         .jj_cmd(&repo_path, &["describe"])
-        .env("JJ_EDITOR", "bad-jj-editor-from-env")
+        .env("JJ_EDITOR", "bad-jj-editor-from-jj-editor-env")
         .assert()
         .failure();
-    assert!(get_stderr_string(&assert).contains("bad-jj-editor-from-env"));
+    assert!(get_stderr_string(&assert).contains("bad-jj-editor-from-jj-editor-env"));
 }

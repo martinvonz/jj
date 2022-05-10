@@ -45,9 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `$JJ_CONFIG` environment variable can now point to a directory. If it
   does, all files in the directory will be read, in alphabetical order.
 
-* You can now override the `$EDITOR` environment variable by setting the
-  `ui.editor` config. There is also a new `$JJ_EDITOR` environment variable,
-  which has even higher priority than the config.
+* The `$VISUAL` environment is now respected and overrides `$EDITOR`. The new
+  `ui.editor` config has higher priority than both of them. There is also a new
+  `$JJ_EDITOR` environment variable, which has even higher priority than the
+  config.
 
 * You can now use `-` and `+` in revset symbols. You used to have to quote
   branch names like `my-feature` in nested quotes (outer layer for your shell)
