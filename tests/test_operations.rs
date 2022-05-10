@@ -29,7 +29,7 @@ fn test_op_log() {
     @ 
     | add workspace 'default'
     o 
-    initialize repo
+      initialize repo
     "###);
     let add_workspace_id = stdout[2..14].to_string();
     let initialize_repo_id = stdout.lines().nth(2).unwrap()[2..14].to_string();
