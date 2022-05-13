@@ -76,4 +76,55 @@ fn test_log_with_or_without_diff() {
     +foo
 
     "###);
+
+    // `-s` implies `-p`, with or without graph
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ a new commit
+    | M file1
+    o add a file
+    | A file1
+    o 
+    "###);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "description", "--no-graph", "-s"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    a new commit
+    M file1
+    add a file
+    A file1
+
+    "###);
+
+    // `--git` implies `-p`, with or without graph
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "description", "-r", "@", "--git"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @ a new commit
+    ~ diff --git a/file1 b/file1
+      index 257cc5642c...3bd1f0e297 100644
+      --- a/file1
+      +++ b/file1
+      @@ -1,1 +1,2 @@
+       foo
+      +bar
+    "###);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "description", "-r", "@", "--no-graph", "--git"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    a new commit
+    diff --git a/file1 b/file1
+    index 257cc5642c...3bd1f0e297 100644
+    --- a/file1
+    +++ b/file1
+    @@ -1,1 +1,2 @@
+     foo
+    +bar
+    "###);
 }

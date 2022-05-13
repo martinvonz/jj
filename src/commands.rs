@@ -1287,7 +1287,7 @@ struct LogArgs {
     #[clap(long, short = 'p')]
     patch: bool,
     #[clap(flatten)]
-    format: DiffFormatArgs,
+    diff_format: DiffFormatArgs,
 }
 
 /// Show how a change has evolved
@@ -2993,7 +2993,8 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     let checkout_id = repo.view().get_checkout(&workspace_id);
     let revset = revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_id))?;
     let store = repo.store();
-    let diff_format = diff_format_for(ui, &args.format);
+    let diff_format = (args.patch || args.diff_format.git || args.diff_format.summary)
+        .then(|| diff_format_for(ui, &args.diff_format));
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),
@@ -3053,7 +3054,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            if args.patch {
+            if let Some(diff_format) = diff_format {
                 let writer = Box::new(&mut buffer);
                 let mut formatter = ui.new_formatter(writer);
                 show_patch(formatter.as_mut(), &workspace_command, &commit, diff_format)?;
@@ -3070,9 +3071,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         for index_entry in revset.iter() {
             let commit = store.get_commit(&index_entry.commit_id())?;
             template.format(&commit, formatter)?;
-            // TODO: should --summary (without --patch) show diff summary as in hg log
-            // --stat?
-            if args.patch {
+            if let Some(diff_format) = diff_format {
                 show_patch(formatter, &workspace_command, &commit, diff_format)?;
             }
         }
