@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * An alias that is not configured as a string list (e.g. `my-status = "status"`
   instead of `my-status = ["status"]`) is now an error instead of a warning.
 
+* (#250) `jj log` now defaults to showing only commits that are not on any
+  remote branches (plus their closest commit on the remote branch for context).
+  Use `jj log -r 'all()'` for the old behavior. Read more about revsets
+  [here](https://github.com/martinvonz/jj/blob/main/docs/revsets.md).
+
 ### New features
 
 * `jj rebase` now accepts a `--branch/-b <revision>` argument, which can be used

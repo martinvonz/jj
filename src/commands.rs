@@ -1274,7 +1274,11 @@ struct StatusArgs {}
 #[derive(clap::Args, Clone, Debug)]
 struct LogArgs {
     /// Which revisions to show
-    #[clap(long, short, default_value = ":heads()")]
+    #[clap(
+        long,
+        short,
+        default_value = "remote_branches().. | (remote_branches()..)-"
+    )]
     revisions: String,
     /// Don't show the graph, show a flat list of revisions
     #[clap(long)]
