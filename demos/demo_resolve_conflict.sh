@@ -10,7 +10,7 @@ cd Hello-World
 run_demo 'Basic conflict resolution flow' '
 run_command "# We are on the master branch of the"
 run_command "# octocat/Hello-World repo:"
-run_command "jj log"
+run_command "jj log -r '\''all()'\''"
 pause 7
 run_command "# Let'\''s make an edit that will conflict"
 run_command "# when we rebase it:"
@@ -30,7 +30,7 @@ run_command ""
 run_command "# Huh, that seemed to succeed. Let'\''s take a"
 run_command "# look at the repo:"
 pause 2
-run_command "jj log"
+run_command "jj log -r '\''all()'\''"
 pause 4
 run_command "jj status"
 pause 3

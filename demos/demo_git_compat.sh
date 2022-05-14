@@ -12,7 +12,7 @@ run_command "cd Hello-World"
 pause 1
 run_command "# Inspect it:"
 pause 1
-run_command "jj log"
+run_command "jj log -r '\''all()'\''"
 pause 5
 run_command "jj diff -r b1"
 pause 2

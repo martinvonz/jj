@@ -49,8 +49,8 @@ backend (the only minor reason might be
 The backend exists mainly to make sure that it's possible to eventually add
 functionality that cannot easily be added to the Git backend.
 
-<a href="https://asciinema.org/a/DRCzktCyEAxH6j788ZDT6aSjS" target="_blank">
-  <img src="https://asciinema.org/a/DRCzktCyEAxH6j788ZDT6aSjS.svg" />
+<a href="https://asciinema.org/a/YZTilpwDKJjf6bKjCDFwDpKf4" target="_blank">
+  <img src="https://asciinema.org/a/YZTilpwDKJjf6bKjCDFwDpKf4.svg" />
 </a>
 
 ### The working copy is automatically committed
@@ -61,8 +61,8 @@ working copy or any other commit. It also means that you can always check out a
 different commit without first explicitly committing the working copy changes
 (you can even check out a different commit while resolving merge conflicts).
 
-<a href="https://asciinema.org/a/zWMv4ffmoXykBtrxvDY6ohEaZ" target="_blank">
-  <img src="https://asciinema.org/a/zWMv4ffmoXykBtrxvDY6ohEaZ.svg" />
+<a href="https://asciinema.org/a/DYrJLVkp2TIPgfMmjyhptTo7d" target="_blank">
+  <img src="https://asciinema.org/a/DYrJLVkp2TIPgfMmjyhptTo7d.svg" />
 </a>
 
 ### Operations update the repo first, then possibly the working copy
@@ -92,8 +92,8 @@ resolving conflicts, regardless of which command caused them. This design also
 lets Jujutsu rebase merge commits correctly (unlike both Git and Mercurial).
 
 Basic conflict resolution:
-<a href="https://asciinema.org/a/MWQz2nAprRXevQEYtaHScN2tJ" target="_blank">
-  <img src="https://asciinema.org/a/MWQz2nAprRXevQEYtaHScN2tJ.svg" />
+<a href="https://asciinema.org/a/ANyfj9M0hXZlDyw68QktpU5UM" target="_blank">
+  <img src="https://asciinema.org/a/ANyfj9M0hXZlDyw68QktpU5UM.svg" />
 </a>
 
 Juggling conflicts:

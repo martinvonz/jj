@@ -128,36 +128,31 @@ working copy commit by default.
 ## The log command, "revsets", and aliases
 
 You're probably familiar with `git log`. Jujutsu has very similar functionality
-in its `jj log` command. It produces hundreds of lines of output, so let's pipe
-its output into `head`:
+in its `jj log` command:
 ```shell script
-$ jj log | head
+$ jj log
 @ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
 |
 o fb563a4c6d26 f63e76f175b9 martinvonz@google.com 2021-05-23 22:13:45.000 -07:00
 | Jujutsu is ready!
 o 080a9b37ff7e 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 main
-| cli: make `jj st` show parent commit before working copy commit
-o ba8ff31e32fd 302257bdb7e5 martinvonz@google.com 2021-05-23 22:08:12.000 -07:00
-| cli: make the working copy changes in `jj status` clearer
-o dcfc888f50b3 7eddf8dfc70d martinvonz@google.com 2021-05-23 22:07:40.000 -07:00
-| cli: remove "Done" message at end of git clone
+~ cli: make `jj st` show parent commit before working copy commit
 ```
 
 The `@` indicates the working copy commit. The first hash on a line is the
 commit ID. The second hash is a "change ID", which is an ID that follows the
 commit as it's rewritten (similar to Gerrit's Change-Id). You can give either
 hash to commands that take revisions as arguments. We will generally prefer
-change ids because they stay the same when the commit is rewritten.
+change IDs because they stay the same when the commit is rewritten.
 
-By default, `jj log` lists all revisions (commits) in the repo that have not
-been rewritten (roughly speaking). We can use the `-r` flag to restrict which
-revisions we want to list. The flag accepts a ["revset"](revsets.md), which is
-an expression in a simple language for specifying revisions. For example, `@`
-refers to the working copy commit, `root` refers to the root commit,
-`branches()` refers to all commits pointed to by branches. We can combine
-expressions with `|` for union, `&` for intersection and `~` for difference.
-For example:
+By default, `jj log` list your local commits, with some remote commits added for
+context.  The `~` indicates that the commit has parents that are not included
+in the graph. We can use the `-r` flag to select a different set of revisions we
+want to list. The flag accepts a ["revset"](revsets.md), which is an expression
+in a simple language for specifying revisions. For example, `@` refers to the
+working copy commit, `root` refers to the root commit, `branches()` refers to
+all commits pointed to by branches. We can combine expressions with `|` for
+union, `&` for intersection and `~` for difference. For example:
 ```shell script
 $ jj log -r '@ | root | branches()'
 @ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
@@ -174,23 +169,7 @@ There are also operators for getting the parents (`foo-`), children (`foo+`),
 ancestors (`:foo`), descendants (`foo:`), DAG range (`foo:bar`, like
 `git log --ancestry-path`), range (`foo..bar`, same as Git's). There are also a
 few more functions, such as `heads(<set>)`, which filters out revisions in the
-input set if they're ancestors of other revisions in the set. Let's define an
-alias based on that by adding the following to `~/.jjconfig.toml`:
-```
-[alias]
-l = ["log", "-r", "(heads(remote_branches())..@):"]
-```
-
-The alias lets us run `jj l` to see the commits we have created between public
-heads (exclusive) and the working copy (inclusive), as well as their
-descendants:
-```shell script
-$ jj l
-@ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
-|
-o fb563a4c6d26 f63e76f175b9 martinvonz@google.com 2021-05-23 22:13:45.000 -07:00
-~ Jujutsu is ready!
-``` 
+input set if they're ancestors of other revisions in the set.
 
 ## Conflicts
 
