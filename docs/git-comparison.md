@@ -199,8 +199,7 @@ parent.
     </tr>
     <tr>
       <td>Move branch A onto branch B</td>
-      <td>Not supported yet (can be emulated with
-          <code>jj rebase -s</code>)</td>
+      <td><code>jj rebase -b A -d B</code></td>
       <td><code>git rebase B A</code>
           (may need to rebase other descendant branches separately)</td>
     </tr>
