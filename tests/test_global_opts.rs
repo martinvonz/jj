@@ -147,7 +147,7 @@ fn test_help() {
         -r, --revision <REVISION>    The revision to edit [default: @]
 
     GLOBAL OPTIONS:
-            --at-operation <AT_OPERATION>    Operation to load the repo at [default: @]
+            --at-operation <AT_OPERATION>    Operation to load the repo at [default: @] [aliases: at-op]
         -h, --help                           Print help information, more help with --help than with -h
             --no-commit-working-copy         Don't commit the working copy
         -R, --repository <REPOSITORY>        Path to repository to operate on

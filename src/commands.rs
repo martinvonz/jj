@@ -1098,7 +1098,7 @@ struct GlobalArgs {
     /// but it is possible.
     #[clap(
         long,
-        alias = "at-op",
+        visible_alias = "at-op",
         global = true,
         help_heading = "GLOBAL OPTIONS",
         default_value = "@"
@@ -1172,7 +1172,7 @@ struct InitArgs {
 /// be created on top, and that will be checked out. For more information, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(alias = "co")]
+#[clap(visible_alias = "co")]
 struct CheckoutArgs {
     /// The revision to update to
     revision: String,
@@ -1267,7 +1267,7 @@ struct ShowArgs {
 ///
 ///  * Conflicted branches (see https://github.com/martinvonz/jj/blob/main/docs/branches.md)
 #[derive(clap::Args, Clone, Debug)]
-#[clap(alias = "st")]
+#[clap(visible_alias = "st")]
 struct StatusArgs {}
 
 /// Show commit history
@@ -1335,7 +1335,7 @@ struct DescribeArgs {
 /// For information about open/closed revisions, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(alias = "commit")]
+#[clap(visible_alias = "commit")]
 struct CloseArgs {
     /// The revision to close
     #[clap(default_value = "@")]
@@ -1353,7 +1353,7 @@ struct CloseArgs {
 /// For information about open/closed revisions,
 /// see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(alias = "uncommit")]
+#[clap(visible_alias = "uncommit")]
 struct OpenArgs {
     /// The revision to open
     revision: String,
@@ -1433,7 +1433,7 @@ struct MoveArgs {
 /// compared to its parent, it will be abandoned. This will always be the case
 /// without `--interactive`.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(alias = "amend")]
+#[clap(visible_alias = "amend")]
 struct SquashArgs {
     #[clap(long, short, default_value = "@")]
     revision: String,
@@ -1447,7 +1447,7 @@ struct SquashArgs {
 
 /// Move changes from a revision's parent into the revision
 #[derive(clap::Args, Clone, Debug)]
-#[clap(alias = "unamend")]
+#[clap(visible_alias = "unamend")]
 struct UnsquashArgs {
     #[clap(long, short, default_value = "@")]
     revision: String,
@@ -1658,7 +1658,7 @@ struct BranchesArgs {}
 /// Commands for working with the operation log. For information about the
 /// operation log, see https://github.com/martinvonz/jj/blob/main/docs/operation-log.md.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(alias = "op")]
+#[clap(visible_alias = "op")]
 struct OperationArgs {
     #[clap(subcommand)]
     command: OperationCommands,
