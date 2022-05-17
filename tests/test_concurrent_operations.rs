@@ -35,7 +35,7 @@ fn test_concurrent_operation_divergence() {
     o message 2
     | @ message 1
     |/  
-    o 
+    o (no description set)
     "###);
 }
 
@@ -63,6 +63,6 @@ fn test_concurrent_operations_auto_rebase() {
     Rebased 1 descendant commits onto commits rewritten by other operation
     o 4eeb7d76372418118a91c34f09e5e3936f0deeb5 new child
     @ 14176aeadc0259b2150fc7374969e74b1552a498 rewritten
-    o 0000000000000000000000000000000000000000 
+    o 0000000000000000000000000000000000000000 (no description set)
     "###);
 }

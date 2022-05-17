@@ -29,6 +29,6 @@ fn test_new_with_message() {
     insta::assert_snapshot!(stdout, @r###"
     @ 88436dbcdbedc2b8a6ebd0687981906d09ccc68f a new commit
     o 51e9c5819117991e4a6dc5a4a744283fc74f0746 add a file
-    o 0000000000000000000000000000000000000000 
+    o 0000000000000000000000000000000000000000 (no description set)
     "###);
 }

@@ -43,7 +43,7 @@ fn test_squash() {
     // Squashes the working copy into the parent by default
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 6ca29c9d2e7c 
+    Working copy now at: 6ca29c9d2e7c (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"
@@ -61,7 +61,7 @@ fn test_squash() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
-    Working copy now at: e87cf8ebc7e1 
+    Working copy now at: e87cf8ebc7e1 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"
@@ -108,7 +108,7 @@ fn test_squash() {
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 626d78245205 
+    Working copy now at: 626d78245205 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"
@@ -162,7 +162,7 @@ fn test_squash_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
-    Working copy now at: f03d5ce4a973 
+    Working copy now at: f03d5ce4a973 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"
@@ -181,7 +181,7 @@ fn test_squash_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
-    Working copy now at: e7a40106bee6 
+    Working copy now at: e7a40106bee6 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"
@@ -214,7 +214,7 @@ fn test_squash_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
-    Working copy now at: a911fa1d0627 
+    Working copy now at: a911fa1d0627 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"

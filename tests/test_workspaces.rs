@@ -33,7 +33,7 @@ fn test_workspaces_add_second_workspace() {
 
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    default: 988d8c1dca7e 
+    default: 988d8c1dca7e (no description set)
     "###);
 
     let stdout = test_env.jj_cmd_success(
@@ -42,7 +42,7 @@ fn test_workspaces_add_second_workspace() {
     );
     insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
     Created workspace in "../secondary"
-    Working copy now at: 8ac248e0c8d2 
+    Working copy now at: 8ac248e0c8d2 (no description set)
     Added 1 files, modified 0 files, removed 0 files
     "###);
 
@@ -66,8 +66,8 @@ fn test_workspaces_add_second_workspace() {
     // Both workspaces show up when we list them
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    default: 988d8c1dca7e 
-    second: 8ac248e0c8d2 
+    default: 988d8c1dca7e (no description set)
+    second: 8ac248e0c8d2 (no description set)
     "###);
 }
 
@@ -101,7 +101,7 @@ fn test_workspaces_conflicting_edits() {
     let stdout = test_env.jj_cmd_success(&main_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
-    Working copy now at: 86bef7fee095 
+    Working copy now at: 86bef7fee095 (no description set)
     "###);
 
     // The secondary workspace's checkout was updated
@@ -143,7 +143,7 @@ fn test_workspaces_forget() {
     // When listing workspaces, only the secondary workspace shows up
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    secondary: 39a6d6c6f295 
+    secondary: 39a6d6c6f295 (no description set)
     "###);
 
     // `jj status` tells us that there's no working copy here

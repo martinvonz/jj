@@ -31,7 +31,7 @@ fn test_log_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     @ a new commit
     o add a file
-    o
+    o (no description set)
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "-p"]);
@@ -43,14 +43,14 @@ fn test_log_with_or_without_diff() {
     o add a file
     | Added regular file file1:
     |         1: foo
-    o 
+    o (no description set)
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
     a new commit
     add a file
-
+    (no description set)
     "###);
 
     let stdout = test_env.jj_cmd_success(
@@ -74,7 +74,7 @@ fn test_log_with_or_without_diff() {
     +++ b/file1
     @@ -1,0 +1,1 @@
     +foo
-
+    (no description set)
     "###);
 
     // `-s` implies `-p`, with or without graph
@@ -84,7 +84,7 @@ fn test_log_with_or_without_diff() {
     | M file1
     o add a file
     | A file1
-    o 
+    o (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -95,7 +95,7 @@ fn test_log_with_or_without_diff() {
     M file1
     add a file
     A file1
-
+    (no description set)
     "###);
 
     // `--git` implies `-p`, with or without graph
@@ -140,7 +140,7 @@ fn test_log_reversed() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "--reversed"]);
     insta::assert_snapshot!(stdout, @r###"
-    o 
+    o (no description set)
     o first
     @ second
     "###);
@@ -150,7 +150,7 @@ fn test_log_reversed() {
         &["log", "-T", "description", "--reversed", "--no-graph"],
     );
     insta::assert_snapshot!(stdout, @r###"
-    
+    (no description set)
     first
     second
     "###);

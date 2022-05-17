@@ -63,8 +63,8 @@ fn test_edit() {
     std::fs::write(&edit_script, "reset file2").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["edit"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 8c79910b5033 
-    Working copy now at: 8c79910b5033 
+    Created 8c79910b5033 (no description set)
+    Working copy now at: 8c79910b5033 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -77,9 +77,9 @@ fn test_edit() {
     std::fs::write(&edit_script, "write file3\nmodified\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["edit", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 472de2debaff 
+    Created 472de2debaff (no description set)
     Rebased 1 descendant commits
-    Working copy now at: 6d19dc1ea106 
+    Working copy now at: 6d19dc1ea106 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let contents = String::from_utf8(std::fs::read(repo_path.join("file3")).unwrap()).unwrap();
@@ -130,7 +130,7 @@ fn test_edit_merge() {
     insta::assert_snapshot!(stdout, @r###"
     Created 608f32ad9e19 merge
     Rebased 1 descendant commits
-    Working copy now at: a791bdbda05c 
+    Working copy now at: a791bdbda05c (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
