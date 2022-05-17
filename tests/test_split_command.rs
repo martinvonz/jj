@@ -36,9 +36,9 @@ fn test_split() {
     std::fs::write(edit_script, "").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["split", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
-    First part: 5eebce1de3b0 
-    Second part: 45833353d94e 
-    Working copy now at: 45833353d94e 
+    First part: 5eebce1de3b0 (no description set)
+    Second part: 45833353d94e (no description set)
+    Working copy now at: 45833353d94e (no description set)
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id.short()"]);

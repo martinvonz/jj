@@ -72,7 +72,7 @@ fn test_git_colocated_rebase_on_import() {
         test_env.jj_cmd_success(&workspace_root, &["log", "-T", "commit_id \" \" branches"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits off of commits rewritten from git
-    Working copy now at: a64f325e0516 
+    Working copy now at: a64f325e0516 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     @ a64f325e05167129f3488f85a570f22a8940634f 
     o f0f3ab56bfa927e3a65c2ac9a513693d438e271b master

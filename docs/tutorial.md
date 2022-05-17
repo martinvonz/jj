@@ -15,7 +15,7 @@ Let's start by cloning the Jujutsu Git repo using `jj`:
 # repos yet)
 $ jj git clone https://github.com/martinvonz/jj.git
 Fetching into new repo in "<dir>/jj"
-Working copy now at: 265ecf5cab2d
+Working copy now at: 265ecf5cab2d (no description set)
 Added 98 files, modified 0 files, removed 0 files
 $ cd jj
 ```
@@ -24,7 +24,7 @@ Running `jj st` (short for`jj status`) now yields something like this:
 ```shell script
 $ jj st
 Parent commit: 723ebb380971 cleanup: restructure escaped newlines to make new rustc happy
-Working copy : 265ecf5cab2d
+Working copy : 265ecf5cab2d (no description set)
 The working copy is clean
 ```
 
@@ -38,7 +38,7 @@ Working copy now at: 608c179a60df
 Added 7 files, modified 65 files, removed 21 files
 $ jj st
 Parent commit: 080a9b37ff7e cli: make `jj st` show parent commit before working copy commit
-Working copy : 608c179a60df
+Working copy : 608c179a60df (no description set)
 The working copy is clean
 ```
 
@@ -67,7 +67,7 @@ Now make the change in the README:
 $ sed -i 's/not ready/ready/' README.md
 $ jj st
 Parent commit: 080a9b37ff7e cli: make `jj st` show parent commit before working copy commit
-Working copy : 5f80190c44b9
+Working copy : 5f80190c44b9 Jujutsu is ready!
 Working copy changes:
 M README.md
 ```
@@ -110,10 +110,10 @@ that commit itself will be checked out instead.
 So, let's say we're now done with this commit, so we close it:
 ```shell script
 $ jj close
-Working copy now at: 192b456b024b
+Working copy now at: 192b456b024b (no description set)
 $ jj st
 Parent commit: fb563a4c6d26 Jujutsu is ready!
-Working copy : 192b456b024b
+Working copy : 192b456b024b (no description set)
 The working copy is clean
 ```
 
@@ -132,7 +132,7 @@ in its `jj log` command:
 ```shell script
 $ jj log
 @ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
-|
+| (no description set)
 o fb563a4c6d26 f63e76f175b9 martinvonz@google.com 2021-05-23 22:13:45.000 -07:00
 | Jujutsu is ready!
 o 080a9b37ff7e 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 main
@@ -156,7 +156,7 @@ union, `&` for intersection and `~` for difference. For example:
 ```shell script
 $ jj log -r '@ | root | branches()'
 @ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
-:
+: (no description set)
 o 080a9b37ff7e 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 main
 : cli: make `jj st` show parent commit before working copy commit
 o 000000000000 000000000000  1970-01-01 00:00:00.000 +00:00
@@ -178,16 +178,16 @@ commits:
 ```shell script
 # Check out the grandparent of the working copy
 $ jj co @--
-Working copy now at: 9164f1d6a011
+Working copy now at: 9164f1d6a011 (no description set)
 Added 0 files, modified 1 files, removed 0 files
 $ echo a > file1; jj close -m A
-Working copy now at: 5be91b2b5b69
+Working copy now at: 5be91b2b5b69 (no description set)
 $ echo b1 > file1; jj close -m B1
-Working copy now at: a0331f1eeece
+Working copy now at: a0331f1eeece (no description set)
 $ echo b2 > file1; jj close -m B2
-Working copy now at: fd571967346e
+Working copy now at: fd571967346e (no description set)
 $ echo c > file2; jj close -m C
-Working copy now at: 4ae1e0587eef
+Working copy now at: 4ae1e0587eef (no description set)
 $ jj l
 @ 4ae1e0587eef 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00
 |
@@ -206,11 +206,11 @@ modifies a different file. Let's now rebase B2 directly onto A:
 ```shell script
 $ jj rebase -s 5548374c0794 -d cf49e6bec410
 Rebased 3 commits
-Working copy now at: 9195b6d2e8dc
+Working copy now at: 9195b6d2e8dc (no description set)
 Added 0 files, modified 1 files, removed 0 files
 $ jj l
 @ 9195b6d2e8dc 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00 conflict
-|
+| (no description set)
 o 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00  conflict
 | C
 o 0c305a9e6b27 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00  conflict
@@ -235,11 +235,11 @@ conflict, we'll squash the conflict resolution into the conflicted B2. That
 might look like this:
 ```shell script
 $ jj co 5548374c0794  # Replace the hash by what you have for B2
-Working copy now at: 619f58d8a988
+Working copy now at: 619f58d8a988 (no description set)
 Added 0 files, modified 1 files, removed 0 files
 $ jj st
 Parent commit: 5548374c0794 B2
-Working copy : 619f58d8a988
+Working copy : 619f58d8a988 (no description set)
 The working copy is clean
 There are unresolved conflicts at these paths:
 file1
@@ -255,10 +255,10 @@ b2
 $ echo resolved > file1
 $ jj squash
 Rebased 1 descendant commits
-Working copy now at: e659edc4a9fc
+Working copy now at: e659edc4a9fc (no description set)
 $ jj l
 @ e659edc4a9fc 461f38324592 martinvonz@google.com 2021-05-26 12:53:08.000 -07:00
-|
+| (no description set)
 | o 69dbcf76642a 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00
 |/  C
 o 576d647acf36 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00
@@ -337,17 +337,17 @@ We'll need some more complex content to test these commands, so let's create a
 few more commits:
 ```shell script
 $ jj co origin/main
-Working copy now at: 61b0efa09dbe 
+Working copy now at: 61b0efa09dbe (no description set)
 Added 0 files, modified 0 files, removed 1 files
 $ printf 'a\nb\nc\n' > file; jj close -m abc
-Working copy now at: f9147a088c0d 
+Working copy now at: f9147a088c0d (no description set)
 $ printf 'A\nB\nc\n' > file; jj close -m ABC
-Working copy now at: 9d97c5018b23 
+Working copy now at: 9d97c5018b23 (no description set)
 $ printf 'A\nB\nC\nD\n' > file; jj close -m ABCD
-Working copy now at: c5a985bc3f41 
+Working copy now at: c5a985bc3f41 (no description set)
 $ jj l
 @ c5a985bc3f41 3568f6e332d5 martinvonz@google.com 2021-05-26 14:36:46.000 -07:00 
-| 
+| (no description set)
 o 687009839bae 874f2d307594 martinvonz@google.com 2021-05-26 14:36:38.000 -07:00 
 | ABCD
 o ad9b1ce3b5d0 2bbc0c1eb382 martinvonz@google.com 2021-05-26 14:36:26.000 -07:00 
@@ -366,7 +366,7 @@ Now try that:
 ```shell script
 $ jj squash -i -r @-
 Rebased 1 descendant commits
-Working copy now at: 4b4c714b36aa 
+Working copy now at: 4b4c714b36aa (no description set)
 ```
 That will bring up Meld with a diff of the changes in the "ABCD" commit. Modify
 the right side of the diff to have the desired end state in "ABC" by removing
@@ -392,7 +392,7 @@ checking it out.
 $ jj edit -r @--
 Created 2423c134ea70 ABC
 Rebased 2 descendant commits
-Working copy now at: d31c52e8ca41 
+Working copy now at: d31c52e8ca41 (no description set)
 Added 0 files, modified 1 files, removed 0 files
 ```
 When Meld starts, edit the right side by e.g. adding something to the first

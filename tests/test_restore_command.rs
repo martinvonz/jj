@@ -33,8 +33,8 @@ fn test_restore() {
     // Restores from parent by default
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created b05f8b84f2fc 
-    Working copy now at: b05f8b84f2fc 
+    Created b05f8b84f2fc (no description set)
+    Working copy now at: b05f8b84f2fc (no description set)
     Added 1 files, modified 1 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -44,8 +44,8 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--from", "@--"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 9cb58509136b 
-    Working copy now at: 9cb58509136b 
+    Created 9cb58509136b (no description set)
+    Working copy now at: 9cb58509136b (no description set)
     Added 1 files, modified 0 files, removed 2 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -57,9 +57,9 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--to", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 5ed06151e039 
+    Created 5ed06151e039 (no description set)
     Rebased 1 descendant commits
-    Working copy now at: ca6c95b68bd2 
+    Working copy now at: ca6c95b68bd2 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
@@ -74,9 +74,9 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "--from", "@", "--to", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created c83e17dc46fd 
+    Created c83e17dc46fd (no description set)
     Rebased 1 descendant commits
-    Working copy now at: df9fb6892f99 
+    Working copy now at: df9fb6892f99 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
@@ -91,8 +91,8 @@ fn test_restore() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "file2", "file3"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 28647642d4a5 
-    Working copy now at: 28647642d4a5 
+    Created 28647642d4a5 (no description set)
+    Working copy now at: 28647642d4a5 (no description set)
     Added 0 files, modified 1 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -146,8 +146,8 @@ fn test_restore_interactive() {
     std::fs::write(&edit_script, "reset file2\0reset file3").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created abdbf6271a1c 
-    Working copy now at: abdbf6271a1c 
+    Created abdbf6271a1c (no description set)
+    Working copy now at: abdbf6271a1c (no description set)
     Added 0 files, modified 1 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -160,8 +160,8 @@ fn test_restore_interactive() {
     std::fs::write(&edit_script, "write file3\nunrelated\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["restore", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created e31f7f33ad07 
-    Working copy now at: e31f7f33ad07 
+    Created e31f7f33ad07 (no description set)
+    Working copy now at: e31f7f33ad07 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);

@@ -33,7 +33,7 @@ fn test_undo_rewrite_with_child() {
     insta::assert_snapshot!(stdout, @r###"
     @ child
     o modified
-    o 
+    o (no description set)
     "###);
     test_env.jj_cmd_success(&repo_path, &["undo", &op_id_hex]);
 
@@ -43,6 +43,6 @@ fn test_undo_rewrite_with_child() {
     insta::assert_snapshot!(stdout, @r###"
     @ child
     o initial
-    o 
+    o (no description set)
     "###);
 }

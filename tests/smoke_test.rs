@@ -25,8 +25,8 @@ fn smoke_test() {
     // Check the output of `jj status` right after initializing repo
     let stdout = test_env.jj_cmd_success(&repo_path, &["status"]);
     insta::assert_snapshot!(stdout, @r###"
-    Parent commit: 000000000000 
-    Working copy : 230dd059e1b0 
+    Parent commit: 000000000000 (no description set)
+    Working copy : 230dd059e1b0 (no description set)
     The working copy is clean
     "###);
 
@@ -38,8 +38,8 @@ fn smoke_test() {
     // The working copy's ID should have changed
     let stdout = test_env.jj_cmd_success(&repo_path, &["status"]);
     insta::assert_snapshot!(stdout, @r###"
-    Parent commit: 000000000000 
-    Working copy : d38745675403 
+    Parent commit: 000000000000 (no description set)
+    Working copy : d38745675403 (no description set)
     Working copy changes:
     A file1
     A file2
@@ -59,6 +59,6 @@ fn smoke_test() {
     // Close the commit
     let stdout = test_env.jj_cmd_success(&repo_path, &["close"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: a13f828fab1a 
+    Working copy now at: a13f828fab1a (no description set)
     "###);
 }

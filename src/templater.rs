@@ -175,6 +175,8 @@ impl<'r> TemplateProperty<Commit, String> for DescriptionProperty {
         let description = context.description().to_owned();
         if description.ends_with('\n') {
             description
+        } else if description.is_empty() {
+            "(no description set)\n".to_string()
         } else {
             description.add("\n")
         }

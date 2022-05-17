@@ -139,7 +139,7 @@ fn test_rebase_branch_with_merge() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b", "d", "-d", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 4 commits
-    Working copy now at: f6eecf0d8f36 
+    Working copy now at: f6eecf0d8f36 (no description set)
     Added 1 files, modified 0 files, removed 0 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
@@ -157,7 +157,7 @@ fn test_rebase_branch_with_merge() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-d", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 4 commits
-    Working copy now at: a15dfb947f3f 
+    Working copy now at: a15dfb947f3f (no description set)
     Added 1 files, modified 0 files, removed 0 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
@@ -202,7 +202,7 @@ fn test_rebase_single_revision() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "b", "-d", "a"]);
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 3 descendant commits onto parent of rebased commit
-    Working copy now at: ee6a5a3f71d4 
+    Working copy now at: ee6a5a3f71d4 (no description set)
     Added 0 files, modified 0 files, removed 2 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
@@ -219,7 +219,7 @@ fn test_rebase_single_revision() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "c", "-d", "root"]);
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 2 descendant commits onto parent of rebased commit
-    Working copy now at: 6dc5b752c6ad 
+    Working copy now at: 6dc5b752c6ad (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
@@ -300,7 +300,7 @@ fn test_rebase_with_descendants() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-s", "b", "-d", "a"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 4 commits
-    Working copy now at: 60e083aa9086 
+    Working copy now at: 60e083aa9086 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
     insta::assert_snapshot!(stdout, @r###"
