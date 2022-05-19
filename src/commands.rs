@@ -1172,7 +1172,7 @@ struct InitArgs {
 /// be created on top, and that will be checked out. For more information, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "co")]
+#[clap(visible_aliases = &["co", "update", "up"])]
 struct CheckoutArgs {
     /// The revision to update to
     revision: String,
