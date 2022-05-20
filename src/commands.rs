@@ -1679,7 +1679,6 @@ struct OperationLogArgs {}
 #[derive(clap::Args, Clone, Debug)]
 struct OperationRestoreArgs {
     /// The operation to restore to
-    #[clap(default_value = "@")]
     operation: String,
 }
 
