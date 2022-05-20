@@ -23,7 +23,7 @@ blake2 = "0.10.4"
 bytes = "1.1.0"
 byteorder = "1.4.3"
 chrono = "0.4.19"
-config = "0.13.1"
+config = { version = "0.13.1", features = ["toml"] }
 git2 = "0.14.2"
 hex = "0.4.3"
 itertools = "0.10.3"
