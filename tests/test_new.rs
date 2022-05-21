@@ -17,7 +17,7 @@ use crate::common::TestEnvironment;
 pub mod common;
 
 #[test]
-fn test_new_with_message() {
+fn test_new() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -29,6 +29,16 @@ fn test_new_with_message() {
     insta::assert_snapshot!(stdout, @r###"
     @ 88436dbcdbedc2b8a6ebd0687981906d09ccc68f a new commit
     o 51e9c5819117991e4a6dc5a4a744283fc74f0746 add a file
+    o 0000000000000000000000000000000000000000 (no description set)
+    "###);
+
+    // Start a new change off of a specific commit (the root commit in this case).
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "off of root", "root"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id \" \" description"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ d8c0a3e1570f1f5b08113a3427b3160900c3d48e off of root
+    | o 51e9c5819117991e4a6dc5a4a744283fc74f0746 add a file
+    |/  
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
 }
