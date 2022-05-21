@@ -137,6 +137,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   checkout will be checked out. That was always the intent, but the root commit
   was accidentally checked out instead.
 
+* When checking out a commit, the previous commit is no longer abandoned if it
+  has a non-empty description.
+
 ## [0.4.0] - 2022-04-02
 
 ### Breaking changes

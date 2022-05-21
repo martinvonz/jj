@@ -135,6 +135,39 @@ fn test_checkout_previous_empty(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 // #[test_case(true ; "git backend")]
+fn test_checkout_previous_empty_with_description(use_git: bool) {
+    // Test that MutableRepo::check_out() does not abandon the previous commit if it
+    // has a non-empty description.
+    let settings = testutils::user_settings();
+    let test_repo = testutils::init_repo(&settings, use_git);
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let old_checkout = CommitBuilder::for_open_commit(
+        &settings,
+        repo.store(),
+        repo.store().root_commit_id().clone(),
+        repo.store().empty_tree_id().clone(),
+    )
+    .set_description("not empty".to_string())
+    .write_to_repo(mut_repo);
+    let ws_id = WorkspaceId::default();
+    mut_repo.check_out(ws_id.clone(), &settings, &old_checkout);
+    let repo = tx.commit();
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let new_checkout = testutils::create_random_commit(&settings, &repo)
+        .set_open(true)
+        .write_to_repo(mut_repo);
+    mut_repo.check_out(ws_id, &settings, &new_checkout);
+    mut_repo.rebase_descendants(&settings).unwrap();
+    assert!(mut_repo.view().heads().contains(old_checkout.id()));
+}
+
+#[test_case(false ; "local backend")]
+// #[test_case(true ; "git backend")]
 fn test_checkout_previous_empty_non_head(use_git: bool) {
     // Test that MutableRepo::check_out() does not abandon the previous commit if it
     // was empty and is not a head

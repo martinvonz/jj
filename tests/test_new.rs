@@ -37,6 +37,7 @@ fn test_new() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id \" \" description"]);
     insta::assert_snapshot!(stdout, @r###"
     @ d8c0a3e1570f1f5b08113a3427b3160900c3d48e off of root
+    | o 88436dbcdbedc2b8a6ebd0687981906d09ccc68f a new commit
     | o 51e9c5819117991e4a6dc5a4a744283fc74f0746 add a file
     |/  
     o 0000000000000000000000000000000000000000 (no description set)
