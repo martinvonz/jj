@@ -1385,10 +1385,9 @@ struct AbandonArgs {
 /// Create a new, empty change
 ///
 /// This may be useful if you want to make some changes you're unsure of on top
-/// of the working copy. If the changes turned out to useful, you can `jj
+/// of the working copy. If the changes turned out to be useful, you can `jj
 /// squash` them into the previous working copy. If they turned out to be
-/// unsuccessful, you can `jj abandon` them and `jj co @-` the previous working
-/// copy.
+/// unsuccessful, you can `jj abandon` them.
 #[derive(clap::Args, Clone, Debug)]
 struct NewArgs {
     /// Parent of the new change
