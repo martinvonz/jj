@@ -26,6 +26,7 @@ use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
+use jujutsu_lib::testutils::TestWorkspace;
 use jujutsu_lib::tree_builder::TreeBuilder;
 use jujutsu_lib::working_copy::WorkingCopy;
 use test_case::test_case;
@@ -35,7 +36,7 @@ use test_case::test_case;
 fn test_root(use_git: bool) {
     // Test that the working copy is clean and empty after init.
     let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_workspace(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
 
     let wc = test_workspace.workspace.working_copy_mut();
@@ -57,7 +58,7 @@ fn test_checkout_file_transitions(use_git: bool) {
     // additions and removals as well.
 
     let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_workspace(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
     let store = repo.store().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
@@ -277,7 +278,7 @@ fn test_checkout_file_transitions(use_git: bool) {
 #[test]
 fn test_reset() {
     let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_workspace(&settings, false);
+    let mut test_workspace = TestWorkspace::init(&settings, false);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -343,7 +344,7 @@ fn test_checkout_discard() {
     // copy files should remain changed, but the state files should not be
     // written.
     let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_workspace(&settings, false);
+    let mut test_workspace = TestWorkspace::init(&settings, false);
     let repo = test_workspace.repo.clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -390,7 +391,7 @@ fn test_commit_racy_timestamps(use_git: bool) {
     // millisecond as the updated working copy state.
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_workspace(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -422,7 +423,7 @@ fn test_gitignores(use_git: bool) {
 
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_workspace(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -498,7 +499,7 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
 
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_workspace(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
@@ -551,7 +552,7 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
 
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_workspace(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
 
     // Add a .gitignore file saying to ignore the directory "ignored/"
@@ -595,7 +596,7 @@ fn test_dotgit_ignored(use_git: bool) {
 
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_workspace(&settings, use_git);
+    let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 

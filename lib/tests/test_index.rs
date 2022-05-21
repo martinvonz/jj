@@ -21,7 +21,7 @@ use jujutsu_lib::index::IndexRef;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::{create_random_commit, CommitGraphBuilder};
+use jujutsu_lib::testutils::{create_random_commit, CommitGraphBuilder, TestRepo};
 use test_case::test_case;
 
 #[must_use]
@@ -42,7 +42,7 @@ fn generation_number<'a>(index: impl Into<IndexRef<'a>>, commit_id: &CommitId) -
 #[test_case(true ; "git backend")]
 fn test_index_commits_empty_repo(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
 
     let index = repo.index();
@@ -60,7 +60,7 @@ fn test_index_commits_empty_repo(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_index_commits_standard_cases(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
 
     //   o H
@@ -128,7 +128,7 @@ fn test_index_commits_standard_cases(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_index_commits_criss_cross(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
 
     let num_generations = 50;
@@ -228,7 +228,7 @@ fn test_index_commits_criss_cross(use_git: bool) {
 fn test_index_commits_previous_operations(use_git: bool) {
     // Test that commits visible only in previous operations are indexed.
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
 
     // Remove commit B and C in one operation and make sure they're still
@@ -276,7 +276,7 @@ fn test_index_commits_previous_operations(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_index_commits_incremental(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
 
     // Create A in one operation, then B and C in another. Check that the index is
@@ -324,7 +324,7 @@ fn test_index_commits_incremental(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
 
     // Create A in one operation, then just an empty transaction. Check that the
@@ -366,7 +366,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
 fn test_index_commits_incremental_already_indexed(use_git: bool) {
     // Tests that trying to add a commit that's already been added is a no-op.
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
 
     // Create A in one operation, then try to add it again an new transaction.
@@ -415,24 +415,24 @@ fn commits_by_level(repo: &ReadonlyRepo) -> Vec<u32> {
 fn test_index_commits_incremental_squashed(use_git: bool) {
     let settings = testutils::user_settings();
 
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
     let repo = create_n_commits(&settings, repo, 1);
     assert_eq!(commits_by_level(&repo), vec![2]);
     let repo = create_n_commits(&settings, &repo, 1);
     assert_eq!(commits_by_level(&repo), vec![3]);
 
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
     let repo = create_n_commits(&settings, repo, 2);
     assert_eq!(commits_by_level(&repo), vec![3]);
 
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
     let repo = create_n_commits(&settings, repo, 100);
     assert_eq!(commits_by_level(&repo), vec![101]);
 
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
     let repo = create_n_commits(&settings, repo, 1);
     let repo = create_n_commits(&settings, &repo, 2);
@@ -442,7 +442,7 @@ fn test_index_commits_incremental_squashed(use_git: bool) {
     let repo = create_n_commits(&settings, &repo, 32);
     assert_eq!(commits_by_level(&repo), vec![64]);
 
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
     let repo = create_n_commits(&settings, repo, 32);
     let repo = create_n_commits(&settings, &repo, 16);
@@ -451,7 +451,7 @@ fn test_index_commits_incremental_squashed(use_git: bool) {
     let repo = create_n_commits(&settings, &repo, 2);
     assert_eq!(commits_by_level(&repo), vec![57, 6]);
 
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
     let repo = create_n_commits(&settings, repo, 30);
     let repo = create_n_commits(&settings, &repo, 15);
@@ -460,7 +460,7 @@ fn test_index_commits_incremental_squashed(use_git: bool) {
     let repo = create_n_commits(&settings, &repo, 1);
     assert_eq!(commits_by_level(&repo), vec![31, 15, 7, 3, 1]);
 
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
     let repo = create_n_commits(&settings, repo, 10);
     let repo = create_n_commits(&settings, &repo, 10);
