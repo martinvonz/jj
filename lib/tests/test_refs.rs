@@ -15,12 +15,12 @@
 use jujutsu_lib::op_store::RefTarget;
 use jujutsu_lib::refs::merge_ref_targets;
 use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::CommitGraphBuilder;
+use jujutsu_lib::testutils::{CommitGraphBuilder, TestWorkspace};
 
 #[test]
 fn test_merge_ref_targets() {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, false);
+    let test_workspace = TestWorkspace::init(&settings, false);
     let repo = &test_workspace.repo;
 
     // 6 7

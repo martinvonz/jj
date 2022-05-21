@@ -18,6 +18,7 @@ use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::testutils;
+use jujutsu_lib::testutils::TestRepo;
 use test_case::test_case;
 
 fn list_dir(dir: &Path) -> Vec<String> {
@@ -32,7 +33,7 @@ fn list_dir(dir: &Path) -> Vec<String> {
 fn test_unpublished_operation(use_git: bool) {
     // Test that the operation doesn't get published until that's requested.
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
 
     let op_heads_dir = repo.repo_path().join("op_heads");
@@ -55,7 +56,7 @@ fn test_consecutive_operations(use_git: bool) {
     // Test that consecutive operations result in a single op-head on disk after
     // each operation
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
 
     let op_heads_dir = repo.repo_path().join("op_heads");
@@ -88,7 +89,7 @@ fn test_concurrent_operations(use_git: bool) {
     // Test that consecutive operations result in multiple op-heads on disk until
     // the repo has been reloaded (which currently happens right away).
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
 
     let op_heads_dir = repo.repo_path().join("op_heads");
@@ -133,7 +134,7 @@ fn assert_heads(repo: RepoRef, expected: Vec<&CommitId>) {
 fn test_isolation(use_git: bool) {
     // Test that two concurrent transactions don't see each other's changes.
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");

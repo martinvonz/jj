@@ -18,6 +18,7 @@ use jujutsu_lib::backend::{ConflictPart, TreeValue};
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::rewrite::rebase_commit;
+use jujutsu_lib::testutils::TestRepo;
 use jujutsu_lib::tree::Tree;
 use jujutsu_lib::{testutils, tree};
 use test_case::test_case;
@@ -29,7 +30,7 @@ fn test_same_type(use_git: bool) {
     // using only normal files in all trees (no symlinks, no trees, etc.).
 
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -214,7 +215,7 @@ fn test_subtrees(use_git: bool) {
     // Tests that subtrees are merged.
 
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -271,7 +272,7 @@ fn test_subtree_becomes_empty(use_git: bool) {
     // Tests that subtrees that become empty are removed from the parent tree.
 
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -303,7 +304,7 @@ fn test_subtree_one_missing(use_git: bool) {
     // Tests that merging trees where one side is missing is resolved as if the
     // missing side was empty.
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -350,7 +351,7 @@ fn test_types(use_git: bool) {
     // conflicts survive the roundtrip to the store.
 
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -460,7 +461,7 @@ fn test_types(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_simplify_conflict(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -560,7 +561,7 @@ fn test_simplify_conflict(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = testutils::init_repo(&settings, use_git);
+    let test_repo = TestRepo::init(&settings, use_git);
     let repo = &test_repo.repo;
 
     // Set up a repo like this:

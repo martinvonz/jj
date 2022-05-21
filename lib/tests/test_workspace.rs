@@ -14,6 +14,7 @@
 
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::testutils;
+use jujutsu_lib::testutils::TestWorkspace;
 use jujutsu_lib::workspace::{Workspace, WorkspaceLoadError};
 use test_case::test_case;
 
@@ -34,7 +35,7 @@ fn test_load_bad_path() {
 #[test_case(true ; "git backend")]
 fn test_load_from_subdir(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
+    let test_workspace = TestWorkspace::init(&settings, use_git);
     let workspace = &test_workspace.workspace;
 
     let subdir = workspace.workspace_root().join("dir").join("subdir");
@@ -50,7 +51,7 @@ fn test_load_from_subdir(use_git: bool) {
 // #[test_case(true ; "git backend")]
 fn test_init_additional_workspace(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
+    let test_workspace = TestWorkspace::init(&settings, use_git);
     let workspace = &test_workspace.workspace;
 
     let ws2_id = WorkspaceId::new("ws2".to_string());

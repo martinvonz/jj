@@ -17,12 +17,13 @@ use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::testutils;
+use jujutsu_lib::testutils::TestWorkspace;
 use jujutsu_lib::working_copy::{CheckoutStats, WorkingCopy};
 
 #[test]
 fn test_sparse_checkout() {
     let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_workspace(&settings, false);
+    let mut test_workspace = TestWorkspace::init(&settings, false);
     let repo = &test_workspace.repo;
     let working_copy_path = test_workspace.workspace.workspace_root().clone();
 
@@ -129,7 +130,7 @@ fn test_sparse_checkout() {
 #[test]
 fn test_sparse_commit() {
     let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_workspace(&settings, false);
+    let mut test_workspace = TestWorkspace::init(&settings, false);
     let repo = &test_workspace.repo;
     let working_copy_path = test_workspace.workspace.workspace_root().clone();
 
@@ -207,7 +208,7 @@ fn test_sparse_commit() {
 fn test_sparse_commit_gitignore() {
     // Test that (untracked) .gitignore files in parent directories are respected
     let settings = testutils::user_settings();
-    let mut test_workspace = testutils::init_workspace(&settings, false);
+    let mut test_workspace = TestWorkspace::init(&settings, false);
     let repo = &test_workspace.repo;
     let working_copy_path = test_workspace.workspace.workspace_root().clone();
 

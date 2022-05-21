@@ -57,23 +57,25 @@ pub struct TestRepo {
     pub repo: Arc<ReadonlyRepo>,
 }
 
-pub fn init_repo(settings: &UserSettings, use_git: bool) -> TestRepo {
-    let temp_dir = tempfile::tempdir().unwrap();
+impl TestRepo {
+    pub fn init(settings: &UserSettings, use_git: bool) -> Self {
+        let temp_dir = tempfile::tempdir().unwrap();
 
-    let repo_dir = temp_dir.path().join("repo");
-    fs::create_dir(&repo_dir).unwrap();
+        let repo_dir = temp_dir.path().join("repo");
+        fs::create_dir(&repo_dir).unwrap();
 
-    let repo = if use_git {
-        let git_path = temp_dir.path().join("git-repo");
-        git2::Repository::init(&git_path).unwrap();
-        ReadonlyRepo::init_external_git(settings, repo_dir, git_path)
-    } else {
-        ReadonlyRepo::init_local(settings, repo_dir)
-    };
+        let repo = if use_git {
+            let git_path = temp_dir.path().join("git-repo");
+            git2::Repository::init(&git_path).unwrap();
+            ReadonlyRepo::init_external_git(settings, repo_dir, git_path)
+        } else {
+            ReadonlyRepo::init_local(settings, repo_dir)
+        };
 
-    TestRepo {
-        _temp_dir: temp_dir,
-        repo,
+        Self {
+            _temp_dir: temp_dir,
+            repo,
+        }
     }
 }
 
@@ -83,28 +85,28 @@ pub struct TestWorkspace {
     pub repo: Arc<ReadonlyRepo>,
 }
 
-pub fn init_workspace(settings: &UserSettings, use_git: bool) -> TestWorkspace {
-    let temp_dir = tempfile::tempdir().unwrap();
-
-    let workspace_root = temp_dir.path().join("repo");
-    fs::create_dir(&workspace_root).unwrap();
-
-    let (workspace, repo) = if use_git {
-        let git_path = temp_dir.path().join("git-repo");
-        git2::Repository::init(&git_path).unwrap();
-        Workspace::init_external_git(settings, workspace_root, git_path).unwrap()
-    } else {
-        Workspace::init_local(settings, workspace_root).unwrap()
-    };
-
-    TestWorkspace {
-        temp_dir,
-        workspace,
-        repo,
-    }
-}
-
 impl TestWorkspace {
+    pub fn init(settings: &UserSettings, use_git: bool) -> Self {
+        let temp_dir = tempfile::tempdir().unwrap();
+
+        let workspace_root = temp_dir.path().join("repo");
+        fs::create_dir(&workspace_root).unwrap();
+
+        let (workspace, repo) = if use_git {
+            let git_path = temp_dir.path().join("git-repo");
+            git2::Repository::init(&git_path).unwrap();
+            Workspace::init_external_git(settings, workspace_root, git_path).unwrap()
+        } else {
+            Workspace::init_local(settings, workspace_root).unwrap()
+        };
+
+        Self {
+            temp_dir,
+            workspace,
+            repo,
+        }
+    }
+
     pub fn root_dir(&self) -> PathBuf {
         self.temp_dir.path().join("repo").join("..")
     }

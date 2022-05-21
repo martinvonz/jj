@@ -16,6 +16,7 @@ use std::cmp::max;
 use std::thread;
 
 use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::testutils::TestWorkspace;
 use jujutsu_lib::{dag_walk, testutils};
 use test_case::test_case;
 
@@ -43,7 +44,7 @@ fn test_commit_parallel(use_git: bool) {
     // transactions from it. It then reloads the repo. That should merge all the
     // operations and all commits should be visible.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
+    let test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
 
     let num_threads = max(num_cpus::get(), 4);
@@ -77,7 +78,7 @@ fn test_commit_parallel_instances(use_git: bool) {
     // Like the test above but creates a new repo instance for every thread, which
     // makes it behave very similar to separate processes.
     let settings = testutils::user_settings();
-    let test_workspace = testutils::init_workspace(&settings, use_git);
+    let test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
 
     let num_threads = max(num_cpus::get(), 4);
