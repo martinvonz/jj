@@ -25,7 +25,7 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_initial(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, use_git);
+    let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -70,7 +70,7 @@ fn test_initial(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_rewrite(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, use_git);
+    let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
     let store = repo.store().clone();
 
@@ -157,7 +157,7 @@ fn test_rewrite(use_git: bool) {
 // #[test_case(true ; "git backend")]
 fn test_commit_builder_descendants(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, use_git);
+    let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
     let store = repo.store().clone();
 

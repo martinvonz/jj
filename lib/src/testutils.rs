@@ -58,7 +58,8 @@ pub struct TestRepo {
 }
 
 impl TestRepo {
-    pub fn init(settings: &UserSettings, use_git: bool) -> Self {
+    pub fn init(use_git: bool) -> Self {
+        let settings = user_settings();
         let temp_dir = tempfile::tempdir().unwrap();
 
         let repo_dir = temp_dir.path().join("repo");
@@ -67,9 +68,9 @@ impl TestRepo {
         let repo = if use_git {
             let git_path = temp_dir.path().join("git-repo");
             git2::Repository::init(&git_path).unwrap();
-            ReadonlyRepo::init_external_git(settings, repo_dir, git_path)
+            ReadonlyRepo::init_external_git(&settings, repo_dir, git_path)
         } else {
-            ReadonlyRepo::init_local(settings, repo_dir)
+            ReadonlyRepo::init_local(&settings, repo_dir)
         };
 
         Self {

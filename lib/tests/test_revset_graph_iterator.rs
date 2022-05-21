@@ -23,7 +23,7 @@ use test_case::test_case;
 #[test_case(true ; "skip transitive edges")]
 fn test_graph_iterator_linearized(skip_transitive_edges: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, true);
+    let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
 
     // Tests that a fork and a merge becomes a single edge:
@@ -65,7 +65,7 @@ fn test_graph_iterator_linearized(skip_transitive_edges: bool) {
 #[test_case(true ; "skip transitive edges")]
 fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, true);
+    let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
 
     // Tests that merges outside the set can result in more parent edges than there
@@ -127,7 +127,7 @@ fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
 #[test_case(true ; "skip transitive edges")]
 fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, true);
+    let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
 
     // Tests that the branch with "C" gets emitted correctly:
@@ -175,7 +175,7 @@ fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
 #[test_case(true ; "skip transitive edges")]
 fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, true);
+    let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
 
     // Tests that we get missing edges to "a" and "c" and not just one missing edge
@@ -229,7 +229,7 @@ fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
 #[test_case(true ; "skip transitive edges")]
 fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, true);
+    let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
 
     // Tests that we get both an edge from F to D and to D's ancestor C if we keep
@@ -294,7 +294,7 @@ fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
 #[test_case(true ; "skip transitive edges")]
 fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, true);
+    let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
 
     // Tests a more complex case for skipping transitive edges.
@@ -385,7 +385,7 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
 #[test]
 fn test_reverse_graph_iterator() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, true);
+    let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
 
     // Tests that merges, forks, direct edges, indirect edges, and "missing" edges

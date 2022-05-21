@@ -27,8 +27,7 @@ use test_case::test_case;
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
 fn test_heads_empty(use_git: bool) {
-    let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, use_git);
+    let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
     assert_eq!(
@@ -45,7 +44,7 @@ fn test_heads_empty(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_heads_fork(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, use_git);
+    let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
     let mut tx = repo.start_transaction("test");
 
@@ -68,7 +67,7 @@ fn test_heads_fork(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_heads_merge(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, use_git);
+    let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
     let mut tx = repo.start_transaction("test");
 
@@ -86,7 +85,7 @@ fn test_heads_merge(use_git: bool) {
 fn test_merge_views_heads() {
     // Tests merging of the view's heads (by performing concurrent operations).
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, false);
+    let test_repo = TestRepo::init(false);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
@@ -153,7 +152,7 @@ fn test_merge_views_heads() {
 fn test_merge_views_checkout() {
     // Tests merging of the view's checkout (by performing concurrent operations).
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, false);
+    let test_repo = TestRepo::init(false);
     let repo = &test_repo.repo;
 
     // Workspace 1 gets updated in both transactions.
@@ -239,7 +238,7 @@ fn test_merge_views_branches() {
     // Tests merging of branches (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, false);
+    let test_repo = TestRepo::init(false);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
@@ -340,7 +339,7 @@ fn test_merge_views_tags() {
     // Tests merging of tags (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, false);
+    let test_repo = TestRepo::init(false);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
@@ -386,7 +385,7 @@ fn test_merge_views_git_refs() {
     // Tests merging of git refs (by performing concurrent operations). See
     // test_refs.rs for tests of merging of individual ref targets.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, false);
+    let test_repo = TestRepo::init(false);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
@@ -466,7 +465,7 @@ fn test_merge_views_child_on_rewritten(child_first: bool) {
     // We start with just commit A. Operation 1 adds commit B on top. Operation 2
     // rewrites A as A2.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, false);
+    let test_repo = TestRepo::init(false);
 
     let mut tx = test_repo.repo.start_transaction("test");
     let commit_a =
@@ -509,7 +508,7 @@ fn test_merge_views_child_on_rewritten_divergent(on_rewritten: bool, child_first
     // gets rebased onto A4 if it was based on A2 before, but if it was based on
     // A3, it should remain there.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, false);
+    let test_repo = TestRepo::init(false);
 
     let mut tx = test_repo.repo.start_transaction("test");
     let commit_a2 =
@@ -561,7 +560,7 @@ fn test_merge_views_child_on_abandoned(child_first: bool) {
     // We start with commit B on top of commit A. Operation 1 adds commit C on top.
     // Operation 2 abandons B.
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, false);
+    let test_repo = TestRepo::init(false);
 
     let mut tx = test_repo.repo.start_transaction("test");
     let commit_a =

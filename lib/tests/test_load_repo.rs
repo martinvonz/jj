@@ -21,7 +21,7 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_load_at_operation(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, use_git);
+    let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("add commit");
