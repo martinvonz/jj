@@ -1382,7 +1382,7 @@ struct AbandonArgs {
     revisions: String,
 }
 
-/// Create a new, empty change
+/// Create a new, empty change and check it out
 ///
 /// This may be useful if you want to make some changes you're unsure of on top
 /// of the working copy. If the changes turned out to be useful, you can `jj
@@ -1391,9 +1391,6 @@ struct AbandonArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct NewArgs {
     /// Parent of the new change
-    ///
-    /// If the parent is the working copy, then the new change will be checked
-    /// out.
     #[clap(default_value = "@")]
     revision: String,
     /// The change description to use
@@ -3371,9 +3368,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
     let mut_repo = tx.mut_repo();
     let new_commit = commit_builder.write_to_repo(mut_repo);
     let workspace_id = workspace_command.workspace_id();
-    if mut_repo.view().get_checkout(&workspace_id) == Some(parent.id()) {
-        mut_repo.check_out(workspace_id, ui.settings(), &new_commit);
-    }
+    mut_repo.check_out(workspace_id, ui.settings(), &new_commit);
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }

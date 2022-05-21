@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Use `jj log -r 'all()'` for the old behavior. Read more about revsets
   [here](https://github.com/martinvonz/jj/blob/main/docs/revsets.md).
 
+* `jj new` now always checks out the new commit (used to be only if the parent
+  was `@`).
+
 ### New features
 
 * `jj rebase` now accepts a `--branch/-b <revision>` argument, which can be used
