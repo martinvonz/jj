@@ -55,7 +55,7 @@ fn commit_id(commit: &git2::Commit) -> CommitId {
 #[test]
 fn test_import_refs() {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, true);
+    let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
     let git_repo = repo.store().git_repo().unwrap();
 
@@ -144,7 +144,7 @@ fn test_import_refs() {
 #[test]
 fn test_import_refs_reimport() {
     let settings = testutils::user_settings();
-    let test_workspace = TestRepo::init(&settings, true);
+    let test_workspace = TestRepo::init(true);
     let repo = &test_workspace.repo;
     let git_repo = repo.store().git_repo().unwrap();
 
@@ -238,7 +238,7 @@ fn test_import_refs_reimport() {
 fn test_import_refs_reimport_head_removed() {
     // Test that re-importing refs doesn't cause a deleted head to come back
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, true);
+    let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
     let git_repo = repo.store().git_repo().unwrap();
 

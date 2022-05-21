@@ -21,8 +21,7 @@ use jujutsu_lib::testutils::TestRepo;
 
 #[test]
 fn test_materialize_conflict_basic() {
-    let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, false);
+    let test_repo = TestRepo::init(false);
     let store = test_repo.repo.store();
 
     let path = RepoPath::from_internal_string("file");
@@ -101,8 +100,7 @@ line 5
 
 #[test]
 fn test_materialize_conflict_modify_delete() {
-    let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, false);
+    let test_repo = TestRepo::init(false);
     let store = test_repo.repo.store();
 
     let path = RepoPath::from_internal_string("file");
@@ -179,8 +177,7 @@ line 5
 
 #[test]
 fn test_materialize_conflict_delete_modify() {
-    let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, false);
+    let test_repo = TestRepo::init(false);
     let store = test_repo.repo.store();
 
     let path = RepoPath::from_internal_string("file");
@@ -423,8 +420,7 @@ line 5
 
 #[test]
 fn test_update_conflict_from_content() {
-    let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(&settings, false);
+    let test_repo = TestRepo::init(false);
     let store = test_repo.repo.store();
 
     let path = RepoPath::from_internal_string("dir/file");
