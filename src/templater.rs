@@ -162,7 +162,7 @@ impl<'a, C> Template<C> for StringPropertyTemplate<'a, C> {
 
 pub struct ChangeIdProperty;
 
-impl<'r> TemplateProperty<Commit, String> for ChangeIdProperty {
+impl TemplateProperty<Commit, String> for ChangeIdProperty {
     fn extract(&self, context: &Commit) -> String {
         context.change_id().hex()
     }
@@ -170,7 +170,7 @@ impl<'r> TemplateProperty<Commit, String> for ChangeIdProperty {
 
 pub struct DescriptionProperty;
 
-impl<'r> TemplateProperty<Commit, String> for DescriptionProperty {
+impl TemplateProperty<Commit, String> for DescriptionProperty {
     fn extract(&self, context: &Commit) -> String {
         let description = context.description().to_owned();
         if description.ends_with('\n') {
@@ -185,7 +185,7 @@ impl<'r> TemplateProperty<Commit, String> for DescriptionProperty {
 
 pub struct AuthorProperty;
 
-impl<'r> TemplateProperty<Commit, Signature> for AuthorProperty {
+impl TemplateProperty<Commit, Signature> for AuthorProperty {
     fn extract(&self, context: &Commit) -> Signature {
         context.author().clone()
     }
@@ -193,7 +193,7 @@ impl<'r> TemplateProperty<Commit, Signature> for AuthorProperty {
 
 pub struct CommitterProperty;
 
-impl<'r> TemplateProperty<Commit, Signature> for CommitterProperty {
+impl TemplateProperty<Commit, Signature> for CommitterProperty {
     fn extract(&self, context: &Commit) -> Signature {
         context.committer().clone()
     }
@@ -201,7 +201,7 @@ impl<'r> TemplateProperty<Commit, Signature> for CommitterProperty {
 
 pub struct OpenProperty;
 
-impl<'r> TemplateProperty<Commit, bool> for OpenProperty {
+impl TemplateProperty<Commit, bool> for OpenProperty {
     fn extract(&self, context: &Commit) -> bool {
         context.is_open()
     }
@@ -438,7 +438,7 @@ impl CommitIdKeyword {
     }
 }
 
-impl<'r> TemplateProperty<Commit, CommitId> for CommitIdKeyword {
+impl TemplateProperty<Commit, CommitId> for CommitIdKeyword {
     fn extract(&self, context: &Commit) -> CommitId {
         context.id().clone()
     }
