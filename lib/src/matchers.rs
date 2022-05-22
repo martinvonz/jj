@@ -187,17 +187,12 @@ impl Matcher for DifferenceMatcher<'_> {
     fn visit(&self, dir: &RepoPath) -> Visit {
         match self.unwanted.visit(dir) {
             Visit::AllRecursively => Visit::Nothing,
-            unwanted_visit => match self.wanted.visit(dir) {
-                Visit::AllRecursively => {
-                    if unwanted_visit == Visit::Nothing {
-                        Visit::AllRecursively
-                    } else {
-                        Visit::Specific {
-                            dirs: VisitDirs::All,
-                            files: VisitFiles::All,
-                        }
-                    }
-                }
+            Visit::Nothing => self.wanted.visit(dir),
+            Visit::Specific { .. } => match self.wanted.visit(dir) {
+                Visit::AllRecursively => Visit::Specific {
+                    dirs: VisitDirs::All,
+                    files: VisitFiles::All,
+                },
                 wanted_visit => wanted_visit,
             },
         }
