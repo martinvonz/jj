@@ -166,6 +166,8 @@ impl Matcher for PrefixMatcher {
     }
 }
 
+/// Matches paths that are matched by the first input matcher but not by the
+/// second.
 pub struct DifferenceMatcher<'input> {
     /// The minuend
     wanted: &'input dyn Matcher,
@@ -194,6 +196,70 @@ impl Matcher for DifferenceMatcher<'_> {
                     files: VisitFiles::All,
                 },
                 wanted_visit => wanted_visit,
+            },
+        }
+    }
+}
+
+/// Matches paths that are matched by both input matchers.
+pub struct IntersectionMatcher<'input> {
+    input1: &'input dyn Matcher,
+    input2: &'input dyn Matcher,
+}
+
+impl<'input> IntersectionMatcher<'input> {
+    pub fn new(input1: &'input dyn Matcher, input2: &'input dyn Matcher) -> Self {
+        Self { input1, input2 }
+    }
+}
+
+impl Matcher for IntersectionMatcher<'_> {
+    fn matches(&self, file: &RepoPath) -> bool {
+        self.input1.matches(file) && self.input2.matches(file)
+    }
+
+    fn visit(&self, dir: &RepoPath) -> Visit {
+        match self.input1.visit(dir) {
+            Visit::AllRecursively => self.input2.visit(dir),
+            Visit::Nothing => Visit::Nothing,
+            Visit::Specific {
+                dirs: dirs1,
+                files: files1,
+            } => match self.input2.visit(dir) {
+                Visit::AllRecursively => Visit::Specific {
+                    dirs: dirs1,
+                    files: files1,
+                },
+                Visit::Nothing => Visit::Nothing,
+                Visit::Specific {
+                    dirs: dirs2,
+                    files: files2,
+                } => {
+                    let dirs = match (dirs1, dirs2) {
+                        (VisitDirs::All, VisitDirs::All) => VisitDirs::All,
+                        (dirs1, VisitDirs::All) => dirs1,
+                        (VisitDirs::All, dirs2) => dirs2,
+                        (VisitDirs::Set(dirs1), VisitDirs::Set(dirs2)) => {
+                            VisitDirs::Set(dirs1.intersection(&dirs2).cloned().collect())
+                        }
+                    };
+                    let files = match (files1, files2) {
+                        (VisitFiles::All, VisitFiles::All) => VisitFiles::All,
+                        (files1, VisitFiles::All) => files1,
+                        (VisitFiles::All, files2) => files2,
+                        (VisitFiles::Set(files1), VisitFiles::Set(files2)) => {
+                            VisitFiles::Set(files1.intersection(&files2).cloned().collect())
+                        }
+                    };
+                    match (&dirs, &files) {
+                        (VisitDirs::Set(dirs), VisitFiles::Set(files))
+                            if dirs.is_empty() && files.is_empty() =>
+                        {
+                            Visit::Nothing
+                        }
+                        _ => Visit::Specific { dirs, files },
+                    }
+                }
             },
         }
     }
@@ -527,6 +593,91 @@ mod tests {
         );
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("bar/foo")),
+            Visit::AllRecursively
+        );
+    }
+
+    #[test]
+    fn test_intersectionmatcher_intersecting_roots() {
+        let m1 = PrefixMatcher::new(&[
+            RepoPath::from_internal_string("foo"),
+            RepoPath::from_internal_string("bar"),
+        ]);
+        let m2 = PrefixMatcher::new(&[
+            RepoPath::from_internal_string("bar"),
+            RepoPath::from_internal_string("baz"),
+        ]);
+        let m = IntersectionMatcher::new(&m1, &m2);
+
+        assert!(!m.matches(&RepoPath::from_internal_string("foo")));
+        assert!(!m.matches(&RepoPath::from_internal_string("foo/bar")));
+        assert!(m.matches(&RepoPath::from_internal_string("bar")));
+        assert!(m.matches(&RepoPath::from_internal_string("bar/foo")));
+        assert!(!m.matches(&RepoPath::from_internal_string("baz")));
+        assert!(!m.matches(&RepoPath::from_internal_string("baz/foo")));
+
+        assert_eq!(
+            m.visit(&RepoPath::root()),
+            Visit::sets(
+                hashset! {RepoPathComponent::from("bar")},
+                hashset! {RepoPathComponent::from("bar")}
+            )
+        );
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("foo")),
+            Visit::Nothing
+        );
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("foo/bar")),
+            Visit::Nothing
+        );
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("bar")),
+            Visit::AllRecursively
+        );
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("bar/foo")),
+            Visit::AllRecursively
+        );
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("baz")),
+            Visit::Nothing
+        );
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("baz/foo")),
+            Visit::Nothing
+        );
+    }
+
+    #[test]
+    fn test_intersectionmatcher_subdir() {
+        let m1 = PrefixMatcher::new(&[RepoPath::from_internal_string("foo")]);
+        let m2 = PrefixMatcher::new(&[RepoPath::from_internal_string("foo/bar")]);
+        let m = IntersectionMatcher::new(&m1, &m2);
+
+        assert!(!m.matches(&RepoPath::from_internal_string("foo")));
+        assert!(!m.matches(&RepoPath::from_internal_string("bar")));
+        assert!(m.matches(&RepoPath::from_internal_string("foo/bar")));
+        assert!(m.matches(&RepoPath::from_internal_string("foo/bar/baz")));
+        assert!(!m.matches(&RepoPath::from_internal_string("foo/baz")));
+
+        assert_eq!(
+            m.visit(&RepoPath::root()),
+            Visit::sets(hashset! {RepoPathComponent::from("foo")}, hashset! {})
+        );
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("bar")),
+            Visit::Nothing
+        );
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("foo")),
+            Visit::sets(
+                hashset! {RepoPathComponent::from("bar")},
+                hashset! {RepoPathComponent::from("bar")}
+            )
+        );
+        assert_eq!(
+            m.visit(&RepoPath::from_internal_string("foo/bar")),
             Visit::AllRecursively
         );
     }
