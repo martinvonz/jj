@@ -199,7 +199,7 @@ pub enum SnapshotError {
     #[error("Symlink {path} target is not valid UTF-8")]
     InvalidUtf8SymlinkTarget { path: PathBuf, target: PathBuf },
     #[error("Internal backend error: {0:?}")]
-    InternalBackendError(BackendError),
+    InternalBackendError(#[from] BackendError),
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -213,7 +213,7 @@ pub enum CheckoutError {
     #[error("Concurrent checkout")]
     ConcurrentCheckout,
     #[error("Internal error: {0:?}")]
-    InternalBackendError(BackendError),
+    InternalBackendError(#[from] BackendError),
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -223,7 +223,7 @@ pub enum ResetError {
     #[error("Current checkout not found")]
     SourceNotFound,
     #[error("Internal error: {0:?}")]
-    InternalBackendError(BackendError),
+    InternalBackendError(#[from] BackendError),
 }
 
 impl TreeState {
@@ -335,9 +335,7 @@ impl TreeState {
             path: disk_path.to_path_buf(),
             err,
         })?;
-        self.store
-            .write_file(path, &mut Box::new(file))
-            .map_err(SnapshotError::InternalBackendError)
+        Ok(self.store.write_file(path, &mut Box::new(file))?)
     }
 
     fn write_symlink_to_store(
@@ -358,9 +356,7 @@ impl TreeState {
                     path: disk_path.to_path_buf(),
                     target: target.clone(),
                 })?;
-        self.store
-            .write_symlink(path, str_target)
-            .map_err(SnapshotError::InternalBackendError)
+        Ok(self.store.write_symlink(path, str_target)?)
     }
 
     /// Look for changes to the working copy. If there are any changes, create
