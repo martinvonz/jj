@@ -201,8 +201,12 @@ pub struct CheckoutStats {
 
 #[derive(Debug, Error)]
 pub enum SnapshotError {
-    #[error("Failed to open file {path}: {err:?}")]
-    FileOpenError { path: PathBuf, err: std::io::Error },
+    #[error("{message}: {err:?}")]
+    IoError {
+        message: String,
+        #[source]
+        err: std::io::Error,
+    },
     #[error("Working copy path {} is not valid UTF-8", path.to_string_lossy())]
     InvalidUtf8Path { path: OsString },
     #[error("Symlink {path} target is not valid UTF-8")]
@@ -338,8 +342,8 @@ impl TreeState {
         path: &RepoPath,
         disk_path: &Path,
     ) -> Result<FileId, SnapshotError> {
-        let file = File::open(disk_path).map_err(|err| SnapshotError::FileOpenError {
-            path: disk_path.to_path_buf(),
+        let file = File::open(disk_path).map_err(|err| SnapshotError::IoError {
+            message: format!("Failed to open file {}", disk_path.display()),
             err,
         })?;
         Ok(self.store.write_file(path, &mut Box::new(file))?)
@@ -352,8 +356,8 @@ impl TreeState {
     ) -> Result<SymlinkId, SnapshotError> {
         let target = disk_path
             .read_link()
-            .map_err(|err| SnapshotError::FileOpenError {
-                path: disk_path.to_path_buf(),
+            .map_err(|err| SnapshotError::IoError {
+                message: format!("Failed to read symlink {}", disk_path.display()),
                 err,
             })?;
         let str_target =
@@ -461,7 +465,12 @@ impl TreeState {
             // ignore it.
             return Ok(());
         }
-        let metadata = disk_path.symlink_metadata().unwrap();
+        let metadata = disk_path
+            .symlink_metadata()
+            .map_err(|err| SnapshotError::IoError {
+                message: format!("Failed to stat file {}", disk_path.display()),
+                err,
+            })?;
         let mut new_file_state = file_state(&metadata);
         match maybe_current_file_state {
             None => {
