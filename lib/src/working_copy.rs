@@ -1063,11 +1063,8 @@ impl LockedWorkingCopy<'_> {
 
 impl Drop for LockedWorkingCopy<'_> {
     fn drop(&mut self) {
-        if !std::thread::panicking() {
-            assert!(
-                self.closed,
-                "Working copy lock was dropped without being closed."
-            );
+        if !self.closed && !std::thread::panicking() {
+            eprintln!("BUG: Working copy lock was dropped without being closed.");
         }
     }
 }
