@@ -15,6 +15,7 @@
 use std::cmp::max;
 use std::thread;
 
+use assert_matches::assert_matches;
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::testutils;
@@ -63,7 +64,7 @@ fn test_concurrent_checkout(use_git: bool) {
         .unwrap();
 
     // Checking out another tree (via the first repo instance) should now fail.
-    assert_eq!(
+    assert_matches!(
         wc1.check_out(repo1.op_id().clone(), Some(&tree_id1), &tree3),
         Err(CheckoutError::ConcurrentCheckout)
     );
