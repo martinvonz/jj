@@ -65,6 +65,12 @@ impl UserSettings {
             .unwrap_or_else(|_| "(no email configured)".to_string())
     }
 
+    pub fn push_branch_prefix(&self) -> String {
+        self.config
+            .get_string("push.branch-prefix")
+            .unwrap_or("push-".to_string())
+    }
+
     pub fn signature(&self) -> Signature {
         let timestamp = self.timestamp.clone().unwrap_or_else(Timestamp::now);
         Signature {

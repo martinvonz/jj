@@ -4857,7 +4857,11 @@ fn cmd_git_push(
         }
     } else if let Some(change_str) = &args.change {
         let commit = workspace_command.resolve_single_rev(ui, change_str)?;
-        let branch_name = format!("push-{}", commit.change_id().hex());
+        let branch_name = format!(
+            "{}{}",
+            ui.settings().push_branch_prefix(),
+            commit.change_id().hex()
+        );
         tx.mut_repo()
             .set_local_branch(branch_name.clone(), RefTarget::Normal(commit.id().clone()));
         if let Some(update) =
