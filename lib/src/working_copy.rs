@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::convert::TryInto;
 use std::ffi::OsString;
 use std::fs;
-use std::fs::{File, OpenOptions};
+use std::fs::{File, Metadata, OpenOptions};
 use std::io::Read;
 use std::ops::Bound;
 #[cfg(unix)]
@@ -154,15 +154,14 @@ fn create_parent_dirs(disk_path: &Path) {
         .unwrap_or_else(|_| panic!("failed to create parent directories for {:?}", &disk_path));
 }
 
-fn file_state(path: &Path) -> Option<FileState> {
-    let metadata = path.symlink_metadata().ok()?;
+fn file_state(metadata: &Metadata) -> FileState {
     let time = metadata.modified().unwrap();
     let since_epoch = time.duration_since(UNIX_EPOCH).unwrap();
     let mtime = MillisSinceEpoch(since_epoch.as_millis().try_into().unwrap());
     let size = metadata.len();
     let metadata_file_type = metadata.file_type();
     let file_type = if metadata_file_type.is_dir() {
-        panic!("expected file, not directory: {:?}", path);
+        panic!("expected file, not directory");
     } else if metadata_file_type.is_symlink() {
         FileType::Symlink
     } else {
@@ -176,11 +175,11 @@ fn file_state(path: &Path) -> Option<FileState> {
             FileType::Normal { executable: false }
         }
     };
-    Some(FileState {
+    FileState {
         file_type,
         mtime,
         size,
-    })
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -454,8 +453,9 @@ impl TreeState {
             // ignore it.
             return Ok(());
         }
+        let metadata = disk_path.symlink_metadata().unwrap();
         #[cfg_attr(unix, allow(unused_mut))]
-        let mut new_file_state = file_state(&disk_path).unwrap();
+        let mut new_file_state = file_state(&metadata);
         match maybe_current_file_state {
             None => {
                 // untracked
@@ -574,7 +574,8 @@ impl TreeState {
         // the file exists, and the stat information is most likely accurate,
         // except for other processes modifying the file concurrently (The mtime is set
         // at write time and won't change when we close the file.)
-        let mut file_state = file_state(disk_path).unwrap();
+        let metadata = disk_path.symlink_metadata().unwrap();
+        let mut file_state = file_state(&metadata);
         // Make sure the state we record is what we tried to set above. This is mostly
         // for Windows, since the executable bit is not reflected in the file system
         // there.
@@ -600,7 +601,8 @@ impl TreeState {
             let target = PathBuf::from(&target);
             symlink(target, disk_path).unwrap();
         }
-        Ok(file_state(disk_path).unwrap())
+        let metadata = disk_path.symlink_metadata().unwrap();
+        Ok(file_state(&metadata))
     }
 
     fn write_conflict(
@@ -622,7 +624,8 @@ impl TreeState {
         materialize_conflict(self.store.as_ref(), path, &conflict, &mut file).unwrap();
         // TODO: Set the executable bit correctly (when possible) and preserve that on
         // Windows like we do with the executable bit for regular files.
-        let mut result = file_state(disk_path).unwrap();
+        let metadata = disk_path.symlink_metadata().unwrap();
+        let mut result = file_state(&metadata);
         result.file_type = FileType::Conflict { id: id.clone() };
         Ok(result)
     }
