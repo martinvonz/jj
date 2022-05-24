@@ -570,11 +570,11 @@ impl TreeState {
         let mut contents = self.store.read_file(path, id)?;
         std::io::copy(&mut contents, &mut file).unwrap();
         self.set_executable(disk_path, executable);
-        // Read the file state while we still have the file open. That way, know that
-        // the file exists, and the stat information is most likely accurate,
-        // except for other processes modifying the file concurrently (The mtime is set
-        // at write time and won't change when we close the file.)
-        let metadata = disk_path.symlink_metadata().unwrap();
+        // Read the file state from the file descriptor. That way, know that the file
+        // exists and is of the expected type, and the stat information is most likely
+        // accurate, except for other processes modifying the file concurrently (The
+        // mtime is set at write time and won't change when we close the file.)
+        let metadata = file.metadata().unwrap();
         let mut file_state = file_state(&metadata);
         // Make sure the state we record is what we tried to set above. This is mostly
         // for Windows, since the executable bit is not reflected in the file system
@@ -624,7 +624,7 @@ impl TreeState {
         materialize_conflict(self.store.as_ref(), path, &conflict, &mut file).unwrap();
         // TODO: Set the executable bit correctly (when possible) and preserve that on
         // Windows like we do with the executable bit for regular files.
-        let metadata = disk_path.symlink_metadata().unwrap();
+        let metadata = file.metadata().unwrap();
         let mut result = file_state(&metadata);
         result.file_type = FileType::Conflict { id: id.clone() };
         Ok(result)
