@@ -608,10 +608,11 @@ impl TreeState {
                 err,
             })?;
         let mut contents = self.store.read_file(path, id)?;
-        std::io::copy(&mut contents, &mut file).map_err(|err| CheckoutError::IoError {
-            message: format!("Failed to write file {}", disk_path.display()),
-            err,
-        })?;
+        let size =
+            std::io::copy(&mut contents, &mut file).map_err(|err| CheckoutError::IoError {
+                message: format!("Failed to write file {}", disk_path.display()),
+                err,
+            })?;
         self.set_executable(disk_path, executable)?;
         // Read the file state from the file descriptor. That way, know that the file
         // exists and is of the expected type, and the stat information is most likely
@@ -625,6 +626,7 @@ impl TreeState {
         // for Windows, since the executable bit is not reflected in the file system
         // there.
         file_state.mark_executable(executable);
+        file_state.size = size;
         Ok(file_state)
     }
 
