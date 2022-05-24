@@ -557,7 +557,7 @@ impl TreeState {
         path: &RepoPath,
         id: &FileId,
         executable: bool,
-    ) -> FileState {
+    ) -> Result<FileState, CheckoutError> {
         create_parent_dirs(disk_path);
         // TODO: Check that we're not overwriting an un-ignored file here (which might
         // be created by a concurrent process).
@@ -567,7 +567,7 @@ impl TreeState {
             .truncate(true)
             .open(disk_path)
             .unwrap_or_else(|err| panic!("failed to open {:?} for write: {:?}", &disk_path, err));
-        let mut contents = self.store.read_file(path, id).unwrap();
+        let mut contents = self.store.read_file(path, id)?;
         std::io::copy(&mut contents, &mut file).unwrap();
         self.set_executable(disk_path, executable);
         // Read the file state while we still have the file open. That way, know that
@@ -579,11 +579,16 @@ impl TreeState {
         // for Windows, since the executable bit is not reflected in the file system
         // there.
         file_state.mark_executable(executable);
-        file_state
+        Ok(file_state)
     }
 
     #[cfg_attr(windows, allow(unused_variables))]
-    fn write_symlink(&self, disk_path: &Path, path: &RepoPath, id: &SymlinkId) -> FileState {
+    fn write_symlink(
+        &self,
+        disk_path: &Path,
+        path: &RepoPath,
+        id: &SymlinkId,
+    ) -> Result<FileState, CheckoutError> {
         create_parent_dirs(disk_path);
         #[cfg(windows)]
         {
@@ -591,16 +596,21 @@ impl TreeState {
         }
         #[cfg(unix)]
         {
-            let target = self.store.read_symlink(path, id).unwrap();
+            let target = self.store.read_symlink(path, id)?;
             let target = PathBuf::from(&target);
             symlink(target, disk_path).unwrap();
         }
-        file_state(disk_path).unwrap()
+        Ok(file_state(disk_path).unwrap())
     }
 
-    fn write_conflict(&self, disk_path: &Path, path: &RepoPath, id: &ConflictId) -> FileState {
+    fn write_conflict(
+        &self,
+        disk_path: &Path,
+        path: &RepoPath,
+        id: &ConflictId,
+    ) -> Result<FileState, CheckoutError> {
         create_parent_dirs(disk_path);
-        let conflict = self.store.read_conflict(path, id).unwrap();
+        let conflict = self.store.read_conflict(path, id)?;
         // TODO: Check that we're not overwriting an un-ignored file here (which might
         // be created by a concurrent process).
         let mut file = OpenOptions::new()
@@ -614,7 +624,7 @@ impl TreeState {
         // Windows like we do with the executable bit for regular files.
         let mut result = file_state(disk_path).unwrap();
         result.file_type = FileType::Conflict { id: id.clone() };
-        result
+        Ok(result)
     }
 
     #[cfg_attr(windows, allow(unused_variables))]
@@ -705,10 +715,10 @@ impl TreeState {
                 Diff::Added(after) => {
                     let file_state = match after {
                         TreeValue::Normal { id, executable } => {
-                            self.write_file(&disk_path, &path, &id, executable)
+                            self.write_file(&disk_path, &path, &id, executable)?
                         }
-                        TreeValue::Symlink(id) => self.write_symlink(&disk_path, &path, &id),
-                        TreeValue::Conflict(id) => self.write_conflict(&disk_path, &path, &id),
+                        TreeValue::Symlink(id) => self.write_symlink(&disk_path, &path, &id)?,
+                        TreeValue::Conflict(id) => self.write_conflict(&disk_path, &path, &id)?,
                         TreeValue::GitSubmodule(_id) => {
                             println!("ignoring git submodule at {:?}", path);
                             continue;
@@ -738,10 +748,14 @@ impl TreeState {
                     fs::remove_file(&disk_path).ok();
                     let file_state = match (before, after) {
                         (_, TreeValue::Normal { id, executable }) => {
-                            self.write_file(&disk_path, &path, &id, executable)
+                            self.write_file(&disk_path, &path, &id, executable)?
                         }
-                        (_, TreeValue::Symlink(id)) => self.write_symlink(&disk_path, &path, &id),
-                        (_, TreeValue::Conflict(id)) => self.write_conflict(&disk_path, &path, &id),
+                        (_, TreeValue::Symlink(id)) => {
+                            self.write_symlink(&disk_path, &path, &id)?
+                        }
+                        (_, TreeValue::Conflict(id)) => {
+                            self.write_conflict(&disk_path, &path, &id)?
+                        }
                         (_, TreeValue::GitSubmodule(_id)) => {
                             println!("ignoring git submodule at {:?}", path);
                             self.file_states.remove(&path);
