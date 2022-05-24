@@ -14,7 +14,6 @@
 
 use std::cell::{RefCell, RefMut};
 use std::collections::{BTreeMap, HashSet};
-use std::convert::TryInto;
 use std::ffi::OsString;
 use std::fs;
 use std::fs::{File, Metadata, OpenOptions};
@@ -154,10 +153,21 @@ fn create_parent_dirs(disk_path: &Path) {
         .unwrap_or_else(|_| panic!("failed to create parent directories for {:?}", &disk_path));
 }
 
+fn mtime_from_metadata(metadata: &Metadata) -> MillisSinceEpoch {
+    let time = metadata
+        .modified()
+        .expect("File mtime not supported on this platform?");
+    let since_epoch = time
+        .duration_since(UNIX_EPOCH)
+        .expect("mtime before unix epoch");
+
+    MillisSinceEpoch(
+        u64::try_from(since_epoch.as_millis()).expect("mtime billions of years into the future"),
+    )
+}
+
 fn file_state(metadata: &Metadata) -> FileState {
-    let time = metadata.modified().unwrap();
-    let since_epoch = time.duration_since(UNIX_EPOCH).unwrap();
-    let mtime = MillisSinceEpoch(since_epoch.as_millis().try_into().unwrap());
+    let mtime = mtime_from_metadata(metadata);
     let size = metadata.len();
     let metadata_file_type = metadata.file_type();
     let file_type = if metadata_file_type.is_dir() {
@@ -279,9 +289,7 @@ impl TreeState {
 
     fn update_own_mtime(&mut self) {
         if let Ok(metadata) = self.state_path.join("tree_state").symlink_metadata() {
-            let time = metadata.modified().unwrap();
-            let since_epoch = time.duration_since(UNIX_EPOCH).unwrap();
-            self.own_mtime = MillisSinceEpoch(since_epoch.as_millis().try_into().unwrap());
+            self.own_mtime = mtime_from_metadata(&metadata);
         } else {
             self.own_mtime = MillisSinceEpoch(0);
         }
