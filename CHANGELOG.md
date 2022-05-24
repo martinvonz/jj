@@ -78,7 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj git push` gained a `--change <revision>` argument. When that's used, it
   will create a branch named after the revision's change ID, so you don't have
-  to create a branch yourself.
+  to create a branch yourself. By default, the branch name will start with
+  `push-`, but this can be overridden by the `push.branch-prefix` config
+  setting.
 
 * Diff editor command arguments can now be specified by config file.
   Example:
