@@ -148,9 +148,15 @@ fn sparse_patterns_from_proto(proto: &crate::protos::working_copy::TreeState) ->
     sparse_patterns
 }
 
-fn create_parent_dirs(disk_path: &Path) {
-    fs::create_dir_all(disk_path.parent().unwrap())
-        .unwrap_or_else(|_| panic!("failed to create parent directories for {:?}", &disk_path));
+fn create_parent_dirs(disk_path: &Path) -> Result<(), CheckoutError> {
+    fs::create_dir_all(disk_path.parent().unwrap()).map_err(|err| CheckoutError::IoError {
+        message: format!(
+            "Failed to create parent directories for {}",
+            &disk_path.display()
+        ),
+        err,
+    })?;
+    Ok(())
 }
 
 fn mtime_from_metadata(metadata: &Metadata) -> MillisSinceEpoch {
@@ -201,7 +207,7 @@ pub struct CheckoutStats {
 
 #[derive(Debug, Error)]
 pub enum SnapshotError {
-    #[error("{message}: {err:?}")]
+    #[error("{message}: {err}")]
     IoError {
         message: String,
         #[source]
@@ -215,7 +221,7 @@ pub enum SnapshotError {
     InternalBackendError(#[from] BackendError),
 }
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum CheckoutError {
     // The current checkout was deleted, maybe by an overly aggressive GC that happened while
     // the current process was running.
@@ -225,8 +231,23 @@ pub enum CheckoutError {
     // working copy was read by the current process).
     #[error("Concurrent checkout")]
     ConcurrentCheckout,
+    #[error("{message}: {err:?}")]
+    IoError {
+        message: String,
+        #[source]
+        err: std::io::Error,
+    },
     #[error("Internal error: {0:?}")]
     InternalBackendError(#[from] BackendError),
+}
+
+impl CheckoutError {
+    fn for_stat_error(err: std::io::Error, path: &Path) -> Self {
+        CheckoutError::IoError {
+            message: format!("Failed to stat file {}", path.display()),
+            err,
+        }
+    }
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -574,7 +595,7 @@ impl TreeState {
         id: &FileId,
         executable: bool,
     ) -> Result<FileState, CheckoutError> {
-        create_parent_dirs(disk_path);
+        create_parent_dirs(disk_path)?;
         // TODO: Check that we're not overwriting an un-ignored file here (which might
         // be created by a concurrent process).
         let mut file = OpenOptions::new()
@@ -582,15 +603,23 @@ impl TreeState {
             .create(true)
             .truncate(true)
             .open(disk_path)
-            .unwrap_or_else(|err| panic!("failed to open {:?} for write: {:?}", &disk_path, err));
+            .map_err(|err| CheckoutError::IoError {
+                message: format!("Failed to open file {} for writing", disk_path.display()),
+                err,
+            })?;
         let mut contents = self.store.read_file(path, id)?;
-        std::io::copy(&mut contents, &mut file).unwrap();
-        self.set_executable(disk_path, executable);
+        std::io::copy(&mut contents, &mut file).map_err(|err| CheckoutError::IoError {
+            message: format!("Failed to write file {}", disk_path.display()),
+            err,
+        })?;
+        self.set_executable(disk_path, executable)?;
         // Read the file state from the file descriptor. That way, know that the file
         // exists and is of the expected type, and the stat information is most likely
         // accurate, except for other processes modifying the file concurrently (The
         // mtime is set at write time and won't change when we close the file.)
-        let metadata = file.metadata().unwrap();
+        let metadata = file
+            .metadata()
+            .map_err(|err| CheckoutError::for_stat_error(err, disk_path))?;
         let mut file_state = file_state(&metadata);
         // Make sure the state we record is what we tried to set above. This is mostly
         // for Windows, since the executable bit is not reflected in the file system
@@ -606,7 +635,7 @@ impl TreeState {
         path: &RepoPath,
         id: &SymlinkId,
     ) -> Result<FileState, CheckoutError> {
-        create_parent_dirs(disk_path);
+        create_parent_dirs(disk_path)?;
         #[cfg(windows)]
         {
             println!("ignoring symlink at {:?}", path);
@@ -615,9 +644,18 @@ impl TreeState {
         {
             let target = self.store.read_symlink(path, id)?;
             let target = PathBuf::from(&target);
-            symlink(target, disk_path).unwrap();
+            symlink(&target, disk_path).map_err(|err| CheckoutError::IoError {
+                message: format!(
+                    "Failed to create symlink from {} to {}",
+                    disk_path.display(),
+                    target.display()
+                ),
+                err,
+            })?;
         }
-        let metadata = disk_path.symlink_metadata().unwrap();
+        let metadata = disk_path
+            .symlink_metadata()
+            .map_err(|err| CheckoutError::for_stat_error(err, disk_path))?;
         Ok(file_state(&metadata))
     }
 
@@ -627,7 +665,7 @@ impl TreeState {
         path: &RepoPath,
         id: &ConflictId,
     ) -> Result<FileState, CheckoutError> {
-        create_parent_dirs(disk_path);
+        create_parent_dirs(disk_path)?;
         let conflict = self.store.read_conflict(path, id)?;
         // TODO: Check that we're not overwriting an un-ignored file here (which might
         // be created by a concurrent process).
@@ -636,27 +674,35 @@ impl TreeState {
             .create(true)
             .truncate(true)
             .open(disk_path)
-            .unwrap_or_else(|err| panic!("failed to open {:?} for write: {:?}", &disk_path, err));
-        materialize_conflict(self.store.as_ref(), path, &conflict, &mut file).unwrap();
+            .map_err(|err| CheckoutError::IoError {
+                message: format!("Failed to open file {} for writing", disk_path.display()),
+                err,
+            })?;
+        materialize_conflict(self.store.as_ref(), path, &conflict, &mut file).map_err(|err| {
+            CheckoutError::IoError {
+                message: format!("Failed to write conflict to file {}", disk_path.display()),
+                err,
+            }
+        })?;
         // TODO: Set the executable bit correctly (when possible) and preserve that on
         // Windows like we do with the executable bit for regular files.
-        let metadata = file.metadata().unwrap();
+        let metadata = file
+            .metadata()
+            .map_err(|err| CheckoutError::for_stat_error(err, disk_path))?;
         let mut result = file_state(&metadata);
         result.file_type = FileType::Conflict { id: id.clone() };
         Ok(result)
     }
 
     #[cfg_attr(windows, allow(unused_variables))]
-    fn set_executable(&self, disk_path: &Path, executable: bool) {
-        #[cfg(windows)]
-        {
-            return;
-        }
+    fn set_executable(&self, disk_path: &Path, executable: bool) -> Result<(), CheckoutError> {
         #[cfg(unix)]
         {
             let mode = if executable { 0o755 } else { 0o644 };
-            fs::set_permissions(disk_path, fs::Permissions::from_mode(mode)).unwrap();
+            fs::set_permissions(disk_path, fs::Permissions::from_mode(mode))
+                .map_err(|err| CheckoutError::for_stat_error(err, disk_path))?;
         }
+        Ok(())
     }
 
     pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {
@@ -758,7 +804,7 @@ impl TreeState {
                 ) if id == old_id => {
                     // Optimization for when only the executable bit changed
                     assert_ne!(executable, old_executable);
-                    self.set_executable(&disk_path, executable);
+                    self.set_executable(&disk_path, executable)?;
                     let file_state = self.file_states.get_mut(&path).unwrap();
                     file_state.mark_executable(executable);
                     stats.updated_files += 1;
