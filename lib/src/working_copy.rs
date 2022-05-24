@@ -16,7 +16,7 @@ use std::cell::{RefCell, RefMut};
 use std::collections::{BTreeMap, HashSet};
 use std::ffi::OsString;
 use std::fs;
-use std::fs::{File, Metadata, OpenOptions};
+use std::fs::{DirEntry, File, Metadata, OpenOptions};
 use std::io::Read;
 use std::ops::Bound;
 #[cfg(unix)]
@@ -435,7 +435,7 @@ impl TreeState {
                     if sparse_matcher.matches(&sub_path) {
                         self.update_file_state(
                             sub_path,
-                            entry.path(),
+                            &entry,
                             git_ignore.as_ref(),
                             &mut tree_builder,
                         )?;
@@ -474,7 +474,7 @@ impl TreeState {
     fn update_file_state(
         &mut self,
         repo_path: RepoPath,
-        disk_path: PathBuf,
+        dir_entry: &DirEntry,
         git_ignore: &GitIgnoreFile,
         tree_builder: &mut TreeBuilder,
     ) -> Result<(), SnapshotError> {
@@ -486,12 +486,11 @@ impl TreeState {
             // ignore it.
             return Ok(());
         }
-        let metadata = disk_path
-            .symlink_metadata()
-            .map_err(|err| SnapshotError::IoError {
-                message: format!("Failed to stat file {}", disk_path.display()),
-                err,
-            })?;
+        let disk_path = dir_entry.path();
+        let metadata = dir_entry.metadata().map_err(|err| SnapshotError::IoError {
+            message: format!("Failed to stat file {}", disk_path.display()),
+            err,
+        })?;
         let mut new_file_state = file_state(&metadata);
         match maybe_current_file_state {
             None => {
