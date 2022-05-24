@@ -454,7 +454,6 @@ impl TreeState {
             return Ok(());
         }
         let metadata = disk_path.symlink_metadata().unwrap();
-        #[cfg_attr(unix, allow(unused_mut))]
         let mut new_file_state = file_state(&metadata);
         match maybe_current_file_state {
             None => {
