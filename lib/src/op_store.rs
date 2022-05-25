@@ -15,6 +15,8 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
 
+use thiserror::Error;
+
 use crate::backend::{CommitId, Timestamp};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
@@ -221,9 +223,11 @@ impl OperationMetadata {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum OpStoreError {
+    #[error("Operation not found")]
     NotFound,
+    #[error("{0}")]
     Other(String),
 }
 

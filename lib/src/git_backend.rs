@@ -377,7 +377,7 @@ impl Backend for GitBackend {
         };
 
         let table = self.extra_metadata_store.get_head().map_err(|err| {
-            BackendError::Other(format!("Failed to read non-git metadata: {:?}", err))
+            BackendError::Other(format!("Failed to read non-git metadata: {err}"))
         })?;
         let maybe_extras = table.get_value(git_commit_id.as_bytes());
         if let Some(extras) = maybe_extras {
@@ -428,7 +428,7 @@ impl Backend for GitBackend {
         self.extra_metadata_store
             .save_table(mut_table)
             .map_err(|err| {
-                BackendError::Other(format!("Failed to write non-git metadata: {:?}", err))
+                BackendError::Other(format!("Failed to write non-git metadata: {err}"))
             })?;
         Ok(id)
     }

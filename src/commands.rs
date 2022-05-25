@@ -89,20 +89,20 @@ impl From<std::io::Error> for CommandError {
             CommandError::BrokenPipe
         } else {
             // TODO: Record the error as a chained cause
-            CommandError::InternalError(format!("I/O error: {}", err))
+            CommandError::InternalError(format!("I/O error: {err}"))
         }
     }
 }
 
 impl From<config::ConfigError> for CommandError {
     fn from(err: config::ConfigError) -> Self {
-        CommandError::UserError(format!("Config error: {}", err))
+        CommandError::UserError(format!("Config error: {err}"))
     }
 }
 
 impl From<BackendError> for CommandError {
     fn from(err: BackendError) -> Self {
-        CommandError::UserError(format!("Unexpected error from store: {}", err))
+        CommandError::UserError(format!("Unexpected error from store: {err}"))
     }
 }
 
@@ -124,13 +124,13 @@ impl From<OpHeadResolutionError> for CommandError {
 
 impl From<SnapshotError> for CommandError {
     fn from(err: SnapshotError) -> Self {
-        CommandError::InternalError(format!("Failed to snapshot the working copy: {:?}", err))
+        CommandError::InternalError(format!("Failed to snapshot the working copy: {err}"))
     }
 }
 
 impl From<TreeMergeError> for CommandError {
     fn from(err: TreeMergeError) -> Self {
-        CommandError::InternalError(format!("Merge failed: {}", err))
+        CommandError::InternalError(format!("Merge failed: {err}"))
     }
 }
 
@@ -142,21 +142,20 @@ impl From<ResetError> for CommandError {
 
 impl From<DiffEditError> for CommandError {
     fn from(err: DiffEditError) -> Self {
-        CommandError::UserError(format!("Failed to edit diff: {}", err))
+        CommandError::UserError(format!("Failed to edit diff: {err}"))
     }
 }
 
 impl From<git2::Error> for CommandError {
     fn from(err: git2::Error) -> Self {
-        CommandError::UserError(format!("Git operation failed: {}", err))
+        CommandError::UserError(format!("Git operation failed: {err}"))
     }
 }
 
 impl From<GitImportError> for CommandError {
     fn from(err: GitImportError) -> Self {
         CommandError::InternalError(format!(
-            "Failed to import refs from underlying Git repo: {}",
-            err
+            "Failed to import refs from underlying Git repo: {err}"
         ))
     }
 }
@@ -164,13 +163,11 @@ impl From<GitImportError> for CommandError {
 impl From<GitExportError> for CommandError {
     fn from(err: GitExportError) -> Self {
         match err {
-            GitExportError::ConflictedBranch(branch_name) => CommandError::UserError(format!(
-                "Cannot export conflicted branch '{}'",
-                branch_name
-            )),
+            GitExportError::ConflictedBranch(branch_name) => {
+                CommandError::UserError(format!("Cannot export conflicted branch '{branch_name}'"))
+            }
             GitExportError::InternalGitError(err) => CommandError::InternalError(format!(
-                "Failed to export refs to underlying Git repo: {}",
-                err
+                "Failed to export refs to underlying Git repo: {err}"
             )),
         }
     }
@@ -178,13 +175,13 @@ impl From<GitExportError> for CommandError {
 
 impl From<RevsetParseError> for CommandError {
     fn from(err: RevsetParseError) -> Self {
-        CommandError::UserError(format!("Failed to parse revset: {}", err))
+        CommandError::UserError(format!("Failed to parse revset: {err}"))
     }
 }
 
 impl From<RevsetError> for CommandError {
     fn from(err: RevsetError) -> Self {
-        CommandError::UserError(format!("{}", err))
+        CommandError::UserError(format!("{err}"))
     }
 }
 
@@ -192,7 +189,7 @@ impl From<FilePathParseError> for CommandError {
     fn from(err: FilePathParseError) -> Self {
         match err {
             FilePathParseError::InputNotInRepo(input) => {
-                CommandError::UserError(format!("Path \"{}\" is not in the repo", input))
+                CommandError::UserError(format!("Path \"{input}\" is not in the repo"))
             }
         }
     }
@@ -936,8 +933,7 @@ fn resolve_single_op_from_store(
             }
             Err(err) => {
                 return Err(CommandError::InternalError(format!(
-                    "Failed to read operation: {:?}",
-                    err
+                    "Failed to read operation: {err}"
                 )));
             }
         }
@@ -4653,7 +4649,7 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
         }
         let new_patterns = new_patterns.into_iter().sorted().collect();
         let stats = locked_wc.set_sparse_patterns(new_patterns).map_err(|err| {
-            CommandError::InternalError(format!("Failed to update working copy paths: {}", err))
+            CommandError::InternalError(format!("Failed to update working copy paths: {err}"))
         })?;
         let operation_id = locked_wc.old_operation_id().clone();
         locked_wc.finish(operation_id);
@@ -4814,7 +4810,7 @@ fn cmd_git_clone(
                 panic!("should't happen as we just created the git remote")
             }
             GitFetchError::InternalGitError(err) => {
-                CommandError::UserError(format!("Fetch failed: {:?}", err))
+                CommandError::UserError(format!("Fetch failed: {err}"))
             }
         })?;
     if let Some(default_branch) = maybe_default_branch {
