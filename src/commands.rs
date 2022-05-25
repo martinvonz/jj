@@ -4863,6 +4863,11 @@ fn cmd_git_push(
         if let Some(update) =
             branch_updates_for_push(tx.mut_repo().as_repo_ref(), &args.remote, &branch_name)?
         {
+            writeln!(
+                ui,
+                "Creating branch {} for revision {}",
+                branch_name, change_str
+            )?;
             branch_updates.insert(branch_name.clone(), update);
         } else {
             writeln!(
