@@ -217,7 +217,7 @@ pub enum SnapshotError {
     InvalidUtf8Path { path: OsString },
     #[error("Symlink {path} target is not valid UTF-8")]
     InvalidUtf8SymlinkTarget { path: PathBuf, target: PathBuf },
-    #[error("Internal backend error: {0:?}")]
+    #[error("Internal backend error: {0}")]
     InternalBackendError(#[from] BackendError),
 }
 
@@ -237,7 +237,7 @@ pub enum CheckoutError {
         #[source]
         err: std::io::Error,
     },
-    #[error("Internal error: {0:?}")]
+    #[error("Internal error: {0}")]
     InternalBackendError(#[from] BackendError),
 }
 
@@ -256,7 +256,7 @@ pub enum ResetError {
     // the current process was running.
     #[error("Current checkout not found")]
     SourceNotFound,
-    #[error("Internal error: {0:?}")]
+    #[error("Internal error: {0}")]
     InternalBackendError(#[from] BackendError),
 }
 
