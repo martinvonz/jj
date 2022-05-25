@@ -68,7 +68,7 @@ impl UserSettings {
     pub fn push_branch_prefix(&self) -> String {
         self.config
             .get_string("push.branch-prefix")
-            .unwrap_or("push-".to_string())
+            .unwrap_or_else(|_| "push-".to_string())
     }
 
     pub fn signature(&self) -> Signature {
