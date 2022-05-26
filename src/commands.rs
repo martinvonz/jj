@@ -3165,7 +3165,7 @@ fn edit_description(
     description: &str,
 ) -> Result<String, CommandError> {
     let random: u32 = rand::random();
-    let description_file_path = repo.repo_path().join(format!("description-{}", random));
+    let description_file_path = repo.repo_path().join(format!("description-{}.txt", random));
     {
         let mut description_file = OpenOptions::new()
             .write(true)
