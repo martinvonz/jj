@@ -188,7 +188,7 @@ $ echo b2 > file1; jj close -m B2
 Working copy now at: fd571967346e (no description set)
 $ echo c > file2; jj close -m C
 Working copy now at: 4ae1e0587eef (no description set)
-$ jj l
+$ jj log
 @ 4ae1e0587eef 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00
 |
 o 1769bdaa8d6d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00
@@ -208,7 +208,7 @@ $ jj rebase -s 5548374c0794 -d cf49e6bec410
 Rebased 3 commits
 Working copy now at: 9195b6d2e8dc (no description set)
 Added 0 files, modified 1 files, removed 0 files
-$ jj l
+$ jj log
 @ 9195b6d2e8dc 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00 conflict
 | (no description set)
 o 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00  conflict
@@ -225,7 +225,7 @@ There are several things worth noting here. First, the `jj rebase` command said
 "Rebased 3 commits". That's because we asked it to rebase commit B2 with the
 `-s` option, which also rebases descendants (commit C and the working copy in
 this case). Second, because B2 modified the same file (and word) as B1, rebasing
-it resulted in conflicts, as the `jj l` output indicates. Third, the conflicts
+it resulted in conflicts, as the `jj log` output indicates. Third, the conflicts
 did not prevent the rebase from completing successfully, nor did it prevent C
 and the working copy from getting rebased on top.
 
@@ -256,7 +256,7 @@ $ echo resolved > file1
 $ jj squash
 Rebased 1 descendant commits
 Working copy now at: e659edc4a9fc (no description set)
-$ jj l
+$ jj log
 @ e659edc4a9fc 461f38324592 martinvonz@google.com 2021-05-26 12:53:08.000 -07:00
 | (no description set)
 | o 69dbcf76642a 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00
@@ -302,7 +302,7 @@ an operation. By default, it will undo the most recent operation. Let's try it:
 ```shell script
 $ jj undo
 Working copy now at: 41f0d2289b56
-$ jj l
+$ jj log
 @ 41f0d2289b56 b1e3a4afde5e martinvonz@google.com 2021-05-26 12:52:39.000 -07:00
 |
 | o 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00  conflict
@@ -319,8 +319,8 @@ squashing the conflict resolution into commit B2 earlier. Notice that it also
 updated the working copy.
 
 You can also view the repo the way it looked after some earlier operation. For
-example, if you want to see `jj l` output right after the `jj rebase` operation,
-try `jj l --at-op=401652a2f61e` but use the hash from your own `jj op log`.
+example, if you want to see `jj log` output right after the `jj rebase` operation,
+try `jj log --at-op=401652a2f61e` but use the hash from your own `jj op log`.
 
 ## Moving content changes between commits
 
@@ -345,7 +345,7 @@ $ printf 'A\nB\nc\n' > file; jj close -m ABC
 Working copy now at: 9d97c5018b23 (no description set)
 $ printf 'A\nB\nC\nD\n' > file; jj close -m ABCD
 Working copy now at: c5a985bc3f41 (no description set)
-$ jj l
+$ jj log
 @ c5a985bc3f41 3568f6e332d5 martinvonz@google.com 2021-05-26 14:36:46.000 -07:00 
 | (no description set)
 o 687009839bae 874f2d307594 martinvonz@google.com 2021-05-26 14:36:38.000 -07:00 
