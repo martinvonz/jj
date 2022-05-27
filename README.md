@@ -204,7 +204,7 @@ cargo install --git https://github.com/martinvonz/jj.git
 ## Initial configuration
 
 You may want to configure your name and email so commits are made in your name.
-Create a file at `~/jjconfig.toml` and make it look something like
+Create a file at `~/.jjconfig.toml` and make it look something like
 this:
 ```shell script
 $ cat ~/.jjconfig.toml
