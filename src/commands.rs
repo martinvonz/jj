@@ -5001,12 +5001,30 @@ fn cmd_git_push(
             old_heads.extend(old_head.adds());
         }
     }
+    if old_heads.is_empty() {
+        old_heads.push(repo.store().root_commit_id().clone());
+    }
     for index_entry in repo.index().walk_revs(&new_heads, &old_heads) {
         let commit = repo.store().get_commit(&index_entry.commit_id())?;
+        let mut reasons = vec![];
+        if commit.description().is_empty() {
+            reasons.push("it has no description");
+        }
+        if commit.author().name == UserSettings::user_name_placeholder()
+            || commit.author().email == UserSettings::user_email_placeholder()
+            || commit.committer().name == UserSettings::user_name_placeholder()
+            || commit.committer().email == UserSettings::user_email_placeholder()
+        {
+            reasons.push("it has no author and/or committer set");
+        }
         if commit.tree().has_conflict() {
+            reasons.push("it has conflicts");
+        }
+        if !reasons.is_empty() {
             return Err(UserError(format!(
-                "Won't push commit {} since it has conflicts",
-                short_commit_hash(commit.id())
+                "Won't push commit {} since {}",
+                short_commit_hash(commit.id()),
+                reasons.join(" and ")
             )));
         }
     }
