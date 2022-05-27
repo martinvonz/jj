@@ -85,6 +85,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `push-`, but this can be overridden by the `push.branch-prefix` config
   setting.
 
+* `jj git push` now aborts if you attempt to push a commit without a
+  description or with the placeholder "(no name/email configured)" values for
+  author/committer.
+
 * Diff editor command arguments can now be specified by config file.
   Example:
 
