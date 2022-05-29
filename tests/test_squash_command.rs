@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -31,9 +33,7 @@ fn test_squash() {
     test_env.jj_cmd_success(&repo_path, &["branch", "c"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     // Test the setup
-    let template = r#"commit_id.short() " " branches"#;
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 90fe0a96fc90 c
     o fa5efbdf533c b
     o 90aeefd03044 a
@@ -45,8 +45,7 @@ fn test_squash() {
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 6ca29c9d2e7c (no description set)
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 6ca29c9d2e7c b c
     o 90aeefd03044 a
     o 000000000000 
@@ -63,8 +62,7 @@ fn test_squash() {
     Rebased 1 descendant commits
     Working copy now at: e87cf8ebc7e1 (no description set)
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ e87cf8ebc7e1 c
     o 893c93ae2a87 a b
     o 000000000000 
@@ -87,8 +85,7 @@ fn test_squash() {
     std::fs::write(repo_path.join("file2"), "d\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["merge", "-m", "merge", "c", "d"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "e", "-r", "@+"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     o   b9ad3fdfc2c4 e
     |\  
     @ | 9a18f8da1e69 d
@@ -110,8 +107,7 @@ fn test_squash() {
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 626d78245205 (no description set)
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 626d78245205 
     o   2a25465aba5f e
     |\  
@@ -146,9 +142,7 @@ fn test_squash_partial() {
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     std::fs::write(repo_path.join("file2"), "c\n").unwrap();
     // Test the setup
-    let template = r#"commit_id.short() " " branches"#;
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ d989314f3df0 c
     o 2a2d19a3283f b
     o 47a1e795d146 a
@@ -164,8 +158,7 @@ fn test_squash_partial() {
     Rebased 1 descendant commits
     Working copy now at: f03d5ce4a973 (no description set)
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ f03d5ce4a973 c
     o c9f931cd78af a b
     o 000000000000 
@@ -183,8 +176,7 @@ fn test_squash_partial() {
     Rebased 1 descendant commits
     Working copy now at: e7a40106bee6 (no description set)
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ e7a40106bee6 c
     o 05d951646873 b
     o 0c5ddc685260 a
@@ -216,8 +208,7 @@ fn test_squash_partial() {
     Rebased 1 descendant commits
     Working copy now at: a911fa1d0627 (no description set)
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ a911fa1d0627 c
     o fb73ad17899f b
     o 70621f4c7a42 a
@@ -239,4 +230,11 @@ fn test_squash_partial() {
     insta::assert_snapshot!(stdout, @r###"
     b
     "###);
+}
+
+fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(
+        repo_path,
+        &["log", "-T", r#"commit_id.short() " " branches"#],
+    )
 }
