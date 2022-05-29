@@ -79,8 +79,7 @@ fn test_rebase_branch() {
     create_commit(&test_env, &repo_path, "d", &["b"]);
     create_commit(&test_env, &repo_path, "e", &["a"]);
     // Test the setup
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
     o e
     | o d
@@ -96,8 +95,7 @@ fn test_rebase_branch() {
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     o d
     | o c
     |/  
@@ -122,8 +120,7 @@ fn test_rebase_branch_with_merge() {
     create_commit(&test_env, &repo_path, "d", &["c"]);
     create_commit(&test_env, &repo_path, "e", &["a", "d"]);
     // Test the setup
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
     o   e
     |\  
@@ -142,8 +139,7 @@ fn test_rebase_branch_with_merge() {
     Working copy now at: f6eecf0d8f36 (no description set)
     Added 1 files, modified 0 files, removed 0 files
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
     o e
     o d
@@ -160,8 +156,7 @@ fn test_rebase_branch_with_merge() {
     Working copy now at: a15dfb947f3f (no description set)
     Added 1 files, modified 0 files, removed 0 files
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
     o e
     o d
@@ -183,8 +178,7 @@ fn test_rebase_single_revision() {
     create_commit(&test_env, &repo_path, "c", &["a", "b"]);
     create_commit(&test_env, &repo_path, "d", &["c"]);
     // Test the setup
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
     o d
     o   c
@@ -205,8 +199,7 @@ fn test_rebase_single_revision() {
     Working copy now at: ee6a5a3f71d4 (no description set)
     Added 0 files, modified 0 files, removed 2 files
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
     o d
     o c
@@ -222,8 +215,7 @@ fn test_rebase_single_revision() {
     Working copy now at: 6dc5b752c6ad (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
     o   d
     |\  
@@ -247,8 +239,7 @@ fn test_rebase_multiple_destinations() {
     create_commit(&test_env, &repo_path, "b", &[]);
     create_commit(&test_env, &repo_path, "c", &[]);
     // Test the setup
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
     o c
     | o b
@@ -260,8 +251,7 @@ fn test_rebase_multiple_destinations() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "c"]);
     insta::assert_snapshot!(stdout, @r###""###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     o   a
     |\  
     | | @ 
@@ -285,8 +275,7 @@ fn test_rebase_with_descendants() {
     create_commit(&test_env, &repo_path, "c", &["a", "b"]);
     create_commit(&test_env, &repo_path, "d", &["c"]);
     // Test the setup
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
     o d
     o   c
@@ -302,8 +291,7 @@ fn test_rebase_with_descendants() {
     Rebased 4 commits
     Working copy now at: 60e083aa9086 (no description set)
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "branches"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
     o d
     o c
@@ -311,4 +299,8 @@ fn test_rebase_with_descendants() {
     o a
     o 
     "###);
+}
+
+fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(repo_path, &["log", "-T", "branches"])
 }
