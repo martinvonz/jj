@@ -1400,7 +1400,8 @@ struct NewArgs {
 /// destination. The selected changes (or all the changes in the source revision
 /// if not using `--interactive`) will be moved into the destination. The
 /// changes will be removed from the source. If that means that the source is
-/// now empty compared to its parent, it will be abandoned.
+/// now empty compared to its parent, it will be abandoned unless it's checked
+/// out. Without `--interactive`, the source change will always be empty.
 #[derive(clap::Args, Clone, Debug)]
 #[clap(group(ArgGroup::new("to_move").args(&["from", "to"]).multiple(true).required(true)))]
 struct MoveArgs {
@@ -1422,8 +1423,8 @@ struct MoveArgs {
 ///
 /// After moving the changes into the parent, the child revision will have the
 /// same content state as before. If that means that the change is now empty
-/// compared to its parent, it will be abandoned. This will always be the case
-/// without `--interactive`.
+/// compared to its parent, it will be abandoned unless it's checked out.
+/// Without `--interactive`, the child change will always be empty.
 #[derive(clap::Args, Clone, Debug)]
 #[clap(visible_alias = "amend")]
 struct SquashArgs {
@@ -1438,6 +1439,12 @@ struct SquashArgs {
 }
 
 /// Move changes from a revision's parent into the revision
+///
+/// After moving the changes out of the parent, the child revision will have the
+/// same content state as before. If moving the change out of the parent change
+/// made it empty compared to its parent, it will be abandoned unless it's
+/// checked out. Without `--interactive`, the parent change will always become
+/// empty.
 #[derive(clap::Args, Clone, Debug)]
 #[clap(visible_alias = "unamend")]
 struct UnsquashArgs {
@@ -1445,7 +1452,7 @@ struct UnsquashArgs {
     revision: String,
     /// Interactively choose which parts to unsquash
     // TODO: It doesn't make much sense to run this without -i. We should make that
-    // the default. We should also abandon the parent commit if that becomes empty.
+    // the default.
     #[clap(long, short)]
     interactive: bool,
 }
@@ -3423,7 +3430,7 @@ from the source will be moved into the destination.
         .get_tree(&RepoPath::root(), &new_parent_tree_id)?;
     // Apply the reverse of the selected changes onto the source
     let new_source_tree_id = merge_trees(&source_tree, &new_parent_tree, &parent_tree)?;
-    if new_source_tree_id == *parent_tree.id() {
+    if new_source_tree_id == *parent_tree.id() && !repo.view().is_checkout(source.id()) {
         mut_repo.record_abandoned_commit(source.id().clone());
     } else {
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &source)
@@ -3495,7 +3502,8 @@ from the source will be moved into the parent.
     }
     // Abandon the child if the parent now has all the content from the child
     // (always the case in the non-interactive case).
-    let abandon_child = &new_parent_tree_id == commit.tree_id();
+    let abandon_child =
+        &new_parent_tree_id == commit.tree_id() && !repo.view().is_checkout(commit.id());
     let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), parent)
         .set_tree(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
@@ -3560,7 +3568,7 @@ aborted.
     }
     // Abandon the parent if it is now empty (always the case in the non-interactive
     // case).
-    if &new_parent_tree_id == parent_base_tree.id() {
+    if &new_parent_tree_id == parent_base_tree.id() && !repo.view().is_checkout(parent.id()) {
         mut_repo.record_abandoned_commit(parent.id().clone());
         // Commit the new child on top of the parent's parents.
         CommitBuilder::for_rewrite_from(ui.settings(), repo.store(), &commit)

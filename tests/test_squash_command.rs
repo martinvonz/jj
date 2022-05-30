@@ -43,10 +43,11 @@ fn test_squash() {
     // Squashes the working copy into the parent by default
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 6ca29c9d2e7c (no description set)
+    Working copy now at: 5f56e6899bce (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ 6ca29c9d2e7c b c
+    @ 5f56e6899bce c
+    o 6ca29c9d2e7c b
     o 90aeefd03044 a
     o 000000000000 
     "###);
@@ -105,10 +106,10 @@ fn test_squash() {
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 626d78245205 (no description set)
+    Working copy now at: b4e9307669d0 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ 626d78245205 
+    @ b4e9307669d0 
     o   2a25465aba5f e
     |\  
     o | 9a18f8da1e69 d

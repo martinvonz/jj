@@ -142,6 +142,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * When checking out a commit, the previous commit is no longer abandoned if it
   has a non-empty description.
 
+* When using `jj move/squash/unsquash` results in the source commit becoming
+  empty, it is no longer abandoned if it is checked out (in any workspace).
+
 ## [0.4.0] - 2022-04-02
 
 ### Breaking changes

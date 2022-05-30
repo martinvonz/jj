@@ -130,7 +130,7 @@ fn test_edit_merge() {
     insta::assert_snapshot!(stdout, @r###"
     Created 608f32ad9e19 merge
     Rebased 1 descendant commits
-    Working copy now at: a791bdbda05c (no description set)
+    Working copy now at: 2eca803962db (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);

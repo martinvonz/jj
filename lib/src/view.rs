@@ -14,6 +14,8 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+use itertools::Itertools;
+
 use crate::backend::CommitId;
 use crate::index::IndexRef;
 use crate::op_store;
@@ -46,6 +48,10 @@ impl View {
 
     pub fn get_checkout(&self, workspace_id: &WorkspaceId) -> Option<&CommitId> {
         self.data.checkouts.get(workspace_id)
+    }
+
+    pub fn is_checkout(&self, commit_id: &CommitId) -> bool {
+        self.data.checkouts.values().contains(commit_id)
     }
 
     pub fn heads(&self) -> &HashSet<CommitId> {
