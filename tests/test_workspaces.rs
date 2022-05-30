@@ -101,13 +101,13 @@ fn test_workspaces_conflicting_edits() {
     let stdout = test_env.jj_cmd_success(&main_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
-    Working copy now at: 86bef7fee095 (no description set)
+    Working copy now at: 6d004761e813 (no description set)
     "###);
 
     // The secondary workspace's checkout was updated
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    @ 86bef7fee095bb5626d853c222764fc7c9fb88ac default@
-    | o 8d8269a323a01a287236c4fd5f64dc9737febb5b secondary@
+    o 8d8269a323a01a287236c4fd5f64dc9737febb5b secondary@
+    | @ 6d004761e81306cf8b2168a18868fbc84f182556 default@
     |/  
     o 52601f748bf6cb00ad5389922f530f20a7ecffaa 
     o 0000000000000000000000000000000000000000 
@@ -118,8 +118,8 @@ fn test_workspaces_conflicting_edits() {
     // have been committed first (causing divergence)
     assert!(stdout.starts_with("The working copy is stale"));
     insta::assert_snapshot!(stdout.lines().skip(1).join("\n"), @r###"
-    o 86bef7fee095bb5626d853c222764fc7c9fb88ac default@
-    | @ 8d8269a323a01a287236c4fd5f64dc9737febb5b secondary@
+    @ 8d8269a323a01a287236c4fd5f64dc9737febb5b secondary@
+    | o 6d004761e81306cf8b2168a18868fbc84f182556 default@
     |/  
     o 52601f748bf6cb00ad5389922f530f20a7ecffaa 
     o 0000000000000000000000000000000000000000 
