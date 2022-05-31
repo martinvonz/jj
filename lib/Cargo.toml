@@ -42,7 +42,7 @@ zstd = "0.11.2"
 
 [dev-dependencies]
 assert_matches = "1.5.0"
-insta = "1.14.0"
+insta = "1.14.1"
 num_cpus = "1.13.1"
 test-case = "2.1.0"
 
