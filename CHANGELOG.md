@@ -106,6 +106,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj log` now accepts a `--reversed` option, which will show older commits
   first.
 
+* `jj obslog` now accepts `-p`/`--patch` option, which will show the diff
+  compared to the previous version of the change.
+
 * The "(no name/email configured)" placeholder value for name/email will now be
   replaced if once you modify a commit after having configured your name/email.
 

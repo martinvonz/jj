@@ -1322,6 +1322,15 @@ struct ObslogArgs {
     /// documented and is likely to change)
     #[clap(long, short = 'T')]
     template: Option<String>,
+    /// Show patch compared to the previous version of this change
+    ///
+    /// If the previous version has different parents, it will be temporarily
+    /// rebased to the parents of the new version, so the diff is not
+    /// contaminated by unrelated changes.
+    #[clap(long, short = 'p')]
+    patch: bool,
+    #[clap(flatten)]
+    diff_format: DiffFormatArgs,
 }
 
 /// Edit the change description
@@ -3119,6 +3128,9 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = workspace_command.repo().view().get_checkout(&workspace_id);
 
+    let diff_format = (args.patch || args.diff_format.git || args.diff_format.summary)
+        .then(|| diff_format_for(ui, &args.diff_format));
+
     let template_string = match &args.template {
         Some(value) => value.to_string(),
         None => log_template(ui.settings()),
@@ -3142,7 +3154,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
         let mut graph = AsciiGraphDrawer::new(&mut formatter);
         for commit in commits {
             let mut edges = vec![];
-            for predecessor in commit.predecessors() {
+            for predecessor in &commit.predecessors() {
                 edges.push(Edge::direct(predecessor.id().clone()));
             }
             let mut buffer = vec![];
@@ -3154,6 +3166,16 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
+            if let Some(diff_format) = diff_format {
+                let writer = Box::new(&mut buffer);
+                let mut formatter = ui.new_formatter(writer);
+                show_predecessor_patch(
+                    formatter.as_mut(),
+                    &workspace_command,
+                    &commit,
+                    diff_format,
+                )?;
+            }
             let node_symbol = if Some(commit.id()) == checkout_id {
                 b"@"
             } else {
@@ -3164,9 +3186,43 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
     } else {
         for commit in commits {
             template.format(&commit, formatter)?;
+            if let Some(diff_format) = diff_format {
+                show_predecessor_patch(formatter, &workspace_command, &commit, diff_format)?;
+            }
         }
     }
 
+    Ok(())
+}
+
+fn show_predecessor_patch(
+    formatter: &mut dyn Formatter,
+    workspace_command: &WorkspaceCommandHelper,
+    commit: &Commit,
+    diff_format: DiffFormat,
+) -> Result<(), CommandError> {
+    if let Some(predecessor) = commit.predecessors().first() {
+        let predecessor_tree = if predecessor.parent_ids() == commit.parent_ids() {
+            predecessor.tree()
+        } else {
+            // Rebase the predecessor to have the current commit's parent(s) and use that
+            // tree as base
+            let new_parent_tree =
+                merge_commit_trees(workspace_command.repo().as_repo_ref(), &commit.parents());
+            let old_parent_tree = merge_commit_trees(
+                workspace_command.repo().as_repo_ref(),
+                &predecessor.parents(),
+            );
+            let rebased_tree_id =
+                merge_trees(&new_parent_tree, &old_parent_tree, &predecessor.tree())?;
+            workspace_command
+                .repo()
+                .store()
+                .get_tree(&RepoPath::root(), &rebased_tree_id)?
+        };
+        let diff_iterator = predecessor_tree.diff(&commit.tree(), &EverythingMatcher);
+        show_diff(formatter, workspace_command, diff_iterator, diff_format)?;
+    }
     Ok(())
 }
 
