@@ -56,13 +56,21 @@ impl UserSettings {
     pub fn user_name(&self) -> String {
         self.config
             .get_string("user.name")
-            .unwrap_or_else(|_| "(no name configured)".to_string())
+            .unwrap_or_else(|_| Self::user_name_placeholder().to_string())
+    }
+
+    pub fn user_name_placeholder() -> &'static str {
+        "(no name configured)"
     }
 
     pub fn user_email(&self) -> String {
         self.config
             .get_string("user.email")
-            .unwrap_or_else(|_| "(no email configured)".to_string())
+            .unwrap_or_else(|_| Self::user_email_placeholder().to_string())
+    }
+
+    pub fn user_email_placeholder() -> &'static str {
+        "(no email configured)"
     }
 
     pub fn push_branch_prefix(&self) -> String {
