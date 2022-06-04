@@ -153,6 +153,52 @@ fn test_rewrite(use_git: bool) {
     );
 }
 
+// An author field with the placeholder name/email should get filled in on
+// rewrite
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rewrite_update_missing_user(use_git: bool) {
+    let missing_user_settings =
+        UserSettings::from_config(config::Config::builder().build().unwrap());
+    let test_repo = TestRepo::init(use_git);
+    let repo = &test_repo.repo;
+    let store = repo.store().clone();
+
+    let mut tx = repo.start_transaction("test");
+    let initial_commit = CommitBuilder::for_new_commit(
+        &missing_user_settings,
+        &store,
+        repo.store().empty_tree_id().clone(),
+    )
+    .write_to_repo(tx.mut_repo());
+    assert_eq!(initial_commit.author().name, "(no name configured)");
+    assert_eq!(initial_commit.author().email, "(no email configured)");
+    assert_eq!(initial_commit.committer().name, "(no name configured)");
+    assert_eq!(initial_commit.committer().email, "(no email configured)");
+
+    let config = config::Config::builder()
+        .set_override("user.name", "Configured User")
+        .unwrap()
+        .set_override("user.email", "configured.user@example.com")
+        .unwrap()
+        .build()
+        .unwrap();
+    let settings = UserSettings::from_config(config);
+    let rewritten_commit = CommitBuilder::for_rewrite_from(&settings, &store, &initial_commit)
+        .write_to_repo(tx.mut_repo());
+
+    assert_eq!(rewritten_commit.author().name, "Configured User");
+    assert_eq!(
+        rewritten_commit.author().email,
+        "configured.user@example.com"
+    );
+    assert_eq!(rewritten_commit.committer().name, "Configured User");
+    assert_eq!(
+        rewritten_commit.committer().email,
+        "configured.user@example.com"
+    );
+}
+
 #[test_case(false ; "local backend")]
 // #[test_case(true ; "git backend")]
 fn test_commit_builder_descendants(use_git: bool) {
