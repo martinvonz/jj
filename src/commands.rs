@@ -1376,7 +1376,7 @@ struct DuplicateArgs {
 struct AbandonArgs {
     /// The revision(s) to abandon
     #[clap(default_value = "@")]
-    revisions: String,
+    revisions: Vec<String>,
 }
 
 /// Create a new, empty change and check it out
@@ -3352,11 +3352,18 @@ fn cmd_abandon(
     args: &AbandonArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let to_abandon = workspace_command.resolve_revset(ui, &args.revisions)?;
-    workspace_command.check_non_empty(&to_abandon)?;
-    for commit in &to_abandon {
-        workspace_command.check_rewriteable(commit)?;
-    }
+    let to_abandon = {
+        let mut acc = Vec::new();
+        for revset in &args.revisions {
+            let revisions = workspace_command.resolve_revset(ui, revset)?;
+            workspace_command.check_non_empty(&revisions)?;
+            for commit in &revisions {
+                workspace_command.check_rewriteable(commit)?;
+            }
+            acc.extend(revisions);
+        }
+        acc
+    };
     let transaction_description = if to_abandon.len() == 1 {
         format!("abandon commit {}", to_abandon[0].id().hex())
     } else {
