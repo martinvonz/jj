@@ -97,7 +97,7 @@ fn test_edit_merge() {
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
     std::fs::write(repo_path.join("file2"), "a\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "b"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "b"]);
     std::fs::write(repo_path.join("file1"), "b\n").unwrap();
     std::fs::write(repo_path.join("file2"), "b\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["co", "@-"]);

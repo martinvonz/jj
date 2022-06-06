@@ -57,6 +57,7 @@ use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::{merge_trees, Tree, TreeDiffIterator, TreeMergeError};
+use jujutsu_lib::view::View;
 use jujutsu_lib::working_copy::{
     CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, WorkingCopy,
 };
@@ -1129,8 +1130,8 @@ enum Commands {
     Merge(MergeArgs),
     Rebase(RebaseArgs),
     Backout(BackoutArgs),
-    Branch(BranchArgs),
-    Branches(BranchesArgs),
+    #[clap(subcommand)]
+    Branch(BranchSubcommand),
     /// Undo an operation (shortcut for `jj op undo`)
     Undo(OperationUndoArgs),
     Operation(OperationArgs),
@@ -1614,43 +1615,68 @@ struct BackoutArgs {
     destination: Vec<String>,
 }
 
-/// Create, update, or delete a branch
+/// Manage branches.
 ///
 /// For information about branches, see
 /// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
-#[derive(clap::Args, Clone, Debug)]
-struct BranchArgs {
-    /// The branch's target revision
-    #[clap(long, short, group = "action")]
-    revision: Option<String>,
+#[derive(clap::Subcommand, Clone, Debug)]
+enum BranchSubcommand {
+    /// Create a new branch.
+    #[clap(visible_alias("c"))]
+    Create {
+        /// The branch's target revision.
+        #[clap(long, short)]
+        revision: Option<String>,
 
-    /// Allow moving the branch backwards or sideways
-    #[clap(long, requires = "revision")]
-    allow_backwards: bool,
+        /// The branches to create.
+        #[clap(required = true)]
+        names: Vec<String>,
+    },
 
-    /// Delete the branch locally
+    /// Delete an existing branch and propagate the deletion to remotes on the
+    /// next push.
+    #[clap(visible_alias("d"))]
+    Delete {
+        /// The branches to delete.
+        #[clap(required = true)]
+        names: Vec<String>,
+    },
+
+    /// Delete the local version of an existing branch, without propagating the
+    /// deletion to remotes.
+    #[clap(visible_alias("f"))]
+    Forget {
+        /// The branches to delete.
+        #[clap(required = true)]
+        names: Vec<String>,
+    },
+
+    /// List branches and their targets
     ///
-    /// The deletion will be propagated to remotes on push.
-    #[clap(long, group = "action")]
-    delete: bool,
+    /// A remote branch will be included only if its target is different from
+    /// the local target. For a conflicted branch (both local and remote), old
+    /// target revisions are preceded by a "-" and new target revisions are
+    /// preceded by a "+". For information about branches, see
+    /// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
+    #[clap(visible_alias("l"))]
+    List,
 
-    /// The name of the branch to move or delete
-    #[clap(long, group = "action")]
-    forget: bool,
+    /// Update a given branch to point to a certain commit.
+    #[clap(visible_alias("s"))]
+    Set {
+        /// The branch's target revision.
+        #[clap(long, short)]
+        revision: Option<String>,
 
-    /// The branches to update.
-    names: Vec<String>,
+        /// Allow moving the branch backwards or sideways.
+        #[clap(long)]
+        allow_backwards: bool,
+
+        /// The branches to update.
+        #[clap(required = true)]
+        names: Vec<String>,
+    },
 }
-
-/// List branches and their targets
-///
-/// A remote branch will be included only if its target is different from the
-/// local target. For a conflicted branch (both local and remote), old target
-/// revisions are preceded by a "-" and new target revisions are preceded by a
-/// "+". For information about branches, see
-/// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
-#[derive(clap::Args, Clone, Debug)]
-struct BranchesArgs {}
 
 /// Commands for working with the operation log
 ///
@@ -4006,91 +4032,150 @@ fn is_fast_forward(repo: RepoRef, branch_name: &str, new_target_id: &CommitId) -
     }
 }
 
-fn cmd_branch(ui: &mut Ui, command: &CommandHelper, args: &BranchArgs) -> Result<(), CommandError> {
+fn cmd_branch(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    subcommand: &BranchSubcommand,
+) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let branch_names: Vec<&str> = if args.delete || args.forget {
-        let view = workspace_command.repo().view();
-        args.names
-            .iter()
-            .map(|branch_name| match view.get_local_branch(branch_name) {
-                Some(_) => Ok(branch_name.as_str()),
-                None => Err(CommandError::UserError(format!(
+    let view = workspace_command.repo().view();
+    fn validate_branch_names_exist<'a>(
+        view: &'a View,
+        names: &'a [String],
+    ) -> Result<(), CommandError> {
+        for branch_name in names {
+            if view.get_local_branch(branch_name).is_none() {
+                return Err(CommandError::UserError(format!(
                     "No such branch: {}",
                     branch_name
-                ))),
-            })
-            .try_collect()?
-    } else {
-        args.names.iter().map(|name| name.as_str()).collect()
-    };
-
-    if branch_names.is_empty() {
-        ui.write_warn("warning: No branches provided.\n")?;
+                )));
+            }
+        }
+        Ok(())
     }
-    let branch_term = if branch_names.len() == 1 {
-        "branch"
-    } else {
-        "branches"
-    };
-    let branch_term = format!("{branch_term} {}", branch_names.join(", "));
 
-    if args.delete {
-        let mut tx = workspace_command.start_transaction(&format!("delete {branch_term}"));
-        for branch_name in branch_names {
-            tx.mut_repo().remove_local_branch(branch_name);
-        }
-        workspace_command.finish_transaction(ui, tx)?;
-    } else if args.forget {
-        let mut tx = workspace_command.start_transaction(&format!("forget {branch_term}"));
-        for branch_name in branch_names {
-            tx.mut_repo().remove_branch(branch_name);
-        }
-        workspace_command.finish_transaction(ui, tx)?;
-    } else {
-        if branch_names.len() > 1 {
-            ui.write_warn(format!(
-                "warning: Updating multiple branches ({}).\n",
-                branch_names.len()
-            ))?;
-        }
-
-        let target_commit =
-            workspace_command.resolve_single_rev(ui, args.revision.as_deref().unwrap_or("@"))?;
-        if !args.allow_backwards
-            && !branch_names.iter().all(|branch_name| {
-                is_fast_forward(
-                    workspace_command.repo().as_repo_ref(),
-                    branch_name,
-                    target_commit.id(),
+    fn make_branch_term(branch_names: &[impl AsRef<str>]) -> String {
+        match branch_names {
+            [branch_name] => format!("branch {}", branch_name.as_ref()),
+            branch_names => {
+                format!(
+                    "branches {}",
+                    branch_names.iter().map(AsRef::as_ref).join(", ")
                 )
-            })
-        {
-            return Err(CommandError::UserError(
-                "Use --allow-backwards to allow moving a branch backwards or sideways".to_string(),
+            }
+        }
+    }
+
+    match subcommand {
+        BranchSubcommand::Create { revision, names } => {
+            let branch_names: Vec<&str> = names
+                .iter()
+                .map(|branch_name| match view.get_local_branch(branch_name) {
+                    Some(_) => Err(CommandError::UserError(format!(
+                        "Branch already exists: {} (use `jj branch set` to update it)",
+                        branch_name
+                    ))),
+                    None => Ok(branch_name.as_str()),
+                })
+                .try_collect()?;
+
+            if branch_names.len() > 1 {
+                ui.write_warn(format!(
+                    "warning: Creating multiple branches ({}).\n",
+                    branch_names.len()
+                ))?;
+            }
+
+            let target_commit =
+                workspace_command.resolve_single_rev(ui, revision.as_deref().unwrap_or("@"))?;
+            let mut tx = workspace_command.start_transaction(&format!(
+                "create {} pointing to commit {}",
+                make_branch_term(&branch_names),
+                target_commit.id().hex()
             ));
+            for branch_name in branch_names {
+                tx.mut_repo().set_local_branch(
+                    branch_name.to_string(),
+                    RefTarget::Normal(target_commit.id().clone()),
+                );
+            }
+            workspace_command.finish_transaction(ui, tx)?;
         }
-        let mut tx = workspace_command.start_transaction(&format!(
-            "point {branch_term} to commit {}",
-            target_commit.id().hex()
-        ));
-        for branch_name in branch_names {
-            tx.mut_repo().set_local_branch(
-                branch_name.to_string(),
-                RefTarget::Normal(target_commit.id().clone()),
-            );
+
+        BranchSubcommand::Set {
+            revision,
+            allow_backwards,
+            names: branch_names,
+        } => {
+            if branch_names.len() > 1 {
+                ui.write_warn(format!(
+                    "warning: Updating multiple branches ({}).\n",
+                    branch_names.len()
+                ))?;
+            }
+
+            let target_commit =
+                workspace_command.resolve_single_rev(ui, revision.as_deref().unwrap_or("@"))?;
+            if !allow_backwards
+                && !branch_names.iter().all(|branch_name| {
+                    is_fast_forward(
+                        workspace_command.repo().as_repo_ref(),
+                        branch_name,
+                        target_commit.id(),
+                    )
+                })
+            {
+                return Err(CommandError::UserError(
+                    "Use --allow-backwards to allow moving a branch backwards or sideways"
+                        .to_string(),
+                ));
+            }
+            let mut tx = workspace_command.start_transaction(&format!(
+                "point {} to commit {}",
+                make_branch_term(branch_names),
+                target_commit.id().hex()
+            ));
+            for branch_name in branch_names {
+                tx.mut_repo().set_local_branch(
+                    branch_name.to_string(),
+                    RefTarget::Normal(target_commit.id().clone()),
+                );
+            }
+            workspace_command.finish_transaction(ui, tx)?;
         }
-        workspace_command.finish_transaction(ui, tx)?;
+
+        BranchSubcommand::Delete { names } => {
+            validate_branch_names_exist(view, names)?;
+            let mut tx =
+                workspace_command.start_transaction(&format!("delete {}", make_branch_term(names)));
+            for branch_name in names {
+                tx.mut_repo().remove_local_branch(branch_name);
+            }
+            workspace_command.finish_transaction(ui, tx)?;
+        }
+
+        BranchSubcommand::Forget { names } => {
+            validate_branch_names_exist(view, names)?;
+            let mut tx =
+                workspace_command.start_transaction(&format!("forget {}", make_branch_term(names)));
+            for branch_name in names {
+                tx.mut_repo().remove_branch(branch_name);
+            }
+            workspace_command.finish_transaction(ui, tx)?;
+        }
+
+        BranchSubcommand::List => {
+            list_branches(ui, &workspace_command)?;
+        }
     }
 
     Ok(())
 }
 
-fn cmd_branches(
+fn list_branches(
     ui: &mut Ui,
-    command: &CommandHelper,
-    _args: &BranchesArgs,
+    workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
 
     let workspace_id = workspace_command.workspace_id();
@@ -5153,7 +5238,6 @@ where
         Commands::Rebase(sub_args) => cmd_rebase(ui, &command_helper, sub_args),
         Commands::Backout(sub_args) => cmd_backout(ui, &command_helper, sub_args),
         Commands::Branch(sub_args) => cmd_branch(ui, &command_helper, sub_args),
-        Commands::Branches(sub_args) => cmd_branches(ui, &command_helper, sub_args),
         Commands::Undo(sub_args) => cmd_op_undo(ui, &command_helper, sub_args),
         Commands::Operation(sub_args) => cmd_operation(ui, &command_helper, sub_args),
         Commands::Workspace(sub_args) => cmd_workspace(ui, &command_helper, sub_args),

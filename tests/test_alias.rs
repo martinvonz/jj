@@ -27,11 +27,11 @@ fn test_alias_basic() {
     b = ["log", "-r", "@", "-T", "branches"]
     "#,
     );
-    test_env.jj_cmd_success(&repo_path, &["branch", "my-branch"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "my-branch"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["b"]);
     insta::assert_snapshot!(stdout, @r###"
     @ my-branch
-    ~ 
+    ~
     "###);
 }
 

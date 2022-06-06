@@ -24,13 +24,13 @@ fn test_squash() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["branch", "a"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "a"]);
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "b"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "b"]);
     std::fs::write(repo_path.join("file1"), "b\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "c"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "c"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -82,10 +82,10 @@ fn test_squash() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     test_env.jj_cmd_success(&repo_path, &["co", "b"]);
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "d"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "d"]);
     std::fs::write(repo_path.join("file2"), "d\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["merge", "-m", "merge", "c", "d"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "e", "-r", "@+"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "e", "-r", "@+"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     o   b9ad3fdfc2c4 e
     |\  
@@ -131,15 +131,15 @@ fn test_squash_partial() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["branch", "a"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "a"]);
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
     std::fs::write(repo_path.join("file2"), "a\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "b"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "b"]);
     std::fs::write(repo_path.join("file1"), "b\n").unwrap();
     std::fs::write(repo_path.join("file2"), "b\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "c"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "c"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     std::fs::write(repo_path.join("file2"), "c\n").unwrap();
     // Test the setup

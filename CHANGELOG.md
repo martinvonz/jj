@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj new` now always checks out the new commit (used to be only if the parent
   was `@`).
 
+* (#330) `jj branch` now uses subcommands like `jj branch create` and
+  `jj branch forget` instead of options like `jj branch --forget`.
+
 ### New features
 
 * `jj rebase` now accepts a `--branch/-b <revision>` argument, which can be used

@@ -35,25 +35,25 @@ fn test_move() {
     //
     // When moving changes between e.g. C and F, we should not get unrelated changes
     // from B and D.
-    test_env.jj_cmd_success(&repo_path, &["branch", "a"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "a"]);
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
     std::fs::write(repo_path.join("file2"), "a\n").unwrap();
     std::fs::write(repo_path.join("file3"), "a\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "b"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "b"]);
     std::fs::write(repo_path.join("file3"), "b\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "c"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "c"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["co", "a"]);
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "d"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "d"]);
     std::fs::write(repo_path.join("file3"), "d\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "e"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "e"]);
     std::fs::write(repo_path.join("file2"), "e\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "f"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "f"]);
     std::fs::write(repo_path.join("file2"), "f\n").unwrap();
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -162,20 +162,20 @@ fn test_move_partial() {
     // D B
     // |/
     // A
-    test_env.jj_cmd_success(&repo_path, &["branch", "a"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "a"]);
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
     std::fs::write(repo_path.join("file2"), "a\n").unwrap();
     std::fs::write(repo_path.join("file3"), "a\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "b"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "b"]);
     std::fs::write(repo_path.join("file3"), "b\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "c"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "c"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     std::fs::write(repo_path.join("file2"), "c\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["co", "a"]);
     test_env.jj_cmd_success(&repo_path, &["new"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "d"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "d"]);
     std::fs::write(repo_path.join("file3"), "d\n").unwrap();
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
