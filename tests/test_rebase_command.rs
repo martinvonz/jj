@@ -32,7 +32,7 @@ fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, paren
         test_env.jj_cmd_success(repo_path, &["co", "@-"]);
     }
     std::fs::write(repo_path.join(name), &format!("{name}\n")).unwrap();
-    test_env.jj_cmd_success(repo_path, &["branch", name]);
+    test_env.jj_cmd_success(repo_path, &["branch", "create", name]);
     test_env.jj_cmd_success(repo_path, &["close", "-m", name]);
 }
 

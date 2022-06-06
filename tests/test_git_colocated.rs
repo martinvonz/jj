@@ -51,7 +51,7 @@ fn test_git_colocated_rebase_on_import() {
     std::fs::write(workspace_root.join("file"), "contents").unwrap();
     test_env.jj_cmd_success(&workspace_root, &["close", "-m", "add a file"]);
     std::fs::write(workspace_root.join("file"), "modified").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["branch", "master"]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "master"]);
     test_env.jj_cmd_success(&workspace_root, &["close", "-m", "modify a file"]);
     // TODO: We shouldn't need this command here to trigger an import of the
     // refs/heads/master we just exported

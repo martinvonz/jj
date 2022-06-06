@@ -36,7 +36,7 @@ fn test_git_push() {
 
     // When pushing everything, won't push an open commit even if there's a branch
     // on it
-    test_env.jj_cmd_success(&workspace_root, &["branch", "my-branch"]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "my-branch"]);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Skipping branch 'my-branch' since it points to an open commit.
@@ -63,7 +63,7 @@ fn test_git_push() {
     test_env.jj_cmd_success(&workspace_root, &["close", "-m", "second"]);
     std::fs::write(workspace_root.join("file"), "third").unwrap();
     test_env.jj_cmd_success(&workspace_root, &["rebase", "-r", "@", "-d", "@--"]);
-    test_env.jj_cmd_success(&workspace_root, &["branch", "my-branch"]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "my-branch"]);
     test_env.jj_cmd_success(&workspace_root, &["close", "-m", "third"]);
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"
