@@ -1134,12 +1134,18 @@ enum Commands {
     Branch(BranchSubcommand),
     /// Undo an operation (shortcut for `jj op undo`)
     Undo(OperationUndoArgs),
-    Operation(OperationArgs),
-    Workspace(WorkspaceArgs),
+    #[clap(subcommand)]
+    #[clap(visible_alias = "op")]
+    Operation(OperationCommands),
+    #[clap(subcommand)]
+    Workspace(WorkspaceCommands),
     Sparse(SparseArgs),
-    Git(GitArgs),
-    Bench(BenchArgs),
-    Debug(DebugArgs),
+    #[clap(subcommand)]
+    Git(GitCommands),
+    #[clap(subcommand)]
+    Bench(BenchCommands),
+    #[clap(subcommand)]
+    Debug(DebugCommands),
     /// An alias or an unknown command
     #[clap(external_subcommand)]
     Alias(Vec<String>),
@@ -1682,13 +1688,6 @@ enum BranchSubcommand {
 ///
 /// Commands for working with the operation log. For information about the
 /// operation log, see https://github.com/martinvonz/jj/blob/main/docs/operation-log.md.
-#[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "op")]
-struct OperationArgs {
-    #[clap(subcommand)]
-    command: OperationCommands,
-}
-
 #[derive(Subcommand, Clone, Debug)]
 enum OperationCommands {
     Log(OperationLogArgs),
@@ -1716,12 +1715,6 @@ struct OperationUndoArgs {
 }
 
 /// Commands for working with workspaces
-#[derive(clap::Args, Clone, Debug)]
-struct WorkspaceArgs {
-    #[clap(subcommand)]
-    command: WorkspaceCommands,
-}
-
 #[derive(Subcommand, Clone, Debug)]
 enum WorkspaceCommands {
     Add(WorkspaceAddArgs),
@@ -1780,15 +1773,10 @@ struct SparseArgs {
 ///
 /// For a comparison with Git, including a table of commands, see
 /// https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.
-#[derive(clap::Args, Clone, Debug)]
-struct GitArgs {
-    #[clap(subcommand)]
-    command: GitCommands,
-}
-
 #[derive(Subcommand, Clone, Debug)]
 enum GitCommands {
-    Remote(GitRemoteArgs),
+    #[clap(subcommand)]
+    Remote(GitRemoteCommands),
     Fetch(GitFetchArgs),
     Clone(GitCloneArgs),
     Push(GitPushArgs),
@@ -1799,12 +1787,6 @@ enum GitCommands {
 /// Manage Git remotes
 ///
 /// The Git repo will be a bare git repo stored inside the `.jj/` directory.
-#[derive(clap::Args, Clone, Debug)]
-struct GitRemoteArgs {
-    #[clap(subcommand)]
-    command: GitRemoteCommands,
-}
-
 #[derive(Subcommand, Clone, Debug)]
 enum GitRemoteCommands {
     Add(GitRemoteAddArgs),
@@ -1877,13 +1859,6 @@ struct GitImportArgs {}
 struct GitExportArgs {}
 
 /// Commands for benchmarking internal operations
-#[derive(clap::Args, Clone, Debug)]
-#[clap(hide = true)]
-struct BenchArgs {
-    #[clap(subcommand)]
-    command: BenchCommands,
-}
-
 #[derive(Subcommand, Clone, Debug)]
 enum BenchCommands {
     #[clap(name = "commonancestors")]
@@ -1925,12 +1900,6 @@ struct BenchResolvePrefixArgs {
 }
 
 /// Low-level commands not intended for users
-#[derive(clap::Args, Clone, Debug)]
-struct DebugArgs {
-    #[clap(subcommand)]
-    command: DebugCommands,
-}
-
 #[derive(Subcommand, Clone, Debug)]
 #[clap(hide = true)]
 enum DebugCommands {
@@ -4266,8 +4235,12 @@ fn list_branches(
     Ok(())
 }
 
-fn cmd_debug(ui: &mut Ui, command: &CommandHelper, args: &DebugArgs) -> Result<(), CommandError> {
-    match &args.command {
+fn cmd_debug(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    subcommand: &DebugCommands,
+) -> Result<(), CommandError> {
+    match subcommand {
         DebugCommands::Completion(completion_matches) => {
             let mut app = command.app.clone();
             let mut buf = vec![];
@@ -4364,8 +4337,12 @@ where
     Ok(())
 }
 
-fn cmd_bench(ui: &mut Ui, command: &CommandHelper, args: &BenchArgs) -> Result<(), CommandError> {
-    match &args.command {
+fn cmd_bench(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    subcommand: &BenchCommands,
+) -> Result<(), CommandError> {
+    match subcommand {
         BenchCommands::CommonAncestors(command_matches) => {
             let mut workspace_command = command.workspace_helper(ui)?;
             let commit1 = workspace_command.resolve_single_rev(ui, &command_matches.revision1)?;
@@ -4572,9 +4549,9 @@ fn cmd_op_restore(
 fn cmd_operation(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &OperationArgs,
+    subcommand: &OperationCommands,
 ) -> Result<(), CommandError> {
-    match &args.command {
+    match subcommand {
         OperationCommands::Log(command_matches) => cmd_op_log(ui, command, command_matches),
         OperationCommands::Restore(command_matches) => cmd_op_restore(ui, command, command_matches),
         OperationCommands::Undo(command_matches) => cmd_op_undo(ui, command, command_matches),
@@ -4584,9 +4561,9 @@ fn cmd_operation(
 fn cmd_workspace(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &WorkspaceArgs,
+    subcommand: &WorkspaceCommands,
 ) -> Result<(), CommandError> {
-    match &args.command {
+    match subcommand {
         WorkspaceCommands::Add(command_matches) => cmd_workspace_add(ui, command, command_matches),
         WorkspaceCommands::Forget(command_matches) => {
             cmd_workspace_forget(ui, command, command_matches)
@@ -4764,22 +4741,6 @@ fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
             "The repo is not backed by a git repo".to_string(),
         )),
         Some(git_repo) => Ok(git_repo),
-    }
-}
-
-fn cmd_git_remote(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &GitRemoteArgs,
-) -> Result<(), CommandError> {
-    match &args.command {
-        GitRemoteCommands::Add(command_matches) => cmd_git_remote_add(ui, command, command_matches),
-        GitRemoteCommands::Remove(command_matches) => {
-            cmd_git_remote_remove(ui, command, command_matches)
-        }
-        GitRemoteCommands::List(command_matches) => {
-            cmd_git_remote_list(ui, command, command_matches)
-        }
     }
 }
 
@@ -5118,11 +5079,23 @@ fn cmd_git_export(
     Ok(())
 }
 
-fn cmd_git(ui: &mut Ui, command: &CommandHelper, args: &GitArgs) -> Result<(), CommandError> {
-    match &args.command {
+fn cmd_git(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    subcommand: &GitCommands,
+) -> Result<(), CommandError> {
+    match subcommand {
         GitCommands::Fetch(command_matches) => cmd_git_fetch(ui, command, command_matches),
         GitCommands::Clone(command_matches) => cmd_git_clone(ui, command, command_matches),
-        GitCommands::Remote(command_matches) => cmd_git_remote(ui, command, command_matches),
+        GitCommands::Remote(GitRemoteCommands::Add(command_matches)) => {
+            cmd_git_remote_add(ui, command, command_matches)
+        }
+        GitCommands::Remote(GitRemoteCommands::Remove(command_matches)) => {
+            cmd_git_remote_remove(ui, command, command_matches)
+        }
+        GitCommands::Remote(GitRemoteCommands::List(command_matches)) => {
+            cmd_git_remote_list(ui, command, command_matches)
+        }
         GitCommands::Push(command_matches) => cmd_git_push(ui, command, command_matches),
         GitCommands::Import(command_matches) => cmd_git_import(ui, command, command_matches),
         GitCommands::Export(command_matches) => cmd_git_export(ui, command, command_matches),
