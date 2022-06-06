@@ -7,11 +7,12 @@
 #![warn(missing_docs)]
 
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::Arc;
 
 use itertools::Itertools;
 use thiserror::Error;
-use watchman_client::prelude::{NameOnly, QueryRequestCommon, QueryResult};
+use watchman_client::prelude::{Clock, ClockSpec, NameOnly, QueryRequestCommon, QueryResult};
 
 /// Represents an instance in time from the perspective of the filesystem
 /// monitor.
@@ -21,7 +22,36 @@ use watchman_client::prelude::{NameOnly, QueryRequestCommon, QueryResult};
 /// informs the filesystem monitor that we only wish to get changed files since
 /// the previous point in time.
 #[derive(Clone, Debug)]
-pub struct FsmonitorClock(watchman_client::pdu::Clock);
+pub struct FsmonitorClock(Clock);
+
+impl ToString for FsmonitorClock {
+    fn to_string(&self) -> String {
+        let Self(clock) = self;
+        match clock {
+            Clock::Spec(spec) => match spec {
+                ClockSpec::StringClock(s) => s.clone(),
+                ClockSpec::UnixTimestamp(i) => i.to_string(),
+            },
+            Clock::ScmAware(_) => {
+                unimplemented!("SCM-aware Watchman clocks not supported")
+            }
+        }
+    }
+}
+
+impl FromStr for FsmonitorClock {
+    type Err = <i64 as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let spec = if s.starts_with("c:") {
+            ClockSpec::StringClock(s.to_owned())
+        } else {
+            let timestamp: i64 = s.parse()?;
+            ClockSpec::UnixTimestamp(timestamp)
+        };
+        Ok(FsmonitorClock(Clock::Spec(spec)))
+    }
+}
 
 #[allow(missing_docs)]
 #[derive(Debug, Error)]
@@ -72,7 +102,7 @@ impl Fsmonitor {
     /// Query for changed files since the previous point in time.
     pub async fn query_changed_files(
         &self,
-        _previous_clock: Option<FsmonitorClock>,
+        previous_clock: Option<FsmonitorClock>,
     ) -> Result<(FsmonitorClock, Option<Vec<PathBuf>>), FsmonitorError> {
         let QueryResult {
             version: _,
@@ -89,6 +119,7 @@ impl Fsmonitor {
             .query(
                 &self.resolved_root,
                 QueryRequestCommon {
+                    since: previous_clock.map(|FsmonitorClock(clock)| clock),
                     ..Default::default()
                 },
             )

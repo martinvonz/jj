@@ -88,6 +88,7 @@ pub struct TreeState {
     // Currently only path prefixes
     sparse_patterns: Vec<RepoPath>,
     own_mtime: MillisSinceEpoch,
+    fsmonitor_clock: Option<FsmonitorClock>,
 }
 
 fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> FileState {
@@ -300,6 +301,7 @@ impl TreeState {
             file_states: BTreeMap::new(),
             sparse_patterns: vec![RepoPath::root()],
             own_mtime: MillisSinceEpoch(0),
+            fsmonitor_clock: None,
         }
     }
 
@@ -332,6 +334,7 @@ impl TreeState {
         self.tree_id = TreeId::new(proto.tree_id.clone());
         self.file_states = file_states_from_proto(&proto);
         self.sparse_patterns = sparse_patterns_from_proto(&proto);
+        self.fsmonitor_clock = proto.fsmonitor_clock.parse().ok();
     }
 
     fn save(&mut self) {
@@ -350,6 +353,9 @@ impl TreeState {
                 .push(path.to_internal_file_string());
         }
         proto.sparse_patterns = MessageField::some(sparse_patterns);
+        if let Some(fsmonitor_clock) = &self.fsmonitor_clock {
+            proto.fsmonitor_clock = fsmonitor_clock.to_string();
+        }
 
         let mut temp_file = NamedTempFile::new_in(&self.state_path).unwrap();
         proto.write_to_writer(temp_file.as_file_mut()).unwrap();
@@ -399,11 +405,11 @@ impl TreeState {
     #[tokio::main]
     async fn query_fsmonitor(
         &self,
+        previous_clock: Option<FsmonitorClock>,
     ) -> Result<(FsmonitorClock, Option<Vec<PathBuf>>), FsmonitorError> {
         let working_copy_path = self.working_copy_path.to_owned();
         tokio::spawn(async move {
             let fsmonitor = Fsmonitor::init(&working_copy_path).await?;
-            let previous_clock = None;
             fsmonitor.query_changed_files(previous_clock).await
         })
         .await
@@ -417,11 +423,11 @@ impl TreeState {
         base_ignores: Arc<GitIgnoreFile>,
         should_use_fsmonitor: bool,
     ) -> Result<TreeId, SnapshotError> {
-        let (_fsmonitor_clock, changed_files) = if should_use_fsmonitor {
-            match self.query_fsmonitor() {
+        let (fsmonitor_clock, changed_files) = if should_use_fsmonitor {
+            match self.query_fsmonitor(self.fsmonitor_clock.clone()) {
                 Ok((fsmonitor_clock, changed_files)) => (Some(fsmonitor_clock), changed_files),
                 Err(err) => {
-                    eprintln!("Failed to query fsmonitor: {}", err);
+                    eprintln!("Failed to query filesystem monitor: {}", err);
                     (None, None)
                 }
             }
@@ -487,7 +493,18 @@ impl TreeState {
             }
             let git_ignore = git_ignore
                 .chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"));
-            for maybe_entry in disk_dir.read_dir().unwrap() {
+
+            let entries = match disk_dir.read_dir() {
+                Ok(entries) => entries,
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(err) => {
+                    return Err(SnapshotError::FileOpenError {
+                        path: disk_dir,
+                        err,
+                    })
+                }
+            };
+            for maybe_entry in entries {
                 let entry = maybe_entry.unwrap();
                 let file_type = entry.file_type().unwrap();
                 let file_name = entry.file_name();
@@ -536,6 +553,9 @@ impl TreeState {
             tree_builder.remove(file.clone());
         }
         self.tree_id = tree_builder.write_tree();
+        if fsmonitor_clock.is_some() {
+            self.fsmonitor_clock = fsmonitor_clock;
+        }
         Ok(self.tree_id.clone())
     }
 
