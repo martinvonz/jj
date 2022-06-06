@@ -30,6 +30,7 @@ pub mod dag_walk;
 pub mod diff;
 pub mod file_util;
 pub mod files;
+pub mod fsmonitor;
 pub mod git;
 pub mod git_backend;
 pub mod gitignore;

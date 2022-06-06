@@ -35,6 +35,7 @@ use crate::backend::{
     BackendError, ConflictId, FileId, MillisSinceEpoch, SymlinkId, TreeId, TreeValue,
 };
 use crate::conflicts::{materialize_conflict, update_conflict_from_content};
+use crate::fsmonitor::{Fsmonitor, FsmonitorClock, FsmonitorError};
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::matchers::{DifferenceMatcher, Matcher, PrefixMatcher};
@@ -207,6 +208,10 @@ pub struct CheckoutStats {
 
 #[derive(Debug, Error)]
 pub enum SnapshotError {
+    #[error("Failed to open file {path}: {err:?}")]
+    FileOpenError { path: PathBuf, err: std::io::Error },
+    #[error("Failed to query the filesystem monitor: {0}")]
+    FsmonitorError(#[from] FsmonitorError),
     #[error("{message}: {err}")]
     IoError {
         message: String,
@@ -391,18 +396,92 @@ impl TreeState {
         Ok(self.store.write_symlink(path, str_target)?)
     }
 
+    #[tokio::main]
+    async fn query_fsmonitor(
+        &self,
+    ) -> Result<(FsmonitorClock, Option<Vec<PathBuf>>), FsmonitorError> {
+        let working_copy_path = self.working_copy_path.to_owned();
+        tokio::spawn(async move {
+            let fsmonitor = Fsmonitor::init(&working_copy_path).await?;
+            let previous_clock = None;
+            fsmonitor.query_changed_files(previous_clock).await
+        })
+        .await
+        .unwrap()
+    }
+
     /// Look for changes to the working copy. If there are any changes, create
     /// a new tree from it and return it, and also update the dirstate on disk.
-    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<TreeId, SnapshotError> {
+    pub fn snapshot(
+        &mut self,
+        base_ignores: Arc<GitIgnoreFile>,
+        should_use_fsmonitor: bool,
+    ) -> Result<TreeId, SnapshotError> {
+        let (_fsmonitor_clock, changed_files) = if should_use_fsmonitor {
+            match self.query_fsmonitor() {
+                Ok((fsmonitor_clock, changed_files)) => (Some(fsmonitor_clock), changed_files),
+                Err(err) => {
+                    eprintln!("Failed to query fsmonitor: {}", err);
+                    (None, None)
+                }
+            }
+        } else {
+            (None, None)
+        };
+
         let sparse_matcher = self.sparse_matcher();
-        let mut work = vec![(
-            RepoPath::root(),
-            self.working_copy_path.clone(),
-            base_ignores,
-        )];
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
         let mut deleted_files: HashSet<_> = self.file_states.keys().cloned().collect();
-        while let Some((dir, disk_dir, git_ignore)) = work.pop() {
+
+        struct WorkItem {
+            dir: RepoPath,
+            disk_dir: PathBuf,
+            git_ignore: Arc<GitIgnoreFile>,
+            should_recurse: bool,
+        }
+        let repo_root = RepoPath::root();
+        let repo_root_pathbuf = repo_root.to_fs_path(&self.working_copy_path);
+        let mut work: Vec<WorkItem> = match changed_files {
+            Some(changed_files) => changed_files
+                .into_iter()
+                .map(|path| {
+                    let repo_path_components = path
+                        .iter()
+                        .map(|component| component.to_str().expect("Non-UTF-8 path component"))
+                        .map(RepoPathComponent::from)
+                        .collect();
+                    let dir = RepoPath::from_components(repo_path_components);
+                    WorkItem {
+                        dir,
+                        disk_dir: repo_root_pathbuf.join(path),
+
+                        // FIXME: it's possible that we missed a `.gitignore`
+                        // which belongs to a parent directory of the given
+                        // file.
+                        git_ignore: base_ignores.clone(),
+
+                        should_recurse: false,
+                    }
+                })
+                .collect(),
+
+            None => {
+                vec![WorkItem {
+                    dir: repo_root,
+                    disk_dir: self.working_copy_path.clone(),
+                    git_ignore: base_ignores,
+                    should_recurse: true,
+                }]
+            }
+        };
+
+        while let Some(WorkItem {
+            dir,
+            disk_dir,
+            git_ignore,
+            should_recurse,
+        }) = work.pop()
+        {
             if sparse_matcher.visit(&dir).is_nothing() {
                 continue;
             }
@@ -429,7 +508,15 @@ impl TreeState {
                     {
                         continue;
                     }
-                    work.push((sub_path, entry.path(), git_ignore.clone()));
+
+                    if should_recurse {
+                        work.push(WorkItem {
+                            dir: sub_path,
+                            disk_dir: entry.path(),
+                            git_ignore: git_ignore.clone(),
+                            should_recurse: true,
+                        });
+                    }
                 } else {
                     deleted_files.remove(&sub_path);
                     if sparse_matcher.matches(&sub_path) {
@@ -1085,12 +1172,16 @@ impl LockedWorkingCopy<'_> {
     // The base_ignores are passed in here rather than being set on the TreeState
     // because the TreeState may be long-lived if the library is used in a
     // long-lived process.
-    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<TreeId, SnapshotError> {
+    pub fn snapshot(
+        &mut self,
+        base_ignores: Arc<GitIgnoreFile>,
+        should_use_fsmonitor: bool,
+    ) -> Result<TreeId, SnapshotError> {
         self.wc
             .tree_state()
             .as_mut()
             .unwrap()
-            .snapshot(base_ignores)
+            .snapshot(base_ignores, should_use_fsmonitor)
     }
 
     pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {

@@ -673,7 +673,9 @@ impl WorkspaceCommandHelper {
                 )));
             }
         }
-        let new_tree_id = locked_wc.snapshot(base_ignores)?;
+
+        let should_use_fsmonitor = ui.settings().use_fsmonitor();
+        let new_tree_id = locked_wc.snapshot(base_ignores, should_use_fsmonitor)?;
         if new_tree_id != *checkout_commit.tree_id() {
             let mut tx = self.repo.start_transaction("commit working copy");
             let mut_repo = tx.mut_repo();
@@ -2133,7 +2135,8 @@ fn cmd_untrack(
     locked_working_copy.reset(&new_tree)?;
     // Commit the working copy again so we can inform the user if paths couldn't be
     // untracked because they're not ignored.
-    let wc_tree_id = locked_working_copy.snapshot(base_ignores)?;
+    let should_use_fsmonitor = ui.settings().use_fsmonitor();
+    let wc_tree_id = locked_working_copy.snapshot(base_ignores, should_use_fsmonitor)?;
     if wc_tree_id != new_tree_id {
         let wc_tree = store.get_tree(&RepoPath::root(), &wc_tree_id)?;
         let added_back = wc_tree.entries_matching(matcher.as_ref()).collect_vec();

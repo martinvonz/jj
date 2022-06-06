@@ -69,6 +69,12 @@ impl UserSettings {
             .unwrap_or_else(|_| Self::user_email_placeholder().to_string())
     }
 
+    pub fn use_fsmonitor(&self) -> bool {
+        self.config
+            .get_bool("core.use-fsmonitor")
+            .unwrap_or_default()
+    }
+
     pub fn user_email_placeholder() -> &'static str {
         "(no email configured)"
     }

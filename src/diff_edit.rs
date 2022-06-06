@@ -171,7 +171,8 @@ pub fn edit_diff(
         std::fs::remove_file(instructions_path).ok();
     }
 
-    Ok(right_tree_state.snapshot(base_ignores)?)
+    let should_use_fsmonitor = ui.settings().use_fsmonitor();
+    Ok(right_tree_state.snapshot(base_ignores, should_use_fsmonitor)?)
 }
 
 /// Merge/diff tool loaded from the settings.
