@@ -14,7 +14,9 @@
 
 use std::path::PathBuf;
 
-use crate::common::TestEnvironment;
+use regex::Regex;
+
+use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
 pub mod common;
 
@@ -60,9 +62,14 @@ fn test_git_push_open() {
     Error: Won't push open commit
     "###);
     // When pushing with `--change`, won't push if it points to an open commit
-    let stderr =
-        test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--change", "my-branch"]);
-    insta::assert_snapshot!(stderr, @r###"
+    let assert = test_env
+        .jj_cmd(&workspace_root, &["git", "push", "--change", "my-branch"])
+        .assert();
+    let branch_pattern = Regex::new("push-[0-9a-f]+").unwrap();
+    insta::assert_snapshot!(branch_pattern.replace(&get_stdout_string(&assert), "<branch>"), @r###"
+    Creating branch <branch> for revision my-branch
+    "###);
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
     Error: Won't push open commit
     "###);
 }

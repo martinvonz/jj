@@ -4928,16 +4928,18 @@ fn cmd_git_push(
             ui.settings().push_branch_prefix(),
             commit.change_id().hex()
         );
-        tx.mut_repo()
-            .set_local_branch(branch_name.clone(), RefTarget::Normal(commit.id().clone()));
-        if let Some(update) =
-            branch_updates_for_push(tx.mut_repo().as_repo_ref(), &args.remote, &branch_name)?
-        {
+        if tx.mut_repo().get_local_branch(&branch_name).is_none() {
             writeln!(
                 ui,
                 "Creating branch {} for revision {}",
                 branch_name, change_str
             )?;
+        }
+        tx.mut_repo()
+            .set_local_branch(branch_name.clone(), RefTarget::Normal(commit.id().clone()));
+        if let Some(update) =
+            branch_updates_for_push(tx.mut_repo().as_repo_ref(), &args.remote, &branch_name)?
+        {
             branch_updates.insert(branch_name.clone(), update);
         } else {
             writeln!(
