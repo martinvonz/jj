@@ -1546,7 +1546,7 @@ struct MergeArgs {
 ///
 /// There are three different ways of specifying which revisions to rebase:
 /// `-b` to rebase a whole branch, `-s` to rebase a revision and its
-/// descendants, and `-r` to rebase a single commit. If none if them is
+/// descendants, and `-r` to rebase a single commit. If none of them is
 /// specified, it defaults to `-b @`.
 ///
 /// With `-b`, it rebases the whole branch containing the specified revision.
