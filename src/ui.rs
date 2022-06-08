@@ -14,6 +14,7 @@
 
 use std::io::Write;
 use std::path::{Component, Path, PathBuf};
+use std::str::FromStr;
 use std::sync::{Mutex, MutexGuard};
 use std::{fmt, io};
 
@@ -47,15 +48,46 @@ fn new_formatter<'output>(
     }
 }
 
-fn use_color(settings: &UserSettings) -> bool {
-    let color_setting = settings
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ColorChoice {
+    Always,
+    Never,
+    Auto,
+}
+
+impl Default for ColorChoice {
+    fn default() -> Self {
+        ColorChoice::Auto
+    }
+}
+
+impl FromStr for ColorChoice {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "always" => Ok(ColorChoice::Always),
+            "never" => Ok(ColorChoice::Never),
+            "auto" => Ok(ColorChoice::Auto),
+            _ => Err("must be one of always, never, or auto"),
+        }
+    }
+}
+
+fn color_setting(settings: &UserSettings) -> ColorChoice {
+    settings
         .config()
         .get_string("ui.color")
-        .unwrap_or_else(|_| "auto".to_string());
-    match color_setting.as_str() {
-        "always" => true,
-        "never" => false,
-        _ => atty::is(Stream::Stdout),
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_default()
+}
+
+fn use_color(choice: ColorChoice) -> bool {
+    match choice {
+        ColorChoice::Always => true,
+        ColorChoice::Never => false,
+        ColorChoice::Auto => atty::is(Stream::Stdout),
     }
 }
 
@@ -82,7 +114,7 @@ impl<'stdout> Ui<'stdout> {
         let cwd = std::env::current_dir().unwrap();
         let stdout: Box<dyn Write + 'static> = Box::new(io::stdout());
         let stderr: Box<dyn Write + 'static> = Box::new(io::stderr());
-        let color = use_color(&settings);
+        let color = use_color(color_setting(&settings));
         Ui::new(cwd, stdout, stderr, color, settings)
     }
 
