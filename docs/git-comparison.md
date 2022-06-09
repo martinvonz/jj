@@ -259,27 +259,27 @@ parent.
     </tr>
     <tr>
       <td>List branches</td>
-      <td><code>jj branches</code></td>
+      <td><code>jj branch list</code></td>
       <td><code>git branch</code></td>
     </tr>
     <tr>
       <td>Create a branch</td>
-      <td><code>jj branch &lt;name&gt; -r &lt;revision&gt;</code></td>
+      <td><code>jj branch create &lt;name&gt; -r &lt;revision&gt;</code></td>
       <td><code>git branch &lt;name&gt; &lt;revision&gt;</code></td>
     </tr>
     <tr>
       <td>Move a branch forward</td>
-      <td><code>jj branch &lt;name&gt; -r &lt;revision&gt;</code></td>
+      <td><code>jj branch set &lt;name&gt; -r &lt;revision&gt;</code></td>
       <td><code>git branch -f &lt;name&gt; &lt;revision&gt;</code></td>
     </tr>
     <tr>
       <td>Move a branch backward or sideways</td>
-      <td><code>jj branch &lt;name&gt; -r &lt;revision&gt; --allow-backwards</code></td>
+      <td><code>jj branch set &lt;name&gt; -r &lt;revision&gt; --allow-backwards</code></td>
       <td><code>git branch -f &lt;name&gt; &lt;revision&gt;</code></td>
     </tr>
     <tr>
       <td>Delete a branch</td>
-      <td><code>jj branch --delete &lt;name&gt; </code></td>
+      <td><code>jj branch delete &lt;name&gt; </code></td>
       <td><code>git branch --delete &lt;name&gt;</code></td>
     </tr>
     <tr>

@@ -61,8 +61,8 @@ working copy or any other commit. It also means that you can always check out a
 different commit without first explicitly committing the working copy changes
 (you can even check out a different commit while resolving merge conflicts).
 
-<a href="https://asciinema.org/a/OywNvPxShG4Zmul2eNcDiL3nj" target="_blank">
-  <img src="https://asciinema.org/a/OywNvPxShG4Zmul2eNcDiL3nj.svg" />
+<a href="https://asciinema.org/a/XVJwcGbZek4cfk3510iQdloD8" target="_blank">
+  <img src="https://asciinema.org/a/XVJwcGbZek4cfk3510iQdloD8.svg" />
 </a>
 
 ### Operations update the repo first, then possibly the working copy
@@ -97,8 +97,8 @@ Basic conflict resolution:
 </a>
 
 Juggling conflicts:
-<a href="https://asciinema.org/a/sTQnMCthulo2NfwRnHX30qegq" target="_blank">
-  <img src="https://asciinema.org/a/sTQnMCthulo2NfwRnHX30qegq.svg" />
+<a href="https://asciinema.org/a/efo1dbUuERDnDk1igaVi9TZVb" target="_blank">
+  <img src="https://asciinema.org/a/efo1dbUuERDnDk1igaVi9TZVb.svg" />
 </a>
 
 ### Automatic rebase

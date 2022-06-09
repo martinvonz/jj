@@ -2919,7 +2919,8 @@ fn cmd_status(
         }
         writeln!(
             ui,
-            "  Use `jj branches` to see details. Use `jj branch <name> -r <rev>` to resolve."
+            "  Use `jj branch list` to see details. Use `jj branch set <name> -r <rev>` to \
+             resolve."
         )?;
     }
     if !conflicted_remote_branches.is_empty() {
@@ -2935,7 +2936,7 @@ fn cmd_status(
         }
         writeln!(
             ui,
-            "  Use `jj branches` to see details. Use `jj git pull` to resolve."
+            "  Use `jj branch list` to see details. Use `jj git pull` to resolve."
         )?;
     }
 

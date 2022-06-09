@@ -26,7 +26,7 @@ run_command "jj log"
 pause 5
 run_command "# Add a branch so we can easily refer to this"
 run_command "# commit:"
-run_command "jj branch goodbye"
+run_command "jj branch create goodbye"
 pause 2
 run_command "jj log"
 pause 3

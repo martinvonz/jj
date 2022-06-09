@@ -6,13 +6,13 @@ parse_args "$@"
 new_tmp_dir
 jj init
 echo "first" > file
-jj branch first
+jj branch create first
 jj close -m 'first' 
 echo "second" > file
-jj branch second
+jj branch create second
 jj close -m 'second' 
 echo "third" > file
-jj branch third
+jj branch create third
 jj close -m 'third' 
 
 run_demo 'Juggling conflicts' '
