@@ -118,6 +118,23 @@ impl<'stdout> Ui<'stdout> {
         Ui::new(cwd, stdout, stderr, color, settings)
     }
 
+    /// Reconfigures the underlying outputs with the new color choice.
+    ///
+    /// It's up to caller to ensure that the current output formatters have no
+    /// labels applied. Otherwise the current color would persist.
+    pub fn reset_color_for_terminal(&mut self, choice: ColorChoice) {
+        let color = use_color(choice);
+        if self.color != color {
+            // it seems uneasy to unwrap the underlying output from the formatter, so
+            // recreate it.
+            let stdout_formatter = new_formatter(&self.settings, color, Box::new(io::stdout()));
+            let stderr_formatter = new_formatter(&self.settings, color, Box::new(io::stderr()));
+            self.color = color;
+            *self.stdout_formatter.get_mut().unwrap() = stdout_formatter;
+            *self.stderr_formatter.get_mut().unwrap() = stderr_formatter;
+        }
+    }
+
     pub fn cwd(&self) -> &Path {
         &self.cwd
     }
