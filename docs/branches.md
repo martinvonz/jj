@@ -8,7 +8,7 @@ move them without affecting the target revision's identity. Branches
 automatically move when revisions are rewritten (e.g. by `jj rebase`). You can
 pass a branch's name to commands that want a revision as argument. For example,
 `jj co main` will check out the revision pointed to by the "main" branch. Use
-`jj branches` to list branches and `jj branch` to create, move, or delete
+`jj branch list` to list branches and `jj branch` to create, move, or delete
 branches. There is currently no concept of an active/current/checked-out branch.
 
 
@@ -34,7 +34,7 @@ remote's state will be propagated to the local branch. Let's say you run
 target is now ahead of the local record in `main@origin`. That will update
 `main@origin` to the new target. It will also apply the change to the local
 branch `main`. If the local target had also moved compared to `main@origin`
-(probably because you had run `jj branch main`), then the two updates will be
+(probably because you had run `jj branch set main`), then the two updates will be
 merged. If one is ahead of the other, then that target will be the new target.
 Otherwise, the local branch will be conflicted (see next section for details).
 
@@ -43,7 +43,7 @@ Otherwise, the local branch will be conflicted (see next section for details).
 
 Branches can end up in a conflicted state. When that happens, `jj status` will
 include information about the conflicted branches (and instructions for how to
-mitigate it). `jj branches` will have details. `jj log` will show the branch
+mitigate it). `jj branch list` will have details. `jj log` will show the branch
 name with a question mark suffix (e.g. `main?`) on each of the conflicted
 branch's potential target revisions. Using the branch name to look up a revision
 will resolve to all potential targets. That means that `jj co main` will error
