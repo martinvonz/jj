@@ -74,7 +74,7 @@ use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
 use crate::ui;
-use crate::ui::{FilePathParseError, Ui};
+use crate::ui::{ColorChoice, FilePathParseError, Ui};
 
 pub enum CommandError {
     UserError(String),
@@ -1101,6 +1101,14 @@ struct GlobalArgs {
         default_value = "@"
     )]
     at_operation: String,
+    /// When to colorize output (always, never, auto)
+    #[clap(
+        long,
+        value_name = "WHEN",
+        global = true,
+        help_heading = "GLOBAL OPTIONS"
+    )]
+    color: Option<ColorChoice>,
 }
 
 #[derive(Subcommand, Clone, Debug)]
@@ -5207,6 +5215,10 @@ where
     }
 
     let args = parse_args(ui.settings(), &string_args)?;
+    if let Some(choice) = args.global_args.color {
+        // Here we assume ui was created for_terminal().
+        ui.reset_color_for_terminal(choice);
+    }
     let app = Args::command();
     let command_helper = CommandHelper::new(app, string_args, args.global_args.clone());
     match &args.command {

@@ -95,18 +95,32 @@ fn test_repo_arg_with_git_clone() {
 fn test_color_config() {
     let mut test_env = TestEnvironment::default();
 
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Test that --color=always is respected.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "log", "-T", "commit_id"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ [1;34m230dd059e1b059aefc0da06a2e5a7dbf22362f22[0m
+    o [34m0000000000000000000000000000000000000000[0m
+    "###);
+
     // Test that color is used if it's requested in the config file
     test_env.add_config(
         br#"[ui]
 color="always""#,
     );
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
-
-    let repo_path = test_env.env_root().join("repo");
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
     @ [1;34m230dd059e1b059aefc0da06a2e5a7dbf22362f22[0m
     o [34m0000000000000000000000000000000000000000[0m
+    "###);
+
+    // Test that --color=never overrides the config.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--color=never", "log", "-T", "commit_id"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    o 0000000000000000000000000000000000000000
     "###);
 
     // Test that NO_COLOR does NOT override the request for color in the config file
@@ -148,6 +162,7 @@ fn test_help() {
 
     GLOBAL OPTIONS:
             --at-operation <AT_OPERATION>    Operation to load the repo at [default: @] [aliases: at-op]
+            --color <WHEN>                   When to colorize output (always, never, auto)
         -h, --help                           Print help information, more help with --help than with -h
             --no-commit-working-copy         Don't commit the working copy
         -R, --repository <REPOSITORY>        Path to repository to operate on

@@ -109,6 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The "(no name/email configured)" placeholder value for name/email will now be
   replaced if once you modify a commit after having configured your name/email.
 
+* Color setting can now be overridden by `--color=always|never|auto` option.
+
 ### Fixed bugs
 
 * When rebasing a conflict where one side modified a file and the other side
