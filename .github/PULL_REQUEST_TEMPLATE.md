@@ -9,4 +9,6 @@ rewrite a branch).
 
 # Checklist
 
-- [ ] I have made relevant updates to `CHANGELOG.md`
+If applicable:
+- [ ] I have updated `CHANGELOG.md`
+- [ ] I have updated the documentation (README.md, docs/, demos/)
