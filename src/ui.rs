@@ -48,9 +48,6 @@ fn new_formatter<'output>(
 }
 
 fn use_color(settings: &UserSettings) -> bool {
-    if std::env::var("NO_COLOR").is_ok() {
-        return false;
-    }
     let color_setting = settings
         .config()
         .get_string("ui.color")

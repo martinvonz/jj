@@ -53,6 +53,11 @@ fn config_path() -> Result<Option<PathBuf>, ConfigError> {
 /// Environment variables that should be overridden by config values
 fn env_base() -> config::Config {
     let mut builder = config::Config::builder();
+    if env::var("NO_COLOR").is_ok() {
+        // "User-level configuration files and per-instance command-line arguments
+        // should override $NO_COLOR." https://no-color.org/
+        builder = builder.set_override("ui.color", "never").unwrap();
+    }
     if let Ok(value) = env::var("VISUAL") {
         builder = builder.set_override("ui.editor", value).unwrap();
     } else if let Ok(value) = env::var("EDITOR") {
