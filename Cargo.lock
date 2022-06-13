@@ -272,9 +272,9 @@ dependencies = [
 
 [[package]]
 name = "clap_mangen"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca2ff85c3fa1e7c1a4229f7b4221f769757c3982e2afd3e6d9381d59db2c7e61"
+checksum = "121b598d1b9d63d4ff3b7dae8defd88cc23e41850ee89fd2feec2e7d992e6ec8"
 dependencies = [
  "clap 3.1.18",
  "roff",
