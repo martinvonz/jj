@@ -16,12 +16,14 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+#[cfg(unix)]
+use std::os::unix::net::UnixListener;
 use std::sync::Arc;
 
 use itertools::Itertools;
 use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
 use jujutsu_lib::gitignore::GitIgnoreFile;
-use jujutsu_lib::op_store::WorkspaceId;
+use jujutsu_lib::op_store::{OperationId, WorkspaceId};
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jujutsu_lib::settings::UserSettings;
@@ -386,7 +388,7 @@ fn test_checkout_discard() {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
-fn test_commit_racy_timestamps(use_git: bool) {
+fn test_snapshot_racy_timestamps(use_git: bool) {
     // Tests that file modifications are detected even if they happen the same
     // millisecond as the updated working copy state.
     let _home_dir = testutils::new_user_home();
@@ -414,6 +416,63 @@ fn test_commit_racy_timestamps(use_git: bool) {
         assert_ne!(new_tree_id, previous_tree_id);
         previous_tree_id = new_tree_id;
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn test_snapshot_special_file() {
+    // Tests that we ignore when special files (such as sockets and pipes) exist on
+    // disk.
+    let _home_dir = testutils::new_user_home();
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings, false);
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
+    let store = test_workspace.repo.store();
+
+    let file1_path = RepoPath::from_internal_string("file1");
+    let file1_disk_path = file1_path.to_fs_path(&workspace_root);
+    std::fs::write(&file1_disk_path, "contents".as_bytes()).unwrap();
+    let file2_path = RepoPath::from_internal_string("file2");
+    let file2_disk_path = file2_path.to_fs_path(&workspace_root);
+    std::fs::write(&file2_disk_path, "contents".as_bytes()).unwrap();
+    let socket_disk_path = workspace_root.join("socket");
+    UnixListener::bind(&socket_disk_path).unwrap();
+    // Test the setup
+    assert!(socket_disk_path.exists());
+    assert!(!socket_disk_path.is_file());
+
+    // Snapshot the working copy with the socket file
+    let wc = test_workspace.workspace.working_copy_mut();
+    let mut locked_wc = wc.start_mutation();
+    let tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    locked_wc.finish(OperationId::from_hex("abc123"));
+    let tree = store.get_tree(&RepoPath::root(), &tree_id).unwrap();
+    // Only the regular files should be in the tree
+    assert_eq!(
+        tree.entries().map(|(path, _value)| path).collect_vec(),
+        vec![file1_path.clone(), file2_path.clone()]
+    );
+    assert_eq!(
+        wc.file_states().keys().cloned().collect_vec(),
+        vec![file1_path, file2_path.clone()]
+    );
+
+    // Replace a regular file by a socket and snapshot the working copy again
+    std::fs::remove_file(&file1_disk_path).unwrap();
+    UnixListener::bind(&file1_disk_path).unwrap();
+    let mut locked_wc = wc.start_mutation();
+    let tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    locked_wc.finish(OperationId::from_hex("abc123"));
+    let tree = store.get_tree(&RepoPath::root(), &tree_id).unwrap();
+    // Only the regular file should be in the tree
+    assert_eq!(
+        tree.entries().map(|(path, _value)| path).collect_vec(),
+        vec![file2_path.clone()]
+    );
+    assert_eq!(
+        wc.file_states().keys().cloned().collect_vec(),
+        vec![file2_path]
+    );
 }
 
 #[test_case(false ; "local backend")]
@@ -531,7 +590,7 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     file.read_to_end(&mut buf).unwrap();
     assert_eq!(buf, b"contents");
 
-    // Check that the file is in the tree created by committing the working copy
+    // Check that the file is in the tree created by snapshotting the working copy
     let mut locked_wc = wc.start_mutation();
     let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
     locked_wc.discard();
@@ -548,7 +607,7 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     // Tests that a .gitignore'd directory that already has a tracked file in it
-    // does not get removed when committing the working directory.
+    // does not get removed when snapshotting the working directory.
 
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
@@ -576,7 +635,7 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     let wc = test_workspace.workspace.working_copy_mut();
     wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
 
-    // Check that the file is still in the tree created by committing the working
+    // Check that the file is still in the tree created by snapshotting the working
     // copy (that it didn't get removed because the directory is ignored)
     let mut locked_wc = wc.start_mutation();
     let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
