@@ -199,30 +199,34 @@ fn mtime_from_metadata(metadata: &Metadata) -> MillisSinceEpoch {
     )
 }
 
-fn file_state(metadata: &Metadata) -> FileState {
-    let mtime = mtime_from_metadata(metadata);
-    let size = metadata.len();
+fn file_state(metadata: &Metadata) -> Option<FileState> {
     let metadata_file_type = metadata.file_type();
     let file_type = if metadata_file_type.is_dir() {
         panic!("expected file, not directory");
     } else if metadata_file_type.is_symlink() {
-        FileType::Symlink
-    } else {
+        Some(FileType::Symlink)
+    } else if metadata_file_type.is_file() {
         #[cfg(unix)]
         let mode = metadata.permissions().mode();
         #[cfg(windows)]
         let mode = 0;
         if mode & 0o111 != 0 {
-            FileType::Normal { executable: true }
+            Some(FileType::Normal { executable: true })
         } else {
-            FileType::Normal { executable: false }
+            Some(FileType::Normal { executable: false })
         }
+    } else {
+        None
     };
-    FileState {
-        file_type,
-        mtime,
-        size,
-    }
+    file_type.map(|file_type| {
+        let mtime = mtime_from_metadata(metadata);
+        let size = metadata.len();
+        FileState {
+            file_type,
+            mtime,
+            size,
+        }
+    })
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -518,16 +522,24 @@ impl TreeState {
             message: format!("Failed to stat file {}", disk_path.display()),
             err,
         })?;
-        let mut new_file_state = file_state(&metadata);
-        match maybe_current_file_state {
-            None => {
+        let maybe_new_file_state = file_state(&metadata);
+        match (maybe_current_file_state, maybe_new_file_state) {
+            (None, None) => {
+                // Untracked Unix socket or such
+            }
+            (Some(_), None) => {
+                // Tracked file replaced by Unix socket or such
+                self.file_states.remove(&repo_path);
+                tree_builder.remove(repo_path);
+            }
+            (None, Some(new_file_state)) => {
                 // untracked
                 let file_type = new_file_state.file_type.clone();
                 self.file_states.insert(repo_path.clone(), new_file_state);
                 let file_value = self.write_path_to_store(&repo_path, &disk_path, file_type)?;
                 tree_builder.set(repo_path, file_value);
             }
-            Some(current_file_state) => {
+            (Some(current_file_state), Some(mut new_file_state)) => {
                 #[cfg(windows)]
                 {
                     // On Windows, we preserve the state we had recorded
