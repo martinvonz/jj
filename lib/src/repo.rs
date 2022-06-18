@@ -584,18 +584,7 @@ impl MutableRepo {
         settings: &UserSettings,
         commit: &Commit,
     ) -> Commit {
-        let maybe_current_checkout_id = self.view.borrow().get_checkout(&workspace_id).cloned();
-        if let Some(current_checkout_id) = maybe_current_checkout_id {
-            let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
-            assert!(current_checkout.is_open(), "current checkout is closed");
-            if current_checkout.is_empty()
-                && current_checkout.description().is_empty()
-                && self.view().heads().contains(current_checkout.id())
-            {
-                // Abandon the checkout we're leaving if it's empty and a head commit
-                self.record_abandoned_commit(current_checkout_id);
-            }
-        }
+        self.leave_commit(&workspace_id);
         let open_commit = if !commit.is_open() {
             // If the commit is closed, create a new open commit on top
             CommitBuilder::for_open_commit(
@@ -612,6 +601,21 @@ impl MutableRepo {
         let commit_id = open_commit.id().clone();
         self.set_checkout(workspace_id, commit_id);
         open_commit
+    }
+
+    fn leave_commit(&mut self, workspace_id: &WorkspaceId) {
+        let maybe_current_checkout_id = self.view.borrow().get_checkout(workspace_id).cloned();
+        if let Some(current_checkout_id) = maybe_current_checkout_id {
+            let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
+            assert!(current_checkout.is_open(), "current checkout is closed");
+            if current_checkout.is_empty()
+                && current_checkout.description().is_empty()
+                && self.view().heads().contains(current_checkout.id())
+            {
+                // Abandon the checkout we're leaving if it's empty and a head commit
+                self.record_abandoned_commit(current_checkout_id);
+            }
+        }
     }
 
     fn enforce_view_invariants(&self) {
