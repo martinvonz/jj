@@ -17,7 +17,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::ffi::OsString;
 use std::fs;
 use std::fs::{DirEntry, File, Metadata, OpenOptions};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::ops::Bound;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
@@ -62,6 +62,33 @@ pub struct FileState {
 }
 
 impl FileState {
+    fn for_file(executable: bool, size: u64, metadata: &Metadata) -> Self {
+        FileState {
+            file_type: FileType::Normal { executable },
+            mtime: mtime_from_metadata(metadata),
+            size,
+        }
+    }
+
+    fn for_symlink(metadata: &Metadata) -> Self {
+        // When using fscrypt, the reported size is not the content size. So if
+        // we were to record the content size here (like we do for regular files), we
+        // would end up thinking the file has changed everytime we snapshot.
+        FileState {
+            file_type: FileType::Symlink,
+            mtime: mtime_from_metadata(metadata),
+            size: metadata.len(),
+        }
+    }
+
+    fn for_conflict(id: ConflictId, size: u64, metadata: &Metadata) -> Self {
+        FileState {
+            file_type: FileType::Conflict { id },
+            mtime: mtime_from_metadata(metadata),
+            size,
+        }
+    }
+
     #[cfg_attr(unix, allow(dead_code))]
     fn is_executable(&self) -> bool {
         if let FileType::Normal { executable } = &self.file_type {
@@ -620,13 +647,7 @@ impl TreeState {
         let metadata = file
             .metadata()
             .map_err(|err| CheckoutError::for_stat_error(err, disk_path))?;
-        let mut file_state = file_state(&metadata);
-        // Make sure the state we record is what we tried to set above. This is mostly
-        // for Windows, since the executable bit is not reflected in the file system
-        // there.
-        file_state.mark_executable(executable);
-        file_state.size = size;
-        Ok(file_state)
+        Ok(FileState::for_file(executable, size, &metadata))
     }
 
     #[cfg_attr(windows, allow(unused_variables))]
@@ -637,13 +658,13 @@ impl TreeState {
         id: &SymlinkId,
     ) -> Result<FileState, CheckoutError> {
         create_parent_dirs(disk_path)?;
+        let target = self.store.read_symlink(path, id)?;
         #[cfg(windows)]
         {
             println!("ignoring symlink at {:?}", path);
         }
         #[cfg(unix)]
         {
-            let target = self.store.read_symlink(path, id)?;
             let target = PathBuf::from(&target);
             symlink(&target, disk_path).map_err(|err| CheckoutError::IoError {
                 message: format!(
@@ -657,7 +678,7 @@ impl TreeState {
         let metadata = disk_path
             .symlink_metadata()
             .map_err(|err| CheckoutError::for_stat_error(err, disk_path))?;
-        Ok(file_state(&metadata))
+        Ok(FileState::for_symlink(&metadata))
     }
 
     fn write_conflict(
@@ -679,20 +700,21 @@ impl TreeState {
                 message: format!("Failed to open file {} for writing", disk_path.display()),
                 err,
             })?;
-        materialize_conflict(self.store.as_ref(), path, &conflict, &mut file).map_err(|err| {
-            CheckoutError::IoError {
+        let mut conflict_data = vec![];
+        materialize_conflict(self.store.as_ref(), path, &conflict, &mut conflict_data)
+            .expect("Failed to materialize conflict to in-memory buffer");
+        file.write_all(&conflict_data)
+            .map_err(|err| CheckoutError::IoError {
                 message: format!("Failed to write conflict to file {}", disk_path.display()),
                 err,
-            }
-        })?;
+            })?;
+        let size = conflict_data.len() as u64;
         // TODO: Set the executable bit correctly (when possible) and preserve that on
         // Windows like we do with the executable bit for regular files.
         let metadata = file
             .metadata()
             .map_err(|err| CheckoutError::for_stat_error(err, disk_path))?;
-        let mut result = file_state(&metadata);
-        result.file_type = FileType::Conflict { id: id.clone() };
-        Ok(result)
+        Ok(FileState::for_conflict(id.clone(), size, &metadata))
     }
 
     #[cfg_attr(windows, allow(unused_variables))]
