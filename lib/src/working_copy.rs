@@ -202,7 +202,7 @@ fn mtime_from_metadata(metadata: &Metadata) -> MillisSinceEpoch {
 fn file_state(metadata: &Metadata) -> Option<FileState> {
     let metadata_file_type = metadata.file_type();
     let file_type = if metadata_file_type.is_dir() {
-        panic!("expected file, not directory");
+        None
     } else if metadata_file_type.is_symlink() {
         Some(FileType::Symlink)
     } else if metadata_file_type.is_file() {
