@@ -224,16 +224,16 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.1.18"
+version = "3.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2dbdf4bdacb33466e854ce889eee8dfd5729abf7ccd7664d0a2d60cd384440b"
+checksum = "d53da17d37dba964b9b3ecb5c5a1f193a2762c700e6829201e645b9381c99dc7"
 dependencies = [
  "atty",
  "bitflags",
  "clap_derive",
  "clap_lex",
  "indexmap",
- "lazy_static",
+ "once_cell",
  "strsim",
  "termcolor",
  "textwrap 0.15.0",
@@ -245,14 +245,14 @@ version = "3.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da92e6facd8d73c22745a5d3cbb59bdf8e46e3235c923e516527d8e81eec14a4"
 dependencies = [
- "clap 3.1.18",
+ "clap 3.2.5",
 ]
 
 [[package]]
 name = "clap_derive"
-version = "3.1.18"
+version = "3.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25320346e922cffe59c0bbc5410c8d8784509efb321488971081313cb1e1a33c"
+checksum = "c11d40217d16aee8508cc8e5fde8b4ff24639758608e5374e731b53f85749fb9"
 dependencies = [
  "heck",
  "proc-macro-error",
@@ -263,9 +263,9 @@ dependencies = [
 
 [[package]]
 name = "clap_lex"
-version = "0.2.0"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a37c35f1112dad5e6e0b1adaff798507497a18fceeb30cceb3bae7d1427b9213"
+checksum = "5538cd660450ebeb4234cfecf8f2284b844ffc4c50531e66d584ad5b91293613"
 dependencies = [
  "os_str_bytes",
 ]
@@ -276,7 +276,7 @@ version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "121b598d1b9d63d4ff3b7dae8defd88cc23e41850ee89fd2feec2e7d992e6ec8"
 dependencies = [
- "clap 3.1.18",
+ "clap 3.2.5",
  "roff",
 ]
 
@@ -726,7 +726,7 @@ dependencies = [
  "assert_cmd",
  "atty",
  "chrono",
- "clap 3.1.18",
+ "clap 3.2.5",
  "clap_complete",
  "clap_mangen",
  "config",
@@ -931,9 +931,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.10.0"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87f3e037eac156d1775da914196f0f37741a274155e34a0b7e427c35d2a2ecb9"
+checksum = "7709cef83f0c1f58f666e746a08b21e0085f7440fa6a29cc194d68aac97a4225"
 
 [[package]]
 name = "oorandom"
