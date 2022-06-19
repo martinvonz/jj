@@ -3353,7 +3353,20 @@ fn cmd_close(ui: &mut Ui, command: &CommandHelper, args: &CloseArgs) -> Result<(
     commit_builder = commit_builder.set_description(description);
     let mut tx =
         workspace_command.start_transaction(&format!("close commit {}", commit.id().hex()));
-    commit_builder.write_to_repo(tx.mut_repo());
+    let new_commit = commit_builder.write_to_repo(tx.mut_repo());
+    let workspace_ids = tx.mut_repo().view().workspaces_for_checkout(commit.id());
+    if !workspace_ids.is_empty() {
+        let new_checkout = CommitBuilder::for_open_commit(
+            ui.settings(),
+            repo.store(),
+            new_commit.id().clone(),
+            new_commit.tree_id().clone(),
+        )
+        .write_to_repo(tx.mut_repo());
+        for workspace_id in workspace_ids {
+            tx.mut_repo().edit(workspace_id, &new_checkout);
+        }
+    }
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
