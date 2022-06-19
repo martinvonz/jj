@@ -149,16 +149,16 @@ fn test_help() {
     // Test that global options are separated out in the help output
     let test_env = TestEnvironment::default();
 
-    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["edit", "-h"]);
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["touchup", "-h"]);
     insta::assert_snapshot!(stdout.replace(".exe", ""), @r###"
-    jj-edit 
-    Edit the content changes in a revision
+    jj-touchup 
+    Touch up the content changes in a revision
 
     USAGE:
-        jj edit [OPTIONS]
+        jj touchup [OPTIONS]
 
     OPTIONS:
-        -r, --revision <REVISION>    The revision to edit [default: @]
+        -r, --revision <REVISION>    The revision to touch up [default: @]
 
     GLOBAL OPTIONS:
             --at-operation <AT_OPERATION>    Operation to load the repo at [default: @] [aliases: at-op]

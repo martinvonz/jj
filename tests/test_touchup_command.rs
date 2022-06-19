@@ -37,7 +37,7 @@ fn test_edit() {
         "files-before file1 file2\0files-after JJ-INSTRUCTIONS file2",
     )
     .unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["edit"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["touchup"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
@@ -49,7 +49,7 @@ fn test_edit() {
 
     // Nothing happens if the diff-editor exits with an error
     std::fs::write(&edit_script, "rm file2\0fail").unwrap();
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["edit"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["touchup"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to edit diff: The diff tool exited with a non-zero code
     "###);
@@ -61,7 +61,7 @@ fn test_edit() {
 
     // Can edit changes to individual files
     std::fs::write(&edit_script, "reset file2").unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["edit"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["touchup"]);
     insta::assert_snapshot!(stdout, @r###"
     Created 8c79910b5033 (no description set)
     Working copy now at: 8c79910b5033 (no description set)
@@ -75,7 +75,7 @@ fn test_edit() {
     // Changes to a commit are propagated to descendants
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     std::fs::write(&edit_script, "write file3\nmodified\n").unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["edit", "-r", "@-"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["touchup", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     Created 472de2debaff (no description set)
     Rebased 1 descendant commits
@@ -126,7 +126,7 @@ fn test_edit_merge() {
         "files-before file1\0files-after JJ-INSTRUCTIONS file1 file3\0rm file1",
     )
     .unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["edit", "-r", "@-"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["touchup", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     Created 608f32ad9e19 merge
     Rebased 1 descendant commits
