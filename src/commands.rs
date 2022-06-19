@@ -5013,18 +5013,6 @@ fn cmd_git_push(
                 BranchPushAction::LocalConflicted => {}
                 BranchPushAction::RemoteConflicted => {}
                 BranchPushAction::Update(update) => {
-                    if let Some(new_target) = &update.new_target {
-                        let new_target_commit = repo.store().get_commit(new_target)?;
-                        // TODO: Should we also skip branches that have open commits as ancestors?
-                        if new_target_commit.is_open() {
-                            writeln!(
-                                ui,
-                                "Skipping branch '{}' since it points to an open commit.",
-                                branch_name
-                            )?;
-                            continue;
-                        }
-                    }
                     branch_updates.insert(branch_name.clone(), update);
                 }
             }
@@ -5124,17 +5112,7 @@ fn branch_updates_for_push(
             "Branch {}@{} is conflicted",
             branch_name, remote_name
         ))),
-        BranchPushAction::Update(update) => {
-            if let Some(new_target) = &update.new_target {
-                let new_target_commit = repo.store().get_commit(new_target)?;
-                if new_target_commit.is_open() {
-                    return Err(CommandError::UserError(
-                        "Won't push open commit".to_string(),
-                    ));
-                }
-            }
-            Ok(Some(update))
-        }
+        BranchPushAction::Update(update) => Ok(Some(update)),
     }
 }
 
