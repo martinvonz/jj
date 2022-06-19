@@ -1132,7 +1132,7 @@ enum Commands {
     Squash(SquashArgs),
     Unsquash(UnsquashArgs),
     Restore(RestoreArgs),
-    Edit(EditArgs),
+    Touchup(TouchupArgs),
     Split(SplitArgs),
     Merge(MergeArgs),
     Rebase(RebaseArgs),
@@ -1513,7 +1513,7 @@ struct RestoreArgs {
     paths: Vec<String>,
 }
 
-/// Edit the content changes in a revision
+/// Touch up the content changes in a revision
 ///
 /// Starts a diff editor (`meld` by default) on the changes in the revision.
 /// Edit the right side of the diff until it looks the way you want. Once you
@@ -1522,8 +1522,8 @@ struct RestoreArgs {
 /// unsquash -i` if you instead want to move changes into or out of the parent
 /// revision.
 #[derive(clap::Args, Clone, Debug)]
-struct EditArgs {
-    /// The revision to edit
+struct TouchupArgs {
+    /// The revision to touch up
     #[clap(long, short, default_value = "@")]
     revision: String,
 }
@@ -3731,7 +3731,11 @@ side. If you don't make any changes, then the operation will be aborted.
     Ok(())
 }
 
-fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(), CommandError> {
+fn cmd_touchup(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &TouchupArgs,
+) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
@@ -5278,7 +5282,7 @@ where
         Commands::Squash(sub_args) => cmd_squash(ui, &command_helper, sub_args),
         Commands::Unsquash(sub_args) => cmd_unsquash(ui, &command_helper, sub_args),
         Commands::Restore(sub_args) => cmd_restore(ui, &command_helper, sub_args),
-        Commands::Edit(sub_args) => cmd_edit(ui, &command_helper, sub_args),
+        Commands::Touchup(sub_args) => cmd_touchup(ui, &command_helper, sub_args),
         Commands::Split(sub_args) => cmd_split(ui, &command_helper, sub_args),
         Commands::Merge(sub_args) => cmd_merge(ui, &command_helper, sub_args),
         Commands::Rebase(sub_args) => cmd_rebase(ui, &command_helper, sub_args),
