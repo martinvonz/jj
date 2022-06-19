@@ -585,22 +585,21 @@ impl MutableRepo {
         commit: &Commit,
     ) -> Commit {
         self.leave_commit(&workspace_id);
-        let open_commit = if !commit.is_open() {
-            // If the commit is closed, create a new open commit on top
-            CommitBuilder::for_open_commit(
-                settings,
-                self.store(),
-                commit.id().clone(),
-                commit.tree_id().clone(),
-            )
-            .write_to_repo(self)
-        } else {
-            // Otherwise the commit was open, so just use that commit as is.
-            commit.clone()
-        };
-        let commit_id = open_commit.id().clone();
-        self.set_checkout(workspace_id, commit_id);
+        let open_commit = CommitBuilder::for_open_commit(
+            settings,
+            self.store(),
+            commit.id().clone(),
+            commit.tree_id().clone(),
+        )
+        .write_to_repo(self);
+        self.set_checkout(workspace_id, open_commit.id().clone());
         open_commit
+    }
+
+    pub fn edit(&mut self, workspace_id: WorkspaceId, commit: &Commit) {
+        assert!(commit.is_open(), "commit to edit is closed");
+        self.leave_commit(&workspace_id);
+        self.set_checkout(workspace_id, commit.id().clone());
     }
 
     fn leave_commit(&mut self, workspace_id: &WorkspaceId) {

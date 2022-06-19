@@ -24,26 +24,23 @@ use test_case::test_case;
 
 #[test_case(false ; "local backend")]
 // #[test_case(true ; "git backend")]
-fn test_checkout_open(use_git: bool) {
+fn test_edit(use_git: bool) {
     // Test that MutableRepo::check_out() uses the requested commit if it's open
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
-    let requested_checkout = testutils::create_random_commit(&settings, repo)
+    let checkout = testutils::create_random_commit(&settings, repo)
         .set_open(true)
         .write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let ws_id = WorkspaceId::default();
-    let actual_checkout = tx
-        .mut_repo()
-        .check_out(ws_id.clone(), &settings, &requested_checkout);
-    assert_eq!(actual_checkout.id(), requested_checkout.id());
+    tx.mut_repo().edit(ws_id.clone(), &checkout);
     let repo = tx.commit();
-    assert_eq!(repo.view().get_checkout(&ws_id), Some(actual_checkout.id()));
+    assert_eq!(repo.view().get_checkout(&ws_id), Some(checkout.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -88,7 +85,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
         .set_open(true)
         .write_to_repo(mut_repo);
     let ws_id = WorkspaceId::default();
-    mut_repo.check_out(ws_id.clone(), &settings, &old_checkout);
+    mut_repo.edit(ws_id.clone(), &old_checkout);
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -96,7 +93,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.check_out(ws_id, &settings, &new_checkout);
+    mut_repo.edit(ws_id, &new_checkout);
     mut_repo.rebase_descendants(&settings).unwrap();
     assert!(mut_repo.view().heads().contains(old_checkout.id()));
 }
@@ -120,7 +117,7 @@ fn test_checkout_previous_empty(use_git: bool) {
     )
     .write_to_repo(mut_repo);
     let ws_id = WorkspaceId::default();
-    mut_repo.check_out(ws_id.clone(), &settings, &old_checkout);
+    mut_repo.edit(ws_id.clone(), &old_checkout);
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -128,7 +125,7 @@ fn test_checkout_previous_empty(use_git: bool) {
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.check_out(ws_id, &settings, &new_checkout);
+    mut_repo.edit(ws_id, &new_checkout);
     mut_repo.rebase_descendants(&settings).unwrap();
     assert!(!mut_repo.view().heads().contains(old_checkout.id()));
 }
@@ -153,7 +150,7 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
     .set_description("not empty".to_string())
     .write_to_repo(mut_repo);
     let ws_id = WorkspaceId::default();
-    mut_repo.check_out(ws_id.clone(), &settings, &old_checkout);
+    mut_repo.edit(ws_id.clone(), &old_checkout);
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -161,7 +158,7 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.check_out(ws_id, &settings, &new_checkout);
+    mut_repo.edit(ws_id, &new_checkout);
     mut_repo.rebase_descendants(&settings).unwrap();
     assert!(mut_repo.view().heads().contains(old_checkout.id()));
 }
@@ -192,7 +189,7 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
     )
     .write_to_repo(mut_repo);
     let ws_id = WorkspaceId::default();
-    mut_repo.check_out(ws_id.clone(), &settings, &old_checkout);
+    mut_repo.edit(ws_id.clone(), &old_checkout);
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -200,7 +197,7 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.check_out(ws_id, &settings, &new_checkout);
+    mut_repo.edit(ws_id, &new_checkout);
     mut_repo.rebase_descendants(&settings).unwrap();
     assert_eq!(
         *mut_repo.view().heads(),
@@ -210,30 +207,24 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 // #[test_case(true ; "git backend")]
-fn test_checkout_initial(use_git: bool) {
-    // Test that MutableRepo::check_out() can be used on the initial checkout in a
+fn test_edit_initial(use_git: bool) {
+    // Test that MutableRepo::edit() can be used on the initial checkout in a
     // workspace
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
-    let requested_checkout = testutils::create_random_commit(&settings, repo)
+    let checkout = testutils::create_random_commit(&settings, repo)
         .set_open(true)
         .write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let workspace_id = WorkspaceId::new("new-workspace".to_string());
-    let actual_checkout =
-        tx.mut_repo()
-            .check_out(workspace_id.clone(), &settings, &requested_checkout);
-    assert_eq!(actual_checkout.id(), requested_checkout.id());
+    tx.mut_repo().edit(workspace_id.clone(), &checkout);
     let repo = tx.commit();
-    assert_eq!(
-        repo.view().get_checkout(&workspace_id),
-        Some(actual_checkout.id())
-    );
+    assert_eq!(repo.view().get_checkout(&workspace_id), Some(checkout.id()));
 }
 
 #[test_case(false ; "local backend")]

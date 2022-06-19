@@ -2118,8 +2118,12 @@ fn cmd_checkout(
         workspace_command.commit_working_copy(ui)?;
         let mut tx = workspace_command
             .start_transaction(&format!("check out commit {}", new_commit.id().hex()));
-        tx.mut_repo()
-            .check_out(workspace_id, ui.settings(), &new_commit);
+        if new_commit.is_open() {
+            tx.mut_repo().edit(workspace_id, &new_commit);
+        } else {
+            tx.mut_repo()
+                .check_out(workspace_id, ui.settings(), &new_commit);
+        }
         workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())
@@ -3438,7 +3442,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
     let mut_repo = tx.mut_repo();
     let new_commit = commit_builder.write_to_repo(mut_repo);
     let workspace_id = workspace_command.workspace_id();
-    mut_repo.check_out(workspace_id, ui.settings(), &new_commit);
+    mut_repo.edit(workspace_id, &new_commit);
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
