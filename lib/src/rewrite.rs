@@ -349,19 +349,18 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         }
 
         let new_commit = self.mut_repo.store().get_commit(new_commit_id)?;
-        // If several workspaces had the same old commit checked out, we want them all
-        // to have the same commit checked out afterwards as well, so we avoid
-        // calling MutableRepo::check_out() multiple times, since that might
-        // otherwise create a separate new commit for each workspace.
         let new_checkout_commit = if new_commit.is_open() {
-            self.mut_repo
-                .edit(workspaces_to_update[0].clone(), &new_commit);
             new_commit
         } else {
-            self.mut_repo
-                .check_out(workspaces_to_update[0].clone(), self.settings, &new_commit)
+            CommitBuilder::for_open_commit(
+                self.settings,
+                self.mut_repo.store(),
+                new_commit.id().clone(),
+                new_commit.tree_id().clone(),
+            )
+            .write_to_repo(self.mut_repo)
         };
-        for workspace_id in workspaces_to_update.into_iter().skip(1) {
+        for workspace_id in workspaces_to_update.into_iter() {
             self.mut_repo.edit(workspace_id, &new_checkout_commit);
         }
         Ok(())
