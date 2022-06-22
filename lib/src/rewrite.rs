@@ -295,7 +295,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         old_commit_id: CommitId,
         new_commit_ids: Vec<CommitId>,
     ) -> Result<(), BackendError> {
-        self.update_checkouts(&old_commit_id, &new_commit_ids)?;
+        // We arbitrarily pick a new checkout among the candidates.
+        self.update_checkouts(&old_commit_id, &new_commit_ids[0])?;
 
         if let Some(branch_names) = self.branches.get(&old_commit_id).cloned() {
             let mut branch_updates = vec![];
@@ -334,7 +335,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     fn update_checkouts(
         &mut self,
         old_commit_id: &CommitId,
-        new_commit_ids: &[CommitId],
+        new_commit_id: &CommitId,
     ) -> Result<(), BackendError> {
         let mut workspaces_to_update = vec![];
         for (workspace_id, checkout_id) in self.mut_repo.view().checkouts() {
@@ -351,9 +352,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         // to have the same commit checked out afterwards as well, so we avoid
         // calling MutableRepo::check_out() multiple times, since that might
         // otherwise create a separate new commit for each workspace.
-        // We arbitrarily pick a new checkout among the candidates.
-        let new_commit_id = new_commit_ids[0].clone();
-        let new_commit = self.mut_repo.store().get_commit(&new_commit_id)?;
+        let new_commit = self.mut_repo.store().get_commit(new_commit_id)?;
         let new_checkout_commit =
             self.mut_repo
                 .check_out(workspaces_to_update[0].clone(), self.settings, &new_commit);
