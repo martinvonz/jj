@@ -337,13 +337,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         old_commit_id: &CommitId,
         new_commit_id: &CommitId,
     ) -> Result<(), BackendError> {
-        let mut workspaces_to_update = vec![];
-        for (workspace_id, checkout_id) in self.mut_repo.view().checkouts() {
-            if checkout_id == old_commit_id {
-                workspaces_to_update.push(workspace_id.clone());
-            }
-        }
-
+        let workspaces_to_update = self.mut_repo.view().workspaces_for_checkout(old_commit_id);
         if workspaces_to_update.is_empty() {
             return Ok(());
         }

@@ -50,6 +50,16 @@ impl View {
         self.data.checkouts.get(workspace_id)
     }
 
+    pub fn workspaces_for_checkout(&self, commit_id: &CommitId) -> Vec<WorkspaceId> {
+        let mut workspaces_ids = vec![];
+        for (workspace_id, checkout_id) in &self.data.checkouts {
+            if checkout_id == commit_id {
+                workspaces_ids.push(workspace_id.clone());
+            }
+        }
+        workspaces_ids
+    }
+
     pub fn is_checkout(&self, commit_id: &CommitId) -> bool {
         self.data.checkouts.values().contains(commit_id)
     }
