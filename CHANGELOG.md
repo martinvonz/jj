@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj new` now always checks out the new commit (used to be only if the parent
   was `@`).
 
+* When the working-copy commit is abandoned by `jj abandon` and the parent
+  commit is open, a new working-copy commit will be created on top (the open
+  parent commit used to get checked out).
+
 * (#330) `jj branch` now uses subcommands like `jj branch create` and
   `jj branch forget` instead of options like `jj branch --forget`.
 
