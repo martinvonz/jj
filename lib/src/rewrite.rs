@@ -130,7 +130,7 @@ pub struct DescendantRebaser<'settings, 'repo> {
     // Commits to visit but skip. These were also in `to_visit` to start with, but we don't
     // want to rebase them. Instead, we record them in `replacements` when we visit them. That way,
     // their descendants will be rebased correctly.
-    to_skip: HashSet<CommitId>,
+    abandoned: HashSet<CommitId>,
     new_commits: HashSet<CommitId>,
     rebased: HashMap<CommitId, CommitId>,
     // Names of branches where local target includes the commit id in the key.
@@ -239,7 +239,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             new_parents,
             divergent,
             to_visit,
-            to_skip: abandoned,
+            abandoned,
             new_commits,
             rebased: Default::default(),
             branches,
@@ -294,9 +294,10 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         &mut self,
         old_commit_id: CommitId,
         new_commit_ids: Vec<CommitId>,
+        edit: bool,
     ) -> Result<(), BackendError> {
         // We arbitrarily pick a new checkout among the candidates.
-        self.update_checkouts(&old_commit_id, &new_commit_ids[0])?;
+        self.update_checkouts(&old_commit_id, &new_commit_ids[0], edit)?;
 
         if let Some(branch_names) = self.branches.get(&old_commit_id).cloned() {
             let mut branch_updates = vec![];
@@ -336,6 +337,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         &mut self,
         old_commit_id: &CommitId,
         new_commit_id: &CommitId,
+        edit: bool,
     ) -> Result<(), BackendError> {
         let workspaces_to_update = self.mut_repo.view().workspaces_for_checkout(old_commit_id);
         if workspaces_to_update.is_empty() {
@@ -343,7 +345,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         }
 
         let new_commit = self.mut_repo.store().get_commit(new_commit_id)?;
-        let new_checkout_commit = if new_commit.is_open() {
+        let new_checkout_commit = if edit {
             new_commit
         } else {
             CommitBuilder::for_open_commit(
@@ -369,23 +371,23 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 // (i.e. it's part of the input for this rebase). We don't need
                 // to rebase it, but we still want to update branches pointing
                 // to the old commit.
-                self.update_references(old_commit_id, new_parent_ids)?;
+                self.update_references(old_commit_id, new_parent_ids, true)?;
                 continue;
             }
             if let Some(divergent_ids) = self.divergent.get(&old_commit_id).cloned() {
                 // Leave divergent commits in place. Don't update `new_parents` since we don't
                 // want to rebase descendants either.
-                self.update_references(old_commit_id, divergent_ids)?;
+                self.update_references(old_commit_id, divergent_ids, true)?;
                 continue;
             }
             let old_commit = self.mut_repo.store().get_commit(&old_commit_id)?;
             let old_parent_ids = old_commit.parent_ids();
             let new_parent_ids = self.new_parents(&old_parent_ids);
-            if self.to_skip.contains(&old_commit_id) {
+            if self.abandoned.contains(&old_commit_id) {
                 // Update the `new_parents` map so descendants are rebased correctly.
                 self.new_parents
                     .insert(old_commit_id.clone(), new_parent_ids.clone());
-                self.update_references(old_commit_id, new_parent_ids)?;
+                self.update_references(old_commit_id, new_parent_ids, false)?;
                 continue;
             } else if new_parent_ids == old_parent_ids {
                 // The commit is already in place.
@@ -410,7 +412,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             let new_commit = rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents);
             self.rebased
                 .insert(old_commit_id.clone(), new_commit.id().clone());
-            self.update_references(old_commit_id, vec![new_commit.id().clone()])?;
+            self.update_references(old_commit_id, vec![new_commit.id().clone()], true)?;
             return Ok(Some(RebasedDescendant {
                 old_commit,
                 new_commit,

@@ -1256,12 +1256,12 @@ fn test_rebase_descendants_branch_delete_modify_abandon() {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
-fn test_rebase_descendants_update_checkout_open(use_git: bool) {
+fn test_rebase_descendants_update_checkout(use_git: bool) {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
-    // Checked-out, open commit B was replaced by open commit C. C should become
+    // Checked-out commit B was replaced by commit C. C should become
     // checked out.
     //
     // C B
@@ -1300,16 +1300,16 @@ fn test_rebase_descendants_update_checkout_open(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
-fn test_rebase_descendants_update_checkout_closed(use_git: bool) {
+fn test_rebase_descendants_update_checkout_abandoned(use_git: bool) {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
-    // Checked-out, open commit B was replaced by closed commit C. A child of C
+    // Checked-out, open commit B was abandoned. A child of A
     // should become checked out.
     //
-    // C B
-    // |/
+    // B
+    // |
     // A
     let mut tx = repo.start_transaction("test");
     let commit_a = create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
@@ -1329,10 +1329,7 @@ fn test_rebase_descendants_update_checkout_closed(use_git: bool) {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    let commit_c = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
-        .set_description("C".to_string())
-        .set_open(false)
-        .write_to_repo(tx.mut_repo());
+    tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
 
@@ -1347,7 +1344,7 @@ fn test_rebase_descendants_update_checkout_closed(use_git: bool) {
         .get_commit(repo.view().get_checkout(&ws1_id).unwrap())
         .unwrap();
     assert!(checkout.is_open());
-    assert_eq!(checkout.parent_ids(), vec![commit_c.id().clone()]);
+    assert_eq!(checkout.parent_ids(), vec![commit_a.id().clone()]);
     assert_eq!(repo.view().get_checkout(&ws3_id), Some(commit_a.id()));
 }
 
