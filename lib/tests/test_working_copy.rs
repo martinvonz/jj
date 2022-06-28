@@ -23,7 +23,9 @@ use std::sync::Arc;
 use itertools::Itertools;
 use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
 use jujutsu_lib::gitignore::GitIgnoreFile;
-use jujutsu_lib::op_store::{OperationId, WorkspaceId};
+#[cfg(unix)]
+use jujutsu_lib::op_store::OperationId;
+use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jujutsu_lib::settings::UserSettings;
