@@ -1128,6 +1128,7 @@ enum Commands {
     Open(OpenArgs),
     Duplicate(DuplicateArgs),
     Abandon(AbandonArgs),
+    Edit(EditArgs),
     New(NewArgs),
     Move(MoveArgs),
     Squash(SquashArgs),
@@ -1400,6 +1401,16 @@ struct AbandonArgs {
     /// The revision(s) to abandon
     #[clap(default_value = "@")]
     revisions: Vec<String>,
+}
+
+/// Edit a commit in the working copy
+///
+/// Puts the contents of a commit in the working copy for editing. Any changes
+/// you make in the working copy will update (amend) the commit.
+#[derive(clap::Args, Clone, Debug)]
+struct EditArgs {
+    /// The commit to edit
+    revision: String,
 }
 
 /// Create a new, empty change and check it out
@@ -3440,6 +3451,22 @@ fn cmd_abandon(
     Ok(())
 }
 
+fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let new_commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let workspace_id = workspace_command.workspace_id();
+    if workspace_command.repo().view().get_checkout(&workspace_id) == Some(new_commit.id()) {
+        ui.write("Already editing that commit\n")?;
+    } else {
+        workspace_command.commit_working_copy(ui)?;
+        let mut tx =
+            workspace_command.start_transaction(&format!("edit commit {}", new_commit.id().hex()));
+        tx.mut_repo().edit(workspace_id, &new_commit);
+        workspace_command.finish_transaction(ui, tx)?;
+    }
+    Ok(())
+}
+
 fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let parent = workspace_command.resolve_single_rev(ui, &args.revision)?;
@@ -5295,6 +5322,7 @@ where
         Commands::Open(sub_args) => cmd_open(ui, &command_helper, sub_args),
         Commands::Duplicate(sub_args) => cmd_duplicate(ui, &command_helper, sub_args),
         Commands::Abandon(sub_args) => cmd_abandon(ui, &command_helper, sub_args),
+        Commands::Edit(sub_args) => cmd_edit(ui, &command_helper, sub_args),
         Commands::New(sub_args) => cmd_new(ui, &command_helper, sub_args),
         Commands::Move(sub_args) => cmd_move(ui, &command_helper, sub_args),
         Commands::Squash(sub_args) => cmd_squash(ui, &command_helper, sub_args),
