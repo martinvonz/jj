@@ -56,6 +56,21 @@ fn test_checkout() {
     o b4c967d9c9a9e8b523b0a9b52879b3337a3e67a9 closed
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
+
+    // With ui.enable-open-commits=false, checking out an open commit also results
+    // in a commit on top
+    test_env.add_config(
+        br#"[ui]
+    enable-open-commits = false
+    "#,
+    );
+    test_env.jj_cmd_success(&repo_path, &["checkout", "open"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @ 37b7bc83cf288eef68564044a9ac0ec6c5df34f0 (no description set)
+    o 169fa76981bcf302d1a96952bdf32a8da79ab084 open
+    o b4c967d9c9a9e8b523b0a9b52879b3337a3e67a9 closed
+    o 0000000000000000000000000000000000000000 (no description set)
+    "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {

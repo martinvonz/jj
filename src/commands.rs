@@ -2122,18 +2122,27 @@ fn cmd_checkout(
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     let workspace_id = workspace_command.workspace_id();
-    if workspace_command.repo().view().get_checkout(&workspace_id) == Some(new_commit.id()) {
-        ui.write("Already on that commit\n")?;
+    if ui.settings().enable_open_commits() {
+        if workspace_command.repo().view().get_checkout(&workspace_id) == Some(new_commit.id()) {
+            ui.write("Already on that commit\n")?;
+        } else {
+            workspace_command.commit_working_copy(ui)?;
+            let mut tx = workspace_command
+                .start_transaction(&format!("check out commit {}", new_commit.id().hex()));
+            if new_commit.is_open() {
+                tx.mut_repo().edit(workspace_id, &new_commit);
+            } else {
+                tx.mut_repo()
+                    .check_out(workspace_id, ui.settings(), &new_commit);
+            }
+            workspace_command.finish_transaction(ui, tx)?;
+        }
     } else {
         workspace_command.commit_working_copy(ui)?;
         let mut tx = workspace_command
             .start_transaction(&format!("check out commit {}", new_commit.id().hex()));
-        if new_commit.is_open() {
-            tx.mut_repo().edit(workspace_id, &new_commit);
-        } else {
-            tx.mut_repo()
-                .check_out(workspace_id, ui.settings(), &new_commit);
-        }
+        tx.mut_repo()
+            .check_out(workspace_id, ui.settings(), &new_commit);
         workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())
@@ -2376,19 +2385,25 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
     // TODO: Add branches, tags, etc
     // TODO: Indent the description like Git does
     let template_string = r#"
-            label(if(open, "open"),
             "Commit ID: " commit_id "\n"
             "Change ID: " change_id "\n"
             "Author: " author " <" author.email() "> (" author.timestamp() ")\n"
             "Committer: " committer " <" committer.email() "> (" committer.timestamp() ")\n"
             "\n"
             description
-            "\n"
-            )"#;
+            "\n""#;
+    let template_string = if ui.settings().enable_open_commits() {
+        format!(
+            r#"
+            label(if(open, "open"), {template_string})"#
+        )
+    } else {
+        String::from(template_string)
+    };
     let template = crate::template_parser::parse_commit_template(
         workspace_command.repo().as_repo_ref(),
         &workspace_command.workspace_id(),
-        template_string,
+        &template_string,
     );
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
@@ -2995,7 +3010,6 @@ fn log_template(settings: &UserSettings) -> String {
     // TODO: define a method on boolean values, so we can get auto-coloring
     //       with e.g. `conflict.then("conflict")`
     let default_template = r#"
-            label(if(open, "open"),
             commit_id.short()
             " " change_id.short()
             " " author.email()
@@ -3008,12 +3022,19 @@ fn log_template(settings: &UserSettings) -> String {
             if(conflict, label("conflict", " conflict"))
             "\n"
             description.first_line()
-            "\n"
-            )"#;
+            "\n""#;
+    let default_template = if settings.enable_open_commits() {
+        format!(
+            r#"
+            label(if(open, "open"), {default_template})"#
+        )
+    } else {
+        String::from(default_template)
+    };
     settings
         .config()
         .get_string("template.log.graph")
-        .unwrap_or_else(|_| String::from(default_template))
+        .unwrap_or(default_template)
 }
 
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {

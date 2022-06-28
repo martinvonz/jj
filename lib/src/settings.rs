@@ -88,6 +88,12 @@ impl UserSettings {
         }
     }
 
+    pub fn enable_open_commits(&self) -> bool {
+        self.config
+            .get_bool("ui.enable-open-commits")
+            .unwrap_or(true)
+    }
+
     pub fn config(&self) -> &config::Config {
         &self.config
     }
