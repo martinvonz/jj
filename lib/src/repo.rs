@@ -597,7 +597,6 @@ impl MutableRepo {
     }
 
     pub fn edit(&mut self, workspace_id: WorkspaceId, commit: &Commit) {
-        assert!(commit.is_open(), "commit to edit is closed");
         self.leave_commit(&workspace_id);
         self.set_checkout(workspace_id, commit.id().clone());
     }
@@ -606,7 +605,6 @@ impl MutableRepo {
         let maybe_current_checkout_id = self.view.borrow().get_checkout(workspace_id).cloned();
         if let Some(current_checkout_id) = maybe_current_checkout_id {
             let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
-            assert!(current_checkout.is_open(), "current checkout is closed");
             if current_checkout.is_empty()
                 && current_checkout.description().is_empty()
                 && self.view().heads().contains(current_checkout.id())
