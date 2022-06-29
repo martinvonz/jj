@@ -91,7 +91,12 @@ fn test_git_push_success() {
     "###);
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Delete branch branch1 from 545acdb23f70
+      Move branch branch2 from 545acdb23f70 to 7840c9885676
+      Add branch my-branch to 7840c9885676
+    "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     branch2: 7840c9885676 foo

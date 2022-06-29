@@ -17,7 +17,7 @@ extern crate clap;
 extern crate clap_mangen;
 extern crate config;
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fs::OpenOptions;
@@ -5082,12 +5082,12 @@ fn cmd_git_push(
     let repo = workspace_command.repo().clone();
 
     let mut tx = workspace_command.start_transaction("import git refs");
-    let mut branch_updates = HashMap::new();
+    let mut branch_updates = vec![];
     if let Some(branch_name) = &args.branch {
         if let Some(update) =
             branch_updates_for_push(repo.as_repo_ref(), &args.remote, branch_name)?
         {
-            branch_updates.insert(branch_name.clone(), update);
+            branch_updates.push((branch_name.clone(), update));
         } else {
             writeln!(
                 ui,
@@ -5114,7 +5114,7 @@ fn cmd_git_push(
         if let Some(update) =
             branch_updates_for_push(tx.mut_repo().as_repo_ref(), &args.remote, &branch_name)?
         {
-            branch_updates.insert(branch_name.clone(), update);
+            branch_updates.push((branch_name.clone(), update));
         } else {
             writeln!(
                 ui,
@@ -5131,7 +5131,7 @@ fn cmd_git_push(
                 BranchPushAction::LocalConflicted => {}
                 BranchPushAction::RemoteConflicted => {}
                 BranchPushAction::Update(update) => {
-                    branch_updates.insert(branch_name.clone(), update);
+                    branch_updates.push((branch_name.clone(), update));
                 }
             }
         }
@@ -5144,18 +5144,18 @@ fn cmd_git_push(
 
     let mut ref_updates = vec![];
     let mut new_heads = vec![];
-    for (branch_name, update) in branch_updates {
+    for (branch_name, update) in &branch_updates {
         let qualified_name = format!("refs/heads/{}", branch_name);
-        if let Some(new_target) = update.new_target {
+        if let Some(new_target) = &update.new_target {
             new_heads.push(new_target.clone());
-            let force = match update.old_target {
+            let force = match &update.old_target {
                 None => false,
-                Some(old_target) => !repo.index().is_ancestor(&old_target, &new_target),
+                Some(old_target) => !repo.index().is_ancestor(old_target, new_target),
             };
             ref_updates.push(GitRefUpdate {
                 qualified_name,
                 force,
-                new_target: Some(new_target),
+                new_target: Some(new_target.clone()),
             });
         } else {
             ref_updates.push(GitRefUpdate {
@@ -5199,6 +5199,37 @@ fn cmd_git_push(
                 short_commit_hash(commit.id()),
                 reasons.join(" and ")
             )));
+        }
+    }
+
+    writeln!(ui, "Branch changes to push to {}:", &args.remote)?;
+    for (branch_name, update) in &branch_updates {
+        match (&update.old_target, &update.new_target) {
+            (Some(old_target), Some(new_target)) => {
+                writeln!(
+                    ui,
+                    "  Move branch {branch_name} from {} to {}",
+                    short_commit_hash(old_target),
+                    short_commit_hash(new_target)
+                )?;
+            }
+            (Some(old_target), None) => {
+                writeln!(
+                    ui,
+                    "  Delete branch {branch_name} from {}",
+                    short_commit_hash(old_target)
+                )?;
+            }
+            (None, Some(new_target)) => {
+                writeln!(
+                    ui,
+                    "  Add branch {branch_name} to {}",
+                    short_commit_hash(new_target)
+                )?;
+            }
+            (None, None) => {
+                panic!("Not pushing any change to branch {branch_name}");
+            }
         }
     }
 
