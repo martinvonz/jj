@@ -1080,8 +1080,7 @@ struct GlobalArgs {
     /// most recent operation. You can use `--at-op=<operation ID>` to see what
     /// the repo looked like at an earlier operation. For example `jj
     /// --at-op=<operation ID> st` will show you what `jj st` would have
-    /// shown you when the given                      operation had just
-    /// finished.
+    /// shown you when the given operation had just finished.
     ///
     /// Use `jj op log` to find the operation ID you want. Any unambiguous
     /// prefix of the operation ID is enough.
@@ -1089,10 +1088,10 @@ struct GlobalArgs {
     /// When loading the repo at an earlier operation, the working copy will not
     /// be automatically committed.
     ///
-    /// It is possible to mutating commands when loading the repo at an earlier
-    /// operation. Doing that is equivalent to having run concurrent commands
-    /// starting at the earlier operation. There's rarely a reason to do that,
-    /// but it is possible.
+    /// It is possible to run mutating commands when loading the repo at an
+    /// earlier operation. Doing that is equivalent to having run concurrent
+    /// commands starting at the earlier operation. There's rarely a reason to
+    /// do that, but it is possible.
     #[clap(
         long,
         visible_alias = "at-op",
