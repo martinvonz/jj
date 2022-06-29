@@ -1875,6 +1875,9 @@ struct GitPushArgs {
     /// Push this commit by creating a branch based on its change ID
     #[clap(long)]
     change: Option<String>,
+    /// Only display what will change on the remote
+    #[clap(long)]
+    dry_run: bool,
 }
 
 /// Update repo with changes made in the underlying Git repo
@@ -5231,6 +5234,11 @@ fn cmd_git_push(
                 panic!("Not pushing any change to branch {branch_name}");
             }
         }
+    }
+
+    if args.dry_run {
+        writeln!(ui, "Dry-run requested, not pushing.")?;
+        return Ok(());
     }
 
     let git_repo = get_git_repo(repo.store())?;
