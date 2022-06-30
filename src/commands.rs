@@ -4993,7 +4993,8 @@ fn cmd_git_clone(
             )
         })?;
     let wc_path = ui.cwd().join(wc_path_str);
-    if wc_path.exists() {
+    let wc_path_existed = wc_path.exists();
+    if wc_path_existed {
         if !is_empty_dir(&wc_path) {
             return Err(CommandError::UserError(
                 "Destination path exists and is not an empty directory".to_string(),
@@ -5003,7 +5004,56 @@ fn cmd_git_clone(
         fs::create_dir(&wc_path).unwrap();
     }
 
-    let (workspace, repo) = Workspace::init_internal_git(ui.settings(), wc_path.clone())?;
+    let clone_result = do_git_clone(ui, command, source, &wc_path);
+    if clone_result.is_err() {
+        // Canonicalize because fs::remove_dir_all() doesn't seem to like e.g.
+        // `/some/path/.`
+        let canonical_wc_path = wc_path.canonicalize().unwrap();
+        if let Err(err) = fs::remove_dir_all(canonical_wc_path.join(".jj")).and_then(|_| {
+            if !wc_path_existed {
+                fs::remove_dir(&canonical_wc_path)
+            } else {
+                Ok(())
+            }
+        }) {
+            writeln!(
+                ui,
+                "Failed to clean up {}: {}",
+                canonical_wc_path.display(),
+                err
+            )
+            .ok();
+        }
+    }
+
+    if let (mut workspace_command, Some(default_branch)) = clone_result? {
+        let default_branch_target = workspace_command
+            .repo()
+            .view()
+            .get_remote_branch(&default_branch, "origin");
+        if let Some(RefTarget::Normal(commit_id)) = default_branch_target {
+            let mut checkout_tx =
+                workspace_command.start_transaction("check out git remote's default branch");
+            if let Ok(commit) = workspace_command.repo().store().get_commit(&commit_id) {
+                checkout_tx.mut_repo().check_out(
+                    workspace_command.workspace_id(),
+                    ui.settings(),
+                    &commit,
+                );
+            }
+            workspace_command.finish_transaction(ui, checkout_tx)?;
+        }
+    }
+    Ok(())
+}
+
+fn do_git_clone(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    source: &str,
+    wc_path: &Path,
+) -> Result<(WorkspaceCommandHelper, Option<String>), CommandError> {
+    let (workspace, repo) = Workspace::init_internal_git(ui.settings(), wc_path.to_path_buf())?;
     let git_repo = get_git_repo(repo.store())?;
     writeln!(ui, r#"Fetching into new repo in "{}""#, wc_path.display())?;
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
@@ -5020,22 +5070,7 @@ fn cmd_git_clone(
             }
         })?;
     workspace_command.finish_transaction(ui, fetch_tx)?;
-    if let Some(default_branch) = maybe_default_branch {
-        let default_branch_target = workspace_command
-            .repo()
-            .view()
-            .get_remote_branch(&default_branch, "origin");
-        if let Some(RefTarget::Normal(commit_id)) = default_branch_target {
-            let mut checkout_tx =
-                workspace_command.start_transaction("check out git remote's default branch");
-            if let Ok(commit) = workspace_command.repo().store().get_commit(&commit_id) {
-                checkout_tx.mut_repo()
-                    .check_out(workspace_command.workspace_id(), ui.settings(), &commit);
-            }
-            workspace_command.finish_transaction(ui, checkout_tx)?;
-        }
-    }
-    Ok(())
+    Ok((workspace_command, maybe_default_branch))
 }
 
 fn cmd_git_push(
