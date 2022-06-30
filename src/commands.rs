@@ -4993,7 +4993,7 @@ fn cmd_git_clone(
 
     let (workspace, repo) = Workspace::init_internal_git(ui.settings(), wc_path.clone())?;
     let git_repo = get_git_repo(repo.store())?;
-    writeln!(ui, "Fetching into new repo in {:?}", wc_path)?;
+    writeln!(ui, r#"Fetching into new repo in "{}""#, wc_path.display())?;
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
     let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();
