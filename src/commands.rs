@@ -4964,6 +4964,14 @@ fn clone_destination_for_source(source: &str) -> Option<&str> {
         .map(|(_, name)| name)
 }
 
+fn is_empty_dir(path: &Path) -> bool {
+    if let Ok(mut entries) = path.read_dir() {
+        entries.next().is_none()
+    } else {
+        false
+    }
+}
+
 fn cmd_git_clone(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -4986,7 +4994,11 @@ fn cmd_git_clone(
         })?;
     let wc_path = ui.cwd().join(wc_path_str);
     if wc_path.exists() {
-        assert!(wc_path.is_dir());
+        if !is_empty_dir(&wc_path) {
+            return Err(CommandError::UserError(
+                "Destination path exists and is not an empty directory".to_string(),
+            ));
+        }
     } else {
         fs::create_dir(&wc_path).unwrap();
     }

@@ -61,24 +61,20 @@ fn test_git_clone() {
     // Try cloning into an existing workspace
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["git", "clone", "source", "clone"]);
     insta::assert_snapshot!(stderr.replace(test_env.env_root().join("clone").to_str().unwrap(), "<dest>"), @r###"
-    Error: The target repo already exists
+    Error: Destination path exists and is not an empty directory
     "###);
 
     // Try cloning into an existing file
     std::fs::write(test_env.env_root().join("file"), "contents").unwrap();
-    // TODO: This shouldn't crash (i.e. not exit code 101)
-    test_env
-        .jj_cmd(test_env.env_root(), &["git", "clone", "source", "file"])
-        .assert()
-        .code(101);
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["git", "clone", "source", "file"]);
+    insta::assert_snapshot!(stderr.replace(test_env.env_root().join("file").to_str().unwrap(), "<dest>"), @r###"
+    Error: Destination path exists and is not an empty directory
+    "###);
 
     // Try cloning into non-empty, non-workspace directory
     std::fs::remove_dir_all(test_env.env_root().join("clone").join(".jj")).unwrap();
-    // TODO: This should fail (https://github.com/martinvonz/jj/issues/399)
-    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "clone"]);
-    insta::assert_snapshot!(stdout.replace(test_env.env_root().join("clone").to_str().unwrap(), "<dest>"), @r###"
-    Fetching into new repo in "<dest>"
-    Working copy now at: b56015e38065 (no description set)
-    Added 1 files, modified 0 files, removed 0 files
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["git", "clone", "source", "clone"]);
+    insta::assert_snapshot!(stderr.replace(test_env.env_root().join("clone").to_str().unwrap(), "<dest>"), @r###"
+    Error: Destination path exists and is not an empty directory
     "###);
 }
