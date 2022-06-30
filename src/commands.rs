@@ -5009,9 +5009,9 @@ fn cmd_git_clone(
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
     let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();
-    let mut tx = workspace_command.start_transaction("fetch from git remote into empty repo");
+    let mut fetch_tx = workspace_command.start_transaction("fetch from git remote into empty repo");
     let maybe_default_branch =
-        git::fetch(tx.mut_repo(), &git_repo, remote_name).map_err(|err| match err {
+        git::fetch(fetch_tx.mut_repo(), &git_repo, remote_name).map_err(|err| match err {
             GitFetchError::NoSuchRemote(_) => {
                 panic!("should't happen as we just created the git remote")
             }
@@ -5019,19 +5019,22 @@ fn cmd_git_clone(
                 CommandError::UserError(format!("Fetch failed: {err}"))
             }
         })?;
+    workspace_command.finish_transaction(ui, fetch_tx)?;
     if let Some(default_branch) = maybe_default_branch {
-        let default_branch_target = tx
-            .mut_repo()
+        let default_branch_target = workspace_command
+            .repo()
             .view()
             .get_remote_branch(&default_branch, "origin");
         if let Some(RefTarget::Normal(commit_id)) = default_branch_target {
+            let mut checkout_tx =
+                workspace_command.start_transaction("check out git remote's default branch");
             if let Ok(commit) = workspace_command.repo().store().get_commit(&commit_id) {
-                tx.mut_repo()
+                checkout_tx.mut_repo()
                     .check_out(workspace_command.workspace_id(), ui.settings(), &commit);
             }
+            workspace_command.finish_transaction(ui, checkout_tx)?;
         }
     }
-    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
