@@ -390,7 +390,14 @@ pub fn push_updates(
     for mut temp_ref in temp_refs {
         // TODO: Figure out how to do the equivalent of absl::Cleanup for
         // temp_ref.delete().
-        temp_ref.delete()?;
+        if let Err(err) = temp_ref.delete() {
+            // Propagate error only if we don't already have an error to return and it's not
+            // NotFound (there may be duplicates if the list if multiple branches moved to
+            // the same commit).
+            if result.is_ok() && err.code() != git2::ErrorCode::NotFound {
+                return Err(GitPushError::InternalGitError(err));
+            }
+        }
     }
     result
 }

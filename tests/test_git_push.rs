@@ -21,11 +21,40 @@ pub mod common;
 fn set_up() -> (TestEnvironment, PathBuf) {
     let test_env = TestEnvironment::default();
     let git_repo_path = test_env.env_root().join("git-repo");
-    git2::Repository::init(&git_repo_path).unwrap();
+    let git_repo = git2::Repository::init_bare(&git_repo_path).unwrap();
+    let signature =
+        git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
+    let empty_tree_oid = git_repo.treebuilder(None).unwrap().write().unwrap();
+    let empty_tree = git_repo.find_tree(empty_tree_oid).unwrap();
+    git_repo
+        .commit(
+            Some("refs/heads/branch1"),
+            &signature,
+            &signature,
+            "description",
+            &empty_tree,
+            &[],
+        )
+        .unwrap();
+    git_repo
+        .commit(
+            Some("refs/heads/branch2"),
+            &signature,
+            &signature,
+            "description",
+            &empty_tree,
+            &[],
+        )
+        .unwrap();
 
     test_env.jj_cmd_success(
         test_env.env_root(),
-        &["git", "clone", "git-repo", "jj-repo"],
+        &[
+            "git",
+            "clone",
+            test_env.env_root().join("git-repo").to_str().unwrap(),
+            "jj-repo",
+        ],
     );
     let workspace_root = test_env.env_root().join("jj-repo");
     (test_env, workspace_root)
@@ -38,6 +67,35 @@ fn test_git_push_nothing() {
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
+    "###);
+}
+
+#[test]
+fn test_git_push_success() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["branch", "delete", "branch1"]);
+    test_env.jj_cmd_success(
+        &workspace_root,
+        &["branch", "set", "--allow-backwards", "branch2"],
+    );
+    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "my-branch"]);
+    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    // Check the setup
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    branch1 (deleted)
+      @origin: 545acdb23f70 description
+    branch2: 7840c9885676 foo
+      @origin (ahead by 1 commits, behind by 1 commits): 545acdb23f70 description
+    my-branch: 7840c9885676 foo
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stdout, @"");
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    branch2: 7840c9885676 foo
+    my-branch: 7840c9885676 foo
     "###);
 }
 
