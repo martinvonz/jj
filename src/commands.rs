@@ -2974,7 +2974,7 @@ fn cmd_status(
         }
         writeln!(
             ui,
-            "  Use `jj branch list` to see details. Use `jj git pull` to resolve."
+            "  Use `jj branch list` to see details. Use `jj git fetch` to resolve."
         )?;
     }
 
