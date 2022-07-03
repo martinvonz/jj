@@ -1,0 +1,55 @@
+# This file contains the config settings available to jj/Jujutsu.
+# It is also a valid TOML file and thus can be used as a template.
+# The config setting are located at ~/.jjconfig.toml so either copy
+# this file to that location or create a new file.
+
+# See the TOML site for more on syntax https://toml.io/en/
+# but one basics to remember is that anything under a heading can be dotted
+# e.g. user.name = "YOUR NAME"
+# is equivalent to
+# [user]
+#   name = "YOUR NAME"
+
+# That's a good place to start with actual settings:
+
+[user]
+  name = "YOUR NAME" # Don't forget to change name and email to your own!
+  email = "YOUR_EMAIL@example.com"
+
+[ui]
+# This setting overrides the NO_COLOR environment variable (if set)
+#   color = false # Turn off colours.
+
+# The default editor is set here via ui.editor,
+# though there are several places to set it. The priority is as follows:
+# JJ_EDITOR env var > ui.editor > VISUAL env var > EDITOR env var
+# Pico is the default editor in the absence of any other setting.
+
+#   editor = pico
+#   editor = nano
+#   editor = vim
+#   editor = nvim
+#   editor = emacs
+
+# For GUI editors you possibly need to use a `-w` or `--wait`
+#   editor = code -w       # VS Code
+#   editor = bbedit -w     # BBEdit
+#   editor = subl -n -w    # Sublime Text
+#   editor = mate -w       # TextMate
+#   editor = "'C:/Program Files/Notepad++/notepad++.exe' -multiInst -notabbar -nosession -noPlugin # Notepad++
+#   editor = idea --temp-project --wait
+
+# Diffing
+
+# The default diff tool is meld (needs to be installed)
+# but this can be changed, e.g.
+#   diff-editor = "vimdiff"
+
+# Merge tool
+
+# Merge tool options are loaded via [merge-tools.<name>]
+# e.g. to use kdiff3
+# [merge-tools.kdiff3]
+#   program = "kdiff3"
+#   edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
+
