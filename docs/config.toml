@@ -45,8 +45,9 @@
 
 # Diffing
 
-# The default diff tool is meld (needs to be installed)
-# but this can be changed, e.g.
+# The tool to use for editing diffs (e.g. `jj split`, `jj amend -i`).
+# The default is `meld`.
+# Example:
 #   diff-editor = "vimdiff"
 
 # Merge tool
