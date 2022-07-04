@@ -48,12 +48,14 @@
 # The tool to use for editing diffs (e.g. `jj split`, `jj amend -i`).
 # The default is `meld`.
 # Example:
-#   diff-editor = "vimdiff"
+# diff-editor = "vimdiff"
 
-# Merge tool
-
-# Merge tool options are loaded via [merge-tools.<name>]
-# e.g. to use kdiff3
+# When kdiff3 is set via:
+#
+# diff-editor = "kdiff3"
+#
+# further settings are passed on via the following:
+#
 # [merge-tools.kdiff3]
 #   program = "kdiff3"
 #   edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
