@@ -29,19 +29,19 @@
 # $JJ_EDITOR env var > ui.editor > $VISUAL env var > $EDITOR env var
 # Pico is the default editor in the absence of any other setting.
 
-#   editor = pico
-#   editor = nano
-#   editor = vim
-#   editor = nvim
-#   editor = emacs
+#   editor = "pico"
+#   editor = "nano"
+#   editor = "vim"
+#   editor = "nvim"
+#   editor = "emacs"
 
 # For GUI editors you possibly need to use a `-w` or `--wait`
-#   editor = code -w       # VS Code
-#   editor = bbedit -w     # BBEdit
-#   editor = subl -n -w    # Sublime Text
-#   editor = mate -w       # TextMate
-#   editor = "'C:/Program Files/Notepad++/notepad++.exe' -multiInst -notabbar -nosession -noPlugin # Notepad++
-#   editor = idea --temp-project --wait
+#   editor = "code -w"       # VS Code
+#   editor = "bbedit -w"     # BBEdit
+#   editor = "subl -n -w"    # Sublime Text
+#   editor = "mate -w"       # TextMate
+#   editor = "'C:/Program Files/Notepad++/notepad++.exe' -multiInst -notabbar -nosession -noPlugin" # Notepad++
+#   editor = "idea --temp-project --wait"		#IntelliJ
 
 # Diffing
 
