@@ -3,8 +3,8 @@
 # The config setting are located at ~/.jjconfig.toml so either copy
 # this file to that location or create a new file.
 
-# See the TOML site for more on syntax https://toml.io/en/
-# but one basics to remember is that anything under a heading can be dotted
+# See the TOML site (https://toml.io/en/) for more on syntax,
+# but one thing to remember is that anything under a heading can be dotted
 # e.g. user.name = "YOUR NAME"
 # is equivalent to
 # [user]
