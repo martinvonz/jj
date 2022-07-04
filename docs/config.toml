@@ -17,8 +17,12 @@
   email = "YOUR_EMAIL@example.com"
 
 [ui]
-# This setting overrides the NO_COLOR environment variable (if set)
-#   color = false # Turn off colours.
+
+# When to colorize output. 
+# Possible values are "always", "never" and "auto" (default: "auto"). 
+# "auto" will use color only when writing to a terminal. 
+# This setting overrides the NO_COLOR environment variable (if set).
+#   color = "never" # Turn off color
 
 # The default editor is set here via ui.editor,
 # though there are several places to set it. The priority is as follows:
