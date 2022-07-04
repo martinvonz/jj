@@ -26,7 +26,7 @@
 
 # The default editor is set here via ui.editor,
 # though there are several places to set it. The priority is as follows:
-# JJ_EDITOR env var > ui.editor > VISUAL env var > EDITOR env var
+# $JJ_EDITOR env var > ui.editor > $VISUAL env var > $EDITOR env var
 # Pico is the default editor in the absence of any other setting.
 
 #   editor = pico
