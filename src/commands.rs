@@ -5084,8 +5084,7 @@ fn cmd_git_push(
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo().clone();
 
-    let mut tx =
-        workspace_command.start_transaction(&format!("push to git remote {}", &args.remote));
+    let mut tx;
     let mut branch_updates = vec![];
     if let Some(branch_name) = &args.branch {
         if let Some(update) =
@@ -5099,6 +5098,10 @@ fn cmd_git_push(
                 branch_name, &args.remote, branch_name
             )?;
         }
+        tx = workspace_command.start_transaction(&format!(
+            "push branch {branch_name} to git remote {}",
+            &args.remote
+        ));
     } else if let Some(change_str) = &args.change {
         let commit = workspace_command.resolve_single_rev(ui, change_str)?;
         let branch_name = format!(
@@ -5106,13 +5109,18 @@ fn cmd_git_push(
             ui.settings().push_branch_prefix(),
             commit.change_id().hex()
         );
-        if tx.mut_repo().get_local_branch(&branch_name).is_none() {
+        if repo.view().get_local_branch(&branch_name).is_none() {
             writeln!(
                 ui,
                 "Creating branch {} for revision {}",
                 branch_name, change_str
             )?;
         }
+        tx = workspace_command.start_transaction(&format!(
+            "push change {} to git remote {}",
+            commit.change_id().hex(),
+            &args.remote
+        ));
         tx.mut_repo()
             .set_local_branch(branch_name.clone(), RefTarget::Normal(commit.id().clone()));
         if let Some(update) =
@@ -5139,6 +5147,8 @@ fn cmd_git_push(
                 }
             }
         }
+        tx = workspace_command
+            .start_transaction(&format!("push all branches to git remote {}", &args.remote));
     }
 
     if branch_updates.is_empty() {
