@@ -5084,7 +5084,8 @@ fn cmd_git_push(
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo().clone();
 
-    let mut tx = workspace_command.start_transaction("import git refs");
+    let mut tx =
+        workspace_command.start_transaction(&format!("push to git remote {}", &args.remote));
     let mut branch_updates = vec![];
     if let Some(branch_name) = &args.branch {
         if let Some(update) =
