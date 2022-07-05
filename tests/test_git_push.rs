@@ -113,6 +113,16 @@ fn test_git_push_success() {
 }
 
 #[test]
+fn test_git_push_unsnapshotted_change() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["git", "push", "--change", "@"]);
+    std::fs::write(workspace_root.join("file"), "modified").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["git", "push", "--change", "@"]);
+}
+
+#[test]
 fn test_git_push_conflict() {
     let (test_env, workspace_root) = set_up();
     std::fs::write(workspace_root.join("file"), "first").unwrap();

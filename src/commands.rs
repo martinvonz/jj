@@ -5082,14 +5082,15 @@ fn cmd_git_push(
     args: &GitPushArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo().clone();
 
     let mut tx;
     let mut branch_updates = vec![];
     if let Some(branch_name) = &args.branch {
-        if let Some(update) =
-            branch_updates_for_push(repo.as_repo_ref(), &args.remote, branch_name)?
-        {
+        if let Some(update) = branch_updates_for_push(
+            workspace_command.repo().as_repo_ref(),
+            &args.remote,
+            branch_name,
+        )? {
             branch_updates.push((branch_name.clone(), update));
         } else {
             writeln!(
@@ -5109,7 +5110,12 @@ fn cmd_git_push(
             ui.settings().push_branch_prefix(),
             commit.change_id().hex()
         );
-        if repo.view().get_local_branch(&branch_name).is_none() {
+        if workspace_command
+            .repo()
+            .view()
+            .get_local_branch(&branch_name)
+            .is_none()
+        {
             writeln!(
                 ui,
                 "Creating branch {} for revision {}",
@@ -5136,7 +5142,7 @@ fn cmd_git_push(
         }
     } else {
         // TODO: Is it useful to warn about conflicted branches?
-        for (branch_name, branch_target) in repo.view().branches() {
+        for (branch_name, branch_target) in workspace_command.repo().view().branches() {
             let push_action = classify_branch_push_action(branch_target, &args.remote);
             match push_action {
                 BranchPushAction::AlreadyMatches => {}
@@ -5155,6 +5161,8 @@ fn cmd_git_push(
         writeln!(ui, "Nothing changed.")?;
         return Ok(());
     }
+
+    let repo = workspace_command.repo();
 
     let mut ref_updates = vec![];
     let mut new_heads = vec![];
