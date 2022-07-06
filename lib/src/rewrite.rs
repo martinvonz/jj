@@ -61,7 +61,6 @@ pub fn rebase_commit(
     old_commit: &Commit,
     new_parents: &[Commit],
 ) -> Commit {
-    let store = mut_repo.store();
     let old_parents = old_commit.parents();
     let old_parent_trees = old_parents
         .iter()
@@ -84,7 +83,7 @@ pub fn rebase_commit(
         .iter()
         .map(|commit| commit.id().clone())
         .collect();
-    CommitBuilder::for_rewrite_from(settings, store, old_commit)
+    CommitBuilder::for_rewrite_from(settings, old_commit)
         .set_parents(new_parent_ids)
         .set_tree(new_tree_id)
         .write_to_repo(mut_repo)
@@ -96,7 +95,6 @@ pub fn back_out_commit(
     old_commit: &Commit,
     new_parents: &[Commit],
 ) -> Commit {
-    let store = mut_repo.store();
     let old_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &old_commit.parents());
     let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), new_parents);
     // TODO: pass in labels for the merge parts
@@ -106,7 +104,7 @@ pub fn back_out_commit(
         .map(|commit| commit.id().clone())
         .collect();
     // TODO: i18n the description based on repo language
-    CommitBuilder::for_new_commit(settings, store, new_tree_id)
+    CommitBuilder::for_new_commit(settings, new_tree_id)
         .set_parents(new_parent_ids)
         .set_description(format!("backout of commit {}", &old_commit.id().hex()))
         .write_to_repo(mut_repo)
@@ -350,7 +348,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         } else {
             CommitBuilder::for_open_commit(
                 self.settings,
-                self.mut_repo.store(),
                 new_commit.id().clone(),
                 new_commit.tree_id().clone(),
             )

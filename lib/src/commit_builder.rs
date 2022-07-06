@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use uuid::Uuid;
 
 use crate::backend;
@@ -21,11 +19,9 @@ use crate::backend::{ChangeId, CommitId, Signature, TreeId};
 use crate::commit::Commit;
 use crate::repo::MutableRepo;
 use crate::settings::UserSettings;
-use crate::store::Store;
 
 #[derive(Debug)]
 pub struct CommitBuilder {
-    store: Arc<Store>,
     commit: backend::Commit,
     rewrite_source: Option<Commit>,
 }
@@ -35,11 +31,7 @@ pub fn new_change_id() -> ChangeId {
 }
 
 impl CommitBuilder {
-    pub fn for_new_commit(
-        settings: &UserSettings,
-        store: &Arc<Store>,
-        tree_id: TreeId,
-    ) -> CommitBuilder {
+    pub fn for_new_commit(settings: &UserSettings, tree_id: TreeId) -> CommitBuilder {
         let signature = settings.signature();
         let commit = backend::Commit {
             parents: vec![],
@@ -52,17 +44,12 @@ impl CommitBuilder {
             is_open: false,
         };
         CommitBuilder {
-            store: store.clone(),
             commit,
             rewrite_source: None,
         }
     }
 
-    pub fn for_rewrite_from(
-        settings: &UserSettings,
-        store: &Arc<Store>,
-        predecessor: &Commit,
-    ) -> CommitBuilder {
+    pub fn for_rewrite_from(settings: &UserSettings, predecessor: &Commit) -> CommitBuilder {
         let mut commit = predecessor.store_commit().clone();
         commit.predecessors = vec![predecessor.id().clone()];
         commit.committer = settings.signature();
@@ -75,7 +62,6 @@ impl CommitBuilder {
             commit.author.email = commit.committer.email.clone();
         }
         CommitBuilder {
-            store: store.clone(),
             commit,
             rewrite_source: Some(predecessor.clone()),
         }
@@ -83,7 +69,6 @@ impl CommitBuilder {
 
     pub fn for_open_commit(
         settings: &UserSettings,
-        store: &Arc<Store>,
         parent_id: CommitId,
         tree_id: TreeId,
     ) -> CommitBuilder {
@@ -99,7 +84,6 @@ impl CommitBuilder {
             is_open: true,
         };
         CommitBuilder {
-            store: store.clone(),
             commit,
             rewrite_source: None,
         }
@@ -152,7 +136,7 @@ impl CommitBuilder {
 
     pub fn write_to_repo(mut self, repo: &mut MutableRepo) -> Commit {
         let parents = &mut self.commit.parents;
-        if parents.contains(self.store.root_commit_id()) {
+        if parents.contains(repo.store().root_commit_id()) {
             assert_eq!(parents.len(), 1);
             parents.clear();
         }

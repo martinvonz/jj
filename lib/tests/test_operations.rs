@@ -152,11 +152,11 @@ fn test_isolation(use_git: bool) {
     assert_heads(mut_repo1.as_repo_ref(), vec![initial.id()]);
     assert_heads(mut_repo2.as_repo_ref(), vec![initial.id()]);
 
-    let rewrite1 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial)
+    let rewrite1 = CommitBuilder::for_rewrite_from(&settings, &initial)
         .set_description("rewrite1".to_string())
         .write_to_repo(mut_repo1);
     mut_repo1.rebase_descendants(&settings).unwrap();
-    let rewrite2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &initial)
+    let rewrite2 = CommitBuilder::for_rewrite_from(&settings, &initial)
         .set_description("rewrite2".to_string())
         .write_to_repo(mut_repo2);
     mut_repo2.rebase_descendants(&settings).unwrap();

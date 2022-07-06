@@ -793,7 +793,7 @@ fn test_rebase_descendants_repeated(use_git: bool) {
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
 
-    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, &commit_b)
         .set_description("b2".to_string())
         .write_to_repo(tx.mut_repo());
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
@@ -814,7 +814,7 @@ fn test_rebase_descendants_repeated(use_git: bool) {
     assert_eq!(rebaser.rebased().len(), 0);
 
     // Now mark B3 as rewritten from B2 and rebase descendants again.
-    let commit_b3 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b2)
+    let commit_b3 = CommitBuilder::for_rewrite_from(&settings, &commit_b2)
         .set_description("b3".to_string())
         .write_to_repo(tx.mut_repo());
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
@@ -849,21 +849,21 @@ fn test_rebase_descendants_contents(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let path1 = RepoPath::from_internal_string("file1");
     let tree1 = testutils::create_tree(repo, &[(&path1, "content")]);
-    let commit_a = CommitBuilder::for_new_commit(&settings, repo.store(), tree1.id().clone())
-        .write_to_repo(tx.mut_repo());
+    let commit_a =
+        CommitBuilder::for_new_commit(&settings, tree1.id().clone()).write_to_repo(tx.mut_repo());
     let path2 = RepoPath::from_internal_string("file2");
     let tree2 = testutils::create_tree(repo, &[(&path2, "content")]);
-    let commit_b = CommitBuilder::for_new_commit(&settings, repo.store(), tree2.id().clone())
+    let commit_b = CommitBuilder::for_new_commit(&settings, tree2.id().clone())
         .set_parents(vec![commit_a.id().clone()])
         .write_to_repo(tx.mut_repo());
     let path3 = RepoPath::from_internal_string("file3");
     let tree3 = testutils::create_tree(repo, &[(&path3, "content")]);
-    let commit_c = CommitBuilder::for_new_commit(&settings, repo.store(), tree3.id().clone())
+    let commit_c = CommitBuilder::for_new_commit(&settings, tree3.id().clone())
         .set_parents(vec![commit_b.id().clone()])
         .write_to_repo(tx.mut_repo());
     let path4 = RepoPath::from_internal_string("file4");
     let tree4 = testutils::create_tree(repo, &[(&path4, "content")]);
-    let commit_d = CommitBuilder::for_new_commit(&settings, repo.store(), tree4.id().clone())
+    let commit_d = CommitBuilder::for_new_commit(&settings, tree4.id().clone())
         .set_parents(vec![commit_a.id().clone()])
         .write_to_repo(tx.mut_repo());
 
@@ -918,8 +918,8 @@ fn test_rebase_descendants_basic_branch_update() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
-        .write_to_repo(tx.mut_repo());
+    let commit_b2 =
+        CommitBuilder::for_rewrite_from(&settings, &commit_b).write_to_repo(tx.mut_repo());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
@@ -958,10 +958,10 @@ fn test_rebase_descendants_branch_move_two_steps() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
-        .write_to_repo(tx.mut_repo());
-    let commit_c2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_c)
-        .write_to_repo(tx.mut_repo());
+    let commit_b2 =
+        CommitBuilder::for_rewrite_from(&settings, &commit_b).write_to_repo(tx.mut_repo());
+    let commit_c2 =
+        CommitBuilder::for_rewrite_from(&settings, &commit_c).write_to_repo(tx.mut_repo());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let heads = tx.mut_repo().view().heads();
     assert_eq!(heads.len(), 1);
@@ -1005,8 +1005,8 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
-        .write_to_repo(tx.mut_repo());
+    let commit_b2 =
+        CommitBuilder::for_rewrite_from(&settings, &commit_b).write_to_repo(tx.mut_repo());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
@@ -1087,14 +1087,14 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
-        .write_to_repo(tx.mut_repo());
+    let commit_b2 =
+        CommitBuilder::for_rewrite_from(&settings, &commit_b).write_to_repo(tx.mut_repo());
     // Different description so they're not the same commit
-    let commit_b3 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+    let commit_b3 = CommitBuilder::for_rewrite_from(&settings, &commit_b)
         .set_description("different".to_string())
         .write_to_repo(tx.mut_repo());
     // Different description so they're not the same commit
-    let commit_b4 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+    let commit_b4 = CommitBuilder::for_rewrite_from(&settings, &commit_b)
         .set_description("more different".to_string())
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
@@ -1144,16 +1144,16 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    let commit_a2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_a)
-        .write_to_repo(tx.mut_repo());
+    let commit_a2 =
+        CommitBuilder::for_rewrite_from(&settings, &commit_a).write_to_repo(tx.mut_repo());
     // Different description so they're not the same commit
-    let commit_a3 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_a)
+    let commit_a3 = CommitBuilder::for_rewrite_from(&settings, &commit_a)
         .set_description("different".to_string())
         .write_to_repo(tx.mut_repo());
-    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
-        .write_to_repo(tx.mut_repo());
+    let commit_b2 =
+        CommitBuilder::for_rewrite_from(&settings, &commit_b).write_to_repo(tx.mut_repo());
     // Different description so they're not the same commit
-    let commit_b3 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+    let commit_b3 = CommitBuilder::for_rewrite_from(&settings, &commit_b)
         .set_description("different".to_string())
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
@@ -1209,7 +1209,7 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+    let commit_b2 = CommitBuilder::for_rewrite_from(&settings, &commit_b)
         .set_parents(vec![commit_c.id().clone()])
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
@@ -1285,7 +1285,7 @@ fn test_rebase_descendants_update_checkout(use_git: bool) {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
-    let commit_c = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_b)
+    let commit_c = CommitBuilder::for_rewrite_from(&settings, &commit_b)
         .set_description("C".to_string())
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
