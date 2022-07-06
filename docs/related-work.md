@@ -18,3 +18,5 @@ Similar tools:
 * [Breezy](https://www.breezy-vcs.org/): Another VCS that's similar in that it
   has multiple storage backends, including its own format as well as .git
   support.
+* [Sturdy](https://getsturdy.com/): A Git backed GUI that eliminates local and
+  remote as well as the idea of an "index"/"staging area".
