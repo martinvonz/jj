@@ -3587,7 +3587,6 @@ fn cmd_squash(ui: &mut Ui, command: &CommandHelper, args: &SquashArgs) -> Result
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
-    let repo = workspace_command.repo();
     let parents = commit.parents();
     if parents.len() != 1 {
         return Err(CommandError::UserError(String::from(
@@ -3598,7 +3597,6 @@ fn cmd_squash(ui: &mut Ui, command: &CommandHelper, args: &SquashArgs) -> Result
     workspace_command.check_rewriteable(parent)?;
     let mut tx =
         workspace_command.start_transaction(&format!("squash commit {}", commit.id().hex()));
-    let mut_repo = tx.mut_repo();
     let instructions = format!(
         "\
 You are moving changes from: {}
@@ -3630,7 +3628,8 @@ from the source will be moved into the parent.
     // Abandon the child if the parent now has all the content from the child
     // (always the case in the non-interactive case).
     let abandon_child =
-        &new_parent_tree_id == commit.tree_id() && !repo.view().is_checkout(commit.id());
+        &new_parent_tree_id == commit.tree_id() && !tx.base_repo().view().is_checkout(commit.id());
+    let mut_repo = tx.mut_repo();
     let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), parent)
         .set_tree(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
@@ -3655,7 +3654,6 @@ fn cmd_unsquash(
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
-    let repo = workspace_command.repo();
     let parents = commit.parents();
     if parents.len() != 1 {
         return Err(CommandError::UserError(String::from(
@@ -3666,7 +3664,6 @@ fn cmd_unsquash(
     workspace_command.check_rewriteable(parent)?;
     let mut tx =
         workspace_command.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
-    let mut_repo = tx.mut_repo();
     let parent_base_tree =
         merge_commit_trees(workspace_command.repo().as_repo_ref(), &parent.parents());
     let new_parent_tree_id;
@@ -3696,21 +3693,23 @@ aborted.
     }
     // Abandon the parent if it is now empty (always the case in the non-interactive
     // case).
-    if &new_parent_tree_id == parent_base_tree.id() && !repo.view().is_checkout(parent.id()) {
-        mut_repo.record_abandoned_commit(parent.id().clone());
+    if &new_parent_tree_id == parent_base_tree.id()
+        && !tx.base_repo().view().is_checkout(parent.id())
+    {
+        tx.mut_repo().record_abandoned_commit(parent.id().clone());
         // Commit the new child on top of the parent's parents.
         CommitBuilder::for_rewrite_from(ui.settings(), &commit)
             .set_parents(parent.parent_ids())
-            .write_to_repo(mut_repo);
+            .write_to_repo(tx.mut_repo());
     } else {
         let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), parent)
             .set_tree(new_parent_tree_id)
             .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
-            .write_to_repo(mut_repo);
+            .write_to_repo(tx.mut_repo());
         // Commit the new child on top of the new parent.
         CommitBuilder::for_rewrite_from(ui.settings(), &commit)
             .set_parents(vec![new_parent.id().clone()])
-            .write_to_repo(mut_repo);
+            .write_to_repo(tx.mut_repo());
     }
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -3840,8 +3839,7 @@ fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
-    let repo = workspace_command.repo();
-    let base_tree = merge_commit_trees(repo.as_repo_ref(), &commit.parents());
+    let base_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commit.parents());
     let instructions = format!(
         "\
 You are splitting a commit in two: {}
@@ -3868,20 +3866,19 @@ any changes, then the operation will be aborted.
     } else {
         let mut tx =
             workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
-        let mut_repo = tx.mut_repo();
         let first_description = edit_description(
             ui,
-            repo,
+            tx.base_repo(),
             &("JJ: Enter commit description for the first part.\n".to_string()
                 + commit.description()),
         )?;
         let first_commit = CommitBuilder::for_rewrite_from(ui.settings(), &commit)
             .set_tree(tree_id)
             .set_description(first_description)
-            .write_to_repo(mut_repo);
+            .write_to_repo(tx.mut_repo());
         let second_description = edit_description(
             ui,
-            repo,
+            tx.base_repo(),
             &("JJ: Enter commit description for the second part.\n".to_string()
                 + commit.description()),
         )?;
@@ -3890,10 +3887,10 @@ any changes, then the operation will be aborted.
             .set_tree(commit.tree_id().clone())
             .generate_new_change_id()
             .set_description(second_description)
-            .write_to_repo(mut_repo);
+            .write_to_repo(tx.mut_repo());
         let mut rebaser = DescendantRebaser::new(
             ui.settings(),
-            mut_repo,
+            tx.mut_repo(),
             hashmap! { commit.id().clone() => hashset!{second_commit.id().clone()} },
             hashset! {},
         );
@@ -3904,13 +3901,13 @@ any changes, then the operation will be aborted.
         }
         ui.write("First part: ")?;
         ui.write_commit_summary(
-            mut_repo.as_repo_ref(),
+            tx.repo().as_repo_ref(),
             &workspace_command.workspace_id(),
             &first_commit,
         )?;
         ui.write("\nSecond part: ")?;
         ui.write_commit_summary(
-            mut_repo.as_repo_ref(),
+            tx.repo().as_repo_ref(),
             &workspace_command.workspace_id(),
             &second_commit,
         )?;
@@ -3938,17 +3935,16 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &MergeArgs) -> Result<(
         parent_ids.push(commit.id().clone());
         commits.push(commit);
     }
-    let repo = workspace_command.repo();
     let description = if let Some(message) = &args.message {
         message.to_string()
     } else {
         edit_description(
             ui,
-            repo,
+            workspace_command.repo(),
             "\n\nJJ: Enter commit description for the merge commit.\n",
         )?
     };
-    let merged_tree = merge_commit_trees(repo.as_repo_ref(), &commits);
+    let merged_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commits);
     let mut tx = workspace_command.start_transaction("merge commits");
     CommitBuilder::for_new_commit(ui.settings(), merged_tree.id().clone())
         .set_parents(parent_ids)
