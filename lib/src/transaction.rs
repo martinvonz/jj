@@ -52,6 +52,10 @@ impl Transaction {
         self.tags.insert(key, value);
     }
 
+    pub fn repo(&self) -> &MutableRepo {
+        self.repo.as_ref().unwrap()
+    }
+
     pub fn mut_repo(&mut self) -> &mut MutableRepo {
         self.repo.as_mut().unwrap()
     }
