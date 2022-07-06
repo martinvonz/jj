@@ -111,7 +111,6 @@ fn test_checkout_previous_empty(use_git: bool) {
     let mut_repo = tx.mut_repo();
     let old_checkout = CommitBuilder::for_open_commit(
         &settings,
-        repo.store(),
         repo.store().root_commit_id().clone(),
         repo.store().empty_tree_id().clone(),
     )
@@ -143,7 +142,6 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
     let mut_repo = tx.mut_repo();
     let old_checkout = CommitBuilder::for_open_commit(
         &settings,
-        repo.store(),
         repo.store().root_commit_id().clone(),
         repo.store().empty_tree_id().clone(),
     )
@@ -176,14 +174,12 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
     let mut_repo = tx.mut_repo();
     let old_checkout = CommitBuilder::for_open_commit(
         &settings,
-        repo.store(),
         repo.store().root_commit_id().clone(),
         repo.store().empty_tree_id().clone(),
     )
     .write_to_repo(mut_repo);
     let old_child = CommitBuilder::for_open_commit(
         &settings,
-        repo.store(),
         old_checkout.id().clone(),
         old_checkout.tree_id().clone(),
     )

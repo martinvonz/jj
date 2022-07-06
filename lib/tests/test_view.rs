@@ -478,7 +478,7 @@ fn test_merge_views_child_on_rewritten(child_first: bool) {
         .write_to_repo(tx1.mut_repo());
 
     let mut tx2 = repo.start_transaction("test");
-    let commit_a2 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_a)
+    let commit_a2 = CommitBuilder::for_rewrite_from(&settings, &commit_a)
         .set_description("A2".to_string())
         .write_to_repo(tx2.mut_repo());
     tx2.mut_repo().rebase_descendants(&settings).unwrap();
@@ -525,7 +525,7 @@ fn test_merge_views_child_on_rewritten_divergent(on_rewritten: bool, child_first
         .write_to_repo(tx1.mut_repo());
 
     let mut tx2 = repo.start_transaction("test");
-    let commit_a4 = CommitBuilder::for_rewrite_from(&settings, repo.store(), &commit_a2)
+    let commit_a4 = CommitBuilder::for_rewrite_from(&settings, &commit_a2)
         .set_description("A4".to_string())
         .write_to_repo(tx2.mut_repo());
     tx2.mut_repo().rebase_descendants(&settings).unwrap();

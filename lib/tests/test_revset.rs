@@ -53,15 +53,11 @@ fn test_resolve_symbol_commit_id() {
 
     let mut commits = vec![];
     for i in &[1, 167, 895] {
-        let commit = CommitBuilder::for_new_commit(
-            &settings,
-            repo.store(),
-            repo.store().empty_tree_id().clone(),
-        )
-        .set_description(format!("test {}", i))
-        .set_author(signature.clone())
-        .set_committer(signature.clone())
-        .write_to_repo(mut_repo);
+        let commit = CommitBuilder::for_new_commit(&settings, repo.store().empty_tree_id().clone())
+            .set_description(format!("test {}", i))
+            .set_author(signature.clone())
+            .set_committer(signature.clone())
+            .write_to_repo(mut_repo);
         commits.push(commit);
     }
     let repo = tx.commit();

@@ -585,13 +585,9 @@ impl MutableRepo {
         commit: &Commit,
     ) -> Commit {
         self.leave_commit(&workspace_id);
-        let open_commit = CommitBuilder::for_open_commit(
-            settings,
-            self.store(),
-            commit.id().clone(),
-            commit.tree_id().clone(),
-        )
-        .write_to_repo(self);
+        let open_commit =
+            CommitBuilder::for_open_commit(settings, commit.id().clone(), commit.tree_id().clone())
+                .write_to_repo(self);
         self.set_checkout(workspace_id, open_commit.id().clone());
         open_commit
     }
