@@ -40,7 +40,7 @@ clap = { version = "3.2.8", features = ["derive"] }
 clap_complete = "3.2.3"
 clap_mangen = "0.1"
 config = { version = "0.13.1", features = ["toml"] }
-criterion = "0.3.5"
+criterion = "0.3.6"
 dirs = "4.0.0"
 git2 = "0.14.4"
 hex = "0.4.3"
@@ -58,7 +58,7 @@ thiserror = "1.0.31"
 
 [dev-dependencies]
 assert_cmd = "2.0.4"
-criterion = "0.3.5"
+criterion = "0.3.6"
 criterion_bencher_compat = "0.3.4"
 insta = "1.15.0"
 regex = "1.6.0"
