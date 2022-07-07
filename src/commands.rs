@@ -627,7 +627,15 @@ impl WorkspaceCommandHelper {
                         wc_operation.id().hex(),
                         repo_operation.id().hex()
                     )?;
-                    locked_wc.check_out(&checkout_commit.tree()).unwrap();
+                    locked_wc
+                        .check_out(&checkout_commit.tree())
+                        .map_err(|err| {
+                            CommandError::InternalError(format!(
+                                "Failed to check out commit {}: {}",
+                                checkout_commit.id().hex(),
+                                err
+                            ))
+                        })?;
                 } else {
                     return Err(CommandError::InternalError(format!(
                         "The repo was loaded at operation {}, which seems to be a sibling of the \
