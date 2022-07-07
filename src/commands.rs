@@ -2298,6 +2298,13 @@ fn show_color_words_diff_hunks(
         }
     }
 
+    // If the last diff line doesn't end with newline, add it.
+    let no_hunk = left.is_empty() && right.is_empty();
+    let any_last_newline = left.ends_with(b"\n") || right.ends_with(b"\n");
+    if !skipped_context && !no_hunk && !any_last_newline {
+        formatter.write_bytes(b"\n")?;
+    }
+
     Ok(())
 }
 

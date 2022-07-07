@@ -185,11 +185,11 @@ fn test_diff_missing_newline() {
     std::fs::write(repo_path.join("file2"), "foo").unwrap();
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
-    // TODO: We should probably copy git's `\ No newline at end of file` solution
     insta::assert_snapshot!(stdout, @r###"
     Modified regular file file1:
        1    1: foo
-            2: barModified regular file file2:
+            2: bar
+    Modified regular file file2:
        1    1: foo
        2     : bar
     "###);
@@ -216,5 +216,100 @@ fn test_diff_missing_newline() {
     \ No newline at end of file
     +foo
     \ No newline at end of file
+    "###);
+}
+
+#[test]
+fn test_color_words_diff_missing_newline() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Empty"]);
+    std::fs::write(repo_path.join("file1"), "a\nb\nc\nd\ne\nf\ng\nh\ni").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Add no newline"]);
+    std::fs::write(repo_path.join("file1"), "A\nb\nc\nd\ne\nf\ng\nh\ni").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Modify first line"]);
+    std::fs::write(repo_path.join("file1"), "A\nb\nc\nd\nE\nf\ng\nh\ni").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Modify middle line"]);
+    std::fs::write(repo_path.join("file1"), "A\nb\nc\nd\nE\nf\ng\nh\nI").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Modify last line"]);
+    std::fs::write(repo_path.join("file1"), "A\nb\nc\nd\nE\nf\ng\nh\nI\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Append newline"]);
+    std::fs::write(repo_path.join("file1"), "A\nb\nc\nd\nE\nf\ng\nh\nI").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Remove newline"]);
+    std::fs::write(repo_path.join("file1"), "").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "=== Empty"]);
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-Tdescription", "-pr:@-", "--no-graph", "--reversed"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    (no description set)
+    === Empty
+    Added regular file file1:
+    === Add no newline
+    Modified regular file file1:
+            1: a
+            2: b
+            3: c
+            4: d
+            5: e
+            6: f
+            7: g
+            8: h
+            9: i
+    === Modify first line
+    Modified regular file file1:
+       1    1: aA
+       2    2: b
+       3    3: c
+       4    4: d
+        ...
+    === Modify middle line
+    Modified regular file file1:
+        ...
+       2    2: b
+       3    3: c
+       4    4: d
+       5    5: eE
+       6    6: f
+       7    7: g
+       8    8: h
+        ...
+    === Modify last line
+    Modified regular file file1:
+        ...
+       6    6: f
+       7    7: g
+       8    8: h
+       9    9: iI
+    === Append newline
+    Modified regular file file1:
+        ...
+       6    6: f
+       7    7: g
+       8    8: h
+       9    9: I
+    === Remove newline
+    Modified regular file file1:
+        ...
+       6    6: f
+       7    7: g
+       8    8: h
+       9    9: I
+    === Empty
+    Modified regular file file1:
+       1     : A
+       2     : b
+       3     : c
+       4     : d
+       5     : E
+       6     : f
+       7     : g
+       8     : h
+       9     : I
     "###);
 }
