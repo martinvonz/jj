@@ -41,7 +41,9 @@ line 5
         &path,
         "line 1
 line 2
-left
+left 3.1
+left 3.2
+left 3.3
 line 4
 line 5
 ",
@@ -51,13 +53,13 @@ line 5
         &path,
         "line 1
 line 2
-right
+right 3.1
 line 4
 line 5
 ",
     );
 
-    let conflict = Conflict {
+    let mut conflict = Conflict {
         removes: vec![ConflictPart {
             value: TreeValue::Normal {
                 id: base_id,
@@ -88,9 +90,32 @@ line 5
     -------
     +++++++
     -line 3
-    +left
+    +right 3.1
     +++++++
-    right
+    left 3.1
+    left 3.2
+    left 3.3
+    >>>>>>>
+    line 4
+    line 5
+    "###
+    );
+    // Test with the larger diff first. We still want the small diff.
+    conflict.adds.reverse();
+    insta::assert_snapshot!(
+        &materialize_conflict_string(store, &path, &conflict),
+        @r###"
+    line 1
+    line 2
+    <<<<<<<
+    -------
+    +++++++
+    -line 3
+    +right 3.1
+    +++++++
+    left 3.1
+    left 3.2
+    left 3.3
     >>>>>>>
     line 4
     line 5
@@ -163,8 +188,8 @@ line 5
     -------
     +++++++
     -line 3
-    +left
     +++++++
+    left
     >>>>>>>
     line 4
     line 5

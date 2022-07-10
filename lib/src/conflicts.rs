@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cmp::min;
 use std::io::{Cursor, Write};
 
 use itertools::Itertools;
@@ -102,9 +101,8 @@ fn get_file_contents(store: &Store, path: &RepoPath, part: &ConflictPart) -> Vec
     }
 }
 
-fn write_diff_hunks(left: &[u8], right: &[u8], file: &mut dyn Write) -> std::io::Result<()> {
-    let diff = Diff::for_tokenizer(&[left, right], &find_line_ranges);
-    for hunk in diff.hunks() {
+fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> std::io::Result<()> {
+    for hunk in hunks {
         match hunk {
             DiffHunk::Matching(content) => {
                 for line in content.split_inclusive(|b| *b == b'\n') {
@@ -164,24 +162,39 @@ pub fn materialize_conflict(
                     MergeHunk::Resolved(content) => {
                         output.write_all(&content)?;
                     }
-                    MergeHunk::Conflict { removes, adds } => {
-                        let num_diffs = min(removes.len(), adds.len());
-
-                        // TODO: Pair up a remove with an add in a way that minimizes the size of
-                        // the diff
+                    MergeHunk::Conflict {
+                        mut removes,
+                        mut adds,
+                    } => {
                         output.write_all(CONFLICT_START_LINE)?;
-                        for i in 0..num_diffs {
+                        while !removes.is_empty() && !adds.is_empty() {
+                            let left = &removes[0];
+                            let mut diffs = vec![];
+                            for right in &adds {
+                                diffs.push(
+                                    Diff::for_tokenizer(&[left, right], &find_line_ranges)
+                                        .hunks()
+                                        .collect_vec(),
+                                );
+                            }
+                            let min_diff_index = diffs
+                                .iter()
+                                .position_min_by_key(|diff| diff_size(*diff))
+                                .unwrap();
                             output.write_all(CONFLICT_MINUS_LINE)?;
                             output.write_all(CONFLICT_PLUS_LINE)?;
-                            write_diff_hunks(&removes[i], &adds[i], output)?;
+                            write_diff_hunks(&diffs[min_diff_index], output)?;
+                            removes.remove(0);
+                            adds.remove(min_diff_index);
                         }
-                        for slice in removes.iter().skip(num_diffs) {
+
+                        for slice in removes {
                             output.write_all(CONFLICT_MINUS_LINE)?;
-                            output.write_all(slice)?;
+                            output.write_all(&slice)?;
                         }
-                        for slice in adds.iter().skip(num_diffs) {
+                        for slice in adds {
                             output.write_all(CONFLICT_PLUS_LINE)?;
-                            output.write_all(slice)?;
+                            output.write_all(&slice)?;
                         }
                         output.write_all(CONFLICT_END_LINE)?;
                     }
@@ -190,6 +203,16 @@ pub fn materialize_conflict(
         }
     }
     Ok(())
+}
+
+fn diff_size(hunks: &[DiffHunk]) -> usize {
+    hunks
+        .iter()
+        .map(|hunk| match hunk {
+            DiffHunk::Matching(_) => 0,
+            DiffHunk::Different(slices) => slices.iter().map(|slice| slice.len()).sum(),
+        })
+        .sum()
 }
 
 pub fn conflict_to_materialized_value(
