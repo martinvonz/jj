@@ -107,31 +107,19 @@ fn write_diff_hunks(left: &[u8], right: &[u8], file: &mut dyn Write) -> std::io:
     for hunk in diff.hunks() {
         match hunk {
             DiffHunk::Matching(content) => {
-                // TODO: Remove this check once https://github.com/rust-lang/rust/issues/89716
-                // has been fixed and released for long enough.
-                if !content.is_empty() {
-                    for line in content.split_inclusive(|b| *b == b'\n') {
-                        file.write_all(b" ")?;
-                        file.write_all(line)?;
-                    }
+                for line in content.split_inclusive(|b| *b == b'\n') {
+                    file.write_all(b" ")?;
+                    file.write_all(line)?;
                 }
             }
             DiffHunk::Different(content) => {
-                // TODO: Remove this check once https://github.com/rust-lang/rust/issues/89716
-                // has been fixed and released for long enough.
-                if !content[0].is_empty() {
-                    for line in content[0].split_inclusive(|b| *b == b'\n') {
-                        file.write_all(b"-")?;
-                        file.write_all(line)?;
-                    }
+                for line in content[0].split_inclusive(|b| *b == b'\n') {
+                    file.write_all(b"-")?;
+                    file.write_all(line)?;
                 }
-                // TODO: Remove this check once https://github.com/rust-lang/rust/issues/89716
-                // has been fixed and released for long enough.
-                if !content[1].is_empty() {
-                    for line in content[1].split_inclusive(|b| *b == b'\n') {
-                        file.write_all(b"+")?;
-                        file.write_all(line)?;
-                    }
+                for line in content[1].split_inclusive(|b| *b == b'\n') {
+                    file.write_all(b"+")?;
+                    file.write_all(line)?;
                 }
             }
         }
