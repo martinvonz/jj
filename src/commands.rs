@@ -2685,9 +2685,6 @@ fn unified_diff_hunks<'content>(
         match hunk {
             DiffHunk::Matching(content) => {
                 let lines = content.split_inclusive(|b| *b == b'\n').collect_vec();
-                // TODO: Remove this statement once https://github.com/rust-lang/rust/issues/89716
-                // has been fixed and released for long enough.
-                let lines = if content.is_empty() { vec![] } else { lines };
                 // Number of context lines to print after the previous non-matching hunk.
                 let num_after_lines = lines.len().min(if show_context_after {
                     num_context_lines
@@ -2726,18 +2723,6 @@ fn unified_diff_hunks<'content>(
                 show_context_after = true;
                 let left_lines = content[0].split_inclusive(|b| *b == b'\n').collect_vec();
                 let right_lines = content[1].split_inclusive(|b| *b == b'\n').collect_vec();
-                // TODO: Remove these two statements once https://github.com/rust-lang/rust/issues/89716
-                // has been fixed and released for long enough.
-                let left_lines = if content[0].is_empty() {
-                    vec![]
-                } else {
-                    left_lines
-                };
-                let right_lines = if content[1].is_empty() {
-                    vec![]
-                } else {
-                    right_lines
-                };
                 if !left_lines.is_empty() {
                     current_hunk.left_line_range.end += left_lines.len();
                     for line in left_lines {
