@@ -16,6 +16,7 @@ use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
 use jujutsu_lib::conflicts::{materialize_conflict, parse_conflict, update_conflict_from_content};
 use jujutsu_lib::files::MergeHunk;
 use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::store::Store;
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::TestRepo;
 
@@ -78,23 +79,22 @@ line 5
             },
         ],
     };
-    let mut result: Vec<u8> = vec![];
-    materialize_conflict(store, &path, &conflict, &mut result).unwrap();
-    assert_eq!(
-        String::from_utf8(result).unwrap().as_str(),
-        "line 1
-line 2
-<<<<<<<
--------
-+++++++
--line 3
-+left
-+++++++
-right
->>>>>>>
-line 4
-line 5
-"
+    insta::assert_snapshot!(
+        &materialize_conflict_string(store, &path, &conflict),
+        @r###"
+    line 1
+    line 2
+    <<<<<<<
+    -------
+    +++++++
+    -line 3
+    +left
+    +++++++
+    right
+    >>>>>>>
+    line 4
+    line 5
+    "###
     );
 }
 
@@ -156,22 +156,19 @@ line 5
             },
         ],
     };
-    let mut result: Vec<u8> = vec![];
-    materialize_conflict(store, &path, &conflict, &mut result).unwrap();
-    assert_eq!(
-        String::from_utf8(result).unwrap().as_str(),
-        "line 1
-line 2
-<<<<<<<
--------
-+++++++
--line 3
-+left
-+++++++
->>>>>>>
-line 4
-line 5
-"
+    insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
+    line 1
+    line 2
+    <<<<<<<
+    -------
+    +++++++
+    -line 3
+    +left
+    +++++++
+    >>>>>>>
+    line 4
+    line 5
+    "###
     );
 }
 
@@ -234,22 +231,21 @@ line 5
         ],
     };
 
-    let mut result: Vec<u8> = vec![];
-    materialize_conflict(store, &path, &conflict, &mut result).unwrap();
-    assert_eq!(
-        String::from_utf8(result).unwrap().as_str(),
-        "line 1
-line 2
-<<<<<<<
--------
-+++++++
--line 3
-+++++++
-right
->>>>>>>
-line 4
-line 5
-"
+    insta::assert_snapshot!(
+        &materialize_conflict_string(store, &path, &conflict),
+        @r###"
+    line 1
+    line 2
+    <<<<<<<
+    -------
+    +++++++
+    -line 3
+    +++++++
+    right
+    >>>>>>>
+    line 4
+    line 5
+    "###
     );
 }
 
@@ -502,4 +498,10 @@ fn test_update_conflict_from_content() {
             ]
         }
     )
+}
+
+fn materialize_conflict_string(store: &Store, path: &RepoPath, conflict: &Conflict) -> String {
+    let mut result: Vec<u8> = vec![];
+    materialize_conflict(store, path, conflict, &mut result).unwrap();
+    String::from_utf8(result).unwrap()
 }
