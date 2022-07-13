@@ -64,14 +64,71 @@ fn set_up() -> (TestEnvironment, PathBuf) {
 fn test_git_push_nothing() {
     let (test_env, workspace_root) = set_up();
     // No branches to push yet
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
 }
 
 #[test]
-fn test_git_push_success() {
+fn test_git_push_current_branch() {
+    let (test_env, workspace_root) = set_up();
+    // Update some branches. `branch1` is not a current branch, but `branch2` and
+    // `my-branch` are.
+    test_env.jj_cmd_success(
+        &workspace_root,
+        &["describe", "branch1", "-m", "modified branch1 commit"],
+    );
+    test_env.jj_cmd_success(
+        &workspace_root,
+        &["branch", "set", "--allow-backwards", "branch2"],
+    );
+    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "my-branch"]);
+    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    // Check the setup
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    branch1: 5d0d85ed3da7 modified branch1 commit
+      @origin (ahead by 1 commits, behind by 1 commits): 545acdb23f70 description
+    branch2: 7840c9885676 foo
+      @origin (ahead by 1 commits, behind by 1 commits): 545acdb23f70 description
+    my-branch: 7840c9885676 foo
+    "###);
+    // First dry-run. `branch1` should not get pushed.
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--dry-run"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Move branch branch2 from 545acdb23f70 to 7840c9885676
+      Add branch my-branch to 7840c9885676
+    Dry-run requested, not pushing.
+    "###);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Move branch branch2 from 545acdb23f70 to 7840c9885676
+      Add branch my-branch to 7840c9885676
+    "###);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    branch1: 5d0d85ed3da7 modified branch1 commit
+      @origin (ahead by 1 commits, behind by 1 commits): 545acdb23f70 description
+    branch2: 7840c9885676 foo
+    my-branch: 7840c9885676 foo
+    "###);
+}
+
+#[test]
+fn test_git_push_no_current_branch() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["new"]);
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No current branch.
+    "###);
+}
+
+#[test]
+fn test_git_push_all() {
     let (test_env, workspace_root) = set_up();
     test_env.jj_cmd_success(&workspace_root, &["branch", "delete", "branch1"]);
     test_env.jj_cmd_success(
@@ -90,7 +147,7 @@ fn test_git_push_success() {
     my-branch: 7840c9885676 foo
     "###);
     // First dry-run
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--dry-run"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all", "--dry-run"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Delete branch branch1 from 545acdb23f70
@@ -98,7 +155,7 @@ fn test_git_push_success() {
       Add branch my-branch to 7840c9885676
     Dry-run requested, not pushing.
     "###);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
       Delete branch branch1 from 545acdb23f70
@@ -133,7 +190,7 @@ fn test_git_push_conflict() {
     test_env.jj_cmd_success(&workspace_root, &["rebase", "-r", "@", "-d", "@--"]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "set", "my-branch"]);
     test_env.jj_cmd_success(&workspace_root, &["close", "-m", "third"]);
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 50ccff1aeab0 since it has conflicts
     "###);

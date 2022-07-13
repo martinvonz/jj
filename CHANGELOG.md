@@ -41,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj git push` no longer aborts if you attempt to push an open commit (but it
   now aborts if a commit does not have a description).
 
+* `jj git push` now pushes only branches pointing to the `@` by default. Use
+  `--all` to push all branches.
+
 ### New features
 
 * `jj rebase` now accepts a `--branch/-b <revision>` argument, which can be used
