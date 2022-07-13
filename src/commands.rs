@@ -5070,6 +5070,7 @@ fn cmd_git_push(
     args: &GitPushArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
+    workspace_command.maybe_commit_working_copy(ui)?;
 
     let mut tx;
     let mut branch_updates = vec![];
