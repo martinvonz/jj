@@ -19,6 +19,9 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
+use crate::backend::Backend;
+use crate::git_backend::GitBackend;
+use crate::local_backend::LocalBackend;
 use crate::op_store::WorkspaceId;
 use crate::repo::{ReadonlyRepo, RepoLoader};
 use crate::settings::UserSettings;
@@ -104,40 +107,18 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_root: PathBuf,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        let jj_dir = create_jj_dir(&workspace_root)?;
-        let repo_dir = jj_dir.join("repo");
-        std::fs::create_dir(&repo_dir).unwrap();
-        let repo = ReadonlyRepo::init_local(user_settings, repo_dir);
-        let (working_copy, repo) = init_working_copy(
-            user_settings,
-            &repo,
-            &workspace_root,
-            &jj_dir,
-            WorkspaceId::default(),
-        );
-        let repo_loader = repo.loader();
-        let workspace = Self::new(workspace_root, working_copy, repo_loader);
-        Ok((workspace, repo))
+        Self::init_with_backend(user_settings, workspace_root, |store_path| {
+            Box::new(LocalBackend::init(store_path))
+        })
     }
 
     pub fn init_internal_git(
         user_settings: &UserSettings,
         workspace_root: PathBuf,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        let jj_dir = create_jj_dir(&workspace_root)?;
-        let repo_dir = jj_dir.join("repo");
-        std::fs::create_dir(&repo_dir).unwrap();
-        let repo = ReadonlyRepo::init_internal_git(user_settings, repo_dir);
-        let (working_copy, repo) = init_working_copy(
-            user_settings,
-            &repo,
-            &workspace_root,
-            &jj_dir,
-            WorkspaceId::default(),
-        );
-        let repo_loader = repo.loader();
-        let workspace = Workspace::new(workspace_root, working_copy, repo_loader);
-        Ok((workspace, repo))
+        Self::init_with_backend(user_settings, workspace_root, |store_path| {
+            Box::new(GitBackend::init_internal(store_path))
+        })
     }
 
     pub fn init_external_git(
@@ -145,10 +126,20 @@ impl Workspace {
         workspace_root: PathBuf,
         git_repo_path: PathBuf,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
+        Self::init_with_backend(user_settings, workspace_root, |store_path| {
+            Box::new(GitBackend::init_external(store_path, git_repo_path.clone()))
+        })
+    }
+
+    fn init_with_backend(
+        user_settings: &UserSettings,
+        workspace_root: PathBuf,
+        backend_factory: impl FnOnce(PathBuf) -> Box<dyn Backend>,
+    ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(&workspace_root)?;
         let repo_dir = jj_dir.join("repo");
         std::fs::create_dir(&repo_dir).unwrap();
-        let repo = ReadonlyRepo::init_external_git(user_settings, repo_dir, git_repo_path);
+        let repo = ReadonlyRepo::init(user_settings, repo_dir, backend_factory);
         let (working_copy, repo) = init_working_copy(
             user_settings,
             &repo,
