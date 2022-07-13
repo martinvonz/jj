@@ -24,6 +24,8 @@ use tempfile::TempDir;
 use crate::backend::{FileId, TreeId, TreeValue};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
+use crate::git_backend::GitBackend;
+use crate::local_backend::LocalBackend;
 use crate::repo::{MutableRepo, ReadonlyRepo};
 use crate::repo_path::RepoPath;
 use crate::rewrite::RebasedDescendant;
@@ -68,9 +70,13 @@ impl TestRepo {
         let repo = if use_git {
             let git_path = temp_dir.path().join("git-repo");
             git2::Repository::init(&git_path).unwrap();
-            ReadonlyRepo::init_external_git(&settings, repo_dir, git_path)
+            ReadonlyRepo::init(&settings, repo_dir, |store_path| {
+                Box::new(GitBackend::init_external(store_path, git_path.clone()))
+            })
         } else {
-            ReadonlyRepo::init_local(&settings, repo_dir)
+            ReadonlyRepo::init(&settings, repo_dir, |store_path| {
+                Box::new(LocalBackend::init(store_path))
+            })
         };
 
         Self {

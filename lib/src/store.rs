@@ -40,7 +40,7 @@ pub struct Store {
 }
 
 impl Store {
-    fn new(backend: Box<dyn Backend>) -> Arc<Self> {
+    pub fn new(backend: Box<dyn Backend>) -> Arc<Self> {
         let root_commit_id = CommitId::new(vec![0; backend.hash_length()]);
         Arc::new(Store {
             backend,
@@ -48,21 +48,6 @@ impl Store {
             commit_cache: Default::default(),
             tree_cache: Default::default(),
         })
-    }
-
-    pub fn init_local(store_path: PathBuf) -> Arc<Self> {
-        Store::new(Box::new(LocalBackend::init(store_path)))
-    }
-
-    pub fn init_internal_git(store_path: PathBuf) -> Arc<Self> {
-        Store::new(Box::new(GitBackend::init_internal(store_path)))
-    }
-
-    pub fn init_external_git(store_path: PathBuf, git_repo_path: PathBuf) -> Arc<Self> {
-        Store::new(Box::new(GitBackend::init_external(
-            store_path,
-            git_repo_path,
-        )))
     }
 
     pub fn load_store(store_path: PathBuf) -> Arc<Store> {

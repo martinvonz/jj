@@ -23,12 +23,14 @@ use std::sync::{Arc, Mutex};
 use itertools::Itertools;
 use thiserror::Error;
 
-use crate::backend::{BackendError, ChangeId, CommitId};
+use crate::backend::{Backend, BackendError, ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
+use crate::git_backend::GitBackend;
 use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
+use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{LockedOpHeads, OpHeads, OpHeadsStore};
 use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
 use crate::operation::Operation;
@@ -127,18 +129,16 @@ impl Debug for ReadonlyRepo {
 
 impl ReadonlyRepo {
     pub fn init_local(settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
-        let repo_path = repo_path.canonicalize().unwrap();
-        ReadonlyRepo::init_repo_dir(&repo_path);
-        let store = Store::init_local(repo_path.join("store"));
-        ReadonlyRepo::init(settings, repo_path, store)
+        Self::init(settings, repo_path, |store_path| {
+            Box::new(LocalBackend::init(store_path))
+        })
     }
 
     /// Initializes a repo with a new Git backend in .jj/git/ (bare Git repo)
     pub fn init_internal_git(settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
-        let repo_path = repo_path.canonicalize().unwrap();
-        ReadonlyRepo::init_repo_dir(&repo_path);
-        let store = Store::init_internal_git(repo_path.join("store"));
-        ReadonlyRepo::init(settings, repo_path, store)
+        Self::init(settings, repo_path, |store_path| {
+            Box::new(GitBackend::init_internal(store_path))
+        })
     }
 
     /// Initializes a repo with an existing Git backend at the specified path
@@ -147,10 +147,9 @@ impl ReadonlyRepo {
         repo_path: PathBuf,
         git_repo_path: PathBuf,
     ) -> Arc<ReadonlyRepo> {
-        let repo_path = repo_path.canonicalize().unwrap();
-        ReadonlyRepo::init_repo_dir(&repo_path);
-        let store = Store::init_external_git(repo_path.join("store"), git_repo_path);
-        ReadonlyRepo::init(settings, repo_path, store)
+        Self::init(settings, repo_path, |store_path| {
+            Box::new(GitBackend::init_external(store_path, git_repo_path.clone()))
+        })
     }
 
     fn init_repo_dir(repo_path: &Path) {
@@ -160,15 +159,16 @@ impl ReadonlyRepo {
         fs::create_dir(repo_path.join("index")).unwrap();
     }
 
-    fn init(
+    pub fn init(
         user_settings: &UserSettings,
         repo_path: PathBuf,
-        store: Arc<Store>,
+        backend_factory: impl FnOnce(PathBuf) -> Box<dyn Backend>,
     ) -> Arc<ReadonlyRepo> {
+        let repo_path = repo_path.canonicalize().unwrap();
+        ReadonlyRepo::init_repo_dir(&repo_path);
+        let store = Store::new(backend_factory(repo_path.join("store")));
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
-
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(repo_path.join("op_store")));
-
         let mut root_view = op_store::View::default();
         root_view.head_ids.insert(store.root_commit_id().clone());
         root_view
@@ -177,11 +177,8 @@ impl ReadonlyRepo {
         let (op_heads_store, init_op) =
             OpHeadsStore::init(repo_path.join("op_heads"), &op_store, &root_view);
         let op_heads_store = Arc::new(op_heads_store);
-
         let index_store = Arc::new(IndexStore::init(repo_path.join("index")));
-
         let view = View::new(root_view);
-
         Arc::new(ReadonlyRepo {
             repo_path,
             store,
