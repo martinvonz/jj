@@ -1858,9 +1858,11 @@ struct GitCloneArgs {
 
 /// Push to a Git remote
 ///
-/// By default, all branches are pushed. Use `--branch` if you want to push only
-/// one branch.
+/// By default, pushes any branches pointing to `@`. Use `--branch` to push a
+/// specific branch. Use `--all` to push all branches. Use `--change` to
+/// generate a branch name based on a specific commit's change ID.
 #[derive(clap::Args, Clone, Debug)]
+#[clap(group(ArgGroup::new("what").args(&["branch", "all", "change"])))]
 struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
     #[clap(long, default_value = "origin")]
@@ -1868,6 +1870,9 @@ struct GitPushArgs {
     /// Push only this branch
     #[clap(long)]
     branch: Option<String>,
+    /// Push all branches
+    #[clap(long)]
+    all: bool,
     /// Push this commit by creating a branch based on its change ID
     #[clap(long)]
     change: Option<String>,
@@ -5123,7 +5128,7 @@ fn cmd_git_push(
                 branch_name, &args.remote, branch_name
             )?;
         }
-    } else {
+    } else if args.all {
         // TODO: Is it useful to warn about conflicted branches?
         for (branch_name, branch_target) in workspace_command.repo().view().branches() {
             let push_action = classify_branch_push_action(branch_target, &args.remote);
@@ -5138,6 +5143,41 @@ fn cmd_git_push(
         }
         tx = workspace_command
             .start_transaction(&format!("push all branches to git remote {}", &args.remote));
+    } else {
+        match workspace_command
+            .repo()
+            .view()
+            .get_checkout(&workspace_command.workspace_id())
+        {
+            None => {
+                return Err(UserError(
+                    "Nothing checked out in this workspace".to_string(),
+                ));
+            }
+            Some(checkout) => {
+                let desired_target = Some(RefTarget::Normal(checkout.clone()));
+                for (branch_name, branch_target) in workspace_command.repo().view().branches() {
+                    if branch_target.local_target == desired_target {
+                        let push_action = classify_branch_push_action(branch_target, &args.remote);
+                        match push_action {
+                            BranchPushAction::AlreadyMatches => {}
+                            BranchPushAction::LocalConflicted => {}
+                            BranchPushAction::RemoteConflicted => {}
+                            BranchPushAction::Update(update) => {
+                                branch_updates.push((branch_name.clone(), update));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if branch_updates.is_empty() {
+            return Err(UserError("No current branch.".to_string()));
+        }
+        tx = workspace_command.start_transaction(&format!(
+            "push current branch(es) to git remote {}",
+            &args.remote
+        ));
     }
 
     if branch_updates.is_empty() {

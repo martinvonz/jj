@@ -108,7 +108,7 @@ parent.
     </tr>
     <tr>
       <td>Update a remote repo with all branches from the local repo</td>
-      <td><code>jj git push [--remote &lt;remote&gt;]</code> (there is no
+      <td><code>jj git push --all [--remote &lt;remote&gt;]</code> (there is no
           support for pushing from non-Git repos yet)</td>
       <td><code>git push --all [&lt;remote&gt;]</code></td>
     </tr>
