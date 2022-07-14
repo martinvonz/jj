@@ -14,7 +14,6 @@
 
 use std::collections::HashMap;
 use std::io::Read;
-use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use crate::backend;
@@ -23,8 +22,6 @@ use crate::backend::{
     Signature, SymlinkId, Timestamp, TreeId,
 };
 use crate::commit::Commit;
-use crate::git_backend::GitBackend;
-use crate::local_backend::LocalBackend;
 use crate::repo_path::RepoPath;
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
@@ -48,16 +45,6 @@ impl Store {
             commit_cache: Default::default(),
             tree_cache: Default::default(),
         })
-    }
-
-    pub fn load_store(store_path: PathBuf) -> Arc<Store> {
-        let git_target_path = store_path.join("git_target");
-        let backend: Box<dyn Backend> = if git_target_path.is_file() {
-            Box::new(GitBackend::load(store_path))
-        } else {
-            Box::new(LocalBackend::load(store_path))
-        };
-        Store::new(backend)
     }
 
     pub fn hash_length(&self) -> usize {
