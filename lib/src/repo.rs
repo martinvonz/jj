@@ -340,7 +340,14 @@ pub struct RepoLoader {
 
 impl RepoLoader {
     pub fn init(user_settings: &UserSettings, repo_path: PathBuf) -> Self {
-        let store = Store::load_store(repo_path.join("store"));
+        let store_path = repo_path.join("store");
+        let git_target_path = store_path.join("git_target");
+        let backend: Box<dyn Backend> = if git_target_path.is_file() {
+            Box::new(GitBackend::load(store_path))
+        } else {
+            Box::new(LocalBackend::load(store_path))
+        };
+        let store = Store::new(backend);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
         let op_heads_store = Arc::new(OpHeadsStore::load(repo_path.join("op_heads")));
