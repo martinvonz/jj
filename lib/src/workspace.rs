@@ -190,14 +190,6 @@ impl Workspace {
             .ok_or(WorkspaceLoadError::NoWorkspaceHere(workspace_path))?;
         let workspace_root = jj_dir.parent().unwrap().to_owned();
         let mut repo_dir = jj_dir.join("repo");
-        if !repo_dir.exists() {
-            // TODO: Delete this in mid 2022 or so
-            println!("The repo format has changed. Moving repo into .jj/repo/");
-            std::fs::create_dir(&repo_dir).unwrap();
-            for dir in ["store", "op_store", "op_heads", "index"] {
-                std::fs::rename(jj_dir.join(dir), repo_dir.join(dir)).unwrap();
-            }
-        }
         // If .jj/repo is a file, then we interpret its contents as a relative path to
         // the actual repo directory (typically in another workspace).
         if repo_dir.is_file() {
