@@ -1,0 +1,15 @@
+# Basic template of config settings
+
+# Don't forget to change these to your own details!
+user.name = "YOUR NAME" 
+user.email = "YOUR_EMAIL@example.com"
+
+ui.color = "auto" # the default
+# ui.color = never # no color
+
+ui.editor = "pico" # the default
+# ui.editor = "vim"
+
+
+diff-editor = "meld" # default, requires meld to be installed
+# diff-editor = "vimdiff"
