@@ -41,7 +41,7 @@ fn test_untrack() {
     // Errors out when not run at the head operation
     let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack", "file1", "--at-op", "@-"]);
     insta::assert_snapshot!(stderr.replace("jj.exe", "jj"), @r###"
-    Error: Refusing to commit working copy (maybe because you're using --at-op)
+    Error: This command must be able to update the working copy (don't use --at-op).
     "###);
     // Errors out when no path is specified
     test_env.jj_cmd_cli_error(&repo_path, &["untrack"]);
