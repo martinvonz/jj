@@ -24,7 +24,6 @@ use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Instant;
 use std::{fs, io};
@@ -301,12 +300,12 @@ jj init --git-repo=.";
 struct WorkspaceCommandHelper {
     cwd: PathBuf,
     string_args: Vec<String>,
+    global_args: GlobalArgs,
     settings: UserSettings,
     workspace: Workspace,
     repo: Arc<ReadonlyRepo>,
     may_update_working_copy: bool,
     working_copy_shared_with_git: bool,
-    working_copy_committed: bool,
 }
 
 impl WorkspaceCommandHelper {
@@ -331,17 +330,37 @@ impl WorkspaceCommandHelper {
         let mut helper = Self {
             cwd: ui.cwd().to_owned(),
             string_args,
+            global_args: global_args.clone(),
             settings: ui.settings().clone(),
             workspace,
             repo,
             may_update_working_copy,
             working_copy_shared_with_git,
-            working_copy_committed: false,
         };
-        if working_copy_shared_with_git && may_update_working_copy {
-            helper.import_git_refs_and_head(ui, maybe_git_repo.as_ref().unwrap())?;
+        if may_update_working_copy {
+            if working_copy_shared_with_git {
+                helper.import_git_refs_and_head(ui, maybe_git_repo.as_ref().unwrap())?;
+            }
+            helper.commit_working_copy(ui)?;
         }
         Ok(helper)
+    }
+
+    fn check_working_copy_writable(&self) -> Result<(), CommandError> {
+        if self.may_update_working_copy {
+            Ok(())
+        } else if self.global_args.no_commit_working_copy {
+            Err(CommandError::UserError(
+                "This command must be able to update the working copy (don't use \
+                 --no-commit-working-copy)."
+                    .to_string(),
+            ))
+        } else {
+            Err(CommandError::UserError(
+                "This command must be able to update the working copy (don't use --at-op)."
+                    .to_string(),
+            ))
+        }
     }
 
     fn import_git_refs_and_head(
@@ -431,6 +450,7 @@ impl WorkspaceCommandHelper {
     }
 
     fn start_working_copy_mutation(&mut self) -> Result<(LockedWorkingCopy, Commit), CommandError> {
+        self.check_working_copy_writable()?;
         let current_checkout_id = self.repo.view().get_checkout(&self.workspace_id());
         let current_checkout = if let Some(current_checkout_id) = current_checkout_id {
             self.repo.store().get_commit(current_checkout_id)?
@@ -504,12 +524,8 @@ impl WorkspaceCommandHelper {
         )
     }
 
-    fn resolve_single_rev(
-        &mut self,
-        ui: &mut Ui,
-        revision_str: &str,
-    ) -> Result<Commit, CommandError> {
-        let revset_expression = self.parse_revset(ui, revision_str)?;
+    fn resolve_single_rev(&self, revision_str: &str) -> Result<Commit, CommandError> {
+        let revset_expression = revset::parse(revision_str)?;
         let revset =
             revset_expression.evaluate(self.repo.as_repo_ref(), Some(&self.workspace_id()))?;
         let mut iter = revset.iter().commits(self.repo.store());
@@ -531,12 +547,8 @@ impl WorkspaceCommandHelper {
         }
     }
 
-    fn resolve_revset(
-        &mut self,
-        ui: &mut Ui,
-        revision_str: &str,
-    ) -> Result<Vec<Commit>, CommandError> {
-        let revset_expression = self.parse_revset(ui, revision_str)?;
+    fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
+        let revset_expression = revset::parse(revision_str)?;
         let revset =
             revset_expression.evaluate(self.repo.as_repo_ref(), Some(&self.workspace_id()))?;
         Ok(revset
@@ -544,33 +556,6 @@ impl WorkspaceCommandHelper {
             .commits(self.repo.store())
             .map(Result::unwrap)
             .collect())
-    }
-
-    fn parse_revset(
-        &mut self,
-        ui: &mut Ui,
-        revision_str: &str,
-    ) -> Result<Rc<RevsetExpression>, CommandError> {
-        let expression = revset::parse(revision_str)?;
-        // If the revset is exactly "@", then we need to commit the working copy. If
-        // it's another symbol, then we don't. If it's more complex, then we do
-        // (just to be safe). TODO: Maybe make this smarter. How do we generally
-        // figure out if a revset needs to commit the working copy? For example,
-        // "@-" should perhaps not result in a new working copy commit, but
-        // "@--" should. "foo++" is probably also should, since we would
-        // otherwise need to evaluate the revset and see if "foo::" includes the
-        // parent of the current checkout. Other interesting cases include some kind of
-        // reference pointing to the working copy commit. If it's a
-        // type of reference that would get updated when the commit gets rewritten, then
-        // we probably should create a new working copy commit.
-        let mentions_checkout = match expression.as_ref() {
-            RevsetExpression::Symbol(name) => name == "@",
-            _ => true,
-        };
-        if mentions_checkout && !self.working_copy_committed {
-            self.maybe_commit_working_copy(ui)?;
-        }
-        Ok(expression)
     }
 
     fn check_rewriteable(&self, commit: &Commit) -> Result<(), CommandError> {
@@ -590,19 +575,6 @@ impl WorkspaceCommandHelper {
     }
 
     fn commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
-        if !self.may_update_working_copy {
-            return Err(UserError(
-                "Refusing to commit working copy (maybe because you're using --at-op)".to_string(),
-            ));
-        }
-        self.maybe_commit_working_copy(ui)?;
-        Ok(())
-    }
-
-    fn maybe_commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
-        if !self.may_update_working_copy {
-            return Ok(());
-        }
         let repo = self.repo.clone();
         let workspace_id = self.workspace_id();
         let checkout_id = match repo.view().get_checkout(&self.workspace_id()) {
@@ -697,7 +669,6 @@ impl WorkspaceCommandHelper {
         } else {
             locked_wc.discard();
         }
-        self.working_copy_committed = true;
         Ok(())
     }
 
@@ -2124,13 +2095,12 @@ fn cmd_checkout(
     args: &CheckoutArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let new_commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
     let workspace_id = workspace_command.workspace_id();
     if ui.settings().enable_open_commits() {
         if workspace_command.repo().view().get_checkout(&workspace_id) == Some(new_commit.id()) {
             ui.write("Already on that commit\n")?;
         } else {
-            workspace_command.commit_working_copy(ui)?;
             let mut tx = workspace_command
                 .start_transaction(&format!("check out commit {}", new_commit.id().hex()));
             if new_commit.is_open() {
@@ -2142,7 +2112,6 @@ fn cmd_checkout(
             workspace_command.finish_transaction(ui, tx)?;
         }
     } else {
-        workspace_command.commit_working_copy(ui)?;
         let mut tx = workspace_command
             .start_transaction(&format!("check out commit {}", new_commit.id().hex()));
         tx.mut_repo()
@@ -2158,7 +2127,6 @@ fn cmd_untrack(
     args: &UntrackArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    workspace_command.commit_working_copy(ui)?;
     let store = workspace_command.repo().store().clone();
     let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
 
@@ -2218,8 +2186,8 @@ fn cmd_untrack(
 }
 
 fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
     for (name, _value) in commit.tree().entries_matching(matcher.as_ref()) {
         writeln!(ui, "{}", &workspace_command.format_file_path(&name))?;
@@ -2228,8 +2196,8 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(
 }
 
 fn cmd_print(ui: &mut Ui, command: &CommandHelper, args: &PrintArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let path = ui.parse_file_path(workspace_command.workspace_root(), &args.path)?;
     let repo = workspace_command.repo();
     match commit.tree().path_value(&path) {
@@ -2359,17 +2327,17 @@ fn show_color_words_diff_line(
 }
 
 fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
+    let workspace_command = command.workspace_helper(ui)?;
     let from_tree;
     let to_tree;
     if args.from.is_some() || args.to.is_some() {
-        let from = workspace_command.resolve_single_rev(ui, args.from.as_deref().unwrap_or("@"))?;
+        let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
         from_tree = from.tree();
-        let to = workspace_command.resolve_single_rev(ui, args.to.as_deref().unwrap_or("@"))?;
+        let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
         to_tree = to.tree();
     } else {
         let commit =
-            workspace_command.resolve_single_rev(ui, args.revision.as_deref().unwrap_or("@"))?;
+            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
         let parents = commit.parents();
         from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
         to_tree = commit.tree()
@@ -2387,8 +2355,8 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
 }
 
 fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let parents = commit.parents();
     let from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
     let to_tree = commit.tree();
@@ -2903,8 +2871,7 @@ fn cmd_status(
     command: &CommandHelper,
     _args: &StatusArgs,
 ) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    workspace_command.maybe_commit_working_copy(ui)?;
+    let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let maybe_checkout_id = repo.view().get_checkout(&workspace_command.workspace_id());
     let maybe_checkout = maybe_checkout_id
@@ -3034,9 +3001,9 @@ fn log_template(settings: &UserSettings) -> String {
 }
 
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
+    let workspace_command = command.workspace_helper(ui)?;
 
-    let revset_expression = workspace_command.parse_revset(ui, &args.revisions)?;
+    let revset_expression = revset::parse(&args.revisions)?;
     let repo = workspace_command.repo();
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = repo.view().get_checkout(&workspace_id);
@@ -3153,9 +3120,9 @@ fn show_patch(
 }
 
 fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
+    let workspace_command = command.workspace_helper(ui)?;
 
-    let start_commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = workspace_command.repo().view().get_checkout(&workspace_id);
 
@@ -3323,7 +3290,7 @@ fn cmd_describe(
     args: &DescribeArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
     let description;
     if args.stdin {
@@ -3350,7 +3317,7 @@ fn cmd_describe(
 
 fn cmd_open(ui: &mut Ui, command: &CommandHelper, args: &OpenArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
     let mut tx = workspace_command.start_transaction(&format!("open commit {}", commit.id().hex()));
     CommitBuilder::for_rewrite_from(ui.settings(), &commit)
@@ -3362,7 +3329,7 @@ fn cmd_open(ui: &mut Ui, command: &CommandHelper, args: &OpenArgs) -> Result<(),
 
 fn cmd_close(ui: &mut Ui, command: &CommandHelper, args: &CloseArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
     let mut commit_builder =
         CommitBuilder::for_rewrite_from(ui.settings(), &commit).set_open(false);
@@ -3405,7 +3372,7 @@ fn cmd_duplicate(
     args: &DuplicateArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let predecessor = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let predecessor = workspace_command.resolve_single_rev(&args.revision)?;
     let mut tx = workspace_command
         .start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
     let mut_repo = tx.mut_repo();
@@ -3432,7 +3399,7 @@ fn cmd_abandon(
     let to_abandon = {
         let mut acc = Vec::new();
         for revset in &args.revisions {
-            let revisions = workspace_command.resolve_revset(ui, revset)?;
+            let revisions = workspace_command.resolve_revset(revset)?;
             workspace_command.check_non_empty(&revisions)?;
             for commit in &revisions {
                 workspace_command.check_rewriteable(commit)?;
@@ -3468,12 +3435,11 @@ fn cmd_abandon(
 
 fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let new_commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
     let workspace_id = workspace_command.workspace_id();
     if workspace_command.repo().view().get_checkout(&workspace_id) == Some(new_commit.id()) {
         ui.write("Already editing that commit\n")?;
     } else {
-        workspace_command.commit_working_copy(ui)?;
         let mut tx =
             workspace_command.start_transaction(&format!("edit commit {}", new_commit.id().hex()));
         tx.mut_repo().edit(workspace_id, &new_commit);
@@ -3484,7 +3450,7 @@ fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(),
 
 fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let parent = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let parent = workspace_command.resolve_single_rev(&args.revision)?;
     let commit_builder = CommitBuilder::for_open_commit(
         ui.settings(),
         parent.id().clone(),
@@ -3502,9 +3468,9 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
 
 fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let source = workspace_command.resolve_single_rev(ui, args.from.as_deref().unwrap_or("@"))?;
+    let source = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
     let mut destination =
-        workspace_command.resolve_single_rev(ui, args.to.as_deref().unwrap_or("@"))?;
+        workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
     if source.id() == destination.id() {
         return Err(CommandError::UserError(String::from(
             "Source and destination cannot be the same.",
@@ -3582,7 +3548,7 @@ from the source will be moved into the destination.
 
 fn cmd_squash(ui: &mut Ui, command: &CommandHelper, args: &SquashArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
     let parents = commit.parents();
     if parents.len() != 1 {
@@ -3649,7 +3615,7 @@ fn cmd_unsquash(
     args: &UnsquashArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
     let parents = commit.parents();
     if parents.len() != 1 {
@@ -3724,8 +3690,8 @@ fn cmd_restore(
         (None, Some(to)) => ("@", to),
         (Some(from), Some(to)) => (from, to),
     };
-    let from_commit = workspace_command.resolve_single_rev(ui, from_str)?;
-    let to_commit = workspace_command.resolve_single_rev(ui, to_str)?;
+    let from_commit = workspace_command.resolve_single_rev(from_str)?;
+    let to_commit = workspace_command.resolve_single_rev(to_str)?;
     workspace_command.check_rewriteable(&to_commit)?;
     let tree_id;
     if args.interactive {
@@ -3797,7 +3763,7 @@ fn cmd_touchup(
     args: &TouchupArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
     let base_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commit.parents());
     let instructions = format!(
@@ -3834,7 +3800,7 @@ don't make any changes, then the operation will be aborted.",
 
 fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
     let base_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commit.parents());
     let instructions = format!(
@@ -3928,7 +3894,7 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &MergeArgs) -> Result<(
         // TODO: Should we allow each argument to resolve to multiple revisions?
         // It would be neat to be able to do `jj merge main` when `main` is conflicted,
         // but I'm not sure it would actually be useful.
-        let commit = workspace_command.resolve_single_rev(ui, revision_arg)?;
+        let commit = workspace_command.resolve_single_rev(revision_arg)?;
         parent_ids.push(commit.id().clone());
         commits.push(commit);
     }
@@ -3957,7 +3923,7 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
     let mut workspace_command = command.workspace_helper(ui)?;
     let mut new_parents = vec![];
     for revision_str in &args.destination {
-        let destination = workspace_command.resolve_single_rev(ui, revision_str)?;
+        let destination = workspace_command.resolve_single_rev(revision_str)?;
         new_parents.push(destination);
     }
     if let Some(rev_str) = &args.revision {
@@ -3977,7 +3943,7 @@ fn rebase_branch(
     new_parents: &[Commit],
     branch_str: &str,
 ) -> Result<(), CommandError> {
-    let branch_commit = workspace_command.resolve_single_rev(ui, branch_str)?;
+    let branch_commit = workspace_command.resolve_single_rev(branch_str)?;
     let mut tx = workspace_command
         .start_transaction(&format!("rebase branch at {}", branch_commit.id().hex()));
     check_rebase_destinations(workspace_command, new_parents, &branch_commit)?;
@@ -4017,7 +3983,7 @@ fn rebase_descendants(
     new_parents: &[Commit],
     source_str: &str,
 ) -> Result<(), CommandError> {
-    let old_commit = workspace_command.resolve_single_rev(ui, source_str)?;
+    let old_commit = workspace_command.resolve_single_rev(source_str)?;
     workspace_command.check_rewriteable(&old_commit)?;
     check_rebase_destinations(workspace_command, new_parents, &old_commit)?;
     let mut tx = workspace_command.start_transaction(&format!(
@@ -4037,7 +4003,7 @@ fn rebase_revision(
     new_parents: &[Commit],
     rev_str: &str,
 ) -> Result<(), CommandError> {
-    let old_commit = workspace_command.resolve_single_rev(ui, rev_str)?;
+    let old_commit = workspace_command.resolve_single_rev(rev_str)?;
     workspace_command.check_rewriteable(&old_commit)?;
     check_rebase_destinations(workspace_command, new_parents, &old_commit)?;
     let mut tx =
@@ -4105,10 +4071,10 @@ fn cmd_backout(
     args: &BackoutArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit_to_back_out = workspace_command.resolve_single_rev(ui, &args.revision)?;
+    let commit_to_back_out = workspace_command.resolve_single_rev(&args.revision)?;
     let mut parents = vec![];
     for revision_str in &args.destination {
-        let destination = workspace_command.resolve_single_rev(ui, revision_str)?;
+        let destination = workspace_command.resolve_single_rev(revision_str)?;
         parents.push(destination);
     }
     let mut tx = workspace_command.start_transaction(&format!(
@@ -4187,7 +4153,7 @@ fn cmd_branch(
             }
 
             let target_commit =
-                workspace_command.resolve_single_rev(ui, revision.as_deref().unwrap_or("@"))?;
+                workspace_command.resolve_single_rev(revision.as_deref().unwrap_or("@"))?;
             let mut tx = workspace_command.start_transaction(&format!(
                 "create {} pointing to commit {}",
                 make_branch_term(&branch_names),
@@ -4215,7 +4181,7 @@ fn cmd_branch(
             }
 
             let target_commit =
-                workspace_command.resolve_single_rev(ui, revision.as_deref().unwrap_or("@"))?;
+                workspace_command.resolve_single_rev(revision.as_deref().unwrap_or("@"))?;
             if !allow_backwards
                 && !branch_names.iter().all(|branch_name| {
                     is_fast_forward(
@@ -4385,8 +4351,8 @@ fn cmd_debug(
             ui.stdout_formatter().write_all(&buf)?;
         }
         DebugCommands::ResolveRev(resolve_matches) => {
-            let mut workspace_command = command.workspace_helper(ui)?;
-            let commit = workspace_command.resolve_single_rev(ui, &resolve_matches.revision)?;
+            let workspace_command = command.workspace_helper(ui)?;
+            let commit = workspace_command.resolve_single_rev(&resolve_matches.revision)?;
             writeln!(ui, "{}", commit.id().hex())?;
         }
         DebugCommands::WorkingCopy(_wc_matches) => {
@@ -4468,9 +4434,9 @@ fn cmd_bench(
 ) -> Result<(), CommandError> {
     match subcommand {
         BenchCommands::CommonAncestors(command_matches) => {
-            let mut workspace_command = command.workspace_helper(ui)?;
-            let commit1 = workspace_command.resolve_single_rev(ui, &command_matches.revision1)?;
-            let commit2 = workspace_command.resolve_single_rev(ui, &command_matches.revision2)?;
+            let workspace_command = command.workspace_helper(ui)?;
+            let commit1 = workspace_command.resolve_single_rev(&command_matches.revision1)?;
+            let commit2 = workspace_command.resolve_single_rev(&command_matches.revision2)?;
             let index = workspace_command.repo().index();
             let routine =
                 || index.common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()]);
@@ -4484,11 +4450,11 @@ fn cmd_bench(
             )?;
         }
         BenchCommands::IsAncestor(command_matches) => {
-            let mut workspace_command = command.workspace_helper(ui)?;
+            let workspace_command = command.workspace_helper(ui)?;
             let ancestor_commit =
-                workspace_command.resolve_single_rev(ui, &command_matches.ancestor)?;
+                workspace_command.resolve_single_rev(&command_matches.ancestor)?;
             let descendant_commit =
-                workspace_command.resolve_single_rev(ui, &command_matches.descendant)?;
+                workspace_command.resolve_single_rev(&command_matches.descendant)?;
             let index = workspace_command.repo().index();
             let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
             run_bench(
@@ -4501,11 +4467,10 @@ fn cmd_bench(
             )?;
         }
         BenchCommands::WalkRevs(command_matches) => {
-            let mut workspace_command = command.workspace_helper(ui)?;
+            let workspace_command = command.workspace_helper(ui)?;
             let unwanted_commit =
-                workspace_command.resolve_single_rev(ui, &command_matches.unwanted)?;
-            let wanted_commit =
-                workspace_command.resolve_single_rev(ui, &command_matches.wanted)?;
+                workspace_command.resolve_single_rev(&command_matches.unwanted)?;
+            let wanted_commit = workspace_command.resolve_single_rev(&command_matches.wanted)?;
             let index = workspace_command.repo().index();
             let routine = || {
                 index
@@ -4829,7 +4794,6 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
         }
     } else {
         let mut workspace_command = command.workspace_helper(ui)?;
-        workspace_command.commit_working_copy(ui)?;
         let workspace_root = workspace_command.workspace_root().clone();
         let paths_to_add = repo_paths_from_values(ui, &workspace_root, &args.add)?;
         let (mut locked_wc, _current_checkout) = workspace_command.start_working_copy_mutation()?;
@@ -5070,7 +5034,6 @@ fn cmd_git_push(
     args: &GitPushArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    workspace_command.maybe_commit_working_copy(ui)?;
 
     let mut tx;
     let mut branch_updates = vec![];
@@ -5093,7 +5056,7 @@ fn cmd_git_push(
             &args.remote
         ));
     } else if let Some(change_str) = &args.change {
-        let commit = workspace_command.resolve_single_rev(ui, change_str)?;
+        let commit = workspace_command.resolve_single_rev(change_str)?;
         let branch_name = format!(
             "{}{}",
             ui.settings().push_branch_prefix(),

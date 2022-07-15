@@ -86,9 +86,9 @@ fn test_unsquash() {
     test_env.jj_cmd_success(&repo_path, &["merge", "-m", "merge", "c", "d"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "e", "-r", "@+"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o   b9ad3fdfc2c4 e
+    o   7789610d8ec6 e
     |\  
-    @ | 9a18f8da1e69 d
+    @ | 5658521e0f8b d
     | o 90fe0a96fc90 c
     |/  
     o fa5efbdf533c b
@@ -105,12 +105,12 @@ fn test_unsquash() {
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 31067df4a375 (no description set)
+    Working copy now at: 60ac673b534b (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   31067df4a375 
+    @   60ac673b534b 
     |\  
-    o | 9a18f8da1e69 d e?
+    o | 5658521e0f8b d e?
     | o 90fe0a96fc90 c e?
     |/  
     o fa5efbdf533c b
