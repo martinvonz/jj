@@ -187,7 +187,27 @@ nix profile install 'github:martinvonz/jj'
 ```
 
 
+#### Homebrew
+
+If you use linuxbrew, you can run:
+
+```shell script
+brew install jj
+```
+
+
 ### Mac
+
+#### Homebrew
+
+If you use Homebrew, you can run:
+
+```shell script
+brew install jj
+```
+
+
+#### From Source
 
 You may need to run some or all of these:
 ```shell script
