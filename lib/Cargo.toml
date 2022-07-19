@@ -20,7 +20,7 @@ version_check = "0.9.4"
 [dependencies]
 backoff = "0.4.0"
 blake2 = "0.10.4"
-bytes = "1.1.0"
+bytes = "1.2.0"
 byteorder = "1.4.3"
 chrono = "0.4.19"
 config = { version = "0.13.1", features = ["toml"] }
