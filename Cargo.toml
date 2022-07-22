@@ -63,7 +63,7 @@ criterion_bencher_compat = "0.3.4"
 insta = "1.16.0"
 regex = "1.6.0"
 predicates = "2.1.1"
-test-case = "2.1.0"
+test-case = "2.2.1"
 
 [features]
 default = ["vendored-openssl"]
