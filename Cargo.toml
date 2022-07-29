@@ -42,7 +42,7 @@ clap_mangen = "0.1"
 config = { version = "0.13.1", features = ["toml"] }
 criterion = "0.3.6"
 dirs = "4.0.0"
-git2 = "0.14.4"
+git2 = "0.15.0"
 hex = "0.4.3"
 itertools = "0.10.3"
 jujutsu-lib = { version = "=0.4.0", path = "lib"}

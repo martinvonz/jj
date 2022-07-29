@@ -24,7 +24,7 @@ bytes = "1.2.0"
 byteorder = "1.4.3"
 chrono = "0.4.19"
 config = { version = "0.13.1", features = ["toml"] }
-git2 = "0.14.4"
+git2 = "0.15.0"
 hex = "0.4.3"
 itertools = "0.10.3"
 maplit = "1.0.2"
