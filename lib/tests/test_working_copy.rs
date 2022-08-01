@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
+use std::fs::OpenOptions;
+use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 #[cfg(unix)]
@@ -587,10 +587,7 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     // Check that the new contents are in the working copy
     let path = workspace_root.join("modified");
     assert!(path.is_file());
-    let mut file = File::open(path).unwrap();
-    let mut buf = Vec::new();
-    file.read_to_end(&mut buf).unwrap();
-    assert_eq!(buf, b"contents");
+    assert_eq!(std::fs::read(&path).unwrap(), b"contents");
 
     // Check that the file is in the tree created by snapshotting the working copy
     let mut locked_wc = wc.start_mutation();
