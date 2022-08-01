@@ -176,6 +176,7 @@ fn sparse_patterns_from_proto(proto: &crate::protos::working_copy::TreeState) ->
 }
 
 fn create_parent_dirs(disk_path: &Path) -> Result<(), CheckoutError> {
+    // TODO: Check that we don't follow symlinks while creating parent dirs.
     fs::create_dir_all(disk_path.parent().unwrap()).map_err(|err| CheckoutError::IoError {
         message: format!(
             "Failed to create parent directories for {}",
@@ -643,12 +644,9 @@ impl TreeState {
         executable: bool,
     ) -> Result<FileState, CheckoutError> {
         create_parent_dirs(disk_path)?;
-        // TODO: Check that we're not overwriting an un-ignored file here (which might
-        // be created by a concurrent process).
         let mut file = OpenOptions::new()
             .write(true)
-            .create(true)
-            .truncate(true)
+            .create_new(true) // Don't overwrite un-ignored file. Don't follow symlink.
             .open(disk_path)
             .map_err(|err| CheckoutError::IoError {
                 message: format!("Failed to open file {} for writing", disk_path.display()),
@@ -710,12 +708,9 @@ impl TreeState {
     ) -> Result<FileState, CheckoutError> {
         create_parent_dirs(disk_path)?;
         let conflict = self.store.read_conflict(path, id)?;
-        // TODO: Check that we're not overwriting an un-ignored file here (which might
-        // be created by a concurrent process).
         let mut file = OpenOptions::new()
             .write(true)
-            .create(true)
-            .truncate(true)
+            .create_new(true) // Don't overwrite un-ignored file. Don't follow symlink.
             .open(disk_path)
             .map_err(|err| CheckoutError::IoError {
                 message: format!("Failed to open file {} for writing", disk_path.display()),
