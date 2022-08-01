@@ -183,11 +183,6 @@ fn test_sparse_commit() {
     let sparse_patterns = vec![dir1_path, dir2_path];
     locked_wc.set_sparse_patterns(sparse_patterns).unwrap();
     locked_wc.finish(repo.op_id().clone());
-    // Write out a modified version of dir2/file1 again because it was overwritten
-    // when we added dir2/ to the sparse patterns.
-    // TODO: We shouldn't overwrite files when updating (there's already a TODO
-    // about that in `TreeState::write_file()`).
-    std::fs::write(dir2_file1_path.to_fs_path(&working_copy_path), "modified").unwrap();
 
     // Create a tree from the working copy. Only dir1/file1 and dir2/file1 should be
     // updated in the tree.

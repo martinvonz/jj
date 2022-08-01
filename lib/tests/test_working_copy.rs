@@ -554,9 +554,9 @@ fn test_gitignores(use_git: bool) {
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
-fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
-    // Tests that a .gitignore'd file gets overwritten if check out a commit where
-    // the file is tracked.
+fn test_gitignores_checkout_never_overwrites_ignored(use_git: bool) {
+    // Tests that a .gitignore'd file doesn't get overwritten if check out a commit
+    // where the file is tracked.
 
     let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
@@ -579,27 +579,15 @@ fn test_gitignores_checkout_overwrites_ignored(use_git: bool) {
     let tree = repo.store().get_tree(&RepoPath::root(), &tree_id).unwrap();
 
     // Now check out the tree that adds the file "modified" with contents
-    // "contents". The exiting contents ("garbage") should be replaced in the
+    // "contents". The exiting contents ("garbage") shouldn't be replaced in the
     // working copy.
     let wc = test_workspace.workspace.working_copy_mut();
-    wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
+    assert!(wc.check_out(repo.op_id().clone(), None, &tree).is_err());
 
-    // Check that the new contents are in the working copy
+    // Check that the old contents are in the working copy
     let path = workspace_root.join("modified");
     assert!(path.is_file());
-    assert_eq!(std::fs::read(&path).unwrap(), b"contents");
-
-    // Check that the file is in the tree created by snapshotting the working copy
-    let mut locked_wc = wc.start_mutation();
-    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
-    locked_wc.discard();
-    let new_tree = repo
-        .store()
-        .get_tree(&RepoPath::root(), &new_tree_id)
-        .unwrap();
-    assert!(new_tree
-        .entry(&RepoPathComponent::from("modified"))
-        .is_some());
+    assert_eq!(std::fs::read(&path).unwrap(), b"garbage");
 }
 
 #[test_case(false ; "local backend")]
