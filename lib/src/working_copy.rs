@@ -281,6 +281,15 @@ impl CheckoutError {
     }
 }
 
+fn suppress_file_exists_error(orig_err: CheckoutError) -> Result<(), CheckoutError> {
+    match orig_err {
+        CheckoutError::IoError { err, .. } if err.kind() == std::io::ErrorKind::AlreadyExists => {
+            Ok(())
+        }
+        _ => Err(orig_err),
+    }
+}
+
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ResetError {
     // The current checkout was deleted, maybe by an overly aggressive GC that happened while
@@ -748,7 +757,7 @@ impl TreeState {
                 BackendError::NotFound => CheckoutError::SourceNotFound,
                 other => CheckoutError::InternalBackendError(other),
             })?;
-        let stats = self.update(&old_tree, new_tree, self.sparse_matcher().as_ref())?;
+        let stats = self.update(&old_tree, new_tree, self.sparse_matcher().as_ref(), Err)?;
         self.tree_id = new_tree.id().clone();
         Ok(stats)
     }
@@ -769,8 +778,13 @@ impl TreeState {
         let added_matcher = DifferenceMatcher::new(&new_matcher, &old_matcher);
         let removed_matcher = DifferenceMatcher::new(&old_matcher, &new_matcher);
         let empty_tree = Tree::null(self.store.clone(), RepoPath::root());
-        let added_stats = self.update(&empty_tree, &tree, &added_matcher)?;
-        let removed_stats = self.update(&tree, &empty_tree, &removed_matcher)?;
+        let added_stats = self.update(
+            &empty_tree,
+            &tree,
+            &added_matcher,
+            suppress_file_exists_error, // Keep un-ignored file and mark it as modified
+        )?;
+        let removed_stats = self.update(&tree, &empty_tree, &removed_matcher, Err)?;
         self.sparse_patterns = sparse_patterns;
         assert_eq!(added_stats.updated_files, 0);
         assert_eq!(added_stats.removed_files, 0);
@@ -788,6 +802,7 @@ impl TreeState {
         old_tree: &Tree,
         new_tree: &Tree,
         matcher: &dyn Matcher,
+        mut handle_error: impl FnMut(CheckoutError) -> Result<(), CheckoutError>,
     ) -> Result<CheckoutStats, CheckoutError> {
         let mut stats = CheckoutStats {
             updated_files: 0,
@@ -873,7 +888,7 @@ impl TreeState {
         };
 
         for (path, diff) in old_tree.diff(new_tree, matcher) {
-            apply_diff(path, diff)?;
+            apply_diff(path, diff).or_else(&mut handle_error)?;
         }
         Ok(stats)
     }
