@@ -794,8 +794,7 @@ impl TreeState {
             added_files: 0,
             removed_files: 0,
         };
-
-        for (path, diff) in old_tree.diff(new_tree, matcher) {
+        let mut apply_diff = |path: RepoPath, diff: Diff<TreeValue>| -> Result<(), CheckoutError> {
             let disk_path = path.to_fs_path(&self.working_copy_path);
 
             // TODO: Check that the file has not changed before overwriting/removing it.
@@ -821,7 +820,7 @@ impl TreeState {
                         TreeValue::Conflict(id) => self.write_conflict(&disk_path, &path, &id)?,
                         TreeValue::GitSubmodule(_id) => {
                             println!("ignoring git submodule at {:?}", path);
-                            continue;
+                            return Ok(());
                         }
                         TreeValue::Tree(_id) => {
                             panic!("unexpected tree entry in diff at {:?}", path);
@@ -859,7 +858,7 @@ impl TreeState {
                         (_, TreeValue::GitSubmodule(_id)) => {
                             println!("ignoring git submodule at {:?}", path);
                             self.file_states.remove(&path);
-                            continue;
+                            return Ok(());
                         }
                         (_, TreeValue::Tree(_id)) => {
                             panic!("unexpected tree entry in diff at {:?}", path);
@@ -870,6 +869,11 @@ impl TreeState {
                     stats.updated_files += 1;
                 }
             }
+            Ok(())
+        };
+
+        for (path, diff) in old_tree.diff(new_tree, matcher) {
+            apply_diff(path, diff)?;
         }
         Ok(stats)
     }
