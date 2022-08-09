@@ -48,7 +48,7 @@ itertools = "0.10.3"
 jujutsu-lib = { version = "=0.4.0", path = "lib"}
 maplit = "1.0.2"
 pest = "2.2.1"
-pest_derive = "2.1.0"
+pest_derive = "2.2.1"
 rand = "0.8.5"
 regex = "1.6.0"
 serde = { version = "1.0", features = ["derive"] }
