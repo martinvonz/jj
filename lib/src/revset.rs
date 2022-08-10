@@ -992,12 +992,7 @@ impl<'revset, 'repo> Iterator for FilterRevsetIterator<'revset, 'repo> {
     type Item = IndexEntry<'repo>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        for entry in &mut self.iter {
-            if (self.predicate)(&entry) {
-                return Some(entry);
-            }
-        }
-        None
+        self.iter.find(self.predicate)
     }
 }
 

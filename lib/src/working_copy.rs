@@ -836,7 +836,7 @@ impl TreeState {
                             panic!("unexpected tree entry in diff at {:?}", path);
                         }
                     };
-                    self.file_states.insert(path.clone(), file_state);
+                    self.file_states.insert(path, file_state);
                     stats.added_files += 1;
                 }
                 Diff::Modified(
@@ -875,7 +875,7 @@ impl TreeState {
                         }
                     };
 
-                    self.file_states.insert(path.clone(), file_state);
+                    self.file_states.insert(path, file_state);
                     stats.updated_files += 1;
                 }
             }
