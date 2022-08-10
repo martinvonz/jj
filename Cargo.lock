@@ -612,9 +612,9 @@ dependencies = [
 
 [[package]]
 name = "insta"
-version = "1.18.0"
+version = "1.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49de01ff8a0781c5414e674b4469b81f6693d6bda6a4d405600c2acd06ebc6d3"
+checksum = "1a2bbec77f9472e4ed0cf9be1de622f0dc84d5af96599e3b625e569ef92aaed0"
 dependencies = [
  "console",
  "linked-hash-map",
