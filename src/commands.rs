@@ -536,10 +536,10 @@ impl WorkspaceCommandHelper {
             ))),
             Some(commit) => {
                 if iter.next().is_some() {
-                    return Err(CommandError::UserError(format!(
+                    Err(CommandError::UserError(format!(
                         "Revset \"{}\" resolved to more than one revision",
                         revision_str
-                    )));
+                    )))
                 } else {
                     Ok(commit?)
                 }

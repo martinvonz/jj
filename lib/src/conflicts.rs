@@ -179,7 +179,7 @@ pub fn materialize_conflict(
                             }
                             let min_diff_index = diffs
                                 .iter()
-                                .position_min_by_key(|diff| diff_size(*diff))
+                                .position_min_by_key(|diff| diff_size(diff))
                                 .unwrap();
                             output.write_all(CONFLICT_MINUS_LINE)?;
                             output.write_all(CONFLICT_PLUS_LINE)?;

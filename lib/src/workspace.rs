@@ -27,13 +27,13 @@ use crate::repo::{ReadonlyRepo, RepoLoader};
 use crate::settings::UserSettings;
 use crate::working_copy::WorkingCopy;
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum WorkspaceInitError {
     #[error("The destination repo ({0}) already exists")]
     DestinationExists(PathBuf),
 }
 
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum WorkspaceLoadError {
     #[error("The repo appears to no longer be at {0}")]
     RepoDoesNotExist(PathBuf),

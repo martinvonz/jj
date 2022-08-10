@@ -59,7 +59,7 @@ fn test_same_type(use_git: bool) {
             if contents != "_" {
                 testutils::write_normal_file(
                     &mut tree_builder,
-                    &RepoPath::from_internal_string(*path),
+                    &RepoPath::from_internal_string(path),
                     contents,
                 );
             }
