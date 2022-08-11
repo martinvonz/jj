@@ -35,7 +35,7 @@ members = ["lib"]
 
 [dependencies]
 atty = "0.2.14"
-chrono = "0.4.19"
+chrono = "0.4.20"
 clap = { version = "3.2.16", features = ["derive"] }
 clap_complete = "3.2.3"
 clap_mangen = "0.1"
