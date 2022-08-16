@@ -37,8 +37,6 @@ pub fn persist_content_addressed_temp_file<P: AsRef<Path>>(
 
 #[cfg(test)]
 mod tests {
-
-    use std::env::temp_dir;
     use std::io::Write;
 
     use test_case::test_case;
@@ -47,8 +45,8 @@ mod tests {
 
     #[test]
     fn test_persist_no_existing_file() {
-        let temp_dir = temp_dir();
-        let target = temp_dir.join("file");
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target = temp_dir.path().join("file");
         let mut temp_file = NamedTempFile::new_in(&temp_dir).unwrap();
         temp_file.write_all(b"contents").unwrap();
         assert!(persist_content_addressed_temp_file(temp_file, &target).is_ok());
@@ -57,8 +55,8 @@ mod tests {
     #[test_case(false ; "existing file open")]
     #[test_case(true ; "existing file closed")]
     fn test_persist_target_exists(existing_file_closed: bool) {
-        let temp_dir = temp_dir();
-        let target = temp_dir.join("file");
+        let temp_dir = tempfile::tempdir().unwrap();
+        let target = temp_dir.path().join("file");
         let mut temp_file = NamedTempFile::new_in(&temp_dir).unwrap();
         temp_file.write_all(b"contents").unwrap();
 
