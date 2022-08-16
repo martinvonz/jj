@@ -672,3 +672,35 @@ fn test_dotgit_ignored(use_git: bool) {
     assert_eq!(new_tree_id, *repo.store().empty_tree_id());
     locked_wc.discard();
 }
+
+#[cfg(unix)]
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_existing_directory_symlink(use_git: bool) {
+    let _home_dir = testutils::new_user_home();
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings, use_git);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
+
+    // Creates a symlink in working directory, and a tree that will add a file under
+    // the symlinked directory.
+    std::os::unix::fs::symlink("..", workspace_root.join("parent")).unwrap();
+    let mut tree_builder = repo
+        .store()
+        .tree_builder(repo.store().empty_tree_id().clone());
+    testutils::write_normal_file(
+        &mut tree_builder,
+        &RepoPath::from_internal_string("parent/escaped"),
+        "contents",
+    );
+    let tree_id = tree_builder.write_tree();
+    let tree = repo.store().get_tree(&RepoPath::root(), &tree_id).unwrap();
+
+    // Checkout should fail because "parent" already exists and is a symlink.
+    let wc = test_workspace.workspace.working_copy_mut();
+    assert!(wc.check_out(repo.op_id().clone(), None, &tree).is_err());
+
+    // Therefore, "../escaped" shouldn't be created.
+    assert!(!workspace_root.parent().unwrap().join("escaped").exists());
+}

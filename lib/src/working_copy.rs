@@ -175,15 +175,41 @@ fn sparse_patterns_from_proto(proto: &crate::protos::working_copy::TreeState) ->
     sparse_patterns
 }
 
-fn create_parent_dirs(disk_path: &Path) -> Result<(), CheckoutError> {
-    // TODO: Check that we don't follow symlinks while creating parent dirs.
-    fs::create_dir_all(disk_path.parent().unwrap()).map_err(|err| CheckoutError::IoError {
-        message: format!(
-            "Failed to create parent directories for {}",
-            &disk_path.display()
-        ),
-        err,
-    })?;
+/// Creates intermediate directories from the `working_copy_path` to the
+/// `repo_path` parent.
+///
+/// If an intermediate directory exists and if it is a symlink, this function
+/// will return an error. The `working_copy_path` directory may be a symlink.
+///
+/// Note that this does not prevent TOCTOU bugs caused by concurrent checkouts.
+/// Another process may remove the directory created by this function and put a
+/// symlink there.
+fn create_parent_dirs(working_copy_path: &Path, repo_path: &RepoPath) -> Result<(), CheckoutError> {
+    let (_, dir_components) = repo_path
+        .components()
+        .split_last()
+        .expect("repo path shouldn't be root");
+    let mut dir_path = working_copy_path.to_owned();
+    for c in dir_components {
+        dir_path.push(c.as_str());
+        match fs::create_dir(&dir_path) {
+            Ok(()) => {}
+            Err(_)
+                if dir_path
+                    .symlink_metadata()
+                    .map(|m| m.is_dir())
+                    .unwrap_or(false) => {}
+            Err(err) => {
+                return Err(CheckoutError::IoError {
+                    message: format!(
+                        "Failed to create parent directories for {}",
+                        repo_path.to_fs_path(working_copy_path).display(),
+                    ),
+                    err,
+                });
+            }
+        }
+    }
     Ok(())
 }
 
@@ -643,7 +669,7 @@ impl TreeState {
         id: &FileId,
         executable: bool,
     ) -> Result<FileState, CheckoutError> {
-        create_parent_dirs(disk_path)?;
+        create_parent_dirs(&self.working_copy_path, path)?;
         let mut file = OpenOptions::new()
             .write(true)
             .create_new(true) // Don't overwrite un-ignored file. Don't follow symlink.
@@ -676,7 +702,7 @@ impl TreeState {
         path: &RepoPath,
         id: &SymlinkId,
     ) -> Result<FileState, CheckoutError> {
-        create_parent_dirs(disk_path)?;
+        create_parent_dirs(&self.working_copy_path, path)?;
         let target = self.store.read_symlink(path, id)?;
         #[cfg(windows)]
         {
@@ -706,7 +732,7 @@ impl TreeState {
         path: &RepoPath,
         id: &ConflictId,
     ) -> Result<FileState, CheckoutError> {
-        create_parent_dirs(disk_path)?;
+        create_parent_dirs(&self.working_copy_path, path)?;
         let conflict = self.store.read_conflict(path, id)?;
         let mut file = OpenOptions::new()
             .write(true)
