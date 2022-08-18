@@ -124,6 +124,17 @@ fn test_workspaces_conflicting_edits() {
     o 52601f748bf6cb00ad5389922f530f20a7ecffaa 
     o 0000000000000000000000000000000000000000 
     "###);
+
+    // The stale working copy should have been resolved by the previous command
+    let stdout = get_log_output(&test_env, &secondary_path);
+    assert!(!stdout.starts_with("The working copy is stale"));
+    insta::assert_snapshot!(stdout, @r###"
+    @ 8d8269a323a01a287236c4fd5f64dc9737febb5b secondary@
+    | o 6d004761e81306cf8b2168a18868fbc84f182556 default@
+    |/  
+    o 52601f748bf6cb00ad5389922f530f20a7ecffaa 
+    o 0000000000000000000000000000000000000000 
+    "###);
 }
 
 /// Test forgetting workspaces
