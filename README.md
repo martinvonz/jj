@@ -1,4 +1,4 @@
-# Jujutsu
+# Jujutsu VCS
 
 - [Disclaimer](#disclaimer)
 - [Introduction](#introduction)
