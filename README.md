@@ -34,6 +34,9 @@ The command-line tool is called `jj` for now because it's easy to type and easy
 to replace (rare in English). The project is called "Jujutsu" because it matches
 "jj".
 
+If you have any questions, please join us on
+[Discord](https://discord.gg/dkmfj3aGQN).
+
 ## Features
 
 ### Compatible with Git
