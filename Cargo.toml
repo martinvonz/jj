@@ -40,7 +40,6 @@ clap = { version = "4.0.9", features = ["derive", "deprecated"] }
 clap_complete = "4.0.2"
 clap_mangen = "0.2.2"
 config = { version = "0.13.2", default-features = false, features = ["toml"] }
-criterion = "0.4.0"
 dirs = "4.0.0"
 git2 = "0.15.0"
 hex = "0.4.3"
