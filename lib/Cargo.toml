@@ -33,7 +33,7 @@ pest_derive = "2.2.1"
 protobuf = { version = "3.0.1", features = ["with-bytes"] }
 rand = "0.8.5"
 regex = "1.6.0"
-serde_json = "1.0.83"
+serde_json = "1.0.85"
 tempfile = "3.3.0"
 thiserror = "1.0.32"
 uuid = { version = "1.1.2", features = ["v4"] }
