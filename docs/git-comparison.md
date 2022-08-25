@@ -66,7 +66,7 @@ commit only part of the working copy. However, Jujutsu provides commands for
 more directly achieving most use cases you're used to using Git's index for. For
 example, to create a commit from part of the changes in the working copy, you
 might be used to using `git add -p; git commit`. With Jujutsu, you'd instead
-use `jj split` to split the working copy commit into two commits. To add more
+use `jj split` to split the working-copy commit into two commits. To add more
 changes into the parent commit, which you might normally use
 `git add -p; git commit --amend` for, you can instead use `jj squash -i` to
 choose which changes to move into the parent commit.
@@ -74,7 +74,7 @@ choose which changes to move into the parent commit.
 
 ## Command equivalence table
 
-Note that all `jj` commands can be run on any commit (not just the working copy
+Note that all `jj` commands can be run on any commit (not just the working-copy
 commit), but that's left out of the table to keep it simple. For example,
 `jj squash/amend -r <revision>` will move the diff from that revision into its
 parent.

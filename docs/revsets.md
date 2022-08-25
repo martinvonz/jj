@@ -23,7 +23,7 @@ The symbol `root` refers to the virtual commit that is the oldest ancestor of
 all other commits.
 
 The symbol `@` refers to the working copy commit in the current workspace. Use
-`<workspace name>@` to refer to the working copy commit in another workspace.
+`<workspace name>@` to refer to the working-copy commit in another workspace.
 
 A full commit ID refers to a single commit. A unique prefix of the full commit
 ID can also be used. It is an error to use a non-unique prefix.
@@ -116,7 +116,7 @@ revsets (expressions) as arguments.
 
 ## Examples
 
-Show the parent(s) of the working copy commit (like `git log -1 HEAD`):
+Show the parent(s) of the working-copy commit (like `git log -1 HEAD`):
 ```
 jj log -r @-
 ```
