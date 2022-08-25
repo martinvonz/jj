@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+* Open commits are now disabled by default. That means that `jj checkout` will
+  always create a new change on top of the specified commit and will let you
+  edit that in the working copy. Set `ui.enable-open-commits = true` to restore
+  the old behavior and let us know that you did so we know how many people
+  prefer the workflow with open commits.
+
 * `jj [op] undo` and `jj op restore` used to take the operation to undo or
   restore to as an argument to `-o/--operation`. It is now a positional
   argument instead (i.e. `jj undo -o abc123` is now written `jj undo abc123`).

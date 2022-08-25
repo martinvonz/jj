@@ -45,7 +45,7 @@ fn test_move() {
     test_env.jj_cmd_success(&repo_path, &["new"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "c"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["co", "a"]);
+    test_env.jj_cmd_success(&repo_path, &["edit", "a"]);
     test_env.jj_cmd_success(&repo_path, &["new"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "d"]);
     std::fs::write(repo_path.join("file3"), "d\n").unwrap();
@@ -173,7 +173,7 @@ fn test_move_partial() {
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "c"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     std::fs::write(repo_path.join("file2"), "c\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["co", "a"]);
+    test_env.jj_cmd_success(&repo_path, &["edit", "a"]);
     test_env.jj_cmd_success(&repo_path, &["new"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "d"]);
     std::fs::write(repo_path.join("file3"), "d\n").unwrap();

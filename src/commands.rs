@@ -1156,10 +1156,9 @@ struct InitArgs {
     git_repo: Option<String>,
 }
 
-/// Update the working copy to another revision
+/// Create a new, empty change and edit it in the working copy
 ///
-/// If the revision is closed, then a new, open revision will be created on top,
-/// and that will be checked out. For more information, see
+/// For more information, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
 #[clap(visible_aliases = &["co", "update", "up"])]
@@ -1394,12 +1393,10 @@ struct EditArgs {
     revision: String,
 }
 
-/// Create a new, empty change and check it out
+/// Create a new, empty change and edit it in the working copy
 ///
-/// This may be useful if you want to make some changes you're unsure of on top
-/// of the working copy. If the changes turned out to be useful, you can `jj
-/// squash` them into the previous working copy. If they turned out to be
-/// unsuccessful, you can `jj abandon` them.
+/// For more information, see
+/// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
 struct NewArgs {
     /// Parent of the new change

@@ -79,7 +79,7 @@ fn test_unsquash() {
     // Cannot unsquash into a merge commit (because it's unclear which parent it
     // should come from)
     test_env.jj_cmd_success(&repo_path, &["undo"]);
-    test_env.jj_cmd_success(&repo_path, &["co", "b"]);
+    test_env.jj_cmd_success(&repo_path, &["edit", "b"]);
     test_env.jj_cmd_success(&repo_path, &["new"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "d"]);
     std::fs::write(repo_path.join("file2"), "d\n").unwrap();

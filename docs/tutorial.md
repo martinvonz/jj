@@ -46,8 +46,7 @@ You might have noticed that even though we asked to check out some commit
 (`080a9b37ff7e`), our working-copy commit ended being another commit
 (`608c179a60df`). That is because `jj co` (short for `jj checkout`) creates a
 new commit on top of the commit you asked it to check out. The new commit is for
-the working-copy changes. (There's some more nuance to this. We'll go through
-that in a bit.)
+the working-copy changes.
 
 ## Creating our first change
 
@@ -100,25 +99,22 @@ this doc.
 As you may have noticed, the working-copy commit's ID changed both when we
 edited the description and when we edited the README. However, the parent commit
 stayed the same. Each change to the working-copy commit amends the previous
-version. So how do we tell Jujutsu that we are done amending the working-copy
-commit? The answer is that we need to "close" the commit. When we close a
-commit, we indicate that we're done making changes to the commit. As described
-earlier, when we check out a commit, a new working-copy commit is created on
-top. However, that is only true for closed commits. If the commit is open, then
-that commit itself will be checked out instead.
+version. So how do we tell Jujutsu that we are done amending the current change
+and want to start working on a new one? That is what `jj new` is for. That will
+create a new commit on top of your current working-copy commit. The new commit
+is for the working-copy changes. That may remind you of what we said earlier
+that `jj checkout` does; `jj checkout` is in fact practically a synonym for
+`jj new` (you can specify a destination for `jj new` as well).
 
-So, let's say we're now done with this commit, so we close it:
+So, let's say we're now done with this change, so we create a new change:
 ```shell script
-$ jj close
+$ jj new
 Working copy now at: 192b456b024b (no description set)
 $ jj st
 Parent commit: fb563a4c6d26 Jujutsu is ready!
 Working copy : 192b456b024b (no description set)
 The working copy is clean
 ```
-
-Note that a commit ID printed in green indicates an open commit and blue
-indicates a closed commit.
 
 If we later realize that we want to make further changes, we can make them
 in the working copy and then run `jj squash`. That command squashes the changes
@@ -176,22 +172,18 @@ input set if they're ancestors of other revisions in the set.
 Now let's see how Jujutsu deals with merge conflicts. We'll start by making some
 commits:
 ```shell script
-# Check out the grandparent of the working copy
-$ jj co @--
-Working copy now at: 9164f1d6a011 (no description set)
+# Start creating a chain of commits off of the grandparent of the working copy
+$ jj new @-- -m A; echo a > file1
+Working copy now at: 9164f1d6a011 A
 Added 0 files, modified 1 files, removed 0 files
-$ echo a > file1; jj close -m A
-Working copy now at: 5be91b2b5b69 (no description set)
-$ echo b1 > file1; jj close -m B1
-Working copy now at: a0331f1eeece (no description set)
-$ echo b2 > file1; jj close -m B2
-Working copy now at: fd571967346e (no description set)
-$ echo c > file2; jj close -m C
-Working copy now at: 4ae1e0587eef (no description set)
+$ jj new -m B1; echo b1 > file1
+Working copy now at: 5be91b2b5b69 B1
+$ jj new -m B2; echo b2 > file1
+Working copy now at: fd571967346e B2
+$ jj new -m C; echo c > file2
+Working copy now at: 4ae1e0587eef C
 $ jj log
-@ 4ae1e0587eef 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00
-|
-o 1769bdaa8d6d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00
+@ 1769bdaa8d6d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00
 | C
 o de5690380f40 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00
 | B2
@@ -205,13 +197,11 @@ We now have a few commits, where A, B1, and B2 modify the same file, while C
 modifies a different file. Let's now rebase B2 directly onto A:
 ```shell script
 $ jj rebase -s 5548374c0794 -d cf49e6bec410
-Rebased 3 commits
-Working copy now at: 9195b6d2e8dc (no description set)
+Rebased 2 commits
+Working copy now at: 9195b6d2e8dc C
 Added 0 files, modified 1 files, removed 0 files
 $ jj log
-@ 9195b6d2e8dc 47684978bf4b martinvonz@google.com 2021-05-26 12:39:56.000 -07:00 conflict
-| (no description set)
-o 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00  conflict
+@ 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00  conflict
 | C
 o 0c305a9e6b27 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00  conflict
 | B2
@@ -222,19 +212,18 @@ o 661432c51c08 cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00
 ```
 
 There are several things worth noting here. First, the `jj rebase` command said
-"Rebased 3 commits". That's because we asked it to rebase commit B2 with the
-`-s` option, which also rebases descendants (commit C and the working copy in
-this case). Second, because B2 modified the same file (and word) as B1, rebasing
+"Rebased 2 commits". That's because we asked it to rebase commit B2 with the
+`-s` option, which also rebases descendants (commit C in this case). Second,
+because B2 modified the same file (and word) as B1, rebasing
 it resulted in conflicts, as the `jj log` output indicates. Third, the conflicts
 did not prevent the rebase from completing successfully, nor did it prevent C
-and the working copy from getting rebased on top.
+from getting rebased on top.
 
-Now let's resolve the conflict in B2. We'll do that by checking out B2, which
-will create a new commit on top because B2 is closed. Once we've resolved the
-conflict, we'll squash the conflict resolution into the conflicted B2. That
-might look like this:
+Now let's resolve the conflict in B2. We'll do that by creating a new commit on
+top of B2. Once we've resolved the conflict, we'll squash the conflict
+resolution into the conflicted B2. That might look like this:
 ```shell script
-$ jj co 5548374c0794  # Replace the hash by what you have for B2
+$ jj new 5548374c0794  # Replace the hash by what you have for B2
 Working copy now at: 619f58d8a988 (no description set)
 Added 0 files, modified 1 files, removed 0 files
 $ jj st
@@ -336,19 +325,15 @@ diff-editor = "vimdiff"
 We'll need some more complex content to test these commands, so let's create a
 few more commits:
 ```shell script
-$ jj co origin/main
-Working copy now at: 61b0efa09dbe (no description set)
+$ jj new origin/main -m abc; printf 'a\nb\nc\n' > file
+Working copy now at: 61b0efa09dbe abc
 Added 0 files, modified 0 files, removed 1 files
-$ printf 'a\nb\nc\n' > file; jj close -m abc
-Working copy now at: f9147a088c0d (no description set)
-$ printf 'A\nB\nc\n' > file; jj close -m ABC
-Working copy now at: 9d97c5018b23 (no description set)
-$ printf 'A\nB\nC\nD\n' > file; jj close -m ABCD
-Working copy now at: c5a985bc3f41 (no description set)
+$ jj new -m ABC; printf 'A\nB\nc\n' > file
+Working copy now at: 9d97c5018b23 ABC
+$ jj new -m ABCD; printf 'A\nB\nC\nD\n' > file
+Working copy now at: c5a985bc3f41 ABCD
 $ jj log
-@ c5a985bc3f41 3568f6e332d5 martinvonz@google.com 2021-05-26 14:36:46.000 -07:00 
-| (no description set)
-o 687009839bae 874f2d307594 martinvonz@google.com 2021-05-26 14:36:38.000 -07:00 
+@ 687009839bae 874f2d307594 martinvonz@google.com 2021-05-26 14:36:38.000 -07:00 
 | ABCD
 o ad9b1ce3b5d0 2bbc0c1eb382 martinvonz@google.com 2021-05-26 14:36:26.000 -07:00 
 | ABC
@@ -364,16 +349,15 @@ third commit. Remember that `jj squash` moves all the changes from one commit
 into its parent. `jj squash -i` moves only part of the changes into its parent.
 Now try that:
 ```shell script
-$ jj squash -i -r @-
-Rebased 1 descendant commits
-Working copy now at: 4b4c714b36aa (no description set)
+$ jj squash -i
+Working copy now at: 4b4c714b36aa ABCD
 ```
 That will bring up Meld with a diff of the changes in the "ABCD" commit. Modify
 the right side of the diff to have the desired end state in "ABC" by removing
-the "D" line. Then close Meld. If we look the diff of the second commit, we
+the "D" line. Then close Meld. If we look at the diff of the second commit, we
 now see that all three lines got capitalized:
 ```shell script
-$ jj diff -r @--
+$ jj diff -r @-
 Modified regular file file:
    1    1: aA
    2    2: bB
@@ -389,18 +373,18 @@ Let's try one final command for changing the contents of an exiting commit. That
 command is `jj touchup`, which lets you edit the contents of a commit without
 checking it out.
 ```shell script
-$ jj touchup -r @--
+$ jj touchup -r @-
 Created 2423c134ea70 ABC
-Rebased 2 descendant commits
-Working copy now at: d31c52e8ca41 (no description set)
+Rebased 1 descendant commits
+Working copy now at: d31c52e8ca41 ABCD
 Added 0 files, modified 1 files, removed 0 files
 ```
 When Meld starts, edit the right side by e.g. adding something to the first
 line. Then close Meld. You can now inspect the rewritten commit with
-`jj diff -r @--` again and you should see your addition to the first line.
+`jj diff -r @-` again and you should see your addition to the first line.
 Unlike `jj squash -i`, which left the content state of the commit unchanged,
-`jj touchup` (typically) results in a different state, which means that descendant
-commits may have conflicts.
+`jj touchup` (typically) results in a different state, which means that
+descendant commits may have conflicts.
 
 Other commands for rewriting contents of existing commits are `jj restore -i`,
 `jj split`, `jj unsquash -i`. Now that you've seen how `jj squash -i` and
