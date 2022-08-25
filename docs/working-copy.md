@@ -8,9 +8,9 @@ interact with them. It also where files are read from in order to create new
 commits (though there are many other ways of creating new commits).
 
 Unlike most other VCSs, Jujutsu will automatically create commits from the
-working copy contents when they have changed. Most `jj` commands you run will
-commit the working copy changes if they have changed. The resulting revision
-will replace the previous working copy revision.
+working-copy contents when they have changed. Most `jj` commands you run will
+commit the working-copy changes if they have changed. The resulting revision
+will replace the previous working-copy revision.
 
 Also unlike most other VCSs, added files are implicitly tracked. That means that
 if you add a new file to the working copy, it will be automatically committed
@@ -51,7 +51,7 @@ You can even resolve part of a conflict by updating the different parts of the
 conflict marker.
 
 If the commit with conflicts was closed, your conflict resolution would be in
-the working copy commit. Once you have resolved the conflicts, you would then
+the working-copy commit. Once you have resolved the conflicts, you would then
 typically use `jj squash` to move the conflict resolutions into the conflicted
 commit.
 

@@ -43,10 +43,10 @@ The working copy is clean
 ```
 
 You might have noticed that even though we asked to check out some commit
-(`080a9b37ff7e`), our working copy commit ended being another commit
+(`080a9b37ff7e`), our working-copy commit ended being another commit
 (`608c179a60df`). That is because `jj co` (short for `jj checkout`) creates a
 new commit on top of the commit you asked it to check out. The new commit is for
-the working copy changes. (There's some more nuance to this. We'll go through
+the working-copy changes. (There's some more nuance to this. We'll go through
 that in a bit.)
 
 ## Creating our first change
@@ -97,13 +97,13 @@ Jujutsu's diff format currently defaults to inline coloring of the diff (like
 `git diff --color-words`), so we used `--git` above to make the diff visible in
 this doc.
 
-As you may have noticed, the working copy commit's ID changed both when we
+As you may have noticed, the working-copy commit's ID changed both when we
 edited the description and when we edited the README. However, the parent commit
-stayed the same. Each change to the working copy commit amends the previous
-version. So how do we tell Jujutsu that we are done amending the working copy
+stayed the same. Each change to the working-copy commit amends the previous
+version. So how do we tell Jujutsu that we are done amending the working-copy
 commit? The answer is that we need to "close" the commit. When we close a
 commit, we indicate that we're done making changes to the commit. As described
-earlier, when we check out a commit, a new working copy commit is created on
+earlier, when we check out a commit, a new working-copy commit is created on
 top. However, that is only true for closed commits. If the commit is open, then
 that commit itself will be checked out instead.
 
@@ -123,7 +123,7 @@ indicates a closed commit.
 If we later realize that we want to make further changes, we can make them
 in the working copy and then run `jj squash`. That command squashes the changes
 from a given commit into its parent commit. Like most commands, it acts on the
-working copy commit by default.
+working-copy commit by default.
 
 ## The log command, "revsets", and aliases
 
@@ -139,7 +139,7 @@ o 080a9b37ff7e 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00
 ~ cli: make `jj st` show parent commit before working copy commit
 ```
 
-The `@` indicates the working copy commit. The first hash on a line is the
+The `@` indicates the working-copy commit. The first hash on a line is the
 commit ID. The second hash is a "change ID", which is an ID that follows the
 commit as it's rewritten (similar to Gerrit's Change-Id). You can give either
 hash to commands that take revisions as arguments. We will generally prefer
@@ -150,7 +150,7 @@ context.  The `~` indicates that the commit has parents that are not included
 in the graph. We can use the `-r` flag to select a different set of revisions we
 want to list. The flag accepts a ["revset"](revsets.md), which is an expression
 in a simple language for specifying revisions. For example, `@` refers to the
-working copy commit, `root` refers to the root commit, `branches()` refers to
+working-copy commit, `root` refers to the root commit, `branches()` refers to
 all commits pointed to by branches. We can combine expressions with `|` for
 union, `&` for intersection and `~` for difference. For example:
 ```shell script
