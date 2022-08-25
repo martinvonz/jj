@@ -128,9 +128,9 @@ fn test_edit_merge() {
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["touchup", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 608f32ad9e19 merge
+    Created 9fed260d03e9 merge
     Rebased 1 descendant commits
-    Working copy now at: 2eca803962db (no description set)
+    Working copy now at: e80e55af699c (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);

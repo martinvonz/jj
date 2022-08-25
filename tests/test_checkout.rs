@@ -24,6 +24,12 @@ fn test_checkout() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
+    test_env.add_config(
+        br#"[ui]
+    enable-open-commits = true
+    "#,
+    );
+
     test_env.jj_cmd_success(&repo_path, &["close", "-m", "closed"]);
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "open"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "open"]);

@@ -52,8 +52,8 @@ backend (the only minor reason might be
 The backend exists mainly to make sure that it's possible to eventually add
 functionality that cannot easily be added to the Git backend.
 
-<a href="https://asciinema.org/a/6UwpP2U4QxuRUY6eOGfRoJsgN" target="_blank">
-  <img src="https://asciinema.org/a/6UwpP2U4QxuRUY6eOGfRoJsgN.svg" />
+<a href="https://asciinema.org/a/P3KH4QjI1FWHnQgryOM4g0m4z" target="_blank">
+  <img src="https://asciinema.org/a/P3KH4QjI1FWHnQgryOM4g0m4z.svg" />
 </a>
 
 ### The working copy is automatically committed
@@ -81,8 +81,8 @@ the repo state after the operation. This means that you can easily revert to an
 earlier repo state, or to simply undo a particular operation (which does not
 necessarily have to be the most recent operation).
 
-<a href="https://asciinema.org/a/fggh1HkoYyH5HAA8amzm4LiV4" target="_blank">
-  <img src="https://asciinema.org/a/fggh1HkoYyH5HAA8amzm4LiV4.svg" />
+<a href="https://asciinema.org/a/VBY0f0hwYOaRvHOzs5ysXymGu" target="_blank">
+  <img src="https://asciinema.org/a/VBY0f0hwYOaRvHOzs5ysXymGu.svg" />
 </a>
 
 ### Conflicts can be recorded in commits
@@ -95,13 +95,13 @@ resolving conflicts, regardless of which command caused them. This design also
 lets Jujutsu rebase merge commits correctly (unlike both Git and Mercurial).
 
 Basic conflict resolution:
-<a href="https://asciinema.org/a/egs4vOJGCd2lt8OBhCx0f139z" target="_blank">
-  <img src="https://asciinema.org/a/egs4vOJGCd2lt8OBhCx0f139z.svg" />
+<a href="https://asciinema.org/a/6GLWlsAZA2ssdpAdjKUgykejw" target="_blank">
+  <img src="https://asciinema.org/a/6GLWlsAZA2ssdpAdjKUgykejw.svg" />
 </a>
 
 Juggling conflicts:
-<a href="https://asciinema.org/a/efo1dbUuERDnDk1igaVi9TZVb" target="_blank">
-  <img src="https://asciinema.org/a/efo1dbUuERDnDk1igaVi9TZVb.svg" />
+<a href="https://asciinema.org/a/q1sp990vynhr6yG4tCqFaK9GD" target="_blank">
+  <img src="https://asciinema.org/a/q1sp990vynhr6yG4tCqFaK9GD.svg" />
 </a>
 
 ### Automatic rebase

@@ -156,7 +156,7 @@ parent.
     </tr>
     <tr>
       <td>Finish work on the current change and start a new change</td>
-      <td><code>jj close/commit</code></td>
+      <td><code>jj commit</code></td>
       <td><code>git commit -a</code></td>
     </tr>
     <tr>

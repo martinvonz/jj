@@ -22,6 +22,9 @@ the working copy, first make sure it's [ignored](#ignored-files) and then run
 
 ## Open/closed revisions
 
+This section only applies if you have set `ui.enable-open-commits = true`
+in your config.
+
 As described in the introduction, Jujutsu automatically rewrites the current
 checkout with any changes from the working copy. That works well while you're
 developing that revision. On the other hand, if you check out some existing
