@@ -22,9 +22,8 @@ ID or a Git ref pointing to them).
 The symbol `root` refers to the virtual commit that is the oldest ancestor of
 all other commits.
 
-The symbol `@` refers to the working copy commit in the current workspace (
-Jujutsu supports only one workspace per repo
-[so far](https://github.com/martinvonz/jj/issues/13)).
+The symbol `@` refers to the working copy commit in the current workspace. Use
+`<workspace name>@` to refer to the working copy commit in another workspace.
 
 A full commit ID refers to a single commit. A unique prefix of the full commit
 ID can also be used. It is an error to use a non-unique prefix.
