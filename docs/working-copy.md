@@ -19,9 +19,6 @@ copy, it will implicitly be untracked. To untrack a file while keeping it in
 the working copy, first make sure it's [ignored](#ignored-files) and then run
 `jj untrack <path>`.
 
-Jujutsu currently supports only one working copy
-(https://github.com/martinvonz/jj/issues/13).
-
 
 ## Open/closed revisions
 
@@ -80,3 +77,19 @@ See https://git-scm.com/docs/gitignore for details about the format.
 `.gitignore` files are supported in any directory in the working copy, as well
 as in `$HOME/.gitignore`. However, `$GIT_DIR/info/exclude` or equivalent way
 (maybe `.jj/gitignore`) of specifying per-clone ignores is not yet supported.
+
+
+## Workspaces
+
+You can have multiple working copies backed by a single repo. Use 
+`jj workspace add` to create a new working copy. The working copy will have a
+`.jj/` directory linked to the main repo. The working copy and the `.jj/`
+directory together is called a "workspace". Each workspace can have a different
+commit checked out.
+
+Having multiple workspaces can be useful for running long-running tests in a one
+while you continue developing in another, for example.
+
+When you're done using a workspace, use `jj workspace forget` to make the repo
+forget about it. The files can be deleted from disk separately (either before or
+after).
