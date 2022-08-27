@@ -1166,6 +1166,9 @@ struct InitArgs {
 struct CheckoutArgs {
     /// The revision to update to
     revision: String,
+    /// The change description to use
+    #[clap(long, short, default_value = "")]
+    message: String,
 }
 
 /// Stop tracking specified paths in the working copy
@@ -2099,27 +2102,39 @@ fn cmd_checkout(
     args: &CheckoutArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let target = workspace_command.resolve_single_rev(&args.revision)?;
     let workspace_id = workspace_command.workspace_id();
     if ui.settings().enable_open_commits() {
-        if workspace_command.repo().view().get_checkout(&workspace_id) == Some(new_commit.id()) {
+        if workspace_command.repo().view().get_checkout(&workspace_id) == Some(target.id()) {
             ui.write("Already on that commit\n")?;
         } else {
             let mut tx = workspace_command
-                .start_transaction(&format!("check out commit {}", new_commit.id().hex()));
-            if new_commit.is_open() {
-                tx.mut_repo().edit(workspace_id, &new_commit);
+                .start_transaction(&format!("check out commit {}", target.id().hex()));
+            if target.is_open() {
+                tx.mut_repo().edit(workspace_id, &target);
             } else {
-                tx.mut_repo()
-                    .check_out(workspace_id, ui.settings(), &new_commit);
+                let commit_builder = CommitBuilder::for_open_commit(
+                    ui.settings(),
+                    target.id().clone(),
+                    target.tree_id().clone(),
+                )
+                .set_description(args.message.clone());
+                let new_commit = commit_builder.write_to_repo(tx.mut_repo());
+                tx.mut_repo().edit(workspace_id, &new_commit);
             }
             workspace_command.finish_transaction(ui, tx)?;
         }
     } else {
-        let mut tx = workspace_command
-            .start_transaction(&format!("check out commit {}", new_commit.id().hex()));
-        tx.mut_repo()
-            .check_out(workspace_id, ui.settings(), &new_commit);
+        let mut tx =
+            workspace_command.start_transaction(&format!("check out commit {}", target.id().hex()));
+        let commit_builder = CommitBuilder::for_open_commit(
+            ui.settings(),
+            target.id().clone(),
+            target.tree_id().clone(),
+        )
+        .set_description(args.message.clone());
+        let new_commit = commit_builder.write_to_repo(tx.mut_repo());
+        tx.mut_repo().edit(workspace_id, &new_commit);
         workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())

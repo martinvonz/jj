@@ -71,6 +71,15 @@ fn test_checkout() {
     o b4c967d9c9a9e8b523b0a9b52879b3337a3e67a9 closed
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
+
+    // Can provide a description
+    test_env.jj_cmd_success(&repo_path, &["checkout", "@-", "-m", "my message"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @ 14a7f0fd8f8a8235efdf4b20635567ebcf5c9776 my message
+    o 169fa76981bcf302d1a96952bdf32a8da79ab084 open
+    o b4c967d9c9a9e8b523b0a9b52879b3337a3e67a9 closed
+    o 0000000000000000000000000000000000000000 (no description set)
+    "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
