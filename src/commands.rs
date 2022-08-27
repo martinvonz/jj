@@ -1158,8 +1158,8 @@ struct InitArgs {
 
 /// Update the working copy to another revision
 ///
-/// If the revision is closed or has conflicts, then a new, open revision will
-/// be created on top, and that will be checked out. For more information, see
+/// If the revision is closed, then a new, open revision will be created on top,
+/// and that will be checked out. For more information, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
 #[clap(visible_aliases = &["co", "update", "up"])]
@@ -1479,14 +1479,6 @@ struct UnsquashArgs {
 /// When neither `--from` nor `--to` is specified, the command restores into the
 /// working copy from its parent. If one of `--from` or `--to` is specified, the
 /// other one defaults to the working copy.
-///
-/// If you restore from a revision where the path has conflicts, then the
-/// destination revision will have the same conflict. If the destination is the
-/// working copy, then a new commit will be created on top for resolving the
-/// conflict (as if you had run `jj checkout` on the new revision). Taken
-/// together, that means that if you're already resolving conflicts and you want
-/// to restart the resolution of some file, you may want to run `jj restore
-/// <path>; jj squash`.
 #[derive(clap::Args, Clone, Debug)]
 struct RestoreArgs {
     /// Revision to restore from (source)
