@@ -128,6 +128,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Color setting can now be overridden by `--color=always|never|auto` option.
 
+* `jj checkout` now lets you specify a description with `--message/-m`.
+
 ### Fixed bugs
 
 * When rebasing a conflict where one side modified a file and the other side
