@@ -1413,8 +1413,12 @@ struct NewArgs {
 /// destination. The selected changes (or all the changes in the source revision
 /// if not using `--interactive`) will be moved into the destination. The
 /// changes will be removed from the source. If that means that the source is
-/// now empty compared to its parent, it will be abandoned unless it's checked
-/// out. Without `--interactive`, the source change will always be empty.
+/// now empty compared to its parent, it will be abandoned. Without
+/// `--interactive`, the source change will always be empty.
+///
+/// If the source became empty and both the source and destination had a
+/// non-empty description, you will be asked for the combined description. If
+/// either was empty, then the other one will be used.
 #[derive(clap::Args, Clone, Debug)]
 #[clap(group(ArgGroup::new("to_move").args(&["from", "to"]).multiple(true).required(true)))]
 struct MoveArgs {
@@ -1436,8 +1440,12 @@ struct MoveArgs {
 ///
 /// After moving the changes into the parent, the child revision will have the
 /// same content state as before. If that means that the change is now empty
-/// compared to its parent, it will be abandoned unless it's checked out.
+/// compared to its parent, it will be abandoned.
 /// Without `--interactive`, the child change will always be empty.
+///
+/// If the source became empty and both the source and destination had a
+/// non-empty description, you will be asked for the combined description. If
+/// either was empty, then the other one will be used.
 #[derive(clap::Args, Clone, Debug)]
 #[clap(visible_alias = "amend")]
 struct SquashArgs {
@@ -1455,9 +1463,12 @@ struct SquashArgs {
 ///
 /// After moving the changes out of the parent, the child revision will have the
 /// same content state as before. If moving the change out of the parent change
-/// made it empty compared to its parent, it will be abandoned unless it's
-/// checked out. Without `--interactive`, the parent change will always become
-/// empty.
+/// made it empty compared to its parent, it will be abandoned. Without
+/// `--interactive`, the parent change will always become empty.
+///
+/// If the source became empty and both the source and destination had a
+/// non-empty description, you will be asked for the combined description. If
+/// either was empty, then the other one will be used.
 #[derive(clap::Args, Clone, Debug)]
 #[clap(visible_alias = "unamend")]
 struct UnsquashArgs {
@@ -3482,6 +3493,32 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
     Ok(())
 }
 
+fn combine_messages(
+    ui: &Ui,
+    repo: &ReadonlyRepo,
+    source: &Commit,
+    destination: &Commit,
+    abandon_source: bool,
+) -> Result<String, CommandError> {
+    let description = if abandon_source {
+        if source.description().is_empty() {
+            destination.description().to_string()
+        } else if destination.description().is_empty() {
+            source.description().to_string()
+        } else {
+            let combined = "JJ: Enter a description for the combined commit.\n".to_string()
+                + "JJ: Description from the destination commit:\n"
+                + destination.description()
+                + "\nJJ: Description from the source commit:\n"
+                + source.description();
+            edit_description(ui, repo, &combined)?
+        }
+    } else {
+        destination.description().to_string()
+    };
+    Ok(description)
+}
+
 fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let source = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
@@ -3536,7 +3573,8 @@ from the source will be moved into the destination.
         .get_tree(&RepoPath::root(), &new_parent_tree_id)?;
     // Apply the reverse of the selected changes onto the source
     let new_source_tree_id = merge_trees(&source_tree, &new_parent_tree, &parent_tree)?;
-    if new_source_tree_id == *parent_tree.id() && !repo.view().is_checkout(source.id()) {
+    let abandon_source = new_source_tree_id == *parent_tree.id();
+    if abandon_source {
         mut_repo.record_abandoned_commit(source.id().clone());
     } else {
         CommitBuilder::for_rewrite_from(ui.settings(), &source)
@@ -3555,8 +3593,16 @@ from the source will be moved into the destination.
     }
     // Apply the selected changes onto the destination
     let new_destination_tree_id = merge_trees(&destination.tree(), &parent_tree, &new_parent_tree)?;
+    let description = combine_messages(
+        ui,
+        workspace_command.repo(),
+        &source,
+        &destination,
+        abandon_source,
+    )?;
     CommitBuilder::for_rewrite_from(ui.settings(), &destination)
         .set_tree(new_destination_tree_id)
+        .set_description(description)
         .write_to_repo(mut_repo);
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -3606,12 +3652,14 @@ from the source will be moved into the parent.
     }
     // Abandon the child if the parent now has all the content from the child
     // (always the case in the non-interactive case).
-    let abandon_child =
-        &new_parent_tree_id == commit.tree_id() && !tx.base_repo().view().is_checkout(commit.id());
+    let abandon_child = &new_parent_tree_id == commit.tree_id();
     let mut_repo = tx.mut_repo();
+    let description =
+        combine_messages(ui, workspace_command.repo(), &commit, parent, abandon_child)?;
     let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), parent)
         .set_tree(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
+        .set_description(description)
         .write_to_repo(mut_repo);
     if abandon_child {
         mut_repo.record_abandoned_commit(commit.id().clone());
@@ -3672,13 +3720,13 @@ aborted.
     }
     // Abandon the parent if it is now empty (always the case in the non-interactive
     // case).
-    if &new_parent_tree_id == parent_base_tree.id()
-        && !tx.base_repo().view().is_checkout(parent.id())
-    {
+    if &new_parent_tree_id == parent_base_tree.id() {
         tx.mut_repo().record_abandoned_commit(parent.id().clone());
+        let description = combine_messages(ui, workspace_command.repo(), parent, &commit, true)?;
         // Commit the new child on top of the parent's parents.
         CommitBuilder::for_rewrite_from(ui.settings(), &commit)
             .set_parents(parent.parent_ids())
+            .set_description(description)
             .write_to_repo(tx.mut_repo());
     } else {
         let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), parent)

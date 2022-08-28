@@ -184,8 +184,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * When checking out a commit, the previous commit is no longer abandoned if it
   has a non-empty description.
 
-* When using `jj move/squash/unsquash` results in the source commit becoming
-  empty, it is no longer abandoned if it is checked out (in any workspace).
+* When `jj move/squash/unsquash` abandons the source commit and both the source
+  and the destination commits have non-empty descriptions, it now asks for a
+  combined description. If either description was empty, it uses the other
+  without asking.
 
 * All commands now consistently snapshot the working copy (it was missing from
   e.g. `jj undo` and `jj merge` before). 
