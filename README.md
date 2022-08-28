@@ -34,8 +34,8 @@ The command-line tool is called `jj` for now because it's easy to type and easy
 to replace (rare in English). The project is called "Jujutsu" because it matches
 "jj".
 
-If you have any questions, please join us on
-[Discord](https://discord.gg/dkmfj3aGQN).
+If you have any questions, please join us on Discord
+[![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN).
 
 ## Features
 
