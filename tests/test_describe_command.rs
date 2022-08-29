@@ -30,8 +30,11 @@ fn test_describe() {
     Working copy now at: 7e0db3b0ad17 description from CLI
     "###);
 
-    // Test making no changes
-    std::fs::write(&edit_script, "").unwrap();
+    // Check that the text file gets initialized with the current description and make no changes
+    std::fs::write(&edit_script, r#"expect
+description from CLI
+JJ: Lines starting with "JJ: " (like this one) will be removed.
+"#).unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 45bfa10db64d description from CLI
