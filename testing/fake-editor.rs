@@ -37,6 +37,13 @@ fn main() {
         match parts.as_slice() {
             [""] => {}
             ["fail"] => exit(1),
+            ["expect"] => {
+                let actual = String::from_utf8(std::fs::read(&args.file).unwrap()).unwrap();
+                if actual != payload {
+                    eprintln!("unexpected content: {}", actual);
+                    exit(1)
+                }
+            }
             ["write"] => {
                 std::fs::write(&args.file, payload).unwrap();
             }
