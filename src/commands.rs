@@ -1101,6 +1101,7 @@ enum Commands {
     Status(StatusArgs),
     Log(LogArgs),
     Obslog(ObslogArgs),
+    Interdiff(InterdiffArgs),
     Describe(DescribeArgs),
     Close(CloseArgs),
     Open(OpenArgs),
@@ -1312,6 +1313,26 @@ struct ObslogArgs {
     patch: bool,
     #[clap(flatten)]
     diff_format: DiffFormatArgs,
+}
+
+/// Compare the changes of two commits
+///
+/// This excludes changes from other commits by temporarily rebasing `--from`
+/// onto `--to`'s parents. If you wish to compare the same change across
+/// versions, consider `jj obslog -p` instead.
+#[derive(clap::Args, Clone, Debug)]
+#[clap(group(ArgGroup::new("to_diff").args(&["from", "to"]).multiple(true).required(true)))]
+struct InterdiffArgs {
+    /// Show changes from this revision
+    #[clap(long)]
+    from: Option<String>,
+    /// Show changes to this revision
+    #[clap(long)]
+    to: Option<String>,
+    /// Restrict the diff to these paths
+    paths: Vec<String>,
+    #[clap(flatten)]
+    format: DiffFormatArgs,
 }
 
 /// Edit the change description
@@ -3223,6 +3244,27 @@ fn show_predecessor_patch(
     let predecessor_tree = rebase_to_dest_parent(workspace_command, predecessor, commit)?;
     let diff_iterator = predecessor_tree.diff(&commit.tree(), &EverythingMatcher);
     show_diff(formatter, workspace_command, diff_iterator, diff_format)
+}
+
+fn cmd_interdiff(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &InterdiffArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
+    let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
+
+    let from_tree = rebase_to_dest_parent(&workspace_command, &from, &to)?;
+    let workspace_root = workspace_command.workspace_root();
+    let matcher = matcher_from_values(ui, workspace_root, &args.paths)?;
+    let diff_iterator = from_tree.diff(&to.tree(), matcher.as_ref());
+    show_diff(
+        ui.stdout_formatter().as_mut(),
+        &workspace_command,
+        diff_iterator,
+        diff_format_for(ui, &args.format),
+    )
 }
 
 fn rebase_to_dest_parent(
@@ -5459,6 +5501,7 @@ where
         Commands::Show(sub_args) => cmd_show(ui, &command_helper, sub_args),
         Commands::Status(sub_args) => cmd_status(ui, &command_helper, sub_args),
         Commands::Log(sub_args) => cmd_log(ui, &command_helper, sub_args),
+        Commands::Interdiff(sub_args) => cmd_interdiff(ui, &command_helper, sub_args),
         Commands::Obslog(sub_args) => cmd_obslog(ui, &command_helper, sub_args),
         Commands::Describe(sub_args) => cmd_describe(ui, &command_helper, sub_args),
         Commands::Close(sub_args) => cmd_close(ui, &command_helper, sub_args),
