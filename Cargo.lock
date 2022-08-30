@@ -728,6 +728,7 @@ dependencies = [
  "insta",
  "itertools",
  "jujutsu-lib",
+ "lazy_static",
  "maplit",
  "pest",
  "pest_derive",
