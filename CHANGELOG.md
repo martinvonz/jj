@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* The new `jj interdiff` command compares the changes in commits, ignoring
+  changes from intervening commits.
+
 * `jj rebase` now accepts a `--branch/-b <revision>` argument, which can be used
   instead of `-r` or `-s` to specify which commits to rebase. It will rebase the
   whole branch, relative to the destination. The default mode has changed from
