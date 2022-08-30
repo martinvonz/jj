@@ -36,7 +36,7 @@ members = ["lib"]
 [dependencies]
 atty = "0.2.14"
 chrono = { version = "0.4.20", default-features = false, features = ["std", "clock"] }
-clap = { version = "3.2.17", features = ["derive"] }
+clap = { version = "3.2.18", features = ["derive"] }
 clap_complete = "3.2.4"
 clap_mangen = "0.1"
 config = { version = "0.13.2", features = ["toml"] }
