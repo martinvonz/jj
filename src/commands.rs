@@ -3215,29 +3215,41 @@ fn show_predecessor_patch(
     commit: &Commit,
     diff_format: DiffFormat,
 ) -> Result<(), CommandError> {
-    if let Some(predecessor) = commit.predecessors().first() {
-        let predecessor_tree = if predecessor.parent_ids() == commit.parent_ids() {
-            predecessor.tree()
-        } else {
-            // Rebase the predecessor to have the current commit's parent(s) and use that
-            // tree as base
-            let new_parent_tree =
-                merge_commit_trees(workspace_command.repo().as_repo_ref(), &commit.parents());
-            let old_parent_tree = merge_commit_trees(
-                workspace_command.repo().as_repo_ref(),
-                &predecessor.parents(),
-            );
-            let rebased_tree_id =
-                merge_trees(&new_parent_tree, &old_parent_tree, &predecessor.tree())?;
-            workspace_command
-                .repo()
-                .store()
-                .get_tree(&RepoPath::root(), &rebased_tree_id)?
-        };
-        let diff_iterator = predecessor_tree.diff(&commit.tree(), &EverythingMatcher);
-        show_diff(formatter, workspace_command, diff_iterator, diff_format)?;
+    let predecessors = commit.predecessors();
+    let predecessor = match predecessors.first() {
+        Some(predecessor) => predecessor,
+        None => return Ok(()),
+    };
+    let predecessor_tree = rebase_to_dest_parent(workspace_command, predecessor, commit)?;
+    let diff_iterator = predecessor_tree.diff(&commit.tree(), &EverythingMatcher);
+    show_diff(formatter, workspace_command, diff_iterator, diff_format)
+}
+
+fn rebase_to_dest_parent(
+    workspace_command: &WorkspaceCommandHelper,
+    source: &Commit,
+    destination: &Commit,
+) -> Result<Tree, CommandError> {
+    if source.parent_ids() == destination.parent_ids() {
+        Ok(source.tree())
+    } else {
+        let destination_parent_tree = merge_commit_trees(
+            workspace_command.repo().as_repo_ref(),
+            &destination.parents(),
+        );
+        let source_parent_tree =
+            merge_commit_trees(workspace_command.repo().as_repo_ref(), &source.parents());
+        let rebased_tree_id = merge_trees(
+            &destination_parent_tree,
+            &source_parent_tree,
+            &source.tree(),
+        )?;
+        let tree = workspace_command
+            .repo()
+            .store()
+            .get_tree(&RepoPath::root(), &rebased_tree_id)?;
+        Ok(tree)
     }
-    Ok(())
 }
 
 fn edit_description(
