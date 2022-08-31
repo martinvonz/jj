@@ -86,6 +86,12 @@ fn test_new_merge() {
     // `jj merge` with less than two arguments is an error
     test_env.jj_cmd_cli_error(&repo_path, &["merge"]);
     test_env.jj_cmd_cli_error(&repo_path, &["merge", "main"]);
+
+    // merge with non-unique revisions
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "c34d"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "@" and "c34d" resolved to the same revision c34d60aa3322
+    "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {

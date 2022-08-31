@@ -3484,6 +3484,14 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
     );
     for revision_arg in &args.revisions {
         let commit = workspace_command.resolve_single_rev(revision_arg)?;
+        if let Some(i) = commits.iter().position(|c| c == &commit) {
+            return Err(CommandError::UserError(format!(
+                r#"Revset "{}" and "{}" resolved to the same revision {}"#,
+                args.revisions[i],
+                revision_arg,
+                short_commit_hash(commit.id()),
+            )));
+        }
         parent_ids.push(commit.id().clone());
         commits.push(commit);
     }
