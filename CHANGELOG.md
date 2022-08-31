@@ -67,6 +67,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mode). For example, use `jj move --to @-- foo` to move the changes to file
   (or directory) `foo` in the working copy to the grandparent commit.
 
+* When `jj move/squash/unsquash` abandons the source commit because it became
+  empty and both the source and the destination commits have non-empty
+  descriptions, it now asks for a combined description. If either description
+  was empty, it uses the other without asking.
+
 * `jj split` now lets you specify on the CLI which paths to include in the first
   commit. The interactive diff-editing is not started when you do that.
 
@@ -183,11 +188,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * When checking out a commit, the previous commit is no longer abandoned if it
   has a non-empty description.
-
-* When `jj move/squash/unsquash` abandons the source commit and both the source
-  and the destination commits have non-empty descriptions, it now asks for a
-  combined description. If either description was empty, it uses the other
-  without asking.
 
 * All commands now consistently snapshot the working copy (it was missing from
   e.g. `jj undo` and `jj merge` before). 
