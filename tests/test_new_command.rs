@@ -92,6 +92,9 @@ fn test_new_merge() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "@" and "c34d" resolved to the same revision c34d60aa3322
     "###);
+
+    // merge with root
+    test_env.jj_cmd_failure(&repo_path, &["new", "@", "root"]);
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {

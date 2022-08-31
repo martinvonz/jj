@@ -3495,6 +3495,13 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
         parent_ids.push(commit.id().clone());
         commits.push(commit);
     }
+    if parent_ids.len() >= 2
+        && parent_ids.contains(workspace_command.repo().store().root_commit_id())
+    {
+        return Err(CommandError::UserError(
+            "Cannot merge with root revision".to_owned(),
+        ));
+    }
     let mut tx = workspace_command.start_transaction("new empty commit");
     let merged_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commits);
     let new_commit = CommitBuilder::for_new_commit(ui.settings(), merged_tree.id().clone())
