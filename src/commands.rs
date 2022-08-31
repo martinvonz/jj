@@ -1114,7 +1114,16 @@ enum Commands {
     Restore(RestoreArgs),
     Touchup(TouchupArgs),
     Split(SplitArgs),
-    Merge(MergeArgs),
+    /// Merge work from multiple branches
+    ///
+    /// Unlike most other VCSs, `jj merge` does not implicitly include the
+    /// working copy revision's parent as one of the parents of the merge;
+    /// you need to explicitly list all revisions that should become parents
+    /// of the merge.
+    ///
+    /// This is the same as `jj new`, except that it requires at least two
+    /// arguments.
+    Merge(NewArgs),
     Rebase(RebaseArgs),
     Backout(BackoutArgs),
     #[clap(subcommand)]
@@ -1539,20 +1548,6 @@ struct SplitArgs {
     revision: String,
     /// Put these paths in the first commit and don't run the diff editor
     paths: Vec<String>,
-}
-
-/// Merge work from multiple branches
-///
-/// Unlike most other VCSs, `jj merge` does not implicitly include the working
-/// copy revision's parent as one of the parents of the merge; you need to
-/// explicitly list all revisions that should become parents of the merge. Also,
-/// you need to explicitly check out the resulting revision if you want to.
-#[derive(clap::Args, Clone, Debug)]
-struct MergeArgs {
-    revisions: Vec<String>,
-    /// The change description to use (don't open editor)
-    #[clap(long, short)]
-    message: Option<String>,
 }
 
 /// Move revisions to a different parent
@@ -3956,50 +3951,13 @@ any changes, then the operation will be aborted.
     Ok(())
 }
 
-fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &MergeArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let revision_args = &args.revisions;
-    if revision_args.len() < 2 {
-        return Err(CommandError::UserError(String::from(
+fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), CommandError> {
+    if args.revisions.len() < 2 {
+        return Err(CommandError::CliError(String::from(
             "Merge requires at least two revisions",
         )));
     }
-    let mut commits = vec![];
-    let mut parent_ids = vec![];
-    for revision_arg in revision_args {
-        // TODO: Should we allow each argument to resolve to multiple revisions?
-        // It would be neat to be able to do `jj merge main` when `main` is conflicted,
-        // but I'm not sure it would actually be useful.
-        let commit = workspace_command.resolve_single_rev(revision_arg)?;
-        parent_ids.push(commit.id().clone());
-        commits.push(commit);
-    }
-    let description = if let Some(message) = &args.message {
-        message.to_string()
-    } else {
-        edit_description(
-            ui,
-            workspace_command.repo(),
-            "\n\nJJ: Enter commit description for the merge commit.\n",
-        )?
-    };
-    let merged_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commits);
-    let mut tx = workspace_command.start_transaction("merge commits");
-    let new_commit = CommitBuilder::for_new_commit(ui.settings(), merged_tree.id().clone())
-        .set_parents(parent_ids)
-        .set_description(description)
-        .set_open(false)
-        .write_to_repo(tx.mut_repo());
-    ui.write("Created merge commit: ")?;
-    ui.write_commit_summary(
-        workspace_command.repo().as_repo_ref(),
-        &workspace_command.workspace_id(),
-        &new_commit,
-    )?;
-    ui.write("\n")?;
-    workspace_command.finish_transaction(ui, tx)?;
-
-    Ok(())
+    cmd_new(ui, command, args)
 }
 
 fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result<(), CommandError> {
