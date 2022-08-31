@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj new` now always checks out the new commit (used to be only if the parent
   was `@`).
 
+* `jj merge` now checks out the new commit. The command now behaves exactly
+  like `jj new`, except that it requires at least two arguments.
+  
+
 * When the working-copy commit is abandoned by `jj abandon` and the parent
   commit is open, a new working-copy commit will be created on top (the open
   parent commit used to get checked out).
@@ -135,8 +139,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Color setting can now be overridden by `--color=always|never|auto` option.
 
 * `jj checkout` now lets you specify a description with `--message/-m`.
-
-* `jj merge` now outputs the id of the newly created commit.
 
 * `jj new` can now be used for creating merge commits. If you pass more than
   one argument to it, the new commit will have all of them as parents.

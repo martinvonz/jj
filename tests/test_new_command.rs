@@ -70,6 +70,22 @@ fn test_new_merge() {
     insta::assert_snapshot!(stdout, @"a");
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
     insta::assert_snapshot!(stdout, @"b");
+
+    // Same test with `jj merge`
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["merge", "main", "@"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @   c34d60aa33225c2080da52faa39980efe944bddd (no description set)
+    |\  
+    o | 99814c62bec5c13d2053435b3d6bbeb1900cb57e add file2
+    | o fe37af248a068697c6dcd7ebd17f5aac2205e7cb add file1
+    |/  
+    o 0000000000000000000000000000000000000000 (no description set)
+    "###);
+
+    // `jj merge` with less than two arguments is an error
+    test_env.jj_cmd_cli_error(&repo_path, &["merge"]);
+    test_env.jj_cmd_cli_error(&repo_path, &["merge", "main"]);
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
