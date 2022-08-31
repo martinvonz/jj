@@ -1395,13 +1395,17 @@ struct EditArgs {
 
 /// Create a new, empty change and edit it in the working copy
 ///
+/// Note that you can create a merge commit by specifying multiple revisions as
+/// argument. For example, `jj new main @` will create a new commit with the
+/// `main` branch and the working copy as parents.
+///
 /// For more information, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
 struct NewArgs {
-    /// Parent of the new change
+    /// Parent(s) of the new change
     #[clap(default_value = "@")]
-    revision: String,
+    revisions: Vec<String>,
     /// The change description to use
     #[clap(long, short, default_value = "")]
     message: String,
@@ -3477,18 +3481,26 @@ fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(),
 
 fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let parent = workspace_command.resolve_single_rev(&args.revision)?;
-    let commit_builder = CommitBuilder::for_open_commit(
-        ui.settings(),
-        parent.id().clone(),
-        parent.tree_id().clone(),
-    )
-    .set_description(args.message.clone());
+    let mut commits = vec![];
+    let mut parent_ids = vec![];
+    assert!(
+        !args.revisions.is_empty(),
+        "expected a non-empty list from clap"
+    );
+    for revision_arg in &args.revisions {
+        let commit = workspace_command.resolve_single_rev(revision_arg)?;
+        parent_ids.push(commit.id().clone());
+        commits.push(commit);
+    }
     let mut tx = workspace_command.start_transaction("new empty commit");
-    let mut_repo = tx.mut_repo();
-    let new_commit = commit_builder.write_to_repo(mut_repo);
+    let merged_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commits);
+    let new_commit = CommitBuilder::for_new_commit(ui.settings(), merged_tree.id().clone())
+        .set_parents(parent_ids)
+        .set_description(args.message.clone())
+        .set_open(true)
+        .write_to_repo(tx.mut_repo());
     let workspace_id = workspace_command.workspace_id();
-    mut_repo.edit(workspace_id, &new_commit);
+    tx.mut_repo().edit(workspace_id, &new_commit);
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
