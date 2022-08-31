@@ -136,6 +136,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj checkout` now lets you specify a description with `--message/-m`.
 
+* `jj merge` now outputs the id of the newly created commit.
+
 ### Fixed bugs
 
 * When rebasing a conflict where one side modified a file and the other side
