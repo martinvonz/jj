@@ -3925,11 +3925,18 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &MergeArgs) -> Result<(
     };
     let merged_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commits);
     let mut tx = workspace_command.start_transaction("merge commits");
-    CommitBuilder::for_new_commit(ui.settings(), merged_tree.id().clone())
+    let new_commit = CommitBuilder::for_new_commit(ui.settings(), merged_tree.id().clone())
         .set_parents(parent_ids)
         .set_description(description)
         .set_open(false)
         .write_to_repo(tx.mut_repo());
+    ui.write("Created merge commit: ")?;
+    ui.write_commit_summary(
+        workspace_command.repo().as_repo_ref(),
+        &workspace_command.workspace_id(),
+        &new_commit,
+    )?;
+    ui.write("\n")?;
     workspace_command.finish_transaction(ui, tx)?;
 
     Ok(())
