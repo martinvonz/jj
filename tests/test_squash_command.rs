@@ -84,19 +84,19 @@ fn test_squash() {
     test_env.jj_cmd_success(&repo_path, &["new"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "d"]);
     std::fs::write(repo_path.join("file2"), "d\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["merge", "-m", "merge", "c", "d"]);
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", "e", "-r", "@+"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "c", "d"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "e"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o   7789610d8ec6 e
+    @   c7a11b36d333 e
     |\  
-    @ | 5658521e0f8b d
+    o | 5658521e0f8b d
     | o 90fe0a96fc90 c
     |/  
     o fa5efbdf533c b
     o 90aeefd03044 a
     o 000000000000 
     "###);
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["squash", "-r", "e"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["squash"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Cannot squash merge commits
     "###);
@@ -106,11 +106,11 @@ fn test_squash() {
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 5cd0d6858fd0 (no description set)
+    Working copy now at: 959145c11426 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ 5cd0d6858fd0 
-    o   5301447e4764 e
+    @ 959145c11426 
+    o   80960125bb96 e
     |\  
     o | 5658521e0f8b d
     | o 90fe0a96fc90 c
