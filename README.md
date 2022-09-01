@@ -24,7 +24,7 @@ features from Git (data model,
 [speed](https://github.com/martinvonz/jj/discussions/49)), Mercurial (anonymous
 branching, simple CLI [free from "the index"](docs/git-comparison.md#the-index),
 [revsets](docs/revsets.md), powerful history-rewriting), and Pijul/Darcs
-([first-class conflicts](docs/conflicts.md)), with features not found in either
+([first-class conflicts](docs/conflicts.md)), with features not found in most
 of them ([working-copy-as-a-commit](docs/working-copy.md),
 [undo functionality](docs/operation-log.md), automatic rebase,
 [safe replication via `rsync`, Dropbox, or distributed file
