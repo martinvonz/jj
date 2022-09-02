@@ -593,8 +593,9 @@ impl WorkspaceCommandHelper {
         // divergence.
         let checkout_commit = repo.store().get_commit(&checkout_id)?;
         let wc_tree_id = locked_wc.old_tree_id().clone();
-        let mut wc_was_stale = false;
-        if *checkout_commit.tree_id() != wc_tree_id {
+        let wc_stale: Option<Operation> = if *checkout_commit.tree_id() == wc_tree_id {
+            None
+        } else {
             let wc_operation_data = self
                 .repo
                 .op_store()
@@ -617,27 +618,11 @@ impl WorkspaceCommandHelper {
                     // The working copy was updated since we loaded the repo. We reload the repo
                     // at the working copy's operation.
                     self.repo = repo.reload_at(&wc_operation);
+                    None
                 } else if ancestor_op.id() == wc_operation.id() {
                     // The working copy was not updated when some repo operation committed,
-                    // meaning that it's stale compared to the repo view. We update the working
-                    // copy to what the view says.
-                    writeln!(
-                        ui,
-                        "The working copy is stale (not updated since operation {}), now updating \
-                         to operation {}",
-                        wc_operation.id().hex(),
-                        repo_operation.id().hex()
-                    )?;
-                    locked_wc
-                        .check_out(&checkout_commit.tree())
-                        .map_err(|err| {
-                            CommandError::InternalError(format!(
-                                "Failed to check out commit {}: {}",
-                                checkout_commit.id().hex(),
-                                err
-                            ))
-                        })?;
-                    wc_was_stale = true;
+                    // meaning that it's stale compared to the repo view.
+                    Some(wc_operation)
                 } else {
                     return Err(CommandError::InternalError(format!(
                         "The repo was loaded at operation {}, which seems to be a sibling of the \
@@ -654,7 +639,28 @@ impl WorkspaceCommandHelper {
                     wc_operation.id().hex()
                 )));
             }
+        };
+
+        if let Some(wc_operation) = &wc_stale {
+            // We update the working copy to what the view says.
+            writeln!(
+                ui,
+                "The working copy is stale (not updated since operation {}), now updating to \
+                 operation {}",
+                wc_operation.id().hex(),
+                repo.operation().id().hex()
+            )?;
+            locked_wc
+                .check_out(&checkout_commit.tree())
+                .map_err(|err| {
+                    CommandError::InternalError(format!(
+                        "Failed to check out commit {}: {}",
+                        checkout_commit.id().hex(),
+                        err
+                    ))
+                })?;
         }
+
         let new_tree_id = locked_wc.snapshot(base_ignores)?;
         if new_tree_id != *checkout_commit.tree_id() {
             let mut tx = self.repo.start_transaction("commit working copy");
@@ -676,7 +682,7 @@ impl WorkspaceCommandHelper {
 
             self.repo = tx.commit();
             locked_wc.finish(self.repo.op_id().clone());
-        } else if wc_was_stale {
+        } else if wc_stale.is_some() {
             locked_wc.finish(self.repo.op_id().clone());
         } else {
             locked_wc.discard();
