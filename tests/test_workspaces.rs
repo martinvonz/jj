@@ -112,10 +112,62 @@ fn test_workspaces_conflicting_edits() {
     o 52601f748bf6cb00ad5389922f530f20a7ecffaa 
     o 0000000000000000000000000000000000000000 
     "###);
+    // Since there was an uncommitted change in the working copy, it should
+    // have been committed first (causing divergence)
+    insta::assert_snapshot!(get_log_output(&test_env, &secondary_path), @r###"
+    @ 10eb1f1d2a24e07874a965cae5f63dfefa56a8ca secondary@
+    | o 86bef7fee095bb5626d853c222764fc7c9fb88ac default@
+    | | o 8d8269a323a01a287236c4fd5f64dc9737febb5b 
+    | |/  
+    | o 52601f748bf6cb00ad5389922f530f20a7ecffaa 
+    o | 5af56dcc2cc27bb234e5574b5a3ebc5f22081462 
+    |/  
+    o 0000000000000000000000000000000000000000 
+    "###);
+}
+
+/// Test clean working copy in a workspace which gets rewritten from
+/// another workspace
+#[test]
+fn test_workspaces_other_edit() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    let main_path = test_env.env_root().join("main");
+    let secondary_path = test_env.env_root().join("secondary");
+
+    std::fs::write(main_path.join("file"), "contents\n").unwrap();
+    test_env.jj_cmd_success(&main_path, &["close", "-m", "initial"]);
+
+    test_env.jj_cmd_success(&main_path, &["workspace", "add", "../secondary"]);
+
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    o 6bafff1a880f313aebb6d357c79b7aa4befa0af8 secondary@
+    | @ c8f1217f93a0bc570a8bbfe055980f27062339ef default@
+    |/  
+    o 5af56dcc2cc27bb234e5574b5a3ebc5f22081462 
+    o 0000000000000000000000000000000000000000 
+    "###);
+
+    // Make changes in the main working copy
+    std::fs::write(main_path.join("file"), "changed in main\n").unwrap();
+    // Squash the changes from the main workspace in the initial commit (before
+    // running any command in the secondary workspace
+    let stdout = test_env.jj_cmd_success(&main_path, &["squash"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 1 descendant commits
+    Working copy now at: 86bef7fee095 (no description set)
+    "###);
+
+    // The secondary workspace's checkout was updated
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    @ 86bef7fee095bb5626d853c222764fc7c9fb88ac default@
+    | o 8d8269a323a01a287236c4fd5f64dc9737febb5b secondary@
+    |/  
+    o 52601f748bf6cb00ad5389922f530f20a7ecffaa 
+    o 0000000000000000000000000000000000000000 
+    "###);
     let stdout = get_log_output(&test_env, &secondary_path);
     // It was detected that the working copy is now stale
-    // TODO: Since there was an uncommitted change in the working copy, it should
-    // have been committed first (causing divergence)
     assert!(stdout.starts_with("The working copy is stale"));
     insta::assert_snapshot!(stdout.lines().skip(1).join("\n"), @r###"
     o 86bef7fee095bb5626d853c222764fc7c9fb88ac default@

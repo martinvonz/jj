@@ -593,7 +593,7 @@ impl WorkspaceCommandHelper {
         // divergence.
         let checkout_commit = repo.store().get_commit(&checkout_id)?;
         let wc_tree_id = locked_wc.old_tree_id().clone();
-        let wc_stale: Option<Operation> = if *checkout_commit.tree_id() == wc_tree_id {
+        let wc_stale: Option<(Operation, Commit)> = if *checkout_commit.tree_id() == wc_tree_id {
             None
         } else {
             let wc_operation_data = self
@@ -622,7 +622,13 @@ impl WorkspaceCommandHelper {
                 } else if ancestor_op.id() == wc_operation.id() {
                     // The working copy was not updated when some repo operation committed,
                     // meaning that it's stale compared to the repo view.
-                    Some(wc_operation)
+                    let wc_repo = repo.reload_at(&wc_operation);
+                    let wc_checkout_id = wc_repo
+                        .view()
+                        .get_checkout(&workspace_id)
+                        .expect("workspace existence should have been tested");
+                    let wc_checkout_commit = repo.store().get_commit(wc_checkout_id)?;
+                    Some((wc_operation, wc_checkout_commit))
                 } else {
                     return Err(CommandError::InternalError(format!(
                         "The repo was loaded at operation {}, which seems to be a sibling of the \
@@ -641,31 +647,17 @@ impl WorkspaceCommandHelper {
             }
         };
 
-        if let Some(wc_operation) = &wc_stale {
-            // We update the working copy to what the view says.
-            writeln!(
-                ui,
-                "The working copy is stale (not updated since operation {}), now updating to \
-                 operation {}",
-                wc_operation.id().hex(),
-                repo.operation().id().hex()
-            )?;
-            locked_wc
-                .check_out(&checkout_commit.tree())
-                .map_err(|err| {
-                    CommandError::InternalError(format!(
-                        "Failed to check out commit {}: {}",
-                        checkout_commit.id().hex(),
-                        err
-                    ))
-                })?;
-        }
-
         let new_tree_id = locked_wc.snapshot(base_ignores)?;
-        if new_tree_id != *checkout_commit.tree_id() {
+        let wc_checkout_commit = wc_stale
+            .as_ref()
+            .map(|(_, c)| c)
+            .unwrap_or(&checkout_commit);
+        if new_tree_id != *wc_checkout_commit.tree_id() {
+            // Uncommitted changes should be committed first, which may cause divergence if
+            // the working copy was stale.
             let mut tx = self.repo.start_transaction("commit working copy");
             let mut_repo = tx.mut_repo();
-            let commit = CommitBuilder::for_rewrite_from(&self.settings, &checkout_commit)
+            let commit = CommitBuilder::for_rewrite_from(&self.settings, wc_checkout_commit)
                 .set_tree(new_tree_id)
                 .write_to_repo(mut_repo);
             mut_repo.set_checkout(workspace_id, commit.id().clone());
@@ -682,7 +674,25 @@ impl WorkspaceCommandHelper {
 
             self.repo = tx.commit();
             locked_wc.finish(self.repo.op_id().clone());
-        } else if wc_stale.is_some() {
+        } else if let Some((wc_operation, _)) = &wc_stale {
+            // If there were no uncommitted changes, we update the working copy to what the
+            // view says.
+            writeln!(
+                ui,
+                "The working copy is stale (not updated since operation {}), now updating to \
+                 operation {}",
+                wc_operation.id().hex(),
+                repo.operation().id().hex()
+            )?;
+            locked_wc
+                .check_out(&checkout_commit.tree())
+                .map_err(|err| {
+                    CommandError::InternalError(format!(
+                        "Failed to check out commit {}: {}",
+                        checkout_commit.id().hex(),
+                        err
+                    ))
+                })?;
             locked_wc.finish(self.repo.op_id().clone());
         } else {
             locked_wc.discard();
