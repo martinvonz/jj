@@ -1426,7 +1426,7 @@ struct DescribeArgs {
 /// For information about open/closed revisions, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "commit")]
+#[clap(visible_alias = "commit", hide = true)]
 struct CloseArgs {
     /// The revision to close
     #[clap(default_value = "@")]
@@ -1447,7 +1447,7 @@ struct CloseArgs {
 /// For information about open/closed revisions,
 /// see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "uncommit")]
+#[clap(alias = "uncommit", hide = true)]
 struct OpenArgs {
     /// The revision to open
     revision: String,
