@@ -8,6 +8,8 @@ permissions: read-all
 jobs:
   dependabot-auto-merge:
     name: 'Dependabot auto-merge'
+    permissions:
+      pull-requests: write
     runs-on: ubuntu-latest
     if: ${{ github.actor == 'dependabot[bot]' }}
     steps:
