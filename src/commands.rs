@@ -1004,6 +1004,10 @@ fn update_working_copy(
             })?;
         Some(stats)
     } else {
+        // Record new operation id which represents the latest working-copy state
+        // TODO: no need to rewrite the tree_state file
+        let locked_wc = wc.start_mutation();
+        locked_wc.finish(repo.op_id().clone());
         None
     };
     if Some(&new_commit) != old_commit {
