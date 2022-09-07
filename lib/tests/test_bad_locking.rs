@@ -18,7 +18,6 @@ use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::TestWorkspace;
 use jujutsu_lib::workspace::Workspace;
-use tempfile::TempDir;
 use test_case::test_case;
 
 fn copy_directory(src: &Path, dst: &Path) {
@@ -107,7 +106,7 @@ fn test_bad_locking_children(use_git: bool) {
     tx.commit();
 
     // Simulate a write of a commit that happens on one machine
-    let machine1_root = TempDir::new().unwrap().into_path();
+    let machine1_root = testutils::new_temp_dir().into_path();
     copy_directory(workspace_root, &machine1_root);
     let machine1_workspace = Workspace::load(&settings, machine1_root.clone()).unwrap();
     let machine1_repo = machine1_workspace
@@ -122,7 +121,7 @@ fn test_bad_locking_children(use_git: bool) {
     machine1_tx.commit();
 
     // Simulate a write of a commit that happens on another machine
-    let machine2_root = TempDir::new().unwrap().into_path();
+    let machine2_root = testutils::new_temp_dir().into_path();
     copy_directory(workspace_root, &machine2_root);
     let machine2_workspace = Workspace::load(&settings, machine2_root.clone()).unwrap();
     let machine2_repo = machine2_workspace
@@ -138,7 +137,7 @@ fn test_bad_locking_children(use_git: bool) {
 
     // Simulate that the distributed file system now has received the changes from
     // both machines
-    let merged_path = TempDir::new().unwrap().into_path();
+    let merged_path = testutils::new_temp_dir().into_path();
     merge_directories(&machine1_root, workspace_root, &machine2_root, &merged_path);
     let merged_workspace = Workspace::load(&settings, merged_path).unwrap();
     let merged_repo = merged_workspace
@@ -174,7 +173,7 @@ fn test_bad_locking_interrupted(use_git: bool) {
     // operation and then copying that back afterwards, leaving the existing
     // op-head(s) in place.
     let op_heads_dir = repo.repo_path().join("op_heads");
-    let backup_path = TempDir::new().unwrap().into_path();
+    let backup_path = testutils::new_temp_dir().into_path();
     copy_directory(&op_heads_dir, &backup_path);
     let mut tx = repo.start_transaction("test");
     testutils::create_random_commit(&settings, &repo)

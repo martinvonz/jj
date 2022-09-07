@@ -365,13 +365,12 @@ fn ref_target_from_proto(proto: &crate::protos::op_store::RefTarget) -> RefTarge
 
 #[cfg(test)]
 mod tests {
-    use tempfile::TempDir;
-
     use super::*;
+    use crate::testutils;
 
     #[test]
     fn test_read_write_view() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let store = SimpleOpStore::init(temp_dir.path().to_owned());
         let head_id1 = CommitId::from_hex("aaa111");
         let head_id2 = CommitId::from_hex("aaa222");
@@ -425,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_read_write_operation() {
-        let temp_dir = TempDir::new().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let store = SimpleOpStore::init(temp_dir.path().to_owned());
         let operation = Operation {
             view_id: ViewId::from_hex("aaa111"),

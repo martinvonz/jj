@@ -1468,11 +1468,12 @@ mod tests {
 
     use super::*;
     use crate::commit_builder::new_change_id;
+    use crate::testutils;
 
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn index_empty(on_disk: bool) {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let index = MutableIndex::full(3);
         let mut _saved_index = None;
         let index = if on_disk {
@@ -1499,7 +1500,7 @@ mod tests {
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn index_root_commit(on_disk: bool) {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let mut index = MutableIndex::full(3);
         let id_0 = CommitId::from_hex("000000");
         let change_id0 = new_change_id();
@@ -1549,7 +1550,7 @@ mod tests {
     #[test_case(true, false; "incremental in memory")]
     #[test_case(true, true; "incremental on disk")]
     fn index_multiple_commits(incremental: bool, on_disk: bool) {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let mut index = MutableIndex::full(3);
         // 5
         // |\
@@ -1645,7 +1646,7 @@ mod tests {
     #[test_case(false; "in memory")]
     #[test_case(true; "on disk")]
     fn index_many_parents(on_disk: bool) {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let mut index = MutableIndex::full(3);
         //     6
         //    /|\
@@ -1708,7 +1709,7 @@ mod tests {
 
     #[test]
     fn resolve_prefix() {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let mut index = MutableIndex::full(3);
 
         // Create some commits with different various common prefixes.

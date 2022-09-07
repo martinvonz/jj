@@ -21,7 +21,7 @@ use test_case::test_case;
 #[test]
 fn test_load_bad_path() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let workspace_root = temp_dir.path().to_owned();
     // We haven't created a repo in the workspace_root, so it should fail to load.
     let result = Workspace::load(&settings, workspace_root.clone());

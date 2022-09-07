@@ -510,10 +510,11 @@ mod tests {
 
     use super::*;
     use crate::backend::{FileId, MillisSinceEpoch};
+    use crate::testutils;
 
     #[test]
     fn read_plain_git_commit() {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let store_path = temp_dir.path().to_path_buf();
         let git_repo_path = temp_dir.path().join("git");
         let git_repo = git2::Repository::init(&git_repo_path).unwrap();
@@ -624,7 +625,7 @@ mod tests {
 
     #[test]
     fn commit_has_ref() {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let store = GitBackend::init_internal(temp_dir.path().to_path_buf());
         let signature = Signature {
             name: "Someone".to_string(),
@@ -660,7 +661,7 @@ mod tests {
 
     #[test]
     fn overlapping_git_commit_id() {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let store = GitBackend::init_internal(temp_dir.path().to_path_buf());
         let signature = Signature {
             name: "Someone".to_string(),
