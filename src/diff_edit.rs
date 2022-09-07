@@ -82,14 +82,18 @@ fn check_out(
 }
 
 fn set_readonly_recursively(path: &Path) -> Result<(), std::io::Error> {
+    // Directory permission is unchanged since files under readonly directory cannot
+    // be removed.
     if path.is_dir() {
         for entry in path.read_dir()? {
             set_readonly_recursively(&entry?.path())?;
         }
+        Ok(())
+    } else {
+        let mut perms = std::fs::metadata(path)?.permissions();
+        perms.set_readonly(true);
+        std::fs::set_permissions(path, perms)
     }
-    let mut perms = std::fs::metadata(path)?.permissions();
-    perms.set_readonly(true);
-    std::fs::set_permissions(path, perms)
 }
 
 pub fn edit_diff(
