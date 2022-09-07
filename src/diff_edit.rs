@@ -28,7 +28,6 @@ use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::tree::Tree;
 use jujutsu_lib::working_copy::{CheckoutError, SnapshotError, TreeState};
-use tempfile::tempdir;
 use thiserror::Error;
 
 use crate::ui::Ui;
@@ -109,7 +108,10 @@ pub fn edit_diff(
 
     // Check out the two trees in temporary directories. Only include changed files
     // in the sparse checkout patterns.
-    let temp_dir = tempdir().map_err(DiffEditError::SetUpDirError)?;
+    let temp_dir = tempfile::Builder::new()
+        .prefix("jj-diff-edit-")
+        .tempdir()
+        .map_err(DiffEditError::SetUpDirError)?;
     let left_wc_dir = temp_dir.path().join("left");
     let left_state_dir = temp_dir.path().join("left_state");
     let right_wc_dir = temp_dir.path().join("right");
