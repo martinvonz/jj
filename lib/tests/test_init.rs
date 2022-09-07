@@ -30,7 +30,7 @@ fn canonicalize(input: &Path) -> (PathBuf, PathBuf) {
 #[test]
 fn test_init_local() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let (canonical, uncanonical) = canonicalize(temp_dir.path());
     let (workspace, repo) = Workspace::init_local(&settings, uncanonical).unwrap();
     assert!(repo.store().git_repo().is_none());
@@ -45,7 +45,7 @@ fn test_init_local() {
 #[test]
 fn test_init_internal_git() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let (canonical, uncanonical) = canonicalize(temp_dir.path());
     let (workspace, repo) = Workspace::init_internal_git(&settings, uncanonical).unwrap();
     assert!(repo.store().git_repo().is_some());
@@ -60,7 +60,7 @@ fn test_init_internal_git() {
 #[test]
 fn test_init_external_git() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let (canonical, uncanonical) = canonicalize(temp_dir.path());
     let git_repo_path = uncanonical.join("git");
     git2::Repository::init(&git_repo_path).unwrap();

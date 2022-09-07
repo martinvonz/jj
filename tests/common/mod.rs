@@ -16,6 +16,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use jujutsu_lib::testutils;
 use lazy_static::lazy_static;
 use tempfile::TempDir;
 
@@ -51,7 +52,7 @@ impl Default for TestEnvironment {
     fn default() -> Self {
         lazy_static::initialize(&CONFIGURE_GIT2);
 
-        let tmp_dir = TempDir::new().unwrap();
+        let tmp_dir = testutils::new_temp_dir();
         let env_root = tmp_dir.path().canonicalize().unwrap();
         let home_dir = env_root.join("home");
         std::fs::create_dir(&home_dir).unwrap();

@@ -276,7 +276,7 @@ struct GitRepoData {
 impl GitRepoData {
     fn create() -> Self {
         let settings = testutils::user_settings();
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let origin_repo_dir = temp_dir.path().join("source");
         let origin_repo = git2::Repository::init_bare(&origin_repo_dir).unwrap();
         let git_repo_dir = temp_dir.path().join("git");
@@ -513,7 +513,7 @@ fn test_export_refs_unborn_git_branch() {
 #[test]
 fn test_init() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let git_repo_dir = temp_dir.path().join("git");
     let jj_repo_dir = temp_dir.path().join("jj");
     let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
@@ -698,7 +698,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
 #[test]
 fn test_push_updates_success() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = setup.jj_repo.store().git_repo().unwrap();
     let result = git::push_updates(
@@ -734,7 +734,7 @@ fn test_push_updates_success() {
 #[test]
 fn test_push_updates_deletion() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = setup.jj_repo.store().git_repo().unwrap();
 
@@ -767,7 +767,7 @@ fn test_push_updates_deletion() {
 #[test]
 fn test_push_updates_mixed_deletion_and_addition() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = setup.jj_repo.store().git_repo().unwrap();
     let result = git::push_updates(
@@ -804,7 +804,7 @@ fn test_push_updates_mixed_deletion_and_addition() {
 #[test]
 fn test_push_updates_not_fast_forward() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
     let mut tx = setup.jj_repo.start_transaction("test");
     let new_commit =
@@ -825,7 +825,7 @@ fn test_push_updates_not_fast_forward() {
 #[test]
 fn test_push_updates_not_fast_forward_with_force() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
     let mut tx = setup.jj_repo.start_transaction("test");
     let new_commit =
@@ -855,7 +855,7 @@ fn test_push_updates_not_fast_forward_with_force() {
 #[test]
 fn test_push_updates_no_such_remote() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let result = git::push_updates(
         &setup.jj_repo.store().git_repo().unwrap(),
@@ -872,7 +872,7 @@ fn test_push_updates_no_such_remote() {
 #[test]
 fn test_push_updates_invalid_remote() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let result = git::push_updates(
         &setup.jj_repo.store().git_repo().unwrap(),

@@ -273,11 +273,13 @@ pub fn relative_path(mut from: &Path, to: &Path) -> PathBuf {
 mod tests {
     use std::io::Cursor;
 
+    use jujutsu_lib::testutils;
+
     use super::*;
 
     #[test]
     fn parse_file_path_wc_in_cwd() {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("repo");
         let wc_path = cwd_path.clone();
         let mut unused_stdout_buf = vec![];
@@ -319,7 +321,7 @@ mod tests {
 
     #[test]
     fn parse_file_path_wc_in_cwd_parent() {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("dir");
         let wc_path = cwd_path.parent().unwrap().to_path_buf();
         let mut unused_stdout_buf = vec![];
@@ -363,7 +365,7 @@ mod tests {
 
     #[test]
     fn parse_file_path_wc_in_cwd_child() {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("cwd");
         let wc_path = cwd_path.join("repo");
         let mut unused_stdout_buf = vec![];
