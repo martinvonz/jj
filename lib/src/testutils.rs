@@ -35,10 +35,17 @@ use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
 use crate::workspace::Workspace;
 
+pub fn new_temp_dir() -> TempDir {
+    tempfile::Builder::new()
+        .prefix("jj-test-")
+        .tempdir()
+        .unwrap()
+}
+
 pub fn new_user_home() -> TempDir {
     // Set $HOME to some arbitrary place so libgit2 doesn't use ~/.gitignore
     // of the person running the tests.
-    let home_dir = tempfile::tempdir().unwrap();
+    let home_dir = new_temp_dir();
     std::env::set_var("HOME", home_dir.path());
     home_dir
 }
@@ -62,7 +69,7 @@ pub struct TestRepo {
 impl TestRepo {
     pub fn init(use_git: bool) -> Self {
         let settings = user_settings();
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = new_temp_dir();
 
         let repo_dir = temp_dir.path().join("repo");
         fs::create_dir(&repo_dir).unwrap();
@@ -94,7 +101,7 @@ pub struct TestWorkspace {
 
 impl TestWorkspace {
     pub fn init(settings: &UserSettings, use_git: bool) -> Self {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = new_temp_dir();
 
         let workspace_root = temp_dir.path().join("repo");
         fs::create_dir(&workspace_root).unwrap();
