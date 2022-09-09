@@ -18,7 +18,7 @@
 # dependencies not shared by any other crates, would be ignored, as the target
 # list here is effectively saying which targets you are building for.
 targets = [
-    # The triple can be any string, but only the target triples built in to
+    # The triple can be any string, but only the target triples built into
     # rustc (as of 1.40) can be checked against actual config expressions
     #{ triple = "x86_64-unknown-linux-musl" },
     # You can also specify which target_features you promise are enabled for a
