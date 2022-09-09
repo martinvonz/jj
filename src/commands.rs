@@ -1581,7 +1581,7 @@ struct SplitArgs {
     paths: Vec<String>,
 }
 
-/// Move revisions to a different parent
+/// Move revisions to different parent(s)
 ///
 /// There are three different ways of specifying which revisions to rebase:
 /// `-b` to rebase a whole branch, `-s` to rebase a revision and its
@@ -1628,6 +1628,19 @@ struct SplitArgs {
 /// | B        | C'
 /// |/         |/
 /// A          A
+///
+/// Note that you can create a merge commit by repeating the `-d` argument.
+/// For example, if you realize that commit C actually depends on commit D in
+/// order to work (in addition to its current parent B), you can run `jj rebase
+/// -s C -d B -d D`:
+///
+/// D          C'
+/// |          |\
+/// | C        D |
+/// | |   =>   | |
+/// | B        | B
+/// |/         |/
+/// A          A
 #[derive(clap::Args, Clone, Debug)]
 #[clap(verbatim_doc_comment)]
 #[clap(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revision"])))]
@@ -1642,7 +1655,7 @@ struct RebaseArgs {
     /// parent(s)
     #[clap(long, short)]
     revision: Option<String>,
-    /// The revision to rebase onto
+    /// The revision(s) to rebase onto
     #[clap(long, short, required = true)]
     destination: Vec<String>,
 }
