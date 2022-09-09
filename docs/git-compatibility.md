@@ -44,7 +44,7 @@ a comparison with Git, including how workflows are different, see the
   parent of all commits Git would call "root commits".
 * **Staging area: Kind of.** The staging area will be ignored. For example,
   `jj diff` will show a diff from the Git HEAD to the working copy. There are
-  [ways of fulfilling your usecases without a staging
+  [ways of fulfilling your use cases without a staging
   area](https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md#the-index).  
 * **Garbage collection: Yes.** It should be safe to run `git gc` in the Git
   repo, but it's not tested, so it's probably a good idea to make a backup of
