@@ -255,7 +255,7 @@ No changes, only trying to get the automated build to work.
 
 ### Fixed bugs
 
- - (#131) Fixed crash when `core.excludesFile` pointed to non-existent file, and
+ - (#131) Fixed crash when `core.excludesFile` pointed to nonexistent file, and
    made leading `~/` in that config expand to `$HOME/`
 
 ## [0.3.0] - 2022-03-12

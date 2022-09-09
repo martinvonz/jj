@@ -1744,7 +1744,7 @@ mod tests {
             index.resolve_prefix(&HexPrefix::new(id_2.hex()).unwrap()),
             PrefixResolution::SingleMatch(id_2)
         );
-        // Test non-existent commits
+        // Test nonexistent commits
         assert_eq!(
             index.resolve_prefix(&HexPrefix::new("ffffff".to_string()).unwrap()),
             PrefixResolution::NoMatch

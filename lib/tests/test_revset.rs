@@ -318,10 +318,10 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit3.id().clone()),
     );
 
-    // Non-existent ref
+    // Nonexistent ref
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "non-existent", None),
-        Err(RevsetError::NoSuchRevision("non-existent".to_string()))
+        resolve_symbol(mut_repo.as_repo_ref(), "nonexistent", None),
+        Err(RevsetError::NoSuchRevision("nonexistent".to_string()))
     );
 
     // Full ref
