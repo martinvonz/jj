@@ -54,7 +54,7 @@ impl CommitBuilder {
         commit.predecessors = vec![predecessor.id().clone()];
         commit.committer = settings.signature();
         // If the user had not configured a name and email before but now they have,
-        // update the the author fields with the new information.
+        // update the author fields with the new information.
         if commit.author.name == UserSettings::user_name_placeholder() {
             commit.author.name = commit.committer.name.clone();
         }

@@ -493,7 +493,7 @@ mod tests {
         assert!(m.matches(&RepoPath::from_internal_string("foo")));
         assert!(!m.matches(&RepoPath::from_internal_string("bar")));
         assert!(m.matches(&RepoPath::from_internal_string("foo/bar")));
-        // Matches because the the "foo" pattern matches
+        // Matches because the "foo" pattern matches
         assert!(m.matches(&RepoPath::from_internal_string("foo/baz/foo")));
 
         assert_eq!(
