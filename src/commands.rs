@@ -5129,7 +5129,7 @@ fn do_git_clone(
     let maybe_default_branch =
         git::fetch(fetch_tx.mut_repo(), &git_repo, remote_name).map_err(|err| match err {
             GitFetchError::NoSuchRemote(_) => {
-                panic!("should't happen as we just created the git remote")
+                panic!("shouldn't happen as we just created the git remote")
             }
             GitFetchError::InternalGitError(err) => {
                 CommandError::UserError(format!("Fetch failed: {err}"))
