@@ -548,7 +548,7 @@ fn test_fetch_initial_commit() {
     // No default branch because the origin repo's HEAD wasn't set
     assert_eq!(default_branch, None);
     let repo = tx.commit();
-    // The initial commit commit is visible after git::fetch().
+    // The initial commit is visible after git::fetch().
     let view = repo.view();
     assert!(view.heads().contains(&commit_id(&initial_git_commit)));
     let initial_commit_target = RefTarget::Normal(commit_id(&initial_git_commit));
