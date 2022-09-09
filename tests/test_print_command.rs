@@ -45,7 +45,7 @@ fn test_print() {
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["print", "non-existent"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["print", "nonexistent"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: No such path
     "###);
