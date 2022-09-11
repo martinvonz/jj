@@ -1095,6 +1095,7 @@ struct GlobalArgs {
 
 #[derive(Subcommand, Clone, Debug)]
 enum Commands {
+    Version(VersionArgs),
     Init(InitArgs),
     Checkout(CheckoutArgs),
     Untrack(UntrackArgs),
@@ -1151,6 +1152,10 @@ enum Commands {
     #[clap(external_subcommand)]
     Alias(Vec<String>),
 }
+
+/// Display version information
+#[derive(clap::Args, Clone, Debug)]
+struct VersionArgs {}
 
 /// Create a new repo in the given directory
 ///
@@ -2066,6 +2071,15 @@ fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), Co
             exclude_file_path.to_string_lossy()
         ))?;
     }
+    Ok(())
+}
+
+fn cmd_version(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &VersionArgs,
+) -> Result<(), CommandError> {
+    ui.write(&command.app.render_version())?;
     Ok(())
 }
 
@@ -5537,6 +5551,7 @@ where
     let app = Args::command();
     let command_helper = CommandHelper::new(app, string_args, args.global_args.clone());
     match &args.command {
+        Commands::Version(sub_args) => cmd_version(ui, &command_helper, sub_args),
         Commands::Init(sub_args) => cmd_init(ui, &command_helper, sub_args),
         Commands::Checkout(sub_args) => cmd_checkout(ui, &command_helper, sub_args),
         Commands::Untrack(sub_args) => cmd_untrack(ui, &command_helper, sub_args),
