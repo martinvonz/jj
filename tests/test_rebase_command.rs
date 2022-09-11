@@ -186,30 +186,35 @@ fn test_rebase_single_revision() {
     o 
     "###);
 
-    // Descendants of the rebased commit should be rebased onto parents. First we
-    // test with a non-merge commit, so the descendants should be rebased onto
-    // the single parent (commit "a"). Then we test with a merge commit, so the
-    // descendants should be rebased onto the two parents.
+    // Descendants of the rebased commit "b" should be rebased onto parents. First
+    // we test with a non-merge commit. Normally, the descendant "c" would still
+    // have 2 parents afterwards: the parent of "b" -- the root commit -- and
+    // "a". However, since the root commit is an ancestor of "a", we don't
+    // actually want both to be parents of the same commit. So, only "a" becomes
+    // a parent.
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "b", "-d", "a"]);
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 3 descendant commits onto parent of rebased commit
-    Working copy now at: b5ce312dacd3 (no description set)
-    Added 0 files, modified 0 files, removed 2 files
+    Working copy now at: e7299ad0c9a7 (no description set)
+    Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
     o d
     o c
     | o b
-    | o a
     |/  
+    o a
     o 
     "###);
     test_env.jj_cmd_success(&repo_path, &["undo"]);
+
+    // Now, let's try moving the merge commit. After, both parents of "c" ("a" and
+    // "b") should become parents of "d".
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "c", "-d", "root"]);
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 2 descendant commits onto parent of rebased commit
-    Working copy now at: 5e21ebf9fd2b (no description set)
+    Working copy now at: 2d90465bd244 (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -220,6 +225,49 @@ fn test_rebase_single_revision() {
     o | | b
     | |/  
     |/|   
+    | o a
+    |/  
+    o 
+    "###);
+}
+
+#[test]
+fn test_rebase_single_revision_merge_parent() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "a", &[]);
+    create_commit(&test_env, &repo_path, "b", &[]);
+    create_commit(&test_env, &repo_path, "c", &["b"]);
+    create_commit(&test_env, &repo_path, "d", &["a", "c"]);
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @ 
+    o   d
+    |\  
+    o | c
+    o | b
+    | o a
+    |/  
+    o 
+    "###);
+
+    // Descendants of the rebased commit should be rebased onto parents, and if
+    // the descendant is a merge commit, it shouldn't forget its other parents.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "c", "-d", "a"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Also rebased 2 descendant commits onto parent of rebased commit
+    Working copy now at: 9b0a69a895b4 (no description set)
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @ 
+    o   d
+    |\  
+    | | o c
+    | |/  
+    o | b
     | o a
     |/  
     o 
