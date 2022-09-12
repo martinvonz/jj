@@ -22,7 +22,7 @@ use thiserror::Error;
 pub enum ConfigError {
     #[error(transparent)]
     ConfigReadError(#[from] config::ConfigError),
-    #[error("Both {0} and {1} exist. Please consolidate you configs in one of them.")]
+    #[error("Both {0} and {1} exist. Please consolidate your configs in one of them.")]
     AmbiguousSource(PathBuf, PathBuf),
 }
 
