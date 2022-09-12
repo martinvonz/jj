@@ -259,6 +259,8 @@ fn test_rebase_multiple_destinations() {
     |/  
     o 
     "###);
+
+    test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "root"]);
 }
 
 #[test]

@@ -4071,11 +4071,7 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(),
 
 fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let mut new_parents = vec![];
-    for revision_str in &args.destination {
-        let destination = workspace_command.resolve_single_rev(revision_str)?;
-        new_parents.push(destination);
-    }
+    let new_parents = resolve_base_revs(&workspace_command, &args.destination)?;
     if let Some(rev_str) = &args.revision {
         rebase_revision(ui, &mut workspace_command, &new_parents, rev_str)?;
     } else if let Some(source_str) = &args.source {
