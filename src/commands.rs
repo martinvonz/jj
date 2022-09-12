@@ -939,6 +939,34 @@ fn resolve_single_op_from_store(
     }
 }
 
+fn resolve_base_revs(
+    workspace_command: &WorkspaceCommandHelper,
+    revisions: &[String],
+) -> Result<Vec<Commit>, CommandError> {
+    let mut commits = vec![];
+    for revision_str in revisions {
+        let commit = workspace_command.resolve_single_rev(revision_str)?;
+        if let Some(i) = commits.iter().position(|c| c == &commit) {
+            return Err(CommandError::UserError(format!(
+                r#"Revset "{}" and "{}" resolved to the same revision {}"#,
+                revisions[i],
+                revision_str,
+                short_commit_hash(commit.id()),
+            )));
+        }
+        commits.push(commit);
+    }
+
+    let root_commit_id = workspace_command.repo().store().root_commit_id();
+    if commits.len() >= 2 && commits.iter().any(|c| c.id() == root_commit_id) {
+        Err(CommandError::UserError(
+            "Cannot merge with root revision".to_owned(),
+        ))
+    } else {
+        Ok(commits)
+    }
+}
+
 fn repo_paths_from_values(
     ui: &Ui,
     wc_path: &Path,
@@ -3562,32 +3590,12 @@ fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(),
 
 fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let mut commits = vec![];
-    let mut parent_ids = vec![];
     assert!(
         !args.revisions.is_empty(),
         "expected a non-empty list from clap"
     );
-    for revision_arg in &args.revisions {
-        let commit = workspace_command.resolve_single_rev(revision_arg)?;
-        if let Some(i) = commits.iter().position(|c| c == &commit) {
-            return Err(CommandError::UserError(format!(
-                r#"Revset "{}" and "{}" resolved to the same revision {}"#,
-                args.revisions[i],
-                revision_arg,
-                short_commit_hash(commit.id()),
-            )));
-        }
-        parent_ids.push(commit.id().clone());
-        commits.push(commit);
-    }
-    if parent_ids.len() >= 2
-        && parent_ids.contains(workspace_command.repo().store().root_commit_id())
-    {
-        return Err(CommandError::UserError(
-            "Cannot merge with root revision".to_owned(),
-        ));
-    }
+    let commits = resolve_base_revs(&workspace_command, &args.revisions)?;
+    let parent_ids = commits.iter().map(|c| c.id().clone()).collect();
     let mut tx = workspace_command.start_transaction("new empty commit");
     let merged_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commits);
     let new_commit = CommitBuilder::for_new_commit(ui.settings(), merged_tree.id().clone())
