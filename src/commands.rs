@@ -3114,6 +3114,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     let repo = workspace_command.repo();
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = repo.view().get_checkout(&workspace_id);
+    let matcher = EverythingMatcher;
     let revset = revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_id))?;
     let store = repo.store();
     let diff_format = (args.patch || args.diff_format.git || args.diff_format.summary)
@@ -3185,7 +3186,13 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             if let Some(diff_format) = diff_format {
                 let writer = Box::new(&mut buffer);
                 let mut formatter = ui.new_formatter(writer);
-                show_patch(formatter.as_mut(), &workspace_command, &commit, diff_format)?;
+                show_patch(
+                    formatter.as_mut(),
+                    &workspace_command,
+                    &commit,
+                    &matcher,
+                    diff_format,
+                )?;
             }
             let node_symbol = if is_checkout { b"@" } else { b"o" };
             graph.add_node(
@@ -3205,7 +3212,13 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             let commit = store.get_commit(&index_entry.commit_id())?;
             template.format(&commit, formatter)?;
             if let Some(diff_format) = diff_format {
-                show_patch(formatter, &workspace_command, &commit, diff_format)?;
+                show_patch(
+                    formatter,
+                    &workspace_command,
+                    &commit,
+                    &matcher,
+                    diff_format,
+                )?;
             }
         }
     }
@@ -3217,12 +3230,13 @@ fn show_patch(
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
+    matcher: &dyn Matcher,
     format: DiffFormat,
 ) -> Result<(), CommandError> {
     let parents = commit.parents();
     let from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
     let to_tree = commit.tree();
-    let diff_iterator = from_tree.diff(&to_tree, &EverythingMatcher);
+    let diff_iterator = from_tree.diff(&to_tree, matcher);
     show_diff(formatter, workspace_command, diff_iterator, format)
 }
 
