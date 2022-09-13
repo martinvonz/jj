@@ -27,9 +27,11 @@ use thiserror::Error;
 use crate::backend::{BackendError, BackendResult, CommitId};
 use crate::commit::Commit;
 use crate::index::{HexPrefix, IndexEntry, IndexPosition, PrefixResolution, RevWalk};
+use crate::matchers::Matcher;
 use crate::op_store::WorkspaceId;
 use crate::repo::RepoRef;
 use crate::revset_graph_iterator::RevsetGraphIterator;
+use crate::rewrite;
 use crate::store::Store;
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -1370,6 +1372,23 @@ pub fn revset_for_commits<'revset, 'repo: 'revset>(
         .collect_vec();
     index_entries.sort_by_key(|b| Reverse(b.position()));
     Box::new(EagerRevset { index_entries })
+}
+
+pub fn filter_by_diff<'revset, 'repo: 'revset>(
+    repo: RepoRef<'repo>,
+    matcher: &'repo dyn Matcher,
+    candidates: Box<dyn Revset<'repo> + 'revset>,
+) -> Box<dyn Revset<'repo> + 'revset> {
+    Box::new(FilterRevset {
+        candidates,
+        predicate: Box::new(move |entry| {
+            let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
+            let parents = commit.parents();
+            let from_tree = rewrite::merge_commit_trees(repo, &parents);
+            let to_tree = commit.tree();
+            from_tree.diff(&to_tree, matcher).next().is_some()
+        }),
+    })
 }
 
 #[cfg(test)]

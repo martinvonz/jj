@@ -14,9 +14,11 @@
 
 use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::matchers::FilesMatcher;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::RepoRef;
-use jujutsu_lib::revset::{parse, resolve_symbol, RevsetError};
+use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::revset::{self, parse, resolve_symbol, RevsetError, RevsetExpression};
 use jujutsu_lib::testutils::{CommitGraphBuilder, TestRepo};
 use jujutsu_lib::{git, testutils};
 use test_case::test_case;
@@ -1708,5 +1710,77 @@ fn test_evaluate_expression_difference(use_git: bool) {
             )
         ),
         vec![commit4.id().clone()]
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_filter_by_diff(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(use_git);
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let added_clean_clean = RepoPath::from_internal_string("added_clean_clean");
+    let added_modified_clean = RepoPath::from_internal_string("added_modified_clean");
+    let added_modified_removed = RepoPath::from_internal_string("added_modified_removed");
+    let tree1 = testutils::create_tree(
+        repo,
+        &[
+            (&added_clean_clean, "1"),
+            (&added_modified_clean, "1"),
+            (&added_modified_removed, "1"),
+        ],
+    );
+    let tree2 = testutils::create_tree(
+        repo,
+        &[
+            (&added_clean_clean, "1"),
+            (&added_modified_clean, "2"),
+            (&added_modified_removed, "2"),
+        ],
+    );
+    let tree3 = testutils::create_tree(
+        repo,
+        &[
+            (&added_clean_clean, "1"),
+            (&added_modified_clean, "2"),
+            // added_modified_removed,
+        ],
+    );
+    let commit1 =
+        CommitBuilder::for_new_commit(&settings, tree1.id().clone()).write_to_repo(mut_repo);
+    let commit2 = CommitBuilder::for_new_commit(&settings, tree2.id().clone())
+        .set_parents(vec![commit1.id().clone()])
+        .write_to_repo(mut_repo);
+    let commit3 = CommitBuilder::for_new_commit(&settings, tree3.id().clone())
+        .set_parents(vec![commit2.id().clone()])
+        .write_to_repo(mut_repo);
+
+    let resolve = |file_path: &RepoPath| -> Vec<CommitId> {
+        let repo_ref = mut_repo.as_repo_ref();
+        let matcher = FilesMatcher::new([file_path.clone()].into());
+        let candidates = RevsetExpression::all().evaluate(repo_ref, None).unwrap();
+        let commit_ids = revset::filter_by_diff(repo_ref, &matcher, candidates)
+            .iter()
+            .commit_ids()
+            .collect();
+        commit_ids
+    };
+
+    assert_eq!(resolve(&added_clean_clean), vec![commit1.id().clone()]);
+    assert_eq!(
+        resolve(&added_modified_clean),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve(&added_modified_removed),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone()
+        ]
     );
 }
