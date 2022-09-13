@@ -1319,6 +1319,8 @@ struct LogArgs {
         default_value = "remote_branches().. | (remote_branches()..)-"
     )]
     revisions: String,
+    /// Show commits modifying the given paths
+    paths: Vec<String>,
     /// Show revisions in the opposite order (older revisions first)
     #[clap(long)]
     reversed: bool,
@@ -3114,8 +3116,12 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     let repo = workspace_command.repo();
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = repo.view().get_checkout(&workspace_id);
-    let matcher = EverythingMatcher;
-    let revset = revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_id))?;
+    let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
+    let mut revset = revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_id))?;
+    if !args.paths.is_empty() {
+        revset = revset::filter_by_diff(repo.as_repo_ref(), matcher.as_ref(), revset);
+    }
+
     let store = repo.store();
     let diff_format = (args.patch || args.diff_format.git || args.diff_format.summary)
         .then(|| diff_format_for(ui, &args.diff_format));
@@ -3190,7 +3196,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                     formatter.as_mut(),
                     &workspace_command,
                     &commit,
-                    &matcher,
+                    matcher.as_ref(),
                     diff_format,
                 )?;
             }
@@ -3216,7 +3222,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                     formatter,
                     &workspace_command,
                     &commit,
-                    &matcher,
+                    matcher.as_ref(),
                     diff_format,
                 )?;
             }
