@@ -138,6 +138,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj log` now accepts a `--reversed` option, which will show older commits
   first.
 
+* `jj log` now accepts file paths.
+
 * `jj obslog` now accepts `-p`/`--patch` option, which will show the diff
   compared to the previous version of the change.
 
