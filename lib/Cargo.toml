@@ -26,7 +26,7 @@ chrono = { version = "0.4.22", default-features = false, features = ["std", "clo
 config = { version = "0.13.2", features = ["toml"] }
 git2 = "0.15.0"
 hex = "0.4.3"
-itertools = "0.10.3"
+itertools = "0.10.4"
 maplit = "1.0.2"
 pest = "2.3.1"
 pest_derive = "2.2.1"
