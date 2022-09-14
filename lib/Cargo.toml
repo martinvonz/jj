@@ -29,7 +29,7 @@ hex = "0.4.3"
 itertools = "0.10.4"
 maplit = "1.0.2"
 pest = "2.3.1"
-pest_derive = "2.2.1"
+pest_derive = "2.3.1"
 protobuf = { version = "3.0.1", features = ["with-bytes"] }
 rand = "0.8.5"
 regex = "1.6.0"
