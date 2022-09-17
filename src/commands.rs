@@ -4206,44 +4206,23 @@ fn rebase_revision(
         .commits(store)
     {
         let child_commit = child_commit?;
-        let new_child_parent_ids: Vec<CommitId> = child_commit
+        let new_child_parents: Vec<Commit> = child_commit
             .parents()
             .iter()
             .flat_map(|c| {
                 if c == &old_commit {
-                    old_commit
-                        .parents()
-                        .iter()
-                        .map(|c| c.id().clone())
-                        .collect()
+                    old_commit.parents().to_vec()
                 } else {
-                    [c.id().clone()].to_vec()
+                    [c.clone()].to_vec()
                 }
             })
             .collect();
-
-        // Some of the new parents may be ancestors of others as in
-        // `test_rebase_single_revision`.
-        let new_child_parents: Result<Vec<Commit>, BackendError> = RevsetExpression::Difference(
-            RevsetExpression::commits(new_child_parent_ids.clone()),
-            RevsetExpression::commits(new_child_parent_ids.clone())
-                .parents()
-                .ancestors(),
-        )
-        .evaluate(
-            workspace_command.repo().as_repo_ref(),
-            Some(&workspace_command.workspace_id()),
-        )
-        .unwrap()
-        .iter()
-        .commits(store)
-        .collect();
 
         rebase_commit(
             ui.settings(),
             tx.mut_repo(),
             &child_commit,
-            &new_child_parents?,
+            &new_child_parents,
         );
         num_rebased_descendants += 1;
     }

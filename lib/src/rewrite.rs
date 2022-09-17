@@ -61,6 +61,29 @@ pub fn rebase_commit(
     old_commit: &Commit,
     new_parents: &[Commit],
 ) -> Commit {
+    // Some of the `new_parents` may be ancestors of others as in
+    // `test_rebase_single_revision`.
+    let original_new_parent_ids: Vec<CommitId> = new_parents
+        .iter()
+        .map(|commit| commit.id().clone())
+        .collect();
+    let maybe_new_parents: Result<Vec<Commit>, BackendError> = RevsetExpression::Difference(
+        RevsetExpression::commits(original_new_parent_ids.clone()),
+        RevsetExpression::commits(original_new_parent_ids)
+            .parents()
+            .ancestors(),
+    )
+    .evaluate(mut_repo.as_repo_ref(), None)
+    .unwrap()
+    .iter()
+    .commits(mut_repo.store())
+    .collect();
+    let new_parents: Vec<Commit> = maybe_new_parents.unwrap();
+    let new_parent_ids: Vec<CommitId> = new_parents
+        .iter()
+        .map(|commit| commit.id().clone())
+        .collect();
+
     let old_parents = old_commit.parents();
     let old_parent_trees = old_parents
         .iter()
@@ -75,14 +98,10 @@ pub fn rebase_commit(
         old_commit.tree_id().clone()
     } else {
         let old_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &old_parents);
-        let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), new_parents);
+        let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &new_parents);
         // TODO: pass in labels for the merge parts
         merge_trees(&new_base_tree, &old_base_tree, &old_commit.tree()).unwrap()
     };
-    let new_parent_ids = new_parents
-        .iter()
-        .map(|commit| commit.id().clone())
-        .collect();
     CommitBuilder::for_rewrite_from(settings, old_commit)
         .set_parents(new_parent_ids)
         .set_tree(new_tree_id)

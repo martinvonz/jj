@@ -283,9 +283,11 @@ fn test_rebase_multiple_destinations() {
     create_commit(&test_env, &repo_path, "a", &[]);
     create_commit(&test_env, &repo_path, "b", &[]);
     create_commit(&test_env, &repo_path, "c", &[]);
+    create_commit(&test_env, &repo_path, "d", &["c"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
+    o d
     o c
     | o b
     |/  
@@ -300,6 +302,7 @@ fn test_rebase_multiple_destinations() {
     o   a
     |\  
     | | @ 
+    | | o d
     | |/  
     |/|   
     o | c
@@ -307,8 +310,24 @@ fn test_rebase_multiple_destinations() {
     |/  
     o 
     "###);
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "a", "-d", "d", "-d", "c"]);
+    insta::assert_snapshot!(stdout, @r###""###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o a
+    | @ 
+    |/  
+    o d
+    o c
+    | o b
+    |/  
+    o 
+    "###);
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
 
     test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "root"]);
+    test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "b"]);
 }
 
 #[test]
