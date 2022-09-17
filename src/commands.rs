@@ -1073,7 +1073,13 @@ struct GlobalArgs {
     ///
     /// By default, Jujutsu searches for the closest .jj/ directory in an
     /// ancestor of the current working directory.
-    #[clap(long, short = 'R', global = true, help_heading = "GLOBAL OPTIONS")]
+    #[clap(
+        long,
+        short = 'R',
+        global = true,
+        help_heading = "GLOBAL OPTIONS",
+        value_hint = clap::ValueHint::DirPath,
+    )]
     repository: Option<String>,
     /// Don't commit the working copy
     ///
@@ -1193,13 +1199,13 @@ struct VersionArgs {}
 #[clap(group(ArgGroup::new("backend").args(&["git", "git-repo"])))]
 struct InitArgs {
     /// The destination directory
-    #[clap(default_value = ".")]
+    #[clap(default_value = ".", value_hint = clap::ValueHint::DirPath)]
     destination: String,
     /// Use the Git backend, creating a jj repo backed by a Git repo
     #[clap(long)]
     git: bool,
     /// Path to a git repo the jj repo will be backed by
-    #[clap(long)]
+    #[clap(long, value_hint = clap::ValueHint::DirPath)]
     git_repo: Option<String>,
 }
 
@@ -1221,7 +1227,7 @@ struct CheckoutArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct UntrackArgs {
     /// Paths to untrack
-    #[clap(required = true)]
+    #[clap(required = true, value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -1232,6 +1238,7 @@ struct FilesArgs {
     #[clap(long, short, default_value = "@")]
     revision: String,
     /// Only list files matching these prefixes (instead of all files)
+    #[clap(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -1242,6 +1249,7 @@ struct PrintArgs {
     #[clap(long, short, default_value = "@")]
     revision: String,
     /// The file to print
+    #[clap(value_hint = clap::ValueHint::FilePath)]
     path: String,
 }
 
@@ -1282,6 +1290,7 @@ struct DiffArgs {
     #[clap(long, conflicts_with = "revision")]
     to: Option<String>,
     /// Restrict the diff to these paths
+    #[clap(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
     #[clap(flatten)]
     format: DiffFormatArgs,
@@ -1320,6 +1329,7 @@ struct LogArgs {
     )]
     revisions: String,
     /// Show commits modifying the given paths
+    #[clap(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
     /// Show revisions in the opposite order (older revisions first)
     #[clap(long)]
@@ -1378,6 +1388,7 @@ struct InterdiffArgs {
     #[clap(long)]
     to: Option<String>,
     /// Restrict the diff to these paths
+    #[clap(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
     #[clap(flatten)]
     format: DiffFormatArgs,
@@ -1506,7 +1517,7 @@ struct MoveArgs {
     #[clap(long, short)]
     interactive: bool,
     /// Move only changes to these paths (instead of all paths)
-    #[clap(conflicts_with = "interactive")]
+    #[clap(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -1529,7 +1540,7 @@ struct SquashArgs {
     #[clap(long, short)]
     interactive: bool,
     /// Move only changes to these paths (instead of all paths)
-    #[clap(conflicts_with = "interactive")]
+    #[clap(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -1576,7 +1587,7 @@ struct RestoreArgs {
     #[clap(long, short)]
     interactive: bool,
     /// Restore only these paths (instead of all paths)
-    #[clap(conflicts_with = "interactive")]
+    #[clap(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -1608,6 +1619,7 @@ struct SplitArgs {
     #[clap(long, short, default_value = "@")]
     revision: String,
     /// Put these paths in the first commit and don't run the diff editor
+    #[clap(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -1835,10 +1847,10 @@ struct WorkspaceListArgs {}
 #[derive(clap::Args, Clone, Debug)]
 struct SparseArgs {
     /// Patterns to add to the working copy
-    #[clap(long)]
+    #[clap(long, value_hint = clap::ValueHint::AnyPath)]
     add: Vec<String>,
     /// Patterns to remove from the working copy
-    #[clap(long, conflicts_with = "clear")]
+    #[clap(long, conflicts_with = "clear", value_hint = clap::ValueHint::AnyPath)]
     remove: Vec<String>,
     /// Include no files in the working copy (combine with --add)
     #[clap(long)]
@@ -1910,8 +1922,10 @@ struct GitFetchArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct GitCloneArgs {
     /// URL or path of the Git repo to clone
+    #[clap(value_hint = clap::ValueHint::DirPath)]
     source: String,
     /// The directory to write the Jujutsu repo to
+    #[clap(value_hint = clap::ValueHint::DirPath)]
     destination: Option<String>,
 }
 
