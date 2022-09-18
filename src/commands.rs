@@ -378,8 +378,9 @@ impl WorkspaceCommandHelper {
             if new_git_head != old_git_head && new_git_head.is_some() {
                 let workspace_id = self.workspace.workspace_id();
                 let mut locked_working_copy = self.workspace.working_copy_mut().start_mutation();
-                if let Some(old_checkout) = self.repo.view().get_checkout(&workspace_id) {
-                    tx.mut_repo().record_abandoned_commit(old_checkout.clone());
+                if let Some(old_wc_commit_id) = self.repo.view().get_wc_commit_id(&workspace_id) {
+                    tx.mut_repo()
+                        .record_abandoned_commit(old_wc_commit_id.clone());
                 }
                 let new_checkout = self
                     .repo
@@ -416,7 +417,7 @@ impl WorkspaceCommandHelper {
             .peel_to_commit()
             .ok()
             .map(|commit| commit.id());
-        if let Some(checkout_id) = mut_repo.view().get_checkout(&self.workspace_id()) {
+        if let Some(checkout_id) = mut_repo.view().get_wc_commit_id(&self.workspace_id()) {
             let first_parent_id =
                 mut_repo.index().entry_by_id(checkout_id).unwrap().parents()[0].commit_id();
             if first_parent_id != *mut_repo.store().root_commit_id() {
@@ -451,9 +452,9 @@ impl WorkspaceCommandHelper {
 
     fn start_working_copy_mutation(&mut self) -> Result<(LockedWorkingCopy, Commit), CommandError> {
         self.check_working_copy_writable()?;
-        let current_checkout_id = self.repo.view().get_checkout(&self.workspace_id());
-        let current_checkout = if let Some(current_checkout_id) = current_checkout_id {
-            self.repo.store().get_commit(current_checkout_id)?
+        let wc_commit_id = self.repo.view().get_wc_commit_id(&self.workspace_id());
+        let wc_commit = if let Some(wc_commit_id) = wc_commit_id {
+            self.repo.store().get_commit(wc_commit_id)?
         } else {
             return Err(CommandError::UserError(
                 "Nothing checked out in this workspace".to_string(),
@@ -461,13 +462,13 @@ impl WorkspaceCommandHelper {
         };
 
         let locked_working_copy = self.workspace.working_copy_mut().start_mutation();
-        if current_checkout.tree_id() != locked_working_copy.old_tree_id() {
+        if wc_commit.tree_id() != locked_working_copy.old_tree_id() {
             return Err(CommandError::UserError(
                 "Concurrent working copy operation. Try again.".to_string(),
             ));
         }
 
-        Ok((locked_working_copy, current_checkout))
+        Ok((locked_working_copy, wc_commit))
     }
 
     fn workspace_root(&self) -> &PathBuf {
@@ -577,7 +578,7 @@ impl WorkspaceCommandHelper {
     fn commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         let repo = self.repo.clone();
         let workspace_id = self.workspace_id();
-        let checkout_id = match repo.view().get_checkout(&self.workspace_id()) {
+        let checkout_id = match repo.view().get_wc_commit_id(&self.workspace_id()) {
             Some(checkout_id) => checkout_id.clone(),
             None => {
                 // If the workspace has been deleted, it's unclear what to do, so we just skip
@@ -662,7 +663,7 @@ impl WorkspaceCommandHelper {
             let commit = CommitBuilder::for_rewrite_from(&self.settings, &checkout_commit)
                 .set_tree(new_tree_id)
                 .write_to_repo(mut_repo);
-            mut_repo.set_checkout(workspace_id, commit.id().clone());
+            mut_repo.set_wc_commit(workspace_id, commit.id().clone());
 
             // Rebase descendants
             let num_rebased = mut_repo.rebase_descendants(&self.settings)?;
@@ -784,7 +785,7 @@ impl WorkspaceCommandHelper {
         let maybe_old_commit = tx
             .base_repo()
             .view()
-            .get_checkout(&self.workspace_id())
+            .get_wc_commit_id(&self.workspace_id())
             .map(|commit_id| store.get_commit(commit_id))
             .transpose()?;
         self.repo = tx.commit();
@@ -1005,7 +1006,7 @@ fn update_working_copy(
     wc: &mut WorkingCopy,
     old_commit: Option<&Commit>,
 ) -> Result<Option<CheckoutStats>, CommandError> {
-    let new_commit_id = match repo.view().get_checkout(workspace_id) {
+    let new_commit_id = match repo.view().get_wc_commit_id(workspace_id) {
         Some(new_commit_id) => new_commit_id,
         None => {
             // It seems the workspace was deleted, so we shouldn't try to update it.
@@ -2209,7 +2210,12 @@ fn cmd_checkout(
     let target = workspace_command.resolve_single_rev(&args.revision)?;
     let workspace_id = workspace_command.workspace_id();
     if ui.settings().enable_open_commits() {
-        if workspace_command.repo().view().get_checkout(&workspace_id) == Some(target.id()) {
+        if workspace_command
+            .repo()
+            .view()
+            .get_wc_commit_id(&workspace_id)
+            == Some(target.id())
+        {
             ui.write("Already on that commit\n")?;
         } else {
             let mut tx = workspace_command
@@ -2255,11 +2261,10 @@ fn cmd_untrack(
 
     let mut tx = workspace_command.start_transaction("untrack paths");
     let base_ignores = workspace_command.base_ignores();
-    let (mut locked_working_copy, current_checkout) =
-        workspace_command.start_working_copy_mutation()?;
+    let (mut locked_working_copy, wc_commit) = workspace_command.start_working_copy_mutation()?;
     // Create a new tree without the unwanted files
-    let mut tree_builder = store.tree_builder(current_checkout.tree_id().clone());
-    for (path, _value) in current_checkout.tree().entries_matching(matcher.as_ref()) {
+    let mut tree_builder = store.tree_builder(wc_commit.tree_id().clone());
+    for (path, _value) in wc_commit.tree().entries_matching(matcher.as_ref()) {
         tree_builder.remove(path);
     }
     let new_tree_id = tree_builder.write_tree();
@@ -2296,7 +2301,7 @@ fn cmd_untrack(
             locked_working_copy.reset(&new_tree)?;
         }
     }
-    CommitBuilder::for_rewrite_from(ui.settings(), &current_checkout)
+    CommitBuilder::for_rewrite_from(ui.settings(), &wc_commit)
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
     let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
@@ -2996,7 +3001,9 @@ fn cmd_status(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    let maybe_checkout_id = repo.view().get_checkout(&workspace_command.workspace_id());
+    let maybe_checkout_id = repo
+        .view()
+        .get_wc_commit_id(&workspace_command.workspace_id());
     let maybe_checkout = maybe_checkout_id
         .map(|id| repo.store().get_commit(id))
         .transpose()?;
@@ -3129,7 +3136,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     let revset_expression = revset::parse(&args.revisions)?;
     let repo = workspace_command.repo();
     let workspace_id = workspace_command.workspace_id();
-    let checkout_id = repo.view().get_checkout(&workspace_id);
+    let checkout_id = repo.view().get_wc_commit_id(&workspace_id);
     let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
     let mut revset = revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_id))?;
     if !args.paths.is_empty() {
@@ -3265,7 +3272,10 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
 
     let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
     let workspace_id = workspace_command.workspace_id();
-    let checkout_id = workspace_command.repo().view().get_checkout(&workspace_id);
+    let wc_commit_id = workspace_command
+        .repo()
+        .view()
+        .get_wc_commit_id(&workspace_id);
 
     let diff_format = (args.patch || args.diff_format.git || args.diff_format.summary)
         .then(|| diff_format_for(ui, &args.diff_format));
@@ -3315,7 +3325,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
                     diff_format,
                 )?;
             }
-            let node_symbol = if Some(commit.id()) == checkout_id {
+            let node_symbol = if Some(commit.id()) == wc_commit_id {
                 b"@"
             } else {
                 b"o"
@@ -3524,7 +3534,10 @@ fn cmd_close(ui: &mut Ui, command: &CommandHelper, args: &CloseArgs) -> Result<(
     let mut tx =
         workspace_command.start_transaction(&format!("close commit {}", commit.id().hex()));
     let new_commit = commit_builder.write_to_repo(tx.mut_repo());
-    let workspace_ids = tx.mut_repo().view().workspaces_for_checkout(commit.id());
+    let workspace_ids = tx
+        .mut_repo()
+        .view()
+        .workspaces_for_wc_commit_id(commit.id());
     if !workspace_ids.is_empty() {
         let new_checkout = CommitBuilder::for_open_commit(
             ui.settings(),
@@ -3611,7 +3624,12 @@ fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(),
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
     let workspace_id = workspace_command.workspace_id();
-    if workspace_command.repo().view().get_checkout(&workspace_id) == Some(new_commit.id()) {
+    if workspace_command
+        .repo()
+        .view()
+        .get_wc_commit_id(&workspace_id)
+        == Some(new_commit.id())
+    {
         ui.write("Already editing that commit\n")?;
     } else {
         let mut tx =
@@ -4904,7 +4922,7 @@ fn cmd_workspace_add(
     };
     let workspace_id = WorkspaceId::new(name.clone());
     let repo = old_workspace_command.repo();
-    if repo.view().get_checkout(&workspace_id).is_some() {
+    if repo.view().get_wc_commit_id(&workspace_id).is_some() {
         return Err(UserError(format!(
             "Workspace named '{}' already exists",
             name
@@ -4936,7 +4954,7 @@ fn cmd_workspace_add(
     let new_checkout_commit = if let Some(old_checkout_id) = new_workspace_command
         .repo()
         .view()
-        .get_checkout(&old_workspace_command.workspace_id())
+        .get_wc_commit_id(&old_workspace_command.workspace_id())
     {
         new_workspace_command
             .repo()
@@ -4971,7 +4989,7 @@ fn cmd_workspace_forget(
     if workspace_command
         .repo()
         .view()
-        .get_checkout(&workspace_id)
+        .get_wc_commit_id(&workspace_id)
         .is_none()
     {
         return Err(UserError("No such workspace".to_string()));
@@ -4979,7 +4997,7 @@ fn cmd_workspace_forget(
 
     let mut tx =
         workspace_command.start_transaction(&format!("forget workspace {}", workspace_id.as_str()));
-    tx.mut_repo().remove_checkout(&workspace_id);
+    tx.mut_repo().remove_wc_commit(&workspace_id);
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -4991,7 +5009,7 @@ fn cmd_workspace_list(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    for (workspace_id, checkout_id) in repo.view().checkouts().iter().sorted() {
+    for (workspace_id, checkout_id) in repo.view().wc_commit_ids().iter().sorted() {
         write!(ui, "{}: ", workspace_id.as_str())?;
         let commit = repo.store().get_commit(checkout_id)?;
         ui.write_commit_summary(repo.as_repo_ref(), workspace_id, &commit)?;
@@ -5011,7 +5029,7 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
         let mut workspace_command = command.workspace_helper(ui)?;
         let workspace_root = workspace_command.workspace_root().clone();
         let paths_to_add = repo_paths_from_values(ui, &workspace_root, &args.add)?;
-        let (mut locked_wc, _current_checkout) = workspace_command.start_working_copy_mutation()?;
+        let (mut locked_wc, _wc_commit) = workspace_command.start_working_copy_mutation()?;
         let mut new_patterns = HashSet::new();
         if args.reset {
             new_patterns.insert(RepoPath::root());
@@ -5326,7 +5344,7 @@ fn cmd_git_push(
         match workspace_command
             .repo()
             .view()
-            .get_checkout(&workspace_command.workspace_id())
+            .get_wc_commit_id(&workspace_command.workspace_id())
         {
             None => {
                 return Err(UserError(

@@ -295,7 +295,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         edit: bool,
     ) -> Result<(), BackendError> {
         // We arbitrarily pick a new checkout among the candidates.
-        self.update_checkouts(&old_commit_id, &new_commit_ids[0], edit)?;
+        self.update_wc_commits(&old_commit_id, &new_commit_ids[0], edit)?;
 
         if let Some(branch_names) = self.branches.get(&old_commit_id).cloned() {
             let mut branch_updates = vec![];
@@ -331,13 +331,16 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         Ok(())
     }
 
-    fn update_checkouts(
+    fn update_wc_commits(
         &mut self,
         old_commit_id: &CommitId,
         new_commit_id: &CommitId,
         edit: bool,
     ) -> Result<(), BackendError> {
-        let workspaces_to_update = self.mut_repo.view().workspaces_for_checkout(old_commit_id);
+        let workspaces_to_update = self
+            .mut_repo
+            .view()
+            .workspaces_for_wc_commit_id(old_commit_id);
         if workspaces_to_update.is_empty() {
             return Ok(());
         }

@@ -574,12 +574,12 @@ impl MutableRepo {
         Ok(rebaser.rebased().len())
     }
 
-    pub fn set_checkout(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {
-        self.view_mut().set_checkout(workspace_id, commit_id);
+    pub fn set_wc_commit(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {
+        self.view_mut().set_wc_commit(workspace_id, commit_id);
     }
 
-    pub fn remove_checkout(&mut self, workspace_id: &WorkspaceId) {
-        self.view_mut().remove_checkout(workspace_id);
+    pub fn remove_wc_commit(&mut self, workspace_id: &WorkspaceId) {
+        self.view_mut().remove_wc_commit(workspace_id);
     }
 
     pub fn check_out(
@@ -592,25 +592,25 @@ impl MutableRepo {
         let open_commit =
             CommitBuilder::for_open_commit(settings, commit.id().clone(), commit.tree_id().clone())
                 .write_to_repo(self);
-        self.set_checkout(workspace_id, open_commit.id().clone());
+        self.set_wc_commit(workspace_id, open_commit.id().clone());
         open_commit
     }
 
     pub fn edit(&mut self, workspace_id: WorkspaceId, commit: &Commit) {
         self.leave_commit(&workspace_id);
-        self.set_checkout(workspace_id, commit.id().clone());
+        self.set_wc_commit(workspace_id, commit.id().clone());
     }
 
     fn leave_commit(&mut self, workspace_id: &WorkspaceId) {
-        let maybe_current_checkout_id = self.view.borrow().get_checkout(workspace_id).cloned();
-        if let Some(current_checkout_id) = maybe_current_checkout_id {
-            let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
-            if current_checkout.is_empty()
-                && current_checkout.description().is_empty()
-                && self.view().heads().contains(current_checkout.id())
+        let maybe_wc_commit_id = self.view.borrow().get_wc_commit_id(workspace_id).cloned();
+        if let Some(wc_commit_id) = maybe_wc_commit_id {
+            let wc_commit = self.store().get_commit(&wc_commit_id).unwrap();
+            if wc_commit.is_empty()
+                && wc_commit.description().is_empty()
+                && self.view().heads().contains(wc_commit.id())
             {
                 // Abandon the checkout we're leaving if it's empty and a head commit
-                self.record_abandoned_commit(current_checkout_id);
+                self.record_abandoned_commit(wc_commit_id);
             }
         }
     }
@@ -770,30 +770,30 @@ impl MutableRepo {
 
     fn merge_view(&mut self, base: &View, other: &View) {
         // Merge checkouts. If there's a conflict, we keep the self side.
-        for (workspace_id, base_checkout) in base.checkouts() {
-            let self_checkout = self.view().get_checkout(workspace_id);
-            let other_checkout = other.get_checkout(workspace_id);
+        for (workspace_id, base_checkout) in base.wc_commit_ids() {
+            let self_checkout = self.view().get_wc_commit_id(workspace_id);
+            let other_checkout = other.get_wc_commit_id(workspace_id);
             if other_checkout == Some(base_checkout) || other_checkout == self_checkout {
                 // The other side didn't change or both sides changed in the
                 // same way.
             } else if let Some(other_checkout) = other_checkout {
                 if self_checkout == Some(base_checkout) {
                     self.view_mut()
-                        .set_checkout(workspace_id.clone(), other_checkout.clone());
+                        .set_wc_commit(workspace_id.clone(), other_checkout.clone());
                 }
             } else {
                 // The other side removed the workspace. We want to remove it even if the self
                 // side changed the checkout.
-                self.view_mut().remove_checkout(workspace_id);
+                self.view_mut().remove_wc_commit(workspace_id);
             }
         }
-        for (workspace_id, other_checkout) in other.checkouts() {
-            if self.view().get_checkout(workspace_id).is_none()
-                && base.get_checkout(workspace_id).is_none()
+        for (workspace_id, other_checkout) in other.wc_commit_ids() {
+            if self.view().get_wc_commit_id(workspace_id).is_none()
+                && base.get_wc_commit_id(workspace_id).is_none()
             {
                 // The other side added the workspace.
                 self.view_mut()
-                    .set_checkout(workspace_id.clone(), other_checkout.clone());
+                    .set_wc_commit(workspace_id.clone(), other_checkout.clone());
             }
         }
 

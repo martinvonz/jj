@@ -28,7 +28,7 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_concurrent_checkout(use_git: bool) {
     // Test that we error out if a concurrent checkout is detected (i.e. if the
-    // current checkout changed on disk after we read it).
+    // working-copy commit changed on disk after we read it).
     let settings = testutils::user_settings();
     let mut test_workspace1 = TestWorkspace::init(&settings, use_git);
     let repo1 = test_workspace1.repo.clone();

@@ -42,26 +42,26 @@ impl View {
         }
     }
 
-    pub fn checkouts(&self) -> &HashMap<WorkspaceId, CommitId> {
-        &self.data.checkouts
+    pub fn wc_commit_ids(&self) -> &HashMap<WorkspaceId, CommitId> {
+        &self.data.wc_commit_ids
     }
 
-    pub fn get_checkout(&self, workspace_id: &WorkspaceId) -> Option<&CommitId> {
-        self.data.checkouts.get(workspace_id)
+    pub fn get_wc_commit_id(&self, workspace_id: &WorkspaceId) -> Option<&CommitId> {
+        self.data.wc_commit_ids.get(workspace_id)
     }
 
-    pub fn workspaces_for_checkout(&self, commit_id: &CommitId) -> Vec<WorkspaceId> {
+    pub fn workspaces_for_wc_commit_id(&self, commit_id: &CommitId) -> Vec<WorkspaceId> {
         let mut workspaces_ids = vec![];
-        for (workspace_id, checkout_id) in &self.data.checkouts {
-            if checkout_id == commit_id {
+        for (workspace_id, wc_commit_id) in &self.data.wc_commit_ids {
+            if wc_commit_id == commit_id {
                 workspaces_ids.push(workspace_id.clone());
             }
         }
         workspaces_ids
     }
 
-    pub fn is_checkout(&self, commit_id: &CommitId) -> bool {
-        self.data.checkouts.values().contains(commit_id)
+    pub fn is_wc_commit_id(&self, commit_id: &CommitId) -> bool {
+        self.data.wc_commit_ids.values().contains(commit_id)
     }
 
     pub fn heads(&self) -> &HashSet<CommitId> {
@@ -88,12 +88,12 @@ impl View {
         self.data.git_head.clone()
     }
 
-    pub fn set_checkout(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {
-        self.data.checkouts.insert(workspace_id, commit_id);
+    pub fn set_wc_commit(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {
+        self.data.wc_commit_ids.insert(workspace_id, commit_id);
     }
 
-    pub fn remove_checkout(&mut self, workspace_id: &WorkspaceId) {
-        self.data.checkouts.remove(workspace_id);
+    pub fn remove_wc_commit(&mut self, workspace_id: &WorkspaceId) {
+        self.data.wc_commit_ids.remove(workspace_id);
     }
 
     pub fn add_head(&mut self, head_id: &CommitId) {

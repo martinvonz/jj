@@ -64,12 +64,12 @@ fn test_init_additional_workspace(use_git: bool) {
         ws2_id.clone(),
     )
     .unwrap();
-    let checkout_id = repo.view().get_checkout(&ws2_id);
-    assert_ne!(checkout_id, None);
-    let checkout_id = checkout_id.unwrap();
-    let checkout_commit = repo.store().get_commit(checkout_id).unwrap();
+    let wc_commit_id = repo.view().get_wc_commit_id(&ws2_id);
+    assert_ne!(wc_commit_id, None);
+    let wc_commit_id = wc_commit_id.unwrap();
+    let wc_commit = repo.store().get_commit(wc_commit_id).unwrap();
     assert_eq!(
-        checkout_commit.parent_ids(),
+        wc_commit.parent_ids(),
         vec![repo.store().root_commit_id().clone()]
     );
     assert_eq!(ws2.workspace_id(), ws2_id);

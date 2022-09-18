@@ -163,7 +163,7 @@ fn test_workspaces_forget() {
     No working copy
     "###);
 
-    // The old checkout doesn't get an "@" in the log output
+    // The old working copy doesn't get an "@" in the log output
     // TODO: We should abandon the empty working copy commit
     // TODO: It seems useful to still have the "secondary@" marker here even though
     // there's only one workspace. We should show it when the command is not run
@@ -198,5 +198,5 @@ fn test_workspaces_forget() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    test_env.jj_cmd_success(cwd, &["log", "-T", r#"commit_id " " checkouts"#])
+    test_env.jj_cmd_success(cwd, &["log", "-T", r#"commit_id " " working_copies"#])
 }

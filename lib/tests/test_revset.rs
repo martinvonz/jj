@@ -262,8 +262,8 @@ fn test_resolve_symbol_checkout(use_git: bool) {
     );
 
     // Add some workspaces
-    mut_repo.set_checkout(ws1.clone(), commit1.id().clone());
-    mut_repo.set_checkout(ws2, commit2.id().clone());
+    mut_repo.set_wc_commit(ws1.clone(), commit1.id().clone());
+    mut_repo.set_wc_commit(ws2, commit2.id().clone());
     // @ cannot be resolved without a default workspace ID
     assert_eq!(
         resolve_symbol(mut_repo.as_repo_ref(), "@", None),
@@ -386,12 +386,16 @@ fn test_resolve_symbol_git_refs() {
 
     // Cannot shadow checkout ("@") or root symbols
     let ws_id = WorkspaceId::default();
-    mut_repo.set_checkout(ws_id.clone(), commit1.id().clone());
+    mut_repo.set_wc_commit(ws_id.clone(), commit1.id().clone());
     mut_repo.set_git_ref("@".to_string(), RefTarget::Normal(commit2.id().clone()));
     mut_repo.set_git_ref("root".to_string(), RefTarget::Normal(commit3.id().clone()));
     assert_eq!(
         resolve_symbol(mut_repo.as_repo_ref(), "@", Some(&ws_id)),
-        Ok(vec![mut_repo.view().get_checkout(&ws_id).unwrap().clone()])
+        Ok(vec![mut_repo
+            .view()
+            .get_wc_commit_id(&ws_id)
+            .unwrap()
+            .clone()])
     );
     assert_eq!(
         resolve_symbol(mut_repo.as_repo_ref(), "root", None),
@@ -449,7 +453,7 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
     );
 
     // Can find the current checkout
-    mut_repo.set_checkout(WorkspaceId::default(), commit1.id().clone());
+    mut_repo.set_wc_commit(WorkspaceId::default(), commit1.id().clone());
     assert_eq!(
         resolve_commit_ids_in_workspace(mut_repo.as_repo_ref(), "@", &WorkspaceId::default()),
         vec![commit1.id().clone()]
@@ -601,7 +605,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     assert_eq!(resolve_commit_ids(mut_repo.as_repo_ref(), "root-"), vec![]);
 
     // Can find parents of the current checkout
-    mut_repo.set_checkout(WorkspaceId::default(), commit2.id().clone());
+    mut_repo.set_wc_commit(WorkspaceId::default(), commit2.id().clone());
     assert_eq!(
         resolve_commit_ids_in_workspace(mut_repo.as_repo_ref(), "@-", &WorkspaceId::default()),
         vec![commit1.id().clone()]

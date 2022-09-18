@@ -31,16 +31,16 @@ fn test_edit(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
-    let checkout = testutils::create_random_commit(&settings, repo)
+    let wc_commit = testutils::create_random_commit(&settings, repo)
         .set_open(true)
         .write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let ws_id = WorkspaceId::default();
-    tx.mut_repo().edit(ws_id.clone(), &checkout);
+    tx.mut_repo().edit(ws_id.clone(), &wc_commit);
     let repo = tx.commit();
-    assert_eq!(repo.view().get_checkout(&ws_id), Some(checkout.id()));
+    assert_eq!(repo.view().get_wc_commit_id(&ws_id), Some(wc_commit.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -67,7 +67,10 @@ fn test_checkout_closed(use_git: bool) {
     assert_eq!(actual_checkout.parents().len(), 1);
     assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
     let repo = tx.commit();
-    assert_eq!(repo.view().get_checkout(&ws_id), Some(actual_checkout.id()));
+    assert_eq!(
+        repo.view().get_wc_commit_id(&ws_id),
+        Some(actual_checkout.id())
+    );
 }
 
 #[test_case(false ; "local backend")]
@@ -121,10 +124,10 @@ fn test_checkout_previous_empty(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let new_checkout = testutils::create_random_commit(&settings, &repo)
+    let new_wc_commit = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.edit(ws_id, &new_checkout);
+    mut_repo.edit(ws_id, &new_wc_commit);
     mut_repo.rebase_descendants(&settings).unwrap();
     assert!(!mut_repo.view().heads().contains(old_checkout.id()));
 }
@@ -220,7 +223,10 @@ fn test_edit_initial(use_git: bool) {
     let workspace_id = WorkspaceId::new("new-workspace".to_string());
     tx.mut_repo().edit(workspace_id.clone(), &checkout);
     let repo = tx.commit();
-    assert_eq!(repo.view().get_checkout(&workspace_id), Some(checkout.id()));
+    assert_eq!(
+        repo.view().get_wc_commit_id(&workspace_id),
+        Some(checkout.id())
+    );
 }
 
 #[test_case(false ; "local backend")]
@@ -462,7 +468,7 @@ fn test_has_changed(use_git: bool) {
     mut_repo.remove_head(commit2.id());
     mut_repo.add_public_head(&commit1);
     let ws_id = WorkspaceId::default();
-    mut_repo.set_checkout(ws_id.clone(), commit1.id().clone());
+    mut_repo.set_wc_commit(ws_id.clone(), commit1.id().clone());
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
     mut_repo.set_remote_branch(
         "main".to_string(),
@@ -479,7 +485,7 @@ fn test_has_changed(use_git: bool) {
 
     mut_repo.add_public_head(&commit1);
     mut_repo.add_head(&commit1);
-    mut_repo.set_checkout(ws_id.clone(), commit1.id().clone());
+    mut_repo.set_wc_commit(ws_id.clone(), commit1.id().clone());
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
     mut_repo.set_remote_branch(
         "main".to_string(),
@@ -509,9 +515,9 @@ fn test_has_changed(use_git: bool) {
     mut_repo.remove_head(commit2.id());
     assert!(!mut_repo.has_changes());
 
-    mut_repo.set_checkout(ws_id.clone(), commit2.id().clone());
+    mut_repo.set_wc_commit(ws_id.clone(), commit2.id().clone());
     assert!(mut_repo.has_changes());
-    mut_repo.set_checkout(ws_id, commit1.id().clone());
+    mut_repo.set_wc_commit(ws_id, commit1.id().clone());
     assert!(!mut_repo.has_changes());
 
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit2.id().clone()));
