@@ -90,7 +90,7 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result.insert(String::from("author timestamp"), String::from("cyan"));
     result.insert(String::from("committer"), String::from("yellow"));
     result.insert(String::from("committer timestamp"), String::from("cyan"));
-    result.insert(String::from("checkouts"), String::from("magenta"));
+    result.insert(String::from("working_copies"), String::from("magenta"));
     result.insert(String::from("branch"), String::from("magenta"));
     result.insert(String::from("branches"), String::from("magenta"));
     result.insert(String::from("tags"), String::from("magenta"));
@@ -104,63 +104,63 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     // use a different background color? (We don't have support for background
     // colors yet.)
     result.insert(
-        String::from("checkout commit_id"),
+        String::from("working_copy commit_id"),
         String::from("bright blue"),
     );
     result.insert(
-        String::from("checkout commit_id open"),
+        String::from("working_copy commit_id open"),
         String::from("bright green"),
     );
     result.insert(
-        String::from("checkout change_id"),
+        String::from("working_copy change_id"),
         String::from("bright magenta"),
     );
     result.insert(
-        String::from("checkout author"),
+        String::from("working_copy author"),
         String::from("bright yellow"),
     );
     result.insert(
-        String::from("checkout author timestamp"),
+        String::from("working_copy author timestamp"),
         String::from("bright cyan"),
     );
     result.insert(
-        String::from("checkout committer"),
+        String::from("working_copy committer"),
         String::from("bright yellow"),
     );
     result.insert(
-        String::from("checkout committer timestamp"),
+        String::from("working_copy committer timestamp"),
         String::from("bright cyan"),
     );
     result.insert(
-        String::from("checkout checkouts"),
+        String::from("working_copy working_copies"),
         String::from("bright magenta"),
     );
     result.insert(
-        String::from("checkout branch"),
+        String::from("working_copy branch"),
         String::from("bright magenta"),
     );
     result.insert(
-        String::from("checkout branches"),
+        String::from("working_copy branches"),
         String::from("bright magenta"),
     );
     result.insert(
-        String::from("checkout tags"),
+        String::from("working_copy tags"),
         String::from("bright magenta"),
     );
     result.insert(
-        String::from("checkout git_refs"),
+        String::from("working_copy git_refs"),
         String::from("bright magenta"),
     );
     result.insert(
-        String::from("checkout divergent"),
+        String::from("working_copy divergent"),
         String::from("bright red"),
     );
     result.insert(
-        String::from("checkout conflict"),
+        String::from("working_copy conflict"),
         String::from("bright red"),
     );
     result.insert(
-        String::from("checkout description"),
+        String::from("working_copy description"),
         String::from("bright white"),
     );
 

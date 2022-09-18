@@ -243,8 +243,8 @@ fn parse_commit_keyword<'a>(
         "author" => Property::Signature(Box::new(AuthorProperty)),
         "committer" => Property::Signature(Box::new(CommitterProperty)),
         "open" => Property::Boolean(Box::new(OpenProperty)),
-        "checkouts" => Property::String(Box::new(CheckoutsProperty { repo })),
-        "current_checkout" => Property::Boolean(Box::new(CurrentCheckoutProperty {
+        "working_copies" => Property::String(Box::new(CheckoutsProperty { repo })),
+        "current_working_copy" => Property::Boolean(Box::new(CurrentCheckoutProperty {
             repo,
             workspace_id: workspace_id.clone(),
         })),
