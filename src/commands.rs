@@ -3102,7 +3102,7 @@ fn log_template(settings: &UserSettings) -> String {
             " " label("timestamp", author.timestamp())
             " " branches
             " " tags
-            " " checkouts
+            " " working_copies
             if(is_git_head, label("git_head", " HEAD@git"))
             if(divergent, label("divergent", " divergent"))
             if(conflict, label("conflict", " conflict"))
@@ -3193,7 +3193,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 let writer = Box::new(&mut buffer);
                 let mut formatter = ui.new_formatter(writer);
                 if is_checkout {
-                    formatter.add_label("checkout".to_string())?;
+                    formatter.add_label("working_copy".to_string())?;
                 }
                 template.format(&commit, formatter.as_mut())?;
                 if is_checkout {

@@ -54,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj git push` now pushes only branches pointing to the `@` by default. Use
   `--all` to push all branches.
 
+* The `checkouts` template keyword is now called `working_copies`, and
+  `current_checkout` is called `current_working_copy`.
+
 ### New features
 
 * The new `jj interdiff` command compares the changes in commits, ignoring
