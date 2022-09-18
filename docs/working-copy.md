@@ -3,9 +3,9 @@
 
 ## Introduction
 
-The working copy is where the current checkout's files are written so you can
-interact with them. It also where files are read from in order to create new
-commits (though there are many other ways of creating new commits).
+The working copy is where the current working-copy commit's files are written so
+you can interact with them. It also where files are read from in order to create
+new commits (though there are many other ways of creating new commits).
 
 Unlike most other VCSs, Jujutsu will automatically create commits from the
 working-copy contents when they have changed. Most `jj` commands you run will
@@ -26,18 +26,18 @@ This section only applies if you have set `ui.enable-open-commits = true`
 in your config.
 
 As described in the introduction, Jujutsu automatically rewrites the current
-checkout with any changes from the working copy. That works well while you're
-developing that revision. On the other hand, if you check out some existing
-revision, you generally don't want changes to the working copy to automatically
-rewrite that revision. Jujutsu has a concept of "open" and "closed" revisions to
-solve this. When you check out a closed revision, Jujutsu will actually create a
-new, *open* revision on top of it and check that out. The checked-out revision
-is thus always open. When you are done making changes to the currently
-checked-out revision, you close it by running `jj close`. That command then
-updates to the rewritten revision (as most `jj` commands do), and since the
-rewritten revision is now closed, it creates a new open revision on top. If you
-check out a closed revision and make changes on top of it that you want to go
-into the revision, use `jj squash`.
+working-copy commit with any changes from the working copy. That works well
+while you're developing that revision. On the other hand, if you check out some
+existing revision, you generally don't want changes to the working copy to
+automatically rewrite that revision. Jujutsu has a concept of "open" and
+"closed" revisions to solve this. When you check out a closed revision, Jujutsu
+will actually create a new, *open* revision on top of it and check that out. The
+working-copy commit is thus always open. When you are done making changes to
+the current working-copy commit, you close it by running `jj close`. That
+command then updates to the rewritten revision (as most `jj` commands do), and
+since the rewritten revision is now closed, it creates a new open revision on
+top. If you check out a closed revision and make changes on top of it that you
+want to go into the revision, use `jj squash`.
 
 
 ## Conflicts

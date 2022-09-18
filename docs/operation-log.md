@@ -8,9 +8,10 @@ You can see the log with `jj op log`. Each operation object contains a snapshot
 of how the repo looked at the end of the operation. We call this snapshot a
 "view" object. The view contains information about where each branch, tag, and
 Git ref (in Git-backed repos) pointed, as well as the set of heads in the repo,
-and the current checkout. The operation object also (in addition to the view)
-contains pointers to the operation(s) immediately before it, as well as metadata
-about the operation, such as timestamps, username, hostname, description.
+and the current working-copy commit. The operation object also (in addition to
+the view) contains pointers to the operation(s) immediately before it, as well
+as metadata about the operation, such as timestamps, username, hostname,
+description.
 
 The operation log allows you to undo an operation (`jj op undo`), which doesn't
 need to be the most recent one. It also lets you restore the entire repo to the
@@ -44,11 +45,11 @@ else's repo got into its current state.
 
 When you use `--at-op`, the automatic snapshotting of the working copy will not
 take place. When referring to a revision with the `@` symbol (as many commands
-do by default), that will resolve to the current checkout recorded in the
+do by default), that will resolve to the working-copy commit recorded in the
 operation's view (which is actually how it always works -- it's just the
 snapshotting that's skipped with `--at-op`).
 
-As a top-level option, `--at-op`, it can be passed to any command. However, you
+As a top-level option, `--at-op` can be passed to any command. However, you
 will typically only want to run read-only commands. For example, `jj log`,
 `jj st`, and `jj diff` all make sense. It's still possible to run e.g.
 `jj --at-op=<some operation ID> describe`. That's equivalent to having started
