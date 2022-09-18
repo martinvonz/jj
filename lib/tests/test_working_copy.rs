@@ -48,7 +48,10 @@ fn test_root(use_git: bool) {
     let mut locked_wc = wc.start_mutation();
     let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
     locked_wc.discard();
-    let checkout_id = repo.view().get_checkout(&WorkspaceId::default()).unwrap();
+    let checkout_id = repo
+        .view()
+        .get_wc_commit_id(&WorkspaceId::default())
+        .unwrap();
     let checkout_commit = repo.store().get_commit(checkout_id).unwrap();
     assert_eq!(&new_tree_id, checkout_commit.tree_id());
     assert_eq!(&new_tree_id, repo.store().empty_tree_id());

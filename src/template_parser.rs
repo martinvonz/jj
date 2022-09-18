@@ -24,11 +24,12 @@ use pest::Parser;
 
 use crate::formatter::PlainTextFormatter;
 use crate::templater::{
-    AuthorProperty, BranchProperty, ChangeIdProperty, CheckoutsProperty, CommitIdKeyword,
-    CommitterProperty, ConditionalTemplate, ConflictProperty, ConstantTemplateProperty,
-    CurrentCheckoutProperty, DescriptionProperty, DivergentProperty, DynamicLabelTemplate,
-    GitRefsProperty, IsGitHeadProperty, LabelTemplate, ListTemplate, LiteralTemplate, OpenProperty,
+    AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdKeyword, CommitterProperty,
+    ConditionalTemplate, ConflictProperty, ConstantTemplateProperty, DescriptionProperty,
+    DivergentProperty, DynamicLabelTemplate, GitRefsProperty, IsGitHeadProperty,
+    IsWorkingCopyProperty, LabelTemplate, ListTemplate, LiteralTemplate, OpenProperty,
     StringPropertyTemplate, TagProperty, Template, TemplateFunction, TemplateProperty,
+    WorkingCopiesProperty,
 };
 
 #[derive(Parser)]
@@ -243,8 +244,8 @@ fn parse_commit_keyword<'a>(
         "author" => Property::Signature(Box::new(AuthorProperty)),
         "committer" => Property::Signature(Box::new(CommitterProperty)),
         "open" => Property::Boolean(Box::new(OpenProperty)),
-        "working_copies" => Property::String(Box::new(CheckoutsProperty { repo })),
-        "current_working_copy" => Property::Boolean(Box::new(CurrentCheckoutProperty {
+        "working_copies" => Property::String(Box::new(WorkingCopiesProperty { repo })),
+        "current_working_copy" => Property::Boolean(Box::new(IsWorkingCopyProperty {
             repo,
             workspace_id: workspace_id.clone(),
         })),

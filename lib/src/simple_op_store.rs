@@ -200,9 +200,9 @@ fn operation_from_proto(proto: &crate::protos::op_store::Operation) -> Operation
 
 fn view_to_proto(view: &View) -> crate::protos::op_store::View {
     let mut proto = crate::protos::op_store::View::new();
-    for (workspace_id, commit_id) in &view.checkouts {
+    for (workspace_id, commit_id) in &view.wc_commit_ids {
         proto
-            .checkouts
+            .wc_commit_ids
             .insert(workspace_id.as_str().to_string(), commit_id.to_bytes());
     }
     for head_id in &view.head_ids {
@@ -252,14 +252,14 @@ fn view_from_proto(proto: &crate::protos::op_store::View) -> View {
     let mut view = View::default();
     // For compatibility with old repos before we had support for multiple working
     // copies
-    if !proto.checkout.is_empty() {
-        view.checkouts.insert(
+    if !proto.wc_commit_id.is_empty() {
+        view.wc_commit_ids.insert(
             WorkspaceId::default(),
-            CommitId::new(proto.checkout.clone()),
+            CommitId::new(proto.wc_commit_id.clone()),
         );
     }
-    for (workspace_id, commit_id) in &proto.checkouts {
-        view.checkouts.insert(
+    for (workspace_id, commit_id) in &proto.wc_commit_ids {
+        view.wc_commit_ids.insert(
             WorkspaceId::new(workspace_id.clone()),
             CommitId::new(commit_id.clone()),
         );
@@ -412,7 +412,7 @@ mod tests {
                 "refs/heads/feature".to_string() => git_refs_feature_target
             },
             git_head: Some(CommitId::from_hex("fff111")),
-            checkouts: hashmap! {
+            wc_commit_ids: hashmap! {
                 WorkspaceId::default() => default_checkout_id,
                 WorkspaceId::new("test".to_string()) => test_checkout_id,
             },

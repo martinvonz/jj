@@ -178,43 +178,43 @@ fn test_merge_views_checkout() {
     let ws7_id = WorkspaceId::new("ws7".to_string());
     initial_tx
         .mut_repo()
-        .set_checkout(ws1_id.clone(), commit1.id().clone());
+        .set_wc_commit(ws1_id.clone(), commit1.id().clone());
     initial_tx
         .mut_repo()
-        .set_checkout(ws2_id.clone(), commit1.id().clone());
+        .set_wc_commit(ws2_id.clone(), commit1.id().clone());
     initial_tx
         .mut_repo()
-        .set_checkout(ws3_id.clone(), commit1.id().clone());
+        .set_wc_commit(ws3_id.clone(), commit1.id().clone());
     initial_tx
         .mut_repo()
-        .set_checkout(ws4_id.clone(), commit1.id().clone());
+        .set_wc_commit(ws4_id.clone(), commit1.id().clone());
     initial_tx
         .mut_repo()
-        .set_checkout(ws5_id.clone(), commit1.id().clone());
+        .set_wc_commit(ws5_id.clone(), commit1.id().clone());
     let repo = initial_tx.commit();
 
     let mut tx1 = repo.start_transaction("test");
     tx1.mut_repo()
-        .set_checkout(ws1_id.clone(), commit2.id().clone());
+        .set_wc_commit(ws1_id.clone(), commit2.id().clone());
     tx1.mut_repo()
-        .set_checkout(ws2_id.clone(), commit2.id().clone());
-    tx1.mut_repo().remove_checkout(&ws4_id);
+        .set_wc_commit(ws2_id.clone(), commit2.id().clone());
+    tx1.mut_repo().remove_wc_commit(&ws4_id);
     tx1.mut_repo()
-        .set_checkout(ws5_id.clone(), commit2.id().clone());
+        .set_wc_commit(ws5_id.clone(), commit2.id().clone());
     tx1.mut_repo()
-        .set_checkout(ws6_id.clone(), commit2.id().clone());
+        .set_wc_commit(ws6_id.clone(), commit2.id().clone());
     tx1.commit();
 
     let mut tx2 = repo.start_transaction("test");
     tx2.mut_repo()
-        .set_checkout(ws1_id.clone(), commit3.id().clone());
+        .set_wc_commit(ws1_id.clone(), commit3.id().clone());
     tx2.mut_repo()
-        .set_checkout(ws3_id.clone(), commit3.id().clone());
+        .set_wc_commit(ws3_id.clone(), commit3.id().clone());
     tx2.mut_repo()
-        .set_checkout(ws4_id.clone(), commit3.id().clone());
-    tx2.mut_repo().remove_checkout(&ws5_id);
+        .set_wc_commit(ws4_id.clone(), commit3.id().clone());
+    tx2.mut_repo().remove_wc_commit(&ws5_id);
     tx2.mut_repo()
-        .set_checkout(ws7_id.clone(), commit3.id().clone());
+        .set_wc_commit(ws7_id.clone(), commit3.id().clone());
     // Make sure the end time different, assuming the clock has sub-millisecond
     // precision.
     std::thread::sleep(std::time::Duration::from_millis(1));
@@ -224,13 +224,13 @@ fn test_merge_views_checkout() {
 
     // We currently arbitrarily pick the first transaction's checkout (first by
     // transaction end time).
-    assert_eq!(repo.view().get_checkout(&ws1_id), Some(commit2.id()));
-    assert_eq!(repo.view().get_checkout(&ws2_id), Some(commit2.id()));
-    assert_eq!(repo.view().get_checkout(&ws3_id), Some(commit3.id()));
-    assert_eq!(repo.view().get_checkout(&ws4_id), None);
-    assert_eq!(repo.view().get_checkout(&ws5_id), None);
-    assert_eq!(repo.view().get_checkout(&ws6_id), Some(commit2.id()));
-    assert_eq!(repo.view().get_checkout(&ws7_id), Some(commit3.id()));
+    assert_eq!(repo.view().get_wc_commit_id(&ws1_id), Some(commit2.id()));
+    assert_eq!(repo.view().get_wc_commit_id(&ws2_id), Some(commit2.id()));
+    assert_eq!(repo.view().get_wc_commit_id(&ws3_id), Some(commit3.id()));
+    assert_eq!(repo.view().get_wc_commit_id(&ws4_id), None);
+    assert_eq!(repo.view().get_wc_commit_id(&ws5_id), None);
+    assert_eq!(repo.view().get_wc_commit_id(&ws6_id), Some(commit2.id()));
+    assert_eq!(repo.view().get_wc_commit_id(&ws7_id), Some(commit3.id()));
 }
 
 #[test]

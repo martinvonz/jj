@@ -142,7 +142,7 @@ pub fn resolve_symbol(
         } else {
             WorkspaceId::new(symbol.strip_suffix('@').unwrap().to_string())
         };
-        if let Some(commit_id) = repo.view().get_checkout(&target_workspace) {
+        if let Some(commit_id) = repo.view().get_wc_commit_id(&target_workspace) {
             Ok(vec![commit_id.clone()])
         } else {
             Err(RevsetError::NoSuchRevision(symbol.to_owned()))
