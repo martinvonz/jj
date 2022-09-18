@@ -18,7 +18,6 @@ jobs:
       # Needed to upload the results to code-scanning dashboard.
       security-events: write
       id-token: write
-      publish_results: true
 
     steps:
       - name: "Checkout code"
