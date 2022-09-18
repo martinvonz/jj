@@ -303,6 +303,7 @@ fn test_rebase_descendants_internal_merge(use_git: bool) {
     );
     let new_commit_c = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_f]);
     let new_commit_d = assert_rebased(rebaser.rebase_next().unwrap(), &commit_d, &[&commit_f]);
+    // TODO: Fix reorder error below
     let new_commit_e = assert_rebased(
         rebaser.rebase_next().unwrap(),
         &commit_e,
@@ -556,6 +557,7 @@ fn test_rebase_descendants_abandon_widen_merge(use_git: bool) {
         hashmap! {},
         hashset! {commit_e.id().clone()},
     );
+    // TODO: Fix reorder below
     let new_commit_f = assert_rebased(
         rebaser.rebase_next().unwrap(),
         &commit_f,
