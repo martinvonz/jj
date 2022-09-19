@@ -24,9 +24,9 @@ use protobuf::Message;
 use uuid::Uuid;
 
 use crate::backend::{
-    Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict, ConflictId,
-    ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree, TreeId,
-    TreeValue,
+    make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
+    ConflictId, ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree,
+    TreeId, TreeValue,
 };
 use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::stacked_table::{TableSegment, TableStore};
@@ -47,15 +47,18 @@ impl From<git2::Error> for BackendError {
 
 pub struct GitBackend {
     repo: Mutex<git2::Repository>,
+    root_commit_id: CommitId,
     empty_tree_id: TreeId,
     extra_metadata_store: TableStore,
 }
 
 impl GitBackend {
     fn new(repo: git2::Repository, extra_metadata_store: TableStore) -> Self {
+        let root_commit_id = CommitId::from_bytes(&[0; HASH_LENGTH]);
         let empty_tree_id = TreeId::from_hex("4b825dc642cb6eb9a060e54bf8d69288fbee4904");
         GitBackend {
             repo: Mutex::new(repo),
+            root_commit_id,
             empty_tree_id,
             extra_metadata_store,
         }
@@ -208,6 +211,10 @@ impl Backend for GitBackend {
         Ok(SymlinkId::new(oid.as_bytes().to_vec()))
     }
 
+    fn root_commit_id(&self) -> &CommitId {
+        &self.root_commit_id
+    }
+
     fn empty_tree_id(&self) -> &TreeId {
         &self.empty_tree_id
     }
@@ -337,6 +344,10 @@ impl Backend for GitBackend {
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
         if id.as_bytes().len() != self.hash_length() {
             return Err(BackendError::NotFound);
+        }
+
+        if *id == self.root_commit_id {
+            return Ok(make_root_commit(self.empty_tree_id.clone()));
         }
 
         let locked_repo = self.repo.lock().unwrap();

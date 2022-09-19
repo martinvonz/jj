@@ -23,9 +23,9 @@ use protobuf::{Message, MessageField};
 use tempfile::{NamedTempFile, PersistError};
 
 use crate::backend::{
-    Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict, ConflictId,
-    ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree, TreeId,
-    TreeValue,
+    make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
+    ConflictId, ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree,
+    TreeId, TreeValue,
 };
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::repo_path::{RepoPath, RepoPathComponent};
@@ -51,6 +51,7 @@ impl From<protobuf::Error> for BackendError {
 #[derive(Debug)]
 pub struct LocalBackend {
     path: PathBuf,
+    root_commit_id: CommitId,
     empty_tree_id: TreeId,
 }
 
@@ -70,9 +71,11 @@ impl LocalBackend {
     }
 
     pub fn load(store_path: PathBuf) -> Self {
+        let root_commit_id = CommitId::from_bytes(&[0; 64]);
         let empty_tree_id = TreeId::from_hex("786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce");
         LocalBackend {
             path: store_path,
+            root_commit_id,
             empty_tree_id,
         }
     }
@@ -165,6 +168,10 @@ impl Backend for LocalBackend {
         Ok(id)
     }
 
+    fn root_commit_id(&self) -> &CommitId {
+        &self.root_commit_id
+    }
+
     fn empty_tree_id(&self) -> &TreeId {
         &self.empty_tree_id
     }
@@ -216,6 +223,10 @@ impl Backend for LocalBackend {
     }
 
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
+        if *id == self.root_commit_id {
+            return Ok(make_root_commit(self.empty_tree_id.clone()));
+        }
+
         let path = self.commit_path(id);
         let mut file = File::open(path).map_err(not_found_to_backend_error)?;
 
