@@ -1219,6 +1219,9 @@ struct InitArgs {
 struct CheckoutArgs {
     /// The revision to update to
     revision: String,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[clap(short = 'r', hide = true)]
+    unused_revision: bool,
     /// The change description to use
     #[clap(long, short, default_value = "")]
     message: String,
@@ -1303,6 +1306,9 @@ struct ShowArgs {
     /// Show changes in this revision, compared to its parent(s)
     #[clap(default_value = "@")]
     revision: String,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[clap(short = 'r', hide = true)]
+    unused_revision: bool,
     #[clap(flatten)]
     format: DiffFormatArgs,
 }
@@ -1404,6 +1410,9 @@ struct DescribeArgs {
     /// The revision whose description to edit
     #[clap(default_value = "@")]
     revision: String,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[clap(short = 'r', hide = true)]
+    unused_revision: bool,
     /// The change description to use (don't open editor)
     #[clap(long, short)]
     message: Option<String>,
@@ -1422,6 +1431,9 @@ struct CloseArgs {
     /// The revision to close
     #[clap(default_value = "@")]
     revision: String,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[clap(short = 'r', hide = true)]
+    unused_revision: bool,
     /// The change description to use (don't open editor)
     #[clap(long, short)]
     message: Option<String>,
@@ -1439,6 +1451,9 @@ struct CloseArgs {
 struct OpenArgs {
     /// The revision to open
     revision: String,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[clap(short = 'r', hide = true)]
+    unused_revision: bool,
 }
 
 /// Create a new change with the same content as an existing one
@@ -1450,6 +1465,9 @@ struct DuplicateArgs {
     /// The revision to duplicate
     #[clap(default_value = "@")]
     revision: String,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[clap(short = 'r', hide = true)]
+    unused_revision: bool,
 }
 
 /// Abandon a revision
@@ -1463,6 +1481,9 @@ struct AbandonArgs {
     /// The revision(s) to abandon
     #[clap(default_value = "@")]
     revisions: Vec<String>,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[clap(short = 'r', hide = true)]
+    unused_revision: bool,
 }
 
 /// Edit a commit in the working copy
@@ -1473,6 +1494,9 @@ struct AbandonArgs {
 struct EditArgs {
     /// The commit to edit
     revision: String,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[clap(short = 'r', hide = true)]
+    unused_revision: bool,
 }
 
 /// Create a new, empty change and edit it in the working copy
@@ -1488,6 +1512,9 @@ struct NewArgs {
     /// Parent(s) of the new change
     #[clap(default_value = "@")]
     revisions: Vec<String>,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[clap(short = 'r', hide = true)]
+    unused_revision: bool,
     /// The change description to use
     #[clap(long, short, default_value = "")]
     message: String,
