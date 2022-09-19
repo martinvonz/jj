@@ -189,8 +189,12 @@ pub fn create_random_tree(repo: &ReadonlyRepo) -> TreeId {
 pub fn create_random_commit(settings: &UserSettings, repo: &ReadonlyRepo) -> CommitBuilder {
     let tree_id = create_random_tree(repo);
     let number = rand::random::<u32>();
-    CommitBuilder::for_new_commit(settings, vec![], tree_id)
-        .set_description(format!("random commit {}", number))
+    CommitBuilder::for_new_commit(
+        settings,
+        vec![repo.store().root_commit_id().clone()],
+        tree_id,
+    )
+    .set_description(format!("random commit {}", number))
 }
 
 pub fn write_working_copy_file(workspace_root: &Path, path: &RepoPath, contents: &str) {

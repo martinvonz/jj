@@ -119,7 +119,10 @@ fn test_init_checkout(use_git: bool) {
         .unwrap();
     let wc_commit = repo.store().get_commit(wc_commit_id).unwrap();
     assert_eq!(wc_commit.tree_id(), repo.store().empty_tree_id());
-    assert_eq!(wc_commit.store_commit().parents, vec![]);
+    assert_eq!(
+        wc_commit.store_commit().parents,
+        vec![repo.store().root_commit_id().clone()]
+    );
     assert_eq!(wc_commit.predecessors(), vec![]);
     assert_eq!(wc_commit.description(), "");
     assert!(wc_commit.is_open());

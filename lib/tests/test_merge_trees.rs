@@ -573,8 +573,12 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     let path = RepoPath::from_internal_string("dir/file");
     let mut tx = repo.start_transaction("test");
     let tree_a = testutils::create_tree(repo, &[(&path, "abc\ndef\nghi\n")]);
-    let commit_a = CommitBuilder::for_new_commit(&settings, vec![], tree_a.id().clone())
-        .write_to_repo(tx.mut_repo());
+    let commit_a = CommitBuilder::for_new_commit(
+        &settings,
+        vec![repo.store().root_commit_id().clone()],
+        tree_a.id().clone(),
+    )
+    .write_to_repo(tx.mut_repo());
     let tree_b = testutils::create_tree(repo, &[(&path, "Abc\ndef\nghi\n")]);
     let commit_b =
         CommitBuilder::for_new_commit(&settings, vec![commit_a.id().clone()], tree_b.id().clone())

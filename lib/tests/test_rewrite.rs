@@ -849,8 +849,12 @@ fn test_rebase_descendants_contents(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let path1 = RepoPath::from_internal_string("file1");
     let tree1 = testutils::create_tree(repo, &[(&path1, "content")]);
-    let commit_a = CommitBuilder::for_new_commit(&settings, vec![], tree1.id().clone())
-        .write_to_repo(tx.mut_repo());
+    let commit_a = CommitBuilder::for_new_commit(
+        &settings,
+        vec![repo.store().root_commit_id().clone()],
+        tree1.id().clone(),
+    )
+    .write_to_repo(tx.mut_repo());
     let path2 = RepoPath::from_internal_string("file2");
     let tree2 = testutils::create_tree(repo, &[(&path2, "content")]);
     let commit_b =

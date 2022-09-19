@@ -366,10 +366,13 @@ impl Backend for GitBackend {
                 .map(|b| b.reverse_bits())
                 .collect(),
         );
-        let parents = commit
+        let mut parents = commit
             .parent_ids()
             .map(|oid| CommitId::from_bytes(oid.as_bytes()))
             .collect_vec();
+        if parents.is_empty() {
+            parents.push(self.root_commit_id.clone());
+        };
         let tree_id = TreeId::from_bytes(commit.tree_id().as_bytes());
         let description = commit.message().unwrap_or("<no message>").to_owned();
         let author = signature_from_git(commit.author());
@@ -406,9 +409,17 @@ impl Backend for GitBackend {
 
         let mut parents = vec![];
         for parent_id in &contents.parents {
-            let parent_git_commit =
-                locked_repo.find_commit(Oid::from_bytes(parent_id.as_bytes())?)?;
-            parents.push(parent_git_commit);
+            if *parent_id == self.root_commit_id {
+                // Git doesn't have a root commit, so if the parent is the root commit, we don't
+                // add it to the list of parents to write in the Git commit. We also check that
+                // there are no other parents since Git cannot represent a merge between a root
+                // commit and another commit.
+                assert_eq!(contents.parents.len(), 1);
+            } else {
+                let parent_git_commit =
+                    locked_repo.find_commit(Oid::from_bytes(parent_id.as_bytes())?)?;
+                parents.push(parent_git_commit);
+            }
         }
         let parent_refs = parents.iter().collect_vec();
         let git_id = locked_repo.commit(
@@ -573,7 +584,7 @@ mod tests {
         let store = GitBackend::init_external(store_path, git_repo_path);
         let commit = store.read_commit(&commit_id).unwrap();
         assert_eq!(&commit.change_id, &change_id);
-        assert_eq!(commit.parents, vec![]);
+        assert_eq!(commit.parents, vec![CommitId::from_bytes(&[0; 20])]);
         assert_eq!(commit.predecessors, vec![]);
         assert_eq!(commit.root_tree.as_bytes(), root_tree_id.as_bytes());
         assert!(!commit.is_open);
