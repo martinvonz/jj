@@ -573,20 +573,20 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     let path = RepoPath::from_internal_string("dir/file");
     let mut tx = repo.start_transaction("test");
     let tree_a = testutils::create_tree(repo, &[(&path, "abc\ndef\nghi\n")]);
-    let commit_a =
-        CommitBuilder::for_new_commit(&settings, tree_a.id().clone()).write_to_repo(tx.mut_repo());
+    let commit_a = CommitBuilder::for_new_commit(&settings, vec![], tree_a.id().clone())
+        .write_to_repo(tx.mut_repo());
     let tree_b = testutils::create_tree(repo, &[(&path, "Abc\ndef\nghi\n")]);
-    let commit_b = CommitBuilder::for_new_commit(&settings, tree_b.id().clone())
-        .set_parents(vec![commit_a.id().clone()])
-        .write_to_repo(tx.mut_repo());
+    let commit_b =
+        CommitBuilder::for_new_commit(&settings, vec![commit_a.id().clone()], tree_b.id().clone())
+            .write_to_repo(tx.mut_repo());
     let tree_c = testutils::create_tree(repo, &[(&path, "Abc\ndef\nGhi\n")]);
-    let commit_c = CommitBuilder::for_new_commit(&settings, tree_c.id().clone())
-        .set_parents(vec![commit_b.id().clone()])
-        .write_to_repo(tx.mut_repo());
+    let commit_c =
+        CommitBuilder::for_new_commit(&settings, vec![commit_b.id().clone()], tree_c.id().clone())
+            .write_to_repo(tx.mut_repo());
     let tree_d = testutils::create_tree(repo, &[(&path, "abC\ndef\nghi\n")]);
-    let commit_d = CommitBuilder::for_new_commit(&settings, tree_d.id().clone())
-        .set_parents(vec![commit_a.id().clone()])
-        .write_to_repo(tx.mut_repo());
+    let commit_d =
+        CommitBuilder::for_new_commit(&settings, vec![commit_a.id().clone()], tree_d.id().clone())
+            .write_to_repo(tx.mut_repo());
 
     let commit_b2 = rebase_commit(&settings, tx.mut_repo(), &commit_b, &[commit_d]);
     let commit_c2 = rebase_commit(&settings, tx.mut_repo(), &commit_c, &[commit_b2.clone()]);

@@ -849,23 +849,23 @@ fn test_rebase_descendants_contents(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let path1 = RepoPath::from_internal_string("file1");
     let tree1 = testutils::create_tree(repo, &[(&path1, "content")]);
-    let commit_a =
-        CommitBuilder::for_new_commit(&settings, tree1.id().clone()).write_to_repo(tx.mut_repo());
+    let commit_a = CommitBuilder::for_new_commit(&settings, vec![], tree1.id().clone())
+        .write_to_repo(tx.mut_repo());
     let path2 = RepoPath::from_internal_string("file2");
     let tree2 = testutils::create_tree(repo, &[(&path2, "content")]);
-    let commit_b = CommitBuilder::for_new_commit(&settings, tree2.id().clone())
-        .set_parents(vec![commit_a.id().clone()])
-        .write_to_repo(tx.mut_repo());
+    let commit_b =
+        CommitBuilder::for_new_commit(&settings, vec![commit_a.id().clone()], tree2.id().clone())
+            .write_to_repo(tx.mut_repo());
     let path3 = RepoPath::from_internal_string("file3");
     let tree3 = testutils::create_tree(repo, &[(&path3, "content")]);
-    let commit_c = CommitBuilder::for_new_commit(&settings, tree3.id().clone())
-        .set_parents(vec![commit_b.id().clone()])
-        .write_to_repo(tx.mut_repo());
+    let commit_c =
+        CommitBuilder::for_new_commit(&settings, vec![commit_b.id().clone()], tree3.id().clone())
+            .write_to_repo(tx.mut_repo());
     let path4 = RepoPath::from_internal_string("file4");
     let tree4 = testutils::create_tree(repo, &[(&path4, "content")]);
-    let commit_d = CommitBuilder::for_new_commit(&settings, tree4.id().clone())
-        .set_parents(vec![commit_a.id().clone()])
-        .write_to_repo(tx.mut_repo());
+    let commit_d =
+        CommitBuilder::for_new_commit(&settings, vec![commit_a.id().clone()], tree4.id().clone())
+            .write_to_repo(tx.mut_repo());
 
     let mut rebaser = DescendantRebaser::new(
         &settings,
