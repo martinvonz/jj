@@ -70,7 +70,7 @@ impl LocalBackend {
     }
 
     pub fn load(store_path: PathBuf) -> Self {
-        let empty_tree_id = TreeId::new(hex::decode("786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce").unwrap());
+        let empty_tree_id = TreeId::from_hex("786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce");
         LocalBackend {
             path: store_path,
             empty_tree_id,

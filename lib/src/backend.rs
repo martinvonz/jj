@@ -118,6 +118,10 @@ impl TreeId {
         self.0.clone()
     }
 
+    pub fn from_hex(hex: &str) -> Self {
+        Self(hex::decode(hex).unwrap())
+    }
+
     pub fn hex(&self) -> String {
         hex::encode(&self.0)
     }
