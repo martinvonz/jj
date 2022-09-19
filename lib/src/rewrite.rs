@@ -104,8 +104,7 @@ pub fn back_out_commit(
         .map(|commit| commit.id().clone())
         .collect();
     // TODO: i18n the description based on repo language
-    CommitBuilder::for_new_commit(settings, new_tree_id)
-        .set_parents(new_parent_ids)
+    CommitBuilder::for_new_commit(settings, new_parent_ids, new_tree_id)
         .set_description(format!("backout of commit {}", &old_commit.id().hex()))
         .write_to_repo(mut_repo)
 }

@@ -189,7 +189,7 @@ pub fn create_random_tree(repo: &ReadonlyRepo) -> TreeId {
 pub fn create_random_commit(settings: &UserSettings, repo: &ReadonlyRepo) -> CommitBuilder {
     let tree_id = create_random_tree(repo);
     let number = rand::random::<u32>();
-    CommitBuilder::for_new_commit(settings, tree_id)
+    CommitBuilder::for_new_commit(settings, vec![], tree_id)
         .set_description(format!("random commit {}", number))
 }
 

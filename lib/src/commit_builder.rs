@@ -31,10 +31,14 @@ pub fn new_change_id() -> ChangeId {
 }
 
 impl CommitBuilder {
-    pub fn for_new_commit(settings: &UserSettings, tree_id: TreeId) -> CommitBuilder {
+    pub fn for_new_commit(
+        settings: &UserSettings,
+        parents: Vec<CommitId>,
+        tree_id: TreeId,
+    ) -> CommitBuilder {
         let signature = settings.signature();
         let commit = backend::Commit {
-            parents: vec![],
+            parents,
             predecessors: vec![],
             root_tree: tree_id,
             change_id: new_change_id(),
