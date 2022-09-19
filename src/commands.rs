@@ -2308,20 +2308,21 @@ fn cmd_untrack(
             locked_working_copy.discard();
             let path = &added_back[0].0;
             let ui_path = workspace_command.format_file_path(path);
-            if added_back.len() > 1 {
-                return Err(CommandError::UserError(format!(
+            let message = if added_back.len() > 1 {
+                format!(
                     "'{}' and {} other files would be added back because they're not ignored. \
                      Make sure they're ignored, then try again.",
                     ui_path,
                     added_back.len() - 1
-                )));
+                )
             } else {
-                return Err(CommandError::UserError(format!(
+                format!(
                     "'{}' would be added back because it's not ignored. Make sure it's ignored, \
                      then try again.",
                     ui_path
-                )));
-            }
+                )
+            };
+            return Err(CommandError::UserError(message));
         } else {
             // This means there were some concurrent changes made in the working copy. We
             // don't want to mix those in, so reset the working copy again.
