@@ -53,8 +53,7 @@ pub struct GitBackend {
 
 impl GitBackend {
     fn new(repo: git2::Repository, extra_metadata_store: TableStore) -> Self {
-        let empty_tree_id =
-            TreeId::new(hex::decode("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap());
+        let empty_tree_id = TreeId::from_hex("4b825dc642cb6eb9a060e54bf8d69288fbee4904");
         GitBackend {
             repo: Mutex::new(repo),
             empty_tree_id,
