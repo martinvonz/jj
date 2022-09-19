@@ -374,6 +374,29 @@ impl Tree {
     }
 }
 
+pub fn make_root_commit(empty_tree_id: TreeId) -> Commit {
+    let timestamp = Timestamp {
+        timestamp: MillisSinceEpoch(0),
+        tz_offset: 0,
+    };
+    let signature = Signature {
+        name: String::new(),
+        email: String::new(),
+        timestamp,
+    };
+    let change_id = ChangeId::new(vec![0; 16]);
+    Commit {
+        parents: vec![],
+        predecessors: vec![],
+        root_tree: empty_tree_id,
+        change_id,
+        description: String::new(),
+        author: signature.clone(),
+        committer: signature,
+        is_open: false,
+    }
+}
+
 pub trait Backend: Send + Sync + Debug {
     fn hash_length(&self) -> usize;
 
@@ -386,6 +409,8 @@ pub trait Backend: Send + Sync + Debug {
     fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String>;
 
     fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId>;
+
+    fn root_commit_id(&self) -> &CommitId;
 
     fn empty_tree_id(&self) -> &TreeId;
 
