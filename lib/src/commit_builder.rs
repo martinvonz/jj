@@ -37,6 +37,7 @@ impl CommitBuilder {
         tree_id: TreeId,
     ) -> CommitBuilder {
         let signature = settings.signature();
+        assert!(!parents.is_empty());
         let commit = backend::Commit {
             parents,
             predecessors: vec![],
@@ -94,6 +95,7 @@ impl CommitBuilder {
     }
 
     pub fn set_parents(mut self, parents: Vec<CommitId>) -> Self {
+        assert!(!parents.is_empty());
         self.commit.parents = parents;
         self
     }
@@ -138,12 +140,7 @@ impl CommitBuilder {
         self
     }
 
-    pub fn write_to_repo(mut self, repo: &mut MutableRepo) -> Commit {
-        let parents = &mut self.commit.parents;
-        if parents.contains(repo.store().root_commit_id()) {
-            assert_eq!(parents.len(), 1);
-            parents.clear();
-        }
+    pub fn write_to_repo(self, repo: &mut MutableRepo) -> Commit {
         let mut rewrite_source_id = None;
         if let Some(rewrite_source) = self.rewrite_source {
             if *rewrite_source.change_id() == self.commit.change_id {

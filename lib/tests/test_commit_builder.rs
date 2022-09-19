@@ -170,7 +170,7 @@ fn test_rewrite_update_missing_user(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let initial_commit = CommitBuilder::for_new_commit(
         &missing_user_settings,
-        vec![],
+        vec![repo.store().root_commit_id().clone()],
         repo.store().empty_tree_id().clone(),
     )
     .write_to_repo(tx.mut_repo());
@@ -219,8 +219,12 @@ fn test_commit_builder_descendants(use_git: bool) {
 
     // Test with for_new_commit()
     let mut tx = repo.start_transaction("test");
-    CommitBuilder::for_new_commit(&settings, vec![], store.empty_tree_id().clone())
-        .write_to_repo(tx.mut_repo());
+    CommitBuilder::for_new_commit(
+        &settings,
+        vec![store.root_commit_id().clone()],
+        store.empty_tree_id().clone(),
+    )
+    .write_to_repo(tx.mut_repo());
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     assert!(rebaser.rebase_next().unwrap().is_none());
 

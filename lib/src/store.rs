@@ -83,6 +83,7 @@ impl Store {
     }
 
     pub fn write_commit(self: &Arc<Self>, commit: backend::Commit) -> Commit {
+        assert!(!commit.parents.is_empty());
         let commit_id = self.backend.write_commit(&commit).unwrap();
         let data = Arc::new(commit);
         {

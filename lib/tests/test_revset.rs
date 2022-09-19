@@ -55,12 +55,15 @@ fn test_resolve_symbol_commit_id() {
 
     let mut commits = vec![];
     for i in &[1, 167, 895] {
-        let commit =
-            CommitBuilder::for_new_commit(&settings, vec![], repo.store().empty_tree_id().clone())
-                .set_description(format!("test {}", i))
-                .set_author(signature.clone())
-                .set_committer(signature.clone())
-                .write_to_repo(mut_repo);
+        let commit = CommitBuilder::for_new_commit(
+            &settings,
+            vec![repo.store().root_commit_id().clone()],
+            repo.store().empty_tree_id().clone(),
+        )
+        .set_description(format!("test {}", i))
+        .set_author(signature.clone())
+        .set_committer(signature.clone())
+        .write_to_repo(mut_repo);
         commits.push(commit);
     }
     let repo = tx.commit();
@@ -1755,8 +1758,12 @@ fn test_filter_by_diff(use_git: bool) {
             // added_modified_removed,
         ],
     );
-    let commit1 = CommitBuilder::for_new_commit(&settings, vec![], tree1.id().clone())
-        .write_to_repo(mut_repo);
+    let commit1 = CommitBuilder::for_new_commit(
+        &settings,
+        vec![repo.store().root_commit_id().clone()],
+        tree1.id().clone(),
+    )
+    .write_to_repo(mut_repo);
     let commit2 =
         CommitBuilder::for_new_commit(&settings, vec![commit1.id().clone()], tree2.id().clone())
             .write_to_repo(mut_repo);

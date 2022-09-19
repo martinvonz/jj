@@ -76,20 +76,13 @@ impl Commit {
     }
 
     pub fn parent_ids(&self) -> Vec<CommitId> {
-        if self.data.parents.is_empty() && &self.id != self.store.root_commit_id() {
-            vec![self.store.root_commit_id().clone()]
-        } else {
-            self.data.parents.clone()
-        }
+        self.data.parents.clone()
     }
 
     pub fn parents(&self) -> Vec<Commit> {
         let mut parents = Vec::new();
         for parent in &self.data.parents {
             parents.push(self.store.get_commit(parent).unwrap());
-        }
-        if parents.is_empty() && &self.id != self.store.root_commit_id() {
-            parents.push(self.store.root_commit())
         }
         parents
     }
