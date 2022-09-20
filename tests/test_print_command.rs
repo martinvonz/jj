@@ -61,8 +61,7 @@ fn test_print() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     <<<<<<<
-    -------
-    +++++++
+    %%%%%%%
     -b
     +a
     +++++++

@@ -140,8 +140,7 @@ fn test_touchup_merge() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
     <<<<<<<
-    -------
-    +++++++
+    %%%%%%%
     -a
     +c
     +++++++

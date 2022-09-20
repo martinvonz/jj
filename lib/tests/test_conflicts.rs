@@ -87,8 +87,7 @@ line 5
     line 1
     line 2
     <<<<<<<
-    -------
-    +++++++
+    %%%%%%%
     -line 3
     +right 3.1
     +++++++
@@ -108,8 +107,7 @@ line 5
     line 1
     line 2
     <<<<<<<
-    -------
-    +++++++
+    %%%%%%%
     -line 3
     +right 3.1
     +++++++
@@ -185,8 +183,7 @@ line 5
     line 1
     line 2
     <<<<<<<
-    -------
-    +++++++
+    %%%%%%%
     -line 3
     +++++++
     left
@@ -262,8 +259,7 @@ line 5
     line 1
     line 2
     <<<<<<<
-    -------
-    +++++++
+    %%%%%%%
     -line 3
     +++++++
     right
@@ -297,8 +293,7 @@ fn test_parse_conflict_simple() {
         parse_conflict(
             b"line 1
 <<<<<<<
--------
-+++++++
+%%%%%%%
  line 2
 -line 3
 +left
@@ -328,16 +323,14 @@ fn test_parse_conflict_multi_way() {
         parse_conflict(
             b"line 1
 <<<<<<<
--------
-+++++++
+%%%%%%%
  line 2
 -line 3
 +left
  line 4
 +++++++
 right
--------
-+++++++
+%%%%%%%
  line 2
 +forward
  line 3
@@ -372,8 +365,7 @@ fn test_parse_conflict_different_wrong_arity() {
         parse_conflict(
             b"line 1
 <<<<<<<
--------
-+++++++
+%%%%%%%
  line 2
 -line 3
 +left
@@ -392,8 +384,7 @@ line 5
 
 #[test]
 fn test_parse_conflict_malformed_marker() {
-    // The conflict marker is missing `-------` and `+++++++` (it needs at least one
-    // of them)
+    // The conflict marker is missing `%%%%%%%`
     assert_eq!(
         parse_conflict(
             b"line 1
@@ -421,8 +412,7 @@ fn test_parse_conflict_malformed_diff() {
         parse_conflict(
             b"line 1
 <<<<<<<
--------
-+++++++
+%%%%%%%
  line 2
 -line 3
 +left
@@ -490,7 +480,13 @@ fn test_update_conflict_from_content() {
     assert_eq!(result, None);
 
     // If the conflict is partially resolved, we get a new conflict back.
-    let result = update_conflict_from_content(store, &path, &conflict_id, b"resolved 1\nline 2\n<<<<<<<\n-------\n+++++++\n-line 3\n+left 3\n+++++++\nright 3\n>>>>>>>\n").unwrap();
+    let result = update_conflict_from_content(
+        store,
+        &path,
+        &conflict_id,
+        b"resolved 1\nline 2\n<<<<<<<\n%%%%%%%\n-line 3\n+left 3\n+++++++\nright 3\n>>>>>>>\n",
+    )
+    .unwrap();
     assert_ne!(result, None);
     assert_ne!(result, Some(conflict_id));
     let new_conflict = store.read_conflict(&path, &result.unwrap()).unwrap();

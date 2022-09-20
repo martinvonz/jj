@@ -234,8 +234,7 @@ There are unresolved conflicts at these paths:
 file1
 $ cat file1
 <<<<<<<
--------
-+++++++
+%%%%%%%
 -b1
 +a
 +++++++
