@@ -278,60 +278,59 @@ pub fn parse_conflict(input: &[u8], num_removes: usize, num_adds: usize) -> Opti
 }
 
 fn parse_conflict_hunk(input: &[u8]) -> MergeHunk {
-    let mut diff_seen = false;
-    let mut minus_seen = false;
-    let mut plus_seen = false;
-    let mut body_seen = false;
+    enum State {
+        Diff,
+        Minus,
+        Plus,
+        Unknown,
+    }
+    let mut state = State::Unknown;
     let mut removes = vec![];
     let mut adds = vec![];
     for line in input.split_inclusive(|b| *b == b'\n') {
-        if line == CONFLICT_DIFF_LINE {
-            diff_seen = true;
-            if body_seen {
-                minus_seen = false;
-                plus_seen = false;
-                body_seen = false;
+        match line {
+            CONFLICT_DIFF_LINE => {
+                state = State::Diff;
+                removes.push(vec![]);
+                adds.push(vec![]);
+                continue;
             }
-            removes.push(vec![]);
-            adds.push(vec![]);
-        } else if line == CONFLICT_MINUS_LINE {
-            minus_seen = true;
-            if body_seen {
-                diff_seen = false;
-                plus_seen = false;
-                body_seen = false;
+            CONFLICT_MINUS_LINE => {
+                state = State::Minus;
+                removes.push(vec![]);
+                continue;
             }
-            removes.push(vec![]);
-        } else if line == CONFLICT_PLUS_LINE {
-            plus_seen = true;
-            if body_seen {
-                diff_seen = false;
-                minus_seen = false;
-                body_seen = false;
+            CONFLICT_PLUS_LINE => {
+                state = State::Plus;
+                adds.push(vec![]);
+                continue;
             }
-            adds.push(vec![]);
-        } else if diff_seen {
-            body_seen = true;
-            if let Some(rest) = line.strip_prefix(b"-") {
-                removes.last_mut().unwrap().extend_from_slice(rest);
-            } else if let Some(rest) = line.strip_prefix(b"+") {
-                adds.last_mut().unwrap().extend_from_slice(rest);
-            } else if let Some(rest) = line.strip_prefix(b" ") {
-                removes.last_mut().unwrap().extend_from_slice(rest);
-                adds.last_mut().unwrap().extend_from_slice(rest);
-            } else {
+            _ => {}
+        };
+        match state {
+            State::Diff => {
+                if let Some(rest) = line.strip_prefix(b"-") {
+                    removes.last_mut().unwrap().extend_from_slice(rest);
+                } else if let Some(rest) = line.strip_prefix(b"+") {
+                    adds.last_mut().unwrap().extend_from_slice(rest);
+                } else if let Some(rest) = line.strip_prefix(b" ") {
+                    removes.last_mut().unwrap().extend_from_slice(rest);
+                    adds.last_mut().unwrap().extend_from_slice(rest);
+                } else {
+                    // Doesn't look like a conflict
+                    return MergeHunk::Resolved(vec![]);
+                }
+            }
+            State::Minus => {
+                removes.last_mut().unwrap().extend_from_slice(line);
+            }
+            State::Plus => {
+                adds.last_mut().unwrap().extend_from_slice(line);
+            }
+            State::Unknown => {
                 // Doesn't look like a conflict
                 return MergeHunk::Resolved(vec![]);
             }
-        } else if minus_seen {
-            body_seen = true;
-            removes.last_mut().unwrap().extend_from_slice(line);
-        } else if plus_seen {
-            body_seen = true;
-            adds.last_mut().unwrap().extend_from_slice(line);
-        } else {
-            // Doesn't look like a conflict
-            return MergeHunk::Resolved(vec![]);
         }
     }
 
