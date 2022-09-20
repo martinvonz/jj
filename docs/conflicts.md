@@ -87,8 +87,7 @@ how that would look for the same example as above:
 
 ```
 <<<<<<<
--------
-+++++++
+%%%%%%%
  apple
 -grape
 +grapefruit
@@ -101,9 +100,8 @@ ORANGE
 ```
 
 As in Git, the `<<<<<<<` and `>>>>>>>` lines mark the start and end of the
-conflict. The `-------` followed by `+++++++` indicates the start of a diff
-(there is never content between the two header lines). A header consisting of
-only `+++++++` indicates the start of a snapshot (not a diff).
+conflict. The `%%%%%%%` line indicates the start of a diff. The `+++++++`
+line indicates the start of a snapshot (not a diff).
 
 There is another reason for this format (in addition to helping you spot the
 differences): The format supports more complex conflicts involving more than 3
