@@ -75,8 +75,8 @@ impl Commit {
         &self.id
     }
 
-    pub fn parent_ids(&self) -> Vec<CommitId> {
-        self.data.parents.clone()
+    pub fn parent_ids(&self) -> &[CommitId] {
+        &self.data.parents
     }
 
     pub fn parents(&self) -> Vec<Commit> {

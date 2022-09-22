@@ -2846,7 +2846,7 @@ aborted.
         let description = combine_messages(ui, workspace_command.repo(), parent, &commit, true)?;
         // Commit the new child on top of the parent's parents.
         CommitBuilder::for_rewrite_from(ui.settings(), &commit)
-            .set_parents(parent.parent_ids())
+            .set_parents(parent.parent_ids().to_vec())
             .set_description(description)
             .write_to_repo(tx.mut_repo());
     } else {
