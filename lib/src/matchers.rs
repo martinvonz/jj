@@ -322,6 +322,8 @@ impl Dirs {
 
 #[cfg(test)]
 mod tests {
+    use maplit::hashset;
+
     use super::*;
     use crate::repo_path::{RepoPath, RepoPathComponent};
 

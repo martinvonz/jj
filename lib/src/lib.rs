@@ -15,13 +15,6 @@
 #![deny(unused_must_use)]
 #![cfg_attr(feature = "map_first_last", feature(map_first_last))]
 
-#[macro_use]
-extern crate pest_derive;
-
-#[cfg(test)]
-#[macro_use]
-extern crate maplit;
-
 pub mod backend;
 pub mod commit;
 pub mod commit_builder;

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate pest;
-
 use chrono::{FixedOffset, TimeZone, Utc};
 use jujutsu_lib::backend::{CommitId, Signature};
 use jujutsu_lib::commit::Commit;
@@ -21,6 +19,7 @@ use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
+use pest_derive::Parser;
 
 use crate::formatter::PlainTextFormatter;
 use crate::templater::{

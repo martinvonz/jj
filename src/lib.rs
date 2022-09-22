@@ -14,9 +14,6 @@
 
 #![deny(unused_must_use)]
 
-#[macro_use]
-extern crate pest_derive;
-
 pub mod commands;
 pub mod config;
 pub mod diff_edit;

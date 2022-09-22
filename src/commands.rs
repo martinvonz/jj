@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate chrono;
-extern crate clap;
-extern crate clap_mangen;
-extern crate config;
-
 use std::collections::{HashSet, VecDeque};
 use std::ffi::OsString;
 use std::fmt::Debug;
@@ -28,6 +23,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use std::{fs, io};
 
+use chrono::{FixedOffset, TimeZone, Utc};
 use clap::{ArgGroup, CommandFactory, Subcommand};
 use config::Value;
 use criterion::Criterion;
@@ -65,7 +61,6 @@ use jujutsu_lib::{conflicts, dag_walk, diff, files, git, revset, tree};
 use maplit::{hashmap, hashset};
 use pest::Parser;
 
-use self::chrono::{FixedOffset, TimeZone, Utc};
 use crate::commands::CommandError::UserError;
 use crate::diff_edit::DiffEditError;
 use crate::formatter::Formatter;

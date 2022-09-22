@@ -22,6 +22,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 use pest::iterators::Pairs;
 use pest::Parser;
+use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, CommitId};

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate byteorder;
-
 use std::cmp::{max, min, Ordering};
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashSet};
 use std::fmt::{Debug, Formatter};
