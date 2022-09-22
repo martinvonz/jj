@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::cli_util::CommandError;
-use jujutsu::commands::dispatch;
+use jujutsu::cli_util::{parse_args, CommandError};
+use jujutsu::commands::{default_app, run_command};
 use jujutsu::config::read_config;
 use jujutsu::ui::Ui;
 use jujutsu_lib::settings::UserSettings;
+
+fn run(ui: &mut Ui) -> Result<(), CommandError> {
+    let app = default_app();
+    let (command_helper, matches) = parse_args(ui, app, std::env::args_os())?;
+    run_command(ui, &command_helper, &matches)
+}
 
 fn main() {
     // TODO: We need to do some argument parsing here, at least for things like
@@ -25,7 +31,7 @@ fn main() {
     match read_config() {
         Ok(user_settings) => {
             let mut ui = Ui::for_terminal(user_settings);
-            match dispatch(&mut ui, std::env::args_os()) {
+            match run(&mut ui) {
                 Ok(_) => {
                     std::process::exit(0);
                 }

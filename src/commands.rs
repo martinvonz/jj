@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::collections::{HashSet, VecDeque};
-use std::env::ArgsOs;
 use std::fmt::Debug;
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -24,7 +23,7 @@ use std::time::Instant;
 use std::{fs, io};
 
 use chrono::{FixedOffset, TimeZone, Utc};
-use clap::{ArgGroup, CommandFactory, FromArgMatches, Subcommand};
+use clap::{ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
 use criterion::Criterion;
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeValue};
@@ -54,9 +53,9 @@ use maplit::{hashmap, hashset};
 use pest::Parser;
 
 use crate::cli_util::{
-    matcher_from_values, print_checkout_stats, repo_paths_from_values, resolve_aliases,
-    resolve_base_revs, short_commit_description, short_commit_hash, Args, CommandError,
-    CommandHelper, WorkspaceCommandHelper,
+    matcher_from_values, print_checkout_stats, repo_paths_from_values, resolve_base_revs,
+    short_commit_description, short_commit_hash, Args, CommandError, CommandHelper,
+    WorkspaceCommandHelper,
 };
 use crate::commands::CommandError::UserError;
 use crate::formatter::Formatter;
@@ -4515,64 +4514,54 @@ fn cmd_git(
     }
 }
 
-pub fn dispatch(ui: &mut Ui, args_os: ArgsOs) -> Result<(), CommandError> {
-    let mut string_args: Vec<String> = vec![];
-    for arg_os in args_os {
-        if let Some(string_arg) = arg_os.to_str() {
-            string_args.push(string_arg.to_owned());
-        } else {
-            return Err(CommandError::CliError("Non-utf8 argument".to_string()));
-        }
-    }
-
+pub fn default_app() -> clap::Command<'static> {
     let app: clap::Command = Commands::augment_subcommands(Args::command());
-    let app = app.arg_required_else_help(true);
-    let string_args = resolve_aliases(&app, ui.settings(), &string_args)?;
-    let matches = app.clone().get_matches_from(&string_args);
-    let args: Args = Args::from_arg_matches(&matches).unwrap();
-    if let Some(choice) = args.global_args.color {
-        // Here we assume ui was created for_terminal().
-        ui.reset_color_for_terminal(choice);
-    }
-    let command_helper = CommandHelper::new(app, string_args, args.global_args);
-    let derived_subcommands: Commands = Commands::from_arg_matches(&matches).unwrap();
+    app.arg_required_else_help(true)
+}
+
+pub fn run_command(
+    ui: &mut Ui,
+    command_helper: &CommandHelper,
+    matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    let derived_subcommands: Commands = Commands::from_arg_matches(matches).unwrap();
     match &derived_subcommands {
-        Commands::Version(sub_args) => cmd_version(ui, &command_helper, sub_args),
-        Commands::Init(sub_args) => cmd_init(ui, &command_helper, sub_args),
-        Commands::Checkout(sub_args) => cmd_checkout(ui, &command_helper, sub_args),
-        Commands::Untrack(sub_args) => cmd_untrack(ui, &command_helper, sub_args),
-        Commands::Files(sub_args) => cmd_files(ui, &command_helper, sub_args),
-        Commands::Print(sub_args) => cmd_print(ui, &command_helper, sub_args),
-        Commands::Diff(sub_args) => cmd_diff(ui, &command_helper, sub_args),
-        Commands::Show(sub_args) => cmd_show(ui, &command_helper, sub_args),
-        Commands::Status(sub_args) => cmd_status(ui, &command_helper, sub_args),
-        Commands::Log(sub_args) => cmd_log(ui, &command_helper, sub_args),
-        Commands::Interdiff(sub_args) => cmd_interdiff(ui, &command_helper, sub_args),
-        Commands::Obslog(sub_args) => cmd_obslog(ui, &command_helper, sub_args),
-        Commands::Describe(sub_args) => cmd_describe(ui, &command_helper, sub_args),
-        Commands::Close(sub_args) => cmd_close(ui, &command_helper, sub_args),
-        Commands::Open(sub_args) => cmd_open(ui, &command_helper, sub_args),
-        Commands::Duplicate(sub_args) => cmd_duplicate(ui, &command_helper, sub_args),
-        Commands::Abandon(sub_args) => cmd_abandon(ui, &command_helper, sub_args),
-        Commands::Edit(sub_args) => cmd_edit(ui, &command_helper, sub_args),
-        Commands::New(sub_args) => cmd_new(ui, &command_helper, sub_args),
-        Commands::Move(sub_args) => cmd_move(ui, &command_helper, sub_args),
-        Commands::Squash(sub_args) => cmd_squash(ui, &command_helper, sub_args),
-        Commands::Unsquash(sub_args) => cmd_unsquash(ui, &command_helper, sub_args),
-        Commands::Restore(sub_args) => cmd_restore(ui, &command_helper, sub_args),
-        Commands::Touchup(sub_args) => cmd_touchup(ui, &command_helper, sub_args),
-        Commands::Split(sub_args) => cmd_split(ui, &command_helper, sub_args),
-        Commands::Merge(sub_args) => cmd_merge(ui, &command_helper, sub_args),
-        Commands::Rebase(sub_args) => cmd_rebase(ui, &command_helper, sub_args),
-        Commands::Backout(sub_args) => cmd_backout(ui, &command_helper, sub_args),
-        Commands::Branch(sub_args) => cmd_branch(ui, &command_helper, sub_args),
-        Commands::Undo(sub_args) => cmd_op_undo(ui, &command_helper, sub_args),
-        Commands::Operation(sub_args) => cmd_operation(ui, &command_helper, sub_args),
-        Commands::Workspace(sub_args) => cmd_workspace(ui, &command_helper, sub_args),
-        Commands::Sparse(sub_args) => cmd_sparse(ui, &command_helper, sub_args),
-        Commands::Git(sub_args) => cmd_git(ui, &command_helper, sub_args),
-        Commands::Bench(sub_args) => cmd_bench(ui, &command_helper, sub_args),
-        Commands::Debug(sub_args) => cmd_debug(ui, &command_helper, sub_args),
+        Commands::Version(sub_args) => cmd_version(ui, command_helper, sub_args),
+        Commands::Init(sub_args) => cmd_init(ui, command_helper, sub_args),
+        Commands::Checkout(sub_args) => cmd_checkout(ui, command_helper, sub_args),
+        Commands::Untrack(sub_args) => cmd_untrack(ui, command_helper, sub_args),
+        Commands::Files(sub_args) => cmd_files(ui, command_helper, sub_args),
+        Commands::Print(sub_args) => cmd_print(ui, command_helper, sub_args),
+        Commands::Diff(sub_args) => cmd_diff(ui, command_helper, sub_args),
+        Commands::Show(sub_args) => cmd_show(ui, command_helper, sub_args),
+        Commands::Status(sub_args) => cmd_status(ui, command_helper, sub_args),
+        Commands::Log(sub_args) => cmd_log(ui, command_helper, sub_args),
+        Commands::Interdiff(sub_args) => cmd_interdiff(ui, command_helper, sub_args),
+        Commands::Obslog(sub_args) => cmd_obslog(ui, command_helper, sub_args),
+        Commands::Describe(sub_args) => cmd_describe(ui, command_helper, sub_args),
+        Commands::Close(sub_args) => cmd_close(ui, command_helper, sub_args),
+        Commands::Open(sub_args) => cmd_open(ui, command_helper, sub_args),
+        Commands::Duplicate(sub_args) => cmd_duplicate(ui, command_helper, sub_args),
+        Commands::Abandon(sub_args) => cmd_abandon(ui, command_helper, sub_args),
+        Commands::Edit(sub_args) => cmd_edit(ui, command_helper, sub_args),
+        Commands::New(sub_args) => cmd_new(ui, command_helper, sub_args),
+        Commands::Move(sub_args) => cmd_move(ui, command_helper, sub_args),
+        Commands::Squash(sub_args) => cmd_squash(ui, command_helper, sub_args),
+        Commands::Unsquash(sub_args) => cmd_unsquash(ui, command_helper, sub_args),
+        Commands::Restore(sub_args) => cmd_restore(ui, command_helper, sub_args),
+        Commands::Touchup(sub_args) => cmd_touchup(ui, command_helper, sub_args),
+        Commands::Split(sub_args) => cmd_split(ui, command_helper, sub_args),
+        Commands::Merge(sub_args) => cmd_merge(ui, command_helper, sub_args),
+        Commands::Rebase(sub_args) => cmd_rebase(ui, command_helper, sub_args),
+        Commands::Backout(sub_args) => cmd_backout(ui, command_helper, sub_args),
+        Commands::Branch(sub_args) => cmd_branch(ui, command_helper, sub_args),
+        Commands::Undo(sub_args) => cmd_op_undo(ui, command_helper, sub_args),
+        Commands::Operation(sub_args) => cmd_operation(ui, command_helper, sub_args),
+        Commands::Workspace(sub_args) => cmd_workspace(ui, command_helper, sub_args),
+        Commands::Sparse(sub_args) => cmd_sparse(ui, command_helper, sub_args),
+        Commands::Git(sub_args) => cmd_git(ui, command_helper, sub_args),
+        Commands::Bench(sub_args) => cmd_bench(ui, command_helper, sub_args),
+        Commands::Debug(sub_args) => cmd_debug(ui, command_helper, sub_args),
     }
 }
 

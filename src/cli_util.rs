@@ -13,10 +13,12 @@
 // limitations under the License.
 
 use std::collections::{HashSet, VecDeque};
+use std::env::ArgsOs;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use clap::{ArgMatches, FromArgMatches};
 use git2::{Oid, Repository};
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, CommitId, TreeId};
@@ -1152,7 +1154,7 @@ fn string_list_from_config(value: config::Value) -> Option<Vec<String>> {
     }
 }
 
-pub fn resolve_aliases(
+fn resolve_aliases(
     app: &clap::Command,
     settings: &UserSettings,
     string_args: &[String],
@@ -1214,4 +1216,29 @@ pub fn resolve_aliases(
         }
         return Ok(string_args);
     }
+}
+
+pub fn parse_args<'help>(
+    ui: &mut Ui,
+    app: clap::Command<'help>,
+    args_os: ArgsOs,
+) -> Result<(CommandHelper<'help>, ArgMatches), CommandError> {
+    let mut string_args: Vec<String> = vec![];
+    for arg_os in args_os {
+        if let Some(string_arg) = arg_os.to_str() {
+            string_args.push(string_arg.to_owned());
+        } else {
+            return Err(CommandError::CliError("Non-utf8 argument".to_string()));
+        }
+    }
+
+    let string_args = resolve_aliases(&app, ui.settings(), &string_args)?;
+    let matches = app.clone().get_matches_from(&string_args);
+    let args: Args = Args::from_arg_matches(&matches).unwrap();
+    if let Some(choice) = args.global_args.color {
+        // Here we assume ui was created for_terminal().
+        ui.reset_color_for_terminal(choice);
+    }
+    let command_helper = CommandHelper::new(app, string_args, args.global_args);
+    Ok((command_helper, matches))
 }
