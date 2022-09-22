@@ -365,6 +365,8 @@ fn ref_target_from_proto(proto: &crate::protos::op_store::RefTarget) -> RefTarge
 
 #[cfg(test)]
 mod tests {
+    use maplit::{btreemap, hashmap, hashset};
+
     use super::*;
     use crate::testutils;
 

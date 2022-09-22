@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate protobuf_codegen;
-extern crate version_check;
-
 use std::path::Path;
 
 fn main() {

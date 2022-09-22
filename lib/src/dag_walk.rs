@@ -239,6 +239,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use maplit::{hashmap, hashset};
+
     use super::*;
 
     #[test]

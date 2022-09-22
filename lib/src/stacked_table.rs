@@ -18,8 +18,6 @@
 //! a parent file, and the parent may have its own parent, and so on. The child
 //! file then represents the union of the entries.
 
-extern crate byteorder;
-
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
