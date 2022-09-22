@@ -1242,3 +1242,24 @@ pub fn parse_args<'help>(
     let command_helper = CommandHelper::new(app, string_args, args.global_args);
     Ok((command_helper, matches))
 }
+
+// TODO: Return std::process::ExitCode instead, once our MSRV is >= 1.61
+#[must_use]
+pub fn report_command_error(ui: &mut Ui, err: CommandError) -> i32 {
+    match err {
+        CommandError::UserError(message) => {
+            ui.write_error(&format!("Error: {}\n", message)).unwrap();
+            1
+        }
+        CommandError::CliError(message) => {
+            ui.write_error(&format!("Error: {}\n", message)).unwrap();
+            2
+        }
+        CommandError::BrokenPipe => std::process::exit(3),
+        CommandError::InternalError(message) => {
+            ui.write_error(&format!("Internal error: {}\n", message))
+                .unwrap();
+            255
+        }
+    }
+}

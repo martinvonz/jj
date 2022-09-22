@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::cli_util::{parse_args, CommandError};
+use jujutsu::cli_util::{parse_args, report_command_error, CommandError};
 use jujutsu::commands::{default_app, run_command};
 use jujutsu::config::read_config;
 use jujutsu::ui::Ui;
@@ -32,24 +32,11 @@ fn main() {
         Ok(user_settings) => {
             let mut ui = Ui::for_terminal(user_settings);
             match run(&mut ui) {
-                Ok(_) => {
+                Ok(()) => {
                     std::process::exit(0);
                 }
-                Err(CommandError::UserError(message)) => {
-                    ui.write_error(&format!("Error: {}\n", message)).unwrap();
-                    std::process::exit(1);
-                }
-                Err(CommandError::CliError(message)) => {
-                    ui.write_error(&format!("Error: {}\n", message)).unwrap();
-                    std::process::exit(2);
-                }
-                Err(CommandError::BrokenPipe) => {
-                    std::process::exit(3);
-                }
-                Err(CommandError::InternalError(message)) => {
-                    ui.write_error(&format!("Internal error: {}\n", message))
-                        .unwrap();
-                    std::process::exit(255);
+                Err(err) => {
+                    std::process::exit(report_command_error(&mut ui, err));
                 }
             }
         }
