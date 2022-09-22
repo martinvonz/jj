@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::commands::{dispatch, CommandError};
+use jujutsu::cli_util::CommandError;
+use jujutsu::commands::dispatch;
 use jujutsu::config::read_config;
 use jujutsu::ui::Ui;
 use jujutsu_lib::settings::UserSettings;
