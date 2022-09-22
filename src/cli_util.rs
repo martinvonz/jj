@@ -42,6 +42,7 @@ use jujutsu_lib::working_copy::{
 use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
 use jujutsu_lib::{dag_walk, git, revset};
 
+use crate::config::read_config;
 use crate::diff_edit::DiffEditError;
 use crate::ui;
 use crate::ui::{ColorChoice, FilePathParseError, Ui};
@@ -1126,6 +1127,20 @@ pub struct GlobalArgs {
         help_heading = "GLOBAL OPTIONS"
     )]
     pub color: Option<ColorChoice>,
+}
+
+pub fn create_ui() -> Ui<'static> {
+    // TODO: We need to do some argument parsing here, at least for things like
+    // --config,       and for reading user configs from the repo pointed to by
+    // -R.
+    match read_config() {
+        Ok(user_settings) => Ui::for_terminal(user_settings),
+        Err(err) => {
+            let mut ui = Ui::for_terminal(UserSettings::default());
+            ui.write_error(&format!("Config error: {}\n", err)).unwrap();
+            std::process::exit(1);
+        }
+    }
 }
 
 fn string_list_from_config(value: config::Value) -> Option<Vec<String>> {
