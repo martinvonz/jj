@@ -80,11 +80,11 @@ impl Commit {
     }
 
     pub fn parents(&self) -> Vec<Commit> {
-        let mut parents = Vec::new();
-        for parent in &self.data.parents {
-            parents.push(self.store.get_commit(parent).unwrap());
-        }
-        parents
+        self.data
+            .parents
+            .iter()
+            .map(|id| self.store.get_commit(id).unwrap())
+            .collect()
     }
 
     pub fn predecessor_ids(&self) -> &[CommitId] {
@@ -92,11 +92,11 @@ impl Commit {
     }
 
     pub fn predecessors(&self) -> Vec<Commit> {
-        let mut predecessors = Vec::new();
-        for predecessor in &self.data.predecessors {
-            predecessors.push(self.store.get_commit(predecessor).unwrap());
-        }
-        predecessors
+        self.data
+            .predecessors
+            .iter()
+            .map(|id| self.store.get_commit(id).unwrap())
+            .collect()
     }
 
     pub fn tree(&self) -> Tree {
