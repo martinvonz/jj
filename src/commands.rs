@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::collections::{HashSet, VecDeque};
-use std::ffi::OsString;
+use std::env::ArgsOs;
 use std::fmt::Debug;
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -5659,15 +5659,10 @@ fn parse_args(settings: &UserSettings, string_args: &[String]) -> Result<Args, C
     }
 }
 
-pub fn dispatch<I, T>(ui: &mut Ui, args: I) -> Result<(), CommandError>
-where
-    I: IntoIterator<Item = T>,
-    T: Into<OsString> + Clone,
-{
+pub fn dispatch(ui: &mut Ui, args_os: ArgsOs) -> Result<(), CommandError> {
     let mut string_args: Vec<String> = vec![];
-    for arg in args {
-        let os_string_arg = arg.clone().into();
-        if let Some(string_arg) = os_string_arg.to_str() {
+    for arg_os in args_os {
+        if let Some(string_arg) = arg_os.to_str() {
             string_args.push(string_arg.to_owned());
         } else {
             return Err(CommandError::CliError("Non-utf8 argument".to_string()));

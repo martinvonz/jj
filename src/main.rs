@@ -24,7 +24,7 @@ fn main() {
     match read_config() {
         Ok(user_settings) => {
             let mut ui = Ui::for_terminal(user_settings);
-            match dispatch(&mut ui, &mut std::env::args_os()) {
+            match dispatch(&mut ui, std::env::args_os()) {
                 Ok(_) => {
                     std::process::exit(0);
                 }
