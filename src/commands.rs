@@ -621,8 +621,8 @@ impl WorkspaceCommandHelper {
                         ui,
                         "The working copy is stale (not updated since operation {}), now updating \
                          to operation {}",
-                        wc_operation.id().hex(),
-                        repo_operation.id().hex()
+                        short_operation_hash(wc_operation.id()),
+                        short_operation_hash(repo_operation.id()),
                     )?;
                     locked_wc
                         .check_out(&checkout_commit.tree())
@@ -638,16 +638,16 @@ impl WorkspaceCommandHelper {
                     return Err(CommandError::InternalError(format!(
                         "The repo was loaded at operation {}, which seems to be a sibling of the \
                          working copy's operation {}",
-                        repo_operation.id().hex(),
-                        wc_operation.id().hex()
+                        short_operation_hash(repo_operation.id()),
+                        short_operation_hash(wc_operation.id()),
                     )));
                 }
             } else {
                 return Err(CommandError::InternalError(format!(
                     "The repo was loaded at operation {}, which seems unrelated to the working \
                      copy's operation {}",
-                    repo_operation.id().hex(),
-                    wc_operation.id().hex()
+                    short_operation_hash(repo_operation.id()),
+                    short_operation_hash(wc_operation.id()),
                 )));
             }
         }
@@ -2115,6 +2115,10 @@ fn short_commit_description(commit: &Commit) -> String {
 
 fn short_commit_hash(commit_id: &CommitId) -> String {
     commit_id.hex()[0..12].to_string()
+}
+
+fn short_operation_hash(operation_id: &OperationId) -> String {
+    operation_id.hex()[0..12].to_string()
 }
 
 fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), CommandError> {
