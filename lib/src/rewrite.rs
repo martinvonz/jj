@@ -381,7 +381,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             }
             let old_commit = self.mut_repo.store().get_commit(&old_commit_id)?;
             let old_parent_ids = old_commit.parent_ids();
-            let new_parent_ids = self.new_parents(&old_parent_ids);
+            let new_parent_ids = self.new_parents(old_parent_ids);
             if self.abandoned.contains(&old_commit_id) {
                 // Update the `new_parents` map so descendants are rebased correctly.
                 self.new_parents

@@ -649,7 +649,7 @@ impl MutableRepo {
             self.index.add_commit(head);
             self.view.get_mut().add_head(head.id());
             for parent_id in head.parent_ids() {
-                self.view.get_mut().remove_head(&parent_id);
+                self.view.get_mut().remove_head(parent_id);
             }
         } else {
             let missing_commits = topo_order_reverse(
