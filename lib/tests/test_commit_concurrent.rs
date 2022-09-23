@@ -15,7 +15,7 @@
 use std::cmp::max;
 use std::thread;
 
-use jujutsu_lib::repo::ReadonlyRepo;
+use jujutsu_lib::repo::{BackendFactories, ReadonlyRepo};
 use jujutsu_lib::testutils::TestWorkspace;
 use jujutsu_lib::{dag_walk, testutils};
 use test_case::test_case;
@@ -85,7 +85,9 @@ fn test_commit_parallel_instances(use_git: bool) {
     let mut threads = vec![];
     for _ in 0..num_threads {
         let settings = settings.clone();
-        let repo = ReadonlyRepo::load_at_head(&settings, repo.repo_path()).unwrap();
+        let repo =
+            ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &BackendFactories::default())
+                .unwrap();
         let handle = thread::spawn(move || {
             let mut tx = repo.start_transaction("test");
             testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
@@ -98,7 +100,9 @@ fn test_commit_parallel_instances(use_git: bool) {
     }
     // One commit per thread plus the commit from the initial checkout on top of the
     // root commit
-    let repo = ReadonlyRepo::load_at_head(&settings, repo.repo_path()).unwrap();
+    let repo =
+        ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &BackendFactories::default())
+            .unwrap();
     assert_eq!(repo.view().heads().len(), num_threads + 1);
 
     // One addition operation for initializing the repo, one for checking out the
