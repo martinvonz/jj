@@ -77,11 +77,11 @@ impl TestRepo {
         let repo = if use_git {
             let git_path = temp_dir.path().join("git-repo");
             git2::Repository::init(&git_path).unwrap();
-            ReadonlyRepo::init(&settings, repo_dir, |store_path| {
-                Box::new(GitBackend::init_external(store_path, git_path.clone()))
+            ReadonlyRepo::init(&settings, &repo_dir, |store_path| {
+                Box::new(GitBackend::init_external(store_path, &git_path))
             })
         } else {
-            ReadonlyRepo::init(&settings, repo_dir, |store_path| {
+            ReadonlyRepo::init(&settings, &repo_dir, |store_path| {
                 Box::new(LocalBackend::init(store_path))
             })
         };
@@ -109,9 +109,9 @@ impl TestWorkspace {
         let (workspace, repo) = if use_git {
             let git_path = temp_dir.path().join("git-repo");
             git2::Repository::init(&git_path).unwrap();
-            Workspace::init_external_git(settings, workspace_root, git_path).unwrap()
+            Workspace::init_external_git(settings, &workspace_root, &git_path).unwrap()
         } else {
-            Workspace::init_local(settings, workspace_root).unwrap()
+            Workspace::init_local(settings, &workspace_root).unwrap()
         };
 
         Self {

@@ -24,7 +24,7 @@ fn test_load_bad_path() {
     let temp_dir = testutils::new_temp_dir();
     let workspace_root = temp_dir.path().to_owned();
     // We haven't created a repo in the workspace_root, so it should fail to load.
-    let result = Workspace::load(&settings, workspace_root.clone());
+    let result = Workspace::load(&settings, &workspace_root);
     assert_eq!(
         result.err(),
         Some(WorkspaceLoadError::NoWorkspaceHere(workspace_root))
@@ -40,7 +40,7 @@ fn test_load_from_subdir(use_git: bool) {
 
     let subdir = workspace.workspace_root().join("dir").join("subdir");
     std::fs::create_dir_all(subdir.clone()).unwrap();
-    let same_workspace = Workspace::load(&settings, subdir);
+    let same_workspace = Workspace::load(&settings, &subdir);
     assert!(same_workspace.is_ok());
     let same_workspace = same_workspace.unwrap();
     assert_eq!(same_workspace.repo_path(), workspace.repo_path());
@@ -59,7 +59,7 @@ fn test_init_additional_workspace(use_git: bool) {
     std::fs::create_dir(&ws2_root).unwrap();
     let (ws2, repo) = Workspace::init_workspace_with_existing_repo(
         &settings,
-        ws2_root.clone(),
+        &ws2_root,
         &test_workspace.repo,
         ws2_id.clone(),
     )
@@ -78,7 +78,7 @@ fn test_init_additional_workspace(use_git: bool) {
         workspace.repo_path().canonicalize().unwrap()
     );
     assert_eq!(*ws2.workspace_root(), ws2_root.canonicalize().unwrap());
-    let same_workspace = Workspace::load(&settings, ws2_root);
+    let same_workspace = Workspace::load(&settings, &ws2_root);
     assert!(same_workspace.is_ok());
     let same_workspace = same_workspace.unwrap();
     assert_eq!(same_workspace.workspace_id(), ws2_id);
