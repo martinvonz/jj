@@ -57,7 +57,7 @@ fn test_concurrent_checkout(use_git: bool) {
 
     // Check out tree2 from another process (simulated by another workspace
     // instance)
-    let mut workspace2 = Workspace::load(&settings, workspace1_root.clone()).unwrap();
+    let mut workspace2 = Workspace::load(&settings, &workspace1_root).unwrap();
     workspace2
         .working_copy_mut()
         .check_out(repo1.op_id().clone(), Some(&tree_id1), &tree2)
@@ -70,7 +70,7 @@ fn test_concurrent_checkout(use_git: bool) {
     );
 
     // Check that the tree2 is still checked out on disk.
-    let workspace3 = Workspace::load(&settings, workspace1_root).unwrap();
+    let workspace3 = Workspace::load(&settings, &workspace1_root).unwrap();
     assert_eq!(workspace3.working_copy().current_tree_id(), tree_id2);
 }
 
@@ -112,7 +112,7 @@ fn test_checkout_parallel(use_git: bool) {
         let settings = settings.clone();
         let workspace_root = workspace_root.clone();
         let handle = thread::spawn(move || {
-            let mut workspace = Workspace::load(&settings, workspace_root).unwrap();
+            let mut workspace = Workspace::load(&settings, &workspace_root).unwrap();
             let tree = workspace
                 .repo_loader()
                 .store()

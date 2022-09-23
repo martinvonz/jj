@@ -15,7 +15,7 @@
 use std::fmt::{Debug, Error, Formatter};
 use std::fs::File;
 use std::io::{Cursor, Read, Write};
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Mutex;
 
 use git2::Oid;
@@ -64,7 +64,7 @@ impl GitBackend {
         }
     }
 
-    pub fn init_internal(store_path: PathBuf) -> Self {
+    pub fn init_internal(store_path: &Path) -> Self {
         let git_repo = git2::Repository::init_bare(&store_path.join("git")).unwrap();
         let extra_path = store_path.join("extra");
         std::fs::create_dir(&extra_path).unwrap();
@@ -74,7 +74,7 @@ impl GitBackend {
         GitBackend::new(git_repo, extra_metadata_store)
     }
 
-    pub fn init_external(store_path: PathBuf, git_repo_path: PathBuf) -> Self {
+    pub fn init_external(store_path: &Path, git_repo_path: &Path) -> Self {
         let extra_path = store_path.join("extra");
         std::fs::create_dir(&extra_path).unwrap();
         let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
@@ -86,7 +86,7 @@ impl GitBackend {
         GitBackend::new(repo, extra_metadata_store)
     }
 
-    pub fn load(store_path: PathBuf) -> Self {
+    pub fn load(store_path: &Path) -> Self {
         let mut git_target_file = File::open(store_path.join("git_target")).unwrap();
         let mut buf = Vec::new();
         git_target_file.read_to_end(&mut buf).unwrap();
@@ -536,7 +536,7 @@ mod tests {
     #[test]
     fn read_plain_git_commit() {
         let temp_dir = testutils::new_temp_dir();
-        let store_path = temp_dir.path().to_path_buf();
+        let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
         let git_repo = git2::Repository::init(&git_repo_path).unwrap();
 
@@ -581,7 +581,7 @@ mod tests {
         // Check that the git commit above got the hash we expect
         assert_eq!(git_commit_id.as_bytes(), commit_id.as_bytes());
 
-        let store = GitBackend::init_external(store_path, git_repo_path);
+        let store = GitBackend::init_external(store_path, &git_repo_path);
         let commit = store.read_commit(&commit_id).unwrap();
         assert_eq!(&commit.change_id, &change_id);
         assert_eq!(commit.parents, vec![CommitId::from_bytes(&[0; 20])]);
@@ -647,7 +647,7 @@ mod tests {
     #[test]
     fn commit_has_ref() {
         let temp_dir = testutils::new_temp_dir();
-        let store = GitBackend::init_internal(temp_dir.path().to_path_buf());
+        let store = GitBackend::init_internal(temp_dir.path());
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),
@@ -683,7 +683,7 @@ mod tests {
     #[test]
     fn overlapping_git_commit_id() {
         let temp_dir = testutils::new_temp_dir();
-        let store = GitBackend::init_internal(temp_dir.path().to_path_buf());
+        let store = GitBackend::init_internal(temp_dir.path());
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),

@@ -128,14 +128,14 @@ impl Debug for ReadonlyRepo {
 }
 
 impl ReadonlyRepo {
-    pub fn init_local(settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
+    pub fn init_local(settings: &UserSettings, repo_path: &Path) -> Arc<ReadonlyRepo> {
         Self::init(settings, repo_path, |store_path| {
             Box::new(LocalBackend::init(store_path))
         })
     }
 
     /// Initializes a repo with a new Git backend in .jj/git/ (bare Git repo)
-    pub fn init_internal_git(settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
+    pub fn init_internal_git(settings: &UserSettings, repo_path: &Path) -> Arc<ReadonlyRepo> {
         Self::init(settings, repo_path, |store_path| {
             Box::new(GitBackend::init_internal(store_path))
         })
@@ -144,11 +144,11 @@ impl ReadonlyRepo {
     /// Initializes a repo with an existing Git backend at the specified path
     pub fn init_external_git(
         settings: &UserSettings,
-        repo_path: PathBuf,
-        git_repo_path: PathBuf,
+        repo_path: &Path,
+        git_repo_path: &Path,
     ) -> Arc<ReadonlyRepo> {
         Self::init(settings, repo_path, |store_path| {
-            Box::new(GitBackend::init_external(store_path, git_repo_path.clone()))
+            Box::new(GitBackend::init_external(store_path, git_repo_path))
         })
     }
 
@@ -161,12 +161,12 @@ impl ReadonlyRepo {
 
     pub fn init(
         user_settings: &UserSettings,
-        repo_path: PathBuf,
-        backend_factory: impl FnOnce(PathBuf) -> Box<dyn Backend>,
+        repo_path: &Path,
+        backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
     ) -> Arc<ReadonlyRepo> {
         let repo_path = repo_path.canonicalize().unwrap();
         ReadonlyRepo::init_repo_dir(&repo_path);
-        let store = Store::new(backend_factory(repo_path.join("store")));
+        let store = Store::new(backend_factory(&repo_path.join("store")));
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(repo_path.join("op_store")));
         let mut root_view = op_store::View::default();
@@ -194,7 +194,7 @@ impl ReadonlyRepo {
 
     pub fn load_at_head(
         user_settings: &UserSettings,
-        repo_path: PathBuf,
+        repo_path: &Path,
     ) -> Result<Arc<ReadonlyRepo>, BackendError> {
         RepoLoader::init(user_settings, repo_path)
             .load_at_head()
@@ -339,21 +339,21 @@ pub struct RepoLoader {
 }
 
 impl RepoLoader {
-    pub fn init(user_settings: &UserSettings, repo_path: PathBuf) -> Self {
+    pub fn init(user_settings: &UserSettings, repo_path: &Path) -> Self {
         let store_path = repo_path.join("store");
         let git_target_path = store_path.join("git_target");
         let backend: Box<dyn Backend> = if git_target_path.is_file() {
-            Box::new(GitBackend::load(store_path))
+            Box::new(GitBackend::load(&store_path))
         } else {
-            Box::new(LocalBackend::load(store_path))
+            Box::new(LocalBackend::load(&store_path))
         };
         let store = Store::new(backend);
-        let repo_settings = user_settings.with_repo(&repo_path).unwrap();
+        let repo_settings = user_settings.with_repo(repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
         let op_heads_store = Arc::new(OpHeadsStore::load(repo_path.join("op_heads")));
         let index_store = Arc::new(IndexStore::load(repo_path.join("index")));
         Self {
-            repo_path,
+            repo_path: repo_path.to_path_buf(),
             repo_settings,
             store,
             op_store,

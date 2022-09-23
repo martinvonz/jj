@@ -284,7 +284,7 @@ impl GitRepoData {
             git2::Repository::clone(origin_repo_dir.to_str().unwrap(), &git_repo_dir).unwrap();
         let jj_repo_dir = temp_dir.path().join("jj");
         std::fs::create_dir(&jj_repo_dir).unwrap();
-        let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
+        let repo = ReadonlyRepo::init_external_git(&settings, &jj_repo_dir, &git_repo_dir);
         Self {
             settings,
             _temp_dir: temp_dir,
@@ -520,7 +520,7 @@ fn test_init() {
     let initial_git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     let initial_commit_id = commit_id(&initial_git_commit);
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
+    let repo = ReadonlyRepo::init_external_git(&settings, &jj_repo_dir, &git_repo_dir);
     // The refs were *not* imported -- it's the caller's responsibility to import
     // any refs they care about.
     assert!(!repo.view().heads().contains(&initial_commit_id));
@@ -682,7 +682,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let initial_commit_id = commit_id(&initial_git_commit);
     git2::Repository::clone(source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let jj_repo = ReadonlyRepo::init_external_git(settings, jj_repo_dir, clone_repo_dir);
+    let jj_repo = ReadonlyRepo::init_external_git(settings, &jj_repo_dir, &clone_repo_dir);
     let mut tx = jj_repo.start_transaction("test");
     let new_commit = testutils::create_random_commit(settings, &jj_repo)
         .set_parents(vec![initial_commit_id])

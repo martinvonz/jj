@@ -16,7 +16,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
 use std::io::{ErrorKind, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use blake2::{Blake2b512, Digest};
 use protobuf::{Message, MessageField};
@@ -56,7 +56,7 @@ pub struct LocalBackend {
 }
 
 impl LocalBackend {
-    pub fn init(store_path: PathBuf) -> Self {
+    pub fn init(store_path: &Path) -> Self {
         fs::create_dir(store_path.join("commits")).unwrap();
         fs::create_dir(store_path.join("trees")).unwrap();
         fs::create_dir(store_path.join("files")).unwrap();
@@ -70,11 +70,11 @@ impl LocalBackend {
         backend
     }
 
-    pub fn load(store_path: PathBuf) -> Self {
+    pub fn load(store_path: &Path) -> Self {
         let root_commit_id = CommitId::from_bytes(&[0; 64]);
         let empty_tree_id = TreeId::from_hex("786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce");
         LocalBackend {
-            path: store_path,
+            path: store_path.to_path_buf(),
             root_commit_id,
             empty_tree_id,
         }

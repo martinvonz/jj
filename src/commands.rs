@@ -1122,7 +1122,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
                 .join(relative_path);
         }
         let (workspace, repo) =
-            Workspace::init_external_git(ui.settings(), wc_path.clone(), git_store_path)?;
+            Workspace::init_external_git(ui.settings(), &wc_path, &git_store_path)?;
         let git_repo = repo.store().git_repo().unwrap();
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
         if workspace_command.working_copy_shared_with_git() {
@@ -1143,9 +1143,9 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
             }
         }
     } else if args.git {
-        Workspace::init_internal_git(ui.settings(), wc_path.clone())?;
+        Workspace::init_internal_git(ui.settings(), &wc_path)?;
     } else {
-        Workspace::init_local(ui.settings(), wc_path.clone())?;
+        Workspace::init_local(ui.settings(), &wc_path)?;
     };
     let cwd = ui.cwd().canonicalize().unwrap();
     let relative_wc_path = ui::relative_path(&cwd, &wc_path);
@@ -3883,7 +3883,7 @@ fn cmd_workspace_add(
     }
     let (new_workspace, repo) = Workspace::init_workspace_with_existing_repo(
         ui.settings(),
-        destination_path.clone(),
+        &destination_path,
         repo,
         workspace_id,
     )?;
@@ -4194,7 +4194,7 @@ fn do_git_clone(
     source: &str,
     wc_path: &Path,
 ) -> Result<(WorkspaceCommandHelper, Option<String>), CommandError> {
-    let (workspace, repo) = Workspace::init_internal_git(ui.settings(), wc_path.to_path_buf())?;
+    let (workspace, repo) = Workspace::init_internal_git(ui.settings(), wc_path)?;
     let git_repo = get_git_repo(repo.store())?;
     writeln!(ui, r#"Fetching into new repo in "{}""#, wc_path.display())?;
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
