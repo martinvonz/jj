@@ -142,7 +142,10 @@ impl ReadonlyRepo {
     ) -> Arc<ReadonlyRepo> {
         let repo_path = repo_path.canonicalize().unwrap();
         ReadonlyRepo::init_repo_dir(&repo_path);
-        let store = Store::new(backend_factory(&repo_path.join("store")));
+        let store_path = repo_path.join("store");
+        let backend = backend_factory(&store_path);
+        fs::write(&store_path.join("backend"), backend.name()).unwrap();
+        let store = Store::new(backend);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(repo_path.join("op_store")));
         let mut root_view = op_store::View::default();

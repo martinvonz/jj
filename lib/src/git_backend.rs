@@ -164,6 +164,10 @@ impl Debug for GitBackend {
 }
 
 impl Backend for GitBackend {
+    fn name(&self) -> &str {
+        "git"
+    }
+
     fn hash_length(&self) -> usize {
         HASH_LENGTH
     }
