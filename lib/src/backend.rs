@@ -398,6 +398,10 @@ pub fn make_root_commit(empty_tree_id: TreeId) -> Commit {
 }
 
 pub trait Backend: Send + Sync + Debug {
+    /// A unique name that identifies this backend. Written to
+    /// `.jj/repo/store/backend` when the repo is created.
+    fn name(&self) -> &str;
+
     fn hash_length(&self) -> usize;
 
     fn git_repo(&self) -> Option<git2::Repository>;

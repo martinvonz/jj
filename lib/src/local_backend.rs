@@ -110,6 +110,10 @@ fn not_found_to_backend_error(err: std::io::Error) -> BackendError {
 }
 
 impl Backend for LocalBackend {
+    fn name(&self) -> &str {
+        "local"
+    }
+
     fn hash_length(&self) -> usize {
         64
     }
