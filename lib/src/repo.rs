@@ -16,6 +16,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs;
+use std::io::ErrorKind;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -174,8 +175,9 @@ impl ReadonlyRepo {
     pub fn load_at_head(
         user_settings: &UserSettings,
         repo_path: &Path,
+        backend_factories: &BackendFactories,
     ) -> Result<Arc<ReadonlyRepo>, BackendError> {
-        RepoLoader::init(user_settings, repo_path)
+        RepoLoader::init(user_settings, repo_path, backend_factories)
             .load_at_head()
             .resolve(user_settings)
     }
@@ -307,6 +309,37 @@ impl UnresolvedHeadRepo {
     }
 }
 
+type BackendFactory = Box<dyn Fn(&Path) -> Box<dyn Backend>>;
+
+pub struct BackendFactories {
+    factories: HashMap<String, BackendFactory>,
+}
+
+impl BackendFactories {
+    pub fn empty() -> Self {
+        BackendFactories {
+            factories: HashMap::new(),
+        }
+    }
+
+    pub fn default() -> Self {
+        let mut factories = BackendFactories::empty();
+        factories.add_backend(
+            "local",
+            Box::new(|store_path| Box::new(LocalBackend::load(store_path))),
+        );
+        factories.add_backend(
+            "git",
+            Box::new(|store_path| Box::new(GitBackend::load(store_path))),
+        );
+        factories
+    }
+
+    pub fn add_backend(&mut self, name: &str, factory: BackendFactory) {
+        self.factories.insert(name.to_string(), factory);
+    }
+}
+
 #[derive(Clone)]
 pub struct RepoLoader {
     repo_path: PathBuf,
@@ -318,15 +351,33 @@ pub struct RepoLoader {
 }
 
 impl RepoLoader {
-    pub fn init(user_settings: &UserSettings, repo_path: &Path) -> Self {
+    pub fn init(
+        user_settings: &UserSettings,
+        repo_path: &Path,
+        backend_factories: &BackendFactories,
+    ) -> Self {
         let store_path = repo_path.join("store");
-        let git_target_path = store_path.join("git_target");
-        let backend: Box<dyn Backend> = if git_target_path.is_file() {
-            Box::new(GitBackend::load(&store_path))
-        } else {
-            Box::new(LocalBackend::load(&store_path))
+        let backend_type = match fs::read_to_string(store_path.join("backend")) {
+            Ok(content) => content,
+            Err(err) if err.kind() == ErrorKind::NotFound => {
+                // For compatibility with existing repos. TODO: Delete in spring of 2023 or so.
+                let inferred_type = if store_path.join("git_target").is_file() {
+                    String::from("git")
+                } else {
+                    String::from("local")
+                };
+                fs::write(store_path.join("backend"), &inferred_type).unwrap();
+                inferred_type
+            }
+            Err(_) => {
+                panic!("Failed to read backend type");
+            }
         };
-        let store = Store::new(backend);
+        let backend_factory = backend_factories
+            .factories
+            .get(&backend_type)
+            .expect("Unexpected backend type");
+        let store = Store::new(backend_factory(&store_path));
         let repo_settings = user_settings.with_repo(repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
         let op_heads_store = Arc::new(OpHeadsStore::load(repo_path.join("op_heads")));

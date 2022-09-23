@@ -23,7 +23,7 @@ use crate::backend::Backend;
 use crate::git_backend::GitBackend;
 use crate::local_backend::LocalBackend;
 use crate::op_store::WorkspaceId;
-use crate::repo::{ReadonlyRepo, RepoLoader};
+use crate::repo::{BackendFactories, ReadonlyRepo, RepoLoader};
 use crate::settings::UserSettings;
 use crate::working_copy::WorkingCopy;
 
@@ -192,7 +192,7 @@ impl Workspace {
                 return Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir));
             }
         }
-        let repo_loader = RepoLoader::init(user_settings, &repo_dir);
+        let repo_loader = RepoLoader::init(user_settings, &repo_dir, &BackendFactories::default());
         let working_copy_state_path = jj_dir.join("working_copy");
         let working_copy = WorkingCopy::load(
             repo_loader.store().clone(),
