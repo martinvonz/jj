@@ -1224,10 +1224,8 @@ fn resolve_aliases(
                         }
                     }
                     Err(config::ConfigError::NotFound(_)) => {
-                        let mut app = app.clone();
-                        app.error(clap::ErrorKind::ArgumentNotFound, format!(
-                            r#"Found argument '{alias_name}' which wasn't expected, or isn't valid in this context"#
-                        )).exit();
+                        // Not a real command and not an alias, so return what we've resolved so far
+                        return Ok(string_args);
                     }
                     Err(err) => {
                         return Err(CommandError::from(err));
