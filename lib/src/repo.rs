@@ -128,30 +128,6 @@ impl Debug for ReadonlyRepo {
 }
 
 impl ReadonlyRepo {
-    pub fn init_local(settings: &UserSettings, repo_path: &Path) -> Arc<ReadonlyRepo> {
-        Self::init(settings, repo_path, |store_path| {
-            Box::new(LocalBackend::init(store_path))
-        })
-    }
-
-    /// Initializes a repo with a new Git backend in .jj/git/ (bare Git repo)
-    pub fn init_internal_git(settings: &UserSettings, repo_path: &Path) -> Arc<ReadonlyRepo> {
-        Self::init(settings, repo_path, |store_path| {
-            Box::new(GitBackend::init_internal(store_path))
-        })
-    }
-
-    /// Initializes a repo with an existing Git backend at the specified path
-    pub fn init_external_git(
-        settings: &UserSettings,
-        repo_path: &Path,
-        git_repo_path: &Path,
-    ) -> Arc<ReadonlyRepo> {
-        Self::init(settings, repo_path, |store_path| {
-            Box::new(GitBackend::init_external(store_path, git_repo_path))
-        })
-    }
-
     fn init_repo_dir(repo_path: &Path) {
         fs::create_dir(repo_path.join("store")).unwrap();
         fs::create_dir(repo_path.join("op_store")).unwrap();
