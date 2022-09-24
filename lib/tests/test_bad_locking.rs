@@ -108,7 +108,12 @@ fn test_bad_locking_children(use_git: bool) {
     // Simulate a write of a commit that happens on one machine
     let machine1_root = testutils::new_temp_dir();
     copy_directory(workspace_root, machine1_root.path());
-    let machine1_workspace = Workspace::load(&settings, machine1_root.path()).unwrap();
+    let machine1_workspace = Workspace::load(
+        &settings,
+        machine1_root.path(),
+        &BackendFactories::default(),
+    )
+    .unwrap();
     let machine1_repo = machine1_workspace
         .repo_loader()
         .load_at_head()
@@ -123,7 +128,12 @@ fn test_bad_locking_children(use_git: bool) {
     // Simulate a write of a commit that happens on another machine
     let machine2_root = testutils::new_temp_dir();
     copy_directory(workspace_root, machine2_root.path());
-    let machine2_workspace = Workspace::load(&settings, machine2_root.path()).unwrap();
+    let machine2_workspace = Workspace::load(
+        &settings,
+        machine2_root.path(),
+        &BackendFactories::default(),
+    )
+    .unwrap();
     let machine2_repo = machine2_workspace
         .repo_loader()
         .load_at_head()
@@ -144,7 +154,8 @@ fn test_bad_locking_children(use_git: bool) {
         machine2_root.path(),
         merged_path.path(),
     );
-    let merged_workspace = Workspace::load(&settings, merged_path.path()).unwrap();
+    let merged_workspace =
+        Workspace::load(&settings, merged_path.path(), &BackendFactories::default()).unwrap();
     let merged_repo = merged_workspace
         .repo_loader()
         .load_at_head()

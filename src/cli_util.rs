@@ -30,7 +30,7 @@ use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jujutsu_lib::op_heads_store::{OpHeadResolutionError, OpHeads, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
 use jujutsu_lib::operation::Operation;
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo};
+use jujutsu_lib::repo::{BackendFactories, MutableRepo, ReadonlyRepo};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetParseError};
 use jujutsu_lib::settings::UserSettings;
@@ -171,6 +171,7 @@ pub struct CommandHelper<'help> {
     app: clap::Command<'help>,
     string_args: Vec<String>,
     global_args: GlobalArgs,
+    backend_factories: BackendFactories,
 }
 
 impl<'help> CommandHelper<'help> {
@@ -183,6 +184,7 @@ impl<'help> CommandHelper<'help> {
             app,
             string_args,
             global_args,
+            backend_factories: BackendFactories::default(),
         }
     }
 
@@ -198,10 +200,14 @@ impl<'help> CommandHelper<'help> {
         &self.global_args
     }
 
+    pub fn set_backend_factories(&mut self, backend_factories: BackendFactories) {
+        self.backend_factories = backend_factories;
+    }
+
     pub fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
         let wc_path_str = self.global_args.repository.as_deref().unwrap_or(".");
         let wc_path = ui.cwd().join(wc_path_str);
-        let workspace = match Workspace::load(ui.settings(), &wc_path) {
+        let workspace = match Workspace::load(ui.settings(), &wc_path, &self.backend_factories) {
             Ok(workspace) => workspace,
             Err(WorkspaceLoadError::NoWorkspaceHere(wc_path)) => {
                 let mut message = format!("There is no jj repo in \"{}\"", wc_path_str);
