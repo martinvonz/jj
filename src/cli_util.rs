@@ -49,6 +49,7 @@ use crate::ui::{ColorChoice, FilePathParseError, Ui};
 
 pub enum CommandError {
     UserError(String),
+    ConfigError(String),
     /// Invalid command line
     CliError(String),
     BrokenPipe,
@@ -68,7 +69,7 @@ impl From<std::io::Error> for CommandError {
 
 impl From<config::ConfigError> for CommandError {
     fn from(err: config::ConfigError) -> Self {
-        CommandError::UserError(format!("Config error: {err}"))
+        CommandError::ConfigError(err.to_string())
     }
 }
 
@@ -1135,16 +1136,14 @@ pub struct GlobalArgs {
     pub color: Option<ColorChoice>,
 }
 
-pub fn create_ui() -> Ui<'static> {
+pub fn create_ui() -> (Ui<'static>, Result<(), CommandError>) {
     // TODO: We need to do some argument parsing here, at least for things like
-    // --config,       and for reading user configs from the repo pointed to by
-    // -R.
+    // --config, and for reading user configs from the repo pointed to by -R.
     match read_config() {
-        Ok(user_settings) => Ui::for_terminal(user_settings),
+        Ok(user_settings) => (Ui::for_terminal(user_settings), Ok(())),
         Err(err) => {
-            let mut ui = Ui::for_terminal(UserSettings::default());
-            ui.write_error(&format!("Config error: {}\n", err)).unwrap();
-            std::process::exit(1);
+            let ui = Ui::for_terminal(UserSettings::default());
+            (ui, Err(CommandError::ConfigError(err.to_string())))
         }
     }
 }
@@ -1264,18 +1263,24 @@ pub fn parse_args<'help>(
 
 // TODO: Return std::process::ExitCode instead, once our MSRV is >= 1.61
 #[must_use]
-pub fn report_command_error(ui: &mut Ui, err: CommandError) -> i32 {
-    match err {
-        CommandError::UserError(message) => {
+pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i32 {
+    match result {
+        Ok(()) => 0,
+        Err(CommandError::UserError(message)) => {
             ui.write_error(&format!("Error: {}\n", message)).unwrap();
             1
         }
-        CommandError::CliError(message) => {
+        Err(CommandError::ConfigError(message)) => {
+            ui.write_error(&format!("Config error: {}\n", message))
+                .unwrap();
+            1
+        }
+        Err(CommandError::CliError(message)) => {
             ui.write_error(&format!("Error: {}\n", message)).unwrap();
             2
         }
-        CommandError::BrokenPipe => std::process::exit(3),
-        CommandError::InternalError(message) => {
+        Err(CommandError::BrokenPipe) => std::process::exit(3),
+        Err(CommandError::InternalError(message)) => {
             ui.write_error(&format!("Internal error: {}\n", message))
                 .unwrap();
             255

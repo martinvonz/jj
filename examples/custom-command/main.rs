@@ -14,7 +14,7 @@
 
 use clap::{FromArgMatches, Subcommand};
 use jujutsu::cli_util::{
-    create_ui, parse_args, report_command_error, short_commit_description, CommandError,
+    create_ui, handle_command_result, parse_args, short_commit_description, CommandError,
 };
 use jujutsu::commands::{default_app, run_command};
 use jujutsu::ui::Ui;
@@ -59,10 +59,8 @@ fn run(ui: &mut Ui) -> Result<(), CommandError> {
 }
 
 fn main() {
-    let mut ui = create_ui();
-    let exit_code = match run(&mut ui) {
-        Ok(()) => 0,
-        Err(err) => report_command_error(&mut ui, err),
-    };
+    let (mut ui, result) = create_ui();
+    let result = result.and_then(|()| run(&mut ui));
+    let exit_code = handle_command_result(&mut ui, result);
     std::process::exit(exit_code);
 }
