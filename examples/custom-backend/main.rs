@@ -17,7 +17,7 @@ use std::path::Path;
 
 use clap::{FromArgMatches, Subcommand};
 use git2::Repository;
-use jujutsu::cli_util::{create_ui, parse_args, report_command_error, CommandError};
+use jujutsu::cli_util::{create_ui, handle_command_result, parse_args, CommandError};
 use jujutsu::commands::{default_app, run_command};
 use jujutsu::ui::Ui;
 use jujutsu_lib::backend::{
@@ -61,11 +61,9 @@ fn run(ui: &mut Ui) -> Result<(), CommandError> {
 }
 
 fn main() {
-    let mut ui = create_ui();
-    let exit_code = match run(&mut ui) {
-        Ok(()) => 0,
-        Err(err) => report_command_error(&mut ui, err),
-    };
+    let (mut ui, result) = create_ui();
+    let result = result.and_then(|()| run(&mut ui));
+    let exit_code = handle_command_result(&mut ui, result);
     std::process::exit(exit_code);
 }
 
