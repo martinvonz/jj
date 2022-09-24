@@ -162,10 +162,9 @@ impl Workspace {
             .write_all(repo_dir.to_str().unwrap().as_bytes())
             .unwrap();
 
-        let repo_loader = RepoLoader::init(user_settings, &repo_dir);
         let (working_copy, repo) =
             init_working_copy(user_settings, repo, workspace_root, &jj_dir, workspace_id);
-        let workspace = Workspace::new(workspace_root, working_copy, repo_loader);
+        let workspace = Workspace::new(workspace_root, working_copy, repo.loader());
         Ok((workspace, repo))
     }
 
