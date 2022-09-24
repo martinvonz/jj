@@ -131,7 +131,7 @@ impl Workspace {
         })
     }
 
-    fn init_with_backend(
+    pub fn init_with_backend(
         user_settings: &UserSettings,
         workspace_root: &Path,
         backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
