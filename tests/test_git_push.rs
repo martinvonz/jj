@@ -31,7 +31,7 @@ fn set_up() -> (TestEnvironment, PathBuf) {
             Some("refs/heads/branch1"),
             &signature,
             &signature,
-            "description",
+            "description 1",
             &empty_tree,
             &[],
         )
@@ -41,7 +41,7 @@ fn set_up() -> (TestEnvironment, PathBuf) {
             Some("refs/heads/branch2"),
             &signature,
             &signature,
-            "description",
+            "description 2",
             &empty_tree,
             &[],
         )
@@ -89,29 +89,29 @@ fn test_git_push_current_branch() {
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     branch1: 5d0d85ed3da7 modified branch1 commit
-      @origin (ahead by 1 commits, behind by 1 commits): 545acdb23f70 description
+      @origin (ahead by 1 commits, behind by 1 commits): a3ccc578ea7b description 1
     branch2: 7840c9885676 foo
-      @origin (ahead by 1 commits, behind by 1 commits): 545acdb23f70 description
+      @origin (ahead by 1 commits, behind by 1 commits): 7fd4b07286b3 description 2
     my-branch: 7840c9885676 foo
     "###);
     // First dry-run. `branch1` should not get pushed.
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--dry-run"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Move branch branch2 from 545acdb23f70 to 7840c9885676
+      Move branch branch2 from 7fd4b07286b3 to 7840c9885676
       Add branch my-branch to 7840c9885676
     Dry-run requested, not pushing.
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Move branch branch2 from 545acdb23f70 to 7840c9885676
+      Move branch branch2 from 7fd4b07286b3 to 7840c9885676
       Add branch my-branch to 7840c9885676
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     branch1: 5d0d85ed3da7 modified branch1 commit
-      @origin (ahead by 1 commits, behind by 1 commits): 545acdb23f70 description
+      @origin (ahead by 1 commits, behind by 1 commits): a3ccc578ea7b description 1
     branch2: 7840c9885676 foo
     my-branch: 7840c9885676 foo
     "###);
@@ -141,25 +141,25 @@ fn test_git_push_all() {
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     branch1 (deleted)
-      @origin: 545acdb23f70 description
+      @origin: a3ccc578ea7b description 1
     branch2: 7840c9885676 foo
-      @origin (ahead by 1 commits, behind by 1 commits): 545acdb23f70 description
+      @origin (ahead by 1 commits, behind by 1 commits): 7fd4b07286b3 description 2
     my-branch: 7840c9885676 foo
     "###);
     // First dry-run
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all", "--dry-run"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 545acdb23f70
-      Move branch branch2 from 545acdb23f70 to 7840c9885676
+      Delete branch branch1 from a3ccc578ea7b
+      Move branch branch2 from 7fd4b07286b3 to 7840c9885676
       Add branch my-branch to 7840c9885676
     Dry-run requested, not pushing.
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 545acdb23f70
-      Move branch branch2 from 545acdb23f70 to 7840c9885676
+      Delete branch branch1 from a3ccc578ea7b
+      Move branch branch2 from 7fd4b07286b3 to 7840c9885676
       Add branch my-branch to 7840c9885676
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
