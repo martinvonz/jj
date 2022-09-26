@@ -4339,6 +4339,7 @@ fn cmd_git_push(
 
     let mut ref_updates = vec![];
     let mut new_heads = vec![];
+    let mut force_pushed_branches = hashset! {};
     for (branch_name, update) in &branch_updates {
         let qualified_name = format!("refs/heads/{}", branch_name);
         if let Some(new_target) = &update.new_target {
@@ -4347,6 +4348,9 @@ fn cmd_git_push(
                 None => false,
                 Some(old_target) => !repo.index().is_ancestor(old_target, new_target),
             };
+            if force {
+                force_pushed_branches.insert(branch_name.to_string());
+            }
             ref_updates.push(GitRefUpdate {
                 qualified_name,
                 force,
@@ -4401,12 +4405,21 @@ fn cmd_git_push(
     for (branch_name, update) in &branch_updates {
         match (&update.old_target, &update.new_target) {
             (Some(old_target), Some(new_target)) => {
-                writeln!(
-                    ui,
-                    "  Move branch {branch_name} from {} to {}",
-                    short_commit_hash(old_target),
-                    short_commit_hash(new_target)
-                )?;
+                if force_pushed_branches.contains(branch_name) {
+                    writeln!(
+                        ui,
+                        "  Force branch {branch_name} from {} to {}",
+                        short_commit_hash(old_target),
+                        short_commit_hash(new_target)
+                    )?;
+                } else {
+                    writeln!(
+                        ui,
+                        "  Move branch {branch_name} from {} to {}",
+                        short_commit_hash(old_target),
+                        short_commit_hash(new_target)
+                    )?;
+                }
             }
             (Some(old_target), None) => {
                 writeln!(
