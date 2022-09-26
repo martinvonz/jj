@@ -14,7 +14,7 @@ readme = "../README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-protobuf-codegen = "3.0.1"
+protobuf-codegen = "3.2.0"
 version_check = "0.9.4"
 
 [dependencies]
