@@ -34,8 +34,8 @@ a comparison with Git, including how workflows are different, see the
   compared to `git`.  
 * **.gitattributes: No.** There's [#53](https://github.com/martinvonz/jj/issues/53)
   about adding support for at least the `eol` attribute.
-* **Hooks: No.** There's [#405] specifically for providing the checks from
-  https://pre-commit.com.
+* **Hooks: No.** There's [#405](https://github.com/martinvonz/jj/issues/405)
+  specifically for providing the checks from https://pre-commit.com.
 * **Merge commits: Yes.** Octopus merges (i.e. with more than 2 parents) are
   also supported.
 * **Detached HEAD: Yes.** Jujutsu supports anonymous branches, so this is a
