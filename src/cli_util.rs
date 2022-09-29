@@ -1058,13 +1058,13 @@ pub fn short_operation_hash(operation_id: &OperationId) -> String {
 ///
 /// To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.
 #[derive(clap::Parser, Clone, Debug)]
-#[clap(
+#[command(
     name = "jj",
     author = "Martin von Zweigbergk <martinvonz@google.com>",
     version
 )]
 pub struct Args {
-    #[clap(flatten)]
+    #[command(flatten)]
     pub global_args: GlobalArgs,
 }
 
@@ -1074,7 +1074,7 @@ pub struct GlobalArgs {
     ///
     /// By default, Jujutsu searches for the closest .jj/ directory in an
     /// ancestor of the current working directory.
-    #[clap(
+    #[arg(
     long,
     short = 'R',
     global = true,
@@ -1090,7 +1090,7 @@ pub struct GlobalArgs {
     /// stale working copy commit, you can use `--no-commit-working-copy`.
     /// This may be useful e.g. in a command prompt, especially if you have
     /// another process that commits the working copy.
-    #[clap(long, global = true, help_heading = "Global Options")]
+    #[arg(long, global = true, help_heading = "Global Options")]
     pub no_commit_working_copy: bool,
     /// Operation to load the repo at
     ///
@@ -1110,7 +1110,7 @@ pub struct GlobalArgs {
     /// earlier operation. Doing that is equivalent to having run concurrent
     /// commands starting at the earlier operation. There's rarely a reason to
     /// do that, but it is possible.
-    #[clap(
+    #[arg(
         long,
         visible_alias = "at-op",
         global = true,
@@ -1119,7 +1119,7 @@ pub struct GlobalArgs {
     )]
     pub at_operation: String,
     /// When to colorize output (always, never, auto)
-    #[clap(
+    #[arg(
         long,
         value_name = "WHEN",
         global = true,
