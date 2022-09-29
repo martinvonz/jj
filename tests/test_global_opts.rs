@@ -151,20 +151,18 @@ fn test_help() {
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["touchup", "-h"]);
     insta::assert_snapshot!(stdout.replace(".exe", ""), @r###"
-    jj-touchup 
     Touch up the content changes in a revision
 
-    USAGE:
-        jj touchup [OPTIONS]
+    Usage: jj touchup [OPTIONS]
 
-    OPTIONS:
-        -r, --revision <REVISION>    The revision to touch up [default: @]
+    Options:
+      -r, --revision <REVISION>  The revision to touch up [default: @]
+      -h, --help                 Print help information (use `--help` for more detail)
 
-    GLOBAL OPTIONS:
-            --at-operation <AT_OPERATION>    Operation to load the repo at [default: @] [aliases: at-op]
-            --color <WHEN>                   When to colorize output (always, never, auto)
-        -h, --help                           Print help information, more help with --help than with -h
-            --no-commit-working-copy         Don't commit the working copy
-        -R, --repository <REPOSITORY>        Path to repository to operate on
+    Global Options:
+      -R, --repository <REPOSITORY>      Path to repository to operate on
+          --no-commit-working-copy       Don't commit the working copy
+          --at-operation <AT_OPERATION>  Operation to load the repo at [default: @] [aliases: at-op]
+          --color <WHEN>                 When to colorize output (always, never, auto)
     "###);
 }
