@@ -131,7 +131,7 @@ struct VersionArgs {}
 /// If the given directory does not exist, it will be created. If no directory
 /// is given, the current directory is used.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(group(ArgGroup::new("backend").args(&["git", "git-repo"])))]
+#[clap(group(ArgGroup::new("backend").args(&["git", "git_repo"])))]
 struct InitArgs {
     /// The destination directory
     #[clap(default_value = ".", value_hint = clap::ValueHint::DirPath)]
@@ -192,7 +192,7 @@ struct PrintArgs {
 }
 
 #[derive(clap::Args, Clone, Debug)]
-#[clap(group(ArgGroup::new("format").args(&["summary", "git", "color-words"])))]
+#[clap(group(ArgGroup::new("format").args(&["summary", "git", "color_words"])))]
 struct DiffFormatArgs {
     /// For each path, show only whether it was modified, added, or removed
     #[clap(long, short)]
@@ -4527,7 +4527,7 @@ fn cmd_git(
     }
 }
 
-pub fn default_app() -> clap::Command<'static> {
+pub fn default_app() -> clap::Command {
     let app: clap::Command = Commands::augment_subcommands(Args::command());
     app.arg_required_else_help(true)
 }

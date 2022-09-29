@@ -14,6 +14,7 @@
 
 use std::collections::{HashSet, VecDeque};
 use std::env::ArgsOs;
+use std::ffi::OsString;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -168,19 +169,15 @@ impl From<FilePathParseError> for CommandError {
     }
 }
 
-pub struct CommandHelper<'help> {
-    app: clap::Command<'help>,
+pub struct CommandHelper {
+    app: clap::Command,
     string_args: Vec<String>,
     global_args: GlobalArgs,
     backend_factories: BackendFactories,
 }
 
-impl<'help> CommandHelper<'help> {
-    pub fn new(
-        app: clap::Command<'help>,
-        string_args: Vec<String>,
-        global_args: GlobalArgs,
-    ) -> Self {
+impl CommandHelper {
+    pub fn new(app: clap::Command, string_args: Vec<String>, global_args: GlobalArgs) -> Self {
         Self {
             app,
             string_args,
@@ -189,7 +186,7 @@ impl<'help> CommandHelper<'help> {
         }
     }
 
-    pub fn app(&self) -> &clap::Command<'help> {
+    pub fn app(&self) -> &clap::Command {
         &self.app
     }
 
@@ -1066,11 +1063,6 @@ pub fn short_operation_hash(operation_id: &OperationId) -> String {
     author = "Martin von Zweigbergk <martinvonz@google.com>",
     version
 )]
-#[clap(mut_arg("help", |arg| {
-arg
-.help("Print help information, more help with --help than with -h")
-.help_heading("GLOBAL OPTIONS")
-}))]
 pub struct Args {
     #[clap(flatten)]
     pub global_args: GlobalArgs,
@@ -1086,7 +1078,7 @@ pub struct GlobalArgs {
     long,
     short = 'R',
     global = true,
-    help_heading = "GLOBAL OPTIONS",
+    help_heading = "Global Options",
     value_hint = clap::ValueHint::DirPath,
     )]
     pub repository: Option<String>,
@@ -1098,7 +1090,7 @@ pub struct GlobalArgs {
     /// stale working copy commit, you can use `--no-commit-working-copy`.
     /// This may be useful e.g. in a command prompt, especially if you have
     /// another process that commits the working copy.
-    #[clap(long, global = true, help_heading = "GLOBAL OPTIONS")]
+    #[clap(long, global = true, help_heading = "Global Options")]
     pub no_commit_working_copy: bool,
     /// Operation to load the repo at
     ///
@@ -1122,7 +1114,7 @@ pub struct GlobalArgs {
         long,
         visible_alias = "at-op",
         global = true,
-        help_heading = "GLOBAL OPTIONS",
+        help_heading = "Global Options",
         default_value = "@"
     )]
     pub at_operation: String,
@@ -1131,7 +1123,7 @@ pub struct GlobalArgs {
         long,
         value_name = "WHEN",
         global = true,
-        help_heading = "GLOBAL OPTIONS"
+        help_heading = "Global Options"
     )]
     pub color: Option<ColorChoice>,
 }
@@ -1195,9 +1187,9 @@ fn resolve_aliases(
             if !real_commands.contains(command_name) {
                 let alias_name = command_name.to_string();
                 let alias_args = submatches
-                    .values_of("")
+                    .get_many::<OsString>("")
                     .unwrap_or_default()
-                    .map(|arg| arg.to_string())
+                    .map(|arg| arg.to_str().unwrap().to_string())
                     .collect_vec();
                 if resolved_aliases.contains(&alias_name) {
                     return Err(CommandError::UserError(format!(
@@ -1236,11 +1228,11 @@ fn resolve_aliases(
     }
 }
 
-pub fn parse_args<'help>(
+pub fn parse_args(
     ui: &mut Ui,
-    app: clap::Command<'help>,
+    app: clap::Command,
     args_os: ArgsOs,
-) -> Result<(CommandHelper<'help>, ArgMatches), CommandError> {
+) -> Result<(CommandHelper, ArgMatches), CommandError> {
     let mut string_args: Vec<String> = vec![];
     for arg_os in args_os {
         if let Some(string_arg) = arg_os.to_str() {
