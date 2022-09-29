@@ -104,21 +104,21 @@ enum Commands {
     Merge(NewArgs),
     Rebase(RebaseArgs),
     Backout(BackoutArgs),
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Branch(BranchSubcommand),
     /// Undo an operation (shortcut for `jj op undo`)
     Undo(OperationUndoArgs),
-    #[clap(subcommand)]
-    #[clap(visible_alias = "op")]
+    #[command(subcommand)]
+    #[command(visible_alias = "op")]
     Operation(OperationCommands),
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Workspace(WorkspaceCommands),
     Sparse(SparseArgs),
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Git(GitCommands),
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Bench(BenchCommands),
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Debug(DebugCommands),
 }
 
@@ -131,16 +131,16 @@ struct VersionArgs {}
 /// If the given directory does not exist, it will be created. If no directory
 /// is given, the current directory is used.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(group(ArgGroup::new("backend").args(&["git", "git_repo"])))]
+#[command(group(ArgGroup::new("backend").args(&["git", "git_repo"])))]
 struct InitArgs {
     /// The destination directory
-    #[clap(default_value = ".", value_hint = clap::ValueHint::DirPath)]
+    #[arg(default_value = ".", value_hint = clap::ValueHint::DirPath)]
     destination: String,
     /// Use the Git backend, creating a jj repo backed by a Git repo
-    #[clap(long)]
+    #[arg(long)]
     git: bool,
     /// Path to a git repo the jj repo will be backed by
-    #[clap(long, value_hint = clap::ValueHint::DirPath)]
+    #[arg(long, value_hint = clap::ValueHint::DirPath)]
     git_repo: Option<String>,
 }
 
@@ -149,15 +149,15 @@ struct InitArgs {
 /// For more information, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_aliases = &["co", "update", "up"])]
+#[command(visible_aliases = &["co", "update", "up"])]
 struct CheckoutArgs {
     /// The revision to update to
     revision: String,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[clap(short = 'r', hide = true)]
+    #[arg(short = 'r', hide = true)]
     unused_revision: bool,
     /// The change description to use
-    #[clap(long, short, default_value = "")]
+    #[arg(long, short, default_value = "")]
     message: String,
 }
 
@@ -165,7 +165,7 @@ struct CheckoutArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct UntrackArgs {
     /// Paths to untrack
-    #[clap(required = true, value_hint = clap::ValueHint::AnyPath)]
+    #[arg(required = true, value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -173,10 +173,10 @@ struct UntrackArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct FilesArgs {
     /// The revision to list files in
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// Only list files matching these prefixes (instead of all files)
-    #[clap(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -184,24 +184,24 @@ struct FilesArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct PrintArgs {
     /// The revision to get the file contents from
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// The file to print
-    #[clap(value_hint = clap::ValueHint::FilePath)]
+    #[arg(value_hint = clap::ValueHint::FilePath)]
     path: String,
 }
 
 #[derive(clap::Args, Clone, Debug)]
-#[clap(group(ArgGroup::new("format").args(&["summary", "git", "color_words"])))]
+#[command(group(ArgGroup::new("format").args(&["summary", "git", "color_words"])))]
 struct DiffFormatArgs {
     /// For each path, show only whether it was modified, added, or removed
-    #[clap(long, short)]
+    #[arg(long, short)]
     summary: bool,
     /// Show a Git-format diff
-    #[clap(long)]
+    #[arg(long)]
     git: bool,
     /// Show a word-level diff with changes indicated only by color
-    #[clap(long)]
+    #[arg(long)]
     color_words: bool,
 }
 
@@ -219,18 +219,18 @@ struct DiffFormatArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct DiffArgs {
     /// Show changes in this revision, compared to its parent(s)
-    #[clap(long, short)]
+    #[arg(long, short)]
     revision: Option<String>,
     /// Show changes from this revision
-    #[clap(long, conflicts_with = "revision")]
+    #[arg(long, conflicts_with = "revision")]
     from: Option<String>,
     /// Show changes to this revision
-    #[clap(long, conflicts_with = "revision")]
+    #[arg(long, conflicts_with = "revision")]
     to: Option<String>,
     /// Restrict the diff to these paths
-    #[clap(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
-    #[clap(flatten)]
+    #[command(flatten)]
     format: DiffFormatArgs,
 }
 
@@ -238,12 +238,12 @@ struct DiffArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct ShowArgs {
     /// Show changes in this revision, compared to its parent(s)
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     revision: String,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[clap(short = 'r', hide = true)]
+    #[arg(short = 'r', hide = true)]
     unused_revision: bool,
-    #[clap(flatten)]
+    #[command(flatten)]
     format: DiffFormatArgs,
 }
 
@@ -256,36 +256,36 @@ struct ShowArgs {
 ///
 ///  * Conflicted branches (see https://github.com/martinvonz/jj/blob/main/docs/branches.md)
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "st")]
+#[command(visible_alias = "st")]
 struct StatusArgs {}
 
 /// Show commit history
 #[derive(clap::Args, Clone, Debug)]
 struct LogArgs {
     /// Which revisions to show
-    #[clap(
+    #[arg(
         long,
         short,
         default_value = "remote_branches().. | (remote_branches()..)-"
     )]
     revisions: String,
     /// Show commits modifying the given paths
-    #[clap(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
     /// Show revisions in the opposite order (older revisions first)
-    #[clap(long)]
+    #[arg(long)]
     reversed: bool,
     /// Don't show the graph, show a flat list of revisions
-    #[clap(long)]
+    #[arg(long)]
     no_graph: bool,
     /// Render each revision using the given template (the syntax is not yet
     /// documented and is likely to change)
-    #[clap(long, short = 'T')]
+    #[arg(long, short = 'T')]
     template: Option<String>,
     /// Show patch
-    #[clap(long, short = 'p')]
+    #[arg(long, short = 'p')]
     patch: bool,
-    #[clap(flatten)]
+    #[command(flatten)]
     diff_format: DiffFormatArgs,
 }
 
@@ -294,23 +294,23 @@ struct LogArgs {
 /// Show how a change has evolved as it's been updated, rebased, etc.
 #[derive(clap::Args, Clone, Debug)]
 struct ObslogArgs {
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// Don't show the graph, show a flat list of revisions
-    #[clap(long)]
+    #[arg(long)]
     no_graph: bool,
     /// Render each revision using the given template (the syntax is not yet
     /// documented and is likely to change)
-    #[clap(long, short = 'T')]
+    #[arg(long, short = 'T')]
     template: Option<String>,
     /// Show patch compared to the previous version of this change
     ///
     /// If the previous version has different parents, it will be temporarily
     /// rebased to the parents of the new version, so the diff is not
     /// contaminated by unrelated changes.
-    #[clap(long, short = 'p')]
+    #[arg(long, short = 'p')]
     patch: bool,
-    #[clap(flatten)]
+    #[command(flatten)]
     diff_format: DiffFormatArgs,
 }
 
@@ -320,18 +320,18 @@ struct ObslogArgs {
 /// onto `--to`'s parents. If you wish to compare the same change across
 /// versions, consider `jj obslog -p` instead.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(group(ArgGroup::new("to_diff").args(&["from", "to"]).multiple(true).required(true)))]
+#[command(group(ArgGroup::new("to_diff").args(&["from", "to"]).multiple(true).required(true)))]
 struct InterdiffArgs {
     /// Show changes from this revision
-    #[clap(long)]
+    #[arg(long)]
     from: Option<String>,
     /// Show changes to this revision
-    #[clap(long)]
+    #[arg(long)]
     to: Option<String>,
     /// Restrict the diff to these paths
-    #[clap(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
-    #[clap(flatten)]
+    #[command(flatten)]
     format: DiffFormatArgs,
 }
 
@@ -342,16 +342,16 @@ struct InterdiffArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct DescribeArgs {
     /// The revision whose description to edit
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     revision: String,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[clap(short = 'r', hide = true)]
+    #[arg(short = 'r', hide = true)]
     unused_revision: bool,
     /// The change description to use (don't open editor)
-    #[clap(long, short)]
+    #[arg(long, short)]
     message: Option<String>,
     /// Read the change description from stdin
-    #[clap(long)]
+    #[arg(long)]
     stdin: bool,
 }
 
@@ -360,19 +360,19 @@ struct DescribeArgs {
 /// For information about open/closed revisions, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "commit", hide = true)]
+#[command(visible_alias = "commit", hide = true)]
 struct CloseArgs {
     /// The revision to close
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     revision: String,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[clap(short = 'r', hide = true)]
+    #[arg(short = 'r', hide = true)]
     unused_revision: bool,
     /// The change description to use (don't open editor)
-    #[clap(long, short)]
+    #[arg(long, short)]
     message: Option<String>,
     /// Also edit the description
-    #[clap(long, short)]
+    #[arg(long, short)]
     edit: bool,
 }
 
@@ -381,12 +381,12 @@ struct CloseArgs {
 /// For information about open/closed revisions,
 /// see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(alias = "uncommit", hide = true)]
+#[command(alias = "uncommit", hide = true)]
 struct OpenArgs {
     /// The revision to open
     revision: String,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[clap(short = 'r', hide = true)]
+    #[arg(short = 'r', hide = true)]
     unused_revision: bool,
 }
 
@@ -397,10 +397,10 @@ struct OpenArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct DuplicateArgs {
     /// The revision to duplicate
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     revision: String,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[clap(short = 'r', hide = true)]
+    #[arg(short = 'r', hide = true)]
     unused_revision: bool,
 }
 
@@ -410,13 +410,13 @@ struct DuplicateArgs {
 /// similar to `jj restore`; the difference is that `jj abandon` gives you a new
 /// change, while `jj restore` updates the existing change.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "hide")]
+#[command(visible_alias = "hide")]
 struct AbandonArgs {
     /// The revision(s) to abandon
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     revisions: Vec<String>,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[clap(short = 'r', hide = true)]
+    #[arg(short = 'r', hide = true)]
     unused_revision: bool,
 }
 
@@ -429,7 +429,7 @@ struct EditArgs {
     /// The commit to edit
     revision: String,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[clap(short = 'r', hide = true)]
+    #[arg(short = 'r', hide = true)]
     unused_revision: bool,
 }
 
@@ -444,13 +444,13 @@ struct EditArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct NewArgs {
     /// Parent(s) of the new change
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     revisions: Vec<String>,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[clap(short = 'r', hide = true)]
+    #[arg(short = 'r', hide = true)]
     unused_revision: bool,
     /// The change description to use
-    #[clap(long, short, default_value = "")]
+    #[arg(long, short, default_value = "")]
     message: String,
 }
 
@@ -467,19 +467,19 @@ struct NewArgs {
 /// non-empty description, you will be asked for the combined description. If
 /// either was empty, then the other one will be used.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(group(ArgGroup::new("to_move").args(&["from", "to"]).multiple(true).required(true)))]
+#[command(group(ArgGroup::new("to_move").args(&["from", "to"]).multiple(true).required(true)))]
 struct MoveArgs {
     /// Move part of this change into the destination
-    #[clap(long)]
+    #[arg(long)]
     from: Option<String>,
     /// Move part of the source into this change
-    #[clap(long)]
+    #[arg(long)]
     to: Option<String>,
     /// Interactively choose which parts to move
-    #[clap(long, short)]
+    #[arg(long, short)]
     interactive: bool,
     /// Move only changes to these paths (instead of all paths)
-    #[clap(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
+    #[arg(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -494,15 +494,15 @@ struct MoveArgs {
 /// non-empty description, you will be asked for the combined description. If
 /// either was empty, then the other one will be used.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "amend")]
+#[command(visible_alias = "amend")]
 struct SquashArgs {
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// Interactively choose which parts to squash
-    #[clap(long, short)]
+    #[arg(long, short)]
     interactive: bool,
     /// Move only changes to these paths (instead of all paths)
-    #[clap(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
+    #[arg(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -517,14 +517,14 @@ struct SquashArgs {
 /// non-empty description, you will be asked for the combined description. If
 /// either was empty, then the other one will be used.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "unamend")]
+#[command(visible_alias = "unamend")]
 struct UnsquashArgs {
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// Interactively choose which parts to unsquash
     // TODO: It doesn't make much sense to run this without -i. We should make that
     // the default.
-    #[clap(long, short)]
+    #[arg(long, short)]
     interactive: bool,
 }
 
@@ -540,16 +540,16 @@ struct UnsquashArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct RestoreArgs {
     /// Revision to restore from (source)
-    #[clap(long)]
+    #[arg(long)]
     from: Option<String>,
     /// Revision to restore into (destination)
-    #[clap(long)]
+    #[arg(long)]
     to: Option<String>,
     /// Interactively choose which parts to restore
-    #[clap(long, short)]
+    #[arg(long, short)]
     interactive: bool,
     /// Restore only these paths (instead of all paths)
-    #[clap(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
+    #[arg(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -564,7 +564,7 @@ struct RestoreArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct TouchupArgs {
     /// The revision to touch up
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
 }
 
@@ -578,10 +578,10 @@ struct TouchupArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct SplitArgs {
     /// The revision to split
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// Put these paths in the first commit and don't run the diff editor
-    #[clap(value_hint = clap::ValueHint::AnyPath)]
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -646,21 +646,21 @@ struct SplitArgs {
 /// |/         |/
 /// A          A
 #[derive(clap::Args, Clone, Debug)]
-#[clap(verbatim_doc_comment)]
-#[clap(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revision"])))]
+#[command(verbatim_doc_comment)]
+#[command(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revision"])))]
 struct RebaseArgs {
     /// Rebase the whole branch (relative to destination's ancestors)
-    #[clap(long, short)]
+    #[arg(long, short)]
     branch: Option<String>,
     /// Rebase this revision and its descendants
-    #[clap(long, short)]
+    #[arg(long, short)]
     source: Option<String>,
     /// Rebase only this revision, rebasing descendants onto this revision's
     /// parent(s)
-    #[clap(long, short)]
+    #[arg(long, short)]
     revision: Option<String>,
     /// The revision(s) to rebase onto
-    #[clap(long, short, required = true)]
+    #[arg(long, short, required = true)]
     destination: Vec<String>,
 }
 
@@ -668,12 +668,12 @@ struct RebaseArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct BackoutArgs {
     /// The revision to apply the reverse of
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// The revision to apply the reverse changes on top of
     // TODO: It seems better to default this to `@-`. Maybe the working
     // copy should be rebased on top?
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     destination: Vec<String>,
 }
 
@@ -684,32 +684,32 @@ struct BackoutArgs {
 #[derive(clap::Subcommand, Clone, Debug)]
 enum BranchSubcommand {
     /// Create a new branch.
-    #[clap(visible_alias("c"))]
+    #[command(visible_alias("c"))]
     Create {
         /// The branch's target revision.
-        #[clap(long, short)]
+        #[arg(long, short)]
         revision: Option<String>,
 
         /// The branches to create.
-        #[clap(required = true)]
+        #[arg(required = true)]
         names: Vec<String>,
     },
 
     /// Delete an existing branch and propagate the deletion to remotes on the
     /// next push.
-    #[clap(visible_alias("d"))]
+    #[command(visible_alias("d"))]
     Delete {
         /// The branches to delete.
-        #[clap(required = true)]
+        #[arg(required = true)]
         names: Vec<String>,
     },
 
     /// Delete the local version of an existing branch, without propagating the
     /// deletion to remotes.
-    #[clap(visible_alias("f"))]
+    #[command(visible_alias("f"))]
     Forget {
         /// The branches to delete.
-        #[clap(required = true)]
+        #[arg(required = true)]
         names: Vec<String>,
     },
 
@@ -720,22 +720,22 @@ enum BranchSubcommand {
     /// target revisions are preceded by a "-" and new target revisions are
     /// preceded by a "+". For information about branches, see
     /// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
-    #[clap(visible_alias("l"))]
+    #[command(visible_alias("l"))]
     List,
 
     /// Update a given branch to point to a certain commit.
-    #[clap(visible_alias("s"))]
+    #[command(visible_alias("s"))]
     Set {
         /// The branch's target revision.
-        #[clap(long, short)]
+        #[arg(long, short)]
         revision: Option<String>,
 
         /// Allow moving the branch backwards or sideways.
-        #[clap(long)]
+        #[arg(long)]
         allow_backwards: bool,
 
         /// The branches to update.
-        #[clap(required = true)]
+        #[arg(required = true)]
         names: Vec<String>,
     },
 }
@@ -766,7 +766,7 @@ struct OperationRestoreArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct OperationUndoArgs {
     /// The operation to undo
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     operation: String,
 }
 
@@ -787,7 +787,7 @@ struct WorkspaceAddArgs {
     ///
     /// To override the default, which is the basename of the destination
     /// directory.
-    #[clap(long)]
+    #[arg(long)]
     name: Option<String>,
 }
 
@@ -809,19 +809,19 @@ struct WorkspaceListArgs {}
 #[derive(clap::Args, Clone, Debug)]
 struct SparseArgs {
     /// Patterns to add to the working copy
-    #[clap(long, value_hint = clap::ValueHint::AnyPath)]
+    #[arg(long, value_hint = clap::ValueHint::AnyPath)]
     add: Vec<String>,
     /// Patterns to remove from the working copy
-    #[clap(long, conflicts_with = "clear", value_hint = clap::ValueHint::AnyPath)]
+    #[arg(long, conflicts_with = "clear", value_hint = clap::ValueHint::AnyPath)]
     remove: Vec<String>,
     /// Include no files in the working copy (combine with --add)
-    #[clap(long)]
+    #[arg(long)]
     clear: bool,
     /// Include all files in the working copy
-    #[clap(long, conflicts_with_all = &["add", "remove", "clear"])]
+    #[arg(long, conflicts_with_all = &["add", "remove", "clear"])]
     reset: bool,
     /// List patterns
-    #[clap(long, conflicts_with_all = &["add", "remove", "clear", "reset"])]
+    #[arg(long, conflicts_with_all = &["add", "remove", "clear", "reset"])]
     list: bool,
 }
 
@@ -831,7 +831,7 @@ struct SparseArgs {
 /// https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.
 #[derive(Subcommand, Clone, Debug)]
 enum GitCommands {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Remote(GitRemoteCommands),
     Fetch(GitFetchArgs),
     Clone(GitCloneArgs),
@@ -874,7 +874,7 @@ struct GitRemoteListArgs {}
 #[derive(clap::Args, Clone, Debug)]
 struct GitFetchArgs {
     /// The remote to fetch from (only named remotes are supported)
-    #[clap(long, default_value = "origin")]
+    #[arg(long, default_value = "origin")]
     remote: String,
 }
 
@@ -884,10 +884,10 @@ struct GitFetchArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct GitCloneArgs {
     /// URL or path of the Git repo to clone
-    #[clap(value_hint = clap::ValueHint::DirPath)]
+    #[arg(value_hint = clap::ValueHint::DirPath)]
     source: String,
     /// The directory to write the Jujutsu repo to
-    #[clap(value_hint = clap::ValueHint::DirPath)]
+    #[arg(value_hint = clap::ValueHint::DirPath)]
     destination: Option<String>,
 }
 
@@ -897,22 +897,22 @@ struct GitCloneArgs {
 /// specific branch. Use `--all` to push all branches. Use `--change` to
 /// generate a branch name based on a specific commit's change ID.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(group(ArgGroup::new("what").args(&["branch", "all", "change"])))]
+#[command(group(ArgGroup::new("what").args(&["branch", "all", "change"])))]
 struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
-    #[clap(long, default_value = "origin")]
+    #[arg(long, default_value = "origin")]
     remote: String,
     /// Push only this branch
-    #[clap(long)]
+    #[arg(long)]
     branch: Option<String>,
     /// Push all branches
-    #[clap(long)]
+    #[arg(long)]
     all: bool,
     /// Push this commit by creating a branch based on its change ID
-    #[clap(long)]
+    #[arg(long)]
     change: Option<String>,
     /// Only display what will change on the remote
-    #[clap(long)]
+    #[arg(long)]
     dry_run: bool,
 }
 
@@ -927,13 +927,13 @@ struct GitExportArgs {}
 /// Commands for benchmarking internal operations
 #[derive(Subcommand, Clone, Debug)]
 enum BenchCommands {
-    #[clap(name = "commonancestors")]
+    #[command(name = "commonancestors")]
     CommonAncestors(BenchCommonAncestorsArgs),
-    #[clap(name = "isancestor")]
+    #[command(name = "isancestor")]
     IsAncestor(BenchIsAncestorArgs),
-    #[clap(name = "walkrevs")]
+    #[command(name = "walkrevs")]
     WalkRevs(BenchWalkRevsArgs),
-    #[clap(name = "resolveprefix")]
+    #[command(name = "resolveprefix")]
     ResolvePrefix(BenchResolvePrefixArgs),
 }
 
@@ -967,17 +967,17 @@ struct BenchResolvePrefixArgs {
 
 /// Low-level commands not intended for users
 #[derive(Subcommand, Clone, Debug)]
-#[clap(hide = true)]
+#[command(hide = true)]
 enum DebugCommands {
     Completion(DebugCompletionArgs),
     Mangen(DebugMangenArgs),
-    #[clap(name = "resolverev")]
+    #[command(name = "resolverev")]
     ResolveRev(DebugResolveRevArgs),
-    #[clap(name = "workingcopy")]
+    #[command(name = "workingcopy")]
     WorkingCopy(DebugWorkingCopyArgs),
     Template(DebugTemplateArgs),
     Index(DebugIndexArgs),
-    #[clap(name = "reindex")]
+    #[command(name = "reindex")]
     ReIndex(DebugReIndexArgs),
     Operation(DebugOperationArgs),
 }
@@ -990,7 +990,7 @@ struct DebugCompletionArgs {
     /// Apply it by running this:
     ///
     /// source <(jj debug completion)
-    #[clap(long, verbatim_doc_comment)]
+    #[arg(long, verbatim_doc_comment)]
     bash: bool,
     /// Print a completion script for Fish
     ///
@@ -1000,14 +1000,14 @@ struct DebugCompletionArgs {
     /// compinit
     /// source <(jj debug completion --zsh | sed '$d')  # remove the last line
     /// compdef _jj jj
-    #[clap(long, verbatim_doc_comment)]
+    #[arg(long, verbatim_doc_comment)]
     fish: bool,
     /// Print a completion script for Zsh
     ///
     /// Apply it by running this:
     ///
     /// jj debug completion --fish | source
-    #[clap(long, verbatim_doc_comment)]
+    #[arg(long, verbatim_doc_comment)]
     zsh: bool,
 }
 
@@ -1018,7 +1018,7 @@ struct DebugMangenArgs {}
 /// Resolve a revision identifier to its full ID
 #[derive(clap::Args, Clone, Debug)]
 struct DebugResolveRevArgs {
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
 }
 
@@ -1043,7 +1043,7 @@ struct DebugReIndexArgs {}
 /// Show information about an operation and its view
 #[derive(clap::Args, Clone, Debug)]
 struct DebugOperationArgs {
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     operation: String,
 }
 

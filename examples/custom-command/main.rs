@@ -29,7 +29,7 @@ enum CustomCommands {
 #[derive(clap::Args, Clone, Debug)]
 struct FrobnicateArgs {
     /// The revision to frobnicate
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     revision: String,
 }
 
