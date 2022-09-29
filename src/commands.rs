@@ -4584,7 +4584,6 @@ mod tests {
 
     #[test]
     fn verify_app() {
-        let app = Commands::augment_subcommands(Args::command());
-        app.debug_assert();
+        default_app().debug_assert();
     }
 }
