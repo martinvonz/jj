@@ -3685,8 +3685,8 @@ fn cmd_bench(
 fn format_timestamp(timestamp: &Timestamp) -> String {
     let utc = Utc
         .timestamp(
-            timestamp.timestamp.0 as i64 / 1000,
-            (timestamp.timestamp.0 % 1000) as u32 * 1000000,
+            timestamp.timestamp.0.div_euclid(1000),
+            (timestamp.timestamp.0.rem_euclid(1000)) as u32 * 1000000,
         )
         .with_timezone(&FixedOffset::east(timestamp.tz_offset * 60));
     utc.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string()

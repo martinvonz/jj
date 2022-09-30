@@ -101,7 +101,7 @@ impl GitBackend {
 fn signature_from_git(signature: git2::Signature) -> Signature {
     let name = signature.name().unwrap_or("<no name>").to_owned();
     let email = signature.email().unwrap_or("<no email>").to_owned();
-    let timestamp = MillisSinceEpoch((signature.when().seconds() * 1000) as u64);
+    let timestamp = MillisSinceEpoch(signature.when().seconds() * 1000);
     let tz_offset = signature.when().offset_minutes();
     Signature {
         name,
@@ -117,7 +117,7 @@ fn signature_to_git(signature: &Signature) -> git2::Signature {
     let name = &signature.name;
     let email = &signature.email;
     let time = git2::Time::new(
-        (signature.timestamp.timestamp.0 / 1000) as i64,
+        signature.timestamp.timestamp.0.div_euclid(1000),
         signature.timestamp.tz_offset,
     );
     git2::Signature::new(name, email, &time).unwrap()

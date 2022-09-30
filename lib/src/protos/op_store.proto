@@ -78,7 +78,7 @@ message Operation {
 
 // TODO: Share with store.proto? Do we even need the timezone here?
 message Timestamp {
-  uint64 millis_since_epoch = 1;
+  int64 millis_since_epoch = 1;
   int32 tz_offset = 2;
 }
 

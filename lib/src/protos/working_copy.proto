@@ -24,7 +24,7 @@ enum FileType {
 }
 
 message FileState {
-  uint64 mtime_millis_since_epoch = 1;
+  int64 mtime_millis_since_epoch = 1;
   uint64 size = 2;
   FileType file_type = 3;
   // Set only if file_type is Conflict

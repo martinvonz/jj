@@ -47,7 +47,7 @@ message Commit {
   string description = 5;
 
   message Timestamp {
-    uint64 millis_since_epoch = 1;
+    int64 millis_since_epoch = 1;
     int32 tz_offset = 2;
   }
   message Signature {
