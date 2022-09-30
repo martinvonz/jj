@@ -1400,27 +1400,27 @@ mod tests {
 
     #[test]
     fn test_revset_expression_building() {
-        let checkout_symbol = RevsetExpression::symbol("@".to_string());
+        let wc_symbol = RevsetExpression::symbol("@".to_string());
         let foo_symbol = RevsetExpression::symbol("foo".to_string());
         assert_eq!(
-            checkout_symbol,
+            wc_symbol,
             Rc::new(RevsetExpression::Symbol("@".to_string()))
         );
         assert_eq!(
-            checkout_symbol.heads(),
-            Rc::new(RevsetExpression::Heads(checkout_symbol.clone()))
+            wc_symbol.heads(),
+            Rc::new(RevsetExpression::Heads(wc_symbol.clone()))
         );
         assert_eq!(
-            checkout_symbol.roots(),
-            Rc::new(RevsetExpression::Roots(checkout_symbol.clone()))
+            wc_symbol.roots(),
+            Rc::new(RevsetExpression::Roots(wc_symbol.clone()))
         );
         assert_eq!(
-            checkout_symbol.parents(),
-            Rc::new(RevsetExpression::Parents(checkout_symbol.clone()))
+            wc_symbol.parents(),
+            Rc::new(RevsetExpression::Parents(wc_symbol.clone()))
         );
         assert_eq!(
-            checkout_symbol.ancestors(),
-            Rc::new(RevsetExpression::Ancestors(checkout_symbol.clone()))
+            wc_symbol.ancestors(),
+            Rc::new(RevsetExpression::Ancestors(wc_symbol.clone()))
         );
         assert_eq!(
             foo_symbol.children(),
@@ -1434,10 +1434,10 @@ mod tests {
             })
         );
         assert_eq!(
-            foo_symbol.dag_range_to(&checkout_symbol),
+            foo_symbol.dag_range_to(&wc_symbol),
             Rc::new(RevsetExpression::DagRange {
                 roots: foo_symbol.clone(),
-                heads: checkout_symbol.clone(),
+                heads: wc_symbol.clone(),
             })
         );
         assert_eq!(
@@ -1448,10 +1448,10 @@ mod tests {
             })
         );
         assert_eq!(
-            foo_symbol.range(&checkout_symbol),
+            foo_symbol.range(&wc_symbol),
             Rc::new(RevsetExpression::Range {
                 roots: foo_symbol.clone(),
-                heads: checkout_symbol.clone()
+                heads: wc_symbol.clone()
             })
         );
         assert_eq!(
@@ -1483,35 +1483,32 @@ mod tests {
             })
         );
         assert_eq!(
-            foo_symbol.union(&checkout_symbol),
+            foo_symbol.union(&wc_symbol),
             Rc::new(RevsetExpression::Union(
                 foo_symbol.clone(),
-                checkout_symbol.clone()
+                wc_symbol.clone()
             ))
         );
         assert_eq!(
-            foo_symbol.intersection(&checkout_symbol),
+            foo_symbol.intersection(&wc_symbol),
             Rc::new(RevsetExpression::Intersection(
                 foo_symbol.clone(),
-                checkout_symbol.clone()
+                wc_symbol.clone()
             ))
         );
         assert_eq!(
-            foo_symbol.minus(&checkout_symbol),
-            Rc::new(RevsetExpression::Difference(
-                foo_symbol,
-                checkout_symbol.clone()
-            ))
+            foo_symbol.minus(&wc_symbol),
+            Rc::new(RevsetExpression::Difference(foo_symbol, wc_symbol.clone()))
         );
     }
 
     #[test]
     fn test_parse_revset() {
-        let checkout_symbol = RevsetExpression::symbol("@".to_string());
+        let wc_symbol = RevsetExpression::symbol("@".to_string());
         let foo_symbol = RevsetExpression::symbol("foo".to_string());
         let bar_symbol = RevsetExpression::symbol("bar".to_string());
         // Parse a single symbol (specifically the "checkout" symbol)
-        assert_eq!(parse("@"), Ok(checkout_symbol.clone()));
+        assert_eq!(parse("@"), Ok(wc_symbol.clone()));
         // Parse a single symbol
         assert_eq!(parse("foo"), Ok(foo_symbol.clone()));
         // Internal '.', '-', and '+' are allowed
@@ -1531,20 +1528,20 @@ mod tests {
         // Parse a quoted symbol
         assert_eq!(parse("\"foo\""), Ok(foo_symbol.clone()));
         // Parse the "parents" operator
-        assert_eq!(parse("@-"), Ok(checkout_symbol.parents()));
+        assert_eq!(parse("@-"), Ok(wc_symbol.parents()));
         // Parse the "children" operator
-        assert_eq!(parse("@+"), Ok(checkout_symbol.children()));
+        assert_eq!(parse("@+"), Ok(wc_symbol.children()));
         // Parse the "ancestors" operator
-        assert_eq!(parse(":@"), Ok(checkout_symbol.ancestors()));
+        assert_eq!(parse(":@"), Ok(wc_symbol.ancestors()));
         // Parse the "descendants" operator
-        assert_eq!(parse("@:"), Ok(checkout_symbol.descendants()));
+        assert_eq!(parse("@:"), Ok(wc_symbol.descendants()));
         // Parse the "dag range" operator
         assert_eq!(parse("foo:bar"), Ok(foo_symbol.dag_range_to(&bar_symbol)));
         // Parse the "range" prefix operator
-        assert_eq!(parse("..@"), Ok(checkout_symbol.ancestors()));
+        assert_eq!(parse("..@"), Ok(wc_symbol.ancestors()));
         assert_eq!(
             parse("@.."),
-            Ok(checkout_symbol.range(&RevsetExpression::visible_heads()))
+            Ok(wc_symbol.range(&RevsetExpression::visible_heads()))
         );
         assert_eq!(parse("foo..bar"), Ok(foo_symbol.range(&bar_symbol)));
         // Parse the "intersection" operator
@@ -1554,9 +1551,9 @@ mod tests {
         // Parse the "difference" operator
         assert_eq!(parse("foo ~ bar"), Ok(foo_symbol.minus(&bar_symbol)));
         // Parentheses are allowed before suffix operators
-        assert_eq!(parse("(@)-"), Ok(checkout_symbol.parents()));
+        assert_eq!(parse("(@)-"), Ok(wc_symbol.parents()));
         // Space is allowed around expressions
-        assert_eq!(parse(" :@ "), Ok(checkout_symbol.ancestors()));
+        assert_eq!(parse(" :@ "), Ok(wc_symbol.ancestors()));
         // Space is not allowed around prefix operators
         assert_matches!(parse(" : @ "), Err(RevsetParseError::SyntaxError(_)));
         // Incomplete parse
@@ -1605,13 +1602,13 @@ mod tests {
 
     #[test]
     fn test_parse_revset_function() {
-        let checkout_symbol = RevsetExpression::symbol("@".to_string());
-        assert_eq!(parse("parents(@)"), Ok(checkout_symbol.parents()));
-        assert_eq!(parse("parents((@))"), Ok(checkout_symbol.parents()));
-        assert_eq!(parse("parents(\"@\")"), Ok(checkout_symbol.parents()));
+        let wc_symbol = RevsetExpression::symbol("@".to_string());
+        assert_eq!(parse("parents(@)"), Ok(wc_symbol.parents()));
+        assert_eq!(parse("parents((@))"), Ok(wc_symbol.parents()));
+        assert_eq!(parse("parents(\"@\")"), Ok(wc_symbol.parents()));
         assert_eq!(
             parse("ancestors(parents(@))"),
-            Ok(checkout_symbol.parents().ancestors())
+            Ok(wc_symbol.parents().ancestors())
         );
         assert_matches!(parse("parents(@"), Err(RevsetParseError::SyntaxError(_)));
         assert_eq!(

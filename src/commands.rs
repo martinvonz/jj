@@ -1960,17 +1960,13 @@ fn cmd_status(
     let maybe_checkout = maybe_checkout_id
         .map(|id| repo.store().get_commit(id))
         .transpose()?;
-    if let Some(checkout_commit) = &maybe_checkout {
+    if let Some(wc_commit) = &maybe_checkout {
         ui.write("Parent commit: ")?;
         let workspace_id = workspace_command.workspace_id();
-        ui.write_commit_summary(
-            repo.as_repo_ref(),
-            &workspace_id,
-            &checkout_commit.parents()[0],
-        )?;
+        ui.write_commit_summary(repo.as_repo_ref(), &workspace_id, &wc_commit.parents()[0])?;
         ui.write("\n")?;
         ui.write("Working copy : ")?;
-        ui.write_commit_summary(repo.as_repo_ref(), &workspace_id, checkout_commit)?;
+        ui.write_commit_summary(repo.as_repo_ref(), &workspace_id, wc_commit)?;
         ui.write("\n")?;
     } else {
         ui.write("No working copy\n")?;
@@ -2024,9 +2020,9 @@ fn cmd_status(
         )?;
     }
 
-    if let Some(checkout_commit) = &maybe_checkout {
-        let parent_tree = checkout_commit.parents()[0].tree();
-        let tree = checkout_commit.tree();
+    if let Some(wc_commit) = &maybe_checkout {
+        let parent_tree = wc_commit.parents()[0].tree();
+        let tree = wc_commit.tree();
         if tree.id() == parent_tree.id() {
             ui.write("The working copy is clean\n")?;
         } else {
@@ -3904,7 +3900,7 @@ fn cmd_workspace_add(
         .start_transaction(&format!("Initial checkout in workspace {}", &name));
     // Check out a parent of the checkout of the current workspace, or the root if
     // there is no checkout in the current workspace.
-    let new_checkout_commit = if let Some(old_checkout_id) = new_workspace_command
+    let new_wc_commit = if let Some(old_checkout_id) = new_workspace_command
         .repo()
         .view()
         .get_wc_commit_id(&old_workspace_command.workspace_id())
@@ -3921,7 +3917,7 @@ fn cmd_workspace_add(
     tx.mut_repo().check_out(
         new_workspace_command.workspace_id(),
         ui.settings(),
-        &new_checkout_commit,
+        &new_wc_commit,
     );
     new_workspace_command.finish_transaction(ui, tx)?;
     Ok(())

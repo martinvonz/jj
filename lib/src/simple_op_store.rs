@@ -387,8 +387,8 @@ mod tests {
             removes: vec![CommitId::from_hex("fff111")],
             adds: vec![CommitId::from_hex("fff222"), CommitId::from_hex("fff333")],
         };
-        let default_checkout_id = CommitId::from_hex("abc111");
-        let test_checkout_id = CommitId::from_hex("abc222");
+        let default_wc_commit_id = CommitId::from_hex("abc111");
+        let test_wc_commit_id = CommitId::from_hex("abc222");
         let view = View {
             head_ids: hashset! {head_id1, head_id2},
             public_head_ids: hashset! {public_head_id1, public_head_id2},
@@ -415,8 +415,8 @@ mod tests {
             },
             git_head: Some(CommitId::from_hex("fff111")),
             wc_commit_ids: hashmap! {
-                WorkspaceId::default() => default_checkout_id,
-                WorkspaceId::new("test".to_string()) => test_checkout_id,
+                WorkspaceId::default() => default_wc_commit_id,
+                WorkspaceId::new("test".to_string()) => test_wc_commit_id,
             },
         };
         let view_id = store.write_view(&view).unwrap();

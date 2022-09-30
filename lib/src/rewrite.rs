@@ -345,7 +345,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         }
 
         let new_commit = self.mut_repo.store().get_commit(new_commit_id)?;
-        let new_checkout_commit = if edit {
+        let new_wc_commit = if edit {
             new_commit
         } else {
             CommitBuilder::for_open_commit(
@@ -356,7 +356,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .write_to_repo(self.mut_repo)
         };
         for workspace_id in workspaces_to_update.into_iter() {
-            self.mut_repo.edit(workspace_id, &new_checkout_commit);
+            self.mut_repo.edit(workspace_id, &new_wc_commit);
         }
         Ok(())
     }

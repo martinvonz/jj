@@ -405,9 +405,13 @@ impl WorkspaceCommandHelper {
             .peel_to_commit()
             .ok()
             .map(|commit| commit.id());
-        if let Some(checkout_id) = mut_repo.view().get_wc_commit_id(&self.workspace_id()) {
-            let first_parent_id =
-                mut_repo.index().entry_by_id(checkout_id).unwrap().parents()[0].commit_id();
+        if let Some(wc_commit_id) = mut_repo.view().get_wc_commit_id(&self.workspace_id()) {
+            let first_parent_id = mut_repo
+                .index()
+                .entry_by_id(wc_commit_id)
+                .unwrap()
+                .parents()[0]
+                .commit_id();
             if first_parent_id != *mut_repo.store().root_commit_id() {
                 if let Some(current_git_commit_id) = current_git_commit_id {
                     git_repo.set_head_detached(current_git_commit_id)?;
@@ -568,8 +572,8 @@ impl WorkspaceCommandHelper {
     pub fn commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         let repo = self.repo.clone();
         let workspace_id = self.workspace_id();
-        let checkout_id = match repo.view().get_wc_commit_id(&self.workspace_id()) {
-            Some(checkout_id) => checkout_id.clone(),
+        let wc_commit_id = match repo.view().get_wc_commit_id(&self.workspace_id()) {
+            Some(wc_commit_id) => wc_commit_id.clone(),
             None => {
                 // If the workspace has been deleted, it's unclear what to do, so we just skip
                 // committing the working copy.
@@ -582,10 +586,10 @@ impl WorkspaceCommandHelper {
         // doesn't, but we'll need to reload the repo so the new commit is
         // in the index and view, and so we don't cause unnecessary
         // divergence.
-        let checkout_commit = repo.store().get_commit(&checkout_id)?;
+        let wc_commit = repo.store().get_commit(&wc_commit_id)?;
         let wc_tree_id = locked_wc.old_tree_id().clone();
         let mut wc_was_stale = false;
-        if *checkout_commit.tree_id() != wc_tree_id {
+        if *wc_commit.tree_id() != wc_tree_id {
             let wc_operation_data = self
                 .repo
                 .op_store()
@@ -619,15 +623,13 @@ impl WorkspaceCommandHelper {
                         short_operation_hash(wc_operation.id()),
                         short_operation_hash(repo_operation.id()),
                     )?;
-                    locked_wc
-                        .check_out(&checkout_commit.tree())
-                        .map_err(|err| {
-                            CommandError::InternalError(format!(
-                                "Failed to check out commit {}: {}",
-                                checkout_commit.id().hex(),
-                                err
-                            ))
-                        })?;
+                    locked_wc.check_out(&wc_commit.tree()).map_err(|err| {
+                        CommandError::InternalError(format!(
+                            "Failed to check out commit {}: {}",
+                            wc_commit.id().hex(),
+                            err
+                        ))
+                    })?;
                     wc_was_stale = true;
                 } else {
                     return Err(CommandError::InternalError(format!(
@@ -647,10 +649,10 @@ impl WorkspaceCommandHelper {
             }
         }
         let new_tree_id = locked_wc.snapshot(base_ignores)?;
-        if new_tree_id != *checkout_commit.tree_id() {
+        if new_tree_id != *wc_commit.tree_id() {
             let mut tx = self.repo.start_transaction("commit working copy");
             let mut_repo = tx.mut_repo();
-            let commit = CommitBuilder::for_rewrite_from(&self.settings, &checkout_commit)
+            let commit = CommitBuilder::for_rewrite_from(&self.settings, &wc_commit)
                 .set_tree(new_tree_id)
                 .write_to_repo(mut_repo);
             mut_repo.set_wc_commit(workspace_id, commit.id().clone());
