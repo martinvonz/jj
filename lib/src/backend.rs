@@ -226,7 +226,7 @@ pub enum Phase {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
-pub struct MillisSinceEpoch(pub u64);
+pub struct MillisSinceEpoch(pub i64);
 
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub struct Timestamp {
@@ -244,7 +244,7 @@ impl Timestamp {
         datetime: chrono::DateTime<Tz>,
     ) -> Self {
         Self {
-            timestamp: MillisSinceEpoch(datetime.timestamp_millis() as u64),
+            timestamp: MillisSinceEpoch(datetime.timestamp_millis()),
             tz_offset: datetime.offset().local_minus_utc() / 60,
         }
     }

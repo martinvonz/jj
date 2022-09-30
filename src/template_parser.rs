@@ -101,8 +101,8 @@ impl TemplateProperty<Signature, String> for SignatureTimestamp {
     fn extract(&self, context: &Signature) -> String {
         let utc = Utc
             .timestamp(
-                context.timestamp.timestamp.0 as i64 / 1000,
-                (context.timestamp.timestamp.0 % 1000) as u32 * 1000000,
+                context.timestamp.timestamp.0.div_euclid(1000),
+                context.timestamp.timestamp.0.rem_euclid(1000) as u32 * 1000000,
             )
             .with_timezone(&FixedOffset::east(context.timestamp.tz_offset * 60));
         utc.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string()

@@ -222,7 +222,8 @@ fn mtime_from_metadata(metadata: &Metadata) -> MillisSinceEpoch {
         .expect("mtime before unix epoch");
 
     MillisSinceEpoch(
-        u64::try_from(since_epoch.as_millis()).expect("mtime billions of years into the future"),
+        i64::try_from(since_epoch.as_millis())
+            .expect("mtime billions of years into the future or past"),
     )
 }
 
