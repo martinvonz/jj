@@ -79,6 +79,12 @@ impl UserSettings {
             .unwrap_or_else(|_| "push-".to_string())
     }
 
+    pub fn default_revset(&self) -> String {
+        self.config
+            .get_string("ui.default-revset")
+            .unwrap_or_else(|_| "remote_branches().. | (remote_branches()..)-".to_string())
+    }
+
     pub fn signature(&self) -> Signature {
         let timestamp = self.timestamp.clone().unwrap_or_else(Timestamp::now);
         Signature {

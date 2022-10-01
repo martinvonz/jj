@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * (#250) `jj log` now defaults to showing only commits that are not on any
   remote branches (plus their closest commit on the remote branch for context).
+  This set of commits can be overridden by setting `ui.default-revset`.
   Use `jj log -r 'all()'` for the old behavior. Read more about revsets
   [here](https://github.com/martinvonz/jj/blob/main/docs/revsets.md).
 
