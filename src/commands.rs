@@ -262,13 +262,10 @@ struct StatusArgs {}
 /// Show commit history
 #[derive(clap::Args, Clone, Debug)]
 struct LogArgs {
-    /// Which revisions to show
-    #[arg(
-        long,
-        short,
-        default_value = "remote_branches().. | (remote_branches()..)-"
-    )]
-    revisions: String,
+    /// Which revisions to show. Defaults to the `ui.default-revset` setting,
+    /// or "remote_branches().. | (remote_branches()..)-" if it is not set.
+    #[arg(long, short)]
+    revisions: Option<String>,
     /// Show commits modifying the given paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -2082,7 +2079,8 @@ fn log_template(settings: &UserSettings) -> String {
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
 
-    let revset_expression = revset::parse(&args.revisions)?;
+    let default_revset = ui.settings().default_revset();
+    let revset_expression = revset::parse(args.revisions.as_ref().unwrap_or(&default_revset))?;
     let repo = workspace_command.repo();
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = repo.view().get_wc_commit_id(&workspace_id);

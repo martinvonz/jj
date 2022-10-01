@@ -198,3 +198,30 @@ fn test_log_filtered_by_path() {
     A file2
     "###);
 }
+
+#[test]
+fn test_default_revset() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "add a file"]);
+
+    // Set configuration to only show the root commit.
+    test_env.add_config(
+        br#"[ui]
+        default-revset = "root"
+        "#,
+    );
+
+    // Log should only contain one line (for the root commit), and not show the
+    // commit created above.
+    assert_eq!(
+        1,
+        test_env
+            .jj_cmd_success(&repo_path, &["log", "-T", "commit_id"])
+            .lines()
+            .count()
+    );
+}
