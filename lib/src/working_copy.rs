@@ -461,7 +461,7 @@ impl TreeState {
 
     /// Look for changes to the working copy. If there are any changes, create
     /// a new tree from it.
-    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<(), SnapshotError> {
+    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<bool, SnapshotError> {
         let sparse_matcher = self.sparse_matcher();
         let mut work = vec![(
             RepoPath::root(),
@@ -516,8 +516,9 @@ impl TreeState {
             self.file_states.remove(file);
             tree_builder.remove(file.clone());
         }
+        let changed = tree_builder.has_overrides();
         self.tree_id = tree_builder.write_tree();
-        Ok(())
+        Ok(changed)
     }
 
     fn has_files_under(&self, dir: &RepoPath) -> bool {
@@ -1110,6 +1111,7 @@ impl WorkingCopy {
             lock,
             old_operation_id,
             old_tree_id,
+            tree_state_dirty: false,
             closed: false,
         }
     }
@@ -1144,6 +1146,7 @@ pub struct LockedWorkingCopy<'a> {
     lock: FileLock,
     old_operation_id: OperationId,
     old_tree_id: TreeId,
+    tree_state_dirty: bool,
     closed: bool,
 }
 
@@ -1163,7 +1166,7 @@ impl LockedWorkingCopy<'_> {
     // long-lived process.
     pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<TreeId, SnapshotError> {
         let mut tree_state = self.wc.tree_state_mut();
-        tree_state.snapshot(base_ignores)?;
+        self.tree_state_dirty |= tree_state.snapshot(base_ignores)?;
         Ok(tree_state.current_tree_id().clone())
     }
 
@@ -1171,11 +1174,14 @@ impl LockedWorkingCopy<'_> {
         // TODO: Write a "pending_checkout" file with the new TreeId so we can
         // continue an interrupted update if we find such a file.
         let stats = self.wc.tree_state_mut().check_out(new_tree)?;
+        self.tree_state_dirty = true;
         Ok(stats)
     }
 
     pub fn reset(&mut self, new_tree: &Tree) -> Result<(), ResetError> {
-        self.wc.tree_state_mut().reset(new_tree)
+        self.wc.tree_state_mut().reset(new_tree)?;
+        self.tree_state_dirty = true;
+        Ok(())
     }
 
     pub fn sparse_patterns(&self) -> Vec<RepoPath> {
@@ -1188,16 +1194,23 @@ impl LockedWorkingCopy<'_> {
     ) -> Result<CheckoutStats, CheckoutError> {
         // TODO: Write a "pending_checkout" file with new sparse patterns so we can
         // continue an interrupted update if we find such a file.
-        self.wc
+        let stats = self
+            .wc
             .tree_state_mut()
-            .set_sparse_patterns(new_sparse_patterns)
+            .set_sparse_patterns(new_sparse_patterns)?;
+        self.tree_state_dirty = true;
+        Ok(stats)
     }
 
     pub fn finish(mut self, operation_id: OperationId) {
-        self.wc.tree_state_mut().save();
+        assert!(self.tree_state_dirty || self.old_tree_id == self.wc.current_tree_id());
+        if self.tree_state_dirty {
+            self.wc.tree_state_mut().save();
+        }
         self.wc.operation_id.replace(Some(operation_id));
         self.wc.save();
         // TODO: Clear the "pending_checkout" file here.
+        self.tree_state_dirty = false;
         self.closed = true;
     }
 
@@ -1205,6 +1218,7 @@ impl LockedWorkingCopy<'_> {
         // Undo the changes in memory
         self.wc.load_proto();
         self.wc.tree_state.replace(None);
+        self.tree_state_dirty = false;
         self.closed = true;
     }
 }
