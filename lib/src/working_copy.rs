@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
 use std::ffi::OsString;
 use std::fs;
@@ -958,12 +957,18 @@ impl TreeState {
     }
 }
 
+/// Working copy state stored in "checkout" file.
+#[derive(Clone, Debug)]
+struct CheckoutState {
+    operation_id: OperationId,
+    workspace_id: WorkspaceId,
+}
+
 pub struct WorkingCopy {
     store: Arc<Store>,
     working_copy_path: PathBuf,
     state_path: PathBuf,
-    operation_id: RefCell<Option<OperationId>>,
-    workspace_id: RefCell<Option<WorkspaceId>>,
+    checkout_state: OnceCell<CheckoutState>,
     tree_state: OnceCell<TreeState>,
 }
 
@@ -991,8 +996,7 @@ impl WorkingCopy {
             store,
             working_copy_path,
             state_path,
-            operation_id: RefCell::new(Some(operation_id)),
-            workspace_id: RefCell::new(Some(workspace_id)),
+            checkout_state: OnceCell::new(),
             tree_state: OnceCell::new(),
         }
     }
@@ -1002,8 +1006,7 @@ impl WorkingCopy {
             store,
             working_copy_path,
             state_path,
-            operation_id: RefCell::new(None),
-            workspace_id: RefCell::new(None),
+            checkout_state: OnceCell::new(),
             tree_state: OnceCell::new(),
         }
     }
@@ -1024,36 +1027,35 @@ impl WorkingCopy {
         temp_file.persist(self.state_path.join("checkout")).unwrap();
     }
 
-    fn load_proto(&self) {
-        let mut file = File::open(self.state_path.join("checkout")).unwrap();
-        let proto: crate::protos::working_copy::Checkout =
-            Message::parse_from_reader(&mut file).unwrap();
-        self.operation_id
-            .replace(Some(OperationId::new(proto.operation_id)));
-        let workspace_id = if proto.workspace_id.is_empty() {
-            // For compatibility with old working copies.
-            // TODO: Delete in mid 2022 or so
-            WorkspaceId::default()
-        } else {
-            WorkspaceId::new(proto.workspace_id)
-        };
-        self.workspace_id.replace(Some(workspace_id));
+    fn checkout_state(&self) -> &CheckoutState {
+        self.checkout_state.get_or_init(|| {
+            let mut file = File::open(self.state_path.join("checkout")).unwrap();
+            let proto: crate::protos::working_copy::Checkout =
+                Message::parse_from_reader(&mut file).unwrap();
+            CheckoutState {
+                operation_id: OperationId::new(proto.operation_id),
+                workspace_id: if proto.workspace_id.is_empty() {
+                    // For compatibility with old working copies.
+                    // TODO: Delete in mid 2022 or so
+                    WorkspaceId::default()
+                } else {
+                    WorkspaceId::new(proto.workspace_id)
+                },
+            }
+        })
+    }
+
+    fn checkout_state_mut(&mut self) -> &mut CheckoutState {
+        self.checkout_state(); // ensure loaded
+        self.checkout_state.get_mut().unwrap()
     }
 
     pub fn operation_id(&self) -> OperationId {
-        if self.operation_id.borrow().is_none() {
-            self.load_proto();
-        }
-
-        self.operation_id.borrow().as_ref().unwrap().clone()
+        self.checkout_state().operation_id.clone()
     }
 
     pub fn workspace_id(&self) -> WorkspaceId {
-        if self.workspace_id.borrow().is_none() {
-            self.load_proto();
-        }
-
-        self.workspace_id.borrow().as_ref().unwrap().clone()
+        self.checkout_state().workspace_id.clone()
     }
 
     fn tree_state(&self) -> &TreeState {
@@ -1095,7 +1097,7 @@ impl WorkingCopy {
         let lock = FileLock::lock(lock_path);
 
         // Re-read from disk after taking the lock
-        self.load_proto();
+        self.checkout_state.take();
         // TODO: It's expensive to reload the whole tree. We should first check if it
         // has changed.
         self.tree_state.take();
@@ -1204,7 +1206,7 @@ impl LockedWorkingCopy<'_> {
             self.wc.tree_state_mut().save();
         }
         if self.old_operation_id != operation_id {
-            self.wc.operation_id.replace(Some(operation_id));
+            self.wc.checkout_state_mut().operation_id = operation_id;
             self.wc.save();
         }
         // TODO: Clear the "pending_checkout" file here.
