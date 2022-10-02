@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
 use std::ffi::OsString;
 use std::fs;
@@ -27,6 +27,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
+use once_cell::unsync::OnceCell;
 use protobuf::{EnumOrUnknown, Message, MessageField};
 use tempfile::NamedTempFile;
 use thiserror::Error;
@@ -963,7 +964,7 @@ pub struct WorkingCopy {
     state_path: PathBuf,
     operation_id: RefCell<Option<OperationId>>,
     workspace_id: RefCell<Option<WorkspaceId>>,
-    tree_state: RefCell<Option<TreeState>>,
+    tree_state: OnceCell<TreeState>,
 }
 
 impl WorkingCopy {
@@ -992,7 +993,7 @@ impl WorkingCopy {
             state_path,
             operation_id: RefCell::new(Some(operation_id)),
             workspace_id: RefCell::new(Some(workspace_id)),
-            tree_state: RefCell::new(None),
+            tree_state: OnceCell::new(),
         }
     }
 
@@ -1003,7 +1004,7 @@ impl WorkingCopy {
             state_path,
             operation_id: RefCell::new(None),
             workspace_id: RefCell::new(None),
-            tree_state: RefCell::new(None),
+            tree_state: OnceCell::new(),
         }
     }
 
@@ -1055,24 +1056,19 @@ impl WorkingCopy {
         self.workspace_id.borrow().as_ref().unwrap().clone()
     }
 
-    fn ensure_tree_state(&self) {
-        if self.tree_state.borrow().is_none() {
-            self.tree_state.replace(Some(TreeState::load(
+    fn tree_state(&self) -> &TreeState {
+        self.tree_state.get_or_init(|| {
+            TreeState::load(
                 self.store.clone(),
                 self.working_copy_path.clone(),
                 self.state_path.clone(),
-            )));
-        }
+            )
+        })
     }
 
-    fn tree_state(&self) -> Ref<TreeState> {
-        self.ensure_tree_state();
-        Ref::map(self.tree_state.borrow(), |o| o.as_ref().unwrap())
-    }
-
-    fn tree_state_mut(&mut self) -> RefMut<TreeState> {
-        self.ensure_tree_state();
-        RefMut::map(self.tree_state.borrow_mut(), |o| o.as_mut().unwrap())
+    fn tree_state_mut(&mut self) -> &mut TreeState {
+        self.tree_state(); // ensure loaded
+        self.tree_state.get_mut().unwrap()
     }
 
     pub fn current_tree_id(&self) -> TreeId {
@@ -1102,7 +1098,7 @@ impl WorkingCopy {
         self.load_proto();
         // TODO: It's expensive to reload the whole tree. We should first check if it
         // has changed.
-        self.tree_state.replace(None);
+        self.tree_state.take();
         let old_operation_id = self.operation_id();
         let old_tree_id = self.current_tree_id();
 
@@ -1165,7 +1161,7 @@ impl LockedWorkingCopy<'_> {
     // because the TreeState may be long-lived if the library is used in a
     // long-lived process.
     pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<TreeId, SnapshotError> {
-        let mut tree_state = self.wc.tree_state_mut();
+        let tree_state = self.wc.tree_state_mut();
         self.tree_state_dirty |= tree_state.snapshot(base_ignores)?;
         Ok(tree_state.current_tree_id().clone())
     }
@@ -1219,7 +1215,7 @@ impl LockedWorkingCopy<'_> {
     pub fn discard(mut self) {
         // Undo the changes in memory
         self.wc.load_proto();
-        self.wc.tree_state.replace(None);
+        self.wc.tree_state.take();
         self.tree_state_dirty = false;
         self.closed = true;
     }
