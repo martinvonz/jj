@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cell::{RefCell, RefMut};
+use std::cell::{Ref, RefCell, RefMut};
 use std::collections::{BTreeMap, HashSet};
 use std::ffi::OsString;
 use std::fs;
@@ -1054,7 +1054,7 @@ impl WorkingCopy {
         self.workspace_id.borrow().as_ref().unwrap().clone()
     }
 
-    fn tree_state(&self) -> RefMut<Option<TreeState>> {
+    fn ensure_tree_state(&self) {
         if self.tree_state.borrow().is_none() {
             self.tree_state.replace(Some(TreeState::load(
                 self.store.clone(),
@@ -1062,27 +1062,28 @@ impl WorkingCopy {
                 self.state_path.clone(),
             )));
         }
-        self.tree_state.borrow_mut()
+    }
+
+    fn tree_state(&self) -> Ref<TreeState> {
+        self.ensure_tree_state();
+        Ref::map(self.tree_state.borrow(), |o| o.as_ref().unwrap())
+    }
+
+    fn tree_state_mut(&mut self) -> RefMut<TreeState> {
+        self.ensure_tree_state();
+        RefMut::map(self.tree_state.borrow_mut(), |o| o.as_mut().unwrap())
     }
 
     pub fn current_tree_id(&self) -> TreeId {
-        self.tree_state()
-            .as_ref()
-            .unwrap()
-            .current_tree_id()
-            .clone()
+        self.tree_state().current_tree_id().clone()
     }
 
     pub fn file_states(&self) -> BTreeMap<RepoPath, FileState> {
-        self.tree_state().as_ref().unwrap().file_states().clone()
+        self.tree_state().file_states().clone()
     }
 
     pub fn sparse_patterns(&self) -> Vec<RepoPath> {
-        self.tree_state()
-            .as_ref()
-            .unwrap()
-            .sparse_patterns()
-            .clone()
+        self.tree_state().sparse_patterns().clone()
     }
 
     fn save(&mut self) {
@@ -1161,22 +1162,18 @@ impl LockedWorkingCopy<'_> {
     // because the TreeState may be long-lived if the library is used in a
     // long-lived process.
     pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<TreeId, SnapshotError> {
-        self.wc
-            .tree_state()
-            .as_mut()
-            .unwrap()
-            .snapshot(base_ignores)
+        self.wc.tree_state_mut().snapshot(base_ignores)
     }
 
     pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {
         // TODO: Write a "pending_checkout" file with the new TreeId so we can
         // continue an interrupted update if we find such a file.
-        let stats = self.wc.tree_state().as_mut().unwrap().check_out(new_tree)?;
+        let stats = self.wc.tree_state_mut().check_out(new_tree)?;
         Ok(stats)
     }
 
     pub fn reset(&mut self, new_tree: &Tree) -> Result<(), ResetError> {
-        self.wc.tree_state().as_mut().unwrap().reset(new_tree)
+        self.wc.tree_state_mut().reset(new_tree)
     }
 
     pub fn sparse_patterns(&self) -> Vec<RepoPath> {
@@ -1190,14 +1187,12 @@ impl LockedWorkingCopy<'_> {
         // TODO: Write a "pending_checkout" file with new sparse patterns so we can
         // continue an interrupted update if we find such a file.
         self.wc
-            .tree_state()
-            .as_mut()
-            .unwrap()
+            .tree_state_mut()
             .set_sparse_patterns(new_sparse_patterns)
     }
 
     pub fn finish(mut self, operation_id: OperationId) {
-        self.wc.tree_state().as_mut().unwrap().save();
+        self.wc.tree_state_mut().save();
         self.wc.operation_id.replace(Some(operation_id));
         self.wc.save();
         // TODO: Clear the "pending_checkout" file here.
