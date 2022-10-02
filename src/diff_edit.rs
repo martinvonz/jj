@@ -177,7 +177,8 @@ pub fn edit_diff(
         std::fs::remove_file(instructions_path).ok();
     }
 
-    Ok(right_tree_state.snapshot(base_ignores)?)
+    right_tree_state.snapshot(base_ignores)?;
+    Ok(right_tree_state.current_tree_id().clone())
 }
 
 /// Merge/diff tool loaded from the settings.

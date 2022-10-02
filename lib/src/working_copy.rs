@@ -460,8 +460,8 @@ impl TreeState {
     }
 
     /// Look for changes to the working copy. If there are any changes, create
-    /// a new tree from it and return it, and also update the dirstate on disk.
-    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<TreeId, SnapshotError> {
+    /// a new tree from it.
+    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<(), SnapshotError> {
         let sparse_matcher = self.sparse_matcher();
         let mut work = vec![(
             RepoPath::root(),
@@ -517,7 +517,7 @@ impl TreeState {
             tree_builder.remove(file.clone());
         }
         self.tree_id = tree_builder.write_tree();
-        Ok(self.tree_id.clone())
+        Ok(())
     }
 
     fn has_files_under(&self, dir: &RepoPath) -> bool {
@@ -1162,7 +1162,9 @@ impl LockedWorkingCopy<'_> {
     // because the TreeState may be long-lived if the library is used in a
     // long-lived process.
     pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<TreeId, SnapshotError> {
-        self.wc.tree_state_mut().snapshot(base_ignores)
+        let mut tree_state = self.wc.tree_state_mut();
+        tree_state.snapshot(base_ignores)?;
+        Ok(tree_state.current_tree_id().clone())
     }
 
     pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {
