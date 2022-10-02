@@ -588,7 +588,6 @@ impl WorkspaceCommandHelper {
         // divergence.
         let wc_commit = repo.store().get_commit(&wc_commit_id)?;
         let wc_tree_id = locked_wc.old_tree_id().clone();
-        let mut wc_was_stale = false;
         if *wc_commit.tree_id() != wc_tree_id {
             let wc_operation_data = self
                 .repo
@@ -630,7 +629,6 @@ impl WorkspaceCommandHelper {
                             err
                         ))
                     })?;
-                    wc_was_stale = true;
                 } else {
                     return Err(CommandError::InternalError(format!(
                         "The repo was loaded at operation {}, which seems to be a sibling of the \
@@ -668,12 +666,8 @@ impl WorkspaceCommandHelper {
             }
 
             self.repo = tx.commit();
-            locked_wc.finish(self.repo.op_id().clone());
-        } else if wc_was_stale {
-            locked_wc.finish(self.repo.op_id().clone());
-        } else {
-            locked_wc.discard();
         }
+        locked_wc.finish(self.repo.op_id().clone());
         Ok(())
     }
 
