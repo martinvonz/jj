@@ -50,6 +50,7 @@ use jujutsu_lib::working_copy::{
 };
 use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
 use jujutsu_lib::{dag_walk, file_util, git, revset};
+use thiserror::Error;
 
 use crate::config::read_config;
 use crate::diff_edit::{ConflictResolveError, DiffEditError};
@@ -679,7 +680,43 @@ impl WorkspaceCommandHelper {
         let base_ignores = self.base_ignores();
         let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
         let wc_commit = repo.store().get_commit(&wc_commit_id)?;
-        self.repo = check_stale_working_copy(ui, &mut locked_wc, &wc_commit, repo)?;
+        self.repo = match check_stale_working_copy(&locked_wc, &wc_commit, repo.clone()) {
+            Ok(repo) => repo,
+            Err(StaleWorkingCopyError::WorkingCopyStale) => {
+                // Update the working copy to what the view says.
+                writeln!(
+                    ui,
+                    "The working copy is stale (not updated since operation {}), now updating to \
+                     operation {}",
+                    short_operation_hash(locked_wc.old_operation_id()),
+                    short_operation_hash(repo.op_id()),
+                )?;
+                locked_wc.check_out(&wc_commit.tree()).map_err(|err| {
+                    CommandError::InternalError(format!(
+                        "Failed to check out commit {}: {}",
+                        wc_commit.id().hex(),
+                        err
+                    ))
+                })?;
+                repo
+            }
+            Err(StaleWorkingCopyError::SiblingOperation) => {
+                return Err(CommandError::InternalError(format!(
+                    "The repo was loaded at operation {}, which seems to be a sibling of the \
+                     working copy's operation {}",
+                    short_operation_hash(repo.op_id()),
+                    short_operation_hash(locked_wc.old_operation_id())
+                )));
+            }
+            Err(StaleWorkingCopyError::UnrelatedOperation) => {
+                return Err(CommandError::InternalError(format!(
+                    "The repo was loaded at operation {}, which seems unrelated to the working \
+                     copy's operation {}",
+                    short_operation_hash(repo.op_id()),
+                    short_operation_hash(locked_wc.old_operation_id())
+                )));
+            }
+        };
         let new_tree_id = locked_wc.snapshot(base_ignores)?;
         if new_tree_id != *wc_commit.tree_id() {
             let mut tx = self
@@ -853,18 +890,26 @@ impl WorkspaceCommandHelper {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum StaleWorkingCopyError {
+    #[error("The working copy is behind the latest operation")]
+    WorkingCopyStale,
+    #[error("The working copy is a sibling of the latest operation")]
+    SiblingOperation,
+    #[error("The working copy is unrelated to the latest operation")]
+    UnrelatedOperation,
+}
+
 fn check_stale_working_copy(
-    ui: &mut Ui,
-    locked_wc: &mut LockedWorkingCopy,
+    locked_wc: &LockedWorkingCopy,
     wc_commit: &Commit,
-    mut repo: Arc<ReadonlyRepo>,
-) -> Result<Arc<ReadonlyRepo>, CommandError> {
-    // Check if the working copy commit matches the repo's view. It's fine if it
-    // doesn't, but we'll need to reload the repo so the new commit is
-    // in the index and view, and so we don't cause unnecessary
-    // divergence.
+    repo: Arc<ReadonlyRepo>,
+) -> Result<Arc<ReadonlyRepo>, StaleWorkingCopyError> {
+    // Check if the working copy's tree matches the repo's view
     let wc_tree_id = locked_wc.old_tree_id().clone();
-    if *wc_commit.tree_id() != wc_tree_id {
+    if *wc_commit.tree_id() == wc_tree_id {
+        Ok(repo)
+    } else {
         let wc_operation_data = repo
             .op_store()
             .read_operation(locked_wc.old_operation_id())
@@ -885,43 +930,18 @@ fn check_stale_working_copy(
             if ancestor_op.id() == repo_operation.id() {
                 // The working copy was updated since we loaded the repo. We reload the repo
                 // at the working copy's operation.
-                repo = repo.reload_at(&wc_operation);
+                Ok(repo.reload_at(&wc_operation))
             } else if ancestor_op.id() == wc_operation.id() {
                 // The working copy was not updated when some repo operation committed,
-                // meaning that it's stale compared to the repo view. We update the working
-                // copy to what the view says.
-                writeln!(
-                    ui,
-                    "The working copy is stale (not updated since operation {}), now updating to \
-                     operation {}",
-                    short_operation_hash(wc_operation.id()),
-                    short_operation_hash(repo_operation.id()),
-                )?;
-                locked_wc.check_out(&wc_commit.tree()).map_err(|err| {
-                    CommandError::InternalError(format!(
-                        "Failed to check out commit {}: {}",
-                        wc_commit.id().hex(),
-                        err
-                    ))
-                })?;
+                // meaning that it's stale compared to the repo view.
+                Err(StaleWorkingCopyError::WorkingCopyStale)
             } else {
-                return Err(CommandError::InternalError(format!(
-                    "The repo was loaded at operation {}, which seems to be a sibling of the \
-                     working copy's operation {}",
-                    short_operation_hash(repo_operation.id()),
-                    short_operation_hash(wc_operation.id())
-                )));
+                Err(StaleWorkingCopyError::SiblingOperation)
             }
         } else {
-            return Err(CommandError::InternalError(format!(
-                "The repo was loaded at operation {}, which seems unrelated to the working copy's \
-                 operation {}",
-                short_operation_hash(repo_operation.id()),
-                short_operation_hash(wc_operation.id())
-            )));
+            Err(StaleWorkingCopyError::UnrelatedOperation)
         }
     }
-    Ok(repo)
 }
 
 pub fn print_checkout_stats(ui: &mut Ui, stats: CheckoutStats) -> Result<(), std::io::Error> {
