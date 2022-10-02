@@ -1207,8 +1207,10 @@ impl LockedWorkingCopy<'_> {
         if self.tree_state_dirty {
             self.wc.tree_state_mut().save();
         }
-        self.wc.operation_id.replace(Some(operation_id));
-        self.wc.save();
+        if self.old_operation_id != operation_id {
+            self.wc.operation_id.replace(Some(operation_id));
+            self.wc.save();
+        }
         // TODO: Clear the "pending_checkout" file here.
         self.tree_state_dirty = false;
         self.closed = true;
