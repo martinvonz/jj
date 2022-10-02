@@ -1071,16 +1071,16 @@ impl WorkingCopy {
         self.tree_state.get_mut().unwrap()
     }
 
-    pub fn current_tree_id(&self) -> TreeId {
-        self.tree_state().current_tree_id().clone()
+    pub fn current_tree_id(&self) -> &TreeId {
+        self.tree_state().current_tree_id()
     }
 
-    pub fn file_states(&self) -> BTreeMap<RepoPath, FileState> {
-        self.tree_state().file_states().clone()
+    pub fn file_states(&self) -> &BTreeMap<RepoPath, FileState> {
+        self.tree_state().file_states()
     }
 
-    pub fn sparse_patterns(&self) -> Vec<RepoPath> {
-        self.tree_state().sparse_patterns().clone()
+    pub fn sparse_patterns(&self) -> &[RepoPath] {
+        self.tree_state().sparse_patterns()
     }
 
     fn save(&mut self) {
@@ -1100,7 +1100,7 @@ impl WorkingCopy {
         // has changed.
         self.tree_state.take();
         let old_operation_id = self.operation_id();
-        let old_tree_id = self.current_tree_id();
+        let old_tree_id = self.current_tree_id().clone();
 
         LockedWorkingCopy {
             wc: self,
@@ -1180,7 +1180,7 @@ impl LockedWorkingCopy<'_> {
         Ok(())
     }
 
-    pub fn sparse_patterns(&self) -> Vec<RepoPath> {
+    pub fn sparse_patterns(&self) -> &[RepoPath] {
         self.wc.sparse_patterns()
     }
 
@@ -1199,7 +1199,7 @@ impl LockedWorkingCopy<'_> {
     }
 
     pub fn finish(mut self, operation_id: OperationId) {
-        assert!(self.tree_state_dirty || self.old_tree_id == self.wc.current_tree_id());
+        assert!(self.tree_state_dirty || &self.old_tree_id == self.wc.current_tree_id());
         if self.tree_state_dirty {
             self.wc.tree_state_mut().save();
         }
