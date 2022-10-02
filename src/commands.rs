@@ -3969,7 +3969,7 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
     if args.list {
         let workspace_command = command.workspace_helper(ui)?;
         for path in workspace_command.working_copy().sparse_patterns() {
-            let ui_path = workspace_command.format_file_path(&path);
+            let ui_path = workspace_command.format_file_path(path);
             writeln!(ui, "{}", ui_path)?;
         }
     } else {
@@ -3982,7 +3982,7 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
             new_patterns.insert(RepoPath::root());
         } else {
             if !args.clear {
-                new_patterns.extend(locked_wc.sparse_patterns());
+                new_patterns.extend(locked_wc.sparse_patterns().iter().cloned());
                 let paths_to_remove = repo_paths_from_values(ui, &workspace_root, &args.remove)?;
                 for path in paths_to_remove {
                     new_patterns.remove(&path);

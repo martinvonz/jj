@@ -74,7 +74,7 @@ fn test_concurrent_checkout(use_git: bool) {
     // Check that the tree2 is still checked out on disk.
     let workspace3 =
         Workspace::load(&settings, &workspace1_root, &BackendFactories::default()).unwrap();
-    assert_eq!(workspace3.working_copy().current_tree_id(), tree_id2);
+    assert_eq!(workspace3.working_copy().current_tree_id(), &tree_id2);
 }
 
 #[test_case(false ; "local backend")]
