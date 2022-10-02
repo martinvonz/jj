@@ -242,36 +242,37 @@ impl CommandHelper {
     }
 
     pub fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
-        let wc_path_str = self.global_args.repository.as_deref().unwrap_or(".");
-        let wc_path = ui.cwd().join(wc_path_str);
-        let workspace =
-            Workspace::load(ui.settings(), &wc_path, &self.backend_factories).map_err(|err| {
-                match err {
-                    WorkspaceLoadError::NoWorkspaceHere(wc_path) => {
-                        let message = format!("There is no jj repo in \"{}\"", wc_path_str);
-                        let git_dir = wc_path.join(".git");
-                        if git_dir.is_dir() {
-                            user_error_with_hint(
-                                message,
-                                "It looks like this is a git repo. You can create a jj repo \
-                                 backed by it by running this:
-jj init --git-repo=.",
-                            )
-                        } else {
-                            user_error(message)
-                        }
-                    }
-                    WorkspaceLoadError::RepoDoesNotExist(repo_dir) => user_error(format!(
-                        "The repository directory at {} is missing. Was it moved?",
-                        repo_dir.to_str().unwrap()
-                    )),
-                    WorkspaceLoadError::Path(e) => user_error(format!("{}: {}", e, e.error)),
-                    WorkspaceLoadError::NonUnicodePath => user_error(err.to_string()),
-                }
-            })?;
+        let workspace = self.load_workspace(ui)?;
         let mut workspace_command = self.resolve_operation(ui, workspace)?;
         workspace_command.snapshot(ui)?;
         Ok(workspace_command)
+    }
+
+    pub fn load_workspace(&self, ui: &Ui) -> Result<Workspace, CommandError> {
+        let wc_path_str = self.global_args.repository.as_deref().unwrap_or(".");
+        let wc_path = ui.cwd().join(wc_path_str);
+        Workspace::load(ui.settings(), &wc_path, &self.backend_factories).map_err(|err| match err {
+            WorkspaceLoadError::NoWorkspaceHere(wc_path) => {
+                let message = format!("There is no jj repo in \"{}\"", wc_path_str);
+                let git_dir = wc_path.join(".git");
+                if git_dir.is_dir() {
+                    user_error_with_hint(
+                        message,
+                        "It looks like this is a git repo. You can create a jj repo backed by it \
+                         by running this:
+jj init --git-repo=.",
+                    )
+                } else {
+                    user_error(message)
+                }
+            }
+            WorkspaceLoadError::RepoDoesNotExist(repo_dir) => user_error(format!(
+                "The repository directory at {} is missing. Was it moved?",
+                repo_dir.to_str().unwrap()
+            )),
+            WorkspaceLoadError::Path(e) => user_error(format!("{}: {}", e, e.error)),
+            WorkspaceLoadError::NonUnicodePath => user_error(err.to_string()),
+        })
     }
 
     fn resolve_operation(
