@@ -75,3 +75,11 @@ while you continue developing in another, for example.
 When you're done using a workspace, use `jj workspace forget` to make the repo
 forget about it. The files can be deleted from disk separately (either before or
 after).
+
+### Stale working copy
+
+When you modify workspace A's working-copy commit from workspace B, workspace
+A's working copy will become stale. By "stale", we mean that the files in the
+working copy don't match the desired commit indicated by the `@` symbol in
+`jj log`. When that happens, use `jj workspace update-stale` to update the files
+in the working copy.

@@ -14,8 +14,6 @@
 
 use std::path::Path;
 
-use itertools::Itertools;
-
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -96,7 +94,7 @@ fn test_workspaces_conflicting_edits() {
     // Make changes in both working copies
     std::fs::write(main_path.join("file"), "changed in main\n").unwrap();
     std::fs::write(secondary_path.join("file"), "changed in second\n").unwrap();
-    // Squash the changes from the main workspace in the initial commit (before
+    // Squash the changes from the main workspace into the initial commit (before
     // running any command in the secondary workspace
     let stdout = test_env.jj_cmd_success(&main_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -104,7 +102,7 @@ fn test_workspaces_conflicting_edits() {
     Working copy now at: fe8f41ed01d6 (no description set)
     "###);
 
-    // The secondary workspace's checkout was updated
+    // The secondary workspace's working-copy commit was updated
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
     @ fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
     | o a1896a17282f19089a5cec44358d6609910e0513 secondary@
@@ -112,19 +110,33 @@ fn test_workspaces_conflicting_edits() {
     o c0d4a99ef98ada7da8dc73a778bbb747c4178385 
     o 0000000000000000000000000000000000000000 
     "###);
-    let stdout = get_log_output(&test_env, &secondary_path);
+    let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The working copy is stale (not updated since operation 6a2e94fc65fb).
+    Hint: Run `jj workspace update-stale` to update it.
+    "###);
+    // Same error on second run, and from another command
+    let stderr = test_env.jj_cmd_failure(&secondary_path, &["log"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The working copy is stale (not updated since operation 6a2e94fc65fb).
+    Hint: Run `jj workspace update-stale` to update it.
+    "###);
+    let stdout = test_env.jj_cmd_success(&secondary_path, &["workspace", "update-stale"]);
     // It was detected that the working copy is now stale
     // TODO: Since there was an uncommitted change in the working copy, it should
     // have been committed first (causing divergence)
-    assert!(stdout.starts_with("The working copy is stale"));
-    insta::assert_snapshot!(stdout.lines().skip(1).join("\n"), @r###"
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: a1896a17282f (no description set)
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
+    @r###"
     o fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
     | @ a1896a17282f19089a5cec44358d6609910e0513 secondary@
     |/  
     o c0d4a99ef98ada7da8dc73a778bbb747c4178385 
     o 0000000000000000000000000000000000000000 
     "###);
-
     // The stale working copy should have been resolved by the previous command
     let stdout = get_log_output(&test_env, &secondary_path);
     assert!(!stdout.starts_with("The working copy is stale"));

@@ -54,9 +54,9 @@ use maplit::{hashmap, hashset};
 use pest::Parser;
 
 use crate::cli_util::{
-    print_checkout_stats, print_failed_git_export, resolve_base_revs, short_commit_description,
-    short_commit_hash, user_error, user_error_with_hint, write_commit_summary, Args, CommandError,
-    CommandHelper, RevisionArg, WorkspaceCommandHelper,
+    check_stale_working_copy, print_checkout_stats, print_failed_git_export, resolve_base_revs,
+    short_commit_description, short_commit_hash, user_error, user_error_with_hint,
+    write_commit_summary, Args, CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::config::FullCommandArgs;
 use crate::formatter::{Formatter, PlainTextFormatter};
@@ -793,6 +793,7 @@ enum WorkspaceCommands {
     Add(WorkspaceAddArgs),
     Forget(WorkspaceForgetArgs),
     List(WorkspaceListArgs),
+    UpdateStale(WorkspaceUpdateStaleArgs),
 }
 
 /// Add a workspace
@@ -821,6 +822,13 @@ struct WorkspaceForgetArgs {
 /// List workspaces
 #[derive(clap::Args, Clone, Debug)]
 struct WorkspaceListArgs {}
+
+/// Update a workspace that has become stale
+///
+/// For information about stale working copies, see
+/// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
+#[derive(clap::Args, Clone, Debug)]
+struct WorkspaceUpdateStaleArgs {}
 
 /// Manage which paths from the working-copy commit are present in the working
 /// copy
@@ -3850,6 +3858,9 @@ fn cmd_workspace(
         WorkspaceCommands::List(command_matches) => {
             cmd_workspace_list(ui, command, command_matches)
         }
+        WorkspaceCommands::UpdateStale(command_matches) => {
+            cmd_workspace_update_stale(ui, command, command_matches)
+        }
     }
 }
 
@@ -3978,6 +3989,49 @@ fn cmd_workspace_list(
             ui.settings(),
         )?;
         writeln!(ui)?;
+    }
+    Ok(())
+}
+
+fn cmd_workspace_update_stale(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &WorkspaceUpdateStaleArgs,
+) -> Result<(), CommandError> {
+    let workspace = command.load_workspace(ui)?;
+    let mut workspace_command = command.resolve_operation(ui, workspace)?;
+    let repo = workspace_command.repo().clone();
+    let workspace_id = workspace_command.workspace_id();
+    let (mut locked_wc, desired_wc_commit) =
+        workspace_command.unsafe_start_working_copy_mutation()?;
+    match check_stale_working_copy(&locked_wc, &desired_wc_commit, repo.clone()) {
+        Ok(_) => {
+            locked_wc.discard();
+            ui.write("Nothing to do (the working copy is not stale).\n")?;
+        }
+        Err(_) => {
+            // TODO: First commit the working copy
+            let stats = locked_wc
+                .check_out(&desired_wc_commit.tree())
+                .map_err(|err| {
+                    CommandError::InternalError(format!(
+                        "Failed to check out commit {}: {}",
+                        desired_wc_commit.id().hex(),
+                        err
+                    ))
+                })?;
+            locked_wc.finish(repo.op_id().clone());
+            ui.write("Working copy now at: ")?;
+            write_commit_summary(
+                ui.stdout_formatter().as_mut(),
+                repo.as_repo_ref(),
+                &workspace_id,
+                &desired_wc_commit,
+                ui.settings(),
+            )?;
+            ui.write("\n")?;
+            print_checkout_stats(ui, stats)?;
+        }
     }
     Ok(())
 }
