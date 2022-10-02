@@ -678,70 +678,8 @@ impl WorkspaceCommandHelper {
         };
         let base_ignores = self.base_ignores();
         let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
-        // Check if the working copy commit matches the repo's view. It's fine if it
-        // doesn't, but we'll need to reload the repo so the new commit is
-        // in the index and view, and so we don't cause unnecessary
-        // divergence.
         let wc_commit = repo.store().get_commit(&wc_commit_id)?;
-        let wc_tree_id = locked_wc.old_tree_id().clone();
-        if *wc_commit.tree_id() != wc_tree_id {
-            let wc_operation_data = self
-                .repo
-                .op_store()
-                .read_operation(locked_wc.old_operation_id())
-                .unwrap();
-            let wc_operation = Operation::new(
-                repo.op_store().clone(),
-                locked_wc.old_operation_id().clone(),
-                wc_operation_data,
-            );
-            let repo_operation = repo.operation();
-            let maybe_ancestor_op = dag_walk::closest_common_node(
-                [wc_operation.clone()],
-                [repo_operation.clone()],
-                &|op: &Operation| op.parents(),
-                &|op: &Operation| op.id().clone(),
-            );
-            if let Some(ancestor_op) = maybe_ancestor_op {
-                if ancestor_op.id() == repo_operation.id() {
-                    // The working copy was updated since we loaded the repo. We reload the repo
-                    // at the working copy's operation.
-                    self.repo = repo.reload_at(&wc_operation);
-                } else if ancestor_op.id() == wc_operation.id() {
-                    // The working copy was not updated when some repo operation committed,
-                    // meaning that it's stale compared to the repo view. We update the working
-                    // copy to what the view says.
-                    writeln!(
-                        ui,
-                        "The working copy is stale (not updated since operation {}), now updating \
-                         to operation {}",
-                        short_operation_hash(wc_operation.id()),
-                        short_operation_hash(repo_operation.id()),
-                    )?;
-                    locked_wc.check_out(&wc_commit.tree()).map_err(|err| {
-                        CommandError::InternalError(format!(
-                            "Failed to check out commit {}: {}",
-                            wc_commit.id().hex(),
-                            err
-                        ))
-                    })?;
-                } else {
-                    return Err(CommandError::InternalError(format!(
-                        "The repo was loaded at operation {}, which seems to be a sibling of the \
-                         working copy's operation {}",
-                        short_operation_hash(repo_operation.id()),
-                        short_operation_hash(wc_operation.id())
-                    )));
-                }
-            } else {
-                return Err(CommandError::InternalError(format!(
-                    "The repo was loaded at operation {}, which seems unrelated to the working \
-                     copy's operation {}",
-                    short_operation_hash(repo_operation.id()),
-                    short_operation_hash(wc_operation.id())
-                )));
-            }
-        }
+        self.repo = check_stale_working_copy(ui, &mut locked_wc, &wc_commit, repo)?;
         let new_tree_id = locked_wc.snapshot(base_ignores)?;
         if new_tree_id != *wc_commit.tree_id() {
             let mut tx = self
@@ -913,6 +851,77 @@ impl WorkspaceCommandHelper {
         }
         Ok(())
     }
+}
+
+fn check_stale_working_copy(
+    ui: &mut Ui,
+    locked_wc: &mut LockedWorkingCopy,
+    wc_commit: &Commit,
+    mut repo: Arc<ReadonlyRepo>,
+) -> Result<Arc<ReadonlyRepo>, CommandError> {
+    // Check if the working copy commit matches the repo's view. It's fine if it
+    // doesn't, but we'll need to reload the repo so the new commit is
+    // in the index and view, and so we don't cause unnecessary
+    // divergence.
+    let wc_tree_id = locked_wc.old_tree_id().clone();
+    if *wc_commit.tree_id() != wc_tree_id {
+        let wc_operation_data = repo
+            .op_store()
+            .read_operation(locked_wc.old_operation_id())
+            .unwrap();
+        let wc_operation = Operation::new(
+            repo.op_store().clone(),
+            locked_wc.old_operation_id().clone(),
+            wc_operation_data,
+        );
+        let repo_operation = repo.operation();
+        let maybe_ancestor_op = dag_walk::closest_common_node(
+            [wc_operation.clone()],
+            [repo_operation.clone()],
+            &|op: &Operation| op.parents(),
+            &|op: &Operation| op.id().clone(),
+        );
+        if let Some(ancestor_op) = maybe_ancestor_op {
+            if ancestor_op.id() == repo_operation.id() {
+                // The working copy was updated since we loaded the repo. We reload the repo
+                // at the working copy's operation.
+                repo = repo.reload_at(&wc_operation);
+            } else if ancestor_op.id() == wc_operation.id() {
+                // The working copy was not updated when some repo operation committed,
+                // meaning that it's stale compared to the repo view. We update the working
+                // copy to what the view says.
+                writeln!(
+                    ui,
+                    "The working copy is stale (not updated since operation {}), now updating to \
+                     operation {}",
+                    short_operation_hash(wc_operation.id()),
+                    short_operation_hash(repo_operation.id()),
+                )?;
+                locked_wc.check_out(&wc_commit.tree()).map_err(|err| {
+                    CommandError::InternalError(format!(
+                        "Failed to check out commit {}: {}",
+                        wc_commit.id().hex(),
+                        err
+                    ))
+                })?;
+            } else {
+                return Err(CommandError::InternalError(format!(
+                    "The repo was loaded at operation {}, which seems to be a sibling of the \
+                     working copy's operation {}",
+                    short_operation_hash(repo_operation.id()),
+                    short_operation_hash(wc_operation.id())
+                )));
+            }
+        } else {
+            return Err(CommandError::InternalError(format!(
+                "The repo was loaded at operation {}, which seems unrelated to the working copy's \
+                 operation {}",
+                short_operation_hash(repo_operation.id()),
+                short_operation_hash(wc_operation.id())
+            )));
+        }
+    }
+    Ok(repo)
 }
 
 pub fn print_checkout_stats(ui: &mut Ui, stats: CheckoutStats) -> Result<(), std::io::Error> {
