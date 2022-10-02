@@ -275,7 +275,7 @@ jj init --git-repo=.",
         })
     }
 
-    fn resolve_operation(
+    pub fn resolve_operation(
         &self,
         ui: &mut Ui,
         workspace: Workspace,
@@ -386,7 +386,7 @@ impl WorkspaceCommandHelper {
         })
     }
 
-    fn check_working_copy_writable(&self) -> Result<(), CommandError> {
+    pub fn check_working_copy_writable(&self) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             Ok(())
         } else {
@@ -502,7 +502,7 @@ impl WorkspaceCommandHelper {
         self.workspace.working_copy()
     }
 
-    pub fn start_working_copy_mutation(
+    pub fn unsafe_start_working_copy_mutation(
         &mut self,
     ) -> Result<(LockedWorkingCopy, Commit), CommandError> {
         self.check_working_copy_writable()?;
@@ -514,10 +514,17 @@ impl WorkspaceCommandHelper {
         };
 
         let locked_working_copy = self.workspace.working_copy_mut().start_mutation();
+
+        Ok((locked_working_copy, wc_commit))
+    }
+
+    pub fn start_working_copy_mutation(
+        &mut self,
+    ) -> Result<(LockedWorkingCopy, Commit), CommandError> {
+        let (locked_working_copy, wc_commit) = self.unsafe_start_working_copy_mutation()?;
         if wc_commit.tree_id() != locked_working_copy.old_tree_id() {
             return Err(user_error("Concurrent working copy operation. Try again."));
         }
-
         Ok((locked_working_copy, wc_commit))
     }
 
@@ -680,41 +687,36 @@ impl WorkspaceCommandHelper {
         };
         let base_ignores = self.base_ignores();
         let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
+        let old_op_id = locked_wc.old_operation_id().clone();
         let wc_commit = repo.store().get_commit(&wc_commit_id)?;
         self.repo = match check_stale_working_copy(&locked_wc, &wc_commit, repo.clone()) {
             Ok(repo) => repo,
             Err(StaleWorkingCopyError::WorkingCopyStale) => {
-                // Update the working copy to what the view says.
-                writeln!(
-                    ui,
-                    "The working copy is stale (not updated since operation {}), now updating to \
-                     operation {}",
-                    short_operation_hash(locked_wc.old_operation_id()),
-                    short_operation_hash(repo.op_id()),
-                )?;
-                locked_wc.check_out(&wc_commit.tree()).map_err(|err| {
-                    CommandError::InternalError(format!(
-                        "Failed to check out commit {}: {}",
-                        wc_commit.id().hex(),
-                        err
-                    ))
-                })?;
-                repo
+                locked_wc.discard();
+                return Err(user_error_with_hint(
+                    format!(
+                        "The working copy is stale (not updated since operation {}).",
+                        short_operation_hash(&old_op_id)
+                    ),
+                    "Run `jj workspace update-stale` to update it.",
+                ));
             }
             Err(StaleWorkingCopyError::SiblingOperation) => {
+                locked_wc.discard();
                 return Err(CommandError::InternalError(format!(
                     "The repo was loaded at operation {}, which seems to be a sibling of the \
                      working copy's operation {}",
                     short_operation_hash(repo.op_id()),
-                    short_operation_hash(locked_wc.old_operation_id())
+                    short_operation_hash(&old_op_id)
                 )));
             }
             Err(StaleWorkingCopyError::UnrelatedOperation) => {
+                locked_wc.discard();
                 return Err(CommandError::InternalError(format!(
                     "The repo was loaded at operation {}, which seems unrelated to the working \
                      copy's operation {}",
                     short_operation_hash(repo.op_id()),
-                    short_operation_hash(locked_wc.old_operation_id())
+                    short_operation_hash(&old_op_id)
                 )));
             }
         };
@@ -901,7 +903,7 @@ pub enum StaleWorkingCopyError {
     UnrelatedOperation,
 }
 
-fn check_stale_working_copy(
+pub fn check_stale_working_copy(
     locked_wc: &LockedWorkingCopy,
     wc_commit: &Commit,
     repo: Arc<ReadonlyRepo>,
@@ -1142,7 +1144,7 @@ pub fn resolve_base_revs(
     }
 }
 
-fn update_working_copy(
+pub fn update_working_copy(
     ui: &mut Ui,
     repo: &Arc<ReadonlyRepo>,
     workspace_id: &WorkspaceId,

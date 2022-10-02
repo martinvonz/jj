@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Adjusted precedence of revset union/intersection/difference operators.
   `x | y & z` is now equivalent to `x | (y & z)`.
-
+  
 * Support for open commits has been dropped. The `ui.enable-open-commits` config
   that was added in 0.5.0 is no longer respected. The `jj open/close` commands
   have been deleted.
@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exists). The behavior has changed slightly. It now always asks for a
   description, even if there already was a description set. It now also only
   works on the working-copy commit (there's no `-r` argument).
+
+* If a workspace's working-copy commit has been updated from another workspace,
+  most commands in that workspace will now fail. Use the new
+  `jj workspace update-stale` command to update the workspace to the new
+  working-copy commit. (The old behavior was to automatically update the
+  workspace.)
 
 ### New features
 
