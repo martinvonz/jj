@@ -52,8 +52,8 @@ backend (the only minor reason might be
 The backend exists mainly to make sure that it's possible to eventually add
 functionality that cannot easily be added to the Git backend.
 
-<a href="https://asciinema.org/a/P3KH4QjI1FWHnQgryOM4g0m4z" target="_blank">
-  <img src="https://asciinema.org/a/P3KH4QjI1FWHnQgryOM4g0m4z.svg" />
+<a href="https://asciinema.org/a/dY2XBEEplPacf25Vv9K8oRFPk" target="_blank">
+  <img src="https://asciinema.org/a/dY2XBEEplPacf25Vv9K8oRFPk.svg" />
 </a>
 
 ### The working copy is automatically committed
@@ -64,8 +64,8 @@ working copy or any other commit. It also means that you can always check out a
 different commit without first explicitly committing the working copy changes
 (you can even check out a different commit while resolving merge conflicts).
 
-<a href="https://asciinema.org/a/XVJwcGbZek4cfk3510iQdloD8" target="_blank">
-  <img src="https://asciinema.org/a/XVJwcGbZek4cfk3510iQdloD8.svg" />
+<a href="https://asciinema.org/a/Jdl9xjbVXlbvUd3qS0410IHtL" target="_blank">
+  <img src="https://asciinema.org/a/Jdl9xjbVXlbvUd3qS0410IHtL.svg" />
 </a>
 
 ### Operations update the repo first, then possibly the working copy
@@ -81,8 +81,8 @@ the repo state after the operation. This means that you can easily revert to an
 earlier repo state, or to simply undo a particular operation (which does not
 necessarily have to be the most recent operation).
 
-<a href="https://asciinema.org/a/VBY0f0hwYOaRvHOzs5ysXymGu" target="_blank">
-  <img src="https://asciinema.org/a/VBY0f0hwYOaRvHOzs5ysXymGu.svg" />
+<a href="https://asciinema.org/a/oR7ME5dz8T6UmZ9nXOcPs14YZ" target="_blank">
+  <img src="https://asciinema.org/a/oR7ME5dz8T6UmZ9nXOcPs14YZ.svg" />
 </a>
 
 ### Conflicts can be recorded in commits
@@ -95,13 +95,13 @@ resolving conflicts, regardless of which command caused them. This design also
 lets Jujutsu rebase merge commits correctly (unlike both Git and Mercurial).
 
 Basic conflict resolution:
-<a href="https://asciinema.org/a/6GLWlsAZA2ssdpAdjKUgykejw" target="_blank">
-  <img src="https://asciinema.org/a/6GLWlsAZA2ssdpAdjKUgykejw.svg" />
+<a href="https://asciinema.org/a/CmW8lBnypVuxCxvCcxhLDyUUL" target="_blank">
+  <img src="https://asciinema.org/a/CmW8lBnypVuxCxvCcxhLDyUUL.svg" />
 </a>
 
 Juggling conflicts:
-<a href="https://asciinema.org/a/q1sp990vynhr6yG4tCqFaK9GD" target="_blank">
-  <img src="https://asciinema.org/a/q1sp990vynhr6yG4tCqFaK9GD.svg" />
+<a href="https://asciinema.org/a/Havui1xG7x95MhzTJU0Ei1WfZ" target="_blank">
+  <img src="https://asciinema.org/a/Havui1xG7x95MhzTJU0Ei1WfZ.svg" />
 </a>
 
 ### Automatic rebase
