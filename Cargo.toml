@@ -64,7 +64,7 @@ insta = "1.21.0"
 lazy_static = "1.4.0"
 regex = "1.6.0"
 predicates = "2.1.1"
-test-case = "2.2.1"
+test-case = "2.2.2"
 
 [features]
 default = ["vendored-openssl"]
