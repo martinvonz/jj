@@ -207,7 +207,7 @@ impl Workspace {
         &self.workspace_root
     }
 
-    pub fn workspace_id(&self) -> WorkspaceId {
+    pub fn workspace_id(&self) -> &WorkspaceId {
         self.working_copy.workspace_id()
     }
 

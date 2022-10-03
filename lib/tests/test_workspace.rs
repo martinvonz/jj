@@ -73,7 +73,7 @@ fn test_init_additional_workspace(use_git: bool) {
         wc_commit.parent_ids(),
         vec![repo.store().root_commit_id().clone()]
     );
-    assert_eq!(ws2.workspace_id(), ws2_id);
+    assert_eq!(ws2.workspace_id(), &ws2_id);
     assert_eq!(
         *ws2.repo_path(),
         workspace.repo_path().canonicalize().unwrap()
@@ -82,7 +82,7 @@ fn test_init_additional_workspace(use_git: bool) {
     let same_workspace = Workspace::load(&settings, &ws2_root, &BackendFactories::default());
     assert!(same_workspace.is_ok());
     let same_workspace = same_workspace.unwrap();
-    assert_eq!(same_workspace.workspace_id(), ws2_id);
+    assert_eq!(same_workspace.workspace_id(), &ws2_id);
     assert_eq!(
         *same_workspace.repo_path(),
         workspace.repo_path().canonicalize().unwrap()
