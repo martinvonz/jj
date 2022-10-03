@@ -1050,12 +1050,12 @@ impl WorkingCopy {
         self.checkout_state.get_mut().unwrap()
     }
 
-    pub fn operation_id(&self) -> OperationId {
-        self.checkout_state().operation_id.clone()
+    pub fn operation_id(&self) -> &OperationId {
+        &self.checkout_state().operation_id
     }
 
-    pub fn workspace_id(&self) -> WorkspaceId {
-        self.checkout_state().workspace_id.clone()
+    pub fn workspace_id(&self) -> &WorkspaceId {
+        &self.checkout_state().workspace_id
     }
 
     fn tree_state(&self) -> &TreeState {
@@ -1101,7 +1101,7 @@ impl WorkingCopy {
         // TODO: It's expensive to reload the whole tree. We should first check if it
         // has changed.
         self.tree_state.take();
-        let old_operation_id = self.operation_id();
+        let old_operation_id = self.operation_id().clone();
         let old_tree_id = self.current_tree_id().clone();
 
         LockedWorkingCopy {

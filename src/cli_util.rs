@@ -364,7 +364,7 @@ impl WorkspaceCommandHelper {
             // If the Git HEAD has changed, abandon our old checkout and check out the new
             // Git HEAD.
             if new_git_head != old_git_head && new_git_head.is_some() {
-                let workspace_id = self.workspace.workspace_id();
+                let workspace_id = self.workspace_id();
                 let mut locked_working_copy = self.workspace.working_copy_mut().start_mutation();
                 if let Some(old_wc_commit_id) = self.repo.view().get_wc_commit_id(&workspace_id) {
                     tx.mut_repo()
@@ -470,7 +470,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn workspace_id(&self) -> WorkspaceId {
-        self.workspace.workspace_id()
+        self.workspace.workspace_id().clone()
     }
 
     pub fn working_copy_shared_with_git(&self) -> bool {
