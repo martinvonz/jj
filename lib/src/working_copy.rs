@@ -1214,7 +1214,6 @@ impl LockedWorkingCopy<'_> {
 
     pub fn discard(mut self) {
         // Undo the changes in memory
-        self.wc.load_proto();
         self.wc.tree_state.take();
         self.tree_state_dirty = false;
         self.closed = true;
