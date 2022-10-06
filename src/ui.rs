@@ -164,7 +164,7 @@ impl<'stdout> Ui<'stdout> {
 
     pub fn write_hint(&mut self, text: impl AsRef<str>) -> io::Result<()> {
         let mut formatter = self.stderr_formatter();
-        formatter.add_label(String::from("hint"))?;
+        formatter.add_label("hint")?;
         formatter.write_str(text.as_ref())?;
         formatter.remove_label()?;
         Ok(())
@@ -172,7 +172,7 @@ impl<'stdout> Ui<'stdout> {
 
     pub fn write_warn(&mut self, text: impl AsRef<str>) -> io::Result<()> {
         let mut formatter = self.stderr_formatter();
-        formatter.add_label(String::from("warning"))?;
+        formatter.add_label("warning")?;
         formatter.write_str(text.as_ref())?;
         formatter.remove_label()?;
         Ok(())
@@ -180,7 +180,7 @@ impl<'stdout> Ui<'stdout> {
 
     pub fn write_error(&mut self, text: &str) -> io::Result<()> {
         let mut formatter = self.stderr_formatter();
-        formatter.add_label(String::from("error"))?;
+        formatter.add_label("error")?;
         formatter.write_str(text)?;
         formatter.remove_label()?;
         Ok(())
