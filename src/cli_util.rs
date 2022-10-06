@@ -31,7 +31,7 @@ use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jujutsu_lib::op_heads_store::{OpHeadResolutionError, OpHeads, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
 use jujutsu_lib::operation::Operation;
-use jujutsu_lib::repo::{BackendFactories, MutableRepo, ReadonlyRepo};
+use jujutsu_lib::repo::{BackendFactories, MutableRepo, ReadonlyRepo, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetParseError};
 use jujutsu_lib::settings::UserSettings;
@@ -45,6 +45,8 @@ use jujutsu_lib::{dag_walk, git, revset};
 
 use crate::config::read_config;
 use crate::diff_edit::DiffEditError;
+use crate::formatter::Formatter;
+use crate::templater::TemplateFormatter;
 use crate::ui;
 use crate::ui::{ColorChoice, FilePathParseError, Ui};
 
@@ -1030,10 +1032,42 @@ fn update_working_copy(
     };
     if Some(&new_commit) != old_commit {
         ui.write("Working copy now at: ")?;
-        ui.write_commit_summary(repo.as_repo_ref(), workspace_id, &new_commit)?;
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
+            repo.as_repo_ref(),
+            workspace_id,
+            &new_commit,
+            ui.settings(),
+        )?;
         ui.write("\n")?;
     }
     Ok(stats)
+}
+
+pub fn write_commit_summary(
+    formatter: &mut dyn Formatter,
+    repo: RepoRef,
+    workspace_id: &WorkspaceId,
+    commit: &Commit,
+    settings: &UserSettings,
+) -> std::io::Result<()> {
+    let template_string = settings
+        .config()
+        .get_string("template.commit_summary")
+        .unwrap_or_else(|_| {
+            if settings.enable_open_commits() {
+                String::from(
+                    r#"label(if(open, "open"), commit_id.short() " " description.first_line())"#,
+                )
+            } else {
+                String::from(r#"commit_id.short() " " description.first_line()"#)
+            }
+        });
+    let template =
+        crate::template_parser::parse_commit_template(repo, workspace_id, &template_string);
+    let mut template_writer = TemplateFormatter::new(template, formatter);
+    template_writer.format(commit)?;
+    Ok(())
 }
 
 pub fn short_commit_description(commit: &Commit) -> String {
