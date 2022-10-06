@@ -39,7 +39,7 @@ chrono = { version = "0.4.22", default-features = false, features = ["std", "clo
 clap = { version = "4.0.8", features = ["derive", "deprecated"] }
 clap_complete = "4.0.2"
 clap_mangen = "0.2.2"
-config = { version = "0.13.2", features = ["toml"] }
+config = { version = "0.13.2", default-features = false, features = ["toml"] }
 criterion = "0.4.0"
 dirs = "4.0.0"
 git2 = "0.15.0"
