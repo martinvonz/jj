@@ -52,8 +52,8 @@ use pest::Parser;
 
 use crate::cli_util::{
     matcher_from_values, print_checkout_stats, repo_paths_from_values, resolve_base_revs,
-    short_commit_description, short_commit_hash, Args, CommandError, CommandHelper,
-    WorkspaceCommandHelper,
+    short_commit_description, short_commit_hash, write_commit_summary, Args, CommandError,
+    CommandHelper, WorkspaceCommandHelper,
 };
 use crate::commands::CommandError::UserError;
 use crate::formatter::Formatter;
@@ -1915,10 +1915,22 @@ fn cmd_status(
     if let Some(wc_commit) = &maybe_checkout {
         ui.write("Parent commit: ")?;
         let workspace_id = workspace_command.workspace_id();
-        ui.write_commit_summary(repo.as_repo_ref(), &workspace_id, &wc_commit.parents()[0])?;
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
+            repo.as_repo_ref(),
+            &workspace_id,
+            &wc_commit.parents()[0],
+            ui.settings(),
+        )?;
         ui.write("\n")?;
         ui.write("Working copy : ")?;
-        ui.write_commit_summary(repo.as_repo_ref(), &workspace_id, wc_commit)?;
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
+            repo.as_repo_ref(),
+            &workspace_id,
+            wc_commit,
+            ui.settings(),
+        )?;
         ui.write("\n")?;
     } else {
         ui.write("No working copy\n")?;
@@ -2469,10 +2481,12 @@ fn cmd_duplicate(
         .generate_new_change_id()
         .write_to_repo(mut_repo);
     ui.write("Created: ")?;
-    ui.write_commit_summary(
+    write_commit_summary(
+        ui.stdout_formatter().as_mut(),
         mut_repo.as_repo_ref(),
         &workspace_command.workspace_id(),
         &new_commit,
+        ui.settings(),
     )?;
     ui.write("\n")?;
     workspace_command.finish_transaction(ui, tx)?;
@@ -2880,10 +2894,12 @@ side. If you don't make any changes, then the operation will be aborted.
             .set_tree(tree_id)
             .write_to_repo(mut_repo);
         ui.write("Created ")?;
-        ui.write_commit_summary(
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
             mut_repo.as_repo_ref(),
             &workspace_command.workspace_id(),
             &new_commit,
+            ui.settings(),
         )?;
         ui.write("\n")?;
         workspace_command.finish_transaction(ui, tx)?;
@@ -2921,10 +2937,12 @@ don't make any changes, then the operation will be aborted.",
             .set_tree(tree_id)
             .write_to_repo(mut_repo);
         ui.write("Created ")?;
-        ui.write_commit_summary(
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
             mut_repo.as_repo_ref(),
             &workspace_command.workspace_id(),
             &new_commit,
+            ui.settings(),
         )?;
         ui.write("\n")?;
         workspace_command.finish_transaction(ui, tx)?;
@@ -2997,16 +3015,20 @@ any changes, then the operation will be aborted.
             writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
         }
         ui.write("First part: ")?;
-        ui.write_commit_summary(
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
             tx.repo().as_repo_ref(),
             &workspace_command.workspace_id(),
             &first_commit,
+            ui.settings(),
         )?;
         ui.write("\nSecond part: ")?;
-        ui.write_commit_summary(
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
             tx.repo().as_repo_ref(),
             &workspace_command.workspace_id(),
             &second_commit,
+            ui.settings(),
         )?;
         ui.write("\n")?;
         workspace_command.finish_transaction(ui, tx)?;
@@ -3386,7 +3408,13 @@ fn list_branches(
                 Some(RefTarget::Normal(id)) => {
                     write!(ui, ": ")?;
                     let commit = repo.store().get_commit(id)?;
-                    ui.write_commit_summary(repo.as_repo_ref(), &workspace_id, &commit)?;
+                    write_commit_summary(
+                        ui.stdout_formatter().as_mut(),
+                        repo.as_repo_ref(),
+                        &workspace_id,
+                        &commit,
+                        ui.settings(),
+                    )?;
                     writeln!(ui)?;
                 }
                 Some(RefTarget::Conflict { adds, removes }) => {
@@ -3398,13 +3426,25 @@ fn list_branches(
                     for id in removes {
                         let commit = repo.store().get_commit(id)?;
                         write!(ui, "  - ")?;
-                        ui.write_commit_summary(repo.as_repo_ref(), &workspace_id, &commit)?;
+                        write_commit_summary(
+                            ui.stdout_formatter().as_mut(),
+                            repo.as_repo_ref(),
+                            &workspace_id,
+                            &commit,
+                            ui.settings(),
+                        )?;
                         writeln!(ui)?;
                     }
                     for id in adds {
                         let commit = repo.store().get_commit(id)?;
                         write!(ui, "  + ")?;
-                        ui.write_commit_summary(repo.as_repo_ref(), &workspace_id, &commit)?;
+                        write_commit_summary(
+                            ui.stdout_formatter().as_mut(),
+                            repo.as_repo_ref(),
+                            &workspace_id,
+                            &commit,
+                            ui.settings(),
+                        )?;
                         writeln!(ui)?;
                     }
                 }
@@ -3820,7 +3860,13 @@ fn cmd_workspace_list(
     for (workspace_id, checkout_id) in repo.view().wc_commit_ids().iter().sorted() {
         write!(ui, "{}: ", workspace_id.as_str())?;
         let commit = repo.store().get_commit(checkout_id)?;
-        ui.write_commit_summary(repo.as_repo_ref(), workspace_id, &commit)?;
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
+            repo.as_repo_ref(),
+            workspace_id,
+            &commit,
+            ui.settings(),
+        )?;
         writeln!(ui)?;
     }
     Ok(())
