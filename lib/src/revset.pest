@@ -14,9 +14,9 @@
 
 identifier_part = @{ (ASCII_ALPHANUMERIC | "_" | "@" | "/")+ }
 identifier = @{
-  (identifier_part+ ~ ("." | "-" | "+" ))+ ~ identifier_part+
-  | identifier_part+
-} 
+  identifier_part ~ ("." | "-" | "+" ) ~ identifier
+  | identifier_part
+}
 symbol = {
   identifier
   | literal_string

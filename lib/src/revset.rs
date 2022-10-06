@@ -1516,6 +1516,10 @@ mod tests {
             parse("foo.bar-v1+7"),
             Ok(RevsetExpression::symbol("foo.bar-v1+7".to_string()))
         );
+        assert_eq!(
+            parse("foo.bar-v1+7-"),
+            Ok(RevsetExpression::symbol("foo.bar-v1+7".to_string()).parents())
+        );
         // '.' is not allowed at the beginning or end
         assert_matches!(parse(".foo"), Err(RevsetParseError::SyntaxError(_)));
         assert_matches!(parse("foo."), Err(RevsetParseError::SyntaxError(_)));
