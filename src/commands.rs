@@ -1319,7 +1319,7 @@ fn show_color_words_diff_line(
     diff_line: &DiffLine,
 ) -> io::Result<()> {
     if diff_line.has_left_content {
-        formatter.add_label(String::from("removed"))?;
+        formatter.add_label("removed")?;
         formatter.write_bytes(format!("{:>4}", diff_line.left_line_number).as_bytes())?;
         formatter.remove_label()?;
         formatter.write_bytes(b" ")?;
@@ -1327,7 +1327,7 @@ fn show_color_words_diff_line(
         formatter.write_bytes(b"     ")?;
     }
     if diff_line.has_right_content {
-        formatter.add_label(String::from("added"))?;
+        formatter.add_label("added")?;
         formatter.write_bytes(format!("{:>4}", diff_line.right_line_number).as_bytes())?;
         formatter.remove_label()?;
         formatter.write_bytes(b": ")?;
@@ -1343,12 +1343,12 @@ fn show_color_words_diff_line(
                 let before = data[0];
                 let after = data[1];
                 if !before.is_empty() {
-                    formatter.add_label(String::from("removed"))?;
+                    formatter.add_label("removed")?;
                     formatter.write_bytes(before)?;
                     formatter.remove_label()?;
                 }
                 if !after.is_empty() {
-                    formatter.add_label(String::from("added"))?;
+                    formatter.add_label("added")?;
                     formatter.write_bytes(after)?;
                     formatter.remove_label()?;
                 }
@@ -1529,14 +1529,14 @@ fn show_color_words_diff(
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
-    formatter.add_label(String::from("diff"))?;
+    formatter.add_label("diff")?;
     for (path, diff) in tree_diff {
         let ui_path = workspace_command.format_file_path(&path);
         match diff {
             tree::Diff::Added(right_value) => {
                 let right_content = diff_content(repo, &path, &right_value)?;
                 let description = basic_diff_file_type(&right_value);
-                formatter.add_label(String::from("header"))?;
+                formatter.add_label("header")?;
                 formatter.write_str(&format!("Added {} {}:\n", description, ui_path))?;
                 formatter.remove_label()?;
                 show_color_words_diff_hunks(&[], &right_content, formatter)?;
@@ -1585,7 +1585,7 @@ fn show_color_words_diff(
                         )
                     }
                 };
-                formatter.add_label(String::from("header"))?;
+                formatter.add_label("header")?;
                 formatter.write_str(&format!("{} {}:\n", description, ui_path))?;
                 formatter.remove_label()?;
                 show_color_words_diff_hunks(&left_content, &right_content, formatter)?;
@@ -1593,7 +1593,7 @@ fn show_color_words_diff(
             tree::Diff::Removed(left_value) => {
                 let left_content = diff_content(repo, &path, &left_value)?;
                 let description = basic_diff_file_type(&left_value);
-                formatter.add_label(String::from("header"))?;
+                formatter.add_label("header")?;
                 formatter.write_str(&format!("Removed {} {}:\n", description, ui_path))?;
                 formatter.remove_label()?;
                 show_color_words_diff_hunks(&left_content, &[], formatter)?;
@@ -1760,7 +1760,7 @@ fn show_unified_diff_hunks(
     right_content: &[u8],
 ) -> Result<(), CommandError> {
     for hunk in unified_diff_hunks(left_content, right_content, 3) {
-        formatter.add_label(String::from("hunk_header"))?;
+        formatter.add_label("hunk_header")?;
         writeln!(
             formatter,
             "@@ -{},{} +{},{} @@",
@@ -1773,19 +1773,19 @@ fn show_unified_diff_hunks(
         for (line_type, content) in hunk.lines {
             match line_type {
                 DiffLineType::Context => {
-                    formatter.add_label(String::from("context"))?;
+                    formatter.add_label("context")?;
                     formatter.write_str(" ")?;
                     formatter.write_all(content)?;
                     formatter.remove_label()?;
                 }
                 DiffLineType::Removed => {
-                    formatter.add_label(String::from("removed"))?;
+                    formatter.add_label("removed")?;
                     formatter.write_str("-")?;
                     formatter.write_all(content)?;
                     formatter.remove_label()?;
                 }
                 DiffLineType::Added => {
-                    formatter.add_label(String::from("added"))?;
+                    formatter.add_label("added")?;
                     formatter.write_str("+")?;
                     formatter.write_all(content)?;
                     formatter.remove_label()?;
@@ -1805,10 +1805,10 @@ fn show_git_diff(
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
-    formatter.add_label(String::from("diff"))?;
+    formatter.add_label("diff")?;
     for (path, diff) in tree_diff {
         let path_string = path.to_internal_file_string();
-        formatter.add_label(String::from("file_header"))?;
+        formatter.add_label("file_header")?;
         writeln!(formatter, "diff --git a/{} b/{}", path_string, path_string)?;
         match diff {
             tree::Diff::Added(right_value) => {
@@ -1863,11 +1863,11 @@ fn show_diff_summary(
     workspace_command: &WorkspaceCommandHelper,
     tree_diff: TreeDiffIterator,
 ) -> io::Result<()> {
-    formatter.add_label(String::from("diff"))?;
+    formatter.add_label("diff")?;
     for (repo_path, diff) in tree_diff {
         match diff {
             tree::Diff::Modified(_, _) => {
-                formatter.add_label(String::from("modified"))?;
+                formatter.add_label("modified")?;
                 writeln!(
                     formatter,
                     "M {}",
@@ -1876,7 +1876,7 @@ fn show_diff_summary(
                 formatter.remove_label()?;
             }
             tree::Diff::Added(_) => {
-                formatter.add_label(String::from("added"))?;
+                formatter.add_label("added")?;
                 writeln!(
                     formatter,
                     "A {}",
@@ -1885,7 +1885,7 @@ fn show_diff_summary(
                 formatter.remove_label()?;
             }
             tree::Diff::Removed(_) => {
-                formatter.add_label(String::from("removed"))?;
+                formatter.add_label("removed")?;
                 writeln!(
                     formatter,
                     "R {}",
@@ -1953,12 +1953,12 @@ fn cmd_status(
         }
     }
     if !conflicted_local_branches.is_empty() {
-        formatter.add_label("conflict".to_string())?;
+        formatter.add_label("conflict")?;
         writeln!(formatter, "These branches have conflicts:")?;
         formatter.remove_label()?;
         for branch_name in conflicted_local_branches {
             write!(formatter, "  ")?;
-            formatter.add_label("branch".to_string())?;
+            formatter.add_label("branch")?;
             write!(formatter, "{}", branch_name)?;
             formatter.remove_label()?;
             writeln!(formatter)?;
@@ -1970,12 +1970,12 @@ fn cmd_status(
         )?;
     }
     if !conflicted_remote_branches.is_empty() {
-        formatter.add_label("conflict".to_string())?;
+        formatter.add_label("conflict")?;
         writeln!(formatter, "These remote branches have conflicts:")?;
         formatter.remove_label()?;
         for (branch_name, remote_name) in conflicted_remote_branches {
             write!(formatter, "  ")?;
-            formatter.add_label("branch".to_string())?;
+            formatter.add_label("branch")?;
             write!(formatter, "{}@{}", branch_name, remote_name)?;
             formatter.remove_label()?;
             writeln!(formatter)?;
@@ -2002,7 +2002,7 @@ fn cmd_status(
 
         let conflicts = tree.conflicts();
         if !conflicts.is_empty() {
-            formatter.add_label("conflict".to_string())?;
+            formatter.add_label("conflict")?;
             writeln!(formatter, "There are unresolved conflicts at these paths:")?;
             formatter.remove_label()?;
             for (path, _) in conflicts {
@@ -2075,7 +2075,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 
     let mut formatter = ui.stdout_formatter();
     let mut formatter = formatter.as_mut();
-    formatter.add_label(String::from("log"))?;
+    formatter.add_label("log")?;
 
     if !args.no_graph {
         let mut graph = AsciiGraphDrawer::new(&mut formatter);
@@ -2116,7 +2116,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 let writer = Box::new(&mut buffer);
                 let mut formatter = ui.new_formatter(writer);
                 if is_checkout {
-                    formatter.add_label("working_copy".to_string())?;
+                    formatter.add_label("working_copy")?;
                 }
                 template.format(&commit, formatter.as_mut())?;
                 if is_checkout {
@@ -2208,7 +2208,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
 
     let mut formatter = ui.stdout_formatter();
     let mut formatter = formatter.as_mut();
-    formatter.add_label(String::from("log"))?;
+    formatter.add_label("log")?;
 
     let commits = topo_order_reverse(
         vec![start_commit],
@@ -3421,7 +3421,7 @@ fn list_branches(
                 }
                 Some(RefTarget::Conflict { adds, removes }) => {
                     write!(formatter, " ")?;
-                    formatter.add_label("conflict".to_string())?;
+                    formatter.add_label("conflict")?;
                     write!(formatter, "(conflicted)")?;
                     formatter.remove_label()?;
                     writeln!(formatter, ":")?;
@@ -3461,7 +3461,7 @@ fn list_branches(
     let formatter = formatter.as_mut();
     let index = repo.index();
     for (name, branch_target) in repo.view().branches() {
-        formatter.add_label("branch".to_string())?;
+        formatter.add_label("branch")?;
         write!(formatter, "{}", name)?;
         formatter.remove_label()?;
         print_branch_target(formatter, branch_target.local_target.as_ref())?;
@@ -3475,7 +3475,7 @@ fn list_branches(
                 continue;
             }
             write!(formatter, "  ")?;
-            formatter.add_label("branch".to_string())?;
+            formatter.add_label("branch")?;
             write!(formatter, "@{}", remote)?;
             formatter.remove_label()?;
             if let Some(local_target) = branch_target.local_target.as_ref() {
@@ -3610,16 +3610,16 @@ fn cmd_op_log(
     impl Template<Operation> for OpTemplate {
         fn format(&self, op: &Operation, formatter: &mut dyn Formatter) -> io::Result<()> {
             // TODO: Make this templated
-            formatter.add_label("id".to_string())?;
+            formatter.add_label("id")?;
             formatter.write_str(&op.id().hex()[0..12])?;
             formatter.remove_label()?;
             formatter.write_str(" ")?;
             let metadata = &op.store_operation().metadata;
-            formatter.add_label("user".to_string())?;
+            formatter.add_label("user")?;
             formatter.write_str(&format!("{}@{}", metadata.username, metadata.hostname))?;
             formatter.remove_label()?;
             formatter.write_str(" ")?;
-            formatter.add_label("time".to_string())?;
+            formatter.add_label("time")?;
             formatter.write_str(&format!(
                 "{} - {}",
                 format_timestamp(&metadata.start_time),
@@ -3627,11 +3627,11 @@ fn cmd_op_log(
             ))?;
             formatter.remove_label()?;
             formatter.write_str("\n")?;
-            formatter.add_label("description".to_string())?;
+            formatter.add_label("description")?;
             formatter.write_str(&metadata.description)?;
             formatter.remove_label()?;
             for (key, value) in &metadata.tags {
-                formatter.add_label("tags".to_string())?;
+                formatter.add_label("tags")?;
                 formatter.write_str(&format!("\n{}: {}", key, value))?;
                 formatter.remove_label()?;
             }
@@ -3655,9 +3655,9 @@ fn cmd_op_log(
         {
             let writer = Box::new(&mut buffer);
             let mut formatter = ui.new_formatter(writer);
-            formatter.add_label("op-log".to_string())?;
+            formatter.add_label("op-log")?;
             if is_head_op {
-                formatter.add_label("head".to_string())?;
+                formatter.add_label("head")?;
             }
             template.format(&op, formatter.as_mut())?;
             if is_head_op {

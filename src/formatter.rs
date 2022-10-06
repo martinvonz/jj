@@ -34,7 +34,7 @@ pub trait Formatter: Write {
         self.write_all(&buffer)
     }
 
-    fn add_label(&mut self, label: String) -> io::Result<()>;
+    fn add_label(&mut self, label: &str) -> io::Result<()>;
 
     fn remove_label(&mut self) -> io::Result<()>;
 }
@@ -60,7 +60,7 @@ impl Write for PlainTextFormatter<'_> {
 }
 
 impl Formatter for PlainTextFormatter<'_> {
-    fn add_label(&mut self, _label: String) -> io::Result<()> {
+    fn add_label(&mut self, _label: &str) -> io::Result<()> {
         Ok(())
     }
 
@@ -283,8 +283,8 @@ impl Write for ColorFormatter<'_> {
 }
 
 impl Formatter for ColorFormatter<'_> {
-    fn add_label(&mut self, label: String) -> io::Result<()> {
-        self.labels.push(label);
+    fn add_label(&mut self, label: &str) -> io::Result<()> {
+        self.labels.push(label.to_owned());
         let new_color = self.current_color();
         if new_color != self.current_color {
             self.output.write_all(&new_color)?;
