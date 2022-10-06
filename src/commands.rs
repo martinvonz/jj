@@ -1912,28 +1912,30 @@ fn cmd_status(
     let maybe_checkout = maybe_checkout_id
         .map(|id| repo.store().get_commit(id))
         .transpose()?;
+    let mut formatter = ui.stdout_formatter();
+    let formatter = formatter.as_mut();
     if let Some(wc_commit) = &maybe_checkout {
-        ui.write("Parent commit: ")?;
+        formatter.write_str("Parent commit: ")?;
         let workspace_id = workspace_command.workspace_id();
         write_commit_summary(
-            ui.stdout_formatter().as_mut(),
+            formatter,
             repo.as_repo_ref(),
             &workspace_id,
             &wc_commit.parents()[0],
             ui.settings(),
         )?;
-        ui.write("\n")?;
-        ui.write("Working copy : ")?;
+        formatter.write_str("\n")?;
+        formatter.write_str("Working copy : ")?;
         write_commit_summary(
-            ui.stdout_formatter().as_mut(),
+            formatter,
             repo.as_repo_ref(),
             &workspace_id,
             wc_commit,
             ui.settings(),
         )?;
-        ui.write("\n")?;
+        formatter.write_str("\n")?;
     } else {
-        ui.write("No working copy\n")?;
+        formatter.write_str("No working copy\n")?;
     }
 
     let mut conflicted_local_branches = vec![];
@@ -1951,35 +1953,35 @@ fn cmd_status(
         }
     }
     if !conflicted_local_branches.is_empty() {
-        ui.stdout_formatter().add_label("conflict".to_string())?;
-        writeln!(ui, "These branches have conflicts:")?;
-        ui.stdout_formatter().remove_label()?;
+        formatter.add_label("conflict".to_string())?;
+        writeln!(formatter, "These branches have conflicts:")?;
+        formatter.remove_label()?;
         for branch_name in conflicted_local_branches {
-            write!(ui, "  ")?;
-            ui.stdout_formatter().add_label("branch".to_string())?;
-            write!(ui, "{}", branch_name)?;
-            ui.stdout_formatter().remove_label()?;
-            writeln!(ui)?;
+            write!(formatter, "  ")?;
+            formatter.add_label("branch".to_string())?;
+            write!(formatter, "{}", branch_name)?;
+            formatter.remove_label()?;
+            writeln!(formatter)?;
         }
         writeln!(
-            ui,
+            formatter,
             "  Use `jj branch list` to see details. Use `jj branch set <name> -r <rev>` to \
              resolve."
         )?;
     }
     if !conflicted_remote_branches.is_empty() {
-        ui.stdout_formatter().add_label("conflict".to_string())?;
-        writeln!(ui, "These remote branches have conflicts:")?;
-        ui.stdout_formatter().remove_label()?;
+        formatter.add_label("conflict".to_string())?;
+        writeln!(formatter, "These remote branches have conflicts:")?;
+        formatter.remove_label()?;
         for (branch_name, remote_name) in conflicted_remote_branches {
-            write!(ui, "  ")?;
-            ui.stdout_formatter().add_label("branch".to_string())?;
-            write!(ui, "{}@{}", branch_name, remote_name)?;
-            ui.stdout_formatter().remove_label()?;
-            writeln!(ui)?;
+            write!(formatter, "  ")?;
+            formatter.add_label("branch".to_string())?;
+            write!(formatter, "{}@{}", branch_name, remote_name)?;
+            formatter.remove_label()?;
+            writeln!(formatter)?;
         }
         writeln!(
-            ui,
+            formatter,
             "  Use `jj branch list` to see details. Use `jj git fetch` to resolve."
         )?;
     }
@@ -1988,11 +1990,11 @@ fn cmd_status(
         let parent_tree = wc_commit.parents()[0].tree();
         let tree = wc_commit.tree();
         if tree.id() == parent_tree.id() {
-            ui.write("The working copy is clean\n")?;
+            formatter.write_str("The working copy is clean\n")?;
         } else {
-            ui.write("Working copy changes:\n")?;
+            formatter.write_str("Working copy changes:\n")?;
             show_diff_summary(
-                ui.stdout_formatter().as_mut(),
+                formatter,
                 &workspace_command,
                 parent_tree.diff(&tree, &EverythingMatcher),
             )?;
@@ -2000,11 +2002,11 @@ fn cmd_status(
 
         let conflicts = tree.conflicts();
         if !conflicts.is_empty() {
-            ui.stdout_formatter().add_label("conflict".to_string())?;
-            writeln!(ui, "There are unresolved conflicts at these paths:")?;
-            ui.stdout_formatter().remove_label()?;
+            formatter.add_label("conflict".to_string())?;
+            writeln!(formatter, "There are unresolved conflicts at these paths:")?;
+            formatter.remove_label()?;
             for (path, _) in conflicts {
-                writeln!(ui, "{}", &workspace_command.format_file_path(&path))?;
+                writeln!(formatter, "{}", &workspace_command.format_file_path(&path))?;
             }
         }
     }
@@ -3403,64 +3405,66 @@ fn list_branches(
 
     let workspace_id = workspace_command.workspace_id();
     let print_branch_target =
-        |ui: &mut Ui, target: Option<&RefTarget>| -> Result<(), CommandError> {
+        |formatter: &mut dyn Formatter, target: Option<&RefTarget>| -> Result<(), CommandError> {
             match target {
                 Some(RefTarget::Normal(id)) => {
-                    write!(ui, ": ")?;
+                    write!(formatter, ": ")?;
                     let commit = repo.store().get_commit(id)?;
                     write_commit_summary(
-                        ui.stdout_formatter().as_mut(),
+                        formatter,
                         repo.as_repo_ref(),
                         &workspace_id,
                         &commit,
                         ui.settings(),
                     )?;
-                    writeln!(ui)?;
+                    writeln!(formatter)?;
                 }
                 Some(RefTarget::Conflict { adds, removes }) => {
-                    write!(ui, " ")?;
-                    ui.stdout_formatter().add_label("conflict".to_string())?;
-                    write!(ui, "(conflicted)")?;
-                    ui.stdout_formatter().remove_label()?;
-                    writeln!(ui, ":")?;
+                    write!(formatter, " ")?;
+                    formatter.add_label("conflict".to_string())?;
+                    write!(formatter, "(conflicted)")?;
+                    formatter.remove_label()?;
+                    writeln!(formatter, ":")?;
                     for id in removes {
                         let commit = repo.store().get_commit(id)?;
-                        write!(ui, "  - ")?;
+                        write!(formatter, "  - ")?;
                         write_commit_summary(
-                            ui.stdout_formatter().as_mut(),
+                            formatter,
                             repo.as_repo_ref(),
                             &workspace_id,
                             &commit,
                             ui.settings(),
                         )?;
-                        writeln!(ui)?;
+                        writeln!(formatter)?;
                     }
                     for id in adds {
                         let commit = repo.store().get_commit(id)?;
-                        write!(ui, "  + ")?;
+                        write!(formatter, "  + ")?;
                         write_commit_summary(
-                            ui.stdout_formatter().as_mut(),
+                            formatter,
                             repo.as_repo_ref(),
                             &workspace_id,
                             &commit,
                             ui.settings(),
                         )?;
-                        writeln!(ui)?;
+                        writeln!(formatter)?;
                     }
                 }
                 None => {
-                    writeln!(ui, " (deleted)")?;
+                    writeln!(formatter, " (deleted)")?;
                 }
             }
             Ok(())
         };
 
+    let mut formatter = ui.stdout_formatter();
+    let formatter = formatter.as_mut();
     let index = repo.index();
     for (name, branch_target) in repo.view().branches() {
-        ui.stdout_formatter().add_label("branch".to_string())?;
-        write!(ui, "{}", name)?;
-        ui.stdout_formatter().remove_label()?;
-        print_branch_target(ui, branch_target.local_target.as_ref())?;
+        formatter.add_label("branch".to_string())?;
+        write!(formatter, "{}", name)?;
+        formatter.remove_label()?;
+        print_branch_target(formatter, branch_target.local_target.as_ref())?;
 
         for (remote, remote_target) in branch_target
             .remote_targets
@@ -3470,10 +3474,10 @@ fn list_branches(
             if Some(remote_target) == branch_target.local_target.as_ref() {
                 continue;
             }
-            write!(ui, "  ")?;
-            ui.stdout_formatter().add_label("branch".to_string())?;
-            write!(ui, "@{}", remote)?;
-            ui.stdout_formatter().remove_label()?;
+            write!(formatter, "  ")?;
+            formatter.add_label("branch".to_string())?;
+            write!(formatter, "@{}", remote)?;
+            formatter.remove_label()?;
             if let Some(local_target) = branch_target.local_target.as_ref() {
                 let remote_ahead_count = index
                     .walk_revs(&remote_target.adds(), &local_target.adds())
@@ -3482,18 +3486,18 @@ fn list_branches(
                     .walk_revs(&local_target.adds(), &remote_target.adds())
                     .count();
                 if remote_ahead_count != 0 && local_ahead_count == 0 {
-                    write!(ui, " (ahead by {} commits)", remote_ahead_count)?;
+                    write!(formatter, " (ahead by {} commits)", remote_ahead_count)?;
                 } else if remote_ahead_count == 0 && local_ahead_count != 0 {
-                    write!(ui, " (behind by {} commits)", local_ahead_count)?;
+                    write!(formatter, " (behind by {} commits)", local_ahead_count)?;
                 } else if remote_ahead_count != 0 && local_ahead_count != 0 {
                     write!(
-                        ui,
+                        formatter,
                         " (ahead by {} commits, behind by {} commits)",
                         remote_ahead_count, local_ahead_count
                     )?;
                 }
             }
-            print_branch_target(ui, Some(remote_target))?;
+            print_branch_target(formatter, Some(remote_target))?;
         }
     }
 
