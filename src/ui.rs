@@ -140,11 +140,11 @@ impl<'stdout> Ui<'stdout> {
     }
 
     pub fn write(&mut self, text: &str) -> io::Result<()> {
-        self.stdout_formatter().write_str(text)
+        self.stdout.get_mut().unwrap().write_all(text.as_bytes())
     }
 
     pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
-        self.stdout_formatter().write_fmt(fmt)
+        self.stdout.get_mut().unwrap().write_fmt(fmt)
     }
 
     pub fn write_hint(&mut self, text: impl AsRef<str>) -> io::Result<()> {
