@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 use std::io;
 use std::io::{Error, Read, Write};
+use std::sync::Arc;
 
 use jujutsu_lib::settings::UserSettings;
 
@@ -37,6 +38,48 @@ pub trait Formatter: Write {
     fn add_label(&mut self, label: &str) -> io::Result<()>;
 
     fn remove_label(&mut self) -> io::Result<()>;
+}
+
+/// Creates `Formatter` instances with preconfigured parameters.
+#[derive(Clone, Debug)]
+pub struct FormatterFactory {
+    kind: FormatterFactoryKind,
+}
+
+#[derive(Clone, Debug)]
+enum FormatterFactoryKind {
+    PlainText,
+    Color {
+        colors: Arc<HashMap<String, String>>,
+    },
+}
+
+impl FormatterFactory {
+    pub fn prepare(settings: &UserSettings, color: bool) -> Self {
+        let kind = if color {
+            let colors = Arc::new(config_colors(settings));
+            FormatterFactoryKind::Color { colors }
+        } else {
+            FormatterFactoryKind::PlainText
+        };
+        FormatterFactory { kind }
+    }
+
+    pub fn new_formatter<'output>(
+        &self,
+        output: Box<dyn Write + 'output>,
+    ) -> Box<dyn Formatter + 'output> {
+        match &self.kind {
+            FormatterFactoryKind::PlainText => Box::new(PlainTextFormatter::new(output)),
+            FormatterFactoryKind::Color { colors } => {
+                Box::new(ColorFormatter::new(output, colors.clone()))
+            }
+        }
+    }
+
+    pub fn is_color(&self) -> bool {
+        matches!(&self.kind, FormatterFactoryKind::Color { .. })
+    }
 }
 
 pub struct PlainTextFormatter<'output> {
@@ -71,7 +114,7 @@ impl Formatter for PlainTextFormatter<'_> {
 
 pub struct ColorFormatter<'output> {
     output: Box<dyn Write + 'output>,
-    colors: HashMap<String, String>,
+    colors: Arc<HashMap<String, String>>,
     labels: Vec<String>,
     cached_colors: HashMap<Vec<String>, Vec<u8>>,
     current_color: Vec<u8>,
@@ -208,11 +251,11 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
 impl<'output> ColorFormatter<'output> {
     pub fn new(
         output: Box<dyn Write + 'output>,
-        user_settings: &UserSettings,
+        colors: Arc<HashMap<String, String>>,
     ) -> ColorFormatter<'output> {
         ColorFormatter {
             output,
-            colors: config_colors(user_settings),
+            colors,
             labels: vec![],
             cached_colors: HashMap::new(),
             current_color: b"\x1b[0m".to_vec(),
@@ -224,7 +267,7 @@ impl<'output> ColorFormatter<'output> {
             cached.clone()
         } else {
             let mut best_match = (-1, "");
-            for (key, value) in &self.colors {
+            for (key, value) in self.colors.as_ref() {
                 let mut num_matching = 0;
                 let mut valid = true;
                 for label in key.split_whitespace() {
