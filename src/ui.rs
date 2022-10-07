@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Write;
+use std::io::{Stderr, Stdout, Write};
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Mutex, MutexGuard};
@@ -27,8 +27,7 @@ use crate::formatter::{Formatter, FormatterFactory};
 pub struct Ui<'a> {
     cwd: PathBuf,
     formatter_factory: FormatterFactory,
-    stdout: Mutex<Box<dyn Write + 'a>>,
-    stderr: Mutex<Box<dyn Write + 'a>>,
+    output_pair: UiOutputPair<'a>,
     settings: UserSettings,
 }
 
@@ -87,18 +86,27 @@ impl<'stdout> Ui<'stdout> {
         Ui {
             cwd,
             formatter_factory,
-            stdout: Mutex::new(stdout),
-            stderr: Mutex::new(stderr),
+            output_pair: UiOutputPair::Dyn {
+                stdout: Mutex::new(stdout),
+                stderr: Mutex::new(stderr),
+            },
             settings,
         }
     }
 
     pub fn for_terminal(settings: UserSettings) -> Ui<'static> {
         let cwd = std::env::current_dir().unwrap();
-        let stdout: Box<dyn Write + 'static> = Box::new(io::stdout());
-        let stderr: Box<dyn Write + 'static> = Box::new(io::stderr());
         let color = use_color(color_setting(&settings));
-        Ui::new(cwd, stdout, stderr, color, settings)
+        let formatter_factory = FormatterFactory::prepare(&settings, color);
+        Ui {
+            cwd,
+            formatter_factory,
+            output_pair: UiOutputPair::Terminal {
+                stdout: io::stdout(),
+                stderr: io::stderr(),
+            },
+            settings,
+        }
     }
 
     /// Reconfigures the underlying outputs with the new color choice.
@@ -129,22 +137,39 @@ impl<'stdout> Ui<'stdout> {
     /// Labels added to the returned formatter should be removed by caller.
     /// Otherwise the last color would persist.
     pub fn stdout_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
-        let output = DynWriteLock(self.stdout.lock().unwrap());
-        self.new_formatter(output)
+        match &self.output_pair {
+            UiOutputPair::Dyn { stdout, .. } => {
+                let output = DynWriteLock(stdout.lock().unwrap());
+                self.new_formatter(output)
+            }
+            UiOutputPair::Terminal { stdout, .. } => self.new_formatter(stdout.lock()),
+        }
     }
 
     /// Creates a formatter for the locked stderr stream.
     pub fn stderr_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
-        let output = DynWriteLock(self.stderr.lock().unwrap());
-        self.new_formatter(output)
+        match &self.output_pair {
+            UiOutputPair::Dyn { stderr, .. } => {
+                let output = DynWriteLock(stderr.lock().unwrap());
+                self.new_formatter(output)
+            }
+            UiOutputPair::Terminal { stderr, .. } => self.new_formatter(stderr.lock()),
+        }
     }
 
     pub fn write(&mut self, text: &str) -> io::Result<()> {
-        self.stdout.get_mut().unwrap().write_all(text.as_bytes())
+        let data = text.as_bytes();
+        match &mut self.output_pair {
+            UiOutputPair::Dyn { stdout, .. } => stdout.get_mut().unwrap().write_all(data),
+            UiOutputPair::Terminal { stdout, .. } => stdout.write_all(data),
+        }
     }
 
     pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
-        self.stdout.get_mut().unwrap().write_fmt(fmt)
+        match &mut self.output_pair {
+            UiOutputPair::Dyn { stdout, .. } => stdout.get_mut().unwrap().write_fmt(fmt),
+            UiOutputPair::Terminal { stdout, .. } => stdout.write_fmt(fmt),
+        }
     }
 
     pub fn write_hint(&mut self, text: impl AsRef<str>) -> io::Result<()> {
@@ -199,6 +224,17 @@ impl<'stdout> Ui<'stdout> {
         }
         Ok(repo_path)
     }
+}
+
+enum UiOutputPair<'output> {
+    Dyn {
+        stdout: Mutex<Box<dyn Write + 'output>>,
+        stderr: Mutex<Box<dyn Write + 'output>>,
+    },
+    Terminal {
+        stdout: Stdout,
+        stderr: Stderr,
+    },
 }
 
 /// Wrapper to implement `Write` for locked `Box<dyn Write>`.
