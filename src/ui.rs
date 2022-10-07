@@ -27,8 +27,8 @@ use crate::formatter::{Formatter, FormatterFactory};
 pub struct Ui<'a> {
     cwd: PathBuf,
     formatter_factory: FormatterFactory,
-    stdout_formatter: Mutex<Box<dyn Formatter + 'a>>,
-    stderr_formatter: Mutex<Box<dyn Formatter + 'a>>,
+    stdout: Mutex<Box<dyn Write + 'a>>,
+    stderr: Mutex<Box<dyn Write + 'a>>,
     settings: UserSettings,
 }
 
@@ -84,13 +84,11 @@ impl<'stdout> Ui<'stdout> {
         settings: UserSettings,
     ) -> Ui<'stdout> {
         let formatter_factory = FormatterFactory::prepare(&settings, color);
-        let stdout_formatter = Mutex::new(formatter_factory.new_formatter(stdout));
-        let stderr_formatter = Mutex::new(formatter_factory.new_formatter(stderr));
         Ui {
             cwd,
             formatter_factory,
-            stdout_formatter,
-            stderr_formatter,
+            stdout: Mutex::new(stdout),
+            stderr: Mutex::new(stderr),
             settings,
         }
     }
@@ -104,20 +102,10 @@ impl<'stdout> Ui<'stdout> {
     }
 
     /// Reconfigures the underlying outputs with the new color choice.
-    ///
-    /// It's up to caller to ensure that the current output formatters have no
-    /// labels applied. Otherwise the current color would persist.
     pub fn reset_color_for_terminal(&mut self, choice: ColorChoice) {
         let color = use_color(choice);
         if self.formatter_factory.is_color() != color {
-            // it seems uneasy to unwrap the underlying output from the formatter, so
-            // recreate it.
-            let formatter_factory = FormatterFactory::prepare(&self.settings, color);
-            let stdout_formatter = formatter_factory.new_formatter(Box::new(io::stdout()));
-            let stderr_formatter = formatter_factory.new_formatter(Box::new(io::stderr()));
-            self.formatter_factory = formatter_factory;
-            *self.stdout_formatter.get_mut().unwrap() = stdout_formatter;
-            *self.stderr_formatter.get_mut().unwrap() = stderr_formatter;
+            self.formatter_factory = FormatterFactory::prepare(&self.settings, color);
         }
     }
 
@@ -136,12 +124,19 @@ impl<'stdout> Ui<'stdout> {
         self.formatter_factory.new_formatter(output)
     }
 
-    pub fn stdout_formatter(&self) -> MutexGuard<Box<dyn Formatter + 'stdout>> {
-        self.stdout_formatter.lock().unwrap()
+    /// Creates a formatter for the locked stdout stream.
+    ///
+    /// Labels added to the returned formatter should be removed by caller.
+    /// Otherwise the last color would persist.
+    pub fn stdout_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
+        let output = DynWriteLock(self.stdout.lock().unwrap());
+        self.new_formatter(output)
     }
 
-    pub fn stderr_formatter(&self) -> MutexGuard<Box<dyn Formatter + 'stdout>> {
-        self.stderr_formatter.lock().unwrap()
+    /// Creates a formatter for the locked stderr stream.
+    pub fn stderr_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
+        let output = DynWriteLock(self.stderr.lock().unwrap());
+        self.new_formatter(output)
     }
 
     pub fn write(&mut self, text: &str) -> io::Result<()> {
@@ -203,6 +198,23 @@ impl<'stdout> Ui<'stdout> {
             }
         }
         Ok(repo_path)
+    }
+}
+
+/// Wrapper to implement `Write` for locked `Box<dyn Write>`.
+struct DynWriteLock<'a, 'output>(MutexGuard<'a, Box<dyn Write + 'output>>);
+
+impl Write for DynWriteLock<'_, '_> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.write(buf)
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+        self.0.write_all(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.0.flush()
     }
 }
 
