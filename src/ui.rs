@@ -22,26 +22,14 @@ use atty::Stream;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jujutsu_lib::settings::UserSettings;
 
-use crate::formatter::{ColorFormatter, Formatter, PlainTextFormatter};
+use crate::formatter::{Formatter, FormatterFactory};
 
 pub struct Ui<'a> {
     cwd: PathBuf,
-    color: bool,
+    formatter_factory: FormatterFactory,
     stdout_formatter: Mutex<Box<dyn Formatter + 'a>>,
     stderr_formatter: Mutex<Box<dyn Formatter + 'a>>,
     settings: UserSettings,
-}
-
-fn new_formatter<'output>(
-    settings: &UserSettings,
-    color: bool,
-    output: Box<dyn Write + 'output>,
-) -> Box<dyn Formatter + 'output> {
-    if color {
-        Box::new(ColorFormatter::new(output, settings))
-    } else {
-        Box::new(PlainTextFormatter::new(output))
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -95,11 +83,12 @@ impl<'stdout> Ui<'stdout> {
         color: bool,
         settings: UserSettings,
     ) -> Ui<'stdout> {
-        let stdout_formatter = Mutex::new(new_formatter(&settings, color, stdout));
-        let stderr_formatter = Mutex::new(new_formatter(&settings, color, stderr));
+        let formatter_factory = FormatterFactory::prepare(&settings, color);
+        let stdout_formatter = Mutex::new(formatter_factory.new_formatter(stdout));
+        let stderr_formatter = Mutex::new(formatter_factory.new_formatter(stderr));
         Ui {
             cwd,
-            color,
+            formatter_factory,
             stdout_formatter,
             stderr_formatter,
             settings,
@@ -120,12 +109,13 @@ impl<'stdout> Ui<'stdout> {
     /// labels applied. Otherwise the current color would persist.
     pub fn reset_color_for_terminal(&mut self, choice: ColorChoice) {
         let color = use_color(choice);
-        if self.color != color {
+        if self.formatter_factory.is_color() != color {
             // it seems uneasy to unwrap the underlying output from the formatter, so
             // recreate it.
-            let stdout_formatter = new_formatter(&self.settings, color, Box::new(io::stdout()));
-            let stderr_formatter = new_formatter(&self.settings, color, Box::new(io::stderr()));
-            self.color = color;
+            let formatter_factory = FormatterFactory::prepare(&self.settings, color);
+            let stdout_formatter = formatter_factory.new_formatter(Box::new(io::stdout()));
+            let stderr_formatter = formatter_factory.new_formatter(Box::new(io::stderr()));
+            self.formatter_factory = formatter_factory;
             *self.stdout_formatter.get_mut().unwrap() = stdout_formatter;
             *self.stderr_formatter.get_mut().unwrap() = stderr_formatter;
         }
@@ -143,7 +133,7 @@ impl<'stdout> Ui<'stdout> {
         &self,
         output: Box<dyn Write + 'output>,
     ) -> Box<dyn Formatter + 'output> {
-        new_formatter(&self.settings, self.color, output)
+        self.formatter_factory.new_formatter(output)
     }
 
     pub fn stdout_formatter(&self) -> MutexGuard<Box<dyn Formatter + 'stdout>> {
