@@ -65,9 +65,9 @@ impl FormatterFactory {
         FormatterFactory { kind }
     }
 
-    pub fn new_formatter<'output>(
+    pub fn new_formatter<'output, W: Write + 'output>(
         &self,
-        output: Box<dyn Write + 'output>,
+        output: W,
     ) -> Box<dyn Formatter + 'output> {
         match &self.kind {
             FormatterFactoryKind::PlainText => Box::new(PlainTextFormatter::new(output)),
@@ -82,17 +82,17 @@ impl FormatterFactory {
     }
 }
 
-pub struct PlainTextFormatter<'output> {
-    output: Box<dyn Write + 'output>,
+pub struct PlainTextFormatter<W> {
+    output: W,
 }
 
-impl<'output> PlainTextFormatter<'output> {
-    pub fn new(output: Box<dyn Write + 'output>) -> PlainTextFormatter<'output> {
+impl<W> PlainTextFormatter<W> {
+    pub fn new(output: W) -> PlainTextFormatter<W> {
         Self { output }
     }
 }
 
-impl Write for PlainTextFormatter<'_> {
+impl<W: Write> Write for PlainTextFormatter<W> {
     fn write(&mut self, data: &[u8]) -> Result<usize, Error> {
         self.output.write(data)
     }
@@ -102,7 +102,7 @@ impl Write for PlainTextFormatter<'_> {
     }
 }
 
-impl Formatter for PlainTextFormatter<'_> {
+impl<W: Write> Formatter for PlainTextFormatter<W> {
     fn add_label(&mut self, _label: &str) -> io::Result<()> {
         Ok(())
     }
@@ -112,8 +112,8 @@ impl Formatter for PlainTextFormatter<'_> {
     }
 }
 
-pub struct ColorFormatter<'output> {
-    output: Box<dyn Write + 'output>,
+pub struct ColorFormatter<W> {
+    output: W,
     colors: Arc<HashMap<String, String>>,
     labels: Vec<String>,
     cached_colors: HashMap<Vec<String>, Vec<u8>>,
@@ -248,11 +248,8 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result
 }
 
-impl<'output> ColorFormatter<'output> {
-    pub fn new(
-        output: Box<dyn Write + 'output>,
-        colors: Arc<HashMap<String, String>>,
-    ) -> ColorFormatter<'output> {
+impl<W> ColorFormatter<W> {
+    pub fn new(output: W, colors: Arc<HashMap<String, String>>) -> ColorFormatter<W> {
         ColorFormatter {
             output,
             colors,
@@ -315,7 +312,7 @@ impl<'output> ColorFormatter<'output> {
     }
 }
 
-impl Write for ColorFormatter<'_> {
+impl<W: Write> Write for ColorFormatter<W> {
     fn write(&mut self, data: &[u8]) -> Result<usize, Error> {
         self.output.write(data)
     }
@@ -325,7 +322,7 @@ impl Write for ColorFormatter<'_> {
     }
 }
 
-impl Formatter for ColorFormatter<'_> {
+impl<W: Write> Formatter for ColorFormatter<W> {
     fn add_label(&mut self, label: &str) -> io::Result<()> {
         self.labels.push(label.to_owned());
         let new_color = self.current_color();
