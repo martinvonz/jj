@@ -2113,8 +2113,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             let commit = store.get_commit(&commit_id)?;
             let is_checkout = Some(&commit_id) == checkout_id;
             {
-                let writer = Box::new(&mut buffer);
-                let mut formatter = ui.new_formatter(writer);
+                let mut formatter = ui.new_formatter(&mut buffer);
                 if is_checkout {
                     formatter.add_label("working_copy")?;
                 }
@@ -2127,8 +2126,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 buffer.push(b'\n');
             }
             if let Some(diff_format) = diff_format {
-                let writer = Box::new(&mut buffer);
-                let mut formatter = ui.new_formatter(writer);
+                let mut formatter = ui.new_formatter(&mut buffer);
                 show_patch(
                     formatter.as_mut(),
                     &workspace_command,
@@ -2224,16 +2222,14 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
             }
             let mut buffer = vec![];
             {
-                let writer = Box::new(&mut buffer);
-                let mut formatter = ui.new_formatter(writer);
+                let mut formatter = ui.new_formatter(&mut buffer);
                 template.format(&commit, formatter.as_mut())?;
             }
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
             if let Some(diff_format) = diff_format {
-                let writer = Box::new(&mut buffer);
-                let mut formatter = ui.new_formatter(writer);
+                let mut formatter = ui.new_formatter(&mut buffer);
                 show_predecessor_patch(
                     formatter.as_mut(),
                     &workspace_command,
@@ -3653,8 +3649,7 @@ fn cmd_op_log(
         let is_head_op = op.id() == &head_op_id;
         let mut buffer = vec![];
         {
-            let writer = Box::new(&mut buffer);
-            let mut formatter = ui.new_formatter(writer);
+            let mut formatter = ui.new_formatter(&mut buffer);
             formatter.add_label("op-log")?;
             if is_head_op {
                 formatter.add_label("head")?;

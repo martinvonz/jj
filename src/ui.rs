@@ -129,9 +129,9 @@ impl<'stdout> Ui<'stdout> {
         &self.settings
     }
 
-    pub fn new_formatter<'output>(
+    pub fn new_formatter<'output, W: Write + 'output>(
         &self,
-        output: Box<dyn Write + 'output>,
+        output: W,
     ) -> Box<dyn Formatter + 'output> {
         self.formatter_factory.new_formatter(output)
     }
