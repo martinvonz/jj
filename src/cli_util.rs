@@ -247,7 +247,6 @@ jj init --git-repo=.";
                 let base_repo = repo_loader.load_at(&op_heads[0]);
                 // TODO: It may be helpful to print each operation we're merging here
                 let mut workspace_command = self.for_loaded_repo(ui, workspace, base_repo)?;
-                workspace_command.snapshot(ui)?;
                 let mut tx = workspace_command.start_transaction("resolve concurrent operations");
                 for other_op_head in op_heads.into_iter().skip(1) {
                     tx.merge_operation(other_op_head);
@@ -264,6 +263,7 @@ jj init --git-repo=.";
                 let merged_repo = tx.write().leave_unpublished();
                 locked_op_heads.finish(merged_repo.operation());
                 workspace_command.repo = merged_repo;
+                workspace_command.snapshot(ui)?;
                 return Ok(workspace_command);
             }
         };
