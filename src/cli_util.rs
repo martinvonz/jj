@@ -275,13 +275,15 @@ jj init --git-repo=.";
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
-        WorkspaceCommandHelper::for_loaded_repo(
+        let mut helper = WorkspaceCommandHelper::new(
             ui,
             workspace,
             self.string_args.clone(),
             &self.global_args,
             repo,
-        )
+        )?;
+        helper.snapshot(ui)?;
+        Ok(helper)
     }
 }
 
@@ -327,18 +329,6 @@ impl WorkspaceCommandHelper {
             may_update_working_copy,
             working_copy_shared_with_git,
         })
-    }
-
-    pub fn for_loaded_repo(
-        ui: &mut Ui,
-        workspace: Workspace,
-        string_args: Vec<String>,
-        global_args: &GlobalArgs,
-        repo: Arc<ReadonlyRepo>,
-    ) -> Result<Self, CommandError> {
-        let mut helper = Self::new(ui, workspace, string_args, global_args, repo)?;
-        helper.snapshot(ui)?;
-        Ok(helper)
     }
 
     fn check_working_copy_writable(&self) -> Result<(), CommandError> {
