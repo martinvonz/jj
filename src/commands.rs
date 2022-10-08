@@ -3794,7 +3794,7 @@ fn cmd_workspace_add(
         ui::relative_path(old_workspace_command.workspace_root(), &destination_path).display()
     )?;
 
-    let mut new_workspace_command = WorkspaceCommandHelper::for_loaded_repo(
+    let mut new_workspace_command = WorkspaceCommandHelper::new(
         ui,
         new_workspace,
         command.string_args().clone(),
