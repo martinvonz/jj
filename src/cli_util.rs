@@ -1275,8 +1275,7 @@ pub fn parse_args(
     let matches = app.clone().get_matches_from(&string_args);
     let args: Args = Args::from_arg_matches(&matches).unwrap();
     if let Some(choice) = args.global_args.color {
-        // Here we assume ui was created for_terminal().
-        ui.reset_color_for_terminal(choice);
+        ui.reset_color(choice);
     }
     let command_helper = CommandHelper::new(app, string_args, args.global_args);
     Ok((command_helper, matches))

@@ -66,11 +66,11 @@ fn color_setting(settings: &UserSettings) -> ColorChoice {
         .unwrap_or_default()
 }
 
-fn use_color(choice: ColorChoice) -> bool {
+fn use_color(choice: ColorChoice, maybe_tty: bool) -> bool {
     match choice {
         ColorChoice::Always => true,
         ColorChoice::Never => false,
-        ColorChoice::Auto => atty::is(Stream::Stdout),
+        ColorChoice::Auto => maybe_tty && atty::is(Stream::Stdout),
     }
 }
 
@@ -96,7 +96,7 @@ impl<'stdout> Ui<'stdout> {
 
     pub fn for_terminal(settings: UserSettings) -> Ui<'static> {
         let cwd = std::env::current_dir().unwrap();
-        let color = use_color(color_setting(&settings));
+        let color = use_color(color_setting(&settings), true);
         let formatter_factory = FormatterFactory::prepare(&settings, color);
         Ui {
             cwd,
@@ -110,8 +110,9 @@ impl<'stdout> Ui<'stdout> {
     }
 
     /// Reconfigures the underlying outputs with the new color choice.
-    pub fn reset_color_for_terminal(&mut self, choice: ColorChoice) {
-        let color = use_color(choice);
+    pub fn reset_color(&mut self, choice: ColorChoice) {
+        let maybe_tty = matches!(&self.output_pair, UiOutputPair::Terminal { .. });
+        let color = use_color(choice, maybe_tty);
         if self.formatter_factory.is_color() != color {
             self.formatter_factory = FormatterFactory::prepare(&self.settings, color);
         }
