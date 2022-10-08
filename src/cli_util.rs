@@ -299,8 +299,8 @@ pub struct WorkspaceCommandHelper {
 }
 
 impl WorkspaceCommandHelper {
-    pub fn for_loaded_repo(
-        ui: &mut Ui,
+    pub fn new(
+        ui: &Ui,
         workspace: Workspace,
         string_args: Vec<String>,
         global_args: &GlobalArgs,
@@ -317,7 +317,7 @@ impl WorkspaceCommandHelper {
         {
             working_copy_shared_with_git = git_workdir == workspace.workspace_root().as_path();
         }
-        let mut helper = Self {
+        Ok(Self {
             cwd: ui.cwd().to_owned(),
             string_args,
             global_args: global_args.clone(),
@@ -326,9 +326,20 @@ impl WorkspaceCommandHelper {
             repo,
             may_update_working_copy,
             working_copy_shared_with_git,
-        };
-        if may_update_working_copy {
-            if working_copy_shared_with_git {
+        })
+    }
+
+    pub fn for_loaded_repo(
+        ui: &mut Ui,
+        workspace: Workspace,
+        string_args: Vec<String>,
+        global_args: &GlobalArgs,
+        repo: Arc<ReadonlyRepo>,
+    ) -> Result<Self, CommandError> {
+        let mut helper = Self::new(ui, workspace, string_args, global_args, repo)?;
+        if helper.may_update_working_copy {
+            if helper.working_copy_shared_with_git {
+                let maybe_git_repo = helper.repo.store().git_repo();
                 helper.import_git_refs_and_head(ui, maybe_git_repo.as_ref().unwrap())?;
             }
             helper.commit_working_copy(ui)?;
