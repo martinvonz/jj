@@ -234,8 +234,11 @@ jj init --git-repo=.";
             repo_loader.op_heads_store(),
             &self.global_args.at_operation,
         )?;
-        let repo = match op_heads {
-            OpHeads::Single(op) => repo_loader.load_at(&op),
+        let mut workspace_command = match op_heads {
+            OpHeads::Single(op) => {
+                let repo = repo_loader.load_at(&op);
+                self.for_loaded_repo(ui, workspace, repo)?
+            }
             OpHeads::Unresolved {
                 locked_op_heads,
                 op_heads,
@@ -263,11 +266,9 @@ jj init --git-repo=.";
                 let merged_repo = tx.write().leave_unpublished();
                 locked_op_heads.finish(merged_repo.operation());
                 workspace_command.repo = merged_repo;
-                workspace_command.snapshot(ui)?;
-                return Ok(workspace_command);
+                workspace_command
             }
         };
-        let mut workspace_command = self.for_loaded_repo(ui, workspace, repo)?;
         workspace_command.snapshot(ui)?;
         Ok(workspace_command)
     }
