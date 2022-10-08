@@ -337,13 +337,7 @@ impl WorkspaceCommandHelper {
         repo: Arc<ReadonlyRepo>,
     ) -> Result<Self, CommandError> {
         let mut helper = Self::new(ui, workspace, string_args, global_args, repo)?;
-        if helper.may_update_working_copy {
-            if helper.working_copy_shared_with_git {
-                let maybe_git_repo = helper.repo.store().git_repo();
-                helper.import_git_refs_and_head(ui, maybe_git_repo.as_ref().unwrap())?;
-            }
-            helper.commit_working_copy(ui)?;
-        }
+        helper.snapshot(ui)?;
         Ok(helper)
     }
 
@@ -362,6 +356,19 @@ impl WorkspaceCommandHelper {
                     .to_string(),
             ))
         }
+    }
+
+    /// Snapshot the working copy if allowed, and import Git refs if the working
+    /// copy is collocated with Git.
+    pub fn snapshot(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+        if self.may_update_working_copy {
+            if self.working_copy_shared_with_git {
+                let maybe_git_repo = self.repo.store().git_repo();
+                self.import_git_refs_and_head(ui, maybe_git_repo.as_ref().unwrap())?;
+            }
+            self.commit_working_copy(ui)?;
+        }
+        Ok(())
     }
 
     fn import_git_refs_and_head(
