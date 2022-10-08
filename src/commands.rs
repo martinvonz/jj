@@ -4106,7 +4106,6 @@ fn do_git_clone(
     let git_repo = get_git_repo(repo.store())?;
     writeln!(ui, r#"Fetching into new repo in "{}""#, wc_path.display())?;
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
-    workspace_command.snapshot(ui)?;
     let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();
     let mut fetch_tx = workspace_command.start_transaction("fetch from git remote into empty repo");
