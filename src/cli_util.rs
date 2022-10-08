@@ -247,6 +247,7 @@ jj init --git-repo=.";
                 let base_repo = repo_loader.load_at(&op_heads[0]);
                 // TODO: It may be helpful to print each operation we're merging here
                 let mut workspace_command = self.for_loaded_repo(ui, workspace, base_repo)?;
+                workspace_command.snapshot(ui)?;
                 let mut tx = workspace_command.start_transaction("resolve concurrent operations");
                 for other_op_head in op_heads.into_iter().skip(1) {
                     tx.merge_operation(other_op_head);
@@ -266,24 +267,24 @@ jj init --git-repo=.";
                 return Ok(workspace_command);
             }
         };
-        self.for_loaded_repo(ui, workspace, repo)
+        let mut workspace_command = self.for_loaded_repo(ui, workspace, repo)?;
+        workspace_command.snapshot(ui)?;
+        Ok(workspace_command)
     }
 
     pub fn for_loaded_repo(
         &self,
-        ui: &mut Ui,
+        ui: &Ui,
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
-        let mut helper = WorkspaceCommandHelper::new(
+        WorkspaceCommandHelper::new(
             ui,
             workspace,
             self.string_args.clone(),
             &self.global_args,
             repo,
-        )?;
-        helper.snapshot(ui)?;
-        Ok(helper)
+        )
     }
 }
 
