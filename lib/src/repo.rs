@@ -315,14 +315,8 @@ pub struct BackendFactories {
     factories: HashMap<String, BackendFactory>,
 }
 
-impl BackendFactories {
-    pub fn empty() -> Self {
-        BackendFactories {
-            factories: HashMap::new(),
-        }
-    }
-
-    pub fn default() -> Self {
+impl Default for BackendFactories {
+    fn default() -> Self {
         let mut factories = BackendFactories::empty();
         factories.add_backend(
             "local",
@@ -333,6 +327,14 @@ impl BackendFactories {
             Box::new(|store_path| Box::new(GitBackend::load(store_path))),
         );
         factories
+    }
+}
+
+impl BackendFactories {
+    pub fn empty() -> Self {
+        BackendFactories {
+            factories: HashMap::new(),
+        }
     }
 
     pub fn add_backend(&mut self, name: &str, factory: BackendFactory) {
