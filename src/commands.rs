@@ -1097,6 +1097,13 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
     } else if args.git {
         Workspace::init_internal_git(ui.settings(), &wc_path)?;
     } else {
+        if !ui.settings().allow_native_backend() {
+            return Err(CommandError::UserError(
+                "The native backend is disallowed by default. Did you mean to pass `--git`?
+Set `ui.allow-init-native` to allow initializing a repo with the native backend."
+                    .to_string(),
+            ));
+        }
         Workspace::init_local(ui.settings(), &wc_path)?;
     };
     let cwd = ui.cwd().canonicalize().unwrap();
