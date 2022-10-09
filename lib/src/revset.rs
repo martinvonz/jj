@@ -191,7 +191,7 @@ pub struct RevsetParser;
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum RevsetParseError {
     #[error("{0}")]
-    SyntaxError(#[from] pest::error::Error<Rule>),
+    SyntaxError(#[from] Box<pest::error::Error<Rule>>),
     #[error("Revset function \"{0}\" doesn't exist")]
     NoSuchFunction(String),
     #[error("Invalid arguments to revset function \"{name}\": {message}")]
@@ -794,7 +794,8 @@ fn parse_function_argument_to_string(
 }
 
 pub fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let mut pairs = RevsetParser::parse(Rule::expression, revset_str)?;
+    let mut pairs = RevsetParser::parse(Rule::expression, revset_str)
+        .map_err(|err| RevsetParseError::SyntaxError(Box::new(err)))?;
     let first = pairs.next().unwrap();
     assert!(pairs.next().is_none());
     if first.as_span().end() != revset_str.len() {
@@ -805,7 +806,7 @@ pub fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseError>
             },
             pos,
         );
-        return Err(RevsetParseError::SyntaxError(err));
+        return Err(RevsetParseError::SyntaxError(Box::new(err)));
     }
 
     parse_expression_rule(first.into_inner())
