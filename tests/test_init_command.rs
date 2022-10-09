@@ -19,7 +19,7 @@ use crate::common::TestEnvironment;
 pub mod common;
 
 fn init_git_repo(git_repo_path: &PathBuf) {
-    let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
     let git_blob_oid = git_repo.blob(b"some content").unwrap();
     let mut git_tree_builder = git_repo.treebuilder(None).unwrap();
     git_tree_builder

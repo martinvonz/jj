@@ -841,7 +841,7 @@ impl TreeState {
                     fs::remove_file(&disk_path).ok();
                     let mut parent_dir = disk_path.parent().unwrap();
                     loop {
-                        if fs::remove_dir(&parent_dir).is_err() {
+                        if fs::remove_dir(parent_dir).is_err() {
                             break;
                         }
                         parent_dir = parent_dir.parent().unwrap();

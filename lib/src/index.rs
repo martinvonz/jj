@@ -553,7 +553,7 @@ impl MutableIndex {
         let buf = self.maybe_squash_with_ancestors().serialize();
         let mut hasher = Blake2b512::new();
         hasher.update(&buf);
-        let index_file_id_hex = hex::encode(&hasher.finalize());
+        let index_file_id_hex = hex::encode(hasher.finalize());
         let index_file_path = dir.join(&index_file_id_hex);
 
         let mut temp_file = NamedTempFile::new_in(&dir)?;
@@ -744,7 +744,7 @@ impl<'a> CompositeIndex<'a> {
 
     pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
         self.commit_id_to_pos(commit_id)
-            .map(&|pos| self.entry_by_pos(pos))
+            .map(|pos| self.entry_by_pos(pos))
     }
 
     pub fn has_id(&self, commit_id: &CommitId) -> bool {
@@ -1085,7 +1085,7 @@ impl IndexSegment for ReadonlyIndex {
             None => PrefixResolution::NoMatch,
             Some(lookup_pos) => {
                 let mut first_match = None;
-                for i in lookup_pos.0..self.num_local_commits as u32 {
+                for i in lookup_pos.0..self.num_local_commits {
                     let entry = self.lookup_entry(i);
                     let id = entry.commit_id();
                     if !id.as_bytes().starts_with(bytes_prefix.as_bytes()) {

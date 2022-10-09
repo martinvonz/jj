@@ -165,7 +165,7 @@ impl Backend for LocalBackend {
         let mut temp_file = NamedTempFile::new_in(&self.path)?;
         temp_file.write_all(target.as_bytes())?;
         let mut hasher = Blake2b512::new();
-        hasher.update(&target.as_bytes());
+        hasher.update(target.as_bytes());
         let id = SymlinkId::new(hasher.finalize().to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.symlink_path(&id))?;
