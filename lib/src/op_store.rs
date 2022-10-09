@@ -28,13 +28,15 @@ impl Debug for WorkspaceId {
     }
 }
 
+impl Default for WorkspaceId {
+    fn default() -> Self {
+        Self("default".to_string())
+    }
+}
+
 impl WorkspaceId {
     pub fn new(value: String) -> Self {
         Self(value)
-    }
-
-    pub fn default() -> Self {
-        Self("default".to_string())
     }
 
     pub fn as_str(&self) -> &str {
