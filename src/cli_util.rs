@@ -268,13 +268,23 @@ jj init --git-repo=.",
                     WorkspaceLoadError::NonUnicodePath => user_error(err.to_string()),
                 }
             })?;
+        let mut workspace_command = self.resolve_operation(ui, workspace)?;
+        workspace_command.snapshot(ui)?;
+        Ok(workspace_command)
+    }
+
+    fn resolve_operation(
+        &self,
+        ui: &mut Ui,
+        workspace: Workspace,
+    ) -> Result<WorkspaceCommandHelper, CommandError> {
         let repo_loader = workspace.repo_loader();
         let op_heads = resolve_op_for_load(
             repo_loader.op_store(),
             repo_loader.op_heads_store(),
             &self.global_args.at_operation,
         )?;
-        let mut workspace_command = match op_heads {
+        let workspace_command = match op_heads {
             OpHeads::Single(op) => {
                 let repo = repo_loader.load_at(&op);
                 self.for_loaded_repo(ui, workspace, repo)?
@@ -309,7 +319,6 @@ jj init --git-repo=.",
                 workspace_command
             }
         };
-        workspace_command.snapshot(ui)?;
         Ok(workspace_command)
     }
 
