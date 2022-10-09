@@ -100,6 +100,12 @@ impl UserSettings {
             .unwrap_or(false)
     }
 
+    pub fn allow_native_backend(&self) -> bool {
+        self.config
+            .get_bool("ui.allow-init-native")
+            .unwrap_or(false)
+    }
+
     pub fn config(&self) -> &config::Config {
         &self.config
     }
