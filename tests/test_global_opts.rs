@@ -145,6 +145,35 @@ fn test_invalid_config() {
 }
 
 #[test]
+fn test_no_user_configured() {
+    // Test that the user is reminded if they haven't configured their name or email
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let assert = test_env
+        .jj_cmd(&repo_path, &["describe", "-m", "without name"])
+        .env_remove("JJ_USER")
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Name and email not configured. Add something like the following to $HOME/.jjconfig.toml:
+      user.name = "Some One"
+      user.email = "someone@example.com"
+    "###);
+    let assert = test_env
+        .jj_cmd(&repo_path, &["describe", "-m", "without email"])
+        .env_remove("JJ_EMAIL")
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Name and email not configured. Add something like the following to $HOME/.jjconfig.toml:
+      user.name = "Some One"
+      user.email = "someone@example.com"
+    "###);
+}
+
+#[test]
 fn test_help() {
     // Test that global options are separated out in the help output
     let test_env = TestEnvironment::default();

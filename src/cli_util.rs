@@ -797,6 +797,14 @@ impl WorkspaceCommandHelper {
             let git_repo = self.repo.store().git_repo().unwrap();
             git::export_refs(&self.repo, &git_repo)?;
         }
+        let settings = ui.settings();
+        if settings.user_name() == UserSettings::user_name_placeholder()
+            || settings.user_email() == UserSettings::user_email_placeholder()
+        {
+            ui.write_warn(r#"Name and email not configured. Add something like the following to $HOME/.jjconfig.toml:
+  user.name = "Some One"
+  user.email = "someone@example.com""#)?;
+        }
         Ok(())
     }
 }
