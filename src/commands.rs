@@ -2967,8 +2967,8 @@ You are splitting a commit in two: {}
 The diff initially shows the changes in the commit you're splitting.
 
 Adjust the right side until it shows the contents you want for the first
-commit. The remainder will be in the second commit. If you don't make
-any changes, then the operation will be aborted.
+(parent) commit. The remainder will be in the second commit. If you
+don't make any changes, then the operation will be aborted.
 ",
         short_commit_description(&commit)
     );
