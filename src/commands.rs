@@ -697,8 +697,11 @@ enum BranchSubcommand {
         names: Vec<String>,
     },
 
-    /// Delete the local version of an existing branch, without propagating the
-    /// deletion to remotes.
+    /// Forget everything about a branch, including its local and remote
+    /// targets.
+    ///
+    /// A forgotten branch will not impact remotes on future pushes. It will be
+    /// recreated on future pulls if it still exists in the remote.
     #[command(visible_alias("f"))]
     Forget {
         /// The branches to delete.
