@@ -40,6 +40,19 @@ pub trait Formatter: Write {
     fn remove_label(&mut self) -> io::Result<()>;
 }
 
+impl dyn Formatter + '_ {
+    pub fn with_label(
+        &mut self,
+        label: &str,
+        write_inner: impl FnOnce(&mut dyn Formatter) -> io::Result<()>,
+    ) -> io::Result<()> {
+        self.add_label(label)?;
+        // Call `remove_label()` whether or not `write_inner()` fails, but don't let
+        // its error replace the one from `write_inner()`.
+        write_inner(self).and(self.remove_label())
+    }
+}
+
 /// Creates `Formatter` instances with preconfigured parameters.
 #[derive(Clone, Debug)]
 pub struct FormatterFactory {
