@@ -1327,17 +1327,17 @@ fn show_color_words_diff_line(
     diff_line: &DiffLine,
 ) -> io::Result<()> {
     if diff_line.has_left_content {
-        formatter.add_label("removed")?;
-        formatter.write_bytes(format!("{:>4}", diff_line.left_line_number).as_bytes())?;
-        formatter.remove_label()?;
+        formatter.with_label("removed", |formatter| {
+            formatter.write_bytes(format!("{:>4}", diff_line.left_line_number).as_bytes())
+        })?;
         formatter.write_bytes(b" ")?;
     } else {
         formatter.write_bytes(b"     ")?;
     }
     if diff_line.has_right_content {
-        formatter.add_label("added")?;
-        formatter.write_bytes(format!("{:>4}", diff_line.right_line_number).as_bytes())?;
-        formatter.remove_label()?;
+        formatter.with_label("added", |formatter| {
+            formatter.write_bytes(format!("{:>4}", diff_line.right_line_number).as_bytes())
+        })?;
         formatter.write_bytes(b": ")?;
     } else {
         formatter.write_bytes(b"    : ")?;
@@ -1351,14 +1351,10 @@ fn show_color_words_diff_line(
                 let before = data[0];
                 let after = data[1];
                 if !before.is_empty() {
-                    formatter.add_label("removed")?;
-                    formatter.write_bytes(before)?;
-                    formatter.remove_label()?;
+                    formatter.with_label("removed", |formatter| formatter.write_bytes(before))?;
                 }
                 if !after.is_empty() {
-                    formatter.add_label("added")?;
-                    formatter.write_bytes(after)?;
-                    formatter.remove_label()?;
+                    formatter.with_label("added", |formatter| formatter.write_bytes(after))?;
                 }
             }
         }
@@ -1544,9 +1540,9 @@ fn show_color_words_diff(
             tree::Diff::Added(right_value) => {
                 let right_content = diff_content(repo, &path, &right_value)?;
                 let description = basic_diff_file_type(&right_value);
-                formatter.add_label("header")?;
-                formatter.write_str(&format!("Added {} {}:\n", description, ui_path))?;
-                formatter.remove_label()?;
+                formatter.with_label("header", |formatter| {
+                    formatter.write_str(&format!("Added {} {}:\n", description, ui_path))
+                })?;
                 show_color_words_diff_hunks(&[], &right_content, formatter)?;
             }
             tree::Diff::Modified(left_value, right_value) => {
@@ -1593,17 +1589,17 @@ fn show_color_words_diff(
                         )
                     }
                 };
-                formatter.add_label("header")?;
-                formatter.write_str(&format!("{} {}:\n", description, ui_path))?;
-                formatter.remove_label()?;
+                formatter.with_label("header", |formatter| {
+                    formatter.write_str(&format!("{} {}:\n", description, ui_path))
+                })?;
                 show_color_words_diff_hunks(&left_content, &right_content, formatter)?;
             }
             tree::Diff::Removed(left_value) => {
                 let left_content = diff_content(repo, &path, &left_value)?;
                 let description = basic_diff_file_type(&left_value);
-                formatter.add_label("header")?;
-                formatter.write_str(&format!("Removed {} {}:\n", description, ui_path))?;
-                formatter.remove_label()?;
+                formatter.with_label("header", |formatter| {
+                    formatter.write_str(&format!("Removed {} {}:\n", description, ui_path))
+                })?;
                 show_color_words_diff_hunks(&left_content, &[], formatter)?;
             }
         }
@@ -1768,35 +1764,35 @@ fn show_unified_diff_hunks(
     right_content: &[u8],
 ) -> Result<(), CommandError> {
     for hunk in unified_diff_hunks(left_content, right_content, 3) {
-        formatter.add_label("hunk_header")?;
-        writeln!(
-            formatter,
-            "@@ -{},{} +{},{} @@",
-            hunk.left_line_range.start,
-            hunk.left_line_range.len(),
-            hunk.right_line_range.start,
-            hunk.right_line_range.len()
-        )?;
-        formatter.remove_label()?;
+        formatter.with_label("hunk_header", |formatter| {
+            writeln!(
+                formatter,
+                "@@ -{},{} +{},{} @@",
+                hunk.left_line_range.start,
+                hunk.left_line_range.len(),
+                hunk.right_line_range.start,
+                hunk.right_line_range.len()
+            )
+        })?;
         for (line_type, content) in hunk.lines {
             match line_type {
                 DiffLineType::Context => {
-                    formatter.add_label("context")?;
-                    formatter.write_str(" ")?;
-                    formatter.write_all(content)?;
-                    formatter.remove_label()?;
+                    formatter.with_label("context", |formatter| {
+                        formatter.write_str(" ")?;
+                        formatter.write_all(content)
+                    })?;
                 }
                 DiffLineType::Removed => {
-                    formatter.add_label("removed")?;
-                    formatter.write_str("-")?;
-                    formatter.write_all(content)?;
-                    formatter.remove_label()?;
+                    formatter.with_label("removed", |formatter| {
+                        formatter.write_str("-")?;
+                        formatter.write_all(content)
+                    })?;
                 }
                 DiffLineType::Added => {
-                    formatter.add_label("added")?;
-                    formatter.write_str("+")?;
-                    formatter.write_all(content)?;
-                    formatter.remove_label()?;
+                    formatter.with_label("added", |formatter| {
+                        formatter.write_str("+")?;
+                        formatter.write_all(content)
+                    })?;
                 }
             }
             if !content.ends_with(b"\n") {
@@ -1816,48 +1812,53 @@ fn show_git_diff(
     formatter.add_label("diff")?;
     for (path, diff) in tree_diff {
         let path_string = path.to_internal_file_string();
-        formatter.add_label("file_header")?;
-        writeln!(formatter, "diff --git a/{} b/{}", path_string, path_string)?;
         match diff {
             tree::Diff::Added(right_value) => {
                 let right_part = git_diff_part(repo, &path, &right_value)?;
-                writeln!(formatter, "new file mode {}", &right_part.mode)?;
-                writeln!(formatter, "index 0000000000..{}", &right_part.hash)?;
-                writeln!(formatter, "--- /dev/null")?;
-                writeln!(formatter, "+++ b/{}", path_string)?;
-                formatter.remove_label()?;
+                formatter.with_label("file_header", |formatter| {
+                    writeln!(formatter, "diff --git a/{} b/{}", path_string, path_string)?;
+                    writeln!(formatter, "new file mode {}", &right_part.mode)?;
+                    writeln!(formatter, "index 0000000000..{}", &right_part.hash)?;
+                    writeln!(formatter, "--- /dev/null")?;
+                    writeln!(formatter, "+++ b/{}", path_string)
+                })?;
                 show_unified_diff_hunks(formatter, &[], &right_part.content)?;
             }
             tree::Diff::Modified(left_value, right_value) => {
                 let left_part = git_diff_part(repo, &path, &left_value)?;
                 let right_part = git_diff_part(repo, &path, &right_value)?;
-                if left_part.mode != right_part.mode {
-                    writeln!(formatter, "old mode {}", &left_part.mode)?;
-                    writeln!(formatter, "new mode {}", &right_part.mode)?;
-                    if left_part.hash != right_part.hash {
-                        writeln!(formatter, "index {}...{}", &left_part.hash, right_part.hash)?;
+                formatter.with_label("file_header", |formatter| {
+                    writeln!(formatter, "diff --git a/{} b/{}", path_string, path_string)?;
+                    if left_part.mode != right_part.mode {
+                        writeln!(formatter, "old mode {}", &left_part.mode)?;
+                        writeln!(formatter, "new mode {}", &right_part.mode)?;
+                        if left_part.hash != right_part.hash {
+                            writeln!(formatter, "index {}...{}", &left_part.hash, right_part.hash)?;
+                        }
+                    } else if left_part.hash != right_part.hash {
+                        writeln!(
+                            formatter,
+                            "index {}...{} {}",
+                            &left_part.hash, right_part.hash, left_part.mode
+                        )?;
                     }
-                } else if left_part.hash != right_part.hash {
-                    writeln!(
-                        formatter,
-                        "index {}...{} {}",
-                        &left_part.hash, right_part.hash, left_part.mode
-                    )?;
-                }
-                if left_part.content != right_part.content {
-                    writeln!(formatter, "--- a/{}", path_string)?;
-                    writeln!(formatter, "+++ b/{}", path_string)?;
-                }
-                formatter.remove_label()?;
+                    if left_part.content != right_part.content {
+                        writeln!(formatter, "--- a/{}", path_string)?;
+                        writeln!(formatter, "+++ b/{}", path_string)?;
+                    }
+                    Ok(())
+                })?;
                 show_unified_diff_hunks(formatter, &left_part.content, &right_part.content)?;
             }
             tree::Diff::Removed(left_value) => {
                 let left_part = git_diff_part(repo, &path, &left_value)?;
-                writeln!(formatter, "deleted file mode {}", &left_part.mode)?;
-                writeln!(formatter, "index {}..0000000000", &left_part.hash)?;
-                writeln!(formatter, "--- a/{}", path_string)?;
-                writeln!(formatter, "+++ /dev/null")?;
-                formatter.remove_label()?;
+                formatter.with_label("file_header", |formatter| {
+                    writeln!(formatter, "diff --git a/{} b/{}", path_string, path_string)?;
+                    writeln!(formatter, "deleted file mode {}", &left_part.mode)?;
+                    writeln!(formatter, "index {}..0000000000", &left_part.hash)?;
+                    writeln!(formatter, "--- a/{}", path_string)?;
+                    writeln!(formatter, "+++ /dev/null")
+                })?;
                 show_unified_diff_hunks(formatter, &left_part.content, &[])?;
             }
         }
@@ -1871,40 +1872,40 @@ fn show_diff_summary(
     workspace_command: &WorkspaceCommandHelper,
     tree_diff: TreeDiffIterator,
 ) -> io::Result<()> {
-    formatter.add_label("diff")?;
-    for (repo_path, diff) in tree_diff {
-        match diff {
-            tree::Diff::Modified(_, _) => {
-                formatter.add_label("modified")?;
-                writeln!(
-                    formatter,
-                    "M {}",
-                    workspace_command.format_file_path(&repo_path)
-                )?;
-                formatter.remove_label()?;
-            }
-            tree::Diff::Added(_) => {
-                formatter.add_label("added")?;
-                writeln!(
-                    formatter,
-                    "A {}",
-                    workspace_command.format_file_path(&repo_path)
-                )?;
-                formatter.remove_label()?;
-            }
-            tree::Diff::Removed(_) => {
-                formatter.add_label("removed")?;
-                writeln!(
-                    formatter,
-                    "R {}",
-                    workspace_command.format_file_path(&repo_path)
-                )?;
-                formatter.remove_label()?;
+    formatter.with_label("diff", |formatter| {
+        for (repo_path, diff) in tree_diff {
+            match diff {
+                tree::Diff::Modified(_, _) => {
+                    formatter.with_label("modified", |formatter| {
+                        writeln!(
+                            formatter,
+                            "M {}",
+                            workspace_command.format_file_path(&repo_path)
+                        )
+                    })?;
+                }
+                tree::Diff::Added(_) => {
+                    formatter.with_label("added", |formatter| {
+                        writeln!(
+                            formatter,
+                            "A {}",
+                            workspace_command.format_file_path(&repo_path)
+                        )
+                    })?;
+                }
+                tree::Diff::Removed(_) => {
+                    formatter.with_label("removed", |formatter| {
+                        writeln!(
+                            formatter,
+                            "R {}",
+                            workspace_command.format_file_path(&repo_path)
+                        )
+                    })?;
+                }
             }
         }
-    }
-    formatter.remove_label()?;
-    Ok(())
+        Ok(())
+    })
 }
 
 fn cmd_status(
@@ -1961,14 +1962,12 @@ fn cmd_status(
         }
     }
     if !conflicted_local_branches.is_empty() {
-        formatter.add_label("conflict")?;
-        writeln!(formatter, "These branches have conflicts:")?;
-        formatter.remove_label()?;
+        formatter.with_label("conflict", |formatter| {
+            writeln!(formatter, "These branches have conflicts:")
+        })?;
         for branch_name in conflicted_local_branches {
             write!(formatter, "  ")?;
-            formatter.add_label("branch")?;
-            write!(formatter, "{}", branch_name)?;
-            formatter.remove_label()?;
+            formatter.with_label("branch", |formatter| write!(formatter, "{}", branch_name))?;
             writeln!(formatter)?;
         }
         writeln!(
@@ -1978,14 +1977,14 @@ fn cmd_status(
         )?;
     }
     if !conflicted_remote_branches.is_empty() {
-        formatter.add_label("conflict")?;
-        writeln!(formatter, "These remote branches have conflicts:")?;
-        formatter.remove_label()?;
+        formatter.with_label("conflict", |formatter| {
+            writeln!(formatter, "These remote branches have conflicts:")
+        })?;
         for (branch_name, remote_name) in conflicted_remote_branches {
             write!(formatter, "  ")?;
-            formatter.add_label("branch")?;
-            write!(formatter, "{}@{}", branch_name, remote_name)?;
-            formatter.remove_label()?;
+            formatter.with_label("branch", |formatter| {
+                write!(formatter, "{}@{}", branch_name, remote_name)
+            })?;
             writeln!(formatter)?;
         }
         writeln!(
@@ -2010,9 +2009,9 @@ fn cmd_status(
 
         let conflicts = tree.conflicts();
         if !conflicts.is_empty() {
-            formatter.add_label("conflict")?;
-            writeln!(formatter, "There are unresolved conflicts at these paths:")?;
-            formatter.remove_label()?;
+            formatter.with_label("conflict", |formatter| {
+                writeln!(formatter, "There are unresolved conflicts at these paths:")
+            })?;
             for (path, _) in conflicts {
                 writeln!(formatter, "{}", &workspace_command.format_file_path(&path))?;
             }
@@ -2123,11 +2122,11 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             {
                 let mut formatter = ui.new_formatter(&mut buffer);
                 if is_checkout {
-                    formatter.add_label("working_copy")?;
-                }
-                template.format(&commit, formatter.as_mut())?;
-                if is_checkout {
-                    formatter.remove_label()?;
+                    formatter.with_label("working_copy", |formatter| {
+                        template.format(&commit, formatter)
+                    })?;
+                } else {
+                    template.format(&commit, formatter.as_mut())?;
                 }
             }
             if !buffer.ends_with(b"\n") {
@@ -3408,12 +3407,29 @@ fn list_branches(
     let repo = workspace_command.repo();
 
     let workspace_id = workspace_command.workspace_id();
-    let print_branch_target =
-        |formatter: &mut dyn Formatter, target: Option<&RefTarget>| -> Result<(), CommandError> {
-            match target {
-                Some(RefTarget::Normal(id)) => {
-                    write!(formatter, ": ")?;
+    let print_branch_target = |formatter: &mut dyn Formatter,
+                               target: Option<&RefTarget>|
+     -> Result<(), CommandError> {
+        match target {
+            Some(RefTarget::Normal(id)) => {
+                write!(formatter, ": ")?;
+                let commit = repo.store().get_commit(id)?;
+                write_commit_summary(
+                    formatter,
+                    repo.as_repo_ref(),
+                    &workspace_id,
+                    &commit,
+                    ui.settings(),
+                )?;
+                writeln!(formatter)?;
+            }
+            Some(RefTarget::Conflict { adds, removes }) => {
+                write!(formatter, " ")?;
+                formatter.with_label("conflict", |formatter| write!(formatter, "(conflicted)"))?;
+                writeln!(formatter, ":")?;
+                for id in removes {
                     let commit = repo.store().get_commit(id)?;
+                    write!(formatter, "  - ")?;
                     write_commit_summary(
                         formatter,
                         repo.as_repo_ref(),
@@ -3423,51 +3439,31 @@ fn list_branches(
                     )?;
                     writeln!(formatter)?;
                 }
-                Some(RefTarget::Conflict { adds, removes }) => {
-                    write!(formatter, " ")?;
-                    formatter.add_label("conflict")?;
-                    write!(formatter, "(conflicted)")?;
-                    formatter.remove_label()?;
-                    writeln!(formatter, ":")?;
-                    for id in removes {
-                        let commit = repo.store().get_commit(id)?;
-                        write!(formatter, "  - ")?;
-                        write_commit_summary(
-                            formatter,
-                            repo.as_repo_ref(),
-                            &workspace_id,
-                            &commit,
-                            ui.settings(),
-                        )?;
-                        writeln!(formatter)?;
-                    }
-                    for id in adds {
-                        let commit = repo.store().get_commit(id)?;
-                        write!(formatter, "  + ")?;
-                        write_commit_summary(
-                            formatter,
-                            repo.as_repo_ref(),
-                            &workspace_id,
-                            &commit,
-                            ui.settings(),
-                        )?;
-                        writeln!(formatter)?;
-                    }
-                }
-                None => {
-                    writeln!(formatter, " (deleted)")?;
+                for id in adds {
+                    let commit = repo.store().get_commit(id)?;
+                    write!(formatter, "  + ")?;
+                    write_commit_summary(
+                        formatter,
+                        repo.as_repo_ref(),
+                        &workspace_id,
+                        &commit,
+                        ui.settings(),
+                    )?;
+                    writeln!(formatter)?;
                 }
             }
-            Ok(())
-        };
+            None => {
+                writeln!(formatter, " (deleted)")?;
+            }
+        }
+        Ok(())
+    };
 
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
     let index = repo.index();
     for (name, branch_target) in repo.view().branches() {
-        formatter.add_label("branch")?;
-        write!(formatter, "{}", name)?;
-        formatter.remove_label()?;
+        formatter.with_label("branch", |formatter| write!(formatter, "{}", name))?;
         print_branch_target(formatter, branch_target.local_target.as_ref())?;
 
         for (remote, remote_target) in branch_target
@@ -3479,9 +3475,7 @@ fn list_branches(
                 continue;
             }
             write!(formatter, "  ")?;
-            formatter.add_label("branch")?;
-            write!(formatter, "@{}", remote)?;
-            formatter.remove_label()?;
+            formatter.with_label("branch", |formatter| write!(formatter, "@{}", remote))?;
             if let Some(local_target) = branch_target.local_target.as_ref() {
                 let remote_ahead_count = index
                     .walk_revs(&remote_target.adds(), &local_target.adds())
@@ -3614,30 +3608,28 @@ fn cmd_op_log(
     impl Template<Operation> for OpTemplate {
         fn format(&self, op: &Operation, formatter: &mut dyn Formatter) -> io::Result<()> {
             // TODO: Make this templated
-            formatter.add_label("id")?;
-            formatter.write_str(&op.id().hex()[0..12])?;
-            formatter.remove_label()?;
+            formatter.with_label("id", |formatter| formatter.write_str(&op.id().hex()[0..12]))?;
             formatter.write_str(" ")?;
             let metadata = &op.store_operation().metadata;
-            formatter.add_label("user")?;
-            formatter.write_str(&format!("{}@{}", metadata.username, metadata.hostname))?;
-            formatter.remove_label()?;
+            formatter.with_label("user", |formatter| {
+                formatter.write_str(&format!("{}@{}", metadata.username, metadata.hostname))
+            })?;
             formatter.write_str(" ")?;
-            formatter.add_label("time")?;
-            formatter.write_str(&format!(
-                "{} - {}",
-                format_timestamp(&metadata.start_time),
-                format_timestamp(&metadata.end_time)
-            ))?;
-            formatter.remove_label()?;
+            formatter.with_label("time", |formatter| {
+                formatter.write_str(&format!(
+                    "{} - {}",
+                    format_timestamp(&metadata.start_time),
+                    format_timestamp(&metadata.end_time)
+                ))
+            })?;
             formatter.write_str("\n")?;
-            formatter.add_label("description")?;
-            formatter.write_str(&metadata.description)?;
-            formatter.remove_label()?;
+            formatter.with_label("description", |formatter| {
+                formatter.write_str(&metadata.description)
+            })?;
             for (key, value) in &metadata.tags {
-                formatter.add_label("tags")?;
-                formatter.write_str(&format!("\n{}: {}", key, value))?;
-                formatter.remove_label()?;
+                formatter.with_label("tags", |formatter| {
+                    formatter.write_str(&format!("\n{}: {}", key, value))
+                })?;
             }
             Ok(())
         }
@@ -3658,15 +3650,13 @@ fn cmd_op_log(
         let mut buffer = vec![];
         {
             let mut formatter = ui.new_formatter(&mut buffer);
-            formatter.add_label("op-log")?;
-            if is_head_op {
-                formatter.add_label("head")?;
-            }
-            template.format(&op, formatter.as_mut())?;
-            if is_head_op {
-                formatter.remove_label()?;
-            }
-            formatter.remove_label()?;
+            formatter.with_label("op-log", |formatter| {
+                if is_head_op {
+                    formatter.with_label("head", |formatter| template.format(&op, formatter))
+                } else {
+                    template.format(&op, formatter)
+                }
+            })?;
         }
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
