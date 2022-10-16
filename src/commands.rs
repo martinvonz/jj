@@ -727,7 +727,7 @@ enum BranchSubcommand {
         revision: Option<String>,
 
         /// Allow moving the branch backwards or sideways.
-        #[arg(long)]
+        #[arg(long, short = 'B')]
         allow_backwards: bool,
 
         /// The branches to update.
