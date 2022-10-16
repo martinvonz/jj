@@ -849,23 +849,27 @@ fn test_rebase_descendants_contents(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let path1 = RepoPath::from_internal_string("file1");
     let tree1 = testutils::create_tree(repo, &[(&path1, "content")]);
-    let commit_a =
-        CommitBuilder::for_new_commit(&settings, tree1.id().clone()).write_to_repo(tx.mut_repo());
+    let commit_a = CommitBuilder::for_new_commit(
+        &settings,
+        vec![repo.store().root_commit_id().clone()],
+        tree1.id().clone(),
+    )
+    .write_to_repo(tx.mut_repo());
     let path2 = RepoPath::from_internal_string("file2");
     let tree2 = testutils::create_tree(repo, &[(&path2, "content")]);
-    let commit_b = CommitBuilder::for_new_commit(&settings, tree2.id().clone())
-        .set_parents(vec![commit_a.id().clone()])
-        .write_to_repo(tx.mut_repo());
+    let commit_b =
+        CommitBuilder::for_new_commit(&settings, vec![commit_a.id().clone()], tree2.id().clone())
+            .write_to_repo(tx.mut_repo());
     let path3 = RepoPath::from_internal_string("file3");
     let tree3 = testutils::create_tree(repo, &[(&path3, "content")]);
-    let commit_c = CommitBuilder::for_new_commit(&settings, tree3.id().clone())
-        .set_parents(vec![commit_b.id().clone()])
-        .write_to_repo(tx.mut_repo());
+    let commit_c =
+        CommitBuilder::for_new_commit(&settings, vec![commit_b.id().clone()], tree3.id().clone())
+            .write_to_repo(tx.mut_repo());
     let path4 = RepoPath::from_internal_string("file4");
     let tree4 = testutils::create_tree(repo, &[(&path4, "content")]);
-    let commit_d = CommitBuilder::for_new_commit(&settings, tree4.id().clone())
-        .set_parents(vec![commit_a.id().clone()])
-        .write_to_repo(tx.mut_repo());
+    let commit_d =
+        CommitBuilder::for_new_commit(&settings, vec![commit_a.id().clone()], tree4.id().clone())
+            .write_to_repo(tx.mut_repo());
 
     let mut rebaser = DescendantRebaser::new(
         &settings,
@@ -1277,11 +1281,11 @@ fn test_rebase_descendants_update_checkout(use_git: bool) {
     let ws2_id = WorkspaceId::new("ws2".to_string());
     let ws3_id = WorkspaceId::new("ws3".to_string());
     tx.mut_repo()
-        .set_checkout(ws1_id.clone(), commit_b.id().clone());
+        .set_wc_commit(ws1_id.clone(), commit_b.id().clone());
     tx.mut_repo()
-        .set_checkout(ws2_id.clone(), commit_b.id().clone());
+        .set_wc_commit(ws2_id.clone(), commit_b.id().clone());
     tx.mut_repo()
-        .set_checkout(ws3_id.clone(), commit_a.id().clone());
+        .set_wc_commit(ws3_id.clone(), commit_a.id().clone());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -1293,9 +1297,9 @@ fn test_rebase_descendants_update_checkout(use_git: bool) {
 
     // Workspaces 1 and 2 had B checked out, so they get updated to C. Workspace 3
     // had A checked out, so it doesn't get updated.
-    assert_eq!(repo.view().get_checkout(&ws1_id), Some(commit_c.id()));
-    assert_eq!(repo.view().get_checkout(&ws2_id), Some(commit_c.id()));
-    assert_eq!(repo.view().get_checkout(&ws3_id), Some(commit_a.id()));
+    assert_eq!(repo.view().get_wc_commit_id(&ws1_id), Some(commit_c.id()));
+    assert_eq!(repo.view().get_wc_commit_id(&ws2_id), Some(commit_c.id()));
+    assert_eq!(repo.view().get_wc_commit_id(&ws3_id), Some(commit_a.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -1321,11 +1325,11 @@ fn test_rebase_descendants_update_checkout_abandoned(use_git: bool) {
     let ws2_id = WorkspaceId::new("ws2".to_string());
     let ws3_id = WorkspaceId::new("ws3".to_string());
     tx.mut_repo()
-        .set_checkout(ws1_id.clone(), commit_b.id().clone());
+        .set_wc_commit(ws1_id.clone(), commit_b.id().clone());
     tx.mut_repo()
-        .set_checkout(ws2_id.clone(), commit_b.id().clone());
+        .set_wc_commit(ws2_id.clone(), commit_b.id().clone());
     tx.mut_repo()
-        .set_checkout(ws3_id.clone(), commit_a.id().clone());
+        .set_wc_commit(ws3_id.clone(), commit_a.id().clone());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -1336,16 +1340,16 @@ fn test_rebase_descendants_update_checkout_abandoned(use_git: bool) {
     // Workspaces 1 and 2 had B checked out, so they get updated to the same new
     // commit on top of C. Workspace 3 had A checked out, so it doesn't get updated.
     assert_eq!(
-        repo.view().get_checkout(&ws1_id),
-        repo.view().get_checkout(&ws2_id)
+        repo.view().get_wc_commit_id(&ws1_id),
+        repo.view().get_wc_commit_id(&ws2_id)
     );
     let checkout = repo
         .store()
-        .get_commit(repo.view().get_checkout(&ws1_id).unwrap())
+        .get_commit(repo.view().get_wc_commit_id(&ws1_id).unwrap())
         .unwrap();
     assert!(checkout.is_open());
     assert_eq!(checkout.parent_ids(), vec![commit_a.id().clone()]);
-    assert_eq!(repo.view().get_checkout(&ws3_id), Some(commit_a.id()));
+    assert_eq!(repo.view().get_wc_commit_id(&ws3_id), Some(commit_a.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -1377,7 +1381,7 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
         .write_to_repo(tx.mut_repo());
     let workspace_id = WorkspaceId::default();
     tx.mut_repo()
-        .set_checkout(workspace_id.clone(), commit_d.id().clone());
+        .set_wc_commit(workspace_id.clone(), commit_d.id().clone());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -1385,7 +1389,7 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
 
-    let new_checkout_id = repo.view().get_checkout(&workspace_id).unwrap();
+    let new_checkout_id = repo.view().get_wc_commit_id(&workspace_id).unwrap();
     let checkout = repo.store().get_commit(new_checkout_id).unwrap();
     assert!(checkout.is_open());
     assert_eq!(checkout.parent_ids(), vec![commit_b.id().clone()]);

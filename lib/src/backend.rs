@@ -118,6 +118,10 @@ impl TreeId {
         self.0.clone()
     }
 
+    pub fn from_hex(hex: &str) -> Self {
+        Self(hex::decode(hex).unwrap())
+    }
+
     pub fn hex(&self) -> String {
         hex::encode(&self.0)
     }
@@ -222,7 +226,7 @@ pub enum Phase {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
-pub struct MillisSinceEpoch(pub u64);
+pub struct MillisSinceEpoch(pub i64);
 
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub struct Timestamp {
@@ -240,7 +244,7 @@ impl Timestamp {
         datetime: chrono::DateTime<Tz>,
     ) -> Self {
         Self {
-            timestamp: MillisSinceEpoch(datetime.timestamp_millis() as u64),
+            timestamp: MillisSinceEpoch(datetime.timestamp_millis()),
             tz_offset: datetime.offset().local_minus_utc() / 60,
         }
     }
@@ -370,7 +374,34 @@ impl Tree {
     }
 }
 
+pub fn make_root_commit(empty_tree_id: TreeId) -> Commit {
+    let timestamp = Timestamp {
+        timestamp: MillisSinceEpoch(0),
+        tz_offset: 0,
+    };
+    let signature = Signature {
+        name: String::new(),
+        email: String::new(),
+        timestamp,
+    };
+    let change_id = ChangeId::new(vec![0; 16]);
+    Commit {
+        parents: vec![],
+        predecessors: vec![],
+        root_tree: empty_tree_id,
+        change_id,
+        description: String::new(),
+        author: signature.clone(),
+        committer: signature,
+        is_open: false,
+    }
+}
+
 pub trait Backend: Send + Sync + Debug {
+    /// A unique name that identifies this backend. Written to
+    /// `.jj/repo/store/backend` when the repo is created.
+    fn name(&self) -> &str;
+
     fn hash_length(&self) -> usize;
 
     fn git_repo(&self) -> Option<git2::Repository>;
@@ -382,6 +413,8 @@ pub trait Backend: Send + Sync + Debug {
     fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String>;
 
     fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId>;
+
+    fn root_commit_id(&self) -> &CommitId;
 
     fn empty_tree_id(&self) -> &TreeId;
 

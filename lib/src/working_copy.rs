@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cell::{RefCell, RefMut};
 use std::collections::{BTreeMap, HashSet};
 use std::ffi::OsString;
 use std::fs;
@@ -27,6 +26,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
+use once_cell::unsync::OnceCell;
 use protobuf::{EnumOrUnknown, Message, MessageField};
 use tempfile::NamedTempFile;
 use thiserror::Error;
@@ -222,7 +222,8 @@ fn mtime_from_metadata(metadata: &Metadata) -> MillisSinceEpoch {
         .expect("mtime before unix epoch");
 
     MillisSinceEpoch(
-        u64::try_from(since_epoch.as_millis()).expect("mtime billions of years into the future"),
+        i64::try_from(since_epoch.as_millis())
+            .expect("mtime billions of years into the future or past"),
     )
 }
 
@@ -459,8 +460,8 @@ impl TreeState {
     }
 
     /// Look for changes to the working copy. If there are any changes, create
-    /// a new tree from it and return it, and also update the dirstate on disk.
-    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<TreeId, SnapshotError> {
+    /// a new tree from it.
+    pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<bool, SnapshotError> {
         let sparse_matcher = self.sparse_matcher();
         let mut work = vec![(
             RepoPath::root(),
@@ -515,8 +516,9 @@ impl TreeState {
             self.file_states.remove(file);
             tree_builder.remove(file.clone());
         }
+        let changed = tree_builder.has_overrides();
         self.tree_id = tree_builder.write_tree();
-        Ok(self.tree_id.clone())
+        Ok(changed)
     }
 
     fn has_files_under(&self, dir: &RepoPath) -> bool {
@@ -839,7 +841,7 @@ impl TreeState {
                     fs::remove_file(&disk_path).ok();
                     let mut parent_dir = disk_path.parent().unwrap();
                     loop {
-                        if fs::remove_dir(&parent_dir).is_err() {
+                        if fs::remove_dir(parent_dir).is_err() {
                             break;
                         }
                         parent_dir = parent_dir.parent().unwrap();
@@ -955,13 +957,19 @@ impl TreeState {
     }
 }
 
+/// Working copy state stored in "checkout" file.
+#[derive(Clone, Debug)]
+struct CheckoutState {
+    operation_id: OperationId,
+    workspace_id: WorkspaceId,
+}
+
 pub struct WorkingCopy {
     store: Arc<Store>,
     working_copy_path: PathBuf,
     state_path: PathBuf,
-    operation_id: RefCell<Option<OperationId>>,
-    workspace_id: RefCell<Option<WorkspaceId>>,
-    tree_state: RefCell<Option<TreeState>>,
+    checkout_state: OnceCell<CheckoutState>,
+    tree_state: OnceCell<TreeState>,
 }
 
 impl WorkingCopy {
@@ -988,9 +996,8 @@ impl WorkingCopy {
             store,
             working_copy_path,
             state_path,
-            operation_id: RefCell::new(Some(operation_id)),
-            workspace_id: RefCell::new(Some(workspace_id)),
-            tree_state: RefCell::new(None),
+            checkout_state: OnceCell::new(),
+            tree_state: OnceCell::new(),
         }
     }
 
@@ -999,9 +1006,8 @@ impl WorkingCopy {
             store,
             working_copy_path,
             state_path,
-            operation_id: RefCell::new(None),
-            workspace_id: RefCell::new(None),
-            tree_state: RefCell::new(None),
+            checkout_state: OnceCell::new(),
+            tree_state: OnceCell::new(),
         }
     }
 
@@ -1021,67 +1027,62 @@ impl WorkingCopy {
         temp_file.persist(self.state_path.join("checkout")).unwrap();
     }
 
-    fn load_proto(&self) {
-        let mut file = File::open(self.state_path.join("checkout")).unwrap();
-        let proto: crate::protos::working_copy::Checkout =
-            Message::parse_from_reader(&mut file).unwrap();
-        self.operation_id
-            .replace(Some(OperationId::new(proto.operation_id)));
-        let workspace_id = if proto.workspace_id.is_empty() {
-            // For compatibility with old working copies.
-            // TODO: Delete in mid 2022 or so
-            WorkspaceId::default()
-        } else {
-            WorkspaceId::new(proto.workspace_id)
-        };
-        self.workspace_id.replace(Some(workspace_id));
+    fn checkout_state(&self) -> &CheckoutState {
+        self.checkout_state.get_or_init(|| {
+            let mut file = File::open(self.state_path.join("checkout")).unwrap();
+            let proto: crate::protos::working_copy::Checkout =
+                Message::parse_from_reader(&mut file).unwrap();
+            CheckoutState {
+                operation_id: OperationId::new(proto.operation_id),
+                workspace_id: if proto.workspace_id.is_empty() {
+                    // For compatibility with old working copies.
+                    // TODO: Delete in mid 2022 or so
+                    WorkspaceId::default()
+                } else {
+                    WorkspaceId::new(proto.workspace_id)
+                },
+            }
+        })
     }
 
-    pub fn operation_id(&self) -> OperationId {
-        if self.operation_id.borrow().is_none() {
-            self.load_proto();
-        }
-
-        self.operation_id.borrow().as_ref().unwrap().clone()
+    fn checkout_state_mut(&mut self) -> &mut CheckoutState {
+        self.checkout_state(); // ensure loaded
+        self.checkout_state.get_mut().unwrap()
     }
 
-    pub fn workspace_id(&self) -> WorkspaceId {
-        if self.workspace_id.borrow().is_none() {
-            self.load_proto();
-        }
-
-        self.workspace_id.borrow().as_ref().unwrap().clone()
+    pub fn operation_id(&self) -> &OperationId {
+        &self.checkout_state().operation_id
     }
 
-    fn tree_state(&self) -> RefMut<Option<TreeState>> {
-        if self.tree_state.borrow().is_none() {
-            self.tree_state.replace(Some(TreeState::load(
+    pub fn workspace_id(&self) -> &WorkspaceId {
+        &self.checkout_state().workspace_id
+    }
+
+    fn tree_state(&self) -> &TreeState {
+        self.tree_state.get_or_init(|| {
+            TreeState::load(
                 self.store.clone(),
                 self.working_copy_path.clone(),
                 self.state_path.clone(),
-            )));
-        }
-        self.tree_state.borrow_mut()
+            )
+        })
     }
 
-    pub fn current_tree_id(&self) -> TreeId {
-        self.tree_state()
-            .as_ref()
-            .unwrap()
-            .current_tree_id()
-            .clone()
+    fn tree_state_mut(&mut self) -> &mut TreeState {
+        self.tree_state(); // ensure loaded
+        self.tree_state.get_mut().unwrap()
     }
 
-    pub fn file_states(&self) -> BTreeMap<RepoPath, FileState> {
-        self.tree_state().as_ref().unwrap().file_states().clone()
+    pub fn current_tree_id(&self) -> &TreeId {
+        self.tree_state().current_tree_id()
     }
 
-    pub fn sparse_patterns(&self) -> Vec<RepoPath> {
-        self.tree_state()
-            .as_ref()
-            .unwrap()
-            .sparse_patterns()
-            .clone()
+    pub fn file_states(&self) -> &BTreeMap<RepoPath, FileState> {
+        self.tree_state().file_states()
+    }
+
+    pub fn sparse_patterns(&self) -> &[RepoPath] {
+        self.tree_state().sparse_patterns()
     }
 
     fn save(&mut self) {
@@ -1096,18 +1097,19 @@ impl WorkingCopy {
         let lock = FileLock::lock(lock_path);
 
         // Re-read from disk after taking the lock
-        self.load_proto();
+        self.checkout_state.take();
         // TODO: It's expensive to reload the whole tree. We should first check if it
         // has changed.
-        self.tree_state.replace(None);
-        let old_operation_id = self.operation_id();
-        let old_tree_id = self.current_tree_id();
+        self.tree_state.take();
+        let old_operation_id = self.operation_id().clone();
+        let old_tree_id = self.current_tree_id().clone();
 
         LockedWorkingCopy {
             wc: self,
             lock,
             old_operation_id,
             old_tree_id,
+            tree_state_dirty: false,
             closed: false,
         }
     }
@@ -1142,6 +1144,7 @@ pub struct LockedWorkingCopy<'a> {
     lock: FileLock,
     old_operation_id: OperationId,
     old_tree_id: TreeId,
+    tree_state_dirty: bool,
     closed: bool,
 }
 
@@ -1160,25 +1163,26 @@ impl LockedWorkingCopy<'_> {
     // because the TreeState may be long-lived if the library is used in a
     // long-lived process.
     pub fn snapshot(&mut self, base_ignores: Arc<GitIgnoreFile>) -> Result<TreeId, SnapshotError> {
-        self.wc
-            .tree_state()
-            .as_mut()
-            .unwrap()
-            .snapshot(base_ignores)
+        let tree_state = self.wc.tree_state_mut();
+        self.tree_state_dirty |= tree_state.snapshot(base_ignores)?;
+        Ok(tree_state.current_tree_id().clone())
     }
 
     pub fn check_out(&mut self, new_tree: &Tree) -> Result<CheckoutStats, CheckoutError> {
         // TODO: Write a "pending_checkout" file with the new TreeId so we can
         // continue an interrupted update if we find such a file.
-        let stats = self.wc.tree_state().as_mut().unwrap().check_out(new_tree)?;
+        let stats = self.wc.tree_state_mut().check_out(new_tree)?;
+        self.tree_state_dirty = true;
         Ok(stats)
     }
 
     pub fn reset(&mut self, new_tree: &Tree) -> Result<(), ResetError> {
-        self.wc.tree_state().as_mut().unwrap().reset(new_tree)
+        self.wc.tree_state_mut().reset(new_tree)?;
+        self.tree_state_dirty = true;
+        Ok(())
     }
 
-    pub fn sparse_patterns(&self) -> Vec<RepoPath> {
+    pub fn sparse_patterns(&self) -> &[RepoPath] {
         self.wc.sparse_patterns()
     }
 
@@ -1188,25 +1192,32 @@ impl LockedWorkingCopy<'_> {
     ) -> Result<CheckoutStats, CheckoutError> {
         // TODO: Write a "pending_checkout" file with new sparse patterns so we can
         // continue an interrupted update if we find such a file.
-        self.wc
-            .tree_state()
-            .as_mut()
-            .unwrap()
-            .set_sparse_patterns(new_sparse_patterns)
+        let stats = self
+            .wc
+            .tree_state_mut()
+            .set_sparse_patterns(new_sparse_patterns)?;
+        self.tree_state_dirty = true;
+        Ok(stats)
     }
 
     pub fn finish(mut self, operation_id: OperationId) {
-        self.wc.tree_state().as_mut().unwrap().save();
-        self.wc.operation_id.replace(Some(operation_id));
-        self.wc.save();
+        assert!(self.tree_state_dirty || &self.old_tree_id == self.wc.current_tree_id());
+        if self.tree_state_dirty {
+            self.wc.tree_state_mut().save();
+        }
+        if self.old_operation_id != operation_id {
+            self.wc.checkout_state_mut().operation_id = operation_id;
+            self.wc.save();
+        }
         // TODO: Clear the "pending_checkout" file here.
+        self.tree_state_dirty = false;
         self.closed = true;
     }
 
     pub fn discard(mut self) {
         // Undo the changes in memory
-        self.wc.load_proto();
-        self.wc.tree_state.replace(None);
+        self.wc.tree_state.take();
+        self.tree_state_dirty = false;
         self.closed = true;
     }
 }

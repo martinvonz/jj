@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 use std::io;
 use std::io::{Error, Read, Write};
+use std::sync::Arc;
 
 use jujutsu_lib::settings::UserSettings;
 
@@ -34,22 +35,77 @@ pub trait Formatter: Write {
         self.write_all(&buffer)
     }
 
-    fn add_label(&mut self, label: String) -> io::Result<()>;
+    fn add_label(&mut self, label: &str) -> io::Result<()>;
 
     fn remove_label(&mut self) -> io::Result<()>;
 }
 
-pub struct PlainTextFormatter<'output> {
-    output: Box<dyn Write + 'output>,
+impl dyn Formatter + '_ {
+    pub fn with_label(
+        &mut self,
+        label: &str,
+        write_inner: impl FnOnce(&mut dyn Formatter) -> io::Result<()>,
+    ) -> io::Result<()> {
+        self.add_label(label)?;
+        // Call `remove_label()` whether or not `write_inner()` fails, but don't let
+        // its error replace the one from `write_inner()`.
+        write_inner(self).and(self.remove_label())
+    }
 }
 
-impl<'output> PlainTextFormatter<'output> {
-    pub fn new(output: Box<dyn Write + 'output>) -> PlainTextFormatter<'output> {
+/// Creates `Formatter` instances with preconfigured parameters.
+#[derive(Clone, Debug)]
+pub struct FormatterFactory {
+    kind: FormatterFactoryKind,
+}
+
+#[derive(Clone, Debug)]
+enum FormatterFactoryKind {
+    PlainText,
+    Color {
+        colors: Arc<HashMap<String, String>>,
+    },
+}
+
+impl FormatterFactory {
+    pub fn prepare(settings: &UserSettings, color: bool) -> Self {
+        let kind = if color {
+            let colors = Arc::new(config_colors(settings));
+            FormatterFactoryKind::Color { colors }
+        } else {
+            FormatterFactoryKind::PlainText
+        };
+        FormatterFactory { kind }
+    }
+
+    pub fn new_formatter<'output, W: Write + 'output>(
+        &self,
+        output: W,
+    ) -> Box<dyn Formatter + 'output> {
+        match &self.kind {
+            FormatterFactoryKind::PlainText => Box::new(PlainTextFormatter::new(output)),
+            FormatterFactoryKind::Color { colors } => {
+                Box::new(ColorFormatter::new(output, colors.clone()))
+            }
+        }
+    }
+
+    pub fn is_color(&self) -> bool {
+        matches!(&self.kind, FormatterFactoryKind::Color { .. })
+    }
+}
+
+pub struct PlainTextFormatter<W> {
+    output: W,
+}
+
+impl<W> PlainTextFormatter<W> {
+    pub fn new(output: W) -> PlainTextFormatter<W> {
         Self { output }
     }
 }
 
-impl Write for PlainTextFormatter<'_> {
+impl<W: Write> Write for PlainTextFormatter<W> {
     fn write(&mut self, data: &[u8]) -> Result<usize, Error> {
         self.output.write(data)
     }
@@ -59,8 +115,8 @@ impl Write for PlainTextFormatter<'_> {
     }
 }
 
-impl Formatter for PlainTextFormatter<'_> {
-    fn add_label(&mut self, _label: String) -> io::Result<()> {
+impl<W: Write> Formatter for PlainTextFormatter<W> {
+    fn add_label(&mut self, _label: &str) -> io::Result<()> {
         Ok(())
     }
 
@@ -69,9 +125,9 @@ impl Formatter for PlainTextFormatter<'_> {
     }
 }
 
-pub struct ColorFormatter<'output> {
-    output: Box<dyn Write + 'output>,
-    colors: HashMap<String, String>,
+pub struct ColorFormatter<W> {
+    output: W,
+    colors: Arc<HashMap<String, String>>,
     labels: Vec<String>,
     cached_colors: HashMap<Vec<String>, Vec<u8>>,
     current_color: Vec<u8>,
@@ -90,7 +146,7 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result.insert(String::from("author timestamp"), String::from("cyan"));
     result.insert(String::from("committer"), String::from("yellow"));
     result.insert(String::from("committer timestamp"), String::from("cyan"));
-    result.insert(String::from("checkouts"), String::from("magenta"));
+    result.insert(String::from("working_copies"), String::from("magenta"));
     result.insert(String::from("branch"), String::from("magenta"));
     result.insert(String::from("branches"), String::from("magenta"));
     result.insert(String::from("tags"), String::from("magenta"));
@@ -104,63 +160,63 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     // use a different background color? (We don't have support for background
     // colors yet.)
     result.insert(
-        String::from("checkout commit_id"),
+        String::from("working_copy commit_id"),
         String::from("bright blue"),
     );
     result.insert(
-        String::from("checkout commit_id open"),
+        String::from("working_copy commit_id open"),
         String::from("bright green"),
     );
     result.insert(
-        String::from("checkout change_id"),
+        String::from("working_copy change_id"),
         String::from("bright magenta"),
     );
     result.insert(
-        String::from("checkout author"),
+        String::from("working_copy author"),
         String::from("bright yellow"),
     );
     result.insert(
-        String::from("checkout author timestamp"),
+        String::from("working_copy author timestamp"),
         String::from("bright cyan"),
     );
     result.insert(
-        String::from("checkout committer"),
+        String::from("working_copy committer"),
         String::from("bright yellow"),
     );
     result.insert(
-        String::from("checkout committer timestamp"),
+        String::from("working_copy committer timestamp"),
         String::from("bright cyan"),
     );
     result.insert(
-        String::from("checkout checkouts"),
+        String::from("working_copy working_copies"),
         String::from("bright magenta"),
     );
     result.insert(
-        String::from("checkout branch"),
+        String::from("working_copy branch"),
         String::from("bright magenta"),
     );
     result.insert(
-        String::from("checkout branches"),
+        String::from("working_copy branches"),
         String::from("bright magenta"),
     );
     result.insert(
-        String::from("checkout tags"),
+        String::from("working_copy tags"),
         String::from("bright magenta"),
     );
     result.insert(
-        String::from("checkout git_refs"),
+        String::from("working_copy git_refs"),
         String::from("bright magenta"),
     );
     result.insert(
-        String::from("checkout divergent"),
+        String::from("working_copy divergent"),
         String::from("bright red"),
     );
     result.insert(
-        String::from("checkout conflict"),
+        String::from("working_copy conflict"),
         String::from("bright red"),
     );
     result.insert(
-        String::from("checkout description"),
+        String::from("working_copy description"),
         String::from("bright white"),
     );
 
@@ -205,14 +261,11 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result
 }
 
-impl<'output> ColorFormatter<'output> {
-    pub fn new(
-        output: Box<dyn Write + 'output>,
-        user_settings: &UserSettings,
-    ) -> ColorFormatter<'output> {
+impl<W> ColorFormatter<W> {
+    pub fn new(output: W, colors: Arc<HashMap<String, String>>) -> ColorFormatter<W> {
         ColorFormatter {
             output,
-            colors: config_colors(user_settings),
+            colors,
             labels: vec![],
             cached_colors: HashMap::new(),
             current_color: b"\x1b[0m".to_vec(),
@@ -224,7 +277,7 @@ impl<'output> ColorFormatter<'output> {
             cached.clone()
         } else {
             let mut best_match = (-1, "");
-            for (key, value) in &self.colors {
+            for (key, value) in self.colors.as_ref() {
                 let mut num_matching = 0;
                 let mut valid = true;
                 for label in key.split_whitespace() {
@@ -272,7 +325,7 @@ impl<'output> ColorFormatter<'output> {
     }
 }
 
-impl Write for ColorFormatter<'_> {
+impl<W: Write> Write for ColorFormatter<W> {
     fn write(&mut self, data: &[u8]) -> Result<usize, Error> {
         self.output.write(data)
     }
@@ -282,9 +335,9 @@ impl Write for ColorFormatter<'_> {
     }
 }
 
-impl Formatter for ColorFormatter<'_> {
-    fn add_label(&mut self, label: String) -> io::Result<()> {
-        self.labels.push(label);
+impl<W: Write> Formatter for ColorFormatter<W> {
+    fn add_label(&mut self, label: &str) -> io::Result<()> {
+        self.labels.push(label.to_owned());
         let new_color = self.current_color();
         if new_color != self.current_color {
             self.output.write_all(&new_color)?;

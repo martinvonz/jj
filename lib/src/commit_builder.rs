@@ -31,10 +31,15 @@ pub fn new_change_id() -> ChangeId {
 }
 
 impl CommitBuilder {
-    pub fn for_new_commit(settings: &UserSettings, tree_id: TreeId) -> CommitBuilder {
+    pub fn for_new_commit(
+        settings: &UserSettings,
+        parents: Vec<CommitId>,
+        tree_id: TreeId,
+    ) -> CommitBuilder {
         let signature = settings.signature();
+        assert!(!parents.is_empty());
         let commit = backend::Commit {
-            parents: vec![],
+            parents,
             predecessors: vec![],
             root_tree: tree_id,
             change_id: new_change_id(),
@@ -54,7 +59,7 @@ impl CommitBuilder {
         commit.predecessors = vec![predecessor.id().clone()];
         commit.committer = settings.signature();
         // If the user had not configured a name and email before but now they have,
-        // update the the author fields with the new information.
+        // update the author fields with the new information.
         if commit.author.name == UserSettings::user_name_placeholder() {
             commit.author.name = commit.committer.name.clone();
         }
@@ -90,6 +95,7 @@ impl CommitBuilder {
     }
 
     pub fn set_parents(mut self, parents: Vec<CommitId>) -> Self {
+        assert!(!parents.is_empty());
         self.commit.parents = parents;
         self
     }
@@ -134,12 +140,7 @@ impl CommitBuilder {
         self
     }
 
-    pub fn write_to_repo(mut self, repo: &mut MutableRepo) -> Commit {
-        let parents = &mut self.commit.parents;
-        if parents.contains(repo.store().root_commit_id()) {
-            assert_eq!(parents.len(), 1);
-            parents.clear();
-        }
+    pub fn write_to_repo(self, repo: &mut MutableRepo) -> Commit {
         let mut rewrite_source_id = None;
         if let Some(rewrite_source) = self.rewrite_source {
             if *rewrite_source.change_id() == self.commit.change_id {

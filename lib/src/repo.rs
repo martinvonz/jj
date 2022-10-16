@@ -16,6 +16,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs;
+use std::io::ErrorKind;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -128,30 +129,6 @@ impl Debug for ReadonlyRepo {
 }
 
 impl ReadonlyRepo {
-    pub fn init_local(settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
-        Self::init(settings, repo_path, |store_path| {
-            Box::new(LocalBackend::init(store_path))
-        })
-    }
-
-    /// Initializes a repo with a new Git backend in .jj/git/ (bare Git repo)
-    pub fn init_internal_git(settings: &UserSettings, repo_path: PathBuf) -> Arc<ReadonlyRepo> {
-        Self::init(settings, repo_path, |store_path| {
-            Box::new(GitBackend::init_internal(store_path))
-        })
-    }
-
-    /// Initializes a repo with an existing Git backend at the specified path
-    pub fn init_external_git(
-        settings: &UserSettings,
-        repo_path: PathBuf,
-        git_repo_path: PathBuf,
-    ) -> Arc<ReadonlyRepo> {
-        Self::init(settings, repo_path, |store_path| {
-            Box::new(GitBackend::init_external(store_path, git_repo_path.clone()))
-        })
-    }
-
     fn init_repo_dir(repo_path: &Path) {
         fs::create_dir(repo_path.join("store")).unwrap();
         fs::create_dir(repo_path.join("op_store")).unwrap();
@@ -161,12 +138,15 @@ impl ReadonlyRepo {
 
     pub fn init(
         user_settings: &UserSettings,
-        repo_path: PathBuf,
-        backend_factory: impl FnOnce(PathBuf) -> Box<dyn Backend>,
+        repo_path: &Path,
+        backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
     ) -> Arc<ReadonlyRepo> {
         let repo_path = repo_path.canonicalize().unwrap();
         ReadonlyRepo::init_repo_dir(&repo_path);
-        let store = Store::new(backend_factory(repo_path.join("store")));
+        let store_path = repo_path.join("store");
+        let backend = backend_factory(&store_path);
+        fs::write(&store_path.join("backend"), backend.name()).unwrap();
+        let store = Store::new(backend);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(repo_path.join("op_store")));
         let mut root_view = op_store::View::default();
@@ -194,9 +174,10 @@ impl ReadonlyRepo {
 
     pub fn load_at_head(
         user_settings: &UserSettings,
-        repo_path: PathBuf,
+        repo_path: &Path,
+        backend_factories: &BackendFactories,
     ) -> Result<Arc<ReadonlyRepo>, BackendError> {
-        RepoLoader::init(user_settings, repo_path)
+        RepoLoader::init(user_settings, repo_path, backend_factories)
             .load_at_head()
             .resolve(user_settings)
     }
@@ -328,6 +309,39 @@ impl UnresolvedHeadRepo {
     }
 }
 
+type BackendFactory = Box<dyn Fn(&Path) -> Box<dyn Backend>>;
+
+pub struct BackendFactories {
+    factories: HashMap<String, BackendFactory>,
+}
+
+impl Default for BackendFactories {
+    fn default() -> Self {
+        let mut factories = BackendFactories::empty();
+        factories.add_backend(
+            "local",
+            Box::new(|store_path| Box::new(LocalBackend::load(store_path))),
+        );
+        factories.add_backend(
+            "git",
+            Box::new(|store_path| Box::new(GitBackend::load(store_path))),
+        );
+        factories
+    }
+}
+
+impl BackendFactories {
+    pub fn empty() -> Self {
+        BackendFactories {
+            factories: HashMap::new(),
+        }
+    }
+
+    pub fn add_backend(&mut self, name: &str, factory: BackendFactory) {
+        self.factories.insert(name.to_string(), factory);
+    }
+}
+
 #[derive(Clone)]
 pub struct RepoLoader {
     repo_path: PathBuf,
@@ -339,21 +353,39 @@ pub struct RepoLoader {
 }
 
 impl RepoLoader {
-    pub fn init(user_settings: &UserSettings, repo_path: PathBuf) -> Self {
+    pub fn init(
+        user_settings: &UserSettings,
+        repo_path: &Path,
+        backend_factories: &BackendFactories,
+    ) -> Self {
         let store_path = repo_path.join("store");
-        let git_target_path = store_path.join("git_target");
-        let backend: Box<dyn Backend> = if git_target_path.is_file() {
-            Box::new(GitBackend::load(store_path))
-        } else {
-            Box::new(LocalBackend::load(store_path))
+        let backend_type = match fs::read_to_string(store_path.join("backend")) {
+            Ok(content) => content,
+            Err(err) if err.kind() == ErrorKind::NotFound => {
+                // For compatibility with existing repos. TODO: Delete in spring of 2023 or so.
+                let inferred_type = if store_path.join("git_target").is_file() {
+                    String::from("git")
+                } else {
+                    String::from("local")
+                };
+                fs::write(store_path.join("backend"), &inferred_type).unwrap();
+                inferred_type
+            }
+            Err(_) => {
+                panic!("Failed to read backend type");
+            }
         };
-        let store = Store::new(backend);
-        let repo_settings = user_settings.with_repo(&repo_path).unwrap();
+        let backend_factory = backend_factories
+            .factories
+            .get(&backend_type)
+            .expect("Unexpected backend type");
+        let store = Store::new(backend_factory(&store_path));
+        let repo_settings = user_settings.with_repo(repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
         let op_heads_store = Arc::new(OpHeadsStore::load(repo_path.join("op_heads")));
         let index_store = Arc::new(IndexStore::load(repo_path.join("index")));
         Self {
-            repo_path,
+            repo_path: repo_path.to_path_buf(),
             repo_settings,
             store,
             op_store,
@@ -574,12 +606,12 @@ impl MutableRepo {
         Ok(rebaser.rebased().len())
     }
 
-    pub fn set_checkout(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {
-        self.view_mut().set_checkout(workspace_id, commit_id);
+    pub fn set_wc_commit(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {
+        self.view_mut().set_wc_commit(workspace_id, commit_id);
     }
 
-    pub fn remove_checkout(&mut self, workspace_id: &WorkspaceId) {
-        self.view_mut().remove_checkout(workspace_id);
+    pub fn remove_wc_commit(&mut self, workspace_id: &WorkspaceId) {
+        self.view_mut().remove_wc_commit(workspace_id);
     }
 
     pub fn check_out(
@@ -592,25 +624,25 @@ impl MutableRepo {
         let open_commit =
             CommitBuilder::for_open_commit(settings, commit.id().clone(), commit.tree_id().clone())
                 .write_to_repo(self);
-        self.set_checkout(workspace_id, open_commit.id().clone());
+        self.set_wc_commit(workspace_id, open_commit.id().clone());
         open_commit
     }
 
     pub fn edit(&mut self, workspace_id: WorkspaceId, commit: &Commit) {
         self.leave_commit(&workspace_id);
-        self.set_checkout(workspace_id, commit.id().clone());
+        self.set_wc_commit(workspace_id, commit.id().clone());
     }
 
     fn leave_commit(&mut self, workspace_id: &WorkspaceId) {
-        let maybe_current_checkout_id = self.view.borrow().get_checkout(workspace_id).cloned();
-        if let Some(current_checkout_id) = maybe_current_checkout_id {
-            let current_checkout = self.store().get_commit(&current_checkout_id).unwrap();
-            if current_checkout.is_empty()
-                && current_checkout.description().is_empty()
-                && self.view().heads().contains(current_checkout.id())
+        let maybe_wc_commit_id = self.view.borrow().get_wc_commit_id(workspace_id).cloned();
+        if let Some(wc_commit_id) = maybe_wc_commit_id {
+            let wc_commit = self.store().get_commit(&wc_commit_id).unwrap();
+            if wc_commit.is_empty()
+                && wc_commit.description().is_empty()
+                && self.view().heads().contains(wc_commit.id())
             {
                 // Abandon the checkout we're leaving if it's empty and a head commit
-                self.record_abandoned_commit(current_checkout_id);
+                self.record_abandoned_commit(wc_commit_id);
             }
         }
     }
@@ -649,7 +681,7 @@ impl MutableRepo {
             self.index.add_commit(head);
             self.view.get_mut().add_head(head.id());
             for parent_id in head.parent_ids() {
-                self.view.get_mut().remove_head(&parent_id);
+                self.view.get_mut().remove_head(parent_id);
             }
         } else {
             let missing_commits = topo_order_reverse(
@@ -770,30 +802,30 @@ impl MutableRepo {
 
     fn merge_view(&mut self, base: &View, other: &View) {
         // Merge checkouts. If there's a conflict, we keep the self side.
-        for (workspace_id, base_checkout) in base.checkouts() {
-            let self_checkout = self.view().get_checkout(workspace_id);
-            let other_checkout = other.get_checkout(workspace_id);
+        for (workspace_id, base_checkout) in base.wc_commit_ids() {
+            let self_checkout = self.view().get_wc_commit_id(workspace_id);
+            let other_checkout = other.get_wc_commit_id(workspace_id);
             if other_checkout == Some(base_checkout) || other_checkout == self_checkout {
                 // The other side didn't change or both sides changed in the
                 // same way.
             } else if let Some(other_checkout) = other_checkout {
                 if self_checkout == Some(base_checkout) {
                     self.view_mut()
-                        .set_checkout(workspace_id.clone(), other_checkout.clone());
+                        .set_wc_commit(workspace_id.clone(), other_checkout.clone());
                 }
             } else {
                 // The other side removed the workspace. We want to remove it even if the self
                 // side changed the checkout.
-                self.view_mut().remove_checkout(workspace_id);
+                self.view_mut().remove_wc_commit(workspace_id);
             }
         }
-        for (workspace_id, other_checkout) in other.checkouts() {
-            if self.view().get_checkout(workspace_id).is_none()
-                && base.get_checkout(workspace_id).is_none()
+        for (workspace_id, other_checkout) in other.wc_commit_ids() {
+            if self.view().get_wc_commit_id(workspace_id).is_none()
+                && base.get_wc_commit_id(workspace_id).is_none()
             {
                 // The other side added the workspace.
                 self.view_mut()
-                    .set_checkout(workspace_id.clone(), other_checkout.clone());
+                    .set_wc_commit(workspace_id.clone(), other_checkout.clone());
             }
         }
 

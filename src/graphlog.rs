@@ -148,7 +148,7 @@ where
             self.maybe_write_pending_text()?;
         }
 
-        let pad_to_index = self.edges.len() + if edges.is_empty() { 1 } else { 0 };
+        let pad_to_index = self.edges.len() + usize::from(edges.is_empty());
         // Close any edges to missing nodes.
         for (i, edge) in edges.iter().enumerate().rev() {
             if *edge == Edge::Missing {

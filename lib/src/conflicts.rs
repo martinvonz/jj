@@ -25,6 +25,7 @@ use crate::store::Store;
 
 const CONFLICT_START_LINE: &[u8] = b"<<<<<<<\n";
 const CONFLICT_END_LINE: &[u8] = b">>>>>>>\n";
+const CONFLICT_DIFF_LINE: &[u8] = b"%%%%%%%\n";
 const CONFLICT_MINUS_LINE: &[u8] = b"-------\n";
 const CONFLICT_PLUS_LINE: &[u8] = b"+++++++\n";
 
@@ -181,8 +182,7 @@ pub fn materialize_conflict(
                                 .iter()
                                 .position_min_by_key(|diff| diff_size(diff))
                                 .unwrap();
-                            output.write_all(CONFLICT_MINUS_LINE)?;
-                            output.write_all(CONFLICT_PLUS_LINE)?;
+                            output.write_all(CONFLICT_DIFF_LINE)?;
                             write_diff_hunks(&diffs[min_diff_index], output)?;
                             removes.remove(0);
                             adds.remove(min_diff_index);
@@ -278,48 +278,59 @@ pub fn parse_conflict(input: &[u8], num_removes: usize, num_adds: usize) -> Opti
 }
 
 fn parse_conflict_hunk(input: &[u8]) -> MergeHunk {
-    let mut minus_seen = false;
-    let mut plus_seen = false;
-    let mut body_seen = false;
+    enum State {
+        Diff,
+        Minus,
+        Plus,
+        Unknown,
+    }
+    let mut state = State::Unknown;
     let mut removes = vec![];
     let mut adds = vec![];
     for line in input.split_inclusive(|b| *b == b'\n') {
-        if line == CONFLICT_MINUS_LINE {
-            minus_seen = true;
-            if body_seen {
-                plus_seen = false;
-                body_seen = false;
+        match line {
+            CONFLICT_DIFF_LINE => {
+                state = State::Diff;
+                removes.push(vec![]);
+                adds.push(vec![]);
+                continue;
             }
-            removes.push(vec![]);
-        } else if line == CONFLICT_PLUS_LINE {
-            plus_seen = true;
-            if body_seen {
-                minus_seen = false;
-                body_seen = false;
+            CONFLICT_MINUS_LINE => {
+                state = State::Minus;
+                removes.push(vec![]);
+                continue;
             }
-            adds.push(vec![]);
-        } else if minus_seen && plus_seen {
-            body_seen = true;
-            if let Some(rest) = line.strip_prefix(b"-") {
-                removes.last_mut().unwrap().extend_from_slice(rest);
-            } else if let Some(rest) = line.strip_prefix(b"+") {
-                adds.last_mut().unwrap().extend_from_slice(rest);
-            } else if let Some(rest) = line.strip_prefix(b" ") {
-                removes.last_mut().unwrap().extend_from_slice(rest);
-                adds.last_mut().unwrap().extend_from_slice(rest);
-            } else {
+            CONFLICT_PLUS_LINE => {
+                state = State::Plus;
+                adds.push(vec![]);
+                continue;
+            }
+            _ => {}
+        };
+        match state {
+            State::Diff => {
+                if let Some(rest) = line.strip_prefix(b"-") {
+                    removes.last_mut().unwrap().extend_from_slice(rest);
+                } else if let Some(rest) = line.strip_prefix(b"+") {
+                    adds.last_mut().unwrap().extend_from_slice(rest);
+                } else if let Some(rest) = line.strip_prefix(b" ") {
+                    removes.last_mut().unwrap().extend_from_slice(rest);
+                    adds.last_mut().unwrap().extend_from_slice(rest);
+                } else {
+                    // Doesn't look like a conflict
+                    return MergeHunk::Resolved(vec![]);
+                }
+            }
+            State::Minus => {
+                removes.last_mut().unwrap().extend_from_slice(line);
+            }
+            State::Plus => {
+                adds.last_mut().unwrap().extend_from_slice(line);
+            }
+            State::Unknown => {
                 // Doesn't look like a conflict
                 return MergeHunk::Resolved(vec![]);
             }
-        } else if minus_seen {
-            body_seen = true;
-            removes.last_mut().unwrap().extend_from_slice(line);
-        } else if plus_seen {
-            body_seen = true;
-            adds.last_mut().unwrap().extend_from_slice(line);
-        } else {
-            // Doesn't look like a conflict
-            return MergeHunk::Resolved(vec![]);
         }
     }
 

@@ -45,7 +45,7 @@ fn test_move() {
     test_env.jj_cmd_success(&repo_path, &["new"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "c"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["co", "a"]);
+    test_env.jj_cmd_success(&repo_path, &["edit", "a"]);
     test_env.jj_cmd_success(&repo_path, &["new"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "d"]);
     std::fs::write(repo_path.join("file3"), "d\n").unwrap();
@@ -173,7 +173,7 @@ fn test_move_partial() {
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "c"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     std::fs::write(repo_path.join("file2"), "c\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["co", "a"]);
+    test_env.jj_cmd_success(&repo_path, &["edit", "a"]);
     test_env.jj_cmd_success(&repo_path, &["new"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "d"]);
     std::fs::write(repo_path.join("file3"), "d\n").unwrap();
@@ -314,4 +314,84 @@ fn test_move_partial() {
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     test_env.jj_cmd_success(cwd, &["log", "-T", r#"commit_id.short() " " branches"#])
+}
+
+#[test]
+fn test_move_description() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(&edit_script, r#""#).unwrap();
+
+    // If both descriptions are empty, the resulting description is empty
+    std::fs::write(repo_path.join("file1"), "a\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "a\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file1"), "b\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "b\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["move", "--to", "@-"]);
+    insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
+    (no description set)
+    "###);
+
+    // If the destination's description is empty and the source's description is
+    // non-empty, the resulting description is from the source
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "source"]);
+    test_env.jj_cmd_success(&repo_path, &["move", "--to", "@-"]);
+    insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
+    source
+    "###);
+
+    // If the destination's description is non-empty and the source's description is
+    // empty, the resulting description is from the destination
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "@-", "-m", "destination"]);
+    test_env.jj_cmd_success(&repo_path, &["move", "--to", "@-"]);
+    insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
+    destination
+    source
+    "###);
+
+    // If both descriptions were non-empty, we get asked for a combined description
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "source"]);
+    std::fs::write(
+        &edit_script,
+        r#"expect
+JJ: Enter a description for the combined commit.
+JJ: Description from the destination commit:
+destination
+JJ: Description from the source commit:
+source
+JJ: Lines starting with "JJ: " (like this one) will be removed.
+"#,
+    )
+    .unwrap();
+    test_env.jj_cmd_success(&repo_path, &["move", "--to", "@-"]);
+    insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
+    destination
+    source
+    "###);
+
+    // If the source's *content* doesn't become empty, then the source remains and
+    // both descriptions are unchanged
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    std::fs::write(repo_path.join("file2"), "b\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["move", "--to", "@-", "file1"]);
+    insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
+    destination
+    "###);
+    insta::assert_snapshot!(get_description(&test_env, &repo_path, "@"), @r###"
+    source
+    "###);
+}
+
+fn get_description(test_env: &TestEnvironment, repo_path: &Path, rev: &str) -> String {
+    test_env.jj_cmd_success(
+        repo_path,
+        &["log", "--no-graph", "-T", "description", "-r", rev],
+    )
 }

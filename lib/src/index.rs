@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate byteorder;
-
 use std::cmp::{max, min, Ordering};
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashSet};
 use std::fmt::{Debug, Formatter};
@@ -369,7 +367,7 @@ impl MutableIndex {
         &mut self,
         commit_id: CommitId,
         change_id: ChangeId,
-        parent_ids: Vec<CommitId>,
+        parent_ids: &[CommitId],
     ) {
         if self.has_id(&commit_id) {
             return;
@@ -382,7 +380,7 @@ impl MutableIndex {
         };
         for parent_id in parent_ids {
             let parent_entry = self
-                .entry_by_id(&parent_id)
+                .entry_by_id(parent_id)
                 .expect("parent commit is not indexed");
             entry.generation_number = max(
                 entry.generation_number,
@@ -406,7 +404,7 @@ impl MutableIndex {
                 .iter()
                 .map(|entry| entry.commit_id())
                 .collect_vec();
-            self.add_commit_data(entry.commit_id(), entry.change_id(), parent_ids);
+            self.add_commit_data(entry.commit_id(), entry.change_id(), &parent_ids);
         }
     }
 
@@ -555,7 +553,7 @@ impl MutableIndex {
         let buf = self.maybe_squash_with_ancestors().serialize();
         let mut hasher = Blake2b512::new();
         hasher.update(&buf);
-        let index_file_id_hex = hex::encode(&hasher.finalize());
+        let index_file_id_hex = hex::encode(hasher.finalize());
         let index_file_path = dir.join(&index_file_id_hex);
 
         let mut temp_file = NamedTempFile::new_in(&dir)?;
@@ -746,7 +744,7 @@ impl<'a> CompositeIndex<'a> {
 
     pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
         self.commit_id_to_pos(commit_id)
-            .map(&|pos| self.entry_by_pos(pos))
+            .map(|pos| self.entry_by_pos(pos))
     }
 
     pub fn has_id(&self, commit_id: &CommitId) -> bool {
@@ -1087,7 +1085,7 @@ impl IndexSegment for ReadonlyIndex {
             None => PrefixResolution::NoMatch,
             Some(lookup_pos) => {
                 let mut first_match = None;
-                for i in lookup_pos.0..self.num_local_commits as u32 {
+                for i in lookup_pos.0..self.num_local_commits {
                     let entry = self.lookup_entry(i);
                     let id = entry.commit_id();
                     if !id.as_bytes().starts_with(bytes_prefix.as_bytes()) {
@@ -1468,11 +1466,12 @@ mod tests {
 
     use super::*;
     use crate::commit_builder::new_change_id;
+    use crate::testutils;
 
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn index_empty(on_disk: bool) {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let index = MutableIndex::full(3);
         let mut _saved_index = None;
         let index = if on_disk {
@@ -1499,11 +1498,11 @@ mod tests {
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn index_root_commit(on_disk: bool) {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let mut index = MutableIndex::full(3);
         let id_0 = CommitId::from_hex("000000");
         let change_id0 = new_change_id();
-        index.add_commit_data(id_0.clone(), change_id0.clone(), vec![]);
+        index.add_commit_data(id_0.clone(), change_id0.clone(), &[]);
         let mut _saved_index = None;
         let index = if on_disk {
             _saved_index = Some(index.save_in(temp_dir.path().to_owned()).unwrap());
@@ -1541,7 +1540,7 @@ mod tests {
         let mut index = MutableIndex::full(3);
         let id_0 = CommitId::from_hex("000000");
         let id_1 = CommitId::from_hex("111111");
-        index.add_commit_data(id_1, new_change_id(), vec![id_0]);
+        index.add_commit_data(id_1, new_change_id(), &[id_0]);
     }
 
     #[test_case(false, false; "full in memory")]
@@ -1549,7 +1548,7 @@ mod tests {
     #[test_case(true, false; "incremental in memory")]
     #[test_case(true, true; "incremental on disk")]
     fn index_multiple_commits(incremental: bool, on_disk: bool) {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let mut index = MutableIndex::full(3);
         // 5
         // |\
@@ -1564,9 +1563,9 @@ mod tests {
         let change_id1 = new_change_id();
         let id_2 = CommitId::from_hex("222222");
         let change_id2 = change_id1.clone();
-        index.add_commit_data(id_0.clone(), change_id0, vec![]);
-        index.add_commit_data(id_1.clone(), change_id1.clone(), vec![id_0.clone()]);
-        index.add_commit_data(id_2.clone(), change_id2.clone(), vec![id_0.clone()]);
+        index.add_commit_data(id_0.clone(), change_id0, &[]);
+        index.add_commit_data(id_1.clone(), change_id1.clone(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), change_id2.clone(), &[id_0.clone()]);
 
         // If testing incremental indexing, write the first three commits to one file
         // now and build the remainder as another segment on top.
@@ -1581,9 +1580,9 @@ mod tests {
         let change_id4 = new_change_id();
         let id_5 = CommitId::from_hex("555555");
         let change_id5 = change_id3.clone();
-        index.add_commit_data(id_3.clone(), change_id3.clone(), vec![id_2.clone()]);
-        index.add_commit_data(id_4.clone(), change_id4, vec![id_1.clone()]);
-        index.add_commit_data(id_5.clone(), change_id5, vec![id_4.clone(), id_2.clone()]);
+        index.add_commit_data(id_3.clone(), change_id3.clone(), &[id_2.clone()]);
+        index.add_commit_data(id_4.clone(), change_id4, &[id_1.clone()]);
+        index.add_commit_data(id_5.clone(), change_id5, &[id_4.clone(), id_2.clone()]);
         let mut _saved_index = None;
         let index = if on_disk {
             _saved_index = Some(index.save_in(temp_dir.path().to_owned()).unwrap());
@@ -1645,7 +1644,7 @@ mod tests {
     #[test_case(false; "in memory")]
     #[test_case(true; "on disk")]
     fn index_many_parents(on_disk: bool) {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let mut index = MutableIndex::full(3);
         //     6
         //    /|\
@@ -1663,16 +1662,16 @@ mod tests {
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
         let id_6 = CommitId::from_hex("666666");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_5.clone(), new_change_id(), vec![id_0]);
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_5.clone(), new_change_id(), &[id_0]);
         index.add_commit_data(
             id_6.clone(),
             new_change_id(),
-            vec![id_1, id_2, id_3, id_4, id_5],
+            &[id_1, id_2, id_3, id_4, id_5],
         );
         let mut _saved_index = None;
         let index = if on_disk {
@@ -1708,16 +1707,16 @@ mod tests {
 
     #[test]
     fn resolve_prefix() {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let mut index = MutableIndex::full(3);
 
         // Create some commits with different various common prefixes.
         let id_0 = CommitId::from_hex("000000");
         let id_1 = CommitId::from_hex("009999");
         let id_2 = CommitId::from_hex("055488");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![]);
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[]);
 
         // Write the first three commits to one file and build the remainder on top.
         let initial_file = index.save_in(temp_dir.path().to_owned()).unwrap();
@@ -1726,9 +1725,9 @@ mod tests {
         let id_3 = CommitId::from_hex("055444");
         let id_4 = CommitId::from_hex("055555");
         let id_5 = CommitId::from_hex("033333");
-        index.add_commit_data(id_3, new_change_id(), vec![]);
-        index.add_commit_data(id_4, new_change_id(), vec![]);
-        index.add_commit_data(id_5, new_change_id(), vec![]);
+        index.add_commit_data(id_3, new_change_id(), &[]);
+        index.add_commit_data(id_4, new_change_id(), &[]);
+        index.add_commit_data(id_5, new_change_id(), &[]);
 
         // Can find commits given the full hex number
         assert_eq!(
@@ -1743,7 +1742,7 @@ mod tests {
             index.resolve_prefix(&HexPrefix::new(id_2.hex()).unwrap()),
             PrefixResolution::SingleMatch(id_2)
         );
-        // Test non-existent commits
+        // Test nonexistent commits
         assert_eq!(
             index.resolve_prefix(&HexPrefix::new("ffffff".to_string()).unwrap()),
             PrefixResolution::NoMatch
@@ -1789,16 +1788,12 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_2.clone()]);
-        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_1.clone()]);
-        index.add_commit_data(
-            id_5.clone(),
-            new_change_id(),
-            vec![id_4.clone(), id_2.clone()],
-        );
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_2.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_5.clone(), new_change_id(), &[id_4.clone(), id_2.clone()]);
 
         assert!(index.is_ancestor(&id_0, &id_0));
         assert!(index.is_ancestor(&id_0, &id_1));
@@ -1830,16 +1825,12 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_1.clone()]);
-        index.add_commit_data(
-            id_5.clone(),
-            new_change_id(),
-            vec![id_4.clone(), id_2.clone()],
-        );
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_5.clone(), new_change_id(), &[id_4.clone(), id_2.clone()]);
 
         assert_eq!(
             index.common_ancestors(&[id_0.clone()], &[id_0.clone()]),
@@ -1911,19 +1902,11 @@ mod tests {
         let id_2 = CommitId::from_hex("222222");
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0]);
-        index.add_commit_data(
-            id_3.clone(),
-            new_change_id(),
-            vec![id_1.clone(), id_2.clone()],
-        );
-        index.add_commit_data(
-            id_4.clone(),
-            new_change_id(),
-            vec![id_1.clone(), id_2.clone()],
-        );
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_0]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_1.clone(), id_2.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_1.clone(), id_2.clone()]);
 
         let mut common_ancestors = index.common_ancestors(&[id_3], &[id_4]);
         common_ancestors.sort();
@@ -1944,16 +1927,12 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
-        index.add_commit_data(id_1, new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_3, new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(
-            id_4.clone(),
-            new_change_id(),
-            vec![id_0.clone(), id_2.clone()],
-        );
-        index.add_commit_data(id_5.clone(), new_change_id(), vec![id_0, id_2.clone()]);
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1, new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_3, new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_0.clone(), id_2.clone()]);
+        index.add_commit_data(id_5.clone(), new_change_id(), &[id_0, id_2.clone()]);
 
         let mut common_ancestors = index.common_ancestors(&[id_4], &[id_5]);
         common_ancestors.sort();
@@ -1976,16 +1955,12 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_2.clone()]);
-        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_1.clone()]);
-        index.add_commit_data(
-            id_5.clone(),
-            new_change_id(),
-            vec![id_4.clone(), id_2.clone()],
-        );
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_2.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_5.clone(), new_change_id(), &[id_4.clone(), id_2.clone()]);
 
         let walk_commit_ids = |wanted: &[CommitId], unwanted: &[CommitId]| {
             index
@@ -2058,16 +2033,12 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
-        index.add_commit_data(id_0.clone(), new_change_id(), vec![]);
-        index.add_commit_data(id_1.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_2.clone(), new_change_id(), vec![id_0.clone()]);
-        index.add_commit_data(id_3.clone(), new_change_id(), vec![id_2.clone()]);
-        index.add_commit_data(id_4.clone(), new_change_id(), vec![id_1.clone()]);
-        index.add_commit_data(
-            id_5.clone(),
-            new_change_id(),
-            vec![id_4.clone(), id_2.clone()],
-        );
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_2.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_5.clone(), new_change_id(), &[id_4.clone(), id_2.clone()]);
 
         // Empty input
         assert!(index.heads(&[]).is_empty());

@@ -30,9 +30,9 @@ fn canonicalize(input: &Path) -> (PathBuf, PathBuf) {
 #[test]
 fn test_init_local() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let (canonical, uncanonical) = canonicalize(temp_dir.path());
-    let (workspace, repo) = Workspace::init_local(&settings, uncanonical).unwrap();
+    let (workspace, repo) = Workspace::init_local(&settings, &uncanonical).unwrap();
     assert!(repo.store().git_repo().is_none());
     assert_eq!(repo.repo_path(), &canonical.join(".jj").join("repo"));
     assert_eq!(workspace.workspace_root(), &canonical);
@@ -45,9 +45,9 @@ fn test_init_local() {
 #[test]
 fn test_init_internal_git() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let (canonical, uncanonical) = canonicalize(temp_dir.path());
-    let (workspace, repo) = Workspace::init_internal_git(&settings, uncanonical).unwrap();
+    let (workspace, repo) = Workspace::init_internal_git(&settings, &uncanonical).unwrap();
     assert!(repo.store().git_repo().is_some());
     assert_eq!(repo.repo_path(), &canonical.join(".jj").join("repo"));
     assert_eq!(workspace.workspace_root(), &canonical);
@@ -60,13 +60,13 @@ fn test_init_internal_git() {
 #[test]
 fn test_init_external_git() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let (canonical, uncanonical) = canonicalize(temp_dir.path());
     let git_repo_path = uncanonical.join("git");
     git2::Repository::init(&git_repo_path).unwrap();
     std::fs::create_dir(&uncanonical.join("jj")).unwrap();
     let (workspace, repo) =
-        Workspace::init_external_git(&settings, uncanonical.join("jj"), git_repo_path).unwrap();
+        Workspace::init_external_git(&settings, &uncanonical.join("jj"), &git_repo_path).unwrap();
     assert!(repo.store().git_repo().is_some());
     assert_eq!(
         repo.repo_path(),
@@ -86,22 +86,22 @@ fn test_init_no_config_set(use_git: bool) {
     let settings = UserSettings::from_config(config::Config::default());
     let test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
-    let checkout_id = repo.view().get_checkout(&WorkspaceId::default()).unwrap();
-    let checkout_commit = repo.store().get_commit(checkout_id).unwrap();
+    let wc_commit_id = repo
+        .view()
+        .get_wc_commit_id(&WorkspaceId::default())
+        .unwrap();
+    let wc_commit = repo.store().get_commit(wc_commit_id).unwrap();
+    assert_eq!(wc_commit.author().name, "(no name configured)".to_string());
     assert_eq!(
-        checkout_commit.author().name,
-        "(no name configured)".to_string()
-    );
-    assert_eq!(
-        checkout_commit.author().email,
+        wc_commit.author().email,
         "(no email configured)".to_string()
     );
     assert_eq!(
-        checkout_commit.committer().name,
+        wc_commit.committer().name,
         "(no name configured)".to_string()
     );
     assert_eq!(
-        checkout_commit.committer().email,
+        wc_commit.committer().email,
         "(no email configured)".to_string()
     );
 }
@@ -113,15 +113,21 @@ fn test_init_checkout(use_git: bool) {
     let settings = testutils::user_settings();
     let test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
-    let checkout_id = repo.view().get_checkout(&WorkspaceId::default()).unwrap();
-    let checkout_commit = repo.store().get_commit(checkout_id).unwrap();
-    assert_eq!(checkout_commit.tree_id(), repo.store().empty_tree_id());
-    assert_eq!(checkout_commit.store_commit().parents, vec![]);
-    assert_eq!(checkout_commit.predecessors(), vec![]);
-    assert_eq!(checkout_commit.description(), "");
-    assert!(checkout_commit.is_open());
-    assert_eq!(checkout_commit.author().name, settings.user_name());
-    assert_eq!(checkout_commit.author().email, settings.user_email());
-    assert_eq!(checkout_commit.committer().name, settings.user_name());
-    assert_eq!(checkout_commit.committer().email, settings.user_email());
+    let wc_commit_id = repo
+        .view()
+        .get_wc_commit_id(&WorkspaceId::default())
+        .unwrap();
+    let wc_commit = repo.store().get_commit(wc_commit_id).unwrap();
+    assert_eq!(wc_commit.tree_id(), repo.store().empty_tree_id());
+    assert_eq!(
+        wc_commit.store_commit().parents,
+        vec![repo.store().root_commit_id().clone()]
+    );
+    assert_eq!(wc_commit.predecessors(), vec![]);
+    assert_eq!(wc_commit.description(), "");
+    assert!(wc_commit.is_open());
+    assert_eq!(wc_commit.author().name, settings.user_name());
+    assert_eq!(wc_commit.author().email, settings.user_email());
+    assert_eq!(wc_commit.committer().name, settings.user_name());
+    assert_eq!(wc_commit.committer().email, settings.user_email());
 }

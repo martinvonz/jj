@@ -24,7 +24,7 @@ features from Git (data model,
 [speed](https://github.com/martinvonz/jj/discussions/49)), Mercurial (anonymous
 branching, simple CLI [free from "the index"](docs/git-comparison.md#the-index),
 [revsets](docs/revsets.md), powerful history-rewriting), and Pijul/Darcs
-([first-class conflicts](docs/conflicts.md)), with features not found in either
+([first-class conflicts](docs/conflicts.md)), with features not found in most
 of them ([working-copy-as-a-commit](docs/working-copy.md),
 [undo functionality](docs/operation-log.md), automatic rebase,
 [safe replication via `rsync`, Dropbox, or distributed file
@@ -34,8 +34,8 @@ The command-line tool is called `jj` for now because it's easy to type and easy
 to replace (rare in English). The project is called "Jujutsu" because it matches
 "jj".
 
-If you have any questions, please join us on
-[Discord](https://discord.gg/dkmfj3aGQN).
+If you have any questions, please join us on Discord
+[![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN).
 
 ## Features
 
@@ -52,8 +52,8 @@ backend (the only minor reason might be
 The backend exists mainly to make sure that it's possible to eventually add
 functionality that cannot easily be added to the Git backend.
 
-<a href="https://asciinema.org/a/6UwpP2U4QxuRUY6eOGfRoJsgN" target="_blank">
-  <img src="https://asciinema.org/a/6UwpP2U4QxuRUY6eOGfRoJsgN.svg" />
+<a href="https://asciinema.org/a/dY2XBEEplPacf25Vv9K8oRFPk" target="_blank">
+  <img src="https://asciinema.org/a/dY2XBEEplPacf25Vv9K8oRFPk.svg" />
 </a>
 
 ### The working copy is automatically committed
@@ -64,8 +64,8 @@ working copy or any other commit. It also means that you can always check out a
 different commit without first explicitly committing the working copy changes
 (you can even check out a different commit while resolving merge conflicts).
 
-<a href="https://asciinema.org/a/XVJwcGbZek4cfk3510iQdloD8" target="_blank">
-  <img src="https://asciinema.org/a/XVJwcGbZek4cfk3510iQdloD8.svg" />
+<a href="https://asciinema.org/a/Jdl9xjbVXlbvUd3qS0410IHtL" target="_blank">
+  <img src="https://asciinema.org/a/Jdl9xjbVXlbvUd3qS0410IHtL.svg" />
 </a>
 
 ### Operations update the repo first, then possibly the working copy
@@ -81,8 +81,8 @@ the repo state after the operation. This means that you can easily revert to an
 earlier repo state, or to simply undo a particular operation (which does not
 necessarily have to be the most recent operation).
 
-<a href="https://asciinema.org/a/fggh1HkoYyH5HAA8amzm4LiV4" target="_blank">
-  <img src="https://asciinema.org/a/fggh1HkoYyH5HAA8amzm4LiV4.svg" />
+<a href="https://asciinema.org/a/oR7ME5dz8T6UmZ9nXOcPs14YZ" target="_blank">
+  <img src="https://asciinema.org/a/oR7ME5dz8T6UmZ9nXOcPs14YZ.svg" />
 </a>
 
 ### Conflicts can be recorded in commits
@@ -95,13 +95,13 @@ resolving conflicts, regardless of which command caused them. This design also
 lets Jujutsu rebase merge commits correctly (unlike both Git and Mercurial).
 
 Basic conflict resolution:
-<a href="https://asciinema.org/a/egs4vOJGCd2lt8OBhCx0f139z" target="_blank">
-  <img src="https://asciinema.org/a/egs4vOJGCd2lt8OBhCx0f139z.svg" />
+<a href="https://asciinema.org/a/CmW8lBnypVuxCxvCcxhLDyUUL" target="_blank">
+  <img src="https://asciinema.org/a/CmW8lBnypVuxCxvCcxhLDyUUL.svg" />
 </a>
 
 Juggling conflicts:
-<a href="https://asciinema.org/a/efo1dbUuERDnDk1igaVi9TZVb" target="_blank">
-  <img src="https://asciinema.org/a/efo1dbUuERDnDk1igaVi9TZVb.svg" />
+<a href="https://asciinema.org/a/Havui1xG7x95MhzTJU0Ei1WfZ" target="_blank">
+  <img src="https://asciinema.org/a/Havui1xG7x95MhzTJU0Ei1WfZ.svg" />
 </a>
 
 ### Automatic rebase
@@ -123,7 +123,7 @@ commit to any other commit using `jj move`.
 ## Status
 
 The tool is quite feature-complete, but some important features like (the
-equivalent of) `git blame` and `git log <paths>` are not yet supported. There
+equivalent of) `git blame` are not yet supported. There
 are also several performance bugs. It's also likely that workflows and setups
 different from what I personally use are not well supported. For example,
 pull-request workflows currently require too many manual steps.
@@ -144,6 +144,13 @@ scripts if requested.
 See below for how to build from source. There are also
 [pre-built binaries](https://github.com/martinvonz/jj/releases) for Windows,
 Mac, or Linux (musl).
+
+If you're installing from source, you need to use Rust version 1.60 or higher,
+or you will get a cryptic message like this:
+```
+error: failed to select a version for the requirement `libgit2-sys = "=0.14.0"``
+candidate versions found which didn't match: 0.13.2+1.4.2, 0.13.1+1.4.2, 0.13.0+1.4.1, ...
+```
 
 ### Linux
 

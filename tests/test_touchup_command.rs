@@ -17,7 +17,7 @@ use crate::common::TestEnvironment;
 pub mod common;
 
 #[test]
-fn test_edit() {
+fn test_touchup() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -89,7 +89,7 @@ fn test_edit() {
 }
 
 #[test]
-fn test_edit_merge() {
+fn test_touchup_merge() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -104,13 +104,11 @@ fn test_edit_merge() {
     test_env.jj_cmd_success(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     std::fs::write(repo_path.join("file2"), "c\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["merge", "@", "b", "-m", "merge"]);
-    // Check out the merge and resolve the conflict in file1, but leave the conflict
-    // in file2
-    test_env.jj_cmd_success(&repo_path, &["co", "@+"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "@", "b", "-m", "merge"]);
+    // Resolve the conflict in file1, but leave the conflict in file2
     std::fs::write(repo_path.join("file1"), "d\n").unwrap();
     std::fs::write(repo_path.join("file3"), "d\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["squash"]);
+    test_env.jj_cmd_success(&repo_path, &["new"]);
     // Test the setup
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-r", "@-", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -128,9 +126,9 @@ fn test_edit_merge() {
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["touchup", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 608f32ad9e19 merge
+    Created cb2b3b755c0a merge
     Rebased 1 descendant commits
-    Working copy now at: 2eca803962db (no description set)
+    Working copy now at: 9c86af62d473 (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
@@ -142,8 +140,7 @@ fn test_edit_merge() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
     <<<<<<<
-    -------
-    +++++++
+    %%%%%%%
     -a
     +c
     +++++++

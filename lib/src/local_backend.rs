@@ -16,16 +16,16 @@ use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
 use std::io::{ErrorKind, Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use blake2::{Blake2b512, Digest};
 use protobuf::{Message, MessageField};
 use tempfile::{NamedTempFile, PersistError};
 
 use crate::backend::{
-    Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict, ConflictId,
-    ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree, TreeId,
-    TreeValue,
+    make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
+    ConflictId, ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree,
+    TreeId, TreeValue,
 };
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::repo_path::{RepoPath, RepoPathComponent};
@@ -51,11 +51,12 @@ impl From<protobuf::Error> for BackendError {
 #[derive(Debug)]
 pub struct LocalBackend {
     path: PathBuf,
+    root_commit_id: CommitId,
     empty_tree_id: TreeId,
 }
 
 impl LocalBackend {
-    pub fn init(store_path: PathBuf) -> Self {
+    pub fn init(store_path: &Path) -> Self {
         fs::create_dir(store_path.join("commits")).unwrap();
         fs::create_dir(store_path.join("trees")).unwrap();
         fs::create_dir(store_path.join("files")).unwrap();
@@ -69,10 +70,12 @@ impl LocalBackend {
         backend
     }
 
-    pub fn load(store_path: PathBuf) -> Self {
-        let empty_tree_id = TreeId::new(hex::decode("786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce").unwrap());
+    pub fn load(store_path: &Path) -> Self {
+        let root_commit_id = CommitId::from_bytes(&[0; 64]);
+        let empty_tree_id = TreeId::from_hex("786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce");
         LocalBackend {
-            path: store_path,
+            path: store_path.to_path_buf(),
+            root_commit_id,
             empty_tree_id,
         }
     }
@@ -107,6 +110,10 @@ fn not_found_to_backend_error(err: std::io::Error) -> BackendError {
 }
 
 impl Backend for LocalBackend {
+    fn name(&self) -> &str {
+        "local"
+    }
+
     fn hash_length(&self) -> usize {
         64
     }
@@ -158,11 +165,15 @@ impl Backend for LocalBackend {
         let mut temp_file = NamedTempFile::new_in(&self.path)?;
         temp_file.write_all(target.as_bytes())?;
         let mut hasher = Blake2b512::new();
-        hasher.update(&target.as_bytes());
+        hasher.update(target.as_bytes());
         let id = SymlinkId::new(hasher.finalize().to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.symlink_path(&id))?;
         Ok(id)
+    }
+
+    fn root_commit_id(&self) -> &CommitId {
+        &self.root_commit_id
     }
 
     fn empty_tree_id(&self) -> &TreeId {
@@ -216,6 +227,10 @@ impl Backend for LocalBackend {
     }
 
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
+        if *id == self.root_commit_id {
+            return Ok(make_root_commit(self.empty_tree_id.clone()));
+        }
+
         let path = self.commit_path(id);
         let mut file = File::open(path).map_err(not_found_to_backend_error)?;
 

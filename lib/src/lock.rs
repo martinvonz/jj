@@ -72,16 +72,17 @@ impl Drop for FileLock {
 #[cfg(test)]
 mod tests {
     use std::cmp::max;
-    use std::{env, thread};
+    use std::thread;
 
     use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
     use super::*;
+    use crate::testutils;
 
     #[test]
     fn lock_basic() {
-        let number: u32 = rand::random();
-        let lock_path = env::temp_dir().join(format!("test-{}.lock", number));
+        let temp_dir = testutils::new_temp_dir();
+        let lock_path = temp_dir.path().join("test.lock");
         assert!(!lock_path.exists());
         {
             let _lock = FileLock::lock(lock_path.clone());
@@ -92,9 +93,9 @@ mod tests {
 
     #[test]
     fn lock_concurrent() {
-        let number: u32 = rand::random();
-        let data_path = env::temp_dir().join(format!("test-{}", number));
-        let lock_path = env::temp_dir().join(format!("test-{}.lock", number));
+        let temp_dir = testutils::new_temp_dir();
+        let data_path = temp_dir.path().join("test");
+        let lock_path = temp_dir.path().join("test.lock");
         let mut data_file = OpenOptions::new()
             .create(true)
             .write(true)

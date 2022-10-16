@@ -12,44 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::commands::{dispatch, CommandError};
-use jujutsu::config::read_config;
+use jujutsu::cli_util::{create_ui, handle_command_result, parse_args, CommandError};
+use jujutsu::commands::{default_app, run_command};
 use jujutsu::ui::Ui;
-use jujutsu_lib::settings::UserSettings;
+
+fn run(ui: &mut Ui) -> Result<(), CommandError> {
+    let app = default_app();
+    let (command_helper, matches) = parse_args(ui, app, std::env::args_os())?;
+    run_command(ui, &command_helper, &matches)
+}
 
 fn main() {
-    // TODO: We need to do some argument parsing here, at least for things like
-    // --config,       and for reading user configs from the repo pointed to by
-    // -R.
-    match read_config() {
-        Ok(user_settings) => {
-            let mut ui = Ui::for_terminal(user_settings);
-            match dispatch(&mut ui, &mut std::env::args_os()) {
-                Ok(_) => {
-                    std::process::exit(0);
-                }
-                Err(CommandError::UserError(message)) => {
-                    ui.write_error(&format!("Error: {}\n", message)).unwrap();
-                    std::process::exit(1);
-                }
-                Err(CommandError::CliError(message)) => {
-                    ui.write_error(&format!("Error: {}\n", message)).unwrap();
-                    std::process::exit(2);
-                }
-                Err(CommandError::BrokenPipe) => {
-                    std::process::exit(3);
-                }
-                Err(CommandError::InternalError(message)) => {
-                    ui.write_error(&format!("Internal error: {}\n", message))
-                        .unwrap();
-                    std::process::exit(255);
-                }
-            }
-        }
-        Err(err) => {
-            let mut ui = Ui::for_terminal(UserSettings::default());
-            ui.write_error(&format!("Config error: {}\n", err)).unwrap();
-            std::process::exit(1);
-        }
-    }
+    let (mut ui, result) = create_ui();
+    let result = result.and_then(|()| run(&mut ui));
+    let exit_code = handle_command_result(&mut ui, result);
+    std::process::exit(exit_code);
 }

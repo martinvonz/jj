@@ -12,1085 +12,60 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate chrono;
-extern crate clap;
-extern crate clap_mangen;
-extern crate config;
-
 use std::collections::{HashSet, VecDeque};
-use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Instant;
 use std::{fs, io};
 
-use clap::{ArgGroup, CommandFactory, Subcommand};
-use config::Value;
-use criterion::Criterion;
-use git2::{Oid, Repository};
+use chrono::{FixedOffset, TimeZone, Utc};
+use clap::{ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
 use itertools::Itertools;
-use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeId, TreeValue};
+use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::diff::{Diff, DiffHunk};
 use jujutsu_lib::files::DiffLine;
-use jujutsu_lib::git::{GitExportError, GitFetchError, GitImportError, GitRefUpdate};
-use jujutsu_lib::gitignore::GitIgnoreFile;
-use jujutsu_lib::index::{HexPrefix, IndexEntry};
-use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
-use jujutsu_lib::op_heads_store::{OpHeadResolutionError, OpHeads, OpHeadsStore};
-use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
+use jujutsu_lib::git::{GitFetchError, GitRefUpdate};
+use jujutsu_lib::index::IndexEntry;
+use jujutsu_lib::matchers::{EverythingMatcher, Matcher};
+use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoRef};
+use jujutsu_lib::repo::{ReadonlyRepo, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::revset::{RevsetError, RevsetExpression, RevsetParseError};
+use jujutsu_lib::revset::RevsetExpression;
 use jujutsu_lib::revset_graph_iterator::{RevsetGraphEdge, RevsetGraphEdgeType};
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
-use jujutsu_lib::transaction::Transaction;
-use jujutsu_lib::tree::{merge_trees, Tree, TreeDiffIterator, TreeMergeError};
+use jujutsu_lib::tree::{merge_trees, Tree, TreeDiffIterator};
 use jujutsu_lib::view::View;
-use jujutsu_lib::working_copy::{
-    CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, WorkingCopy,
-};
-use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
-use jujutsu_lib::{conflicts, dag_walk, diff, files, git, revset, tree};
+use jujutsu_lib::workspace::Workspace;
+use jujutsu_lib::{conflicts, diff, files, git, revset, tree};
 use maplit::{hashmap, hashset};
 use pest::Parser;
 
-use self::chrono::{FixedOffset, TimeZone, Utc};
+use crate::cli_util::{
+    matcher_from_values, print_checkout_stats, repo_paths_from_values, resolve_base_revs,
+    short_commit_description, short_commit_hash, write_commit_summary, Args, CommandError,
+    CommandHelper, WorkspaceCommandHelper,
+};
 use crate::commands::CommandError::UserError;
-use crate::diff_edit::DiffEditError;
 use crate::formatter::Formatter;
 use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
 use crate::ui;
-use crate::ui::{ColorChoice, FilePathParseError, Ui};
+use crate::ui::Ui;
 
-pub enum CommandError {
-    UserError(String),
-    /// Invalid command line
-    CliError(String),
-    BrokenPipe,
-    InternalError(String),
-}
-
-impl From<std::io::Error> for CommandError {
-    fn from(err: std::io::Error) -> Self {
-        if err.kind() == std::io::ErrorKind::BrokenPipe {
-            CommandError::BrokenPipe
-        } else {
-            // TODO: Record the error as a chained cause
-            CommandError::InternalError(format!("I/O error: {err}"))
-        }
-    }
-}
-
-impl From<config::ConfigError> for CommandError {
-    fn from(err: config::ConfigError) -> Self {
-        CommandError::UserError(format!("Config error: {err}"))
-    }
-}
-
-impl From<BackendError> for CommandError {
-    fn from(err: BackendError) -> Self {
-        CommandError::UserError(format!("Unexpected error from store: {err}"))
-    }
-}
-
-impl From<WorkspaceInitError> for CommandError {
-    fn from(_: WorkspaceInitError) -> Self {
-        CommandError::UserError("The target repo already exists".to_string())
-    }
-}
-
-impl From<OpHeadResolutionError> for CommandError {
-    fn from(err: OpHeadResolutionError) -> Self {
-        match err {
-            OpHeadResolutionError::NoHeads => {
-                CommandError::InternalError("Corrupt repository: the are no operations".to_string())
-            }
-        }
-    }
-}
-
-impl From<SnapshotError> for CommandError {
-    fn from(err: SnapshotError) -> Self {
-        CommandError::InternalError(format!("Failed to snapshot the working copy: {err}"))
-    }
-}
-
-impl From<TreeMergeError> for CommandError {
-    fn from(err: TreeMergeError) -> Self {
-        CommandError::InternalError(format!("Merge failed: {err}"))
-    }
-}
-
-impl From<ResetError> for CommandError {
-    fn from(_: ResetError) -> Self {
-        CommandError::InternalError("Failed to reset the working copy".to_string())
-    }
-}
-
-impl From<DiffEditError> for CommandError {
-    fn from(err: DiffEditError) -> Self {
-        CommandError::UserError(format!("Failed to edit diff: {err}"))
-    }
-}
-
-impl From<git2::Error> for CommandError {
-    fn from(err: git2::Error) -> Self {
-        CommandError::UserError(format!("Git operation failed: {err}"))
-    }
-}
-
-impl From<GitImportError> for CommandError {
-    fn from(err: GitImportError) -> Self {
-        CommandError::InternalError(format!(
-            "Failed to import refs from underlying Git repo: {err}"
-        ))
-    }
-}
-
-impl From<GitExportError> for CommandError {
-    fn from(err: GitExportError) -> Self {
-        match err {
-            GitExportError::ConflictedBranch(branch_name) => {
-                CommandError::UserError(format!("Cannot export conflicted branch '{branch_name}'"))
-            }
-            GitExportError::InternalGitError(err) => CommandError::InternalError(format!(
-                "Failed to export refs to underlying Git repo: {err}"
-            )),
-        }
-    }
-}
-
-impl From<RevsetParseError> for CommandError {
-    fn from(err: RevsetParseError) -> Self {
-        CommandError::UserError(format!("Failed to parse revset: {err}"))
-    }
-}
-
-impl From<RevsetError> for CommandError {
-    fn from(err: RevsetError) -> Self {
-        CommandError::UserError(format!("{err}"))
-    }
-}
-
-impl From<FilePathParseError> for CommandError {
-    fn from(err: FilePathParseError) -> Self {
-        match err {
-            FilePathParseError::InputNotInRepo(input) => {
-                CommandError::UserError(format!("Path \"{input}\" is not in the repo"))
-            }
-        }
-    }
-}
-
-struct CommandHelper<'help> {
-    app: clap::Command<'help>,
-    string_args: Vec<String>,
-    global_args: GlobalArgs,
-}
-
-impl<'help> CommandHelper<'help> {
-    fn new(app: clap::Command<'help>, string_args: Vec<String>, global_args: GlobalArgs) -> Self {
-        Self {
-            app,
-            string_args,
-            global_args,
-        }
-    }
-
-    fn global_args(&self) -> &GlobalArgs {
-        &self.global_args
-    }
-
-    fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
-        let wc_path_str = self.global_args.repository.as_deref().unwrap_or(".");
-        let wc_path = ui.cwd().join(wc_path_str);
-        let workspace = match Workspace::load(ui.settings(), wc_path) {
-            Ok(workspace) => workspace,
-            Err(WorkspaceLoadError::NoWorkspaceHere(wc_path)) => {
-                let mut message = format!("There is no jj repo in \"{}\"", wc_path_str);
-                let git_dir = wc_path.join(".git");
-                if git_dir.is_dir() {
-                    // TODO: Make this hint separate from the error, so the caller can format
-                    // it differently.
-                    message += "
-It looks like this is a git repo. You can create a jj repo backed by it by running this:
-jj init --git-repo=.";
-                }
-                return Err(CommandError::UserError(message));
-            }
-            Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir)) => {
-                return Err(CommandError::UserError(format!(
-                    "The repository directory at {} is missing. Was it moved?",
-                    repo_dir.to_str().unwrap()
-                )));
-            }
-        };
-        let repo_loader = workspace.repo_loader();
-        let op_heads = resolve_op_for_load(
-            repo_loader.op_store(),
-            repo_loader.op_heads_store(),
-            &self.global_args.at_operation,
-        )?;
-        let repo = match op_heads {
-            OpHeads::Single(op) => repo_loader.load_at(&op),
-            OpHeads::Unresolved {
-                locked_op_heads,
-                op_heads,
-            } => {
-                writeln!(
-                    ui,
-                    "Concurrent modification detected, resolving automatically.",
-                )?;
-                let base_repo = repo_loader.load_at(&op_heads[0]);
-                // TODO: It may be helpful to print each operation we're merging here
-                let mut workspace_command = self.for_loaded_repo(ui, workspace, base_repo)?;
-                let mut tx = workspace_command.start_transaction("resolve concurrent operations");
-                for other_op_head in op_heads.into_iter().skip(1) {
-                    tx.merge_operation(other_op_head);
-                    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
-                    if num_rebased > 0 {
-                        writeln!(
-                            ui,
-                            "Rebased {} descendant commits onto commits rewritten by other \
-                             operation",
-                            num_rebased
-                        )?;
-                    }
-                }
-                let merged_repo = tx.write().leave_unpublished();
-                locked_op_heads.finish(merged_repo.operation());
-                workspace_command.repo = merged_repo;
-                return Ok(workspace_command);
-            }
-        };
-        self.for_loaded_repo(ui, workspace, repo)
-    }
-
-    fn for_loaded_repo(
-        &self,
-        ui: &mut Ui,
-        workspace: Workspace,
-        repo: Arc<ReadonlyRepo>,
-    ) -> Result<WorkspaceCommandHelper, CommandError> {
-        WorkspaceCommandHelper::for_loaded_repo(
-            ui,
-            workspace,
-            self.string_args.clone(),
-            &self.global_args,
-            repo,
-        )
-    }
-}
-
-// Provides utilities for writing a command that works on a workspace (like most
-// commands do).
-struct WorkspaceCommandHelper {
-    cwd: PathBuf,
-    string_args: Vec<String>,
-    global_args: GlobalArgs,
-    settings: UserSettings,
-    workspace: Workspace,
-    repo: Arc<ReadonlyRepo>,
-    may_update_working_copy: bool,
-    working_copy_shared_with_git: bool,
-}
-
-impl WorkspaceCommandHelper {
-    fn for_loaded_repo(
-        ui: &mut Ui,
-        workspace: Workspace,
-        string_args: Vec<String>,
-        global_args: &GlobalArgs,
-        repo: Arc<ReadonlyRepo>,
-    ) -> Result<Self, CommandError> {
-        let loaded_at_head = &global_args.at_operation == "@";
-        let may_update_working_copy = loaded_at_head && !global_args.no_commit_working_copy;
-        let mut working_copy_shared_with_git = false;
-        let maybe_git_repo = repo.store().git_repo();
-        if let Some(git_workdir) = maybe_git_repo
-            .as_ref()
-            .and_then(|git_repo| git_repo.workdir())
-            .and_then(|workdir| workdir.canonicalize().ok())
-        {
-            working_copy_shared_with_git = git_workdir == workspace.workspace_root().as_path();
-        }
-        let mut helper = Self {
-            cwd: ui.cwd().to_owned(),
-            string_args,
-            global_args: global_args.clone(),
-            settings: ui.settings().clone(),
-            workspace,
-            repo,
-            may_update_working_copy,
-            working_copy_shared_with_git,
-        };
-        if may_update_working_copy {
-            if working_copy_shared_with_git {
-                helper.import_git_refs_and_head(ui, maybe_git_repo.as_ref().unwrap())?;
-            }
-            helper.commit_working_copy(ui)?;
-        }
-        Ok(helper)
-    }
-
-    fn check_working_copy_writable(&self) -> Result<(), CommandError> {
-        if self.may_update_working_copy {
-            Ok(())
-        } else if self.global_args.no_commit_working_copy {
-            Err(CommandError::UserError(
-                "This command must be able to update the working copy (don't use \
-                 --no-commit-working-copy)."
-                    .to_string(),
-            ))
-        } else {
-            Err(CommandError::UserError(
-                "This command must be able to update the working copy (don't use --at-op)."
-                    .to_string(),
-            ))
-        }
-    }
-
-    fn import_git_refs_and_head(
-        &mut self,
-        ui: &mut Ui,
-        git_repo: &Repository,
-    ) -> Result<(), CommandError> {
-        let mut tx = self.start_transaction("import git refs");
-        git::import_refs(tx.mut_repo(), git_repo)?;
-        if tx.mut_repo().has_changes() {
-            let old_git_head = self.repo.view().git_head();
-            let new_git_head = tx.mut_repo().view().git_head();
-            // If the Git HEAD has changed, abandon our old checkout and check out the new
-            // Git HEAD.
-            if new_git_head != old_git_head && new_git_head.is_some() {
-                let workspace_id = self.workspace.workspace_id();
-                let mut locked_working_copy = self.workspace.working_copy_mut().start_mutation();
-                if let Some(old_checkout) = self.repo.view().get_checkout(&workspace_id) {
-                    tx.mut_repo().record_abandoned_commit(old_checkout.clone());
-                }
-                let new_checkout = self
-                    .repo
-                    .store()
-                    .get_commit(new_git_head.as_ref().unwrap())?;
-                tx.mut_repo()
-                    .check_out(workspace_id, &self.settings, &new_checkout);
-                // The working copy was presumably updated by the git command that updated HEAD,
-                // so we just need to reset our working copy state to it without updating
-                // working copy files.
-                locked_working_copy.reset(&new_checkout.tree())?;
-                tx.mut_repo().rebase_descendants(&self.settings)?;
-                self.repo = tx.commit();
-                locked_working_copy.finish(self.repo.op_id().clone());
-            } else {
-                let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
-                if num_rebased > 0 {
-                    writeln!(
-                        ui,
-                        "Rebased {} descendant commits off of commits rewritten from git",
-                        num_rebased
-                    )?;
-                }
-                self.finish_transaction(ui, tx)?;
-            }
-        }
-        Ok(())
-    }
-
-    fn export_head_to_git(&self, mut_repo: &mut MutableRepo) -> Result<(), CommandError> {
-        let git_repo = mut_repo.store().git_repo().unwrap();
-        let current_git_head_ref = git_repo.find_reference("HEAD").unwrap();
-        let current_git_commit_id = current_git_head_ref
-            .peel_to_commit()
-            .ok()
-            .map(|commit| commit.id());
-        if let Some(checkout_id) = mut_repo.view().get_checkout(&self.workspace_id()) {
-            let first_parent_id =
-                mut_repo.index().entry_by_id(checkout_id).unwrap().parents()[0].commit_id();
-            if first_parent_id != *mut_repo.store().root_commit_id() {
-                if let Some(current_git_commit_id) = current_git_commit_id {
-                    git_repo.set_head_detached(current_git_commit_id)?;
-                }
-                let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
-                let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
-                git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
-                mut_repo.set_git_head(first_parent_id);
-            }
-        } else {
-            // The workspace was removed (maybe the user undid the
-            // initialization of the workspace?), which is weird,
-            // but we should probably just not do anything else here.
-            // Except maybe print a note about it?
-        }
-        Ok(())
-    }
-
-    fn repo(&self) -> &Arc<ReadonlyRepo> {
-        &self.repo
-    }
-
-    fn repo_mut(&mut self) -> &mut Arc<ReadonlyRepo> {
-        &mut self.repo
-    }
-
-    fn working_copy(&self) -> &WorkingCopy {
-        self.workspace.working_copy()
-    }
-
-    fn start_working_copy_mutation(&mut self) -> Result<(LockedWorkingCopy, Commit), CommandError> {
-        self.check_working_copy_writable()?;
-        let current_checkout_id = self.repo.view().get_checkout(&self.workspace_id());
-        let current_checkout = if let Some(current_checkout_id) = current_checkout_id {
-            self.repo.store().get_commit(current_checkout_id)?
-        } else {
-            return Err(CommandError::UserError(
-                "Nothing checked out in this workspace".to_string(),
-            ));
-        };
-
-        let locked_working_copy = self.workspace.working_copy_mut().start_mutation();
-        if current_checkout.tree_id() != locked_working_copy.old_tree_id() {
-            return Err(CommandError::UserError(
-                "Concurrent working copy operation. Try again.".to_string(),
-            ));
-        }
-
-        Ok((locked_working_copy, current_checkout))
-    }
-
-    fn workspace_root(&self) -> &PathBuf {
-        self.workspace.workspace_root()
-    }
-
-    fn workspace_id(&self) -> WorkspaceId {
-        self.workspace.workspace_id()
-    }
-
-    fn working_copy_shared_with_git(&self) -> bool {
-        self.working_copy_shared_with_git
-    }
-
-    fn format_file_path(&self, file: &RepoPath) -> String {
-        ui::relative_path(&self.cwd, &file.to_fs_path(self.workspace_root()))
-            .to_str()
-            .unwrap()
-            .to_owned()
-    }
-
-    fn git_config(&self) -> Result<git2::Config, git2::Error> {
-        if let Some(git_repo) = self.repo.store().git_repo() {
-            git_repo.config()
-        } else {
-            git2::Config::open_default()
-        }
-    }
-
-    fn base_ignores(&self) -> Arc<GitIgnoreFile> {
-        let mut git_ignores = GitIgnoreFile::empty();
-        if let Ok(excludes_file_str) = self
-            .git_config()
-            .and_then(|git_config| git_config.get_string("core.excludesFile"))
-        {
-            let excludes_file_path = expand_git_path(excludes_file_str);
-            git_ignores = git_ignores.chain_with_file("", excludes_file_path);
-        }
-        if let Some(git_repo) = self.repo.store().git_repo() {
-            git_ignores =
-                git_ignores.chain_with_file("", git_repo.path().join("info").join("exclude"));
-        }
-        git_ignores
-    }
-
-    fn resolve_single_op(&self, op_str: &str) -> Result<Operation, CommandError> {
-        // When resolving the "@" operation in a `ReadonlyRepo`, we resolve it to the
-        // operation the repo was loaded at.
-        resolve_single_op(
-            self.repo.op_store(),
-            self.repo.op_heads_store(),
-            self.repo.operation(),
-            op_str,
-        )
-    }
-
-    fn resolve_single_rev(&self, revision_str: &str) -> Result<Commit, CommandError> {
-        let revset_expression = revset::parse(revision_str)?;
-        let revset =
-            revset_expression.evaluate(self.repo.as_repo_ref(), Some(&self.workspace_id()))?;
-        let mut iter = revset.iter().commits(self.repo.store());
-        match iter.next() {
-            None => Err(CommandError::UserError(format!(
-                "Revset \"{}\" didn't resolve to any revisions",
-                revision_str
-            ))),
-            Some(commit) => {
-                if iter.next().is_some() {
-                    Err(CommandError::UserError(format!(
-                        "Revset \"{}\" resolved to more than one revision",
-                        revision_str
-                    )))
-                } else {
-                    Ok(commit?)
-                }
-            }
-        }
-    }
-
-    fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
-        let revset_expression = revset::parse(revision_str)?;
-        let revset =
-            revset_expression.evaluate(self.repo.as_repo_ref(), Some(&self.workspace_id()))?;
-        Ok(revset
-            .iter()
-            .commits(self.repo.store())
-            .map(Result::unwrap)
-            .collect())
-    }
-
-    fn check_rewriteable(&self, commit: &Commit) -> Result<(), CommandError> {
-        if commit.id() == self.repo.store().root_commit_id() {
-            return Err(CommandError::UserError(
-                "Cannot rewrite the root commit".to_string(),
-            ));
-        }
-        Ok(())
-    }
-
-    fn check_non_empty(&self, commits: &[Commit]) -> Result<(), CommandError> {
-        if commits.is_empty() {
-            return Err(CommandError::UserError("Empty revision set".to_string()));
-        }
-        Ok(())
-    }
-
-    fn commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
-        let repo = self.repo.clone();
-        let workspace_id = self.workspace_id();
-        let checkout_id = match repo.view().get_checkout(&self.workspace_id()) {
-            Some(checkout_id) => checkout_id.clone(),
-            None => {
-                // If the workspace has been deleted, it's unclear what to do, so we just skip
-                // committing the working copy.
-                return Ok(());
-            }
-        };
-        let base_ignores = self.base_ignores();
-        let mut locked_wc = self.workspace.working_copy_mut().start_mutation();
-        // Check if the working copy commit matches the repo's view. It's fine if it
-        // doesn't, but we'll need to reload the repo so the new commit is
-        // in the index and view, and so we don't cause unnecessary
-        // divergence.
-        let checkout_commit = repo.store().get_commit(&checkout_id)?;
-        let wc_tree_id = locked_wc.old_tree_id().clone();
-        let mut wc_was_stale = false;
-        if *checkout_commit.tree_id() != wc_tree_id {
-            let wc_operation_data = self
-                .repo
-                .op_store()
-                .read_operation(locked_wc.old_operation_id())
-                .unwrap();
-            let wc_operation = Operation::new(
-                repo.op_store().clone(),
-                locked_wc.old_operation_id().clone(),
-                wc_operation_data,
-            );
-            let repo_operation = repo.operation();
-            let maybe_ancestor_op = dag_walk::closest_common_node(
-                [wc_operation.clone()],
-                [repo_operation.clone()],
-                &|op: &Operation| op.parents(),
-                &|op: &Operation| op.id().clone(),
-            );
-            if let Some(ancestor_op) = maybe_ancestor_op {
-                if ancestor_op.id() == repo_operation.id() {
-                    // The working copy was updated since we loaded the repo. We reload the repo
-                    // at the working copy's operation.
-                    self.repo = repo.reload_at(&wc_operation);
-                } else if ancestor_op.id() == wc_operation.id() {
-                    // The working copy was not updated when some repo operation committed,
-                    // meaning that it's stale compared to the repo view. We update the working
-                    // copy to what the view says.
-                    writeln!(
-                        ui,
-                        "The working copy is stale (not updated since operation {}), now updating \
-                         to operation {}",
-                        wc_operation.id().hex(),
-                        repo_operation.id().hex()
-                    )?;
-                    locked_wc
-                        .check_out(&checkout_commit.tree())
-                        .map_err(|err| {
-                            CommandError::InternalError(format!(
-                                "Failed to check out commit {}: {}",
-                                checkout_commit.id().hex(),
-                                err
-                            ))
-                        })?;
-                    wc_was_stale = true;
-                } else {
-                    return Err(CommandError::InternalError(format!(
-                        "The repo was loaded at operation {}, which seems to be a sibling of the \
-                         working copy's operation {}",
-                        repo_operation.id().hex(),
-                        wc_operation.id().hex()
-                    )));
-                }
-            } else {
-                return Err(CommandError::InternalError(format!(
-                    "The repo was loaded at operation {}, which seems unrelated to the working \
-                     copy's operation {}",
-                    repo_operation.id().hex(),
-                    wc_operation.id().hex()
-                )));
-            }
-        }
-        let new_tree_id = locked_wc.snapshot(base_ignores)?;
-        if new_tree_id != *checkout_commit.tree_id() {
-            let mut tx = self.repo.start_transaction("commit working copy");
-            let mut_repo = tx.mut_repo();
-            let commit = CommitBuilder::for_rewrite_from(&self.settings, &checkout_commit)
-                .set_tree(new_tree_id)
-                .write_to_repo(mut_repo);
-            mut_repo.set_checkout(workspace_id, commit.id().clone());
-
-            // Rebase descendants
-            let num_rebased = mut_repo.rebase_descendants(&self.settings)?;
-            if num_rebased > 0 {
-                writeln!(
-                    ui,
-                    "Rebased {} descendant commits onto updated working copy",
-                    num_rebased
-                )?;
-            }
-
-            self.repo = tx.commit();
-            locked_wc.finish(self.repo.op_id().clone());
-        } else if wc_was_stale {
-            locked_wc.finish(self.repo.op_id().clone());
-        } else {
-            locked_wc.discard();
-        }
-        Ok(())
-    }
-
-    fn edit_diff(
-        &self,
-        ui: &mut Ui,
-        left_tree: &Tree,
-        right_tree: &Tree,
-        instructions: &str,
-    ) -> Result<TreeId, DiffEditError> {
-        crate::diff_edit::edit_diff(
-            ui,
-            &self.settings,
-            left_tree,
-            right_tree,
-            instructions,
-            self.base_ignores(),
-        )
-    }
-
-    fn select_diff(
-        &self,
-        ui: &mut Ui,
-        left_tree: &Tree,
-        right_tree: &Tree,
-        instructions: &str,
-        interactive: bool,
-        matcher: &dyn Matcher,
-    ) -> Result<TreeId, CommandError> {
-        if interactive {
-            Ok(crate::diff_edit::edit_diff(
-                ui,
-                &self.settings,
-                left_tree,
-                right_tree,
-                instructions,
-                self.base_ignores(),
-            )?)
-        } else if matcher.visit(&RepoPath::root()) == Visit::AllRecursively {
-            // Optimization for a common case
-            Ok(right_tree.id().clone())
-        } else {
-            let mut tree_builder = self.repo().store().tree_builder(left_tree.id().clone());
-            for (repo_path, diff) in left_tree.diff(right_tree, matcher) {
-                match diff.into_options().1 {
-                    Some(value) => {
-                        tree_builder.set(repo_path, value);
-                    }
-                    None => {
-                        tree_builder.remove(repo_path);
-                    }
-                }
-            }
-            Ok(tree_builder.write_tree())
-        }
-    }
-
-    fn start_transaction(&self, description: &str) -> Transaction {
-        let mut tx = self.repo.start_transaction(description);
-        // TODO: Either do better shell-escaping here or store the values in some list
-        // type (which we currently don't have).
-        let shell_escape = |arg: &String| {
-            if arg.as_bytes().iter().all(|b| {
-                matches!(b,
-                    b'A'..=b'Z'
-                    | b'a'..=b'z'
-                    | b'0'..=b'9'
-                    | b','
-                    | b'-'
-                    | b'.'
-                    | b'/'
-                    | b':'
-                    | b'@'
-                    | b'_'
-                )
-            }) {
-                arg.clone()
-            } else {
-                format!("'{}'", arg.replace('\'', "\\'"))
-            }
-        };
-        let quoted_strings = self.string_args.iter().map(shell_escape).collect_vec();
-        tx.set_tag("args".to_string(), quoted_strings.join(" "));
-        tx
-    }
-
-    fn finish_transaction(&mut self, ui: &mut Ui, mut tx: Transaction) -> Result<(), CommandError> {
-        let mut_repo = tx.mut_repo();
-        let store = mut_repo.store().clone();
-        if !mut_repo.has_changes() {
-            writeln!(ui, "Nothing changed.")?;
-            return Ok(());
-        }
-        let num_rebased = mut_repo.rebase_descendants(ui.settings())?;
-        if num_rebased > 0 {
-            writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
-        }
-        if self.working_copy_shared_with_git {
-            self.export_head_to_git(mut_repo)?;
-        }
-        let maybe_old_commit = tx
-            .base_repo()
-            .view()
-            .get_checkout(&self.workspace_id())
-            .map(|commit_id| store.get_commit(commit_id))
-            .transpose()?;
-        self.repo = tx.commit();
-        if self.may_update_working_copy {
-            let stats = update_working_copy(
-                ui,
-                &self.repo,
-                &self.workspace_id(),
-                self.workspace.working_copy_mut(),
-                maybe_old_commit.as_ref(),
-            )?;
-            if let Some(stats) = stats {
-                print_checkout_stats(ui, stats)?;
-            }
-        }
-        if self.working_copy_shared_with_git {
-            let git_repo = self.repo.store().git_repo().unwrap();
-            git::export_refs(&self.repo, &git_repo)?;
-        }
-        Ok(())
-    }
-}
-
-fn print_checkout_stats(ui: &mut Ui, stats: CheckoutStats) -> Result<(), std::io::Error> {
-    if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
-        writeln!(
-            ui,
-            "Added {} files, modified {} files, removed {} files",
-            stats.added_files, stats.updated_files, stats.removed_files
-        )?;
-    }
-    Ok(())
-}
-
-/// Expands "~/" to "$HOME/" as Git seems to do for e.g. core.excludesFile.
-fn expand_git_path(path_str: String) -> PathBuf {
-    if let Some(remainder) = path_str.strip_prefix("~/") {
-        if let Ok(home_dir_str) = std::env::var("HOME") {
-            return PathBuf::from(home_dir_str).join(remainder);
-        }
-    }
-    PathBuf::from(path_str)
-}
-
-fn resolve_op_for_load(
-    op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<OpHeadsStore>,
-    op_str: &str,
-) -> Result<OpHeads, CommandError> {
-    if op_str == "@" {
-        Ok(op_heads_store.get_heads(op_store)?)
-    } else if op_str == "@-" {
-        match op_heads_store.get_heads(op_store)? {
-            OpHeads::Single(current_op) => {
-                let resolved_op = resolve_single_op(op_store, op_heads_store, &current_op, op_str)?;
-                Ok(OpHeads::Single(resolved_op))
-            }
-            OpHeads::Unresolved { .. } => Err(UserError(format!(
-                r#"The "{op_str}" expression resolved to more than one operation"#
-            ))),
-        }
-    } else {
-        let operation = resolve_single_op_from_store(op_store, op_heads_store, op_str)?;
-        Ok(OpHeads::Single(operation))
-    }
-}
-
-fn resolve_single_op(
-    op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<OpHeadsStore>,
-    current_op: &Operation,
-    op_str: &str,
-) -> Result<Operation, CommandError> {
-    if op_str == "@" {
-        Ok(current_op.clone())
-    } else if op_str == "@-" {
-        let parent_ops = current_op.parents();
-        if parent_ops.len() != 1 {
-            return Err(UserError(format!(
-                r#"The "{op_str}" expression resolved to more than one operation"#
-            )));
-        }
-        Ok(parent_ops[0].clone())
-    } else {
-        resolve_single_op_from_store(op_store, op_heads_store, op_str)
-    }
-}
-
-fn find_all_operations(
-    op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<OpHeadsStore>,
-) -> Vec<Operation> {
-    let mut visited = HashSet::new();
-    let mut work: VecDeque<_> = op_heads_store.get_op_heads().into_iter().collect();
-    let mut operations = vec![];
-    while let Some(op_id) = work.pop_front() {
-        if visited.insert(op_id.clone()) {
-            let store_operation = op_store.read_operation(&op_id).unwrap();
-            work.extend(store_operation.parents.iter().cloned());
-            let operation = Operation::new(op_store.clone(), op_id, store_operation);
-            operations.push(operation);
-        }
-    }
-    operations
-}
-
-fn resolve_single_op_from_store(
-    op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<OpHeadsStore>,
-    op_str: &str,
-) -> Result<Operation, CommandError> {
-    if op_str.is_empty() || !op_str.as_bytes().iter().all(|b| b.is_ascii_hexdigit()) {
-        return Err(CommandError::UserError(format!(
-            "Operation ID \"{}\" is not a valid hexadecimal prefix",
-            op_str
-        )));
-    }
-    if let Ok(binary_op_id) = hex::decode(op_str) {
-        let op_id = OperationId::new(binary_op_id);
-        match op_store.read_operation(&op_id) {
-            Ok(operation) => {
-                return Ok(Operation::new(op_store.clone(), op_id, operation));
-            }
-            Err(OpStoreError::NotFound) => {
-                // Fall through
-            }
-            Err(err) => {
-                return Err(CommandError::InternalError(format!(
-                    "Failed to read operation: {err}"
-                )));
-            }
-        }
-    }
-    let mut matches = vec![];
-    for op in find_all_operations(op_store, op_heads_store) {
-        if op.id().hex().starts_with(op_str) {
-            matches.push(op);
-        }
-    }
-    if matches.is_empty() {
-        Err(CommandError::UserError(format!(
-            "No operation ID matching \"{}\"",
-            op_str
-        )))
-    } else if matches.len() == 1 {
-        Ok(matches.pop().unwrap())
-    } else {
-        Err(CommandError::UserError(format!(
-            "Operation ID prefix \"{}\" is ambiguous",
-            op_str
-        )))
-    }
-}
-
-fn repo_paths_from_values(
-    ui: &Ui,
-    wc_path: &Path,
-    values: &[String],
-) -> Result<Vec<RepoPath>, CommandError> {
-    if !values.is_empty() {
-        // TODO: Add support for globs and other formats
-        let mut paths = vec![];
-        for value in values {
-            let repo_path = ui.parse_file_path(wc_path, value)?;
-            paths.push(repo_path);
-        }
-        Ok(paths)
-    } else {
-        Ok(vec![])
-    }
-}
-
-fn matcher_from_values(
-    ui: &Ui,
-    wc_path: &Path,
-    values: &[String],
-) -> Result<Box<dyn Matcher>, CommandError> {
-    let paths = repo_paths_from_values(ui, wc_path, values)?;
-    if paths.is_empty() {
-        Ok(Box::new(EverythingMatcher))
-    } else {
-        Ok(Box::new(PrefixMatcher::new(&paths)))
-    }
-}
-
-fn update_working_copy(
-    ui: &mut Ui,
-    repo: &Arc<ReadonlyRepo>,
-    workspace_id: &WorkspaceId,
-    wc: &mut WorkingCopy,
-    old_commit: Option<&Commit>,
-) -> Result<Option<CheckoutStats>, CommandError> {
-    let new_commit_id = match repo.view().get_checkout(workspace_id) {
-        Some(new_commit_id) => new_commit_id,
-        None => {
-            // It seems the workspace was deleted, so we shouldn't try to update it.
-            return Ok(None);
-        }
-    };
-    let new_commit = repo.store().get_commit(new_commit_id)?;
-    let old_tree_id = old_commit.map(|commit| commit.tree_id().clone());
-    let stats = if Some(new_commit.tree_id()) != old_tree_id.as_ref() {
-        // TODO: CheckoutError::ConcurrentCheckout should probably just result in a
-        // warning for most commands (but be an error for the checkout command)
-        let stats = wc
-            .check_out(
-                repo.op_id().clone(),
-                old_tree_id.as_ref(),
-                &new_commit.tree(),
-            )
-            .map_err(|err| {
-                CommandError::InternalError(format!(
-                    "Failed to check out commit {}: {}",
-                    new_commit.id().hex(),
-                    err
-                ))
-            })?;
-        Some(stats)
-    } else {
-        None
-    };
-    if Some(&new_commit) != old_commit {
-        ui.write("Working copy now at: ")?;
-        ui.write_commit_summary(repo.as_repo_ref(), workspace_id, &new_commit)?;
-        ui.write("\n")?;
-    }
-    Ok(stats)
-}
-
-/// Jujutsu (An experimental VCS)
-///
-/// To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.
 #[derive(clap::Parser, Clone, Debug)]
-#[clap(
-    name = "jj",
-    author = "Martin von Zweigbergk <martinvonz@google.com>",
-    version
-)]
-#[clap(mut_arg("help", |arg| {
-    arg
-        .help("Print help information, more help with --help than with -h")
-        .help_heading("GLOBAL OPTIONS")
-    }))]
-struct Args {
-    #[clap(flatten)]
-    global_args: GlobalArgs,
-    #[clap(subcommand)]
-    command: Commands,
-}
-
-#[derive(clap::Args, Clone, Debug)]
-struct GlobalArgs {
-    /// Path to repository to operate on
-    ///
-    /// By default, Jujutsu searches for the closest .jj/ directory in an
-    /// ancestor of the current working directory.
-    #[clap(long, short = 'R', global = true, help_heading = "GLOBAL OPTIONS")]
-    repository: Option<String>,
-    /// Don't commit the working copy
-    ///
-    /// By default, Jujutsu commits the working copy on every command, unless
-    /// you load the repo at a specific operation with `--at-operation`. If
-    /// you want to avoid committing the working and instead see a possibly
-    /// stale working copy commit, you can use `--no-commit-working-copy`.
-    /// This may be useful e.g. in a command prompt, especially if you have
-    /// another process that commits the working copy.
-    #[clap(long, global = true, help_heading = "GLOBAL OPTIONS")]
-    no_commit_working_copy: bool,
-    /// Operation to load the repo at
-    ///
-    /// Operation to load the repo at. By default, Jujutsu loads the repo at the
-    /// most recent operation. You can use `--at-op=<operation ID>` to see what
-    /// the repo looked like at an earlier operation. For example `jj
-    /// --at-op=<operation ID> st` will show you what `jj st` would have
-    /// shown you when the given operation had just finished.
-    ///
-    /// Use `jj op log` to find the operation ID you want. Any unambiguous
-    /// prefix of the operation ID is enough.
-    ///
-    /// When loading the repo at an earlier operation, the working copy will not
-    /// be automatically committed.
-    ///
-    /// It is possible to run mutating commands when loading the repo at an
-    /// earlier operation. Doing that is equivalent to having run concurrent
-    /// commands starting at the earlier operation. There's rarely a reason to
-    /// do that, but it is possible.
-    #[clap(
-        long,
-        visible_alias = "at-op",
-        global = true,
-        help_heading = "GLOBAL OPTIONS",
-        default_value = "@"
-    )]
-    at_operation: String,
-    /// When to colorize output (always, never, auto)
-    #[clap(
-        long,
-        value_name = "WHEN",
-        global = true,
-        help_heading = "GLOBAL OPTIONS"
-    )]
-    color: Option<ColorChoice>,
-}
-
-#[derive(Subcommand, Clone, Debug)]
 enum Commands {
+    Version(VersionArgs),
     Init(InitArgs),
     Checkout(CheckoutArgs),
     Untrack(UntrackArgs),
@@ -1101,6 +76,7 @@ enum Commands {
     Status(StatusArgs),
     Log(LogArgs),
     Obslog(ObslogArgs),
+    Interdiff(InterdiffArgs),
     Describe(DescribeArgs),
     Close(CloseArgs),
     Open(OpenArgs),
@@ -1114,65 +90,78 @@ enum Commands {
     Restore(RestoreArgs),
     Touchup(TouchupArgs),
     Split(SplitArgs),
-    Merge(MergeArgs),
+    /// Merge work from multiple branches
+    ///
+    /// Unlike most other VCSs, `jj merge` does not implicitly include the
+    /// working copy revision's parent as one of the parents of the merge;
+    /// you need to explicitly list all revisions that should become parents
+    /// of the merge.
+    ///
+    /// This is the same as `jj new`, except that it requires at least two
+    /// arguments.
+    Merge(NewArgs),
     Rebase(RebaseArgs),
     Backout(BackoutArgs),
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Branch(BranchSubcommand),
     /// Undo an operation (shortcut for `jj op undo`)
     Undo(OperationUndoArgs),
-    #[clap(subcommand)]
-    #[clap(visible_alias = "op")]
+    #[command(subcommand)]
+    #[command(visible_alias = "op")]
     Operation(OperationCommands),
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Workspace(WorkspaceCommands),
     Sparse(SparseArgs),
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Git(GitCommands),
-    #[clap(subcommand)]
-    Bench(BenchCommands),
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Debug(DebugCommands),
-    /// An alias or an unknown command
-    #[clap(external_subcommand)]
-    Alias(Vec<String>),
 }
+
+/// Display version information
+#[derive(clap::Args, Clone, Debug)]
+struct VersionArgs {}
 
 /// Create a new repo in the given directory
 ///
 /// If the given directory does not exist, it will be created. If no directory
 /// is given, the current directory is used.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(group(ArgGroup::new("backend").args(&["git", "git-repo"])))]
+#[command(group(ArgGroup::new("backend").args(&["git", "git_repo"])))]
 struct InitArgs {
     /// The destination directory
-    #[clap(default_value = ".")]
+    #[arg(default_value = ".", value_hint = clap::ValueHint::DirPath)]
     destination: String,
     /// Use the Git backend, creating a jj repo backed by a Git repo
-    #[clap(long)]
+    #[arg(long)]
     git: bool,
     /// Path to a git repo the jj repo will be backed by
-    #[clap(long)]
+    #[arg(long, value_hint = clap::ValueHint::DirPath)]
     git_repo: Option<String>,
 }
 
-/// Update the working copy to another revision
+/// Create a new, empty change and edit it in the working copy
 ///
-/// If the revision is closed or has conflicts, then a new, open revision will
-/// be created on top, and that will be checked out. For more information, see
+/// For more information, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_aliases = &["co", "update", "up"])]
+#[command(visible_aliases = &["co", "update", "up"])]
 struct CheckoutArgs {
     /// The revision to update to
     revision: String,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[arg(short = 'r', hide = true)]
+    unused_revision: bool,
+    /// The change description to use
+    #[arg(long, short, default_value = "")]
+    message: String,
 }
 
 /// Stop tracking specified paths in the working copy
 #[derive(clap::Args, Clone, Debug)]
 struct UntrackArgs {
     /// Paths to untrack
-    #[clap(required = true)]
+    #[arg(required = true, value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -1180,9 +169,10 @@ struct UntrackArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct FilesArgs {
     /// The revision to list files in
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// Only list files matching these prefixes (instead of all files)
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -1190,23 +180,24 @@ struct FilesArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct PrintArgs {
     /// The revision to get the file contents from
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// The file to print
+    #[arg(value_hint = clap::ValueHint::FilePath)]
     path: String,
 }
 
 #[derive(clap::Args, Clone, Debug)]
-#[clap(group(ArgGroup::new("format").args(&["summary", "git", "color-words"])))]
+#[command(group(ArgGroup::new("format").args(&["summary", "git", "color_words"])))]
 struct DiffFormatArgs {
     /// For each path, show only whether it was modified, added, or removed
-    #[clap(long, short)]
+    #[arg(long, short)]
     summary: bool,
     /// Show a Git-format diff
-    #[clap(long)]
+    #[arg(long)]
     git: bool,
     /// Show a word-level diff with changes indicated only by color
-    #[clap(long)]
+    #[arg(long)]
     color_words: bool,
 }
 
@@ -1223,28 +214,32 @@ struct DiffFormatArgs {
 /// branch name) to the current checkout.
 #[derive(clap::Args, Clone, Debug)]
 struct DiffArgs {
-    /// Show changes changes in this revision, compared to its parent(s)
-    #[clap(long, short)]
+    /// Show changes in this revision, compared to its parent(s)
+    #[arg(long, short)]
     revision: Option<String>,
     /// Show changes from this revision
-    #[clap(long, conflicts_with = "revision")]
+    #[arg(long, conflicts_with = "revision")]
     from: Option<String>,
     /// Show changes to this revision
-    #[clap(long, conflicts_with = "revision")]
+    #[arg(long, conflicts_with = "revision")]
     to: Option<String>,
     /// Restrict the diff to these paths
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
-    #[clap(flatten)]
+    #[command(flatten)]
     format: DiffFormatArgs,
 }
 
 /// Show commit description and changes in a revision
 #[derive(clap::Args, Clone, Debug)]
 struct ShowArgs {
-    /// Show changes changes in this revision, compared to its parent(s)
-    #[clap(default_value = "@")]
+    /// Show changes in this revision, compared to its parent(s)
+    #[arg(default_value = "@")]
     revision: String,
-    #[clap(flatten)]
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[arg(short = 'r', hide = true)]
+    unused_revision: bool,
+    #[command(flatten)]
     format: DiffFormatArgs,
 }
 
@@ -1257,33 +252,33 @@ struct ShowArgs {
 ///
 ///  * Conflicted branches (see https://github.com/martinvonz/jj/blob/main/docs/branches.md)
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "st")]
+#[command(visible_alias = "st")]
 struct StatusArgs {}
 
 /// Show commit history
 #[derive(clap::Args, Clone, Debug)]
 struct LogArgs {
-    /// Which revisions to show
-    #[clap(
-        long,
-        short,
-        default_value = "remote_branches().. | (remote_branches()..)-"
-    )]
-    revisions: String,
+    /// Which revisions to show. Defaults to the `ui.default-revset` setting,
+    /// or "remote_branches().. | (remote_branches()..)-" if it is not set.
+    #[arg(long, short)]
+    revisions: Option<String>,
+    /// Show commits modifying the given paths
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    paths: Vec<String>,
     /// Show revisions in the opposite order (older revisions first)
-    #[clap(long)]
+    #[arg(long)]
     reversed: bool,
     /// Don't show the graph, show a flat list of revisions
-    #[clap(long)]
+    #[arg(long)]
     no_graph: bool,
     /// Render each revision using the given template (the syntax is not yet
     /// documented and is likely to change)
-    #[clap(long, short = 'T')]
+    #[arg(long, short = 'T')]
     template: Option<String>,
     /// Show patch
-    #[clap(long, short = 'p')]
+    #[arg(long, short = 'p')]
     patch: bool,
-    #[clap(flatten)]
+    #[command(flatten)]
     diff_format: DiffFormatArgs,
 }
 
@@ -1292,24 +287,45 @@ struct LogArgs {
 /// Show how a change has evolved as it's been updated, rebased, etc.
 #[derive(clap::Args, Clone, Debug)]
 struct ObslogArgs {
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// Don't show the graph, show a flat list of revisions
-    #[clap(long)]
+    #[arg(long)]
     no_graph: bool,
     /// Render each revision using the given template (the syntax is not yet
     /// documented and is likely to change)
-    #[clap(long, short = 'T')]
+    #[arg(long, short = 'T')]
     template: Option<String>,
     /// Show patch compared to the previous version of this change
     ///
     /// If the previous version has different parents, it will be temporarily
     /// rebased to the parents of the new version, so the diff is not
     /// contaminated by unrelated changes.
-    #[clap(long, short = 'p')]
+    #[arg(long, short = 'p')]
     patch: bool,
-    #[clap(flatten)]
+    #[command(flatten)]
     diff_format: DiffFormatArgs,
+}
+
+/// Compare the changes of two commits
+///
+/// This excludes changes from other commits by temporarily rebasing `--from`
+/// onto `--to`'s parents. If you wish to compare the same change across
+/// versions, consider `jj obslog -p` instead.
+#[derive(clap::Args, Clone, Debug)]
+#[command(group(ArgGroup::new("to_diff").args(&["from", "to"]).multiple(true).required(true)))]
+struct InterdiffArgs {
+    /// Show changes from this revision
+    #[arg(long)]
+    from: Option<String>,
+    /// Show changes to this revision
+    #[arg(long)]
+    to: Option<String>,
+    /// Restrict the diff to these paths
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    paths: Vec<String>,
+    #[command(flatten)]
+    format: DiffFormatArgs,
 }
 
 /// Edit the change description
@@ -1319,13 +335,16 @@ struct ObslogArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct DescribeArgs {
     /// The revision whose description to edit
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     revision: String,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[arg(short = 'r', hide = true)]
+    unused_revision: bool,
     /// The change description to use (don't open editor)
-    #[clap(long, short)]
+    #[arg(long, short)]
     message: Option<String>,
     /// Read the change description from stdin
-    #[clap(long)]
+    #[arg(long)]
     stdin: bool,
 }
 
@@ -1334,16 +353,19 @@ struct DescribeArgs {
 /// For information about open/closed revisions, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "commit")]
+#[command(visible_alias = "commit", hide = true)]
 struct CloseArgs {
     /// The revision to close
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     revision: String,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[arg(short = 'r', hide = true)]
+    unused_revision: bool,
     /// The change description to use (don't open editor)
-    #[clap(long, short)]
+    #[arg(long, short)]
     message: Option<String>,
     /// Also edit the description
-    #[clap(long, short)]
+    #[arg(long, short)]
     edit: bool,
 }
 
@@ -1352,10 +374,13 @@ struct CloseArgs {
 /// For information about open/closed revisions,
 /// see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "uncommit")]
+#[command(alias = "uncommit", hide = true)]
 struct OpenArgs {
     /// The revision to open
     revision: String,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[arg(short = 'r', hide = true)]
+    unused_revision: bool,
 }
 
 /// Create a new change with the same content as an existing one
@@ -1365,8 +390,11 @@ struct OpenArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct DuplicateArgs {
     /// The revision to duplicate
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     revision: String,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[arg(short = 'r', hide = true)]
+    unused_revision: bool,
 }
 
 /// Abandon a revision
@@ -1375,10 +403,14 @@ struct DuplicateArgs {
 /// similar to `jj restore`; the difference is that `jj abandon` gives you a new
 /// change, while `jj restore` updates the existing change.
 #[derive(clap::Args, Clone, Debug)]
+#[command(visible_alias = "hide")]
 struct AbandonArgs {
     /// The revision(s) to abandon
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     revisions: Vec<String>,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[arg(short = 'r', hide = true)]
+    unused_revision: bool,
 }
 
 /// Edit a commit in the working copy
@@ -1389,21 +421,29 @@ struct AbandonArgs {
 struct EditArgs {
     /// The commit to edit
     revision: String,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[arg(short = 'r', hide = true)]
+    unused_revision: bool,
 }
 
-/// Create a new, empty change and check it out
+/// Create a new, empty change and edit it in the working copy
 ///
-/// This may be useful if you want to make some changes you're unsure of on top
-/// of the working copy. If the changes turned out to be useful, you can `jj
-/// squash` them into the previous working copy. If they turned out to be
-/// unsuccessful, you can `jj abandon` them.
+/// Note that you can create a merge commit by specifying multiple revisions as
+/// argument. For example, `jj new main @` will create a new commit with the
+/// `main` branch and the working copy as parents.
+///
+/// For more information, see
+/// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
 struct NewArgs {
-    /// Parent of the new change
-    #[clap(default_value = "@")]
-    revision: String,
+    /// Parent(s) of the new change
+    #[arg(default_value = "@")]
+    revisions: Vec<String>,
+    /// Ignored (but lets you pass `-r` for consistency with other commands)
+    #[arg(short = 'r', hide = true)]
+    unused_revision: bool,
     /// The change description to use
-    #[clap(long, short, default_value = "")]
+    #[arg(long, short, default_value = "")]
     message: String,
 }
 
@@ -1413,22 +453,26 @@ struct NewArgs {
 /// destination. The selected changes (or all the changes in the source revision
 /// if not using `--interactive`) will be moved into the destination. The
 /// changes will be removed from the source. If that means that the source is
-/// now empty compared to its parent, it will be abandoned unless it's checked
-/// out. Without `--interactive`, the source change will always be empty.
+/// now empty compared to its parent, it will be abandoned. Without
+/// `--interactive`, the source change will always be empty.
+///
+/// If the source became empty and both the source and destination had a
+/// non-empty description, you will be asked for the combined description. If
+/// either was empty, then the other one will be used.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(group(ArgGroup::new("to_move").args(&["from", "to"]).multiple(true).required(true)))]
+#[command(group(ArgGroup::new("to_move").args(&["from", "to"]).multiple(true).required(true)))]
 struct MoveArgs {
     /// Move part of this change into the destination
-    #[clap(long)]
+    #[arg(long)]
     from: Option<String>,
     /// Move part of the source into this change
-    #[clap(long)]
+    #[arg(long)]
     to: Option<String>,
     /// Interactively choose which parts to move
-    #[clap(long, short)]
+    #[arg(long, short)]
     interactive: bool,
     /// Move only changes to these paths (instead of all paths)
-    #[clap(conflicts_with = "interactive")]
+    #[arg(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -1436,18 +480,22 @@ struct MoveArgs {
 ///
 /// After moving the changes into the parent, the child revision will have the
 /// same content state as before. If that means that the change is now empty
-/// compared to its parent, it will be abandoned unless it's checked out.
+/// compared to its parent, it will be abandoned.
 /// Without `--interactive`, the child change will always be empty.
+///
+/// If the source became empty and both the source and destination had a
+/// non-empty description, you will be asked for the combined description. If
+/// either was empty, then the other one will be used.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "amend")]
+#[command(visible_alias = "amend")]
 struct SquashArgs {
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// Interactively choose which parts to squash
-    #[clap(long, short)]
+    #[arg(long, short)]
     interactive: bool,
     /// Move only changes to these paths (instead of all paths)
-    #[clap(conflicts_with = "interactive")]
+    #[arg(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -1455,18 +503,21 @@ struct SquashArgs {
 ///
 /// After moving the changes out of the parent, the child revision will have the
 /// same content state as before. If moving the change out of the parent change
-/// made it empty compared to its parent, it will be abandoned unless it's
-/// checked out. Without `--interactive`, the parent change will always become
-/// empty.
+/// made it empty compared to its parent, it will be abandoned. Without
+/// `--interactive`, the parent change will always become empty.
+///
+/// If the source became empty and both the source and destination had a
+/// non-empty description, you will be asked for the combined description. If
+/// either was empty, then the other one will be used.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(visible_alias = "unamend")]
+#[command(visible_alias = "unamend")]
 struct UnsquashArgs {
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// Interactively choose which parts to unsquash
     // TODO: It doesn't make much sense to run this without -i. We should make that
     // the default.
-    #[clap(long, short)]
+    #[arg(long, short)]
     interactive: bool,
 }
 
@@ -1479,27 +530,19 @@ struct UnsquashArgs {
 /// When neither `--from` nor `--to` is specified, the command restores into the
 /// working copy from its parent. If one of `--from` or `--to` is specified, the
 /// other one defaults to the working copy.
-///
-/// If you restore from a revision where the path has conflicts, then the
-/// destination revision will have the same conflict. If the destination is the
-/// working copy, then a new commit will be created on top for resolving the
-/// conflict (as if you had run `jj checkout` on the new revision). Taken
-/// together, that means that if you're already resolving conflicts and you want
-/// to restart the resolution of some file, you may want to run `jj restore
-/// <path>; jj squash`.
 #[derive(clap::Args, Clone, Debug)]
 struct RestoreArgs {
     /// Revision to restore from (source)
-    #[clap(long)]
+    #[arg(long)]
     from: Option<String>,
     /// Revision to restore into (destination)
-    #[clap(long)]
+    #[arg(long)]
     to: Option<String>,
     /// Interactively choose which parts to restore
-    #[clap(long, short)]
+    #[arg(long, short)]
     interactive: bool,
     /// Restore only these paths (instead of all paths)
-    #[clap(conflicts_with = "interactive")]
+    #[arg(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -1514,7 +557,7 @@ struct RestoreArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct TouchupArgs {
     /// The revision to touch up
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
 }
 
@@ -1528,27 +571,14 @@ struct TouchupArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct SplitArgs {
     /// The revision to split
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// Put these paths in the first commit and don't run the diff editor
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
-/// Merge work from multiple branches
-///
-/// Unlike most other VCSs, `jj merge` does not implicitly include the working
-/// copy revision's parent as one of the parents of the merge; you need to
-/// explicitly list all revisions that should become parents of the merge. Also,
-/// you need to explicitly check out the resulting revision if you want to.
-#[derive(clap::Args, Clone, Debug)]
-struct MergeArgs {
-    revisions: Vec<String>,
-    /// The change description to use (don't open editor)
-    #[clap(long, short)]
-    message: Option<String>,
-}
-
-/// Move revisions to a different parent
+/// Move revisions to different parent(s)
 ///
 /// There are three different ways of specifying which revisions to rebase:
 /// `-b` to rebase a whole branch, `-s` to rebase a revision and its
@@ -1595,22 +625,35 @@ struct MergeArgs {
 /// | B        | C'
 /// |/         |/
 /// A          A
+///
+/// Note that you can create a merge commit by repeating the `-d` argument.
+/// For example, if you realize that commit C actually depends on commit D in
+/// order to work (in addition to its current parent B), you can run `jj rebase
+/// -s C -d B -d D`:
+///
+/// D          C'
+/// |          |\
+/// | C        D |
+/// | |   =>   | |
+/// | B        | B
+/// |/         |/
+/// A          A
 #[derive(clap::Args, Clone, Debug)]
-#[clap(verbatim_doc_comment)]
-#[clap(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revision"])))]
+#[command(verbatim_doc_comment)]
+#[command(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revision"])))]
 struct RebaseArgs {
     /// Rebase the whole branch (relative to destination's ancestors)
-    #[clap(long, short)]
+    #[arg(long, short)]
     branch: Option<String>,
     /// Rebase this revision and its descendants
-    #[clap(long, short)]
+    #[arg(long, short)]
     source: Option<String>,
     /// Rebase only this revision, rebasing descendants onto this revision's
     /// parent(s)
-    #[clap(long, short)]
+    #[arg(long, short)]
     revision: Option<String>,
-    /// The revision to rebase onto
-    #[clap(long, short, required = true)]
+    /// The revision(s) to rebase onto
+    #[arg(long, short, required = true)]
     destination: Vec<String>,
 }
 
@@ -1618,12 +661,12 @@ struct RebaseArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct BackoutArgs {
     /// The revision to apply the reverse of
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
     /// The revision to apply the reverse changes on top of
     // TODO: It seems better to default this to `@-`. Maybe the working
     // copy should be rebased on top?
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     destination: Vec<String>,
 }
 
@@ -1634,32 +677,35 @@ struct BackoutArgs {
 #[derive(clap::Subcommand, Clone, Debug)]
 enum BranchSubcommand {
     /// Create a new branch.
-    #[clap(visible_alias("c"))]
+    #[command(visible_alias("c"))]
     Create {
         /// The branch's target revision.
-        #[clap(long, short)]
+        #[arg(long, short)]
         revision: Option<String>,
 
         /// The branches to create.
-        #[clap(required = true)]
+        #[arg(required = true)]
         names: Vec<String>,
     },
 
     /// Delete an existing branch and propagate the deletion to remotes on the
     /// next push.
-    #[clap(visible_alias("d"))]
+    #[command(visible_alias("d"))]
     Delete {
         /// The branches to delete.
-        #[clap(required = true)]
+        #[arg(required = true)]
         names: Vec<String>,
     },
 
-    /// Delete the local version of an existing branch, without propagating the
-    /// deletion to remotes.
-    #[clap(visible_alias("f"))]
+    /// Forget everything about a branch, including its local and remote
+    /// targets.
+    ///
+    /// A forgotten branch will not impact remotes on future pushes. It will be
+    /// recreated on future pulls if it still exists in the remote.
+    #[command(visible_alias("f"))]
     Forget {
         /// The branches to delete.
-        #[clap(required = true)]
+        #[arg(required = true)]
         names: Vec<String>,
     },
 
@@ -1670,22 +716,22 @@ enum BranchSubcommand {
     /// target revisions are preceded by a "-" and new target revisions are
     /// preceded by a "+". For information about branches, see
     /// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
-    #[clap(visible_alias("l"))]
+    #[command(visible_alias("l"))]
     List,
 
     /// Update a given branch to point to a certain commit.
-    #[clap(visible_alias("s"))]
+    #[command(visible_alias("s"))]
     Set {
         /// The branch's target revision.
-        #[clap(long, short)]
+        #[arg(long, short)]
         revision: Option<String>,
 
         /// Allow moving the branch backwards or sideways.
-        #[clap(long)]
+        #[arg(long)]
         allow_backwards: bool,
 
         /// The branches to update.
-        #[clap(required = true)]
+        #[arg(required = true)]
         names: Vec<String>,
     },
 }
@@ -1716,7 +762,7 @@ struct OperationRestoreArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct OperationUndoArgs {
     /// The operation to undo
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     operation: String,
 }
 
@@ -1737,7 +783,7 @@ struct WorkspaceAddArgs {
     ///
     /// To override the default, which is the basename of the destination
     /// directory.
-    #[clap(long)]
+    #[arg(long)]
     name: Option<String>,
 }
 
@@ -1759,19 +805,19 @@ struct WorkspaceListArgs {}
 #[derive(clap::Args, Clone, Debug)]
 struct SparseArgs {
     /// Patterns to add to the working copy
-    #[clap(long)]
+    #[arg(long, value_hint = clap::ValueHint::AnyPath)]
     add: Vec<String>,
     /// Patterns to remove from the working copy
-    #[clap(long, conflicts_with = "clear")]
+    #[arg(long, conflicts_with = "clear", value_hint = clap::ValueHint::AnyPath)]
     remove: Vec<String>,
     /// Include no files in the working copy (combine with --add)
-    #[clap(long)]
+    #[arg(long)]
     clear: bool,
     /// Include all files in the working copy
-    #[clap(long, conflicts_with_all = &["add", "remove", "clear"])]
+    #[arg(long, conflicts_with_all = &["add", "remove", "clear"])]
     reset: bool,
     /// List patterns
-    #[clap(long, conflicts_with_all = &["add", "remove", "clear", "reset"])]
+    #[arg(long, conflicts_with_all = &["add", "remove", "clear", "reset"])]
     list: bool,
 }
 
@@ -1781,7 +827,7 @@ struct SparseArgs {
 /// https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.
 #[derive(Subcommand, Clone, Debug)]
 enum GitCommands {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     Remote(GitRemoteCommands),
     Fetch(GitFetchArgs),
     Clone(GitCloneArgs),
@@ -1824,7 +870,7 @@ struct GitRemoteListArgs {}
 #[derive(clap::Args, Clone, Debug)]
 struct GitFetchArgs {
     /// The remote to fetch from (only named remotes are supported)
-    #[clap(long, default_value = "origin")]
+    #[arg(long, default_value = "origin")]
     remote: String,
 }
 
@@ -1834,8 +880,10 @@ struct GitFetchArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct GitCloneArgs {
     /// URL or path of the Git repo to clone
+    #[arg(value_hint = clap::ValueHint::DirPath)]
     source: String,
     /// The directory to write the Jujutsu repo to
+    #[arg(value_hint = clap::ValueHint::DirPath)]
     destination: Option<String>,
 }
 
@@ -1845,22 +893,22 @@ struct GitCloneArgs {
 /// specific branch. Use `--all` to push all branches. Use `--change` to
 /// generate a branch name based on a specific commit's change ID.
 #[derive(clap::Args, Clone, Debug)]
-#[clap(group(ArgGroup::new("what").args(&["branch", "all", "change"])))]
+#[command(group(ArgGroup::new("what").args(&["branch", "all", "change"])))]
 struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
-    #[clap(long, default_value = "origin")]
+    #[arg(long, default_value = "origin")]
     remote: String,
     /// Push only this branch
-    #[clap(long)]
+    #[arg(long)]
     branch: Option<String>,
     /// Push all branches
-    #[clap(long)]
+    #[arg(long)]
     all: bool,
     /// Push this commit by creating a branch based on its change ID
-    #[clap(long)]
+    #[arg(long)]
     change: Option<String>,
     /// Only display what will change on the remote
-    #[clap(long)]
+    #[arg(long)]
     dry_run: bool,
 }
 
@@ -1872,60 +920,19 @@ struct GitImportArgs {}
 #[derive(clap::Args, Clone, Debug)]
 struct GitExportArgs {}
 
-/// Commands for benchmarking internal operations
-#[derive(Subcommand, Clone, Debug)]
-enum BenchCommands {
-    #[clap(name = "commonancestors")]
-    CommonAncestors(BenchCommonAncestorsArgs),
-    #[clap(name = "isancestor")]
-    IsAncestor(BenchIsAncestorArgs),
-    #[clap(name = "walkrevs")]
-    WalkRevs(BenchWalkRevsArgs),
-    #[clap(name = "resolveprefix")]
-    ResolvePrefix(BenchResolvePrefixArgs),
-}
-
-/// Find the common ancestor(s) of a set of commits
-#[derive(clap::Args, Clone, Debug)]
-struct BenchCommonAncestorsArgs {
-    revision1: String,
-    revision2: String,
-}
-
-/// Checks if the first commit is an ancestor of the second commit
-#[derive(clap::Args, Clone, Debug)]
-struct BenchIsAncestorArgs {
-    ancestor: String,
-    descendant: String,
-}
-
-/// Walk revisions that are ancestors of the second argument but not ancestors
-/// of the first
-#[derive(clap::Args, Clone, Debug)]
-struct BenchWalkRevsArgs {
-    unwanted: String,
-    wanted: String,
-}
-
-/// Resolve a commit ID prefix
-#[derive(clap::Args, Clone, Debug)]
-struct BenchResolvePrefixArgs {
-    prefix: String,
-}
-
 /// Low-level commands not intended for users
 #[derive(Subcommand, Clone, Debug)]
-#[clap(hide = true)]
+#[command(hide = true)]
 enum DebugCommands {
     Completion(DebugCompletionArgs),
     Mangen(DebugMangenArgs),
-    #[clap(name = "resolverev")]
+    #[command(name = "resolverev")]
     ResolveRev(DebugResolveRevArgs),
-    #[clap(name = "workingcopy")]
+    #[command(name = "workingcopy")]
     WorkingCopy(DebugWorkingCopyArgs),
     Template(DebugTemplateArgs),
     Index(DebugIndexArgs),
-    #[clap(name = "reindex")]
+    #[command(name = "reindex")]
     ReIndex(DebugReIndexArgs),
     Operation(DebugOperationArgs),
 }
@@ -1938,7 +945,7 @@ struct DebugCompletionArgs {
     /// Apply it by running this:
     ///
     /// source <(jj debug completion)
-    #[clap(long, verbatim_doc_comment)]
+    #[arg(long, verbatim_doc_comment)]
     bash: bool,
     /// Print a completion script for Fish
     ///
@@ -1948,14 +955,14 @@ struct DebugCompletionArgs {
     /// compinit
     /// source <(jj debug completion --zsh | sed '$d')  # remove the last line
     /// compdef _jj jj
-    #[clap(long, verbatim_doc_comment)]
+    #[arg(long, verbatim_doc_comment)]
     fish: bool,
     /// Print a completion script for Zsh
     ///
     /// Apply it by running this:
     ///
     /// jj debug completion --fish | source
-    #[clap(long, verbatim_doc_comment)]
+    #[arg(long, verbatim_doc_comment)]
     zsh: bool,
 }
 
@@ -1966,7 +973,7 @@ struct DebugMangenArgs {}
 /// Resolve a revision identifier to its full ID
 #[derive(clap::Args, Clone, Debug)]
 struct DebugResolveRevArgs {
-    #[clap(long, short, default_value = "@")]
+    #[arg(long, short, default_value = "@")]
     revision: String,
 }
 
@@ -1991,17 +998,8 @@ struct DebugReIndexArgs {}
 /// Show information about an operation and its view
 #[derive(clap::Args, Clone, Debug)]
 struct DebugOperationArgs {
-    #[clap(default_value = "@")]
+    #[arg(default_value = "@")]
     operation: String,
-}
-
-fn short_commit_description(commit: &Commit) -> String {
-    let first_line = commit.description().split('\n').next().unwrap();
-    format!("{} ({})", short_commit_hash(commit.id()), first_line)
-}
-
-fn short_commit_hash(commit_id: &CommitId) -> String {
-    commit_id.hex()[0..12].to_string()
 }
 
 fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), CommandError> {
@@ -2041,6 +1039,15 @@ fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), Co
     Ok(())
 }
 
+fn cmd_version(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &VersionArgs,
+) -> Result<(), CommandError> {
+    ui.write(&command.app().render_version())?;
+    Ok(())
+}
+
 fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(), CommandError> {
     if command.global_args().repository.is_some() {
         return Err(CommandError::UserError(
@@ -2070,9 +1077,10 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
                 .join(relative_path);
         }
         let (workspace, repo) =
-            Workspace::init_external_git(ui.settings(), wc_path.clone(), git_store_path)?;
+            Workspace::init_external_git(ui.settings(), &wc_path, &git_store_path)?;
         let git_repo = repo.store().git_repo().unwrap();
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
+        workspace_command.snapshot(ui)?;
         if workspace_command.working_copy_shared_with_git() {
             add_to_git_exclude(ui, &git_repo)?;
         } else {
@@ -2091,9 +1099,16 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
             }
         }
     } else if args.git {
-        Workspace::init_internal_git(ui.settings(), wc_path.clone())?;
+        Workspace::init_internal_git(ui.settings(), &wc_path)?;
     } else {
-        Workspace::init_local(ui.settings(), wc_path.clone())?;
+        if !ui.settings().allow_native_backend() {
+            return Err(CommandError::UserError(
+                "The native backend is disallowed by default. Did you mean to pass `--git`?
+Set `ui.allow-init-native` to allow initializing a repo with the native backend."
+                    .to_string(),
+            ));
+        }
+        Workspace::init_local(ui.settings(), &wc_path)?;
     };
     let cwd = ui.cwd().canonicalize().unwrap();
     let relative_wc_path = ui::relative_path(&cwd, &wc_path);
@@ -2107,27 +1122,44 @@ fn cmd_checkout(
     args: &CheckoutArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let target = workspace_command.resolve_single_rev(&args.revision)?;
     let workspace_id = workspace_command.workspace_id();
     if ui.settings().enable_open_commits() {
-        if workspace_command.repo().view().get_checkout(&workspace_id) == Some(new_commit.id()) {
+        if workspace_command
+            .repo()
+            .view()
+            .get_wc_commit_id(&workspace_id)
+            == Some(target.id())
+        {
             ui.write("Already on that commit\n")?;
         } else {
             let mut tx = workspace_command
-                .start_transaction(&format!("check out commit {}", new_commit.id().hex()));
-            if new_commit.is_open() {
-                tx.mut_repo().edit(workspace_id, &new_commit);
+                .start_transaction(&format!("check out commit {}", target.id().hex()));
+            if target.is_open() {
+                tx.mut_repo().edit(workspace_id, &target);
             } else {
-                tx.mut_repo()
-                    .check_out(workspace_id, ui.settings(), &new_commit);
+                let commit_builder = CommitBuilder::for_open_commit(
+                    ui.settings(),
+                    target.id().clone(),
+                    target.tree_id().clone(),
+                )
+                .set_description(args.message.clone());
+                let new_commit = commit_builder.write_to_repo(tx.mut_repo());
+                tx.mut_repo().edit(workspace_id, &new_commit);
             }
             workspace_command.finish_transaction(ui, tx)?;
         }
     } else {
-        let mut tx = workspace_command
-            .start_transaction(&format!("check out commit {}", new_commit.id().hex()));
-        tx.mut_repo()
-            .check_out(workspace_id, ui.settings(), &new_commit);
+        let mut tx =
+            workspace_command.start_transaction(&format!("check out commit {}", target.id().hex()));
+        let commit_builder = CommitBuilder::for_open_commit(
+            ui.settings(),
+            target.id().clone(),
+            target.tree_id().clone(),
+        )
+        .set_description(args.message.clone());
+        let new_commit = commit_builder.write_to_repo(tx.mut_repo());
+        tx.mut_repo().edit(workspace_id, &new_commit);
         workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())
@@ -2144,11 +1176,10 @@ fn cmd_untrack(
 
     let mut tx = workspace_command.start_transaction("untrack paths");
     let base_ignores = workspace_command.base_ignores();
-    let (mut locked_working_copy, current_checkout) =
-        workspace_command.start_working_copy_mutation()?;
+    let (mut locked_working_copy, wc_commit) = workspace_command.start_working_copy_mutation()?;
     // Create a new tree without the unwanted files
-    let mut tree_builder = store.tree_builder(current_checkout.tree_id().clone());
-    for (path, _value) in current_checkout.tree().entries_matching(matcher.as_ref()) {
+    let mut tree_builder = store.tree_builder(wc_commit.tree_id().clone());
+    for (path, _value) in wc_commit.tree().entries_matching(matcher.as_ref()) {
         tree_builder.remove(path);
     }
     let new_tree_id = tree_builder.write_tree();
@@ -2165,27 +1196,28 @@ fn cmd_untrack(
             locked_working_copy.discard();
             let path = &added_back[0].0;
             let ui_path = workspace_command.format_file_path(path);
-            if added_back.len() > 1 {
-                return Err(CommandError::UserError(format!(
+            let message = if added_back.len() > 1 {
+                format!(
                     "'{}' and {} other files would be added back because they're not ignored. \
                      Make sure they're ignored, then try again.",
                     ui_path,
                     added_back.len() - 1
-                )));
+                )
             } else {
-                return Err(CommandError::UserError(format!(
+                format!(
                     "'{}' would be added back because it's not ignored. Make sure it's ignored, \
                      then try again.",
                     ui_path
-                )));
-            }
+                )
+            };
+            return Err(CommandError::UserError(message));
         } else {
             // This means there were some concurrent changes made in the working copy. We
             // don't want to mix those in, so reset the working copy again.
             locked_working_copy.reset(&new_tree)?;
         }
     }
-    CommitBuilder::for_rewrite_from(ui.settings(), &current_checkout)
+    CommitBuilder::for_rewrite_from(ui.settings(), &wc_commit)
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
     let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
@@ -2298,17 +1330,17 @@ fn show_color_words_diff_line(
     diff_line: &DiffLine,
 ) -> io::Result<()> {
     if diff_line.has_left_content {
-        formatter.add_label(String::from("removed"))?;
-        formatter.write_bytes(format!("{:>4}", diff_line.left_line_number).as_bytes())?;
-        formatter.remove_label()?;
+        formatter.with_label("removed", |formatter| {
+            formatter.write_bytes(format!("{:>4}", diff_line.left_line_number).as_bytes())
+        })?;
         formatter.write_bytes(b" ")?;
     } else {
         formatter.write_bytes(b"     ")?;
     }
     if diff_line.has_right_content {
-        formatter.add_label(String::from("added"))?;
-        formatter.write_bytes(format!("{:>4}", diff_line.right_line_number).as_bytes())?;
-        formatter.remove_label()?;
+        formatter.with_label("added", |formatter| {
+            formatter.write_bytes(format!("{:>4}", diff_line.right_line_number).as_bytes())
+        })?;
         formatter.write_bytes(b": ")?;
     } else {
         formatter.write_bytes(b"    : ")?;
@@ -2322,14 +1354,10 @@ fn show_color_words_diff_line(
                 let before = data[0];
                 let after = data[1];
                 if !before.is_empty() {
-                    formatter.add_label(String::from("removed"))?;
-                    formatter.write_bytes(before)?;
-                    formatter.remove_label()?;
+                    formatter.with_label("removed", |formatter| formatter.write_bytes(before))?;
                 }
                 if !after.is_empty() {
-                    formatter.add_label(String::from("added"))?;
-                    formatter.write_bytes(after)?;
-                    formatter.remove_label()?;
+                    formatter.with_label("added", |formatter| formatter.write_bytes(after))?;
                 }
             }
         }
@@ -2508,16 +1536,16 @@ fn show_color_words_diff(
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
-    formatter.add_label(String::from("diff"))?;
+    formatter.add_label("diff")?;
     for (path, diff) in tree_diff {
         let ui_path = workspace_command.format_file_path(&path);
         match diff {
             tree::Diff::Added(right_value) => {
                 let right_content = diff_content(repo, &path, &right_value)?;
                 let description = basic_diff_file_type(&right_value);
-                formatter.add_label(String::from("header"))?;
-                formatter.write_str(&format!("Added {} {}:\n", description, ui_path))?;
-                formatter.remove_label()?;
+                formatter.with_label("header", |formatter| {
+                    formatter.write_str(&format!("Added {} {}:\n", description, ui_path))
+                })?;
                 show_color_words_diff_hunks(&[], &right_content, formatter)?;
             }
             tree::Diff::Modified(left_value, right_value) => {
@@ -2564,17 +1592,17 @@ fn show_color_words_diff(
                         )
                     }
                 };
-                formatter.add_label(String::from("header"))?;
-                formatter.write_str(&format!("{} {}:\n", description, ui_path))?;
-                formatter.remove_label()?;
+                formatter.with_label("header", |formatter| {
+                    formatter.write_str(&format!("{} {}:\n", description, ui_path))
+                })?;
                 show_color_words_diff_hunks(&left_content, &right_content, formatter)?;
             }
             tree::Diff::Removed(left_value) => {
                 let left_content = diff_content(repo, &path, &left_value)?;
                 let description = basic_diff_file_type(&left_value);
-                formatter.add_label(String::from("header"))?;
-                formatter.write_str(&format!("Removed {} {}:\n", description, ui_path))?;
-                formatter.remove_label()?;
+                formatter.with_label("header", |formatter| {
+                    formatter.write_str(&format!("Removed {} {}:\n", description, ui_path))
+                })?;
                 show_color_words_diff_hunks(&left_content, &[], formatter)?;
             }
         }
@@ -2739,35 +1767,35 @@ fn show_unified_diff_hunks(
     right_content: &[u8],
 ) -> Result<(), CommandError> {
     for hunk in unified_diff_hunks(left_content, right_content, 3) {
-        formatter.add_label(String::from("hunk_header"))?;
-        writeln!(
-            formatter,
-            "@@ -{},{} +{},{} @@",
-            hunk.left_line_range.start,
-            hunk.left_line_range.len(),
-            hunk.right_line_range.start,
-            hunk.right_line_range.len()
-        )?;
-        formatter.remove_label()?;
+        formatter.with_label("hunk_header", |formatter| {
+            writeln!(
+                formatter,
+                "@@ -{},{} +{},{} @@",
+                hunk.left_line_range.start,
+                hunk.left_line_range.len(),
+                hunk.right_line_range.start,
+                hunk.right_line_range.len()
+            )
+        })?;
         for (line_type, content) in hunk.lines {
             match line_type {
                 DiffLineType::Context => {
-                    formatter.add_label(String::from("context"))?;
-                    formatter.write_str(" ")?;
-                    formatter.write_all(content)?;
-                    formatter.remove_label()?;
+                    formatter.with_label("context", |formatter| {
+                        formatter.write_str(" ")?;
+                        formatter.write_all(content)
+                    })?;
                 }
                 DiffLineType::Removed => {
-                    formatter.add_label(String::from("removed"))?;
-                    formatter.write_str("-")?;
-                    formatter.write_all(content)?;
-                    formatter.remove_label()?;
+                    formatter.with_label("removed", |formatter| {
+                        formatter.write_str("-")?;
+                        formatter.write_all(content)
+                    })?;
                 }
                 DiffLineType::Added => {
-                    formatter.add_label(String::from("added"))?;
-                    formatter.write_str("+")?;
-                    formatter.write_all(content)?;
-                    formatter.remove_label()?;
+                    formatter.with_label("added", |formatter| {
+                        formatter.write_str("+")?;
+                        formatter.write_all(content)
+                    })?;
                 }
             }
             if !content.ends_with(b"\n") {
@@ -2784,51 +1812,56 @@ fn show_git_diff(
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
-    formatter.add_label(String::from("diff"))?;
+    formatter.add_label("diff")?;
     for (path, diff) in tree_diff {
         let path_string = path.to_internal_file_string();
-        formatter.add_label(String::from("file_header"))?;
-        writeln!(formatter, "diff --git a/{} b/{}", path_string, path_string)?;
         match diff {
             tree::Diff::Added(right_value) => {
                 let right_part = git_diff_part(repo, &path, &right_value)?;
-                writeln!(formatter, "new file mode {}", &right_part.mode)?;
-                writeln!(formatter, "index 0000000000..{}", &right_part.hash)?;
-                writeln!(formatter, "--- /dev/null")?;
-                writeln!(formatter, "+++ b/{}", path_string)?;
-                formatter.remove_label()?;
+                formatter.with_label("file_header", |formatter| {
+                    writeln!(formatter, "diff --git a/{} b/{}", path_string, path_string)?;
+                    writeln!(formatter, "new file mode {}", &right_part.mode)?;
+                    writeln!(formatter, "index 0000000000..{}", &right_part.hash)?;
+                    writeln!(formatter, "--- /dev/null")?;
+                    writeln!(formatter, "+++ b/{}", path_string)
+                })?;
                 show_unified_diff_hunks(formatter, &[], &right_part.content)?;
             }
             tree::Diff::Modified(left_value, right_value) => {
                 let left_part = git_diff_part(repo, &path, &left_value)?;
                 let right_part = git_diff_part(repo, &path, &right_value)?;
-                if left_part.mode != right_part.mode {
-                    writeln!(formatter, "old mode {}", &left_part.mode)?;
-                    writeln!(formatter, "new mode {}", &right_part.mode)?;
-                    if left_part.hash != right_part.hash {
-                        writeln!(formatter, "index {}...{}", &left_part.hash, right_part.hash)?;
+                formatter.with_label("file_header", |formatter| {
+                    writeln!(formatter, "diff --git a/{} b/{}", path_string, path_string)?;
+                    if left_part.mode != right_part.mode {
+                        writeln!(formatter, "old mode {}", &left_part.mode)?;
+                        writeln!(formatter, "new mode {}", &right_part.mode)?;
+                        if left_part.hash != right_part.hash {
+                            writeln!(formatter, "index {}...{}", &left_part.hash, right_part.hash)?;
+                        }
+                    } else if left_part.hash != right_part.hash {
+                        writeln!(
+                            formatter,
+                            "index {}...{} {}",
+                            &left_part.hash, right_part.hash, left_part.mode
+                        )?;
                     }
-                } else if left_part.hash != right_part.hash {
-                    writeln!(
-                        formatter,
-                        "index {}...{} {}",
-                        &left_part.hash, right_part.hash, left_part.mode
-                    )?;
-                }
-                if left_part.content != right_part.content {
-                    writeln!(formatter, "--- a/{}", path_string)?;
-                    writeln!(formatter, "+++ b/{}", path_string)?;
-                }
-                formatter.remove_label()?;
+                    if left_part.content != right_part.content {
+                        writeln!(formatter, "--- a/{}", path_string)?;
+                        writeln!(formatter, "+++ b/{}", path_string)?;
+                    }
+                    Ok(())
+                })?;
                 show_unified_diff_hunks(formatter, &left_part.content, &right_part.content)?;
             }
             tree::Diff::Removed(left_value) => {
                 let left_part = git_diff_part(repo, &path, &left_value)?;
-                writeln!(formatter, "deleted file mode {}", &left_part.mode)?;
-                writeln!(formatter, "index {}..0000000000", &left_part.hash)?;
-                writeln!(formatter, "--- a/{}", path_string)?;
-                writeln!(formatter, "+++ /dev/null")?;
-                formatter.remove_label()?;
+                formatter.with_label("file_header", |formatter| {
+                    writeln!(formatter, "diff --git a/{} b/{}", path_string, path_string)?;
+                    writeln!(formatter, "deleted file mode {}", &left_part.mode)?;
+                    writeln!(formatter, "index {}..0000000000", &left_part.hash)?;
+                    writeln!(formatter, "--- a/{}", path_string)?;
+                    writeln!(formatter, "+++ /dev/null")
+                })?;
                 show_unified_diff_hunks(formatter, &left_part.content, &[])?;
             }
         }
@@ -2842,40 +1875,40 @@ fn show_diff_summary(
     workspace_command: &WorkspaceCommandHelper,
     tree_diff: TreeDiffIterator,
 ) -> io::Result<()> {
-    formatter.add_label(String::from("diff"))?;
-    for (repo_path, diff) in tree_diff {
-        match diff {
-            tree::Diff::Modified(_, _) => {
-                formatter.add_label(String::from("modified"))?;
-                writeln!(
-                    formatter,
-                    "M {}",
-                    workspace_command.format_file_path(&repo_path)
-                )?;
-                formatter.remove_label()?;
-            }
-            tree::Diff::Added(_) => {
-                formatter.add_label(String::from("added"))?;
-                writeln!(
-                    formatter,
-                    "A {}",
-                    workspace_command.format_file_path(&repo_path)
-                )?;
-                formatter.remove_label()?;
-            }
-            tree::Diff::Removed(_) => {
-                formatter.add_label(String::from("removed"))?;
-                writeln!(
-                    formatter,
-                    "R {}",
-                    workspace_command.format_file_path(&repo_path)
-                )?;
-                formatter.remove_label()?;
+    formatter.with_label("diff", |formatter| {
+        for (repo_path, diff) in tree_diff {
+            match diff {
+                tree::Diff::Modified(_, _) => {
+                    formatter.with_label("modified", |formatter| {
+                        writeln!(
+                            formatter,
+                            "M {}",
+                            workspace_command.format_file_path(&repo_path)
+                        )
+                    })?;
+                }
+                tree::Diff::Added(_) => {
+                    formatter.with_label("added", |formatter| {
+                        writeln!(
+                            formatter,
+                            "A {}",
+                            workspace_command.format_file_path(&repo_path)
+                        )
+                    })?;
+                }
+                tree::Diff::Removed(_) => {
+                    formatter.with_label("removed", |formatter| {
+                        writeln!(
+                            formatter,
+                            "R {}",
+                            workspace_command.format_file_path(&repo_path)
+                        )
+                    })?;
+                }
             }
         }
-    }
-    formatter.remove_label()?;
-    Ok(())
+        Ok(())
+    })
 }
 
 fn cmd_status(
@@ -2885,24 +1918,36 @@ fn cmd_status(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    let maybe_checkout_id = repo.view().get_checkout(&workspace_command.workspace_id());
+    let maybe_checkout_id = repo
+        .view()
+        .get_wc_commit_id(&workspace_command.workspace_id());
     let maybe_checkout = maybe_checkout_id
         .map(|id| repo.store().get_commit(id))
         .transpose()?;
-    if let Some(checkout_commit) = &maybe_checkout {
-        ui.write("Parent commit: ")?;
+    let mut formatter = ui.stdout_formatter();
+    let formatter = formatter.as_mut();
+    if let Some(wc_commit) = &maybe_checkout {
+        formatter.write_str("Parent commit: ")?;
         let workspace_id = workspace_command.workspace_id();
-        ui.write_commit_summary(
+        write_commit_summary(
+            formatter,
             repo.as_repo_ref(),
             &workspace_id,
-            &checkout_commit.parents()[0],
+            &wc_commit.parents()[0],
+            ui.settings(),
         )?;
-        ui.write("\n")?;
-        ui.write("Working copy : ")?;
-        ui.write_commit_summary(repo.as_repo_ref(), &workspace_id, checkout_commit)?;
-        ui.write("\n")?;
+        formatter.write_str("\n")?;
+        formatter.write_str("Working copy : ")?;
+        write_commit_summary(
+            formatter,
+            repo.as_repo_ref(),
+            &workspace_id,
+            wc_commit,
+            ui.settings(),
+        )?;
+        formatter.write_str("\n")?;
     } else {
-        ui.write("No working copy\n")?;
+        formatter.write_str("No working copy\n")?;
     }
 
     let mut conflicted_local_branches = vec![];
@@ -2920,48 +1965,46 @@ fn cmd_status(
         }
     }
     if !conflicted_local_branches.is_empty() {
-        ui.stdout_formatter().add_label("conflict".to_string())?;
-        writeln!(ui, "These branches have conflicts:")?;
-        ui.stdout_formatter().remove_label()?;
+        formatter.with_label("conflict", |formatter| {
+            writeln!(formatter, "These branches have conflicts:")
+        })?;
         for branch_name in conflicted_local_branches {
-            write!(ui, "  ")?;
-            ui.stdout_formatter().add_label("branch".to_string())?;
-            write!(ui, "{}", branch_name)?;
-            ui.stdout_formatter().remove_label()?;
-            writeln!(ui)?;
+            write!(formatter, "  ")?;
+            formatter.with_label("branch", |formatter| write!(formatter, "{}", branch_name))?;
+            writeln!(formatter)?;
         }
         writeln!(
-            ui,
+            formatter,
             "  Use `jj branch list` to see details. Use `jj branch set <name> -r <rev>` to \
              resolve."
         )?;
     }
     if !conflicted_remote_branches.is_empty() {
-        ui.stdout_formatter().add_label("conflict".to_string())?;
-        writeln!(ui, "These remote branches have conflicts:")?;
-        ui.stdout_formatter().remove_label()?;
+        formatter.with_label("conflict", |formatter| {
+            writeln!(formatter, "These remote branches have conflicts:")
+        })?;
         for (branch_name, remote_name) in conflicted_remote_branches {
-            write!(ui, "  ")?;
-            ui.stdout_formatter().add_label("branch".to_string())?;
-            write!(ui, "{}@{}", branch_name, remote_name)?;
-            ui.stdout_formatter().remove_label()?;
-            writeln!(ui)?;
+            write!(formatter, "  ")?;
+            formatter.with_label("branch", |formatter| {
+                write!(formatter, "{}@{}", branch_name, remote_name)
+            })?;
+            writeln!(formatter)?;
         }
         writeln!(
-            ui,
+            formatter,
             "  Use `jj branch list` to see details. Use `jj git fetch` to resolve."
         )?;
     }
 
-    if let Some(checkout_commit) = &maybe_checkout {
-        let parent_tree = checkout_commit.parents()[0].tree();
-        let tree = checkout_commit.tree();
+    if let Some(wc_commit) = &maybe_checkout {
+        let parent_tree = wc_commit.parents()[0].tree();
+        let tree = wc_commit.tree();
         if tree.id() == parent_tree.id() {
-            ui.write("The working copy is clean\n")?;
+            formatter.write_str("The working copy is clean\n")?;
         } else {
-            ui.write("Working copy changes:\n")?;
+            formatter.write_str("Working copy changes:\n")?;
             show_diff_summary(
-                ui.stdout_formatter().as_mut(),
+                formatter,
                 &workspace_command,
                 parent_tree.diff(&tree, &EverythingMatcher),
             )?;
@@ -2969,11 +2012,11 @@ fn cmd_status(
 
         let conflicts = tree.conflicts();
         if !conflicts.is_empty() {
-            ui.stdout_formatter().add_label("conflict".to_string())?;
-            writeln!(ui, "There are unresolved conflicts at these paths:")?;
-            ui.stdout_formatter().remove_label()?;
+            formatter.with_label("conflict", |formatter| {
+                writeln!(formatter, "There are unresolved conflicts at these paths:")
+            })?;
             for (path, _) in conflicts {
-                writeln!(ui, "{}", &workspace_command.format_file_path(&path))?;
+                writeln!(formatter, "{}", &workspace_command.format_file_path(&path))?;
             }
         }
     }
@@ -2991,7 +2034,7 @@ fn log_template(settings: &UserSettings) -> String {
             " " label("timestamp", author.timestamp())
             " " branches
             " " tags
-            " " checkouts
+            " " working_copies
             if(is_git_head, label("git_head", " HEAD@git"))
             if(divergent, label("divergent", " divergent"))
             if(conflict, label("conflict", " conflict"))
@@ -3015,11 +2058,17 @@ fn log_template(settings: &UserSettings) -> String {
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
 
-    let revset_expression = revset::parse(&args.revisions)?;
+    let default_revset = ui.settings().default_revset();
+    let revset_expression = revset::parse(args.revisions.as_ref().unwrap_or(&default_revset))?;
     let repo = workspace_command.repo();
     let workspace_id = workspace_command.workspace_id();
-    let checkout_id = repo.view().get_checkout(&workspace_id);
-    let revset = revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_id))?;
+    let checkout_id = repo.view().get_wc_commit_id(&workspace_id);
+    let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
+    let mut revset = revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_id))?;
+    if !args.paths.is_empty() {
+        revset = revset::filter_by_diff(repo.as_repo_ref(), matcher.as_ref(), revset);
+    }
+
     let store = repo.store();
     let diff_format = (args.patch || args.diff_format.git || args.diff_format.summary)
         .then(|| diff_format_for(ui, &args.diff_format));
@@ -3036,7 +2085,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 
     let mut formatter = ui.stdout_formatter();
     let mut formatter = formatter.as_mut();
-    formatter.add_label(String::from("log"))?;
+    formatter.add_label("log")?;
 
     if !args.no_graph {
         let mut graph = AsciiGraphDrawer::new(&mut formatter);
@@ -3074,23 +2123,27 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             let commit = store.get_commit(&commit_id)?;
             let is_checkout = Some(&commit_id) == checkout_id;
             {
-                let writer = Box::new(&mut buffer);
-                let mut formatter = ui.new_formatter(writer);
+                let mut formatter = ui.new_formatter(&mut buffer);
                 if is_checkout {
-                    formatter.add_label("checkout".to_string())?;
-                }
-                template.format(&commit, formatter.as_mut())?;
-                if is_checkout {
-                    formatter.remove_label()?;
+                    formatter.with_label("working_copy", |formatter| {
+                        template.format(&commit, formatter)
+                    })?;
+                } else {
+                    template.format(&commit, formatter.as_mut())?;
                 }
             }
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
             if let Some(diff_format) = diff_format {
-                let writer = Box::new(&mut buffer);
-                let mut formatter = ui.new_formatter(writer);
-                show_patch(formatter.as_mut(), &workspace_command, &commit, diff_format)?;
+                let mut formatter = ui.new_formatter(&mut buffer);
+                show_patch(
+                    formatter.as_mut(),
+                    &workspace_command,
+                    &commit,
+                    matcher.as_ref(),
+                    diff_format,
+                )?;
             }
             let node_symbol = if is_checkout { b"@" } else { b"o" };
             graph.add_node(
@@ -3110,7 +2163,13 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             let commit = store.get_commit(&index_entry.commit_id())?;
             template.format(&commit, formatter)?;
             if let Some(diff_format) = diff_format {
-                show_patch(formatter, &workspace_command, &commit, diff_format)?;
+                show_patch(
+                    formatter,
+                    &workspace_command,
+                    &commit,
+                    matcher.as_ref(),
+                    diff_format,
+                )?;
             }
         }
     }
@@ -3122,12 +2181,13 @@ fn show_patch(
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
+    matcher: &dyn Matcher,
     format: DiffFormat,
 ) -> Result<(), CommandError> {
     let parents = commit.parents();
     let from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
     let to_tree = commit.tree();
-    let diff_iterator = from_tree.diff(&to_tree, &EverythingMatcher);
+    let diff_iterator = from_tree.diff(&to_tree, matcher);
     show_diff(formatter, workspace_command, diff_iterator, format)
 }
 
@@ -3136,7 +2196,10 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
 
     let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
     let workspace_id = workspace_command.workspace_id();
-    let checkout_id = workspace_command.repo().view().get_checkout(&workspace_id);
+    let wc_commit_id = workspace_command
+        .repo()
+        .view()
+        .get_wc_commit_id(&workspace_id);
 
     let diff_format = (args.patch || args.diff_format.git || args.diff_format.summary)
         .then(|| diff_format_for(ui, &args.diff_format));
@@ -3153,7 +2216,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
 
     let mut formatter = ui.stdout_formatter();
     let mut formatter = formatter.as_mut();
-    formatter.add_label(String::from("log"))?;
+    formatter.add_label("log")?;
 
     let commits = topo_order_reverse(
         vec![start_commit],
@@ -3169,16 +2232,14 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
             }
             let mut buffer = vec![];
             {
-                let writer = Box::new(&mut buffer);
-                let mut formatter = ui.new_formatter(writer);
+                let mut formatter = ui.new_formatter(&mut buffer);
                 template.format(&commit, formatter.as_mut())?;
             }
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
             if let Some(diff_format) = diff_format {
-                let writer = Box::new(&mut buffer);
-                let mut formatter = ui.new_formatter(writer);
+                let mut formatter = ui.new_formatter(&mut buffer);
                 show_predecessor_patch(
                     formatter.as_mut(),
                     &workspace_command,
@@ -3186,7 +2247,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
                     diff_format,
                 )?;
             }
-            let node_symbol = if Some(commit.id()) == checkout_id {
+            let node_symbol = if Some(commit.id()) == wc_commit_id {
                 b"@"
             } else {
                 b"o"
@@ -3211,29 +2272,62 @@ fn show_predecessor_patch(
     commit: &Commit,
     diff_format: DiffFormat,
 ) -> Result<(), CommandError> {
-    if let Some(predecessor) = commit.predecessors().first() {
-        let predecessor_tree = if predecessor.parent_ids() == commit.parent_ids() {
-            predecessor.tree()
-        } else {
-            // Rebase the predecessor to have the current commit's parent(s) and use that
-            // tree as base
-            let new_parent_tree =
-                merge_commit_trees(workspace_command.repo().as_repo_ref(), &commit.parents());
-            let old_parent_tree = merge_commit_trees(
-                workspace_command.repo().as_repo_ref(),
-                &predecessor.parents(),
-            );
-            let rebased_tree_id =
-                merge_trees(&new_parent_tree, &old_parent_tree, &predecessor.tree())?;
-            workspace_command
-                .repo()
-                .store()
-                .get_tree(&RepoPath::root(), &rebased_tree_id)?
-        };
-        let diff_iterator = predecessor_tree.diff(&commit.tree(), &EverythingMatcher);
-        show_diff(formatter, workspace_command, diff_iterator, diff_format)?;
+    let predecessors = commit.predecessors();
+    let predecessor = match predecessors.first() {
+        Some(predecessor) => predecessor,
+        None => return Ok(()),
+    };
+    let predecessor_tree = rebase_to_dest_parent(workspace_command, predecessor, commit)?;
+    let diff_iterator = predecessor_tree.diff(&commit.tree(), &EverythingMatcher);
+    show_diff(formatter, workspace_command, diff_iterator, diff_format)
+}
+
+fn cmd_interdiff(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &InterdiffArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
+    let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
+
+    let from_tree = rebase_to_dest_parent(&workspace_command, &from, &to)?;
+    let workspace_root = workspace_command.workspace_root();
+    let matcher = matcher_from_values(ui, workspace_root, &args.paths)?;
+    let diff_iterator = from_tree.diff(&to.tree(), matcher.as_ref());
+    show_diff(
+        ui.stdout_formatter().as_mut(),
+        &workspace_command,
+        diff_iterator,
+        diff_format_for(ui, &args.format),
+    )
+}
+
+fn rebase_to_dest_parent(
+    workspace_command: &WorkspaceCommandHelper,
+    source: &Commit,
+    destination: &Commit,
+) -> Result<Tree, CommandError> {
+    if source.parent_ids() == destination.parent_ids() {
+        Ok(source.tree())
+    } else {
+        let destination_parent_tree = merge_commit_trees(
+            workspace_command.repo().as_repo_ref(),
+            &destination.parents(),
+        );
+        let source_parent_tree =
+            merge_commit_trees(workspace_command.repo().as_repo_ref(), &source.parents());
+        let rebased_tree_id = merge_trees(
+            &destination_parent_tree,
+            &source_parent_tree,
+            &source.tree(),
+        )?;
+        let tree = workspace_command
+            .repo()
+            .store()
+            .get_tree(&RepoPath::root(), &rebased_tree_id)?;
+        Ok(tree)
     }
-    Ok(())
 }
 
 fn edit_description(
@@ -3362,7 +2456,10 @@ fn cmd_close(ui: &mut Ui, command: &CommandHelper, args: &CloseArgs) -> Result<(
     let mut tx =
         workspace_command.start_transaction(&format!("close commit {}", commit.id().hex()));
     let new_commit = commit_builder.write_to_repo(tx.mut_repo());
-    let workspace_ids = tx.mut_repo().view().workspaces_for_checkout(commit.id());
+    let workspace_ids = tx
+        .mut_repo()
+        .view()
+        .workspaces_for_wc_commit_id(commit.id());
     if !workspace_ids.is_empty() {
         let new_checkout = CommitBuilder::for_open_commit(
             ui.settings(),
@@ -3392,10 +2489,12 @@ fn cmd_duplicate(
         .generate_new_change_id()
         .write_to_repo(mut_repo);
     ui.write("Created: ")?;
-    ui.write_commit_summary(
+    write_commit_summary(
+        ui.stdout_formatter().as_mut(),
         mut_repo.as_repo_ref(),
         &workspace_command.workspace_id(),
         &new_commit,
+        ui.settings(),
     )?;
     ui.write("\n")?;
     workspace_command.finish_transaction(ui, tx)?;
@@ -3449,7 +2548,12 @@ fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(),
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
     let workspace_id = workspace_command.workspace_id();
-    if workspace_command.repo().view().get_checkout(&workspace_id) == Some(new_commit.id()) {
+    if workspace_command
+        .repo()
+        .view()
+        .get_wc_commit_id(&workspace_id)
+        == Some(new_commit.id())
+    {
         ui.write("Already editing that commit\n")?;
     } else {
         let mut tx =
@@ -3462,20 +2566,49 @@ fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(),
 
 fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let parent = workspace_command.resolve_single_rev(&args.revision)?;
-    let commit_builder = CommitBuilder::for_open_commit(
-        ui.settings(),
-        parent.id().clone(),
-        parent.tree_id().clone(),
-    )
-    .set_description(args.message.clone());
+    assert!(
+        !args.revisions.is_empty(),
+        "expected a non-empty list from clap"
+    );
+    let commits = resolve_base_revs(&workspace_command, &args.revisions)?;
+    let parent_ids = commits.iter().map(|c| c.id().clone()).collect();
     let mut tx = workspace_command.start_transaction("new empty commit");
-    let mut_repo = tx.mut_repo();
-    let new_commit = commit_builder.write_to_repo(mut_repo);
+    let merged_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commits);
+    let new_commit =
+        CommitBuilder::for_new_commit(ui.settings(), parent_ids, merged_tree.id().clone())
+            .set_description(args.message.clone())
+            .set_open(true)
+            .write_to_repo(tx.mut_repo());
     let workspace_id = workspace_command.workspace_id();
-    mut_repo.edit(workspace_id, &new_commit);
+    tx.mut_repo().edit(workspace_id, &new_commit);
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
+}
+
+fn combine_messages(
+    ui: &Ui,
+    repo: &ReadonlyRepo,
+    source: &Commit,
+    destination: &Commit,
+    abandon_source: bool,
+) -> Result<String, CommandError> {
+    let description = if abandon_source {
+        if source.description().is_empty() {
+            destination.description().to_string()
+        } else if destination.description().is_empty() {
+            source.description().to_string()
+        } else {
+            let combined = "JJ: Enter a description for the combined commit.\n".to_string()
+                + "JJ: Description from the destination commit:\n"
+                + destination.description()
+                + "\nJJ: Description from the source commit:\n"
+                + source.description();
+            edit_description(ui, repo, &combined)?
+        }
+    } else {
+        destination.description().to_string()
+    };
+    Ok(description)
 }
 
 fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(), CommandError> {
@@ -3532,7 +2665,8 @@ from the source will be moved into the destination.
         .get_tree(&RepoPath::root(), &new_parent_tree_id)?;
     // Apply the reverse of the selected changes onto the source
     let new_source_tree_id = merge_trees(&source_tree, &new_parent_tree, &parent_tree)?;
-    if new_source_tree_id == *parent_tree.id() && !repo.view().is_checkout(source.id()) {
+    let abandon_source = new_source_tree_id == *parent_tree.id();
+    if abandon_source {
         mut_repo.record_abandoned_commit(source.id().clone());
     } else {
         CommitBuilder::for_rewrite_from(ui.settings(), &source)
@@ -3551,8 +2685,16 @@ from the source will be moved into the destination.
     }
     // Apply the selected changes onto the destination
     let new_destination_tree_id = merge_trees(&destination.tree(), &parent_tree, &new_parent_tree)?;
+    let description = combine_messages(
+        ui,
+        workspace_command.repo(),
+        &source,
+        &destination,
+        abandon_source,
+    )?;
     CommitBuilder::for_rewrite_from(ui.settings(), &destination)
         .set_tree(new_destination_tree_id)
+        .set_description(description)
         .write_to_repo(mut_repo);
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -3602,12 +2744,14 @@ from the source will be moved into the parent.
     }
     // Abandon the child if the parent now has all the content from the child
     // (always the case in the non-interactive case).
-    let abandon_child =
-        &new_parent_tree_id == commit.tree_id() && !tx.base_repo().view().is_checkout(commit.id());
+    let abandon_child = &new_parent_tree_id == commit.tree_id();
     let mut_repo = tx.mut_repo();
+    let description =
+        combine_messages(ui, workspace_command.repo(), &commit, parent, abandon_child)?;
     let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), parent)
         .set_tree(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
+        .set_description(description)
         .write_to_repo(mut_repo);
     if abandon_child {
         mut_repo.record_abandoned_commit(commit.id().clone());
@@ -3668,13 +2812,13 @@ aborted.
     }
     // Abandon the parent if it is now empty (always the case in the non-interactive
     // case).
-    if &new_parent_tree_id == parent_base_tree.id()
-        && !tx.base_repo().view().is_checkout(parent.id())
-    {
+    if &new_parent_tree_id == parent_base_tree.id() {
         tx.mut_repo().record_abandoned_commit(parent.id().clone());
+        let description = combine_messages(ui, workspace_command.repo(), parent, &commit, true)?;
         // Commit the new child on top of the parent's parents.
         CommitBuilder::for_rewrite_from(ui.settings(), &commit)
-            .set_parents(parent.parent_ids())
+            .set_parents(parent.parent_ids().to_vec())
+            .set_description(description)
             .write_to_repo(tx.mut_repo());
     } else {
         let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), parent)
@@ -3758,10 +2902,12 @@ side. If you don't make any changes, then the operation will be aborted.
             .set_tree(tree_id)
             .write_to_repo(mut_repo);
         ui.write("Created ")?;
-        ui.write_commit_summary(
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
             mut_repo.as_repo_ref(),
             &workspace_command.workspace_id(),
             &new_commit,
+            ui.settings(),
         )?;
         ui.write("\n")?;
         workspace_command.finish_transaction(ui, tx)?;
@@ -3799,10 +2945,12 @@ don't make any changes, then the operation will be aborted.",
             .set_tree(tree_id)
             .write_to_repo(mut_repo);
         ui.write("Created ")?;
-        ui.write_commit_summary(
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
             mut_repo.as_repo_ref(),
             &workspace_command.workspace_id(),
             &new_commit,
+            ui.settings(),
         )?;
         ui.write("\n")?;
         workspace_command.finish_transaction(ui, tx)?;
@@ -3822,8 +2970,8 @@ You are splitting a commit in two: {}
 The diff initially shows the changes in the commit you're splitting.
 
 Adjust the right side until it shows the contents you want for the first
-commit. The remainder will be in the second commit. If you don't make
-any changes, then the operation will be aborted.
+(parent) commit. The remainder will be in the second commit. If you
+don't make any changes, then the operation will be aborted.
 ",
         short_commit_description(&commit)
     );
@@ -3875,16 +3023,20 @@ any changes, then the operation will be aborted.
             writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
         }
         ui.write("First part: ")?;
-        ui.write_commit_summary(
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
             tx.repo().as_repo_ref(),
             &workspace_command.workspace_id(),
             &first_commit,
+            ui.settings(),
         )?;
         ui.write("\nSecond part: ")?;
-        ui.write_commit_summary(
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
             tx.repo().as_repo_ref(),
             &workspace_command.workspace_id(),
             &second_commit,
+            ui.settings(),
         )?;
         ui.write("\n")?;
         workspace_command.finish_transaction(ui, tx)?;
@@ -3892,52 +3044,18 @@ any changes, then the operation will be aborted.
     Ok(())
 }
 
-fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &MergeArgs) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let revision_args = &args.revisions;
-    if revision_args.len() < 2 {
-        return Err(CommandError::UserError(String::from(
+fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), CommandError> {
+    if args.revisions.len() < 2 {
+        return Err(CommandError::CliError(String::from(
             "Merge requires at least two revisions",
         )));
     }
-    let mut commits = vec![];
-    let mut parent_ids = vec![];
-    for revision_arg in revision_args {
-        // TODO: Should we allow each argument to resolve to multiple revisions?
-        // It would be neat to be able to do `jj merge main` when `main` is conflicted,
-        // but I'm not sure it would actually be useful.
-        let commit = workspace_command.resolve_single_rev(revision_arg)?;
-        parent_ids.push(commit.id().clone());
-        commits.push(commit);
-    }
-    let description = if let Some(message) = &args.message {
-        message.to_string()
-    } else {
-        edit_description(
-            ui,
-            workspace_command.repo(),
-            "\n\nJJ: Enter commit description for the merge commit.\n",
-        )?
-    };
-    let merged_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commits);
-    let mut tx = workspace_command.start_transaction("merge commits");
-    CommitBuilder::for_new_commit(ui.settings(), merged_tree.id().clone())
-        .set_parents(parent_ids)
-        .set_description(description)
-        .set_open(false)
-        .write_to_repo(tx.mut_repo());
-    workspace_command.finish_transaction(ui, tx)?;
-
-    Ok(())
+    cmd_new(ui, command, args)
 }
 
 fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let mut new_parents = vec![];
-    for revision_str in &args.destination {
-        let destination = workspace_command.resolve_single_rev(revision_str)?;
-        new_parents.push(destination);
-    }
+    let new_parents = resolve_base_revs(&workspace_command, &args.destination)?;
     if let Some(rev_str) = &args.revision {
         rebase_revision(ui, &mut workspace_command, &new_parents, rev_str)?;
     } else if let Some(source_str) = &args.source {
@@ -3968,7 +3086,7 @@ fn rebase_branch(
         .range(&RevsetExpression::commit(branch_commit.id().clone()))
         .roots();
     let mut num_rebased = 0;
-    let store = workspace_command.repo.store();
+    let store = workspace_command.repo().store();
     for root_result in roots_expression
         .evaluate(
             workspace_command.repo().as_repo_ref(),
@@ -4026,7 +3144,8 @@ fn rebase_revision(
     // branches and the working copy get updated to the rewritten commit.)
     let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
     let mut num_rebased_descendants = 0;
-    let store = workspace_command.repo.store();
+    let store = workspace_command.repo().store();
+
     for child_commit in children_expression
         .evaluate(
             workspace_command.repo().as_repo_ref(),
@@ -4036,11 +3155,45 @@ fn rebase_revision(
         .iter()
         .commits(store)
     {
+        let child_commit = child_commit?;
+        let new_child_parent_ids: Vec<CommitId> = child_commit
+            .parents()
+            .iter()
+            .flat_map(|c| {
+                if c == &old_commit {
+                    old_commit
+                        .parents()
+                        .iter()
+                        .map(|c| c.id().clone())
+                        .collect()
+                } else {
+                    [c.id().clone()].to_vec()
+                }
+            })
+            .collect();
+
+        // Some of the new parents may be ancestors of others as in
+        // `test_rebase_single_revision`.
+        let new_child_parents: Result<Vec<Commit>, BackendError> = RevsetExpression::Difference(
+            RevsetExpression::commits(new_child_parent_ids.clone()),
+            RevsetExpression::commits(new_child_parent_ids.clone())
+                .parents()
+                .ancestors(),
+        )
+        .evaluate(
+            workspace_command.repo().as_repo_ref(),
+            Some(&workspace_command.workspace_id()),
+        )
+        .unwrap()
+        .iter()
+        .commits(store)
+        .collect();
+
         rebase_commit(
             ui.settings(),
             tx.mut_repo(),
-            &child_commit?,
-            &old_commit.parents(),
+            &child_commit,
+            &new_child_parents?,
         );
         num_rebased_descendants += 1;
     }
@@ -4063,7 +3216,7 @@ fn check_rebase_destinations(
 ) -> Result<(), CommandError> {
     for parent in new_parents {
         if workspace_command
-            .repo
+            .repo()
             .index()
             .is_ancestor(commit.id(), parent.id())
         {
@@ -4257,47 +3410,64 @@ fn list_branches(
     let repo = workspace_command.repo();
 
     let workspace_id = workspace_command.workspace_id();
-    let print_branch_target =
-        |ui: &mut Ui, target: Option<&RefTarget>| -> Result<(), CommandError> {
-            match target {
-                Some(RefTarget::Normal(id)) => {
-                    write!(ui, ": ")?;
+    let print_branch_target = |formatter: &mut dyn Formatter,
+                               target: Option<&RefTarget>|
+     -> Result<(), CommandError> {
+        match target {
+            Some(RefTarget::Normal(id)) => {
+                write!(formatter, ": ")?;
+                let commit = repo.store().get_commit(id)?;
+                write_commit_summary(
+                    formatter,
+                    repo.as_repo_ref(),
+                    &workspace_id,
+                    &commit,
+                    ui.settings(),
+                )?;
+                writeln!(formatter)?;
+            }
+            Some(RefTarget::Conflict { adds, removes }) => {
+                write!(formatter, " ")?;
+                formatter.with_label("conflict", |formatter| write!(formatter, "(conflicted)"))?;
+                writeln!(formatter, ":")?;
+                for id in removes {
                     let commit = repo.store().get_commit(id)?;
-                    ui.write_commit_summary(repo.as_repo_ref(), &workspace_id, &commit)?;
-                    writeln!(ui)?;
+                    write!(formatter, "  - ")?;
+                    write_commit_summary(
+                        formatter,
+                        repo.as_repo_ref(),
+                        &workspace_id,
+                        &commit,
+                        ui.settings(),
+                    )?;
+                    writeln!(formatter)?;
                 }
-                Some(RefTarget::Conflict { adds, removes }) => {
-                    write!(ui, " ")?;
-                    ui.stdout_formatter().add_label("conflict".to_string())?;
-                    write!(ui, "(conflicted)")?;
-                    ui.stdout_formatter().remove_label()?;
-                    writeln!(ui, ":")?;
-                    for id in removes {
-                        let commit = repo.store().get_commit(id)?;
-                        write!(ui, "  - ")?;
-                        ui.write_commit_summary(repo.as_repo_ref(), &workspace_id, &commit)?;
-                        writeln!(ui)?;
-                    }
-                    for id in adds {
-                        let commit = repo.store().get_commit(id)?;
-                        write!(ui, "  + ")?;
-                        ui.write_commit_summary(repo.as_repo_ref(), &workspace_id, &commit)?;
-                        writeln!(ui)?;
-                    }
-                }
-                None => {
-                    writeln!(ui, " (deleted)")?;
+                for id in adds {
+                    let commit = repo.store().get_commit(id)?;
+                    write!(formatter, "  + ")?;
+                    write_commit_summary(
+                        formatter,
+                        repo.as_repo_ref(),
+                        &workspace_id,
+                        &commit,
+                        ui.settings(),
+                    )?;
+                    writeln!(formatter)?;
                 }
             }
-            Ok(())
-        };
+            None => {
+                writeln!(formatter, " (deleted)")?;
+            }
+        }
+        Ok(())
+    };
 
+    let mut formatter = ui.stdout_formatter();
+    let formatter = formatter.as_mut();
     let index = repo.index();
     for (name, branch_target) in repo.view().branches() {
-        ui.stdout_formatter().add_label("branch".to_string())?;
-        write!(ui, "{}", name)?;
-        ui.stdout_formatter().remove_label()?;
-        print_branch_target(ui, branch_target.local_target.as_ref())?;
+        formatter.with_label("branch", |formatter| write!(formatter, "{}", name))?;
+        print_branch_target(formatter, branch_target.local_target.as_ref())?;
 
         for (remote, remote_target) in branch_target
             .remote_targets
@@ -4307,10 +3477,8 @@ fn list_branches(
             if Some(remote_target) == branch_target.local_target.as_ref() {
                 continue;
             }
-            write!(ui, "  ")?;
-            ui.stdout_formatter().add_label("branch".to_string())?;
-            write!(ui, "@{}", remote)?;
-            ui.stdout_formatter().remove_label()?;
+            write!(formatter, "  ")?;
+            formatter.with_label("branch", |formatter| write!(formatter, "@{}", remote))?;
             if let Some(local_target) = branch_target.local_target.as_ref() {
                 let remote_ahead_count = index
                     .walk_revs(&remote_target.adds(), &local_target.adds())
@@ -4319,18 +3487,18 @@ fn list_branches(
                     .walk_revs(&local_target.adds(), &remote_target.adds())
                     .count();
                 if remote_ahead_count != 0 && local_ahead_count == 0 {
-                    write!(ui, " (ahead by {} commits)", remote_ahead_count)?;
+                    write!(formatter, " (ahead by {} commits)", remote_ahead_count)?;
                 } else if remote_ahead_count == 0 && local_ahead_count != 0 {
-                    write!(ui, " (behind by {} commits)", local_ahead_count)?;
+                    write!(formatter, " (behind by {} commits)", local_ahead_count)?;
                 } else if remote_ahead_count != 0 && local_ahead_count != 0 {
                     write!(
-                        ui,
+                        formatter,
                         " (ahead by {} commits, behind by {} commits)",
                         remote_ahead_count, local_ahead_count
                     )?;
                 }
             }
-            print_branch_target(ui, Some(remote_target))?;
+            print_branch_target(formatter, Some(remote_target))?;
         }
     }
 
@@ -4344,7 +3512,7 @@ fn cmd_debug(
 ) -> Result<(), CommandError> {
     match subcommand {
         DebugCommands::Completion(completion_matches) => {
-            let mut app = command.app.clone();
+            let mut app = command.app().clone();
             let mut buf = vec![];
             let shell = if completion_matches.zsh {
                 clap_complete::Shell::Zsh
@@ -4358,7 +3526,7 @@ fn cmd_debug(
         }
         DebugCommands::Mangen(_mangen_matches) => {
             let mut buf = vec![];
-            let man = clap_mangen::Man::new(command.app.clone());
+            let man = clap_mangen::Man::new(command.app().clone());
             man.render(&mut buf)?;
             ui.stdout_formatter().write_all(&buf)?;
         }
@@ -4418,105 +3586,11 @@ fn cmd_debug(
     Ok(())
 }
 
-fn run_bench<R, O>(ui: &mut Ui, id: &str, mut routine: R) -> io::Result<()>
-where
-    R: (FnMut() -> O) + Copy,
-    O: Debug,
-{
-    let mut criterion = Criterion::default();
-    let before = Instant::now();
-    let result = routine();
-    let after = Instant::now();
-    writeln!(
-        ui,
-        "First run took {:?} and produced: {:?}",
-        after.duration_since(before),
-        result
-    )?;
-    criterion.bench_function(id, |bencher: &mut criterion::Bencher| {
-        bencher.iter(routine);
-    });
-    Ok(())
-}
-
-fn cmd_bench(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    subcommand: &BenchCommands,
-) -> Result<(), CommandError> {
-    match subcommand {
-        BenchCommands::CommonAncestors(command_matches) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let commit1 = workspace_command.resolve_single_rev(&command_matches.revision1)?;
-            let commit2 = workspace_command.resolve_single_rev(&command_matches.revision2)?;
-            let index = workspace_command.repo().index();
-            let routine =
-                || index.common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()]);
-            run_bench(
-                ui,
-                &format!(
-                    "commonancestors-{}-{}",
-                    &command_matches.revision1, &command_matches.revision2
-                ),
-                routine,
-            )?;
-        }
-        BenchCommands::IsAncestor(command_matches) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let ancestor_commit =
-                workspace_command.resolve_single_rev(&command_matches.ancestor)?;
-            let descendant_commit =
-                workspace_command.resolve_single_rev(&command_matches.descendant)?;
-            let index = workspace_command.repo().index();
-            let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
-            run_bench(
-                ui,
-                &format!(
-                    "isancestor-{}-{}",
-                    &command_matches.ancestor, &command_matches.descendant
-                ),
-                routine,
-            )?;
-        }
-        BenchCommands::WalkRevs(command_matches) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let unwanted_commit =
-                workspace_command.resolve_single_rev(&command_matches.unwanted)?;
-            let wanted_commit = workspace_command.resolve_single_rev(&command_matches.wanted)?;
-            let index = workspace_command.repo().index();
-            let routine = || {
-                index
-                    .walk_revs(
-                        &[wanted_commit.id().clone()],
-                        &[unwanted_commit.id().clone()],
-                    )
-                    .count()
-            };
-            run_bench(
-                ui,
-                &format!(
-                    "walkrevs-{}-{}",
-                    &command_matches.unwanted, &command_matches.wanted
-                ),
-                routine,
-            )?;
-        }
-        BenchCommands::ResolvePrefix(command_matches) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let prefix = HexPrefix::new(command_matches.prefix.clone()).unwrap();
-            let index = workspace_command.repo().index();
-            let routine = || index.resolve_prefix(&prefix);
-            run_bench(ui, &format!("resolveprefix-{}", prefix.hex()), routine)?;
-        }
-    }
-    Ok(())
-}
-
 fn format_timestamp(timestamp: &Timestamp) -> String {
     let utc = Utc
         .timestamp(
-            timestamp.timestamp.0 as i64 / 1000,
-            (timestamp.timestamp.0 % 1000) as u32 * 1000000,
+            timestamp.timestamp.0.div_euclid(1000),
+            (timestamp.timestamp.0.rem_euclid(1000)) as u32 * 1000000,
         )
         .with_timezone(&FixedOffset::east(timestamp.tz_offset * 60));
     utc.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string()
@@ -4537,30 +3611,28 @@ fn cmd_op_log(
     impl Template<Operation> for OpTemplate {
         fn format(&self, op: &Operation, formatter: &mut dyn Formatter) -> io::Result<()> {
             // TODO: Make this templated
-            formatter.add_label("id".to_string())?;
-            formatter.write_str(&op.id().hex()[0..12])?;
-            formatter.remove_label()?;
+            formatter.with_label("id", |formatter| formatter.write_str(&op.id().hex()[0..12]))?;
             formatter.write_str(" ")?;
             let metadata = &op.store_operation().metadata;
-            formatter.add_label("user".to_string())?;
-            formatter.write_str(&format!("{}@{}", metadata.username, metadata.hostname))?;
-            formatter.remove_label()?;
+            formatter.with_label("user", |formatter| {
+                formatter.write_str(&format!("{}@{}", metadata.username, metadata.hostname))
+            })?;
             formatter.write_str(" ")?;
-            formatter.add_label("time".to_string())?;
-            formatter.write_str(&format!(
-                "{} - {}",
-                format_timestamp(&metadata.start_time),
-                format_timestamp(&metadata.end_time)
-            ))?;
-            formatter.remove_label()?;
+            formatter.with_label("time", |formatter| {
+                formatter.write_str(&format!(
+                    "{} - {}",
+                    format_timestamp(&metadata.start_time),
+                    format_timestamp(&metadata.end_time)
+                ))
+            })?;
             formatter.write_str("\n")?;
-            formatter.add_label("description".to_string())?;
-            formatter.write_str(&metadata.description)?;
-            formatter.remove_label()?;
+            formatter.with_label("description", |formatter| {
+                formatter.write_str(&metadata.description)
+            })?;
             for (key, value) in &metadata.tags {
-                formatter.add_label("tags".to_string())?;
-                formatter.write_str(&format!("\n{}: {}", key, value))?;
-                formatter.remove_label()?;
+                formatter.with_label("tags", |formatter| {
+                    formatter.write_str(&format!("\n{}: {}", key, value))
+                })?;
             }
             Ok(())
         }
@@ -4580,17 +3652,14 @@ fn cmd_op_log(
         let is_head_op = op.id() == &head_op_id;
         let mut buffer = vec![];
         {
-            let writer = Box::new(&mut buffer);
-            let mut formatter = ui.new_formatter(writer);
-            formatter.add_label("op-log".to_string())?;
-            if is_head_op {
-                formatter.add_label("head".to_string())?;
-            }
-            template.format(&op, formatter.as_mut())?;
-            if is_head_op {
-                formatter.remove_label()?;
-            }
-            formatter.remove_label()?;
+            let mut formatter = ui.new_formatter(&mut buffer);
+            formatter.with_label("op-log", |formatter| {
+                if is_head_op {
+                    formatter.with_label("head", |formatter| template.format(&op, formatter))
+                } else {
+                    template.format(&op, formatter)
+                }
+            })?;
         }
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
@@ -4701,7 +3770,7 @@ fn cmd_workspace_add(
     };
     let workspace_id = WorkspaceId::new(name.clone());
     let repo = old_workspace_command.repo();
-    if repo.view().get_checkout(&workspace_id).is_some() {
+    if repo.view().get_wc_commit_id(&workspace_id).is_some() {
         return Err(UserError(format!(
             "Workspace named '{}' already exists",
             name
@@ -4709,7 +3778,7 @@ fn cmd_workspace_add(
     }
     let (new_workspace, repo) = Workspace::init_workspace_with_existing_repo(
         ui.settings(),
-        destination_path.clone(),
+        &destination_path,
         repo,
         workspace_id,
     )?;
@@ -4719,10 +3788,10 @@ fn cmd_workspace_add(
         ui::relative_path(old_workspace_command.workspace_root(), &destination_path).display()
     )?;
 
-    let mut new_workspace_command = WorkspaceCommandHelper::for_loaded_repo(
+    let mut new_workspace_command = WorkspaceCommandHelper::new(
         ui,
         new_workspace,
-        command.string_args.clone(),
+        command.string_args().clone(),
         command.global_args(),
         repo,
     )?;
@@ -4730,10 +3799,10 @@ fn cmd_workspace_add(
         .start_transaction(&format!("Initial checkout in workspace {}", &name));
     // Check out a parent of the checkout of the current workspace, or the root if
     // there is no checkout in the current workspace.
-    let new_checkout_commit = if let Some(old_checkout_id) = new_workspace_command
+    let new_wc_commit = if let Some(old_checkout_id) = new_workspace_command
         .repo()
         .view()
-        .get_checkout(&old_workspace_command.workspace_id())
+        .get_wc_commit_id(&old_workspace_command.workspace_id())
     {
         new_workspace_command
             .repo()
@@ -4747,7 +3816,7 @@ fn cmd_workspace_add(
     tx.mut_repo().check_out(
         new_workspace_command.workspace_id(),
         ui.settings(),
-        &new_checkout_commit,
+        &new_wc_commit,
     );
     new_workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -4768,7 +3837,7 @@ fn cmd_workspace_forget(
     if workspace_command
         .repo()
         .view()
-        .get_checkout(&workspace_id)
+        .get_wc_commit_id(&workspace_id)
         .is_none()
     {
         return Err(UserError("No such workspace".to_string()));
@@ -4776,7 +3845,7 @@ fn cmd_workspace_forget(
 
     let mut tx =
         workspace_command.start_transaction(&format!("forget workspace {}", workspace_id.as_str()));
-    tx.mut_repo().remove_checkout(&workspace_id);
+    tx.mut_repo().remove_wc_commit(&workspace_id);
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -4788,10 +3857,16 @@ fn cmd_workspace_list(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    for (workspace_id, checkout_id) in repo.view().checkouts().iter().sorted() {
+    for (workspace_id, checkout_id) in repo.view().wc_commit_ids().iter().sorted() {
         write!(ui, "{}: ", workspace_id.as_str())?;
         let commit = repo.store().get_commit(checkout_id)?;
-        ui.write_commit_summary(repo.as_repo_ref(), workspace_id, &commit)?;
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
+            repo.as_repo_ref(),
+            workspace_id,
+            &commit,
+            ui.settings(),
+        )?;
         writeln!(ui)?;
     }
     Ok(())
@@ -4801,20 +3876,20 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
     if args.list {
         let workspace_command = command.workspace_helper(ui)?;
         for path in workspace_command.working_copy().sparse_patterns() {
-            let ui_path = workspace_command.format_file_path(&path);
+            let ui_path = workspace_command.format_file_path(path);
             writeln!(ui, "{}", ui_path)?;
         }
     } else {
         let mut workspace_command = command.workspace_helper(ui)?;
         let workspace_root = workspace_command.workspace_root().clone();
         let paths_to_add = repo_paths_from_values(ui, &workspace_root, &args.add)?;
-        let (mut locked_wc, _current_checkout) = workspace_command.start_working_copy_mutation()?;
+        let (mut locked_wc, _wc_commit) = workspace_command.start_working_copy_mutation()?;
         let mut new_patterns = HashSet::new();
         if args.reset {
             new_patterns.insert(RepoPath::root());
         } else {
             if !args.clear {
-                new_patterns.extend(locked_wc.sparse_patterns());
+                new_patterns.extend(locked_wc.sparse_patterns().iter().cloned());
                 let paths_to_remove = repo_paths_from_values(ui, &workspace_root, &args.remove)?;
                 for path in paths_to_remove {
                     new_patterns.remove(&path);
@@ -5020,7 +4095,7 @@ fn do_git_clone(
     source: &str,
     wc_path: &Path,
 ) -> Result<(WorkspaceCommandHelper, Option<String>), CommandError> {
-    let (workspace, repo) = Workspace::init_internal_git(ui.settings(), wc_path.to_path_buf())?;
+    let (workspace, repo) = Workspace::init_internal_git(ui.settings(), wc_path)?;
     let git_repo = get_git_repo(repo.store())?;
     writeln!(ui, r#"Fetching into new repo in "{}""#, wc_path.display())?;
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
@@ -5030,7 +4105,7 @@ fn do_git_clone(
     let maybe_default_branch =
         git::fetch(fetch_tx.mut_repo(), &git_repo, remote_name).map_err(|err| match err {
             GitFetchError::NoSuchRemote(_) => {
-                panic!("should't happen as we just created the git remote")
+                panic!("shouldn't happen as we just created the git remote")
             }
             GitFetchError::InternalGitError(err) => {
                 CommandError::UserError(format!("Fetch failed: {err}"))
@@ -5123,7 +4198,7 @@ fn cmd_git_push(
         match workspace_command
             .repo()
             .view()
-            .get_checkout(&workspace_command.workspace_id())
+            .get_wc_commit_id(&workspace_command.workspace_id())
         {
             None => {
                 return Err(UserError(
@@ -5165,6 +4240,7 @@ fn cmd_git_push(
 
     let mut ref_updates = vec![];
     let mut new_heads = vec![];
+    let mut force_pushed_branches = hashset! {};
     for (branch_name, update) in &branch_updates {
         let qualified_name = format!("refs/heads/{}", branch_name);
         if let Some(new_target) = &update.new_target {
@@ -5173,6 +4249,9 @@ fn cmd_git_push(
                 None => false,
                 Some(old_target) => !repo.index().is_ancestor(old_target, new_target),
             };
+            if force {
+                force_pushed_branches.insert(branch_name.to_string());
+            }
             ref_updates.push(GitRefUpdate {
                 qualified_name,
                 force,
@@ -5227,12 +4306,21 @@ fn cmd_git_push(
     for (branch_name, update) in &branch_updates {
         match (&update.old_target, &update.new_target) {
             (Some(old_target), Some(new_target)) => {
-                writeln!(
-                    ui,
-                    "  Move branch {branch_name} from {} to {}",
-                    short_commit_hash(old_target),
-                    short_commit_hash(new_target)
-                )?;
+                if force_pushed_branches.contains(branch_name) {
+                    writeln!(
+                        ui,
+                        "  Force branch {branch_name} from {} to {}",
+                        short_commit_hash(old_target),
+                        short_commit_hash(new_target)
+                    )?;
+                } else {
+                    writeln!(
+                        ui,
+                        "  Move branch {branch_name} from {} to {}",
+                        short_commit_hash(old_target),
+                        short_commit_hash(new_target)
+                    )?;
+                }
             }
             (Some(old_target), None) => {
                 writeln!(
@@ -5340,135 +4428,53 @@ fn cmd_git(
     }
 }
 
-fn string_list_from_config(value: config::Value) -> Option<Vec<String>> {
-    match value {
-        Value {
-            kind: config::ValueKind::Array(elements),
-            ..
-        } => {
-            let mut strings = vec![];
-            for arg in elements {
-                match arg {
-                    config::Value {
-                        kind: config::ValueKind::String(string_value),
-                        ..
-                    } => {
-                        strings.push(string_value);
-                    }
-                    _ => {
-                        return None;
-                    }
-                }
-            }
-            Some(strings)
-        }
-        _ => None,
-    }
+pub fn default_app() -> clap::Command {
+    let app: clap::Command = Commands::augment_subcommands(Args::command());
+    app.arg_required_else_help(true)
 }
 
-fn parse_args(settings: &UserSettings, string_args: &[String]) -> Result<Args, CommandError> {
-    let mut resolved_aliases = HashSet::new();
-    let mut string_args = string_args.to_vec();
-    loop {
-        let args: Args = clap::Parser::parse_from(&string_args);
-        if let Commands::Alias(alias_args) = &args.command {
-            let alias_name = &alias_args[0];
-            if resolved_aliases.contains(alias_name) {
-                return Err(CommandError::UserError(format!(
-                    r#"Recursive alias definition involving "{alias_name}""#
-                )));
-            }
-            match settings
-                .config()
-                .get::<config::Value>(&format!("alias.{}", alias_name))
-            {
-                Ok(value) => {
-                    if let Some(alias_definition) = string_list_from_config(value) {
-                        assert!(string_args.ends_with(alias_args.as_slice()));
-                        string_args.truncate(string_args.len() - alias_args.len());
-                        string_args.extend(alias_definition);
-                        string_args.extend_from_slice(&alias_args[1..]);
-                        resolved_aliases.insert(alias_name.clone());
-                    } else {
-                        return Err(CommandError::UserError(format!(
-                            r#"Alias definition for "{alias_name}" must be a string list"#
-                        )));
-                    }
-                }
-                Err(config::ConfigError::NotFound(_)) => {
-                    let mut app = Args::command();
-                    app.error(clap::ErrorKind::ArgumentNotFound, format!(
-                        r#"Found argument '{alias_name}' which wasn't expected, or isn't valid in this context"#
-                    )).exit();
-                }
-                Err(err) => {
-                    return Err(CommandError::from(err));
-                }
-            }
-        } else {
-            return Ok(args);
-        }
-    }
-}
-
-pub fn dispatch<I, T>(ui: &mut Ui, args: I) -> Result<(), CommandError>
-where
-    I: IntoIterator<Item = T>,
-    T: Into<OsString> + Clone,
-{
-    let mut string_args: Vec<String> = vec![];
-    for arg in args {
-        let os_string_arg = arg.clone().into();
-        if let Some(string_arg) = os_string_arg.to_str() {
-            string_args.push(string_arg.to_owned());
-        } else {
-            return Err(CommandError::CliError("Non-utf8 argument".to_string()));
-        }
-    }
-
-    let args = parse_args(ui.settings(), &string_args)?;
-    if let Some(choice) = args.global_args.color {
-        // Here we assume ui was created for_terminal().
-        ui.reset_color_for_terminal(choice);
-    }
-    let app = Args::command();
-    let command_helper = CommandHelper::new(app, string_args, args.global_args.clone());
-    match &args.command {
-        Commands::Init(sub_args) => cmd_init(ui, &command_helper, sub_args),
-        Commands::Checkout(sub_args) => cmd_checkout(ui, &command_helper, sub_args),
-        Commands::Untrack(sub_args) => cmd_untrack(ui, &command_helper, sub_args),
-        Commands::Files(sub_args) => cmd_files(ui, &command_helper, sub_args),
-        Commands::Print(sub_args) => cmd_print(ui, &command_helper, sub_args),
-        Commands::Diff(sub_args) => cmd_diff(ui, &command_helper, sub_args),
-        Commands::Show(sub_args) => cmd_show(ui, &command_helper, sub_args),
-        Commands::Status(sub_args) => cmd_status(ui, &command_helper, sub_args),
-        Commands::Log(sub_args) => cmd_log(ui, &command_helper, sub_args),
-        Commands::Obslog(sub_args) => cmd_obslog(ui, &command_helper, sub_args),
-        Commands::Describe(sub_args) => cmd_describe(ui, &command_helper, sub_args),
-        Commands::Close(sub_args) => cmd_close(ui, &command_helper, sub_args),
-        Commands::Open(sub_args) => cmd_open(ui, &command_helper, sub_args),
-        Commands::Duplicate(sub_args) => cmd_duplicate(ui, &command_helper, sub_args),
-        Commands::Abandon(sub_args) => cmd_abandon(ui, &command_helper, sub_args),
-        Commands::Edit(sub_args) => cmd_edit(ui, &command_helper, sub_args),
-        Commands::New(sub_args) => cmd_new(ui, &command_helper, sub_args),
-        Commands::Move(sub_args) => cmd_move(ui, &command_helper, sub_args),
-        Commands::Squash(sub_args) => cmd_squash(ui, &command_helper, sub_args),
-        Commands::Unsquash(sub_args) => cmd_unsquash(ui, &command_helper, sub_args),
-        Commands::Restore(sub_args) => cmd_restore(ui, &command_helper, sub_args),
-        Commands::Touchup(sub_args) => cmd_touchup(ui, &command_helper, sub_args),
-        Commands::Split(sub_args) => cmd_split(ui, &command_helper, sub_args),
-        Commands::Merge(sub_args) => cmd_merge(ui, &command_helper, sub_args),
-        Commands::Rebase(sub_args) => cmd_rebase(ui, &command_helper, sub_args),
-        Commands::Backout(sub_args) => cmd_backout(ui, &command_helper, sub_args),
-        Commands::Branch(sub_args) => cmd_branch(ui, &command_helper, sub_args),
-        Commands::Undo(sub_args) => cmd_op_undo(ui, &command_helper, sub_args),
-        Commands::Operation(sub_args) => cmd_operation(ui, &command_helper, sub_args),
-        Commands::Workspace(sub_args) => cmd_workspace(ui, &command_helper, sub_args),
-        Commands::Sparse(sub_args) => cmd_sparse(ui, &command_helper, sub_args),
-        Commands::Git(sub_args) => cmd_git(ui, &command_helper, sub_args),
-        Commands::Bench(sub_args) => cmd_bench(ui, &command_helper, sub_args),
-        Commands::Debug(sub_args) => cmd_debug(ui, &command_helper, sub_args),
-        Commands::Alias(_) => panic!("Unresolved alias"),
+pub fn run_command(
+    ui: &mut Ui,
+    command_helper: &CommandHelper,
+    matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    let derived_subcommands: Commands = Commands::from_arg_matches(matches).unwrap();
+    match &derived_subcommands {
+        Commands::Version(sub_args) => cmd_version(ui, command_helper, sub_args),
+        Commands::Init(sub_args) => cmd_init(ui, command_helper, sub_args),
+        Commands::Checkout(sub_args) => cmd_checkout(ui, command_helper, sub_args),
+        Commands::Untrack(sub_args) => cmd_untrack(ui, command_helper, sub_args),
+        Commands::Files(sub_args) => cmd_files(ui, command_helper, sub_args),
+        Commands::Print(sub_args) => cmd_print(ui, command_helper, sub_args),
+        Commands::Diff(sub_args) => cmd_diff(ui, command_helper, sub_args),
+        Commands::Show(sub_args) => cmd_show(ui, command_helper, sub_args),
+        Commands::Status(sub_args) => cmd_status(ui, command_helper, sub_args),
+        Commands::Log(sub_args) => cmd_log(ui, command_helper, sub_args),
+        Commands::Interdiff(sub_args) => cmd_interdiff(ui, command_helper, sub_args),
+        Commands::Obslog(sub_args) => cmd_obslog(ui, command_helper, sub_args),
+        Commands::Describe(sub_args) => cmd_describe(ui, command_helper, sub_args),
+        Commands::Close(sub_args) => cmd_close(ui, command_helper, sub_args),
+        Commands::Open(sub_args) => cmd_open(ui, command_helper, sub_args),
+        Commands::Duplicate(sub_args) => cmd_duplicate(ui, command_helper, sub_args),
+        Commands::Abandon(sub_args) => cmd_abandon(ui, command_helper, sub_args),
+        Commands::Edit(sub_args) => cmd_edit(ui, command_helper, sub_args),
+        Commands::New(sub_args) => cmd_new(ui, command_helper, sub_args),
+        Commands::Move(sub_args) => cmd_move(ui, command_helper, sub_args),
+        Commands::Squash(sub_args) => cmd_squash(ui, command_helper, sub_args),
+        Commands::Unsquash(sub_args) => cmd_unsquash(ui, command_helper, sub_args),
+        Commands::Restore(sub_args) => cmd_restore(ui, command_helper, sub_args),
+        Commands::Touchup(sub_args) => cmd_touchup(ui, command_helper, sub_args),
+        Commands::Split(sub_args) => cmd_split(ui, command_helper, sub_args),
+        Commands::Merge(sub_args) => cmd_merge(ui, command_helper, sub_args),
+        Commands::Rebase(sub_args) => cmd_rebase(ui, command_helper, sub_args),
+        Commands::Backout(sub_args) => cmd_backout(ui, command_helper, sub_args),
+        Commands::Branch(sub_args) => cmd_branch(ui, command_helper, sub_args),
+        Commands::Undo(sub_args) => cmd_op_undo(ui, command_helper, sub_args),
+        Commands::Operation(sub_args) => cmd_operation(ui, command_helper, sub_args),
+        Commands::Workspace(sub_args) => cmd_workspace(ui, command_helper, sub_args),
+        Commands::Sparse(sub_args) => cmd_sparse(ui, command_helper, sub_args),
+        Commands::Git(sub_args) => cmd_git(ui, command_helper, sub_args),
+        Commands::Debug(sub_args) => cmd_debug(ui, command_helper, sub_args),
     }
 }
 
@@ -5478,6 +4484,6 @@ mod tests {
 
     #[test]
     fn verify_app() {
-        Args::command().debug_assert();
+        default_app().debug_assert();
     }
 }

@@ -23,7 +23,7 @@ use crate::backend::Backend;
 use crate::git_backend::GitBackend;
 use crate::local_backend::LocalBackend;
 use crate::op_store::WorkspaceId;
-use crate::repo::{ReadonlyRepo, RepoLoader};
+use crate::repo::{BackendFactories, ReadonlyRepo, RepoLoader};
 use crate::settings::UserSettings;
 use crate::working_copy::WorkingCopy;
 
@@ -90,11 +90,7 @@ fn init_working_copy(
 }
 
 impl Workspace {
-    fn new(
-        workspace_root: PathBuf,
-        working_copy: WorkingCopy,
-        repo_loader: RepoLoader,
-    ) -> Workspace {
+    fn new(workspace_root: &Path, working_copy: WorkingCopy, repo_loader: RepoLoader) -> Workspace {
         let workspace_root = workspace_root.canonicalize().unwrap();
         Workspace {
             workspace_root,
@@ -105,45 +101,49 @@ impl Workspace {
 
     pub fn init_local(
         user_settings: &UserSettings,
-        workspace_root: PathBuf,
+        workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         Self::init_with_backend(user_settings, workspace_root, |store_path| {
             Box::new(LocalBackend::init(store_path))
         })
     }
 
+    /// Initializes a workspace with a new Git backend in .jj/git/ (bare Git
+    /// repo)
     pub fn init_internal_git(
         user_settings: &UserSettings,
-        workspace_root: PathBuf,
+        workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         Self::init_with_backend(user_settings, workspace_root, |store_path| {
             Box::new(GitBackend::init_internal(store_path))
         })
     }
 
+    /// Initializes a workspace with an existing Git backend at the specified
+    /// path
     pub fn init_external_git(
         user_settings: &UserSettings,
-        workspace_root: PathBuf,
-        git_repo_path: PathBuf,
+        workspace_root: &Path,
+        git_repo_path: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         Self::init_with_backend(user_settings, workspace_root, |store_path| {
-            Box::new(GitBackend::init_external(store_path, git_repo_path.clone()))
+            Box::new(GitBackend::init_external(store_path, git_repo_path))
         })
     }
 
-    fn init_with_backend(
+    pub fn init_with_backend(
         user_settings: &UserSettings,
-        workspace_root: PathBuf,
-        backend_factory: impl FnOnce(PathBuf) -> Box<dyn Backend>,
+        workspace_root: &Path,
+        backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        let jj_dir = create_jj_dir(&workspace_root)?;
+        let jj_dir = create_jj_dir(workspace_root)?;
         let repo_dir = jj_dir.join("repo");
         std::fs::create_dir(&repo_dir).unwrap();
-        let repo = ReadonlyRepo::init(user_settings, repo_dir, backend_factory);
+        let repo = ReadonlyRepo::init(user_settings, &repo_dir, backend_factory);
         let (working_copy, repo) = init_working_copy(
             user_settings,
             &repo,
-            &workspace_root,
+            workspace_root,
             &jj_dir,
             WorkspaceId::default(),
         );
@@ -154,11 +154,11 @@ impl Workspace {
 
     pub fn init_workspace_with_existing_repo(
         user_settings: &UserSettings,
-        workspace_root: PathBuf,
+        workspace_root: &Path,
         repo: &Arc<ReadonlyRepo>,
         workspace_id: WorkspaceId,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        let jj_dir = create_jj_dir(&workspace_root)?;
+        let jj_dir = create_jj_dir(workspace_root)?;
 
         let repo_dir = repo.repo_path().canonicalize().unwrap();
         let mut repo_file = File::create(jj_dir.join("repo")).unwrap();
@@ -166,19 +166,19 @@ impl Workspace {
             .write_all(repo_dir.to_str().unwrap().as_bytes())
             .unwrap();
 
-        let repo_loader = RepoLoader::init(user_settings, repo_dir);
         let (working_copy, repo) =
-            init_working_copy(user_settings, repo, &workspace_root, &jj_dir, workspace_id);
-        let workspace = Workspace::new(workspace_root, working_copy, repo_loader);
+            init_working_copy(user_settings, repo, workspace_root, &jj_dir, workspace_id);
+        let workspace = Workspace::new(workspace_root, working_copy, repo.loader());
         Ok((workspace, repo))
     }
 
     pub fn load(
         user_settings: &UserSettings,
-        workspace_path: PathBuf,
+        workspace_path: &Path,
+        backend_factories: &BackendFactories,
     ) -> Result<Self, WorkspaceLoadError> {
-        let jj_dir = find_jj_dir(&workspace_path)
-            .ok_or(WorkspaceLoadError::NoWorkspaceHere(workspace_path))?;
+        let jj_dir = find_jj_dir(workspace_path)
+            .ok_or_else(|| WorkspaceLoadError::NoWorkspaceHere(workspace_path.to_owned()))?;
         let workspace_root = jj_dir.parent().unwrap().to_owned();
         let mut repo_dir = jj_dir.join("repo");
         // If .jj/repo is a file, then we interpret its contents as a relative path to
@@ -193,21 +193,21 @@ impl Workspace {
                 return Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir));
             }
         }
-        let repo_loader = RepoLoader::init(user_settings, repo_dir);
+        let repo_loader = RepoLoader::init(user_settings, &repo_dir, backend_factories);
         let working_copy_state_path = jj_dir.join("working_copy");
         let working_copy = WorkingCopy::load(
             repo_loader.store().clone(),
             workspace_root.clone(),
             working_copy_state_path,
         );
-        Ok(Workspace::new(workspace_root, working_copy, repo_loader))
+        Ok(Workspace::new(&workspace_root, working_copy, repo_loader))
     }
 
     pub fn workspace_root(&self) -> &PathBuf {
         &self.workspace_root
     }
 
-    pub fn workspace_id(&self) -> WorkspaceId {
+    pub fn workspace_id(&self) -> &WorkspaceId {
         self.working_copy.workspace_id()
     }
 

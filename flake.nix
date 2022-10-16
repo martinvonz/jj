@@ -21,7 +21,7 @@
             , lib
             , fetchFromGitHub
             , rustPlatform
-            , pkgconfig
+            , pkg-config
             , openssl
             , dbus
             , sqlite
@@ -45,7 +45,7 @@
                 lockFile = "${self}/Cargo.lock";
               };
               nativeBuildInputs = [
-                pkgconfig gzip makeWrapper
+                pkg-config gzip makeWrapper
                 installShellFiles
               ];
               buildInputs = [ openssl dbus sqlite ]

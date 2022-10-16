@@ -52,10 +52,9 @@ fn test_obslog_with_or_without_diff() {
     | my description
     | Resolved conflict in file1:
     |    1    1: <<<<<<<resolved
-    |    2     : -------
-    |    3     : +++++++
-    |    4     : +bar
-    |    5     : >>>>>>>
+    |    2     : %%%%%%%
+    |    3     : +bar
+    |    4     : >>>>>>>
     o 813918f7b4e6 test.user@example.com 2001-02-03 04:05:08.000 +07:00    conflict
     | my description
     o 8f02f5470c55 test.user@example.com 2001-02-03 04:05:08.000 +07:00   
@@ -91,10 +90,9 @@ fn test_obslog_with_or_without_diff() {
     index e155302a24...2ab19ae607 100644
     --- a/file1
     +++ b/file1
-    @@ -1,5 +1,1 @@
+    @@ -1,4 +1,1 @@
     -<<<<<<<
-    --------
-    -+++++++
+    -%%%%%%%
     -+bar
     ->>>>>>>
     +resolved
@@ -123,7 +121,7 @@ fn test_obslog_with_or_without_diff() {
 
 #[test]
 fn test_obslog_squash() {
-    let test_env = TestEnvironment::default();
+    let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
@@ -131,12 +129,15 @@ fn test_obslog_squash() {
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "second"]);
     std::fs::write(repo_path.join("file1"), "foo\nbar\n").unwrap();
+
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(&edit_script, "write\nsquashed").unwrap();
     test_env.jj_cmd_success(&repo_path, &["squash"]);
 
     let stdout = get_log_output(&test_env, &repo_path, &["obslog", "-p", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    o   c36a0819516d test.user@example.com 2001-02-03 04:05:07.000 +07:00   
-    |\  first
+    o   9b6d4a272a6a test.user@example.com 2001-02-03 04:05:07.000 +07:00   
+    |\  squashed
     | | Modified regular file file1:
     | |    1    1: foo
     | |         2: bar

@@ -76,7 +76,7 @@ impl<'a, C> LabelTemplate<'a, C> {
 impl<'a, C> Template<C> for LabelTemplate<'a, C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         for label in &self.labels {
-            formatter.add_label(label.clone())?;
+            formatter.add_label(label)?;
         }
         self.content.format(context, formatter)?;
         for _label in &self.labels {
@@ -107,12 +107,9 @@ impl<'a, C> DynamicLabelTemplate<'a, C> {
 impl<'a, C> Template<C> for DynamicLabelTemplate<'a, C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let labels = self.label_property.as_ref()(context);
-        let labels = labels
-            .split_whitespace()
-            .map(|label| label.to_string())
-            .collect_vec();
+        let labels = labels.split_whitespace().collect_vec();
         for label in &labels {
-            formatter.add_label(label.clone())?;
+            formatter.add_label(label)?;
         }
         self.content.format(context, formatter)?;
         for _label in &labels {
@@ -207,19 +204,19 @@ impl TemplateProperty<Commit, bool> for OpenProperty {
     }
 }
 
-pub struct CheckoutsProperty<'a> {
+pub struct WorkingCopiesProperty<'a> {
     pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<Commit, String> for CheckoutsProperty<'_> {
+impl TemplateProperty<Commit, String> for WorkingCopiesProperty<'_> {
     fn extract(&self, context: &Commit) -> String {
-        let checkouts = self.repo.view().checkouts();
-        if checkouts.len() <= 1 {
+        let wc_commit_ids = self.repo.view().wc_commit_ids();
+        if wc_commit_ids.len() <= 1 {
             return "".to_string();
         }
         let mut names = vec![];
-        for (workspace_id, checkout_id) in checkouts.iter().sorted() {
-            if checkout_id == context.id() {
+        for (workspace_id, wc_commit_id) in wc_commit_ids.iter().sorted() {
+            if wc_commit_id == context.id() {
                 names.push(format!("{}@", workspace_id.as_str()));
             }
         }
@@ -227,14 +224,14 @@ impl TemplateProperty<Commit, String> for CheckoutsProperty<'_> {
     }
 }
 
-pub struct CurrentCheckoutProperty<'a> {
+pub struct IsWorkingCopyProperty<'a> {
     pub repo: RepoRef<'a>,
     pub workspace_id: WorkspaceId,
 }
 
-impl TemplateProperty<Commit, bool> for CurrentCheckoutProperty<'_> {
+impl TemplateProperty<Commit, bool> for IsWorkingCopyProperty<'_> {
     fn extract(&self, context: &Commit) -> bool {
-        Some(context.id()) == self.repo.view().get_checkout(&self.workspace_id)
+        Some(context.id()) == self.repo.view().get_wc_commit_id(&self.workspace_id)
     }
 }
 

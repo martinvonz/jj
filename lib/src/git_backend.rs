@@ -15,7 +15,7 @@
 use std::fmt::{Debug, Error, Formatter};
 use std::fs::File;
 use std::io::{Cursor, Read, Write};
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Mutex;
 
 use git2::Oid;
@@ -24,9 +24,9 @@ use protobuf::Message;
 use uuid::Uuid;
 
 use crate::backend::{
-    Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict, ConflictId,
-    ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree, TreeId,
-    TreeValue,
+    make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
+    ConflictId, ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree,
+    TreeId, TreeValue,
 };
 use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::stacked_table::{TableSegment, TableStore};
@@ -47,22 +47,24 @@ impl From<git2::Error> for BackendError {
 
 pub struct GitBackend {
     repo: Mutex<git2::Repository>,
+    root_commit_id: CommitId,
     empty_tree_id: TreeId,
     extra_metadata_store: TableStore,
 }
 
 impl GitBackend {
     fn new(repo: git2::Repository, extra_metadata_store: TableStore) -> Self {
-        let empty_tree_id =
-            TreeId::new(hex::decode("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap());
+        let root_commit_id = CommitId::from_bytes(&[0; HASH_LENGTH]);
+        let empty_tree_id = TreeId::from_hex("4b825dc642cb6eb9a060e54bf8d69288fbee4904");
         GitBackend {
             repo: Mutex::new(repo),
+            root_commit_id,
             empty_tree_id,
             extra_metadata_store,
         }
     }
 
-    pub fn init_internal(store_path: PathBuf) -> Self {
+    pub fn init_internal(store_path: &Path) -> Self {
         let git_repo = git2::Repository::init_bare(&store_path.join("git")).unwrap();
         let extra_path = store_path.join("extra");
         std::fs::create_dir(&extra_path).unwrap();
@@ -72,7 +74,7 @@ impl GitBackend {
         GitBackend::new(git_repo, extra_metadata_store)
     }
 
-    pub fn init_external(store_path: PathBuf, git_repo_path: PathBuf) -> Self {
+    pub fn init_external(store_path: &Path, git_repo_path: &Path) -> Self {
         let extra_path = store_path.join("extra");
         std::fs::create_dir(&extra_path).unwrap();
         let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
@@ -84,7 +86,7 @@ impl GitBackend {
         GitBackend::new(repo, extra_metadata_store)
     }
 
-    pub fn load(store_path: PathBuf) -> Self {
+    pub fn load(store_path: &Path) -> Self {
         let mut git_target_file = File::open(store_path.join("git_target")).unwrap();
         let mut buf = Vec::new();
         git_target_file.read_to_end(&mut buf).unwrap();
@@ -99,7 +101,7 @@ impl GitBackend {
 fn signature_from_git(signature: git2::Signature) -> Signature {
     let name = signature.name().unwrap_or("<no name>").to_owned();
     let email = signature.email().unwrap_or("<no email>").to_owned();
-    let timestamp = MillisSinceEpoch((signature.when().seconds() * 1000) as u64);
+    let timestamp = MillisSinceEpoch(signature.when().seconds() * 1000);
     let tz_offset = signature.when().offset_minutes();
     Signature {
         name,
@@ -115,7 +117,7 @@ fn signature_to_git(signature: &Signature) -> git2::Signature {
     let name = &signature.name;
     let email = &signature.email;
     let time = git2::Time::new(
-        (signature.timestamp.timestamp.0 / 1000) as i64,
+        signature.timestamp.timestamp.0.div_euclid(1000),
         signature.timestamp.tz_offset,
     );
     git2::Signature::new(name, email, &time).unwrap()
@@ -162,6 +164,10 @@ impl Debug for GitBackend {
 }
 
 impl Backend for GitBackend {
+    fn name(&self) -> &str {
+        "git"
+    }
+
     fn hash_length(&self) -> usize {
         HASH_LENGTH
     }
@@ -207,6 +213,10 @@ impl Backend for GitBackend {
         let locked_repo = self.repo.lock().unwrap();
         let oid = locked_repo.blob(target.as_bytes()).unwrap();
         Ok(SymlinkId::new(oid.as_bytes().to_vec()))
+    }
+
+    fn root_commit_id(&self) -> &CommitId {
+        &self.root_commit_id
     }
 
     fn empty_tree_id(&self) -> &TreeId {
@@ -340,6 +350,10 @@ impl Backend for GitBackend {
             return Err(BackendError::NotFound);
         }
 
+        if *id == self.root_commit_id {
+            return Ok(make_root_commit(self.empty_tree_id.clone()));
+        }
+
         let locked_repo = self.repo.lock().unwrap();
         let git_commit_id = Oid::from_bytes(id.as_bytes())?;
         let commit = locked_repo.find_commit(git_commit_id)?;
@@ -356,10 +370,13 @@ impl Backend for GitBackend {
                 .map(|b| b.reverse_bits())
                 .collect(),
         );
-        let parents = commit
+        let mut parents = commit
             .parent_ids()
             .map(|oid| CommitId::from_bytes(oid.as_bytes()))
             .collect_vec();
+        if parents.is_empty() {
+            parents.push(self.root_commit_id.clone());
+        };
         let tree_id = TreeId::from_bytes(commit.tree_id().as_bytes());
         let description = commit.message().unwrap_or("<no message>").to_owned();
         let author = signature_from_git(commit.author());
@@ -396,9 +413,17 @@ impl Backend for GitBackend {
 
         let mut parents = vec![];
         for parent_id in &contents.parents {
-            let parent_git_commit =
-                locked_repo.find_commit(Oid::from_bytes(parent_id.as_bytes())?)?;
-            parents.push(parent_git_commit);
+            if *parent_id == self.root_commit_id {
+                // Git doesn't have a root commit, so if the parent is the root commit, we don't
+                // add it to the list of parents to write in the Git commit. We also check that
+                // there are no other parents since Git cannot represent a merge between a root
+                // commit and another commit.
+                assert_eq!(contents.parents.len(), 1);
+            } else {
+                let parent_git_commit =
+                    locked_repo.find_commit(Oid::from_bytes(parent_id.as_bytes())?)?;
+                parents.push(parent_git_commit);
+            }
         }
         let parent_refs = parents.iter().collect_vec();
         let git_id = locked_repo.commit(
@@ -510,11 +535,12 @@ mod tests {
 
     use super::*;
     use crate::backend::{FileId, MillisSinceEpoch};
+    use crate::testutils;
 
     #[test]
     fn read_plain_git_commit() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let store_path = temp_dir.path().to_path_buf();
+        let temp_dir = testutils::new_temp_dir();
+        let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
         let git_repo = git2::Repository::init(&git_repo_path).unwrap();
 
@@ -559,10 +585,10 @@ mod tests {
         // Check that the git commit above got the hash we expect
         assert_eq!(git_commit_id.as_bytes(), commit_id.as_bytes());
 
-        let store = GitBackend::init_external(store_path, git_repo_path);
+        let store = GitBackend::init_external(store_path, &git_repo_path);
         let commit = store.read_commit(&commit_id).unwrap();
         assert_eq!(&commit.change_id, &change_id);
-        assert_eq!(commit.parents, vec![]);
+        assert_eq!(commit.parents, vec![CommitId::from_bytes(&[0; 20])]);
         assert_eq!(commit.predecessors, vec![]);
         assert_eq!(commit.root_tree.as_bytes(), root_tree_id.as_bytes());
         assert!(!commit.is_open);
@@ -624,8 +650,8 @@ mod tests {
 
     #[test]
     fn commit_has_ref() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let store = GitBackend::init_internal(temp_dir.path().to_path_buf());
+        let temp_dir = testutils::new_temp_dir();
+        let store = GitBackend::init_internal(temp_dir.path());
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),
@@ -660,8 +686,8 @@ mod tests {
 
     #[test]
     fn overlapping_git_commit_id() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let store = GitBackend::init_internal(temp_dir.path().to_path_buf());
+        let temp_dir = testutils::new_temp_dir();
+        let store = GitBackend::init_internal(temp_dir.path());
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),

@@ -18,8 +18,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::backend;
 use crate::backend::{
-    Backend, BackendResult, ChangeId, CommitId, Conflict, ConflictId, FileId, MillisSinceEpoch,
-    Signature, SymlinkId, Timestamp, TreeId,
+    Backend, BackendResult, CommitId, Conflict, ConflictId, FileId, SymlinkId, TreeId,
 };
 use crate::commit::Commit;
 use crate::repo_path::RepoPath;
@@ -31,17 +30,14 @@ use crate::tree_builder::TreeBuilder;
 #[derive(Debug)]
 pub struct Store {
     backend: Box<dyn Backend>,
-    root_commit_id: CommitId,
     commit_cache: RwLock<HashMap<CommitId, Arc<backend::Commit>>>,
     tree_cache: RwLock<HashMap<(RepoPath, TreeId), Arc<backend::Tree>>>,
 }
 
 impl Store {
     pub fn new(backend: Box<dyn Backend>) -> Arc<Self> {
-        let root_commit_id = CommitId::new(vec![0; backend.hash_length()]);
         Arc::new(Store {
             backend,
-            root_commit_id,
             commit_cache: Default::default(),
             tree_cache: Default::default(),
         })
@@ -60,39 +56,16 @@ impl Store {
     }
 
     pub fn root_commit_id(&self) -> &CommitId {
-        &self.root_commit_id
+        self.backend.root_commit_id()
     }
 
     pub fn root_commit(self: &Arc<Self>) -> Commit {
-        self.get_commit(&self.root_commit_id).unwrap()
+        self.get_commit(self.backend.root_commit_id()).unwrap()
     }
 
     pub fn get_commit(self: &Arc<Self>, id: &CommitId) -> BackendResult<Commit> {
         let data = self.get_backend_commit(id)?;
         Ok(Commit::new(self.clone(), id.clone(), data))
-    }
-
-    fn make_root_commit(&self) -> backend::Commit {
-        let timestamp = Timestamp {
-            timestamp: MillisSinceEpoch(0),
-            tz_offset: 0,
-        };
-        let signature = Signature {
-            name: String::new(),
-            email: String::new(),
-            timestamp,
-        };
-        let change_id = ChangeId::new(vec![0; 16]);
-        backend::Commit {
-            parents: vec![],
-            predecessors: vec![],
-            root_tree: self.backend.empty_tree_id().clone(),
-            change_id,
-            description: String::new(),
-            author: signature.clone(),
-            committer: signature,
-            is_open: false,
-        }
     }
 
     fn get_backend_commit(&self, id: &CommitId) -> BackendResult<Arc<backend::Commit>> {
@@ -102,11 +75,7 @@ impl Store {
                 return Ok(data);
             }
         }
-        let commit = if id == self.root_commit_id() {
-            self.make_root_commit()
-        } else {
-            self.backend.read_commit(id)?
-        };
+        let commit = self.backend.read_commit(id)?;
         let data = Arc::new(commit);
         let mut write_locked_cache = self.commit_cache.write().unwrap();
         write_locked_cache.insert(id.clone(), data.clone());
@@ -114,6 +83,7 @@ impl Store {
     }
 
     pub fn write_commit(self: &Arc<Self>, commit: backend::Commit) -> Commit {
+        assert!(!commit.parents.is_empty());
         let commit_id = self.backend.write_commit(&commit).unwrap();
         let data = Arc::new(commit);
         {

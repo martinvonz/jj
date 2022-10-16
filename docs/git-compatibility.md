@@ -34,8 +34,8 @@ a comparison with Git, including how workflows are different, see the
   compared to `git`.  
 * **.gitattributes: No.** There's [#53](https://github.com/martinvonz/jj/issues/53)
   about adding support for at least the `eol` attribute.
-* **Hooks: No.** There's [#405] specifically for providing the checks from
-  https://pre-commit.com.
+* **Hooks: No.** There's [#405](https://github.com/martinvonz/jj/issues/405)
+  specifically for providing the checks from https://pre-commit.com.
 * **Merge commits: Yes.** Octopus merges (i.e. with more than 2 parents) are
   also supported.
 * **Detached HEAD: Yes.** Jujutsu supports anonymous branches, so this is a
@@ -44,7 +44,7 @@ a comparison with Git, including how workflows are different, see the
   parent of all commits Git would call "root commits".
 * **Staging area: Kind of.** The staging area will be ignored. For example,
   `jj diff` will show a diff from the Git HEAD to the working copy. There are
-  [ways of fulfilling your usecases without a staging
+  [ways of fulfilling your use cases without a staging
   area](https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md#the-index).  
 * **Garbage collection: Yes.** It should be safe to run `git gc` in the Git
   repo, but it's not tested, so it's probably a good idea to make a backup of
@@ -78,16 +78,16 @@ underlying Git repo will be inside of that directory (currently in
 To create a Jujutsu repo backed by a Git repo you already have on disk, use
 `jj init --git-repo=<path to Git repo> <name>`. The repo will work similar to a
 [Git worktree](https://git-scm.com/docs/git-worktree), meaning that the working
-copies and the record of the current checkout will be separate, but the commits
-will be accessible in both repos. Use `jj git import` to update the Jujutsu repo
-with changes made in the Git repo. Use `jj git export` to update the Git repo
-with changes made in the Jujutsu repo.
+copies files and the record of the working-copy commit will be separate, but the
+commits will be accessible in both repos. Use `jj git import` to update the
+Jujutsu repo with changes made in the Git repo. Use `jj git export` to update
+the Git repo with changes made in the Jujutsu repo.
 
-If you create initialize the Jujutsu repo in the same working copy as the Git
-repo by running `jj init --git-repo=.`, then the import and export will happen
+If you initialize the Jujutsu repo in the same working copy as the Git repo by
+running `jj init --git-repo=.`, then the import and export will happen
 automatically on every command (because not doing that makes it very confusing
-when the current checkout has changed in Git but not in Jujutsu or vice versa).
-This mode is meant to make it easier to start using readonly `jj` commands in an
+when the working copy has changed in Git but not in Jujutsu or vice versa). This
+mode is meant to make it easier to start using readonly `jj` commands in an
 existing Git repo. You should then be able to switch to using mutating `jj`
 commands and readonly Git commands. The mode is new and not tested much, and
 interleaving mutating `jj` and `git` commands might not work well (feel free

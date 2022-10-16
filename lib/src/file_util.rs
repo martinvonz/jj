@@ -42,10 +42,11 @@ mod tests {
     use test_case::test_case;
 
     use super::*;
+    use crate::testutils;
 
     #[test]
     fn test_persist_no_existing_file() {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let target = temp_dir.path().join("file");
         let mut temp_file = NamedTempFile::new_in(&temp_dir).unwrap();
         temp_file.write_all(b"contents").unwrap();
@@ -55,7 +56,7 @@ mod tests {
     #[test_case(false ; "existing file open")]
     #[test_case(true ; "existing file closed")]
     fn test_persist_target_exists(existing_file_closed: bool) {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let target = temp_dir.path().join("file");
         let mut temp_file = NamedTempFile::new_in(&temp_dir).unwrap();
         temp_file.write_all(b"contents").unwrap();

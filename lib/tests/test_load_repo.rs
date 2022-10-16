@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::repo::RepoLoader;
+use jujutsu_lib::repo::{BackendFactories, RepoLoader};
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::TestRepo;
 use test_case::test_case;
@@ -34,13 +34,13 @@ fn test_load_at_operation(use_git: bool) {
 
     // If we load the repo at head, we should not see the commit since it was
     // removed
-    let loader = RepoLoader::init(&settings, repo.repo_path().clone());
+    let loader = RepoLoader::init(&settings, repo.repo_path(), &BackendFactories::default());
     let head_repo = loader.load_at_head().resolve(&settings).unwrap();
     assert!(!head_repo.view().heads().contains(commit.id()));
 
     // If we load the repo at the previous operation, we should see the commit since
     // it has not been removed yet
-    let loader = RepoLoader::init(&settings, repo.repo_path().clone());
+    let loader = RepoLoader::init(&settings, repo.repo_path(), &BackendFactories::default());
     let old_repo = loader.load_at(repo.operation());
     assert!(old_repo.view().heads().contains(commit.id()));
 }

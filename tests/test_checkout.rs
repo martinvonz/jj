@@ -24,6 +24,12 @@ fn test_checkout() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
+    test_env.add_config(
+        br#"[ui]
+    enable-open-commits = true
+    "#,
+    );
+
     test_env.jj_cmd_success(&repo_path, &["close", "-m", "closed"]);
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "open"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "open"]);
@@ -67,6 +73,15 @@ fn test_checkout() {
     test_env.jj_cmd_success(&repo_path, &["checkout", "open"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 37b7bc83cf288eef68564044a9ac0ec6c5df34f0 (no description set)
+    o 169fa76981bcf302d1a96952bdf32a8da79ab084 open
+    o b4c967d9c9a9e8b523b0a9b52879b3337a3e67a9 closed
+    o 0000000000000000000000000000000000000000 (no description set)
+    "###);
+
+    // Can provide a description
+    test_env.jj_cmd_success(&repo_path, &["checkout", "@-", "-m", "my message"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @ 14a7f0fd8f8a8235efdf4b20635567ebcf5c9776 my message
     o 169fa76981bcf302d1a96952bdf32a8da79ab084 open
     o b4c967d9c9a9e8b523b0a9b52879b3337a3e67a9 closed
     o 0000000000000000000000000000000000000000 (no description set)

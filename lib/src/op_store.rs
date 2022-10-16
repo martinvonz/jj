@@ -28,13 +28,15 @@ impl Debug for WorkspaceId {
     }
 }
 
+impl Default for WorkspaceId {
+    fn default() -> Self {
+        Self("default".to_string())
+    }
+}
+
 impl WorkspaceId {
     pub fn new(value: String) -> Self {
         Self(value)
-    }
-
-    pub fn default() -> Self {
-        Self("default".to_string())
     }
 
     pub fn as_str(&self) -> &str {
@@ -173,8 +175,8 @@ pub struct View {
     pub git_head: Option<CommitId>,
     // The commit that *should be* checked out in the workspace. Note that the working copy
     // (.jj/working_copy/) has the source of truth about which commit *is* checked out (to be
-    // precise: the commit to which we most recently completed a checkout to).
-    pub checkouts: HashMap<WorkspaceId, CommitId>,
+    // precise: the commit to which we most recently completed an update to).
+    pub wc_commit_ids: HashMap<WorkspaceId, CommitId>,
 }
 
 /// Represents an operation (transaction) on the repo view, just like how a

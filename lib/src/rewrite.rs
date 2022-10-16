@@ -104,8 +104,7 @@ pub fn back_out_commit(
         .map(|commit| commit.id().clone())
         .collect();
     // TODO: i18n the description based on repo language
-    CommitBuilder::for_new_commit(settings, new_tree_id)
-        .set_parents(new_parent_ids)
+    CommitBuilder::for_new_commit(settings, new_parent_ids, new_tree_id)
         .set_description(format!("backout of commit {}", &old_commit.id().hex()))
         .write_to_repo(mut_repo)
 }
@@ -295,7 +294,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         edit: bool,
     ) -> Result<(), BackendError> {
         // We arbitrarily pick a new checkout among the candidates.
-        self.update_checkouts(&old_commit_id, &new_commit_ids[0], edit)?;
+        self.update_wc_commits(&old_commit_id, &new_commit_ids[0], edit)?;
 
         if let Some(branch_names) = self.branches.get(&old_commit_id).cloned() {
             let mut branch_updates = vec![];
@@ -331,19 +330,22 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         Ok(())
     }
 
-    fn update_checkouts(
+    fn update_wc_commits(
         &mut self,
         old_commit_id: &CommitId,
         new_commit_id: &CommitId,
         edit: bool,
     ) -> Result<(), BackendError> {
-        let workspaces_to_update = self.mut_repo.view().workspaces_for_checkout(old_commit_id);
+        let workspaces_to_update = self
+            .mut_repo
+            .view()
+            .workspaces_for_wc_commit_id(old_commit_id);
         if workspaces_to_update.is_empty() {
             return Ok(());
         }
 
         let new_commit = self.mut_repo.store().get_commit(new_commit_id)?;
-        let new_checkout_commit = if edit {
+        let new_wc_commit = if edit {
             new_commit
         } else {
             CommitBuilder::for_open_commit(
@@ -354,7 +356,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .write_to_repo(self.mut_repo)
         };
         for workspace_id in workspaces_to_update.into_iter() {
-            self.mut_repo.edit(workspace_id, &new_checkout_commit);
+            self.mut_repo.edit(workspace_id, &new_wc_commit);
         }
         Ok(())
     }
@@ -379,7 +381,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             }
             let old_commit = self.mut_repo.store().get_commit(&old_commit_id)?;
             let old_parent_ids = old_commit.parent_ids();
-            let new_parent_ids = self.new_parents(&old_parent_ids);
+            let new_parent_ids = self.new_parents(old_parent_ids);
             if self.abandoned.contains(&old_commit_id) {
                 // Update the `new_parents` map so descendants are rebased correctly.
                 self.new_parents

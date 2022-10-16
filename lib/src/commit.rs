@@ -75,35 +75,28 @@ impl Commit {
         &self.id
     }
 
-    pub fn parent_ids(&self) -> Vec<CommitId> {
-        if self.data.parents.is_empty() && &self.id != self.store.root_commit_id() {
-            vec![self.store.root_commit_id().clone()]
-        } else {
-            self.data.parents.clone()
-        }
+    pub fn parent_ids(&self) -> &[CommitId] {
+        &self.data.parents
     }
 
     pub fn parents(&self) -> Vec<Commit> {
-        let mut parents = Vec::new();
-        for parent in &self.data.parents {
-            parents.push(self.store.get_commit(parent).unwrap());
-        }
-        if parents.is_empty() && &self.id != self.store.root_commit_id() {
-            parents.push(self.store.root_commit())
-        }
-        parents
+        self.data
+            .parents
+            .iter()
+            .map(|id| self.store.get_commit(id).unwrap())
+            .collect()
     }
 
-    pub fn predecessor_ids(&self) -> Vec<CommitId> {
-        self.data.predecessors.clone()
+    pub fn predecessor_ids(&self) -> &[CommitId] {
+        &self.data.predecessors
     }
 
     pub fn predecessors(&self) -> Vec<Commit> {
-        let mut predecessors = Vec::new();
-        for predecessor in &self.data.predecessors {
-            predecessors.push(self.store.get_commit(predecessor).unwrap());
-        }
-        predecessors
+        self.data
+            .predecessors
+            .iter()
+            .map(|id| self.store.get_commit(id).unwrap())
+            .collect()
     }
 
     pub fn tree(&self) -> Tree {

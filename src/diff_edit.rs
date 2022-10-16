@@ -28,7 +28,6 @@ use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::tree::Tree;
 use jujutsu_lib::working_copy::{CheckoutError, SnapshotError, TreeState};
-use tempfile::tempdir;
 use thiserror::Error;
 
 use crate::ui::Ui;
@@ -83,14 +82,18 @@ fn check_out(
 }
 
 fn set_readonly_recursively(path: &Path) -> Result<(), std::io::Error> {
+    // Directory permission is unchanged since files under readonly directory cannot
+    // be removed.
     if path.is_dir() {
         for entry in path.read_dir()? {
             set_readonly_recursively(&entry?.path())?;
         }
+        Ok(())
+    } else {
+        let mut perms = std::fs::metadata(path)?.permissions();
+        perms.set_readonly(true);
+        std::fs::set_permissions(path, perms)
     }
-    let mut perms = std::fs::metadata(path)?.permissions();
-    perms.set_readonly(true);
-    std::fs::set_permissions(path, perms)
 }
 
 pub fn edit_diff(
@@ -109,7 +112,10 @@ pub fn edit_diff(
 
     // Check out the two trees in temporary directories. Only include changed files
     // in the sparse checkout patterns.
-    let temp_dir = tempdir().map_err(DiffEditError::SetUpDirError)?;
+    let temp_dir = tempfile::Builder::new()
+        .prefix("jj-diff-edit-")
+        .tempdir()
+        .map_err(DiffEditError::SetUpDirError)?;
     let left_wc_dir = temp_dir.path().join("left");
     let left_state_dir = temp_dir.path().join("left_state");
     let right_wc_dir = temp_dir.path().join("right");
@@ -171,7 +177,8 @@ pub fn edit_diff(
         std::fs::remove_file(instructions_path).ok();
     }
 
-    Ok(right_tree_state.snapshot(base_ignores)?)
+    right_tree_state.snapshot(base_ignores)?;
+    Ok(right_tree_state.current_tree_id().clone())
 }
 
 /// Merge/diff tool loaded from the settings.

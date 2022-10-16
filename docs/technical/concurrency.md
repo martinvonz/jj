@@ -55,7 +55,7 @@ what allows us to detect and merge concurrent operations.
 The operation log is similar to a commit DAG (such as in Git), but each commit
 object is instead an "operation" and each tree object is instead a "view". The
 view object contains the set of visible head commits, branches, tags, and the
-current checkout. The operation object contains a pointer to the view object
+working-copy commit. The operation object contains a pointer to the view object
 (like how commit objects point to tree objects), pointers to parent operation(s)
 (like how commit objects point to parent commit(s)), and metadata about the
 operation. These types are defined [here](../../lib/protos/op_store.proto). The

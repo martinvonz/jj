@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+* Open commits are now disabled by default. That means that `jj checkout` will
+  always create a new change on top of the specified commit and will let you
+  edit that in the working copy. Set `ui.enable-open-commits = true` to restore
+  the old behavior and let us know that you did so we know how many people
+  prefer the workflow with open commits.
+
 * `jj [op] undo` and `jj op restore` used to take the operation to undo or
   restore to as an argument to `-o/--operation`. It is now a positional
   argument instead (i.e. `jj undo -o abc123` is now written `jj undo abc123`).
@@ -18,11 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * (#250) `jj log` now defaults to showing only commits that are not on any
   remote branches (plus their closest commit on the remote branch for context).
+  This set of commits can be overridden by setting `ui.default-revset`.
   Use `jj log -r 'all()'` for the old behavior. Read more about revsets
   [here](https://github.com/martinvonz/jj/blob/main/docs/revsets.md).
 
 * `jj new` now always checks out the new commit (used to be only if the parent
   was `@`).
+
+* `jj merge` now checks out the new commit. The command now behaves exactly
+  like `jj new`, except that it requires at least two arguments.
+  
 
 * When the working-copy commit is abandoned by `jj abandon` and the parent
   commit is open, a new working-copy commit will be created on top (the open
@@ -44,7 +55,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj git push` now pushes only branches pointing to the `@` by default. Use
   `--all` to push all branches.
 
+* The `checkouts` template keyword is now called `working_copies`, and
+  `current_checkout` is called `current_working_copy`.
+
 ### New features
+
+* The new `jj interdiff` command compares the changes in commits, ignoring
+  changes from intervening commits.
 
 * `jj rebase` now accepts a `--branch/-b <revision>` argument, which can be used
   instead of `-r` or `-s` to specify which commits to rebase. It will rebase the
@@ -60,6 +77,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   specifying paths on the command line (in addition to the `--interactive`
   mode). For example, use `jj move --to @-- foo` to move the changes to file
   (or directory) `foo` in the working copy to the grandparent commit.
+
+* When `jj move/squash/unsquash` abandons the source commit because it became
+  empty and both the source and the destination commits have non-empty
+  descriptions, it now asks for a combined description. If either description
+  was empty, it uses the other without asking.
 
 * `jj split` now lets you specify on the CLI which paths to include in the first
   commit. The interactive diff-editing is not started when you do that.
@@ -120,6 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj log` now accepts a `--reversed` option, which will show older commits
   first.
 
+* `jj log` now accepts file paths.
+
 * `jj obslog` now accepts `-p`/`--patch` option, which will show the diff
   compared to the previous version of the change.
 
@@ -127,6 +151,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replaced if once you modify a commit after having configured your name/email.
 
 * Color setting can now be overridden by `--color=always|never|auto` option.
+
+* `jj checkout` now lets you specify a description with `--message/-m`.
+
+* `jj new` can now be used for creating merge commits. If you pass more than
+  one argument to it, the new commit will have all of them as parents.
 
 ### Fixed bugs
 
@@ -173,9 +202,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * When checking out a commit, the previous commit is no longer abandoned if it
   has a non-empty description.
-
-* When using `jj move/squash/unsquash` results in the source commit becoming
-  empty, it is no longer abandoned if it is checked out (in any workspace).
 
 * All commands now consistently snapshot the working copy (it was missing from
   e.g. `jj undo` and `jj merge` before). 
@@ -235,7 +261,7 @@ No changes, only trying to get the automated build to work.
 
 ### Fixed bugs
 
- - (#131) Fixed crash when `core.excludesFile` pointed to non-existent file, and
+ - (#131) Fixed crash when `core.excludesFile` pointed to nonexistent file, and
    made leading `~/` in that config expand to `$HOME/`
 
 ## [0.3.0] - 2022-03-12

@@ -12,40 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Write;
+use std::io::{Stderr, Stdout, Write};
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Mutex, MutexGuard};
 use std::{fmt, io};
 
 use atty::Stream;
-use jujutsu_lib::commit::Commit;
-use jujutsu_lib::op_store::WorkspaceId;
-use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jujutsu_lib::settings::UserSettings;
 
-use crate::formatter::{ColorFormatter, Formatter, PlainTextFormatter};
-use crate::templater::TemplateFormatter;
+use crate::formatter::{Formatter, FormatterFactory};
 
 pub struct Ui<'a> {
     cwd: PathBuf,
-    color: bool,
-    stdout_formatter: Mutex<Box<dyn Formatter + 'a>>,
-    stderr_formatter: Mutex<Box<dyn Formatter + 'a>>,
+    formatter_factory: FormatterFactory,
+    output_pair: UiOutputPair<'a>,
     settings: UserSettings,
-}
-
-fn new_formatter<'output>(
-    settings: &UserSettings,
-    color: bool,
-    output: Box<dyn Write + 'output>,
-) -> Box<dyn Formatter + 'output> {
-    if color {
-        Box::new(ColorFormatter::new(output, settings))
-    } else {
-        Box::new(PlainTextFormatter::new(output))
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -83,11 +66,11 @@ fn color_setting(settings: &UserSettings) -> ColorChoice {
         .unwrap_or_default()
 }
 
-fn use_color(choice: ColorChoice) -> bool {
+fn use_color(choice: ColorChoice, maybe_tty: bool) -> bool {
     match choice {
         ColorChoice::Always => true,
         ColorChoice::Never => false,
-        ColorChoice::Auto => atty::is(Stream::Stdout),
+        ColorChoice::Auto => maybe_tty && atty::is(Stream::Stdout),
     }
 }
 
@@ -99,39 +82,39 @@ impl<'stdout> Ui<'stdout> {
         color: bool,
         settings: UserSettings,
     ) -> Ui<'stdout> {
-        let stdout_formatter = Mutex::new(new_formatter(&settings, color, stdout));
-        let stderr_formatter = Mutex::new(new_formatter(&settings, color, stderr));
+        let formatter_factory = FormatterFactory::prepare(&settings, color);
         Ui {
             cwd,
-            color,
-            stdout_formatter,
-            stderr_formatter,
+            formatter_factory,
+            output_pair: UiOutputPair::Dyn {
+                stdout: Mutex::new(stdout),
+                stderr: Mutex::new(stderr),
+            },
             settings,
         }
     }
 
     pub fn for_terminal(settings: UserSettings) -> Ui<'static> {
         let cwd = std::env::current_dir().unwrap();
-        let stdout: Box<dyn Write + 'static> = Box::new(io::stdout());
-        let stderr: Box<dyn Write + 'static> = Box::new(io::stderr());
-        let color = use_color(color_setting(&settings));
-        Ui::new(cwd, stdout, stderr, color, settings)
+        let color = use_color(color_setting(&settings), true);
+        let formatter_factory = FormatterFactory::prepare(&settings, color);
+        Ui {
+            cwd,
+            formatter_factory,
+            output_pair: UiOutputPair::Terminal {
+                stdout: io::stdout(),
+                stderr: io::stderr(),
+            },
+            settings,
+        }
     }
 
     /// Reconfigures the underlying outputs with the new color choice.
-    ///
-    /// It's up to caller to ensure that the current output formatters have no
-    /// labels applied. Otherwise the current color would persist.
-    pub fn reset_color_for_terminal(&mut self, choice: ColorChoice) {
-        let color = use_color(choice);
-        if self.color != color {
-            // it seems uneasy to unwrap the underlying output from the formatter, so
-            // recreate it.
-            let stdout_formatter = new_formatter(&self.settings, color, Box::new(io::stdout()));
-            let stderr_formatter = new_formatter(&self.settings, color, Box::new(io::stderr()));
-            self.color = color;
-            *self.stdout_formatter.get_mut().unwrap() = stdout_formatter;
-            *self.stderr_formatter.get_mut().unwrap() = stderr_formatter;
+    pub fn reset_color(&mut self, choice: ColorChoice) {
+        let maybe_tty = matches!(&self.output_pair, UiOutputPair::Terminal { .. });
+        let color = use_color(choice, maybe_tty);
+        if self.formatter_factory.is_color() != color {
+            self.formatter_factory = FormatterFactory::prepare(&self.settings, color);
         }
     }
 
@@ -143,32 +126,56 @@ impl<'stdout> Ui<'stdout> {
         &self.settings
     }
 
-    pub fn new_formatter<'output>(
+    pub fn new_formatter<'output, W: Write + 'output>(
         &self,
-        output: Box<dyn Write + 'output>,
+        output: W,
     ) -> Box<dyn Formatter + 'output> {
-        new_formatter(&self.settings, self.color, output)
+        self.formatter_factory.new_formatter(output)
     }
 
-    pub fn stdout_formatter(&self) -> MutexGuard<Box<dyn Formatter + 'stdout>> {
-        self.stdout_formatter.lock().unwrap()
+    /// Creates a formatter for the locked stdout stream.
+    ///
+    /// Labels added to the returned formatter should be removed by caller.
+    /// Otherwise the last color would persist.
+    pub fn stdout_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
+        match &self.output_pair {
+            UiOutputPair::Dyn { stdout, .. } => {
+                let output = DynWriteLock(stdout.lock().unwrap());
+                self.new_formatter(output)
+            }
+            UiOutputPair::Terminal { stdout, .. } => self.new_formatter(stdout.lock()),
+        }
     }
 
-    pub fn stderr_formatter(&self) -> MutexGuard<Box<dyn Formatter + 'stdout>> {
-        self.stderr_formatter.lock().unwrap()
+    /// Creates a formatter for the locked stderr stream.
+    pub fn stderr_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
+        match &self.output_pair {
+            UiOutputPair::Dyn { stderr, .. } => {
+                let output = DynWriteLock(stderr.lock().unwrap());
+                self.new_formatter(output)
+            }
+            UiOutputPair::Terminal { stderr, .. } => self.new_formatter(stderr.lock()),
+        }
     }
 
     pub fn write(&mut self, text: &str) -> io::Result<()> {
-        self.stdout_formatter().write_str(text)
+        let data = text.as_bytes();
+        match &mut self.output_pair {
+            UiOutputPair::Dyn { stdout, .. } => stdout.get_mut().unwrap().write_all(data),
+            UiOutputPair::Terminal { stdout, .. } => stdout.write_all(data),
+        }
     }
 
     pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
-        self.stdout_formatter().write_fmt(fmt)
+        match &mut self.output_pair {
+            UiOutputPair::Dyn { stdout, .. } => stdout.get_mut().unwrap().write_fmt(fmt),
+            UiOutputPair::Terminal { stdout, .. } => stdout.write_fmt(fmt),
+        }
     }
 
     pub fn write_hint(&mut self, text: impl AsRef<str>) -> io::Result<()> {
         let mut formatter = self.stderr_formatter();
-        formatter.add_label(String::from("hint"))?;
+        formatter.add_label("hint")?;
         formatter.write_str(text.as_ref())?;
         formatter.remove_label()?;
         Ok(())
@@ -176,7 +183,7 @@ impl<'stdout> Ui<'stdout> {
 
     pub fn write_warn(&mut self, text: impl AsRef<str>) -> io::Result<()> {
         let mut formatter = self.stderr_formatter();
-        formatter.add_label(String::from("warning"))?;
+        formatter.add_label("warning")?;
         formatter.write_str(text.as_ref())?;
         formatter.remove_label()?;
         Ok(())
@@ -184,32 +191,9 @@ impl<'stdout> Ui<'stdout> {
 
     pub fn write_error(&mut self, text: &str) -> io::Result<()> {
         let mut formatter = self.stderr_formatter();
-        formatter.add_label(String::from("error"))?;
+        formatter.add_label("error")?;
         formatter.write_str(text)?;
         formatter.remove_label()?;
-        Ok(())
-    }
-
-    pub fn write_commit_summary(
-        &mut self,
-        repo: RepoRef,
-        workspace_id: &WorkspaceId,
-        commit: &Commit,
-    ) -> io::Result<()> {
-        let template_string = self
-            .settings
-            .config()
-            .get_string("template.commit_summary")
-            .unwrap_or_else(|_| {
-                String::from(
-                    r#"label(if(open, "open"), commit_id.short() " " description.first_line())"#,
-                )
-            });
-        let template =
-            crate::template_parser::parse_commit_template(repo, workspace_id, &template_string);
-        let mut formatter = self.stdout_formatter();
-        let mut template_writer = TemplateFormatter::new(template, formatter.as_mut());
-        template_writer.format(commit)?;
         Ok(())
     }
 
@@ -243,6 +227,34 @@ impl<'stdout> Ui<'stdout> {
     }
 }
 
+enum UiOutputPair<'output> {
+    Dyn {
+        stdout: Mutex<Box<dyn Write + 'output>>,
+        stderr: Mutex<Box<dyn Write + 'output>>,
+    },
+    Terminal {
+        stdout: Stdout,
+        stderr: Stderr,
+    },
+}
+
+/// Wrapper to implement `Write` for locked `Box<dyn Write>`.
+struct DynWriteLock<'a, 'output>(MutexGuard<'a, Box<dyn Write + 'output>>);
+
+impl Write for DynWriteLock<'_, '_> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.write(buf)
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+        self.0.write_all(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.0.flush()
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum FilePathParseError {
     InputNotInRepo(String),
@@ -273,11 +285,13 @@ pub fn relative_path(mut from: &Path, to: &Path) -> PathBuf {
 mod tests {
     use std::io::Cursor;
 
+    use jujutsu_lib::testutils;
+
     use super::*;
 
     #[test]
     fn parse_file_path_wc_in_cwd() {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("repo");
         let wc_path = cwd_path.clone();
         let mut unused_stdout_buf = vec![];
@@ -319,7 +333,7 @@ mod tests {
 
     #[test]
     fn parse_file_path_wc_in_cwd_parent() {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("dir");
         let wc_path = cwd_path.parent().unwrap().to_path_buf();
         let mut unused_stdout_buf = vec![];
@@ -363,7 +377,7 @@ mod tests {
 
     #[test]
     fn parse_file_path_wc_in_cwd_child() {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("cwd");
         let wc_path = cwd_path.join("repo");
         let mut unused_stdout_buf = vec![];

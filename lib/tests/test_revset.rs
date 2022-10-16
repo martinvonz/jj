@@ -14,9 +14,11 @@
 
 use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::matchers::FilesMatcher;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::RepoRef;
-use jujutsu_lib::revset::{parse, resolve_symbol, RevsetError};
+use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::revset::{self, parse, resolve_symbol, RevsetError, RevsetExpression};
 use jujutsu_lib::testutils::{CommitGraphBuilder, TestRepo};
 use jujutsu_lib::{git, testutils};
 use test_case::test_case;
@@ -53,11 +55,15 @@ fn test_resolve_symbol_commit_id() {
 
     let mut commits = vec![];
     for i in &[1, 167, 895] {
-        let commit = CommitBuilder::for_new_commit(&settings, repo.store().empty_tree_id().clone())
-            .set_description(format!("test {}", i))
-            .set_author(signature.clone())
-            .set_committer(signature.clone())
-            .write_to_repo(mut_repo);
+        let commit = CommitBuilder::for_new_commit(
+            &settings,
+            vec![repo.store().root_commit_id().clone()],
+            repo.store().empty_tree_id().clone(),
+        )
+        .set_description(format!("test {}", i))
+        .set_author(signature.clone())
+        .set_committer(signature.clone())
+        .write_to_repo(mut_repo);
         commits.push(commit);
     }
     let repo = tx.commit();
@@ -260,8 +266,8 @@ fn test_resolve_symbol_checkout(use_git: bool) {
     );
 
     // Add some workspaces
-    mut_repo.set_checkout(ws1.clone(), commit1.id().clone());
-    mut_repo.set_checkout(ws2, commit2.id().clone());
+    mut_repo.set_wc_commit(ws1.clone(), commit1.id().clone());
+    mut_repo.set_wc_commit(ws2, commit2.id().clone());
     // @ cannot be resolved without a default workspace ID
     assert_eq!(
         resolve_symbol(mut_repo.as_repo_ref(), "@", None),
@@ -318,10 +324,10 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit3.id().clone()),
     );
 
-    // Non-existent ref
+    // Nonexistent ref
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "non-existent", None),
-        Err(RevsetError::NoSuchRevision("non-existent".to_string()))
+        resolve_symbol(mut_repo.as_repo_ref(), "nonexistent", None),
+        Err(RevsetError::NoSuchRevision("nonexistent".to_string()))
     );
 
     // Full ref
@@ -384,12 +390,16 @@ fn test_resolve_symbol_git_refs() {
 
     // Cannot shadow checkout ("@") or root symbols
     let ws_id = WorkspaceId::default();
-    mut_repo.set_checkout(ws_id.clone(), commit1.id().clone());
+    mut_repo.set_wc_commit(ws_id.clone(), commit1.id().clone());
     mut_repo.set_git_ref("@".to_string(), RefTarget::Normal(commit2.id().clone()));
     mut_repo.set_git_ref("root".to_string(), RefTarget::Normal(commit3.id().clone()));
     assert_eq!(
         resolve_symbol(mut_repo.as_repo_ref(), "@", Some(&ws_id)),
-        Ok(vec![mut_repo.view().get_checkout(&ws_id).unwrap().clone()])
+        Ok(vec![mut_repo
+            .view()
+            .get_wc_commit_id(&ws_id)
+            .unwrap()
+            .clone()])
     );
     assert_eq!(
         resolve_symbol(mut_repo.as_repo_ref(), "root", None),
@@ -447,7 +457,7 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
     );
 
     // Can find the current checkout
-    mut_repo.set_checkout(WorkspaceId::default(), commit1.id().clone());
+    mut_repo.set_wc_commit(WorkspaceId::default(), commit1.id().clone());
     assert_eq!(
         resolve_commit_ids_in_workspace(mut_repo.as_repo_ref(), "@", &WorkspaceId::default()),
         vec![commit1.id().clone()]
@@ -599,7 +609,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     assert_eq!(resolve_commit_ids(mut_repo.as_repo_ref(), "root-"), vec![]);
 
     // Can find parents of the current checkout
-    mut_repo.set_checkout(WorkspaceId::default(), commit2.id().clone());
+    mut_repo.set_wc_commit(WorkspaceId::default(), commit2.id().clone());
     assert_eq!(
         resolve_commit_ids_in_workspace(mut_repo.as_repo_ref(), "@-", &WorkspaceId::default()),
         vec![commit1.id().clone()]
@@ -1708,5 +1718,81 @@ fn test_evaluate_expression_difference(use_git: bool) {
             )
         ),
         vec![commit4.id().clone()]
+    );
+}
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_filter_by_diff(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(use_git);
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+
+    let added_clean_clean = RepoPath::from_internal_string("added_clean_clean");
+    let added_modified_clean = RepoPath::from_internal_string("added_modified_clean");
+    let added_modified_removed = RepoPath::from_internal_string("added_modified_removed");
+    let tree1 = testutils::create_tree(
+        repo,
+        &[
+            (&added_clean_clean, "1"),
+            (&added_modified_clean, "1"),
+            (&added_modified_removed, "1"),
+        ],
+    );
+    let tree2 = testutils::create_tree(
+        repo,
+        &[
+            (&added_clean_clean, "1"),
+            (&added_modified_clean, "2"),
+            (&added_modified_removed, "2"),
+        ],
+    );
+    let tree3 = testutils::create_tree(
+        repo,
+        &[
+            (&added_clean_clean, "1"),
+            (&added_modified_clean, "2"),
+            // added_modified_removed,
+        ],
+    );
+    let commit1 = CommitBuilder::for_new_commit(
+        &settings,
+        vec![repo.store().root_commit_id().clone()],
+        tree1.id().clone(),
+    )
+    .write_to_repo(mut_repo);
+    let commit2 =
+        CommitBuilder::for_new_commit(&settings, vec![commit1.id().clone()], tree2.id().clone())
+            .write_to_repo(mut_repo);
+    let commit3 =
+        CommitBuilder::for_new_commit(&settings, vec![commit2.id().clone()], tree3.id().clone())
+            .write_to_repo(mut_repo);
+
+    let resolve = |file_path: &RepoPath| -> Vec<CommitId> {
+        let repo_ref = mut_repo.as_repo_ref();
+        let matcher = FilesMatcher::new([file_path.clone()].into());
+        let candidates = RevsetExpression::all().evaluate(repo_ref, None).unwrap();
+        let commit_ids = revset::filter_by_diff(repo_ref, &matcher, candidates)
+            .iter()
+            .commit_ids()
+            .collect();
+        commit_ids
+    };
+
+    assert_eq!(resolve(&added_clean_clean), vec![commit1.id().clone()]);
+    assert_eq!(
+        resolve(&added_modified_clean),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve(&added_modified_removed),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone()
+        ]
     );
 }

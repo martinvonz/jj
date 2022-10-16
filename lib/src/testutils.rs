@@ -35,10 +35,17 @@ use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
 use crate::workspace::Workspace;
 
+pub fn new_temp_dir() -> TempDir {
+    tempfile::Builder::new()
+        .prefix("jj-test-")
+        .tempdir()
+        .unwrap()
+}
+
 pub fn new_user_home() -> TempDir {
     // Set $HOME to some arbitrary place so libgit2 doesn't use ~/.gitignore
     // of the person running the tests.
-    let home_dir = tempfile::tempdir().unwrap();
+    let home_dir = new_temp_dir();
     std::env::set_var("HOME", home_dir.path());
     home_dir
 }
@@ -62,7 +69,7 @@ pub struct TestRepo {
 impl TestRepo {
     pub fn init(use_git: bool) -> Self {
         let settings = user_settings();
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = new_temp_dir();
 
         let repo_dir = temp_dir.path().join("repo");
         fs::create_dir(&repo_dir).unwrap();
@@ -70,11 +77,11 @@ impl TestRepo {
         let repo = if use_git {
             let git_path = temp_dir.path().join("git-repo");
             git2::Repository::init(&git_path).unwrap();
-            ReadonlyRepo::init(&settings, repo_dir, |store_path| {
-                Box::new(GitBackend::init_external(store_path, git_path.clone()))
+            ReadonlyRepo::init(&settings, &repo_dir, |store_path| {
+                Box::new(GitBackend::init_external(store_path, &git_path))
             })
         } else {
-            ReadonlyRepo::init(&settings, repo_dir, |store_path| {
+            ReadonlyRepo::init(&settings, &repo_dir, |store_path| {
                 Box::new(LocalBackend::init(store_path))
             })
         };
@@ -94,7 +101,7 @@ pub struct TestWorkspace {
 
 impl TestWorkspace {
     pub fn init(settings: &UserSettings, use_git: bool) -> Self {
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = new_temp_dir();
 
         let workspace_root = temp_dir.path().join("repo");
         fs::create_dir(&workspace_root).unwrap();
@@ -102,9 +109,9 @@ impl TestWorkspace {
         let (workspace, repo) = if use_git {
             let git_path = temp_dir.path().join("git-repo");
             git2::Repository::init(&git_path).unwrap();
-            Workspace::init_external_git(settings, workspace_root, git_path).unwrap()
+            Workspace::init_external_git(settings, &workspace_root, &git_path).unwrap()
         } else {
-            Workspace::init_local(settings, workspace_root).unwrap()
+            Workspace::init_local(settings, &workspace_root).unwrap()
         };
 
         Self {
@@ -182,8 +189,12 @@ pub fn create_random_tree(repo: &ReadonlyRepo) -> TreeId {
 pub fn create_random_commit(settings: &UserSettings, repo: &ReadonlyRepo) -> CommitBuilder {
     let tree_id = create_random_tree(repo);
     let number = rand::random::<u32>();
-    CommitBuilder::for_new_commit(settings, tree_id)
-        .set_description(format!("random commit {}", number))
+    CommitBuilder::for_new_commit(
+        settings,
+        vec![repo.store().root_commit_id().clone()],
+        tree_id,
+    )
+    .set_description(format!("random commit {}", number))
 }
 
 pub fn write_working_copy_file(workspace_root: &Path, path: &RepoPath, contents: &str) {

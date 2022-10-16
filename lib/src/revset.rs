@@ -22,14 +22,17 @@ use std::sync::Arc;
 use itertools::Itertools;
 use pest::iterators::Pairs;
 use pest::Parser;
+use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, CommitId};
 use crate::commit::Commit;
 use crate::index::{HexPrefix, IndexEntry, IndexPosition, PrefixResolution, RevWalk};
+use crate::matchers::Matcher;
 use crate::op_store::WorkspaceId;
 use crate::repo::RepoRef;
 use crate::revset_graph_iterator::RevsetGraphIterator;
+use crate::rewrite;
 use crate::store::Store;
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -140,7 +143,7 @@ pub fn resolve_symbol(
         } else {
             WorkspaceId::new(symbol.strip_suffix('@').unwrap().to_string())
         };
-        if let Some(commit_id) = repo.view().get_checkout(&target_workspace) {
+        if let Some(commit_id) = repo.view().get_wc_commit_id(&target_workspace) {
             Ok(vec![commit_id.clone()])
         } else {
             Err(RevsetError::NoSuchRevision(symbol.to_owned()))
@@ -188,7 +191,7 @@ pub struct RevsetParser;
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum RevsetParseError {
     #[error("{0}")]
-    SyntaxError(#[from] pest::error::Error<Rule>),
+    SyntaxError(#[from] Box<pest::error::Error<Rule>>),
     #[error("Revset function \"{0}\" doesn't exist")]
     NoSuchFunction(String),
     #[error("Invalid arguments to revset function \"{name}\": {message}")]
@@ -791,7 +794,8 @@ fn parse_function_argument_to_string(
 }
 
 pub fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let mut pairs = RevsetParser::parse(Rule::expression, revset_str)?;
+    let mut pairs = RevsetParser::parse(Rule::expression, revset_str)
+        .map_err(|err| RevsetParseError::SyntaxError(Box::new(err)))?;
     let first = pairs.next().unwrap();
     assert!(pairs.next().is_none());
     if first.as_span().end() != revset_str.len() {
@@ -802,7 +806,7 @@ pub fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseError>
             },
             pos,
         );
-        return Err(RevsetParseError::SyntaxError(err));
+        return Err(RevsetParseError::SyntaxError(Box::new(err)));
     }
 
     parse_expression_rule(first.into_inner())
@@ -1372,6 +1376,23 @@ pub fn revset_for_commits<'revset, 'repo: 'revset>(
     Box::new(EagerRevset { index_entries })
 }
 
+pub fn filter_by_diff<'revset, 'repo: 'revset>(
+    repo: RepoRef<'repo>,
+    matcher: &'repo dyn Matcher,
+    candidates: Box<dyn Revset<'repo> + 'revset>,
+) -> Box<dyn Revset<'repo> + 'revset> {
+    Box::new(FilterRevset {
+        candidates,
+        predicate: Box::new(move |entry| {
+            let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
+            let parents = commit.parents();
+            let from_tree = rewrite::merge_commit_trees(repo, &parents);
+            let to_tree = commit.tree();
+            from_tree.diff(&to_tree, matcher).next().is_some()
+        }),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use assert_matches::assert_matches;
@@ -1380,27 +1401,27 @@ mod tests {
 
     #[test]
     fn test_revset_expression_building() {
-        let checkout_symbol = RevsetExpression::symbol("@".to_string());
+        let wc_symbol = RevsetExpression::symbol("@".to_string());
         let foo_symbol = RevsetExpression::symbol("foo".to_string());
         assert_eq!(
-            checkout_symbol,
+            wc_symbol,
             Rc::new(RevsetExpression::Symbol("@".to_string()))
         );
         assert_eq!(
-            checkout_symbol.heads(),
-            Rc::new(RevsetExpression::Heads(checkout_symbol.clone()))
+            wc_symbol.heads(),
+            Rc::new(RevsetExpression::Heads(wc_symbol.clone()))
         );
         assert_eq!(
-            checkout_symbol.roots(),
-            Rc::new(RevsetExpression::Roots(checkout_symbol.clone()))
+            wc_symbol.roots(),
+            Rc::new(RevsetExpression::Roots(wc_symbol.clone()))
         );
         assert_eq!(
-            checkout_symbol.parents(),
-            Rc::new(RevsetExpression::Parents(checkout_symbol.clone()))
+            wc_symbol.parents(),
+            Rc::new(RevsetExpression::Parents(wc_symbol.clone()))
         );
         assert_eq!(
-            checkout_symbol.ancestors(),
-            Rc::new(RevsetExpression::Ancestors(checkout_symbol.clone()))
+            wc_symbol.ancestors(),
+            Rc::new(RevsetExpression::Ancestors(wc_symbol.clone()))
         );
         assert_eq!(
             foo_symbol.children(),
@@ -1414,10 +1435,10 @@ mod tests {
             })
         );
         assert_eq!(
-            foo_symbol.dag_range_to(&checkout_symbol),
+            foo_symbol.dag_range_to(&wc_symbol),
             Rc::new(RevsetExpression::DagRange {
                 roots: foo_symbol.clone(),
-                heads: checkout_symbol.clone(),
+                heads: wc_symbol.clone(),
             })
         );
         assert_eq!(
@@ -1428,10 +1449,10 @@ mod tests {
             })
         );
         assert_eq!(
-            foo_symbol.range(&checkout_symbol),
+            foo_symbol.range(&wc_symbol),
             Rc::new(RevsetExpression::Range {
                 roots: foo_symbol.clone(),
-                heads: checkout_symbol.clone()
+                heads: wc_symbol.clone()
             })
         );
         assert_eq!(
@@ -1463,41 +1484,42 @@ mod tests {
             })
         );
         assert_eq!(
-            foo_symbol.union(&checkout_symbol),
+            foo_symbol.union(&wc_symbol),
             Rc::new(RevsetExpression::Union(
                 foo_symbol.clone(),
-                checkout_symbol.clone()
+                wc_symbol.clone()
             ))
         );
         assert_eq!(
-            foo_symbol.intersection(&checkout_symbol),
+            foo_symbol.intersection(&wc_symbol),
             Rc::new(RevsetExpression::Intersection(
                 foo_symbol.clone(),
-                checkout_symbol.clone()
+                wc_symbol.clone()
             ))
         );
         assert_eq!(
-            foo_symbol.minus(&checkout_symbol),
-            Rc::new(RevsetExpression::Difference(
-                foo_symbol,
-                checkout_symbol.clone()
-            ))
+            foo_symbol.minus(&wc_symbol),
+            Rc::new(RevsetExpression::Difference(foo_symbol, wc_symbol.clone()))
         );
     }
 
     #[test]
     fn test_parse_revset() {
-        let checkout_symbol = RevsetExpression::symbol("@".to_string());
+        let wc_symbol = RevsetExpression::symbol("@".to_string());
         let foo_symbol = RevsetExpression::symbol("foo".to_string());
         let bar_symbol = RevsetExpression::symbol("bar".to_string());
         // Parse a single symbol (specifically the "checkout" symbol)
-        assert_eq!(parse("@"), Ok(checkout_symbol.clone()));
+        assert_eq!(parse("@"), Ok(wc_symbol.clone()));
         // Parse a single symbol
         assert_eq!(parse("foo"), Ok(foo_symbol.clone()));
         // Internal '.', '-', and '+' are allowed
         assert_eq!(
             parse("foo.bar-v1+7"),
             Ok(RevsetExpression::symbol("foo.bar-v1+7".to_string()))
+        );
+        assert_eq!(
+            parse("foo.bar-v1+7-"),
+            Ok(RevsetExpression::symbol("foo.bar-v1+7".to_string()).parents())
         );
         // '.' is not allowed at the beginning or end
         assert_matches!(parse(".foo"), Err(RevsetParseError::SyntaxError(_)));
@@ -1511,20 +1533,20 @@ mod tests {
         // Parse a quoted symbol
         assert_eq!(parse("\"foo\""), Ok(foo_symbol.clone()));
         // Parse the "parents" operator
-        assert_eq!(parse("@-"), Ok(checkout_symbol.parents()));
+        assert_eq!(parse("@-"), Ok(wc_symbol.parents()));
         // Parse the "children" operator
-        assert_eq!(parse("@+"), Ok(checkout_symbol.children()));
+        assert_eq!(parse("@+"), Ok(wc_symbol.children()));
         // Parse the "ancestors" operator
-        assert_eq!(parse(":@"), Ok(checkout_symbol.ancestors()));
+        assert_eq!(parse(":@"), Ok(wc_symbol.ancestors()));
         // Parse the "descendants" operator
-        assert_eq!(parse("@:"), Ok(checkout_symbol.descendants()));
+        assert_eq!(parse("@:"), Ok(wc_symbol.descendants()));
         // Parse the "dag range" operator
         assert_eq!(parse("foo:bar"), Ok(foo_symbol.dag_range_to(&bar_symbol)));
         // Parse the "range" prefix operator
-        assert_eq!(parse("..@"), Ok(checkout_symbol.ancestors()));
+        assert_eq!(parse("..@"), Ok(wc_symbol.ancestors()));
         assert_eq!(
             parse("@.."),
-            Ok(checkout_symbol.range(&RevsetExpression::visible_heads()))
+            Ok(wc_symbol.range(&RevsetExpression::visible_heads()))
         );
         assert_eq!(parse("foo..bar"), Ok(foo_symbol.range(&bar_symbol)));
         // Parse the "intersection" operator
@@ -1534,9 +1556,9 @@ mod tests {
         // Parse the "difference" operator
         assert_eq!(parse("foo ~ bar"), Ok(foo_symbol.minus(&bar_symbol)));
         // Parentheses are allowed before suffix operators
-        assert_eq!(parse("(@)-"), Ok(checkout_symbol.parents()));
+        assert_eq!(parse("(@)-"), Ok(wc_symbol.parents()));
         // Space is allowed around expressions
-        assert_eq!(parse(" :@ "), Ok(checkout_symbol.ancestors()));
+        assert_eq!(parse(" :@ "), Ok(wc_symbol.ancestors()));
         // Space is not allowed around prefix operators
         assert_matches!(parse(" : @ "), Err(RevsetParseError::SyntaxError(_)));
         // Incomplete parse
@@ -1585,13 +1607,13 @@ mod tests {
 
     #[test]
     fn test_parse_revset_function() {
-        let checkout_symbol = RevsetExpression::symbol("@".to_string());
-        assert_eq!(parse("parents(@)"), Ok(checkout_symbol.parents()));
-        assert_eq!(parse("parents((@))"), Ok(checkout_symbol.parents()));
-        assert_eq!(parse("parents(\"@\")"), Ok(checkout_symbol.parents()));
+        let wc_symbol = RevsetExpression::symbol("@".to_string());
+        assert_eq!(parse("parents(@)"), Ok(wc_symbol.parents()));
+        assert_eq!(parse("parents((@))"), Ok(wc_symbol.parents()));
+        assert_eq!(parse("parents(\"@\")"), Ok(wc_symbol.parents()));
         assert_eq!(
             parse("ancestors(parents(@))"),
-            Ok(checkout_symbol.parents().ancestors())
+            Ok(wc_symbol.parents().ancestors())
         );
         assert_matches!(parse("parents(@"), Err(RevsetParseError::SyntaxError(_)));
         assert_eq!(

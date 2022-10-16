@@ -47,3 +47,65 @@ The deeper understanding of conflicts has many advantages:
 
 For information about how conflicts are handled in the working copy, see
 [here](working-copy.md#conflicts).
+
+
+## Conflict markers
+
+Conflicts are "materialized" using *conflict markers* in various contexts. For
+example, when you run `jj edit` on a commit with a conflict, it will be
+materialized in the working copy. Conflicts are also materialized when they are
+part of diff output (e.g. `jj show` on a commit that introduces or resolves a
+conflict). Here's an example of how Git can render a conflict using [its "diff3"
+style](https://git-scm.com/docs/git-merge#_how_conflicts_are_presented):
+
+```
+<<<<<<< left
+apple
+grapefruit
+orange
+======= base
+apple
+grape
+orange
+||||||| right
+APPLE
+GRAPE
+ORANGE
+>>>>>>>
+```
+
+In this example, the left side changed "grape" to "grapefruit", and the right
+side made all lines uppercase. To resolve the conflict, we would presumably keep
+the right side (the third section) and replace "GRAPE" by "GRAPEFRUIT". This way
+of visually finding the changes between the base and one side and then applying
+them to the other side is a common way of resolving conflicts when using Git's
+"diff3" style.
+
+Jujutsu helps you by combining the base and one side into a unified diff for
+you, making it easier to spot the differences to apply to the other side. Here's
+how that would look for the same example as above:
+
+```
+<<<<<<<
+%%%%%%%
+ apple
+-grape
++grapefruit
+ orange
++++++++
+APPLE
+GRAPE
+ORANGE
+>>>>>>>
+```
+
+As in Git, the `<<<<<<<` and `>>>>>>>` lines mark the start and end of the
+conflict. The `%%%%%%%` line indicates the start of a diff. The `+++++++`
+line indicates the start of a snapshot (not a diff).
+
+There is another reason for this format (in addition to helping you spot the
+differences): The format supports more complex conflicts involving more than 3
+inputs. Such conflicts can arise when you merge more than 2 commits. They would
+typically be rendered as a single snapshot (as above) but with more than one
+unified diffs. The process for resolving them is similar: Manually apply each
+diff onto the snapshot.

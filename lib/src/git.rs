@@ -319,7 +319,7 @@ pub enum GitPushError {
     NoSuchRemote(String),
     #[error("Push is not fast-forwardable")]
     NotFastForward,
-    #[error("Remote reject the update of some refs")]
+    #[error("Remote rejected the update of some refs (do you have permission to push to {0:?}?)")]
     RefUpdateRejected(Vec<String>),
     // TODO: I'm sure there are other errors possible, such as transport-level errors,
     // and errors caused by the remote rejecting the push.

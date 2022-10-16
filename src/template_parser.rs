@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate pest;
-
 use chrono::{FixedOffset, TimeZone, Utc};
 use jujutsu_lib::backend::{CommitId, Signature};
 use jujutsu_lib::commit::Commit;
@@ -21,14 +19,16 @@ use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
 use pest::iterators::{Pair, Pairs};
 use pest::Parser;
+use pest_derive::Parser;
 
 use crate::formatter::PlainTextFormatter;
 use crate::templater::{
-    AuthorProperty, BranchProperty, ChangeIdProperty, CheckoutsProperty, CommitIdKeyword,
-    CommitterProperty, ConditionalTemplate, ConflictProperty, ConstantTemplateProperty,
-    CurrentCheckoutProperty, DescriptionProperty, DivergentProperty, DynamicLabelTemplate,
-    GitRefsProperty, IsGitHeadProperty, LabelTemplate, ListTemplate, LiteralTemplate, OpenProperty,
+    AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdKeyword, CommitterProperty,
+    ConditionalTemplate, ConflictProperty, ConstantTemplateProperty, DescriptionProperty,
+    DivergentProperty, DynamicLabelTemplate, GitRefsProperty, IsGitHeadProperty,
+    IsWorkingCopyProperty, LabelTemplate, ListTemplate, LiteralTemplate, OpenProperty,
     StringPropertyTemplate, TagProperty, Template, TemplateFunction, TemplateProperty,
+    WorkingCopiesProperty,
 };
 
 #[derive(Parser)]
@@ -101,8 +101,8 @@ impl TemplateProperty<Signature, String> for SignatureTimestamp {
     fn extract(&self, context: &Signature) -> String {
         let utc = Utc
             .timestamp(
-                context.timestamp.timestamp.0 as i64 / 1000,
-                (context.timestamp.timestamp.0 % 1000) as u32 * 1000000,
+                context.timestamp.timestamp.0.div_euclid(1000),
+                context.timestamp.timestamp.0.rem_euclid(1000) as u32 * 1000000,
             )
             .with_timezone(&FixedOffset::east(context.timestamp.tz_offset * 60));
         utc.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string()
@@ -243,8 +243,8 @@ fn parse_commit_keyword<'a>(
         "author" => Property::Signature(Box::new(AuthorProperty)),
         "committer" => Property::Signature(Box::new(CommitterProperty)),
         "open" => Property::Boolean(Box::new(OpenProperty)),
-        "checkouts" => Property::String(Box::new(CheckoutsProperty { repo })),
-        "current_checkout" => Property::Boolean(Box::new(CurrentCheckoutProperty {
+        "working_copies" => Property::String(Box::new(WorkingCopiesProperty { repo })),
+        "current_working_copy" => Property::Boolean(Box::new(IsWorkingCopyProperty {
             repo,
             workspace_id: workspace_id.clone(),
         })),

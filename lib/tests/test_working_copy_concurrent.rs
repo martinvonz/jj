@@ -17,6 +17,7 @@ use std::thread;
 
 use assert_matches::assert_matches;
 use jujutsu_lib::gitignore::GitIgnoreFile;
+use jujutsu_lib::repo::BackendFactories;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::testutils;
 use jujutsu_lib::testutils::TestWorkspace;
@@ -28,7 +29,7 @@ use test_case::test_case;
 #[test_case(true ; "git backend")]
 fn test_concurrent_checkout(use_git: bool) {
     // Test that we error out if a concurrent checkout is detected (i.e. if the
-    // current checkout changed on disk after we read it).
+    // working-copy commit changed on disk after we read it).
     let settings = testutils::user_settings();
     let mut test_workspace1 = TestWorkspace::init(&settings, use_git);
     let repo1 = test_workspace1.repo.clone();
@@ -57,7 +58,8 @@ fn test_concurrent_checkout(use_git: bool) {
 
     // Check out tree2 from another process (simulated by another workspace
     // instance)
-    let mut workspace2 = Workspace::load(&settings, workspace1_root.clone()).unwrap();
+    let mut workspace2 =
+        Workspace::load(&settings, &workspace1_root, &BackendFactories::default()).unwrap();
     workspace2
         .working_copy_mut()
         .check_out(repo1.op_id().clone(), Some(&tree_id1), &tree2)
@@ -70,8 +72,9 @@ fn test_concurrent_checkout(use_git: bool) {
     );
 
     // Check that the tree2 is still checked out on disk.
-    let workspace3 = Workspace::load(&settings, workspace1_root).unwrap();
-    assert_eq!(workspace3.working_copy().current_tree_id(), tree_id2);
+    let workspace3 =
+        Workspace::load(&settings, &workspace1_root, &BackendFactories::default()).unwrap();
+    assert_eq!(workspace3.working_copy().current_tree_id(), &tree_id2);
 }
 
 #[test_case(false ; "local backend")]
@@ -112,7 +115,8 @@ fn test_checkout_parallel(use_git: bool) {
         let settings = settings.clone();
         let workspace_root = workspace_root.clone();
         let handle = thread::spawn(move || {
-            let mut workspace = Workspace::load(&settings, workspace_root).unwrap();
+            let mut workspace =
+                Workspace::load(&settings, &workspace_root, &BackendFactories::default()).unwrap();
             let tree = workspace
                 .repo_loader()
                 .store()

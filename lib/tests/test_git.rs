@@ -19,6 +19,7 @@ use git2::Oid;
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git::{GitFetchError, GitPushError, GitRefUpdate};
+use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::settings::UserSettings;
@@ -276,7 +277,7 @@ struct GitRepoData {
 impl GitRepoData {
     fn create() -> Self {
         let settings = testutils::user_settings();
-        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_dir = testutils::new_temp_dir();
         let origin_repo_dir = temp_dir.path().join("source");
         let origin_repo = git2::Repository::init_bare(&origin_repo_dir).unwrap();
         let git_repo_dir = temp_dir.path().join("git");
@@ -284,7 +285,9 @@ impl GitRepoData {
             git2::Repository::clone(origin_repo_dir.to_str().unwrap(), &git_repo_dir).unwrap();
         let jj_repo_dir = temp_dir.path().join("jj");
         std::fs::create_dir(&jj_repo_dir).unwrap();
-        let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
+        let repo = ReadonlyRepo::init(&settings, &jj_repo_dir, |store_path| {
+            Box::new(GitBackend::init_external(store_path, &git_repo_dir))
+        });
         Self {
             settings,
             _temp_dir: temp_dir,
@@ -513,14 +516,16 @@ fn test_export_refs_unborn_git_branch() {
 #[test]
 fn test_init() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let git_repo_dir = temp_dir.path().join("git");
     let jj_repo_dir = temp_dir.path().join("jj");
     let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
     let initial_git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     let initial_commit_id = commit_id(&initial_git_commit);
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let repo = ReadonlyRepo::init_external_git(&settings, jj_repo_dir, git_repo_dir);
+    let repo = ReadonlyRepo::init(&settings, &jj_repo_dir, |store_path| {
+        Box::new(GitBackend::init_external(store_path, &git_repo_dir))
+    });
     // The refs were *not* imported -- it's the caller's responsibility to import
     // any refs they care about.
     assert!(!repo.view().heads().contains(&initial_commit_id));
@@ -548,7 +553,7 @@ fn test_fetch_initial_commit() {
     // No default branch because the origin repo's HEAD wasn't set
     assert_eq!(default_branch, None);
     let repo = tx.commit();
-    // The initial commit commit is visible after git::fetch().
+    // The initial commit is visible after git::fetch().
     let view = repo.view();
     assert!(view.heads().contains(&commit_id(&initial_git_commit)));
     let initial_commit_target = RefTarget::Normal(commit_id(&initial_git_commit));
@@ -682,7 +687,9 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let initial_commit_id = commit_id(&initial_git_commit);
     git2::Repository::clone(source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let jj_repo = ReadonlyRepo::init_external_git(settings, jj_repo_dir, clone_repo_dir);
+    let jj_repo = ReadonlyRepo::init(settings, &jj_repo_dir, |store_path| {
+        Box::new(GitBackend::init_external(store_path, &clone_repo_dir))
+    });
     let mut tx = jj_repo.start_transaction("test");
     let new_commit = testutils::create_random_commit(settings, &jj_repo)
         .set_parents(vec![initial_commit_id])
@@ -698,7 +705,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
 #[test]
 fn test_push_updates_success() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = setup.jj_repo.store().git_repo().unwrap();
     let result = git::push_updates(
@@ -734,7 +741,7 @@ fn test_push_updates_success() {
 #[test]
 fn test_push_updates_deletion() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = setup.jj_repo.store().git_repo().unwrap();
 
@@ -767,7 +774,7 @@ fn test_push_updates_deletion() {
 #[test]
 fn test_push_updates_mixed_deletion_and_addition() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = setup.jj_repo.store().git_repo().unwrap();
     let result = git::push_updates(
@@ -804,7 +811,7 @@ fn test_push_updates_mixed_deletion_and_addition() {
 #[test]
 fn test_push_updates_not_fast_forward() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
     let mut tx = setup.jj_repo.start_transaction("test");
     let new_commit =
@@ -825,7 +832,7 @@ fn test_push_updates_not_fast_forward() {
 #[test]
 fn test_push_updates_not_fast_forward_with_force() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
     let mut tx = setup.jj_repo.start_transaction("test");
     let new_commit =
@@ -855,7 +862,7 @@ fn test_push_updates_not_fast_forward_with_force() {
 #[test]
 fn test_push_updates_no_such_remote() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let result = git::push_updates(
         &setup.jj_repo.store().git_repo().unwrap(),
@@ -872,7 +879,7 @@ fn test_push_updates_no_such_remote() {
 #[test]
 fn test_push_updates_invalid_remote() {
     let settings = testutils::user_settings();
-    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let result = git::push_updates(
         &setup.jj_repo.store().git_repo().unwrap(),

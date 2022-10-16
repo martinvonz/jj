@@ -145,26 +145,53 @@ fn test_invalid_config() {
 }
 
 #[test]
+fn test_no_user_configured() {
+    // Test that the user is reminded if they haven't configured their name or email
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let assert = test_env
+        .jj_cmd(&repo_path, &["describe", "-m", "without name"])
+        .env_remove("JJ_USER")
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Name and email not configured. Add something like the following to $HOME/.jjconfig.toml:
+      user.name = "Some One"
+      user.email = "someone@example.com"
+    "###);
+    let assert = test_env
+        .jj_cmd(&repo_path, &["describe", "-m", "without email"])
+        .env_remove("JJ_EMAIL")
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Name and email not configured. Add something like the following to $HOME/.jjconfig.toml:
+      user.name = "Some One"
+      user.email = "someone@example.com"
+    "###);
+}
+
+#[test]
 fn test_help() {
     // Test that global options are separated out in the help output
     let test_env = TestEnvironment::default();
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["touchup", "-h"]);
     insta::assert_snapshot!(stdout.replace(".exe", ""), @r###"
-    jj-touchup 
     Touch up the content changes in a revision
 
-    USAGE:
-        jj touchup [OPTIONS]
+    Usage: jj touchup [OPTIONS]
 
-    OPTIONS:
-        -r, --revision <REVISION>    The revision to touch up [default: @]
+    Options:
+      -r, --revision <REVISION>  The revision to touch up [default: @]
+      -h, --help                 Print help information (use `--help` for more detail)
 
-    GLOBAL OPTIONS:
-            --at-operation <AT_OPERATION>    Operation to load the repo at [default: @] [aliases: at-op]
-            --color <WHEN>                   When to colorize output (always, never, auto)
-        -h, --help                           Print help information, more help with --help than with -h
-            --no-commit-working-copy         Don't commit the working copy
-        -R, --repository <REPOSITORY>        Path to repository to operate on
+    Global Options:
+      -R, --repository <REPOSITORY>      Path to repository to operate on
+          --no-commit-working-copy       Don't commit the working copy
+          --at-operation <AT_OPERATION>  Operation to load the repo at [default: @] [aliases: at-op]
+          --color <WHEN>                 When to colorize output (always, never, auto)
     "###);
 }

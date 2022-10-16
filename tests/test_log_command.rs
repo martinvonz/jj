@@ -155,3 +155,73 @@ fn test_log_reversed() {
     second
     "###);
 }
+
+#[test]
+fn test_log_filtered_by_path() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "second"]);
+    std::fs::write(repo_path.join("file1"), "foo\nbar\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "baz\n").unwrap();
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "file1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ second
+    o first
+    ~ 
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "file2"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ second
+    ~ 
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "-s", "file1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ second
+    | M file1
+    o first
+    ~ A file1
+    "###);
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "description", "-s", "file2", "--no-graph"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    second
+    A file2
+    "###);
+}
+
+#[test]
+fn test_default_revset() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "add a file"]);
+
+    // Set configuration to only show the root commit.
+    test_env.add_config(
+        br#"[ui]
+        default-revset = "root"
+        "#,
+    );
+
+    // Log should only contain one line (for the root commit), and not show the
+    // commit created above.
+    assert_eq!(
+        1,
+        test_env
+            .jj_cmd_success(&repo_path, &["log", "-T", "commit_id"])
+            .lines()
+            .count()
+    );
+}
