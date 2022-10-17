@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2022-10-17
+
 ### Breaking changes
 
 * Open commits are now disabled by default. That means that `jj checkout` will
@@ -33,7 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj merge` now checks out the new commit. The command now behaves exactly
   like `jj new`, except that it requires at least two arguments.
-  
 
 * When the working-copy commit is abandoned by `jj abandon` and the parent
   commit is open, a new working-copy commit will be created on top (the open
