@@ -49,16 +49,17 @@ jobs:
     - name: Build archive
       shell: bash
       run: |
-        outdir="./target/${{ matrix.target }}/release"
+        outdir="target/${{ matrix.target }}/release"
         staging="jj-${{ github.event.release.tag_name }}-${{ matrix.target }}"
+        mkdir "$staging"
         cp {README.md,LICENSE} "$staging/"
         if [ "${{ matrix.os }}" = "windows-2022" ]; then
-          cp "target/${{ matrix.target }}/release/jj.exe" "$staging/"
+          cp "$outdir/jj.exe" "$staging/"
           cd "$staging"
           7z a "../$staging.zip" .
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
         else
-          cp "target/${{ matrix.target }}/release/jj" "$staging/"
+          cp "$outdir/jj" "$staging/"
           tar czf "$staging.tar.gz" -C "$staging" .
           echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
         fi
