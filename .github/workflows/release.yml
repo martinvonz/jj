@@ -35,17 +35,12 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends xz-utils liblz4-tool musl-tools
     - name: Install Rust
-      uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+      uses: dtolnay/rust-toolchain@ba37adf8f94a7d9affce79bd3baff1b9e3189c33
       with:
         toolchain: stable
-        profile: minimal
-        override: true
         target: ${{ matrix.target }}
     - name: Build release binary
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
-      with:
-        command: build
-        args: --target ${{ matrix.target }} --verbose --release
+      run: cargo build --target ${{ matrix.target }} --verbose --release
     - name: Build archive
       shell: bash
       run: |
