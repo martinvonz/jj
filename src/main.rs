@@ -59,5 +59,6 @@ fn main() {
     let (mut ui, result) = create_ui();
     let result = result.and_then(|()| run(&mut ui, reload_log_filter));
     let exit_code = handle_command_result(&mut ui, result);
+    ui.finalize_writes();
     std::process::exit(exit_code);
 }

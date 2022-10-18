@@ -14,8 +14,9 @@
 
 use std::io::{Stderr, Stdout, Write};
 use std::path::{Path, PathBuf};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::str::FromStr;
-use std::{fmt, io};
+use std::{fmt, io, mem};
 
 use crossterm::tty::IsTty;
 use jujutsu_lib::settings::UserSettings;
@@ -92,6 +93,13 @@ fn use_color(choice: ColorChoice) -> bool {
     }
 }
 
+fn pager_setting(settings: &UserSettings) -> String {
+    settings
+        .config()
+        .get_string("ui.pager")
+        .unwrap_or_else(|_| "less".to_string())
+}
+
 impl Ui {
     pub fn for_terminal(settings: UserSettings) -> Ui {
         let cwd = std::env::current_dir().unwrap();
@@ -113,6 +121,18 @@ impl Ui {
         self.color = use_color(choice);
         if self.formatter_factory.is_color() != self.color {
             self.formatter_factory = FormatterFactory::prepare(&self.settings, self.color);
+        }
+    }
+
+    /// Switches the output to use the pager, if allowed.
+    pub fn request_pager(&mut self) {
+        match self.output {
+            UiOutput::Paged { .. } => {}
+            UiOutput::Terminal { .. } => {
+                if io::stdout().is_tty() {
+                    self.output = UiOutput::new_paged_else_terminal(&self.settings);
+                }
+            }
         }
     }
 
@@ -148,6 +168,7 @@ impl Ui {
     pub fn stdout_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
         match &self.output {
             UiOutput::Terminal { stdout, .. } => self.new_formatter(stdout.lock()),
+            UiOutput::Paged { child_stdin, .. } => self.new_formatter(child_stdin),
         }
     }
 
@@ -155,6 +176,7 @@ impl Ui {
     pub fn stderr_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
         match &self.output {
             UiOutput::Terminal { stderr, .. } => self.new_formatter(stderr.lock()),
+            UiOutput::Paged { child_stdin, .. } => self.new_formatter(child_stdin),
         }
     }
 
@@ -168,6 +190,7 @@ impl Ui {
         let data = text.as_bytes();
         match &mut self.output {
             UiOutput::Terminal { stdout, .. } => stdout.write_all(data),
+            UiOutput::Paged { child_stdin, .. } => child_stdin.write_all(data),
         }
     }
 
@@ -175,12 +198,14 @@ impl Ui {
         let data = text.as_bytes();
         match &mut self.output {
             UiOutput::Terminal { stderr, .. } => stderr.write_all(data),
+            UiOutput::Paged { child_stdin, .. } => child_stdin.write_all(data),
         }
     }
 
     pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
         match &mut self.output {
             UiOutput::Terminal { stdout, .. } => stdout.write_fmt(fmt),
+            UiOutput::Paged { child_stdin, .. } => child_stdin.write_fmt(fmt),
         }
     }
 
@@ -211,6 +236,24 @@ impl Ui {
     pub fn flush(&mut self) -> io::Result<()> {
         match &mut self.output {
             UiOutput::Terminal { stdout, .. } => stdout.flush(),
+            UiOutput::Paged { child_stdin, .. } => child_stdin.flush(),
+        }
+    }
+
+    pub fn finalize_writes(&mut self) {
+        if let UiOutput::Paged {
+            mut child,
+            child_stdin,
+        } = mem::replace(&mut self.output, UiOutput::new_terminal())
+        {
+            drop(child_stdin);
+            if let Err(e) = child.wait() {
+                // It's possible (though unlikely) that this write fails, but
+                // this function gets called so late that there's not much we
+                // can do about it.
+                self.write_error(&format!("Failed to wait on pager {}", e))
+                    .ok();
+            }
         }
     }
 
@@ -249,13 +292,23 @@ impl Ui {
             text,
             output: match self.output {
                 UiOutput::Terminal { .. } => io::stdout(),
+                // TODO we don't actually need to write in this case, so it
+                // might be better to no-op
+                UiOutput::Paged { .. } => io::stdout(),
             },
         }
     }
 }
 
 enum UiOutput {
-    Terminal { stdout: Stdout, stderr: Stderr },
+    Terminal {
+        stdout: Stdout,
+        stderr: Stderr,
+    },
+    Paged {
+        child: Child,
+        child_stdin: ChildStdin,
+    },
 }
 
 impl UiOutput {
@@ -263,6 +316,23 @@ impl UiOutput {
         UiOutput::Terminal {
             stdout: io::stdout(),
             stderr: io::stderr(),
+        }
+    }
+
+    fn new_paged_else_terminal(settings: &UserSettings) -> UiOutput {
+        let pager_cmd = pager_setting(settings);
+        let child_result = Command::new(pager_cmd).stdin(Stdio::piped()).spawn();
+        match child_result {
+            Ok(mut child) => {
+                let child_stdin = child.stdin.take().unwrap();
+                UiOutput::Paged { child, child_stdin }
+            }
+            Err(e) => {
+                io::stderr()
+                    .write_fmt(format_args!("Failed to spawn pager: {}", e))
+                    .ok();
+                UiOutput::new_terminal()
+            }
         }
     }
 }

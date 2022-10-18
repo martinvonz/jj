@@ -58,6 +58,9 @@ fn env_base() -> config::Config {
         // should override $NO_COLOR." https://no-color.org/
         builder = builder.set_override("ui.color", "never").unwrap();
     }
+    if let Ok(value) = env::var("PAGER") {
+        builder = builder.set_override("ui.pager", value).unwrap();
+    }
     if let Ok(value) = env::var("VISUAL") {
         builder = builder.set_override("ui.editor", value).unwrap();
     } else if let Ok(value) = env::var("EDITOR") {

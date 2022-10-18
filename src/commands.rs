@@ -1332,6 +1332,7 @@ fn show_color_words_diff_line(
 }
 
 fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(), CommandError> {
+    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
     let from_tree;
     let to_tree;
@@ -1359,6 +1360,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
 }
 
 fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(), CommandError> {
+    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let parents = commit.parents();
@@ -2031,6 +2033,7 @@ fn log_template(settings: &UserSettings) -> String {
 }
 
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {
+    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
 
     let default_revset = ui.settings().default_revset();
@@ -2193,6 +2196,7 @@ fn show_patch(
 }
 
 fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result<(), CommandError> {
+    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
 
     let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
@@ -2288,6 +2292,7 @@ fn cmd_interdiff(
     command: &CommandHelper,
     args: &InterdiffArgs,
 ) -> Result<(), CommandError> {
+    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
     let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
     let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
@@ -3604,6 +3609,7 @@ fn cmd_op_log(
     command: &CommandHelper,
     _args: &OperationLogArgs,
 ) -> Result<(), CommandError> {
+    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let head_op = repo.operation().clone();

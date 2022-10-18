@@ -43,6 +43,17 @@ This setting overrides the `NO_COLOR` environment variable (if set).
     ui.color = "never" # Turn off color
 
 
+### Paginating output
+
+The default pager is can be set via `ui.pager` or the `PAGER` environment
+variable.
+The priority is as follows (environment variables are marked with a `$`):
+
+`ui.pager` > `$PAGER`
+
+`less` is the default pager in the absence of any other setting.
+
+
 ### Editor
 
 The default editor is set via `ui.editor`,
