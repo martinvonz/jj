@@ -32,21 +32,13 @@ jobs:
     steps:
     - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
     - name: Install Rust (${{ matrix.rust_version }})
-      uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+      uses: dtolnay/rust-toolchain@ba37adf8f94a7d9affce79bd3baff1b9e3189c33
       with:
         toolchain:  ${{ matrix.rust_version }}
-        override: true
-        profile: minimal
     - name: Build
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
-      with:
-        command: build
-        args: --workspace --verbose
+      run: cargo build --workspace --verbose
     - name: Test
-      uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
-      with:
-        command: test
-        args: --workspace --verbose
+      run: cargo test --workspace --verbose
       env:
         RUST_BACKTRACE: 1
 
@@ -55,16 +47,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+      - uses: dtolnay/rust-toolchain@ba37adf8f94a7d9affce79bd3baff1b9e3189c33
         with:
           toolchain: nightly
-          profile: minimal
           components: rustfmt
-          override: true
-      - uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505
-        with:
-          command: fmt
-          args: --all -- --check
+      - run: cargo fmt --all -- --check
 
   cargo-deny:
     runs-on: ubuntu-latest
@@ -90,13 +77,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
-      - uses: actions-rs/toolchain@16499b5e05bf2e26879000db0c1d13f7e13fa3af
+      - uses: dtolnay/rust-toolchain@ba37adf8f94a7d9affce79bd3baff1b9e3189c33
         with:
           toolchain: stable
-          profile: minimal
           components: clippy
-          override: true
-      - uses: actions-rs/clippy-check@b5b5f21f4797c02da247df37026fcd0a5024aa4d
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features --workspace --all-targets -- -D warnings
+      - run: cargo clippy --all-features --workspace --all-targets -- -D warnings
