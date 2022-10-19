@@ -283,8 +283,6 @@ pub fn relative_path(mut from: &Path, to: &Path) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
-
     use jujutsu_lib::testutils;
 
     use super::*;
@@ -294,10 +292,8 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("repo");
         let wc_path = cwd_path.clone();
-        let mut unused_stdout_buf = vec![];
-        let mut unused_stderr_buf = vec![];
-        let unused_stdout = Box::new(Cursor::new(&mut unused_stdout_buf));
-        let unused_stderr = Box::new(Cursor::new(&mut unused_stderr_buf));
+        let unused_stdout = Box::new(Vec::new());
+        let unused_stderr = Box::new(Vec::new());
         let ui = Ui::new(
             cwd_path,
             unused_stdout,
@@ -336,10 +332,8 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("dir");
         let wc_path = cwd_path.parent().unwrap().to_path_buf();
-        let mut unused_stdout_buf = vec![];
-        let mut unused_stderr_buf = vec![];
-        let unused_stdout = Box::new(Cursor::new(&mut unused_stdout_buf));
-        let unused_stderr = Box::new(Cursor::new(&mut unused_stderr_buf));
+        let unused_stdout = Box::new(Vec::new());
+        let unused_stderr = Box::new(Vec::new());
         let ui = Ui::new(
             cwd_path,
             unused_stdout,
@@ -380,10 +374,8 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("cwd");
         let wc_path = cwd_path.join("repo");
-        let mut unused_stdout_buf = vec![];
-        let mut unused_stderr_buf = vec![];
-        let unused_stdout = Box::new(Cursor::new(&mut unused_stdout_buf));
-        let unused_stderr = Box::new(Cursor::new(&mut unused_stderr_buf));
+        let unused_stdout = Box::new(Vec::new());
+        let unused_stderr = Box::new(Vec::new());
         let ui = Ui::new(
             cwd_path,
             unused_stdout,
