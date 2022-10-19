@@ -754,6 +754,10 @@ impl MutableRepo {
         self.view_mut().remove_remote_branch(name, remote_name);
     }
 
+    pub fn rename_remote(&mut self, old: &str, new: &str) {
+        self.view_mut().rename_remote(old, new);
+    }
+
     pub fn get_tag(&self, name: &str) -> Option<RefTarget> {
         self.view.borrow().get_tag(name)
     }

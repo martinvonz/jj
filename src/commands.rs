@@ -843,6 +843,7 @@ enum GitCommands {
 enum GitRemoteCommands {
     Add(GitRemoteAddArgs),
     Remove(GitRemoteRemoveArgs),
+    Rename(GitRemoteRenameArgs),
     List(GitRemoteListArgs),
 }
 
@@ -860,6 +861,15 @@ struct GitRemoteAddArgs {
 struct GitRemoteRemoveArgs {
     /// The remote's name
     remote: String,
+}
+
+/// Rename a Git remote
+#[derive(clap::Args, Clone, Debug)]
+struct GitRemoteRenameArgs {
+    /// The name of an existing remote
+    old: String,
+    /// The desired name for `old`
+    new: String,
 }
 
 /// List Git remotes
@@ -3967,6 +3977,29 @@ fn cmd_git_remote_remove(
     Ok(())
 }
 
+fn cmd_git_remote_rename(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &GitRemoteRenameArgs,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
+    let git_repo = get_git_repo(repo.store())?;
+    if git_repo.find_remote(&args.old).is_err() {
+        return Err(CommandError::UserError("Remote doesn't exist".to_string()));
+    }
+    git_repo
+        .remote_rename(&args.old, &args.new)
+        .map_err(|err| CommandError::UserError(err.to_string()))?;
+    let mut tx = workspace_command
+        .start_transaction(&format!("rename git remote {} to {}", &args.old, &args.new));
+    tx.mut_repo().rename_remote(&args.old, &args.new);
+    if tx.mut_repo().has_changes() {
+        workspace_command.finish_transaction(ui, tx)?;
+    }
+    Ok(())
+}
+
 fn cmd_git_remote_list(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -4418,6 +4451,9 @@ fn cmd_git(
         }
         GitCommands::Remote(GitRemoteCommands::Remove(command_matches)) => {
             cmd_git_remote_remove(ui, command, command_matches)
+        }
+        GitCommands::Remote(GitRemoteCommands::Rename(command_matches)) => {
+            cmd_git_remote_rename(ui, command, command_matches)
         }
         GitCommands::Remote(GitRemoteCommands::List(command_matches)) => {
             cmd_git_remote_list(ui, command, command_matches)

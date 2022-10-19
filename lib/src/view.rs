@@ -212,6 +212,14 @@ impl View {
         }
     }
 
+    pub fn rename_remote(&mut self, old: &str, new: &str) {
+        for branch in self.data.branches.values_mut() {
+            if let Some(target) = branch.remote_targets.remove(old) {
+                branch.remote_targets.insert(new.to_owned(), target);
+            }
+        }
+    }
+
     pub fn get_tag(&self, name: &str) -> Option<RefTarget> {
         self.data.tags.get(name).cloned()
     }
