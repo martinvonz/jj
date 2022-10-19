@@ -15,7 +15,6 @@
 use std::io::{Stderr, Stdout, Write};
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
-use std::sync::{Mutex, MutexGuard};
 use std::{fmt, io};
 
 use atty::Stream;
@@ -75,27 +74,12 @@ fn use_color(choice: ColorChoice, maybe_tty: bool) -> bool {
 }
 
 impl Ui {
-    pub fn new(
-        cwd: PathBuf,
-        stdout: Box<dyn Write>,
-        stderr: Box<dyn Write>,
-        color: bool,
-        settings: UserSettings,
-    ) -> Ui {
-        let formatter_factory = FormatterFactory::prepare(&settings, color);
-        Ui {
-            cwd,
-            formatter_factory,
-            output_pair: UiOutputPair::Dyn {
-                stdout: Mutex::new(stdout),
-                stderr: Mutex::new(stderr),
-            },
-            settings,
-        }
-    }
-
     pub fn for_terminal(settings: UserSettings) -> Ui {
         let cwd = std::env::current_dir().unwrap();
+        Self::with_cwd(cwd, settings)
+    }
+
+    pub fn with_cwd(cwd: PathBuf, settings: UserSettings) -> Ui {
         let color = use_color(color_setting(&settings), true);
         let formatter_factory = FormatterFactory::prepare(&settings, color);
         Ui {
@@ -139,10 +123,6 @@ impl Ui {
     /// Otherwise the last color would persist.
     pub fn stdout_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
         match &self.output_pair {
-            UiOutputPair::Dyn { stdout, .. } => {
-                let output = DynWriteLock(stdout.lock().unwrap());
-                self.new_formatter(output)
-            }
             UiOutputPair::Terminal { stdout, .. } => self.new_formatter(stdout.lock()),
         }
     }
@@ -150,10 +130,6 @@ impl Ui {
     /// Creates a formatter for the locked stderr stream.
     pub fn stderr_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
         match &self.output_pair {
-            UiOutputPair::Dyn { stderr, .. } => {
-                let output = DynWriteLock(stderr.lock().unwrap());
-                self.new_formatter(output)
-            }
             UiOutputPair::Terminal { stderr, .. } => self.new_formatter(stderr.lock()),
         }
     }
@@ -161,14 +137,12 @@ impl Ui {
     pub fn write(&mut self, text: &str) -> io::Result<()> {
         let data = text.as_bytes();
         match &mut self.output_pair {
-            UiOutputPair::Dyn { stdout, .. } => stdout.get_mut().unwrap().write_all(data),
             UiOutputPair::Terminal { stdout, .. } => stdout.write_all(data),
         }
     }
 
     pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
         match &mut self.output_pair {
-            UiOutputPair::Dyn { stdout, .. } => stdout.get_mut().unwrap().write_fmt(fmt),
             UiOutputPair::Terminal { stdout, .. } => stdout.write_fmt(fmt),
         }
     }
@@ -228,31 +202,7 @@ impl Ui {
 }
 
 enum UiOutputPair {
-    Dyn {
-        stdout: Mutex<Box<dyn Write>>,
-        stderr: Mutex<Box<dyn Write>>,
-    },
-    Terminal {
-        stdout: Stdout,
-        stderr: Stderr,
-    },
-}
-
-/// Wrapper to implement `Write` for locked `Box<dyn Write>`.
-struct DynWriteLock<'a, T>(MutexGuard<'a, T>);
-
-impl<T: Write> Write for DynWriteLock<'_, T> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.0.write(buf)
-    }
-
-    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
-        self.0.write_all(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.0.flush()
-    }
+    Terminal { stdout: Stdout, stderr: Stderr },
 }
 
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -292,15 +242,7 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("repo");
         let wc_path = cwd_path.clone();
-        let unused_stdout = Box::new(Vec::new());
-        let unused_stderr = Box::new(Vec::new());
-        let ui = Ui::new(
-            cwd_path,
-            unused_stdout,
-            unused_stderr,
-            false,
-            UserSettings::default(),
-        );
+        let ui = Ui::with_cwd(cwd_path, UserSettings::default());
 
         assert_eq!(ui.parse_file_path(&wc_path, ""), Ok(RepoPath::root()));
         assert_eq!(ui.parse_file_path(&wc_path, "."), Ok(RepoPath::root()));
@@ -332,15 +274,7 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("dir");
         let wc_path = cwd_path.parent().unwrap().to_path_buf();
-        let unused_stdout = Box::new(Vec::new());
-        let unused_stderr = Box::new(Vec::new());
-        let ui = Ui::new(
-            cwd_path,
-            unused_stdout,
-            unused_stderr,
-            false,
-            UserSettings::default(),
-        );
+        let ui = Ui::with_cwd(cwd_path, UserSettings::default());
 
         assert_eq!(
             ui.parse_file_path(&wc_path, ""),
@@ -374,15 +308,7 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("cwd");
         let wc_path = cwd_path.join("repo");
-        let unused_stdout = Box::new(Vec::new());
-        let unused_stderr = Box::new(Vec::new());
-        let ui = Ui::new(
-            cwd_path,
-            unused_stdout,
-            unused_stderr,
-            false,
-            UserSettings::default(),
-        );
+        let ui = Ui::with_cwd(cwd_path, UserSettings::default());
 
         assert_eq!(
             ui.parse_file_path(&wc_path, ""),
