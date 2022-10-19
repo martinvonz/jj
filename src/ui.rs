@@ -239,9 +239,9 @@ enum UiOutputPair<'output> {
 }
 
 /// Wrapper to implement `Write` for locked `Box<dyn Write>`.
-struct DynWriteLock<'a, 'output>(MutexGuard<'a, Box<dyn Write + 'output>>);
+struct DynWriteLock<'a, T>(MutexGuard<'a, T>);
 
-impl Write for DynWriteLock<'_, '_> {
+impl<T: Write> Write for DynWriteLock<'_, T> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.0.write(buf)
     }
