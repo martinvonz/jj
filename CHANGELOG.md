@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### New features
+
+* The new `jj git remote rename` command allows git remotes to be renamed
+  in-place.
+
 ## [0.5.1] - 2022-10-17
 
 No changes (just trying to get automated GitHub release to work).

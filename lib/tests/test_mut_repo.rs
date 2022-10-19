@@ -612,3 +612,19 @@ fn test_rebase_descendants_conflicting_rewrite(use_git: bool) {
         .unwrap()
         .is_none());
 }
+
+#[test_case(false ; "local backend")]
+#[test_case(true ; "git backend")]
+fn test_rename_remote(use_git: bool) {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(use_git);
+    let repo = &test_repo.repo;
+    let mut tx = repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
+    let commit = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let target = RefTarget::Normal(commit.id().clone());
+    mut_repo.set_remote_branch("main".to_string(), "origin".to_string(), target.clone());
+    mut_repo.rename_remote("origin", "upstream");
+    assert_eq!(mut_repo.get_remote_branch("main", "upstream"), Some(target));
+    assert_eq!(mut_repo.get_remote_branch("main", "origin"), None);
+}
