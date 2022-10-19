@@ -101,7 +101,7 @@ fn test_alias_global_args_before_and_after() {
     let repo_path = test_env.env_root().join("repo");
     test_env.add_config(
         br#"[alias]
-    l = ["log", "-T", "commit_id"]
+    l = ["log", "-T", "commit_id", "-r", "all()"]
     "#,
     );
     // Test the setup
@@ -140,7 +140,7 @@ fn test_alias_global_args_in_definition() {
     let repo_path = test_env.env_root().join("repo");
     test_env.add_config(
         br#"[alias]
-    l = ["log", "-T", "commit_id", "--at-op", "@-"]
+    l = ["log", "-T", "commit_id", "--at-op", "@-", "-r", "all()"]
     "#,
     );
 

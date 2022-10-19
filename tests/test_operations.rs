@@ -90,7 +90,10 @@ fn test_op_log() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path, op_id: &str) -> String {
-    test_env.jj_cmd_success(repo_path, &["log", "-T", "commit_id", "--at-op", op_id])
+    test_env.jj_cmd_success(
+        repo_path,
+        &["log", "-T", "commit_id", "--at-op", op_id, "-r", "all()"],
+    )
 }
 
 fn redact_op_log(stdout: &str) -> String {

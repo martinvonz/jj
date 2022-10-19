@@ -198,5 +198,14 @@ fn test_workspaces_forget() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    test_env.jj_cmd_success(cwd, &["log", "-T", r#"commit_id " " working_copies"#])
+    test_env.jj_cmd_success(
+        cwd,
+        &[
+            "log",
+            "-T",
+            r#"commit_id " " working_copies"#,
+            "-r",
+            "all()",
+        ],
+    )
 }
