@@ -38,7 +38,7 @@ atty = "0.2.14"
 chrono = { version = "0.4.22", default-features = false, features = ["std", "clock"] }
 clap = { version = "4.0.17", features = ["derive", "deprecated"] }
 clap_complete = "4.0.2"
-clap_mangen = "0.2.2"
+clap_mangen = "0.2.3"
 config = { version = "0.13.2", default-features = false, features = ["toml"] }
 dirs = "4.0.0"
 git2 = "0.15.0"
