@@ -1175,7 +1175,7 @@ pub struct GlobalArgs {
     pub color: Option<ColorChoice>,
 }
 
-pub fn create_ui() -> (Ui<'static>, Result<(), CommandError>) {
+pub fn create_ui() -> (Ui, Result<(), CommandError>) {
     // TODO: We need to do some argument parsing here, at least for things like
     // --config, and for reading user configs from the repo pointed to by -R.
     match read_config() {

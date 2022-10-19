@@ -24,10 +24,10 @@ use jujutsu_lib::settings::UserSettings;
 
 use crate::formatter::{Formatter, FormatterFactory};
 
-pub struct Ui<'a> {
+pub struct Ui {
     cwd: PathBuf,
     formatter_factory: FormatterFactory,
-    output_pair: UiOutputPair<'a>,
+    output_pair: UiOutputPair,
     settings: UserSettings,
 }
 
@@ -74,14 +74,14 @@ fn use_color(choice: ColorChoice, maybe_tty: bool) -> bool {
     }
 }
 
-impl<'stdout> Ui<'stdout> {
+impl Ui {
     pub fn new(
         cwd: PathBuf,
-        stdout: Box<dyn Write + 'stdout>,
-        stderr: Box<dyn Write + 'stdout>,
+        stdout: Box<dyn Write>,
+        stderr: Box<dyn Write>,
         color: bool,
         settings: UserSettings,
-    ) -> Ui<'stdout> {
+    ) -> Ui {
         let formatter_factory = FormatterFactory::prepare(&settings, color);
         Ui {
             cwd,
@@ -94,7 +94,7 @@ impl<'stdout> Ui<'stdout> {
         }
     }
 
-    pub fn for_terminal(settings: UserSettings) -> Ui<'static> {
+    pub fn for_terminal(settings: UserSettings) -> Ui {
         let cwd = std::env::current_dir().unwrap();
         let color = use_color(color_setting(&settings), true);
         let formatter_factory = FormatterFactory::prepare(&settings, color);
@@ -227,10 +227,10 @@ impl<'stdout> Ui<'stdout> {
     }
 }
 
-enum UiOutputPair<'output> {
+enum UiOutputPair {
     Dyn {
-        stdout: Mutex<Box<dyn Write + 'output>>,
-        stderr: Mutex<Box<dyn Write + 'output>>,
+        stdout: Mutex<Box<dyn Write>>,
+        stderr: Mutex<Box<dyn Write>>,
     },
     Terminal {
         stdout: Stdout,
