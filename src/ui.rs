@@ -15,7 +15,7 @@
 use std::io::{Stderr, Stdout, Write};
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
-use std::{fmt, io};
+use std::{fmt, io, iter};
 
 use atty::Stream;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
@@ -209,25 +209,26 @@ pub enum FilePathParseError {
     InputNotInRepo(String),
 }
 
-pub fn relative_path(mut from: &Path, to: &Path) -> PathBuf {
-    let mut result = PathBuf::from("");
-    loop {
-        if let Ok(suffix) = to.strip_prefix(from) {
-            result = result.join(suffix);
-            break;
-        }
-        if let Some(parent) = from.parent() {
-            result = result.join("..");
-            from = parent;
-        } else {
-            result = to.to_path_buf();
-            break;
+/// Turns the given `to` path into relative path starting from the `from` path.
+///
+/// Both `from` and `to` paths are supposed to be absolute and normalized in the
+/// same manner.
+pub fn relative_path(from: &Path, to: &Path) -> PathBuf {
+    // Find common prefix.
+    for (i, base) in from.ancestors().enumerate() {
+        if let Ok(suffix) = to.strip_prefix(base) {
+            if i == 0 && suffix.as_os_str().is_empty() {
+                return ".".into();
+            } else {
+                let mut result = PathBuf::from_iter(iter::repeat("..").take(i));
+                result.push(suffix);
+                return result;
+            }
         }
     }
-    if result.as_os_str().is_empty() {
-        result = PathBuf::from(".");
-    }
-    result
+
+    // No common prefix found. Return the original (absolute) path.
+    to.to_owned()
 }
 
 #[cfg(test)]
