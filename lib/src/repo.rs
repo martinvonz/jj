@@ -606,8 +606,16 @@ impl MutableRepo {
         Ok(rebaser.rebased().len())
     }
 
-    pub fn set_wc_commit(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {
+    pub fn set_wc_commit(
+        &mut self,
+        workspace_id: WorkspaceId,
+        commit_id: CommitId,
+    ) -> Result<(), RewriteRootCommit> {
+        if &commit_id == self.store().root_commit_id() {
+            return Err(RewriteRootCommit);
+        }
         self.view_mut().set_wc_commit(workspace_id, commit_id);
+        Ok(())
     }
 
     pub fn remove_wc_commit(&mut self, workspace_id: &WorkspaceId) {
@@ -624,13 +632,18 @@ impl MutableRepo {
         let open_commit =
             CommitBuilder::for_open_commit(settings, commit.id().clone(), commit.tree_id().clone())
                 .write_to_repo(self);
-        self.set_wc_commit(workspace_id, open_commit.id().clone());
+        self.set_wc_commit(workspace_id, open_commit.id().clone())
+            .unwrap();
         open_commit
     }
 
-    pub fn edit(&mut self, workspace_id: WorkspaceId, commit: &Commit) {
+    pub fn edit(
+        &mut self,
+        workspace_id: WorkspaceId,
+        commit: &Commit,
+    ) -> Result<(), RewriteRootCommit> {
         self.leave_commit(&workspace_id);
-        self.set_wc_commit(workspace_id, commit.id().clone());
+        self.set_wc_commit(workspace_id, commit.id().clone())
     }
 
     fn leave_commit(&mut self, workspace_id: &WorkspaceId) {
@@ -965,3 +978,8 @@ impl MutableRepo {
         );
     }
 }
+
+/// Error from attempts to check out the root commit for editing
+#[derive(Debug, Copy, Clone, Error)]
+#[error("Cannot rewrite the root commit")]
+pub struct RewriteRootCommit;

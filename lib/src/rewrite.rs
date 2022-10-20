@@ -356,7 +356,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .write_to_repo(self.mut_repo)
         };
         for workspace_id in workspaces_to_update.into_iter() {
-            self.mut_repo.edit(workspace_id, &new_wc_commit);
+            self.mut_repo.edit(workspace_id, &new_wc_commit).unwrap();
         }
         Ok(())
     }

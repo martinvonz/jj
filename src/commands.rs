@@ -1147,7 +1147,8 @@ fn cmd_checkout(
             let mut tx = workspace_command
                 .start_transaction(&format!("check out commit {}", target.id().hex()));
             if target.is_open() {
-                tx.mut_repo().edit(workspace_id, &target);
+                // Root is never open
+                tx.mut_repo().edit(workspace_id, &target).unwrap();
             } else {
                 let commit_builder = CommitBuilder::for_open_commit(
                     ui.settings(),
@@ -1156,7 +1157,7 @@ fn cmd_checkout(
                 )
                 .set_description(args.message.clone());
                 let new_commit = commit_builder.write_to_repo(tx.mut_repo());
-                tx.mut_repo().edit(workspace_id, &new_commit);
+                tx.mut_repo().edit(workspace_id, &new_commit).unwrap();
             }
             workspace_command.finish_transaction(ui, tx)?;
         }
@@ -1170,7 +1171,7 @@ fn cmd_checkout(
         )
         .set_description(args.message.clone());
         let new_commit = commit_builder.write_to_repo(tx.mut_repo());
-        tx.mut_repo().edit(workspace_id, &new_commit);
+        tx.mut_repo().edit(workspace_id, &new_commit).unwrap();
         workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())
@@ -2479,7 +2480,7 @@ fn cmd_close(ui: &mut Ui, command: &CommandHelper, args: &CloseArgs) -> Result<(
         )
         .write_to_repo(tx.mut_repo());
         for workspace_id in workspace_ids {
-            tx.mut_repo().edit(workspace_id, &new_checkout);
+            tx.mut_repo().edit(workspace_id, &new_checkout).unwrap();
         }
     }
     workspace_command.finish_transaction(ui, tx)?;
@@ -2569,7 +2570,7 @@ fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(),
     } else {
         let mut tx =
             workspace_command.start_transaction(&format!("edit commit {}", new_commit.id().hex()));
-        tx.mut_repo().edit(workspace_id, &new_commit);
+        tx.mut_repo().edit(workspace_id, &new_commit)?;
         workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())
@@ -2591,7 +2592,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
             .set_open(true)
             .write_to_repo(tx.mut_repo());
     let workspace_id = workspace_command.workspace_id();
-    tx.mut_repo().edit(workspace_id, &new_commit);
+    tx.mut_repo().edit(workspace_id, &new_commit).unwrap();
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }

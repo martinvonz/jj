@@ -1281,11 +1281,14 @@ fn test_rebase_descendants_update_checkout(use_git: bool) {
     let ws2_id = WorkspaceId::new("ws2".to_string());
     let ws3_id = WorkspaceId::new("ws3".to_string());
     tx.mut_repo()
-        .set_wc_commit(ws1_id.clone(), commit_b.id().clone());
+        .set_wc_commit(ws1_id.clone(), commit_b.id().clone())
+        .unwrap();
     tx.mut_repo()
-        .set_wc_commit(ws2_id.clone(), commit_b.id().clone());
+        .set_wc_commit(ws2_id.clone(), commit_b.id().clone())
+        .unwrap();
     tx.mut_repo()
-        .set_wc_commit(ws3_id.clone(), commit_a.id().clone());
+        .set_wc_commit(ws3_id.clone(), commit_a.id().clone())
+        .unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -1325,11 +1328,14 @@ fn test_rebase_descendants_update_checkout_abandoned(use_git: bool) {
     let ws2_id = WorkspaceId::new("ws2".to_string());
     let ws3_id = WorkspaceId::new("ws3".to_string());
     tx.mut_repo()
-        .set_wc_commit(ws1_id.clone(), commit_b.id().clone());
+        .set_wc_commit(ws1_id.clone(), commit_b.id().clone())
+        .unwrap();
     tx.mut_repo()
-        .set_wc_commit(ws2_id.clone(), commit_b.id().clone());
+        .set_wc_commit(ws2_id.clone(), commit_b.id().clone())
+        .unwrap();
     tx.mut_repo()
-        .set_wc_commit(ws3_id.clone(), commit_a.id().clone());
+        .set_wc_commit(ws3_id.clone(), commit_a.id().clone())
+        .unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -1381,7 +1387,8 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
         .write_to_repo(tx.mut_repo());
     let workspace_id = WorkspaceId::default();
     tx.mut_repo()
-        .set_wc_commit(workspace_id.clone(), commit_d.id().clone());
+        .set_wc_commit(workspace_id.clone(), commit_d.id().clone())
+        .unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
