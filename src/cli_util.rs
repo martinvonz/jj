@@ -31,7 +31,7 @@ use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jujutsu_lib::op_heads_store::{OpHeadResolutionError, OpHeads, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
 use jujutsu_lib::operation::Operation;
-use jujutsu_lib::repo::{BackendFactories, MutableRepo, ReadonlyRepo, RepoRef};
+use jujutsu_lib::repo::{BackendFactories, MutableRepo, ReadonlyRepo, RepoRef, RewriteRootCommit};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetError, RevsetParseError};
 use jujutsu_lib::settings::UserSettings;
@@ -73,6 +73,12 @@ impl From<std::io::Error> for CommandError {
 impl From<config::ConfigError> for CommandError {
     fn from(err: config::ConfigError) -> Self {
         CommandError::ConfigError(err.to_string())
+    }
+}
+
+impl From<RewriteRootCommit> for CommandError {
+    fn from(err: RewriteRootCommit) -> Self {
+        CommandError::UserError(err.to_string())
     }
 }
 
@@ -665,7 +671,9 @@ impl WorkspaceCommandHelper {
             let commit = CommitBuilder::for_rewrite_from(&self.settings, &wc_commit)
                 .set_tree(new_tree_id)
                 .write_to_repo(mut_repo);
-            mut_repo.set_wc_commit(workspace_id, commit.id().clone());
+            mut_repo
+                .set_wc_commit(workspace_id, commit.id().clone())
+                .unwrap();
 
             // Rebase descendants
             let num_rebased = mut_repo.rebase_descendants(&self.settings)?;

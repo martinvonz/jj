@@ -38,7 +38,7 @@ fn test_edit(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let ws_id = WorkspaceId::default();
-    tx.mut_repo().edit(ws_id.clone(), &wc_commit);
+    tx.mut_repo().edit(ws_id.clone(), &wc_commit).unwrap();
     let repo = tx.commit();
     assert_eq!(repo.view().get_wc_commit_id(&ws_id), Some(wc_commit.id()));
 }
@@ -88,7 +88,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
         .set_open(true)
         .write_to_repo(mut_repo);
     let ws_id = WorkspaceId::default();
-    mut_repo.edit(ws_id.clone(), &old_checkout);
+    mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -96,7 +96,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.edit(ws_id, &new_checkout);
+    mut_repo.edit(ws_id, &new_checkout).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
     assert!(mut_repo.view().heads().contains(old_checkout.id()));
 }
@@ -119,7 +119,7 @@ fn test_checkout_previous_empty(use_git: bool) {
     )
     .write_to_repo(mut_repo);
     let ws_id = WorkspaceId::default();
-    mut_repo.edit(ws_id.clone(), &old_checkout);
+    mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -127,7 +127,7 @@ fn test_checkout_previous_empty(use_git: bool) {
     let new_wc_commit = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.edit(ws_id, &new_wc_commit);
+    mut_repo.edit(ws_id, &new_wc_commit).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
     assert!(!mut_repo.view().heads().contains(old_checkout.id()));
 }
@@ -151,7 +151,7 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
     .set_description("not empty".to_string())
     .write_to_repo(mut_repo);
     let ws_id = WorkspaceId::default();
-    mut_repo.edit(ws_id.clone(), &old_checkout);
+    mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -159,7 +159,7 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.edit(ws_id, &new_checkout);
+    mut_repo.edit(ws_id, &new_checkout).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
     assert!(mut_repo.view().heads().contains(old_checkout.id()));
 }
@@ -188,7 +188,7 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
     )
     .write_to_repo(mut_repo);
     let ws_id = WorkspaceId::default();
-    mut_repo.edit(ws_id.clone(), &old_checkout);
+    mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -196,7 +196,7 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
     let new_checkout = testutils::create_random_commit(&settings, &repo)
         .set_open(true)
         .write_to_repo(mut_repo);
-    mut_repo.edit(ws_id, &new_checkout);
+    mut_repo.edit(ws_id, &new_checkout).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
     assert_eq!(
         *mut_repo.view().heads(),
@@ -221,7 +221,7 @@ fn test_edit_initial(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let workspace_id = WorkspaceId::new("new-workspace".to_string());
-    tx.mut_repo().edit(workspace_id.clone(), &checkout);
+    tx.mut_repo().edit(workspace_id.clone(), &checkout).unwrap();
     let repo = tx.commit();
     assert_eq!(
         repo.view().get_wc_commit_id(&workspace_id),
@@ -468,7 +468,9 @@ fn test_has_changed(use_git: bool) {
     mut_repo.remove_head(commit2.id());
     mut_repo.add_public_head(&commit1);
     let ws_id = WorkspaceId::default();
-    mut_repo.set_wc_commit(ws_id.clone(), commit1.id().clone());
+    mut_repo
+        .set_wc_commit(ws_id.clone(), commit1.id().clone())
+        .unwrap();
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
     mut_repo.set_remote_branch(
         "main".to_string(),
@@ -485,7 +487,9 @@ fn test_has_changed(use_git: bool) {
 
     mut_repo.add_public_head(&commit1);
     mut_repo.add_head(&commit1);
-    mut_repo.set_wc_commit(ws_id.clone(), commit1.id().clone());
+    mut_repo
+        .set_wc_commit(ws_id.clone(), commit1.id().clone())
+        .unwrap();
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit1.id().clone()));
     mut_repo.set_remote_branch(
         "main".to_string(),
@@ -515,9 +519,11 @@ fn test_has_changed(use_git: bool) {
     mut_repo.remove_head(commit2.id());
     assert!(!mut_repo.has_changes());
 
-    mut_repo.set_wc_commit(ws_id.clone(), commit2.id().clone());
+    mut_repo
+        .set_wc_commit(ws_id.clone(), commit2.id().clone())
+        .unwrap();
     assert!(mut_repo.has_changes());
-    mut_repo.set_wc_commit(ws_id, commit1.id().clone());
+    mut_repo.set_wc_commit(ws_id, commit1.id().clone()).unwrap();
     assert!(!mut_repo.has_changes());
 
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit2.id().clone()));

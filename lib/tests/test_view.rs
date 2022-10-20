@@ -178,43 +178,56 @@ fn test_merge_views_checkout() {
     let ws7_id = WorkspaceId::new("ws7".to_string());
     initial_tx
         .mut_repo()
-        .set_wc_commit(ws1_id.clone(), commit1.id().clone());
+        .set_wc_commit(ws1_id.clone(), commit1.id().clone())
+        .unwrap();
     initial_tx
         .mut_repo()
-        .set_wc_commit(ws2_id.clone(), commit1.id().clone());
+        .set_wc_commit(ws2_id.clone(), commit1.id().clone())
+        .unwrap();
     initial_tx
         .mut_repo()
-        .set_wc_commit(ws3_id.clone(), commit1.id().clone());
+        .set_wc_commit(ws3_id.clone(), commit1.id().clone())
+        .unwrap();
     initial_tx
         .mut_repo()
-        .set_wc_commit(ws4_id.clone(), commit1.id().clone());
+        .set_wc_commit(ws4_id.clone(), commit1.id().clone())
+        .unwrap();
     initial_tx
         .mut_repo()
-        .set_wc_commit(ws5_id.clone(), commit1.id().clone());
+        .set_wc_commit(ws5_id.clone(), commit1.id().clone())
+        .unwrap();
     let repo = initial_tx.commit();
 
     let mut tx1 = repo.start_transaction("test");
     tx1.mut_repo()
-        .set_wc_commit(ws1_id.clone(), commit2.id().clone());
+        .set_wc_commit(ws1_id.clone(), commit2.id().clone())
+        .unwrap();
     tx1.mut_repo()
-        .set_wc_commit(ws2_id.clone(), commit2.id().clone());
+        .set_wc_commit(ws2_id.clone(), commit2.id().clone())
+        .unwrap();
     tx1.mut_repo().remove_wc_commit(&ws4_id);
     tx1.mut_repo()
-        .set_wc_commit(ws5_id.clone(), commit2.id().clone());
+        .set_wc_commit(ws5_id.clone(), commit2.id().clone())
+        .unwrap();
     tx1.mut_repo()
-        .set_wc_commit(ws6_id.clone(), commit2.id().clone());
+        .set_wc_commit(ws6_id.clone(), commit2.id().clone())
+        .unwrap();
     tx1.commit();
 
     let mut tx2 = repo.start_transaction("test");
     tx2.mut_repo()
-        .set_wc_commit(ws1_id.clone(), commit3.id().clone());
+        .set_wc_commit(ws1_id.clone(), commit3.id().clone())
+        .unwrap();
     tx2.mut_repo()
-        .set_wc_commit(ws3_id.clone(), commit3.id().clone());
+        .set_wc_commit(ws3_id.clone(), commit3.id().clone())
+        .unwrap();
     tx2.mut_repo()
-        .set_wc_commit(ws4_id.clone(), commit3.id().clone());
+        .set_wc_commit(ws4_id.clone(), commit3.id().clone())
+        .unwrap();
     tx2.mut_repo().remove_wc_commit(&ws5_id);
     tx2.mut_repo()
-        .set_wc_commit(ws7_id.clone(), commit3.id().clone());
+        .set_wc_commit(ws7_id.clone(), commit3.id().clone())
+        .unwrap();
     // Make sure the end time different, assuming the clock has sub-millisecond
     // precision.
     std::thread::sleep(std::time::Duration::from_millis(1));
