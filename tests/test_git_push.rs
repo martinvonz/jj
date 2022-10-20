@@ -116,6 +116,23 @@ fn test_git_push_current_branch() {
 }
 
 #[test]
+fn test_git_push_parent_branch() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["edit", "branch1"]);
+    test_env.jj_cmd_success(
+        &workspace_root,
+        &["describe", "-m", "modified branch1 commit"],
+    );
+    test_env.jj_cmd_success(&workspace_root, &["new"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--dry-run"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Force branch branch1 from a3ccc578ea7b to ad7201b22c46
+    Dry-run requested, not pushing.
+    "###);
+}
+
+#[test]
 fn test_git_push_no_current_branch() {
     let (test_env, workspace_root) = set_up();
     test_env.jj_cmd_success(&workspace_root, &["new"]);

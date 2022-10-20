@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The new `jj git remote rename` command allows git remotes to be renamed
   in-place.
 
+* `jj git push` will search `@-` for branches to push if `@` has none.
+
 ## [0.5.1] - 2022-10-17
 
 No changes (just trying to get automated GitHub release to work).
