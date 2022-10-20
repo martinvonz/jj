@@ -18,7 +18,7 @@ use std::str::FromStr;
 use std::{fmt, io, iter};
 
 use atty::Stream;
-use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
+use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::settings::UserSettings;
 
 use crate::formatter::{Formatter, FormatterFactory};
@@ -176,27 +176,19 @@ impl Ui {
         wc_path: &Path,
         input: &str,
     ) -> Result<RepoPath, FilePathParseError> {
-        let repo_relative_path = relative_path(wc_path, &self.cwd.join(input));
-        let mut repo_path = RepoPath::root();
-        for component in repo_relative_path.components() {
-            match component {
-                Component::Normal(a) => {
-                    repo_path = repo_path.join(&RepoPathComponent::from(a.to_str().unwrap()));
-                }
-                Component::CurDir => {}
-                Component::ParentDir => {
-                    if let Some(parent) = repo_path.parent() {
-                        repo_path = parent;
-                    } else {
-                        return Err(FilePathParseError::InputNotInRepo(input.to_string()));
-                    }
-                }
-                _ => {
-                    return Err(FilePathParseError::InputNotInRepo(input.to_string()));
-                }
-            }
+        let abs_input_path = normalize_path(&self.cwd.join(input));
+        let repo_relative_path = relative_path(wc_path, &abs_input_path);
+        if repo_relative_path == Path::new(".") {
+            return Ok(RepoPath::root());
         }
-        Ok(repo_path)
+        let components = repo_relative_path
+            .components()
+            .map(|c| match c {
+                Component::Normal(a) => Ok(RepoPathComponent::from(a.to_str().unwrap())),
+                _ => Err(FilePathParseError::InputNotInRepo(input.to_string())),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(RepoPath::from_components(components))
     }
 }
 
@@ -231,6 +223,32 @@ pub fn relative_path(from: &Path, to: &Path) -> PathBuf {
     to.to_owned()
 }
 
+/// Consumes as much `..` and `.` as possible without considering symlinks.
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut result = PathBuf::new();
+    for c in path.components() {
+        match c {
+            Component::CurDir => {}
+            Component::ParentDir
+                if matches!(result.components().next_back(), Some(Component::Normal(_))) =>
+            {
+                // Do not pop ".."
+                let popped = result.pop();
+                assert!(popped);
+            }
+            _ => {
+                result.push(c);
+            }
+        }
+    }
+
+    if result.as_os_str().is_empty() {
+        ".".into()
+    } else {
+        result
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use jujutsu_lib::testutils;
@@ -242,7 +260,7 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let cwd_path = temp_dir.path().join("repo");
         let wc_path = cwd_path.clone();
-        let ui = Ui::with_cwd(cwd_path, UserSettings::default());
+        let ui = Ui::with_cwd(cwd_path.clone(), UserSettings::default());
 
         assert_eq!(ui.parse_file_path(&wc_path, ""), Ok(RepoPath::root()));
         assert_eq!(ui.parse_file_path(&wc_path, "."), Ok(RepoPath::root()));
@@ -263,10 +281,19 @@ mod tests {
             ui.parse_file_path(&wc_path, ".."),
             Err(FilePathParseError::InputNotInRepo("..".to_string()))
         );
-        // TODO: handle these cases:
-        // assert_eq!(ui.parse_file_path(&cwd_path, "../repo"),
-        // Ok(RepoPath::root())); assert_eq!(ui.parse_file_path(&cwd_path,
-        // "../repo/file"), Ok(RepoPath::from_internal_string("file")));
+        assert_eq!(
+            ui.parse_file_path(&cwd_path, "../repo"),
+            Ok(RepoPath::root())
+        );
+        assert_eq!(
+            ui.parse_file_path(&cwd_path, "../repo/file"),
+            Ok(RepoPath::from_internal_string("file"))
+        );
+        // Input may be absolute path with ".."
+        assert_eq!(
+            ui.parse_file_path(&cwd_path, cwd_path.join("../repo").to_str().unwrap()),
+            Ok(RepoPath::root())
+        );
     }
 
     #[test]
@@ -326,6 +353,20 @@ mod tests {
         assert_eq!(
             ui.parse_file_path(&wc_path, "repo/dir/file"),
             Ok(RepoPath::from_internal_string("dir/file"))
+        );
+    }
+
+    #[test]
+    fn normalize_too_many_dot_dot() {
+        assert_eq!(normalize_path(Path::new("foo/..")), Path::new("."));
+        assert_eq!(normalize_path(Path::new("foo/../..")), Path::new(".."));
+        assert_eq!(
+            normalize_path(Path::new("foo/../../..")),
+            Path::new("../..")
+        );
+        assert_eq!(
+            normalize_path(Path::new("foo/../../../bar/baz/..")),
+            Path::new("../../bar")
         );
     }
 }
