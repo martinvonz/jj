@@ -33,7 +33,7 @@ use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::git::{GitFetchError, GitRefUpdate};
 use jujutsu_lib::index::IndexEntry;
 use jujutsu_lib::matchers::{EverythingMatcher, Matcher};
-use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
+use jujutsu_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
 use jujutsu_lib::repo::{ReadonlyRepo, RepoRef};
@@ -899,9 +899,10 @@ struct GitCloneArgs {
 
 /// Push to a Git remote
 ///
-/// By default, pushes any branches pointing to `@`. Use `--branch` to push a
-/// specific branch. Use `--all` to push all branches. Use `--change` to
-/// generate a branch name based on a specific commit's change ID.
+/// By default, pushes any branches pointing to `@`, or `@-` if no branches
+/// point to `@`. Use `--branch` to push a specific branch. Use `--all` to push
+/// all branches. Use `--change` to generate a branch name based on a specific
+/// commit's change ID.
 #[derive(clap::Args, Clone, Debug)]
 #[command(group(ArgGroup::new("what").args(&["branch", "all", "change"])))]
 struct GitPushArgs {
@@ -4239,17 +4240,41 @@ fn cmd_git_push(
                 ));
             }
             Some(checkout) => {
-                let desired_target = Some(RefTarget::Normal(checkout.clone()));
-                for (branch_name, branch_target) in workspace_command.repo().view().branches() {
-                    if branch_target.local_target == desired_target {
-                        let push_action = classify_branch_push_action(branch_target, &args.remote);
-                        match push_action {
-                            BranchPushAction::AlreadyMatches => {}
-                            BranchPushAction::LocalConflicted => {}
-                            BranchPushAction::RemoteConflicted => {}
-                            BranchPushAction::Update(update) => {
-                                branch_updates.push((branch_name.clone(), update));
-                            }
+                fn find_branches_targeting<'a>(
+                    view: &'a View,
+                    target: &RefTarget,
+                ) -> Vec<(&'a String, &'a BranchTarget)> {
+                    view.branches()
+                        .iter()
+                        .filter(|(_, branch_target)| {
+                            branch_target.local_target.as_ref() == Some(target)
+                        })
+                        .collect()
+                }
+
+                // Search for branches targeting @
+                let mut branches = find_branches_targeting(
+                    workspace_command.repo().view(),
+                    &RefTarget::Normal(checkout.clone()),
+                );
+                if branches.is_empty() {
+                    // Try @- instead if it has exactly one parent, such as after `jj squash`
+                    let commit = workspace_command.repo().store().get_commit(checkout)?;
+                    if let [parent] = commit.parent_ids() {
+                        branches = find_branches_targeting(
+                            workspace_command.repo().view(),
+                            &RefTarget::Normal(parent.clone()),
+                        );
+                    }
+                }
+                for (branch_name, branch_target) in branches {
+                    let push_action = classify_branch_push_action(branch_target, &args.remote);
+                    match push_action {
+                        BranchPushAction::AlreadyMatches => {}
+                        BranchPushAction::LocalConflicted => {}
+                        BranchPushAction::RemoteConflicted => {}
+                        BranchPushAction::Update(update) => {
+                            branch_updates.push((branch_name.clone(), update));
                         }
                     }
                 }
