@@ -13,13 +13,11 @@
 // limitations under the License.
 
 use std::io::{Stderr, Stdout, Write};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::{fmt, io};
 
 use atty::Stream;
-use jujutsu_lib::file_util;
-use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::settings::UserSettings;
 
 use crate::formatter::{Formatter, FormatterFactory};
@@ -170,142 +168,8 @@ impl Ui {
         formatter.remove_label()?;
         Ok(())
     }
-
-    /// Parses a path relative to cwd into a RepoPath relative to wc_path
-    pub fn parse_file_path(
-        &self,
-        wc_path: &Path,
-        input: &str,
-    ) -> Result<RepoPath, FilePathParseError> {
-        let abs_input_path = file_util::normalize_path(&self.cwd.join(input));
-        let repo_relative_path = file_util::relative_path(wc_path, &abs_input_path);
-        if repo_relative_path == Path::new(".") {
-            return Ok(RepoPath::root());
-        }
-        let components = repo_relative_path
-            .components()
-            .map(|c| match c {
-                Component::Normal(a) => Ok(RepoPathComponent::from(a.to_str().unwrap())),
-                _ => Err(FilePathParseError::InputNotInRepo(input.to_string())),
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(RepoPath::from_components(components))
-    }
 }
 
 enum UiOutputPair {
     Terminal { stdout: Stdout, stderr: Stderr },
-}
-
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub enum FilePathParseError {
-    InputNotInRepo(String),
-}
-
-#[cfg(test)]
-mod tests {
-    use jujutsu_lib::testutils;
-
-    use super::*;
-
-    #[test]
-    fn parse_file_path_wc_in_cwd() {
-        let temp_dir = testutils::new_temp_dir();
-        let cwd_path = temp_dir.path().join("repo");
-        let wc_path = cwd_path.clone();
-        let ui = Ui::with_cwd(cwd_path.clone(), UserSettings::default());
-
-        assert_eq!(ui.parse_file_path(&wc_path, ""), Ok(RepoPath::root()));
-        assert_eq!(ui.parse_file_path(&wc_path, "."), Ok(RepoPath::root()));
-        assert_eq!(
-            ui.parse_file_path(&wc_path, "file"),
-            Ok(RepoPath::from_internal_string("file"))
-        );
-        // Both slash and the platform's separator are allowed
-        assert_eq!(
-            ui.parse_file_path(&wc_path, &format!("dir{}file", std::path::MAIN_SEPARATOR)),
-            Ok(RepoPath::from_internal_string("dir/file"))
-        );
-        assert_eq!(
-            ui.parse_file_path(&wc_path, "dir/file"),
-            Ok(RepoPath::from_internal_string("dir/file"))
-        );
-        assert_eq!(
-            ui.parse_file_path(&wc_path, ".."),
-            Err(FilePathParseError::InputNotInRepo("..".to_string()))
-        );
-        assert_eq!(
-            ui.parse_file_path(&cwd_path, "../repo"),
-            Ok(RepoPath::root())
-        );
-        assert_eq!(
-            ui.parse_file_path(&cwd_path, "../repo/file"),
-            Ok(RepoPath::from_internal_string("file"))
-        );
-        // Input may be absolute path with ".."
-        assert_eq!(
-            ui.parse_file_path(&cwd_path, cwd_path.join("../repo").to_str().unwrap()),
-            Ok(RepoPath::root())
-        );
-    }
-
-    #[test]
-    fn parse_file_path_wc_in_cwd_parent() {
-        let temp_dir = testutils::new_temp_dir();
-        let cwd_path = temp_dir.path().join("dir");
-        let wc_path = cwd_path.parent().unwrap().to_path_buf();
-        let ui = Ui::with_cwd(cwd_path, UserSettings::default());
-
-        assert_eq!(
-            ui.parse_file_path(&wc_path, ""),
-            Ok(RepoPath::from_internal_string("dir"))
-        );
-        assert_eq!(
-            ui.parse_file_path(&wc_path, "."),
-            Ok(RepoPath::from_internal_string("dir"))
-        );
-        assert_eq!(
-            ui.parse_file_path(&wc_path, "file"),
-            Ok(RepoPath::from_internal_string("dir/file"))
-        );
-        assert_eq!(
-            ui.parse_file_path(&wc_path, "subdir/file"),
-            Ok(RepoPath::from_internal_string("dir/subdir/file"))
-        );
-        assert_eq!(ui.parse_file_path(&wc_path, ".."), Ok(RepoPath::root()));
-        assert_eq!(
-            ui.parse_file_path(&wc_path, "../.."),
-            Err(FilePathParseError::InputNotInRepo("../..".to_string()))
-        );
-        assert_eq!(
-            ui.parse_file_path(&wc_path, "../other-dir/file"),
-            Ok(RepoPath::from_internal_string("other-dir/file"))
-        );
-    }
-
-    #[test]
-    fn parse_file_path_wc_in_cwd_child() {
-        let temp_dir = testutils::new_temp_dir();
-        let cwd_path = temp_dir.path().join("cwd");
-        let wc_path = cwd_path.join("repo");
-        let ui = Ui::with_cwd(cwd_path, UserSettings::default());
-
-        assert_eq!(
-            ui.parse_file_path(&wc_path, ""),
-            Err(FilePathParseError::InputNotInRepo("".to_string()))
-        );
-        assert_eq!(
-            ui.parse_file_path(&wc_path, "not-repo"),
-            Err(FilePathParseError::InputNotInRepo("not-repo".to_string()))
-        );
-        assert_eq!(ui.parse_file_path(&wc_path, "repo"), Ok(RepoPath::root()));
-        assert_eq!(
-            ui.parse_file_path(&wc_path, "repo/file"),
-            Ok(RepoPath::from_internal_string("file"))
-        );
-        assert_eq!(
-            ui.parse_file_path(&wc_path, "repo/dir/file"),
-            Ok(RepoPath::from_internal_string("dir/file"))
-        );
-    }
 }

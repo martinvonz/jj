@@ -32,7 +32,7 @@ use jujutsu_lib::op_heads_store::{OpHeadResolutionError, OpHeads, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::{BackendFactories, MutableRepo, ReadonlyRepo, RepoRef, RewriteRootCommit};
-use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
 use jujutsu_lib::revset::{RevsetError, RevsetParseError};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::transaction::Transaction;
@@ -47,7 +47,7 @@ use crate::config::read_config;
 use crate::diff_edit::DiffEditError;
 use crate::formatter::Formatter;
 use crate::templater::TemplateFormatter;
-use crate::ui::{ColorChoice, FilePathParseError, Ui};
+use crate::ui::{ColorChoice, Ui};
 
 pub enum CommandError {
     UserError(String),
@@ -166,10 +166,10 @@ impl From<RevsetError> for CommandError {
     }
 }
 
-impl From<FilePathParseError> for CommandError {
-    fn from(err: FilePathParseError) -> Self {
+impl From<FsPathParseError> for CommandError {
+    fn from(err: FsPathParseError) -> Self {
         match err {
-            FilePathParseError::InputNotInRepo(input) => {
+            FsPathParseError::InputNotInRepo(input) => {
                 CommandError::UserError(format!("Path \"{input}\" is not in the repo"))
             }
         }
@@ -994,7 +994,7 @@ pub fn repo_paths_from_values(
         // TODO: Add support for globs and other formats
         let mut paths = vec![];
         for value in values {
-            let repo_path = ui.parse_file_path(wc_path, value)?;
+            let repo_path = RepoPath::parse_fs_path(ui.cwd(), wc_path, value)?;
             paths.push(repo_path);
         }
         Ok(paths)
