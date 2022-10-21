@@ -51,9 +51,8 @@ use maplit::{hashmap, hashset};
 use pest::Parser;
 
 use crate::cli_util::{
-    matcher_from_values, print_checkout_stats, repo_paths_from_values, resolve_base_revs,
-    short_commit_description, short_commit_hash, write_commit_summary, Args, CommandError,
-    CommandHelper, WorkspaceCommandHelper,
+    print_checkout_stats, resolve_base_revs, short_commit_description, short_commit_hash,
+    write_commit_summary, Args, CommandError, CommandHelper, WorkspaceCommandHelper,
 };
 use crate::commands::CommandError::UserError;
 use crate::formatter::Formatter;
@@ -1183,7 +1182,7 @@ fn cmd_untrack(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let store = workspace_command.repo().store().clone();
-    let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
 
     let mut tx = workspace_command.start_transaction("untrack paths");
     let base_ignores = workspace_command.base_ignores();
@@ -1243,7 +1242,7 @@ fn cmd_untrack(
 fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
     for (name, _value) in commit.tree().entries_matching(matcher.as_ref()) {
         writeln!(ui, "{}", &workspace_command.format_file_path(&name))?;
     }
@@ -1393,8 +1392,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
         from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
         to_tree = commit.tree()
     }
-    let workspace_root = workspace_command.workspace_root();
-    let matcher = matcher_from_values(ui, workspace_root, &args.paths)?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_iterator = from_tree.diff(&to_tree, matcher.as_ref());
     show_diff(
         ui.stdout_formatter().as_mut(),
@@ -2074,7 +2072,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     let repo = workspace_command.repo();
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = repo.view().get_wc_commit_id(&workspace_id);
-    let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let mut revset = revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_id))?;
     if !args.paths.is_empty() {
         revset = revset::filter_by_diff(repo.as_repo_ref(), matcher.as_ref(), revset);
@@ -2303,8 +2301,7 @@ fn cmd_interdiff(
     let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
 
     let from_tree = rebase_to_dest_parent(&workspace_command, &from, &to)?;
-    let workspace_root = workspace_command.workspace_root();
-    let matcher = matcher_from_values(ui, workspace_root, &args.paths)?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_iterator = from_tree.diff(&to.tree(), matcher.as_ref());
     show_diff(
         ui.stdout_formatter().as_mut(),
@@ -2659,7 +2656,7 @@ from the source will be moved into the destination.
         short_commit_description(&source),
         short_commit_description(&destination)
     );
-    let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let new_parent_tree_id = workspace_command.select_diff(
         ui,
         &parent_tree,
@@ -2741,7 +2738,7 @@ from the source will be moved into the parent.
         short_commit_description(&commit),
         short_commit_description(parent)
     );
-    let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let new_parent_tree_id = workspace_command.select_diff(
         ui,
         &parent.tree(),
@@ -2884,7 +2881,7 @@ side. If you don't make any changes, then the operation will be aborted.
             &instructions,
         )?;
     } else if !args.paths.is_empty() {
-        let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
+        let matcher = workspace_command.matcher_from_values(&args.paths)?;
         let mut tree_builder = workspace_command
             .repo()
             .store()
@@ -2986,7 +2983,7 @@ don't make any changes, then the operation will be aborted.
 ",
         short_commit_description(&commit)
     );
-    let matcher = matcher_from_values(ui, workspace_command.workspace_root(), &args.paths)?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let tree_id = workspace_command.select_diff(
         ui,
         &base_tree,
@@ -3893,8 +3890,8 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
         }
     } else {
         let mut workspace_command = command.workspace_helper(ui)?;
-        let workspace_root = workspace_command.workspace_root().clone();
-        let paths_to_add = repo_paths_from_values(ui, &workspace_root, &args.add)?;
+        let paths_to_add = workspace_command.repo_paths_from_values(&args.add)?;
+        let paths_to_remove = workspace_command.repo_paths_from_values(&args.remove)?;
         let (mut locked_wc, _wc_commit) = workspace_command.start_working_copy_mutation()?;
         let mut new_patterns = HashSet::new();
         if args.reset {
@@ -3902,7 +3899,6 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
         } else {
             if !args.clear {
                 new_patterns.extend(locked_wc.sparse_patterns().iter().cloned());
-                let paths_to_remove = repo_paths_from_values(ui, &workspace_root, &args.remove)?;
                 for path in paths_to_remove {
                     new_patterns.remove(&path);
                 }
