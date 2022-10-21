@@ -536,7 +536,7 @@ fn test_fetch_empty_repo() {
     let test_data = GitRepoData::create();
 
     let mut tx = test_data.repo.start_transaction("test");
-    let default_branch = git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
+    let default_branch = git::fetch(tx.mut_repo(), &test_data.git_repo, "origin", None).unwrap();
     // No default branch and no refs
     assert_eq!(default_branch, None);
     assert_eq!(*tx.mut_repo().view().git_refs(), btreemap! {});
@@ -549,7 +549,7 @@ fn test_fetch_initial_commit() {
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data.repo.start_transaction("test");
-    let default_branch = git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
+    let default_branch = git::fetch(tx.mut_repo(), &test_data.git_repo, "origin", None).unwrap();
     // No default branch because the origin repo's HEAD wasn't set
     assert_eq!(default_branch, None);
     let repo = tx.commit();
@@ -580,7 +580,7 @@ fn test_fetch_success() {
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data.repo.start_transaction("test");
-    git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
+    git::fetch(tx.mut_repo(), &test_data.git_repo, "origin", None).unwrap();
     test_data.repo = tx.commit();
 
     test_data.origin_repo.set_head("refs/heads/main").unwrap();
@@ -591,7 +591,7 @@ fn test_fetch_success() {
     );
 
     let mut tx = test_data.repo.start_transaction("test");
-    let default_branch = git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
+    let default_branch = git::fetch(tx.mut_repo(), &test_data.git_repo, "origin", None).unwrap();
     // The default branch is "main"
     assert_eq!(default_branch, Some("main".to_string()));
     let repo = tx.commit();
@@ -622,7 +622,7 @@ fn test_fetch_prune_deleted_ref() {
     empty_git_commit(&test_data.git_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data.repo.start_transaction("test");
-    git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
+    git::fetch(tx.mut_repo(), &test_data.git_repo, "origin", None).unwrap();
     // Test the setup
     assert!(tx.mut_repo().get_branch("main").is_some());
 
@@ -633,7 +633,7 @@ fn test_fetch_prune_deleted_ref() {
         .delete()
         .unwrap();
     // After re-fetching, the branch should be deleted
-    git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
+    git::fetch(tx.mut_repo(), &test_data.git_repo, "origin", None).unwrap();
     assert!(tx.mut_repo().get_branch("main").is_none());
 }
 
@@ -643,7 +643,7 @@ fn test_fetch_no_default_branch() {
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data.repo.start_transaction("test");
-    git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
+    git::fetch(tx.mut_repo(), &test_data.git_repo, "origin", None).unwrap();
 
     empty_git_commit(
         &test_data.origin_repo,
@@ -658,7 +658,7 @@ fn test_fetch_no_default_branch() {
         .set_head_detached(initial_git_commit.id())
         .unwrap();
 
-    let default_branch = git::fetch(tx.mut_repo(), &test_data.git_repo, "origin").unwrap();
+    let default_branch = git::fetch(tx.mut_repo(), &test_data.git_repo, "origin", None).unwrap();
     // There is no default branch
     assert_eq!(default_branch, None);
 }
@@ -668,7 +668,7 @@ fn test_fetch_no_such_remote() {
     let test_data = GitRepoData::create();
 
     let mut tx = test_data.repo.start_transaction("test");
-    let result = git::fetch(tx.mut_repo(), &test_data.git_repo, "invalid-remote");
+    let result = git::fetch(tx.mut_repo(), &test_data.git_repo, "invalid-remote", None);
     assert!(matches!(result, Err(GitFetchError::NoSuchRemote(_))));
 }
 

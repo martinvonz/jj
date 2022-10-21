@@ -128,6 +128,12 @@ impl Ui {
         }
     }
 
+    /// Whether continuous feedback should be displayed for long-running
+    /// operations
+    pub fn use_progress_indicator(&self) -> bool {
+        self.settings().use_progress_indicator() && atty::is(Stream::Stdout)
+    }
+
     pub fn write(&mut self, text: &str) -> io::Result<()> {
         let data = text.as_bytes();
         match &mut self.output_pair {

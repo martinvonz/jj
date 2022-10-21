@@ -19,6 +19,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Instant;
 use std::{fs, io};
 
 use chrono::{FixedOffset, TimeZone, Utc};
@@ -36,7 +37,7 @@ use jujutsu_lib::matchers::{EverythingMatcher, Matcher};
 use jujutsu_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
-use jujutsu_lib::repo::{ReadonlyRepo, RepoRef};
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::RevsetExpression;
 use jujutsu_lib::revset_graph_iterator::{RevsetGraphEdge, RevsetGraphEdgeType};
@@ -4023,7 +4024,7 @@ fn cmd_git_fetch(
     let git_repo = get_git_repo(repo.store())?;
     let mut tx =
         workspace_command.start_transaction(&format!("fetch from git remote {}", &args.remote));
-    git::fetch(tx.mut_repo(), &git_repo, &args.remote)
+    git_fetch(ui, tx.mut_repo(), &git_repo, &args.remote)
         .map_err(|err| CommandError::UserError(err.to_string()))?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -4134,7 +4135,7 @@ fn do_git_clone(
     git_repo.remote(remote_name, source).unwrap();
     let mut fetch_tx = workspace_command.start_transaction("fetch from git remote into empty repo");
     let maybe_default_branch =
-        git::fetch(fetch_tx.mut_repo(), &git_repo, remote_name).map_err(|err| match err {
+        git_fetch(ui, fetch_tx.mut_repo(), &git_repo, remote_name).map_err(|err| match err {
             GitFetchError::NoSuchRemote(_) => {
                 panic!("shouldn't happen as we just created the git remote")
             }
@@ -4144,6 +4145,133 @@ fn do_git_clone(
         })?;
     workspace_command.finish_transaction(ui, fetch_tx)?;
     Ok((workspace_command, maybe_default_branch))
+}
+
+// Wrapper around git::fetch that adds progress feedback on TTYs
+fn git_fetch(
+    ui: &mut Ui,
+    mut_repo: &mut MutableRepo,
+    git_repo: &git2::Repository,
+    remote_name: &str,
+) -> Result<Option<String>, GitFetchError> {
+    let mut callback = None;
+    if ui.use_progress_indicator() {
+        let mut rate = RateEstimate::new();
+
+        struct Guard<'a> {
+            ui: &'a mut Ui,
+            printed: bool,
+        }
+        impl Drop for Guard<'_> {
+            fn drop(&mut self) {
+                if self.printed {
+                    let _ = writeln!(self.ui);
+                }
+            }
+        }
+        let mut guard = Guard { ui, printed: false };
+
+        callback = Some(move |progress: &git::Progress| {
+            const HIDE_CURSOR: &str = "\x1b[25l";
+            const MOVE_TO_START: &str = "\x1b[G";
+            const SHOW_CURSOR: &str = "\x1b[25h";
+            const CLEAR_TRAILING: &str = "\x1b[K";
+            let _ = write!(
+                guard.ui,
+                "{}{}{: >3.0}%",
+                HIDE_CURSOR,
+                MOVE_TO_START,
+                100.0 * progress.overall
+            );
+            if let Some(estimate) = progress
+                .bytes_downloaded
+                .and_then(|x| rate.update(Instant::now(), x))
+            {
+                let (scaled, prefix) = binary_prefix(estimate);
+                let _ = write!(
+                    guard.ui,
+                    "at {: >5.1} {}B/s{}{}",
+                    scaled, prefix, CLEAR_TRAILING, SHOW_CURSOR,
+                );
+                guard.printed = true;
+            }
+            let _ = write!(guard.ui, "{}{}", CLEAR_TRAILING, SHOW_CURSOR);
+        });
+    }
+    let result = git::fetch(
+        mut_repo,
+        git_repo,
+        remote_name,
+        callback
+            .as_mut()
+            .map(|x| x as &mut dyn FnMut(&git::Progress)),
+    );
+    result
+}
+
+/// Find the smallest binary prefix with which the whole part of `x` is at most
+/// three digits, and return the scaled `x` and that prefix.
+fn binary_prefix(x: f32) -> (f32, &'static str) {
+    const TABLE: [&str; 9] = ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi"];
+
+    let mut i = 0;
+    let mut scaled = x;
+    while scaled.abs() >= 1000.0 && i < TABLE.len() - 1 {
+        i += 1;
+        scaled /= 1024.0;
+    }
+    (scaled, TABLE[i])
+}
+
+struct RateEstimate {
+    state: Option<RateEstimateState>,
+}
+
+impl RateEstimate {
+    fn new() -> Self {
+        RateEstimate { state: None }
+    }
+
+    /// Compute smoothed rate from an update
+    fn update(&mut self, now: Instant, total: u64) -> Option<f32> {
+        if let Some(ref mut state) = self.state {
+            return Some(state.update(now, total));
+        }
+
+        self.state = Some(RateEstimateState {
+            total,
+            avg_rate: None,
+            last_sample: now,
+        });
+        None
+    }
+}
+
+struct RateEstimateState {
+    total: u64,
+    avg_rate: Option<f32>,
+    last_sample: Instant,
+}
+
+impl RateEstimateState {
+    fn update(&mut self, now: Instant, total: u64) -> f32 {
+        let delta = total - self.total;
+        self.total = total;
+        let dt = now - self.last_sample;
+        self.last_sample = now;
+        let sample = delta as f32 / dt.as_secs_f32();
+        match self.avg_rate {
+            None => *self.avg_rate.insert(sample),
+            Some(ref mut avg_rate) => {
+                // From Algorithms for Unevenly Spaced Time Series: Moving
+                // Averages and Other Rolling Operators (Andreas Eckner, 2019)
+                const TIME_WINDOW: f32 = 2.0;
+                let alpha = 1.0 - (-dt.as_secs_f32() / TIME_WINDOW).exp();
+                *avg_rate += alpha * (sample - *avg_rate);
+                *avg_rate
+            }
+        }
+    }
 }
 
 fn cmd_git_push(
