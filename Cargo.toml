@@ -56,7 +56,7 @@ textwrap = "0.15.0"
 thiserror = "1.0.37"
 
 [dev-dependencies]
-assert_cmd = "2.0.4"
+assert_cmd = "2.0.5"
 criterion = "0.4.0"
 criterion_bencher_compat = "0.4.0"
 insta = "1.21.0"
