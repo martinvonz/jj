@@ -16,7 +16,7 @@ use std::collections::{HashSet, VecDeque};
 use std::env::ArgsOs;
 use std::ffi::OsString;
 use std::fmt::Debug;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::{ArgMatches, FromArgMatches};
@@ -507,6 +507,29 @@ impl WorkspaceCommandHelper {
         RepoPath::parse_fs_path(&self.cwd, self.workspace_root(), input)
     }
 
+    pub fn repo_paths_from_values(&self, values: &[String]) -> Result<Vec<RepoPath>, CommandError> {
+        if !values.is_empty() {
+            // TODO: Add support for globs and other formats
+            let mut paths = vec![];
+            for value in values {
+                let repo_path = self.parse_file_path(value)?;
+                paths.push(repo_path);
+            }
+            Ok(paths)
+        } else {
+            Ok(vec![])
+        }
+    }
+
+    pub fn matcher_from_values(&self, values: &[String]) -> Result<Box<dyn Matcher>, CommandError> {
+        let paths = self.repo_paths_from_values(values)?;
+        if paths.is_empty() {
+            Ok(Box::new(EverythingMatcher))
+        } else {
+            Ok(Box::new(PrefixMatcher::new(&paths)))
+        }
+    }
+
     pub fn git_config(&self) -> Result<git2::Config, git2::Error> {
         if let Some(git_repo) = self.repo.store().git_repo() {
             git_repo.config()
@@ -988,37 +1011,6 @@ pub fn resolve_base_revs(
         ))
     } else {
         Ok(commits)
-    }
-}
-
-pub fn repo_paths_from_values(
-    ui: &Ui,
-    wc_path: &Path,
-    values: &[String],
-) -> Result<Vec<RepoPath>, CommandError> {
-    if !values.is_empty() {
-        // TODO: Add support for globs and other formats
-        let mut paths = vec![];
-        for value in values {
-            let repo_path = RepoPath::parse_fs_path(ui.cwd(), wc_path, value)?;
-            paths.push(repo_path);
-        }
-        Ok(paths)
-    } else {
-        Ok(vec![])
-    }
-}
-
-pub fn matcher_from_values(
-    ui: &Ui,
-    wc_path: &Path,
-    values: &[String],
-) -> Result<Box<dyn Matcher>, CommandError> {
-    let paths = repo_paths_from_values(ui, wc_path, values)?;
-    if paths.is_empty() {
-        Ok(Box::new(EverythingMatcher))
-    } else {
-        Ok(Box::new(PrefixMatcher::new(&paths)))
     }
 }
 
