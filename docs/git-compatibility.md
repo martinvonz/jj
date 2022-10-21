@@ -19,7 +19,7 @@ a comparison with Git, including how workflows are different, see the
   `~/.gitconfig`) that's respected is the following. Feel free to file a bug if
   you miss any particular configuration options.
   * The configuration of remotes (`[remote "<name>"]`).
-  * `core.exludesFile`
+  * `core.excludesFile`
 * **Authentication: Partial.** Only `ssh-agent` or a password-less key file at
   `~/.ssh/id_rsa` (and only at exactly that path).
 * **Branches: Yes.** You can read more about
