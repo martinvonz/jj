@@ -13,9 +13,11 @@
 // limitations under the License.
 
 use std::fmt::{Debug, Error, Formatter};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use itertools::Itertools;
+
+use crate::file_util;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct RepoPathComponent {
@@ -74,6 +76,27 @@ impl RepoPath {
 
     pub fn from_components(components: Vec<RepoPathComponent>) -> Self {
         RepoPath { components }
+    }
+
+    /// Parses an `input` path into a `RepoPath` relative to `base`.
+    ///
+    /// The `cwd` and `base` paths are supposed to be absolute and normalized in
+    /// the same manner. The `input` path may be either relative to `cwd` or
+    /// absolute.
+    pub fn parse_fs_path(cwd: &Path, base: &Path, input: &str) -> Result<Self, FsPathParseError> {
+        let abs_input_path = file_util::normalize_path(&cwd.join(input));
+        let repo_relative_path = file_util::relative_path(base, &abs_input_path);
+        if repo_relative_path == Path::new(".") {
+            return Ok(RepoPath::root());
+        }
+        let components = repo_relative_path
+            .components()
+            .map(|c| match c {
+                Component::Normal(a) => Ok(RepoPathComponent::from(a.to_str().unwrap())),
+                _ => Err(FsPathParseError::InputNotInRepo(input.to_string())),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(RepoPath::from_components(components))
     }
 
     /// The full string form used internally, not for presenting to users (where
@@ -155,9 +178,15 @@ impl RepoPathJoin<RepoPathComponent> for RepoPath {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FsPathParseError {
+    InputNotInRepo(String),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testutils;
 
     #[test]
     fn test_is_root() {
@@ -274,6 +303,124 @@ mod tests {
         assert_eq!(
             RepoPath::from_internal_string("dir/file").to_fs_path(Path::new("")),
             Path::new("dir/file")
+        );
+    }
+
+    #[test]
+    fn parse_fs_path_wc_in_cwd() {
+        let temp_dir = testutils::new_temp_dir();
+        let cwd_path = temp_dir.path().join("repo");
+        let wc_path = cwd_path.clone();
+
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, ""),
+            Ok(RepoPath::root())
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, "."),
+            Ok(RepoPath::root())
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, "file"),
+            Ok(RepoPath::from_internal_string("file"))
+        );
+        // Both slash and the platform's separator are allowed
+        assert_eq!(
+            RepoPath::parse_fs_path(
+                &cwd_path,
+                &wc_path,
+                &format!("dir{}file", std::path::MAIN_SEPARATOR)
+            ),
+            Ok(RepoPath::from_internal_string("dir/file"))
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, "dir/file"),
+            Ok(RepoPath::from_internal_string("dir/file"))
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, ".."),
+            Err(FsPathParseError::InputNotInRepo("..".to_string()))
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &cwd_path, "../repo"),
+            Ok(RepoPath::root())
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &cwd_path, "../repo/file"),
+            Ok(RepoPath::from_internal_string("file"))
+        );
+        // Input may be absolute path with ".."
+        assert_eq!(
+            RepoPath::parse_fs_path(
+                &cwd_path,
+                &cwd_path,
+                cwd_path.join("../repo").to_str().unwrap()
+            ),
+            Ok(RepoPath::root())
+        );
+    }
+
+    #[test]
+    fn parse_fs_path_wc_in_cwd_parent() {
+        let temp_dir = testutils::new_temp_dir();
+        let cwd_path = temp_dir.path().join("dir");
+        let wc_path = cwd_path.parent().unwrap().to_path_buf();
+
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, ""),
+            Ok(RepoPath::from_internal_string("dir"))
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, "."),
+            Ok(RepoPath::from_internal_string("dir"))
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, "file"),
+            Ok(RepoPath::from_internal_string("dir/file"))
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, "subdir/file"),
+            Ok(RepoPath::from_internal_string("dir/subdir/file"))
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, ".."),
+            Ok(RepoPath::root())
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, "../.."),
+            Err(FsPathParseError::InputNotInRepo("../..".to_string()))
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, "../other-dir/file"),
+            Ok(RepoPath::from_internal_string("other-dir/file"))
+        );
+    }
+
+    #[test]
+    fn parse_fs_path_wc_in_cwd_child() {
+        let temp_dir = testutils::new_temp_dir();
+        let cwd_path = temp_dir.path().join("cwd");
+        let wc_path = cwd_path.join("repo");
+
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, ""),
+            Err(FsPathParseError::InputNotInRepo("".to_string()))
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, "not-repo"),
+            Err(FsPathParseError::InputNotInRepo("not-repo".to_string()))
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, "repo"),
+            Ok(RepoPath::root())
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, "repo/file"),
+            Ok(RepoPath::from_internal_string("file"))
+        );
+        assert_eq!(
+            RepoPath::parse_fs_path(&cwd_path, &wc_path, "repo/dir/file"),
+            Ok(RepoPath::from_internal_string("dir/file"))
         );
     }
 }
