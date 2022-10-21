@@ -501,6 +501,12 @@ impl WorkspaceCommandHelper {
             .to_owned()
     }
 
+    /// Parses a path relative to cwd into a RepoPath, which is relative to the
+    /// workspace root.
+    pub fn parse_file_path(&self, input: &str) -> Result<RepoPath, FsPathParseError> {
+        RepoPath::parse_fs_path(&self.cwd, self.workspace_root(), input)
+    }
+
     pub fn git_config(&self) -> Result<git2::Config, git2::Error> {
         if let Some(git_repo) = self.repo.store().git_repo() {
             git_repo.config()

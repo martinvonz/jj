@@ -1253,7 +1253,7 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(
 fn cmd_print(ui: &mut Ui, command: &CommandHelper, args: &PrintArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    let path = RepoPath::parse_fs_path(ui.cwd(), workspace_command.workspace_root(), &args.path)?;
+    let path = workspace_command.parse_file_path(&args.path)?;
     let repo = workspace_command.repo();
     match commit.tree().path_value(&path) {
         None => {
