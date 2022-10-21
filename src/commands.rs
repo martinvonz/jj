@@ -46,7 +46,7 @@ use jujutsu_lib::store::Store;
 use jujutsu_lib::tree::{merge_trees, Tree, TreeDiffIterator};
 use jujutsu_lib::view::View;
 use jujutsu_lib::workspace::Workspace;
-use jujutsu_lib::{conflicts, diff, files, git, revset, tree};
+use jujutsu_lib::{conflicts, diff, file_util, files, git, revset, tree};
 use maplit::{hashmap, hashset};
 use pest::Parser;
 
@@ -60,7 +60,6 @@ use crate::formatter::Formatter;
 use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
-use crate::ui;
 use crate::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
@@ -1122,7 +1121,7 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
         Workspace::init_local(ui.settings(), &wc_path)?;
     };
     let cwd = ui.cwd().canonicalize().unwrap();
-    let relative_wc_path = ui::relative_path(&cwd, &wc_path);
+    let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
     writeln!(ui, "Initialized repo in \"{}\"", relative_wc_path.display())?;
     Ok(())
 }
@@ -3797,7 +3796,8 @@ fn cmd_workspace_add(
     writeln!(
         ui,
         "Created workspace in \"{}\"",
-        ui::relative_path(old_workspace_command.workspace_root(), &destination_path).display()
+        file_util::relative_path(old_workspace_command.workspace_root(), &destination_path)
+            .display()
     )?;
 
     let mut new_workspace_command = WorkspaceCommandHelper::new(

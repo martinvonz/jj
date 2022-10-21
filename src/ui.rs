@@ -15,9 +15,10 @@
 use std::io::{Stderr, Stdout, Write};
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
-use std::{fmt, io, iter};
+use std::{fmt, io};
 
 use atty::Stream;
+use jujutsu_lib::file_util;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::settings::UserSettings;
 
@@ -176,8 +177,8 @@ impl Ui {
         wc_path: &Path,
         input: &str,
     ) -> Result<RepoPath, FilePathParseError> {
-        let abs_input_path = normalize_path(&self.cwd.join(input));
-        let repo_relative_path = relative_path(wc_path, &abs_input_path);
+        let abs_input_path = file_util::normalize_path(&self.cwd.join(input));
+        let repo_relative_path = file_util::relative_path(wc_path, &abs_input_path);
         if repo_relative_path == Path::new(".") {
             return Ok(RepoPath::root());
         }
@@ -199,54 +200,6 @@ enum UiOutputPair {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum FilePathParseError {
     InputNotInRepo(String),
-}
-
-/// Turns the given `to` path into relative path starting from the `from` path.
-///
-/// Both `from` and `to` paths are supposed to be absolute and normalized in the
-/// same manner.
-pub fn relative_path(from: &Path, to: &Path) -> PathBuf {
-    // Find common prefix.
-    for (i, base) in from.ancestors().enumerate() {
-        if let Ok(suffix) = to.strip_prefix(base) {
-            if i == 0 && suffix.as_os_str().is_empty() {
-                return ".".into();
-            } else {
-                let mut result = PathBuf::from_iter(iter::repeat("..").take(i));
-                result.push(suffix);
-                return result;
-            }
-        }
-    }
-
-    // No common prefix found. Return the original (absolute) path.
-    to.to_owned()
-}
-
-/// Consumes as much `..` and `.` as possible without considering symlinks.
-fn normalize_path(path: &Path) -> PathBuf {
-    let mut result = PathBuf::new();
-    for c in path.components() {
-        match c {
-            Component::CurDir => {}
-            Component::ParentDir
-                if matches!(result.components().next_back(), Some(Component::Normal(_))) =>
-            {
-                // Do not pop ".."
-                let popped = result.pop();
-                assert!(popped);
-            }
-            _ => {
-                result.push(c);
-            }
-        }
-    }
-
-    if result.as_os_str().is_empty() {
-        ".".into()
-    } else {
-        result
-    }
 }
 
 #[cfg(test)]
@@ -353,20 +306,6 @@ mod tests {
         assert_eq!(
             ui.parse_file_path(&wc_path, "repo/dir/file"),
             Ok(RepoPath::from_internal_string("dir/file"))
-        );
-    }
-
-    #[test]
-    fn normalize_too_many_dot_dot() {
-        assert_eq!(normalize_path(Path::new("foo/..")), Path::new("."));
-        assert_eq!(normalize_path(Path::new("foo/../..")), Path::new(".."));
-        assert_eq!(
-            normalize_path(Path::new("foo/../../..")),
-            Path::new("../..")
-        );
-        assert_eq!(
-            normalize_path(Path::new("foo/../../../bar/baz/..")),
-            Path::new("../../bar")
         );
     }
 }
