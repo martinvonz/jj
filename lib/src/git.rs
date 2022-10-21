@@ -271,6 +271,7 @@ pub fn fetch(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     remote_name: &str,
+    progress: Option<&mut dyn FnMut(&Progress)>,
 ) -> Result<Option<String>, GitFetchError> {
     let mut remote =
         git_repo
@@ -288,7 +289,7 @@ pub fn fetch(
     let mut proxy_options = git2::ProxyOptions::new();
     proxy_options.auto();
     fetch_options.proxy_options(proxy_options);
-    let callbacks = create_remote_callbacks();
+    let callbacks = create_remote_callbacks(progress);
     fetch_options.remote_callbacks(callbacks);
     let refspec: &[&str] = &[];
     remote.download(refspec, Some(&mut fetch_options))?;
@@ -425,7 +426,7 @@ fn push_refs(
     let mut proxy_options = git2::ProxyOptions::new();
     proxy_options.auto();
     push_options.proxy_options(proxy_options);
-    let mut callbacks = create_remote_callbacks();
+    let mut callbacks = create_remote_callbacks(None);
     callbacks.push_update_reference(|refname, status| {
         // The status is Some if the ref update was rejected
         if status.is_none() {
@@ -456,8 +457,22 @@ fn push_refs(
     }
 }
 
-fn create_remote_callbacks() -> RemoteCallbacks<'static> {
+fn create_remote_callbacks(progress_cb: Option<&mut dyn FnMut(&Progress)>) -> RemoteCallbacks<'_> {
     let mut callbacks = git2::RemoteCallbacks::new();
+    if let Some(progress_cb) = progress_cb {
+        callbacks.transfer_progress(move |progress| {
+            progress_cb(&Progress {
+                bytes_downloaded: if progress.received_objects() < progress.total_objects() {
+                    Some(progress.received_bytes() as u64)
+                } else {
+                    None
+                },
+                overall: (progress.indexed_objects() + progress.indexed_deltas()) as f32
+                    / (progress.total_objects() + progress.total_deltas()) as f32,
+            });
+            true
+        });
+    }
     // TODO: We should expose the callbacks to the caller instead -- the library
     // crate shouldn't look in $HOME etc.
     callbacks.credentials(|_url, username_from_url, allowed_types| {
@@ -475,4 +490,10 @@ fn create_remote_callbacks() -> RemoteCallbacks<'static> {
         git2::Cred::default()
     });
     callbacks
+}
+
+pub struct Progress {
+    /// `Some` iff data transfer is currently in progress
+    pub bytes_downloaded: Option<u64>,
+    pub overall: f32,
 }
