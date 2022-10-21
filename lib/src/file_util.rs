@@ -13,9 +13,58 @@
 // limitations under the License.
 
 use std::fs::File;
-use std::path::Path;
+use std::iter;
+use std::path::{Component, Path, PathBuf};
 
 use tempfile::{NamedTempFile, PersistError};
+
+/// Turns the given `to` path into relative path starting from the `from` path.
+///
+/// Both `from` and `to` paths are supposed to be absolute and normalized in the
+/// same manner.
+pub fn relative_path(from: &Path, to: &Path) -> PathBuf {
+    // Find common prefix.
+    for (i, base) in from.ancestors().enumerate() {
+        if let Ok(suffix) = to.strip_prefix(base) {
+            if i == 0 && suffix.as_os_str().is_empty() {
+                return ".".into();
+            } else {
+                let mut result = PathBuf::from_iter(iter::repeat("..").take(i));
+                result.push(suffix);
+                return result;
+            }
+        }
+    }
+
+    // No common prefix found. Return the original (absolute) path.
+    to.to_owned()
+}
+
+/// Consumes as much `..` and `.` as possible without considering symlinks.
+pub fn normalize_path(path: &Path) -> PathBuf {
+    let mut result = PathBuf::new();
+    for c in path.components() {
+        match c {
+            Component::CurDir => {}
+            Component::ParentDir
+                if matches!(result.components().next_back(), Some(Component::Normal(_))) =>
+            {
+                // Do not pop ".."
+                let popped = result.pop();
+                assert!(popped);
+            }
+            _ => {
+                result.push(c);
+            }
+        }
+    }
+
+    if result.as_os_str().is_empty() {
+        ".".into()
+    } else {
+        result
+    }
+}
 
 // Like NamedTempFile::persist(), but also succeeds if the target already
 // exists.
@@ -43,6 +92,20 @@ mod tests {
 
     use super::*;
     use crate::testutils;
+
+    #[test]
+    fn normalize_too_many_dot_dot() {
+        assert_eq!(normalize_path(Path::new("foo/..")), Path::new("."));
+        assert_eq!(normalize_path(Path::new("foo/../..")), Path::new(".."));
+        assert_eq!(
+            normalize_path(Path::new("foo/../../..")),
+            Path::new("../..")
+        );
+        assert_eq!(
+            normalize_path(Path::new("foo/../../../bar/baz/..")),
+            Path::new("../../bar")
+        );
+    }
 
     #[test]
     fn test_persist_no_existing_file() {

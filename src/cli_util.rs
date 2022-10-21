@@ -41,13 +41,12 @@ use jujutsu_lib::working_copy::{
     CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, WorkingCopy,
 };
 use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
-use jujutsu_lib::{dag_walk, git, revset};
+use jujutsu_lib::{dag_walk, file_util, git, revset};
 
 use crate::config::read_config;
 use crate::diff_edit::DiffEditError;
 use crate::formatter::Formatter;
 use crate::templater::TemplateFormatter;
-use crate::ui;
 use crate::ui::{ColorChoice, FilePathParseError, Ui};
 
 pub enum CommandError {
@@ -496,7 +495,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn format_file_path(&self, file: &RepoPath) -> String {
-        ui::relative_path(&self.cwd, &file.to_fs_path(self.workspace_root()))
+        file_util::relative_path(&self.cwd, &file.to_fs_path(self.workspace_root()))
             .to_str()
             .unwrap()
             .to_owned()
