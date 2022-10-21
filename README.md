@@ -52,9 +52,7 @@ backend (the only minor reason might be
 The backend exists mainly to make sure that it's possible to eventually add
 functionality that cannot easily be added to the Git backend.
 
-<a href="https://asciinema.org/a/dY2XBEEplPacf25Vv9K8oRFPk" target="_blank">
-  <img src="https://asciinema.org/a/dY2XBEEplPacf25Vv9K8oRFPk.svg" />
-</a>
+<img src="demos/git_compat.png" />
 
 ### The working copy is automatically committed
 
@@ -64,9 +62,7 @@ working copy or any other commit. It also means that you can always check out a
 different commit without first explicitly committing the working copy changes
 (you can even check out a different commit while resolving merge conflicts).
 
-<a href="https://asciinema.org/a/Jdl9xjbVXlbvUd3qS0410IHtL" target="_blank">
-  <img src="https://asciinema.org/a/Jdl9xjbVXlbvUd3qS0410IHtL.svg" />
-</a>
+<img src="demos/working_copy.png" />
 
 ### Operations update the repo first, then possibly the working copy
 
@@ -81,9 +77,7 @@ the repo state after the operation. This means that you can easily revert to an
 earlier repo state, or to simply undo a particular operation (which does not
 necessarily have to be the most recent operation).
 
-<a href="https://asciinema.org/a/oR7ME5dz8T6UmZ9nXOcPs14YZ" target="_blank">
-  <img src="https://asciinema.org/a/oR7ME5dz8T6UmZ9nXOcPs14YZ.svg" />
-</a>
+<img src="demos/operation_log.png" />
 
 ### Conflicts can be recorded in commits
 
@@ -95,14 +89,12 @@ resolving conflicts, regardless of which command caused them. This design also
 lets Jujutsu rebase merge commits correctly (unlike both Git and Mercurial).
 
 Basic conflict resolution:
-<a href="https://asciinema.org/a/CmW8lBnypVuxCxvCcxhLDyUUL" target="_blank">
-  <img src="https://asciinema.org/a/CmW8lBnypVuxCxvCcxhLDyUUL.svg" />
-</a>
+
+<img src="demos/resolve_conflicts.png" />
 
 Juggling conflicts:
-<a href="https://asciinema.org/a/Havui1xG7x95MhzTJU0Ei1WfZ" target="_blank">
-  <img src="https://asciinema.org/a/Havui1xG7x95MhzTJU0Ei1WfZ.svg" />
-</a>
+
+<img src="demos/juggle_conflicts.png" />
 
 ### Automatic rebase
 
