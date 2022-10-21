@@ -26,7 +26,7 @@ pub struct Ui {
     color: bool,
     cwd: PathBuf,
     formatter_factory: FormatterFactory,
-    output_pair: UiOutputPair,
+    output: UiOutput,
     settings: UserSettings,
 }
 
@@ -93,10 +93,7 @@ impl Ui {
             color,
             cwd,
             formatter_factory,
-            output_pair: UiOutputPair::Terminal {
-                stdout: io::stdout(),
-                stderr: io::stderr(),
-            },
+            output: UiOutput::new_terminal(),
             settings,
         }
     }
@@ -139,15 +136,15 @@ impl Ui {
     /// Labels added to the returned formatter should be removed by caller.
     /// Otherwise the last color would persist.
     pub fn stdout_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
-        match &self.output_pair {
-            UiOutputPair::Terminal { stdout, .. } => self.new_formatter(stdout.lock()),
+        match &self.output {
+            UiOutput::Terminal { stdout, .. } => self.new_formatter(stdout.lock()),
         }
     }
 
     /// Creates a formatter for the locked stderr stream.
     pub fn stderr_formatter<'a>(&'a self) -> Box<dyn Formatter + 'a> {
-        match &self.output_pair {
-            UiOutputPair::Terminal { stderr, .. } => self.new_formatter(stderr.lock()),
+        match &self.output {
+            UiOutput::Terminal { stderr, .. } => self.new_formatter(stderr.lock()),
         }
     }
 
@@ -159,21 +156,21 @@ impl Ui {
 
     pub fn write(&mut self, text: &str) -> io::Result<()> {
         let data = text.as_bytes();
-        match &mut self.output_pair {
-            UiOutputPair::Terminal { stdout, .. } => stdout.write_all(data),
+        match &mut self.output {
+            UiOutput::Terminal { stdout, .. } => stdout.write_all(data),
         }
     }
 
     pub fn write_stderr(&mut self, text: &str) -> io::Result<()> {
         let data = text.as_bytes();
-        match &mut self.output_pair {
-            UiOutputPair::Terminal { stderr, .. } => stderr.write_all(data),
+        match &mut self.output {
+            UiOutput::Terminal { stderr, .. } => stderr.write_all(data),
         }
     }
 
     pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
-        match &mut self.output_pair {
-            UiOutputPair::Terminal { stdout, .. } => stdout.write_fmt(fmt),
+        match &mut self.output {
+            UiOutput::Terminal { stdout, .. } => stdout.write_fmt(fmt),
         }
     }
 
@@ -202,8 +199,8 @@ impl Ui {
     }
 
     pub fn flush(&mut self) -> io::Result<()> {
-        match &mut self.output_pair {
-            UiOutputPair::Terminal { stdout, .. } => stdout.flush(),
+        match &mut self.output {
+            UiOutput::Terminal { stdout, .. } => stdout.flush(),
         }
     }
 
@@ -240,15 +237,24 @@ impl Ui {
     pub fn output_guard(&self, text: String) -> OutputGuard {
         OutputGuard {
             text,
-            output: match self.output_pair {
-                UiOutputPair::Terminal { .. } => io::stdout(),
+            output: match self.output {
+                UiOutput::Terminal { .. } => io::stdout(),
             },
         }
     }
 }
 
-enum UiOutputPair {
+enum UiOutput {
     Terminal { stdout: Stdout, stderr: Stderr },
+}
+
+impl UiOutput {
+    fn new_terminal() -> UiOutput {
+        UiOutput::Terminal {
+            stdout: io::stdout(),
+            stderr: io::stderr(),
+        }
+    }
 }
 
 pub struct OutputGuard {
