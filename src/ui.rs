@@ -75,10 +75,6 @@ fn use_color(choice: ColorChoice) -> bool {
 impl Ui {
     pub fn for_terminal(settings: UserSettings) -> Ui {
         let cwd = std::env::current_dir().unwrap();
-        Self::with_cwd(cwd, settings)
-    }
-
-    pub fn with_cwd(cwd: PathBuf, settings: UserSettings) -> Ui {
         let color = use_color(color_setting(&settings));
         let formatter_factory = FormatterFactory::prepare(&settings, color);
         Ui {
