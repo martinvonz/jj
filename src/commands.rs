@@ -3890,8 +3890,16 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
         }
     } else {
         let mut workspace_command = command.workspace_helper(ui)?;
-        let paths_to_add = workspace_command.repo_paths_from_values(&args.add)?;
-        let paths_to_remove = workspace_command.repo_paths_from_values(&args.remove)?;
+        let paths_to_add = args
+            .add
+            .iter()
+            .map(|v| workspace_command.parse_file_path(v))
+            .collect::<Result<Vec<_>, _>>()?;
+        let paths_to_remove = args
+            .remove
+            .iter()
+            .map(|v| workspace_command.parse_file_path(v))
+            .collect::<Result<Vec<_>, _>>()?;
         let (mut locked_wc, _wc_commit) = workspace_command.start_working_copy_mutation()?;
         let mut new_patterns = HashSet::new();
         if args.reset {

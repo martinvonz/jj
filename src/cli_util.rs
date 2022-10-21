@@ -507,25 +507,15 @@ impl WorkspaceCommandHelper {
         RepoPath::parse_fs_path(&self.cwd, self.workspace_root(), input)
     }
 
-    pub fn repo_paths_from_values(&self, values: &[String]) -> Result<Vec<RepoPath>, CommandError> {
-        if !values.is_empty() {
-            // TODO: Add support for globs and other formats
-            let mut paths = vec![];
-            for value in values {
-                let repo_path = self.parse_file_path(value)?;
-                paths.push(repo_path);
-            }
-            Ok(paths)
-        } else {
-            Ok(vec![])
-        }
-    }
-
     pub fn matcher_from_values(&self, values: &[String]) -> Result<Box<dyn Matcher>, CommandError> {
-        let paths = self.repo_paths_from_values(values)?;
-        if paths.is_empty() {
+        if values.is_empty() {
             Ok(Box::new(EverythingMatcher))
         } else {
+            // TODO: Add support for globs and other formats
+            let paths = values
+                .iter()
+                .map(|v| self.parse_file_path(v))
+                .collect::<Result<Vec<_>, _>>()?;
             Ok(Box::new(PrefixMatcher::new(&paths)))
         }
     }
