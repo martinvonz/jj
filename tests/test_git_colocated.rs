@@ -169,6 +169,7 @@ fn test_git_colocated_branches() {
         )
         .unwrap();
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    Added 1 changes, modified 0 changes, removed 1 changes
     Working copy now at: eb08b363bb5e (no description set)
     @ eb08b363bb5ef8ee549314260488980d7bbe8f63 
     | o 6c0e140886d181602ae7a8e1ac41bc3094842370 master

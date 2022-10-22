@@ -43,6 +43,7 @@ fn test_unsquash() {
     // Unsquashes into the working copy from its parent by default
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @r###"
+    Added 0 changes, modified 1 changes, removed 1 changes
     Working copy now at: 1b10d78f6136 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -60,6 +61,7 @@ fn test_unsquash() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
+    Added 0 changes, modified 2 changes, removed 1 changes
     Working copy now at: 45b8b3ddc25a (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -105,6 +107,7 @@ fn test_unsquash() {
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @r###"
+    Added 0 changes, modified 1 changes, removed 1 changes
     Working copy now at: 0aabd9784f4d merge
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -155,6 +158,7 @@ fn test_unsquash_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash", "-r", "b", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
+    Added 0 changes, modified 3 changes, removed 0 changes
     Working copy now at: 37c961d0d1e2 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -173,6 +177,7 @@ fn test_unsquash_partial() {
     std::fs::write(&edit_script, "reset file1").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
+    Added 0 changes, modified 2 changes, removed 0 changes
     Working copy now at: a8e8fded1021 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"

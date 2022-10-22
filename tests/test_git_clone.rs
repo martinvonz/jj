@@ -53,6 +53,8 @@ fn test_git_clone() {
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "clone"]);
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
+    Added 2 changes, modified 0 changes, removed 0 changes
+    Added 1 changes, modified 0 changes, removed 1 changes
     Working copy now at: 1f0b881a057d (no description set)
     Added 1 files, modified 0 files, removed 0 files
     "###);

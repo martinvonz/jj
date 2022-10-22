@@ -27,6 +27,7 @@ fn test_describe() {
     // Set a description using `-m` flag
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description from CLI"]);
     insta::assert_snapshot!(stdout, @r###"
+    Added 0 changes, modified 1 changes, removed 0 changes
     Working copy now at: 7e0db3b0ad17 description from CLI
     "###);
 
@@ -42,6 +43,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @r###"
+    Added 0 changes, modified 1 changes, removed 0 changes
     Working copy now at: 45bfa10db64d description from CLI
     "###);
 
@@ -49,6 +51,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     std::fs::write(&edit_script, "write\ndescription from editor").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @r###"
+    Added 0 changes, modified 1 changes, removed 0 changes
     Working copy now at: f2ce8f1ad8fa description from editor
     "###);
 
@@ -60,6 +63,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @r###"
+    Added 0 changes, modified 1 changes, removed 0 changes
     Working copy now at: 95664f6316ae description among comment
     "###);
 

@@ -38,6 +38,7 @@ fn test_split() {
     insta::assert_snapshot!(stdout, @r###"
     First part: 5eebce1de3b0 (no description set)
     Second part: 45833353d94e (no description set)
+    Added 1 changes, modified 1 changes, removed 0 changes
     Working copy now at: 45833353d94e (no description set)
     "###);
 

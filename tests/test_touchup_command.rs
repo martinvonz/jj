@@ -64,6 +64,7 @@ fn test_touchup() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["touchup"]);
     insta::assert_snapshot!(stdout, @r###"
     Created 8c79910b5033 (no description set)
+    Added 0 changes, modified 1 changes, removed 0 changes
     Working copy now at: 8c79910b5033 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
@@ -79,6 +80,7 @@ fn test_touchup() {
     insta::assert_snapshot!(stdout, @r###"
     Created 472de2debaff (no description set)
     Rebased 1 descendant commits
+    Added 0 changes, modified 2 changes, removed 0 changes
     Working copy now at: 6d19dc1ea106 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
@@ -128,6 +130,7 @@ fn test_touchup_merge() {
     insta::assert_snapshot!(stdout, @r###"
     Created cb2b3b755c0a merge
     Rebased 1 descendant commits
+    Added 0 changes, modified 2 changes, removed 0 changes
     Working copy now at: 9c86af62d473 (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);

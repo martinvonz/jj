@@ -42,6 +42,7 @@ fn test_workspaces_add_second_workspace() {
     );
     insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
     Created workspace in "../secondary"
+    Added 2 changes, modified 0 changes, removed 1 changes
     Working copy now at: 8ac248e0c8d2 (no description set)
     Added 1 files, modified 0 files, removed 0 files
     "###);
@@ -101,6 +102,7 @@ fn test_workspaces_conflicting_edits() {
     let stdout = test_env.jj_cmd_success(&main_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
+    Added 1 changes, modified 2 changes, removed 1 changes
     Working copy now at: fe8f41ed01d6 (no description set)
     "###);
 
@@ -149,7 +151,9 @@ fn test_workspaces_forget() {
 
     test_env.jj_cmd_success(&main_path, &["workspace", "add", "../secondary"]);
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "forget"]);
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stdout, @r###"
+    Added 0 changes, modified 0 changes, removed 0 changes
+    "###);
 
     // When listing workspaces, only the secondary workspace shows up
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
@@ -191,7 +195,9 @@ fn test_workspaces_forget() {
 
     // Forget the secondary workspace
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "forget", "secondary"]);
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stdout, @r###"
+    Added 0 changes, modified 0 changes, removed 0 changes
+    "###);
     // No workspaces left
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @"");

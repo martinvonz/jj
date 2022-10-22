@@ -43,6 +43,7 @@ fn test_squash() {
     // Squashes the working copy into the parent by default
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
+    Added 1 changes, modified 1 changes, removed 1 changes
     Working copy now at: b9280a9898cb (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -61,6 +62,7 @@ fn test_squash() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
+    Added 0 changes, modified 2 changes, removed 1 changes
     Working copy now at: e87cf8ebc7e1 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -106,6 +108,7 @@ fn test_squash() {
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
+    Added 1 changes, modified 1 changes, removed 1 changes
     Working copy now at: 959145c11426 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -157,6 +160,7 @@ fn test_squash_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
+    Added 0 changes, modified 2 changes, removed 1 changes
     Working copy now at: f03d5ce4a973 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -175,6 +179,7 @@ fn test_squash_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
+    Added 0 changes, modified 3 changes, removed 0 changes
     Working copy now at: e7a40106bee6 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -207,6 +212,7 @@ fn test_squash_partial() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
+    Added 0 changes, modified 3 changes, removed 0 changes
     Working copy now at: a911fa1d0627 (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"

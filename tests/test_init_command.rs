@@ -85,6 +85,7 @@ fn test_init_git_external() {
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
+    Added 2 changes, modified 0 changes, removed 1 changes
     Working copy now at: f6950fc115ae (no description set)
     Added 1 files, modified 0 files, removed 0 files
     Initialized repo in "repo"

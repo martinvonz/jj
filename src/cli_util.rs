@@ -853,7 +853,9 @@ impl WorkspaceCommandHelper {
             .get_wc_commit_id(&self.workspace_id())
             .map(|commit_id| store.get_commit(commit_id))
             .transpose()?;
+        let old_repo = self.repo.clone();
         self.repo = tx.commit();
+        print_repo_diff_stats(ui, old_repo.as_ref(), self.repo.as_ref())?;
         if self.may_update_working_copy {
             let stats = update_working_copy(
                 ui,
@@ -876,6 +878,34 @@ impl WorkspaceCommandHelper {
         }
         Ok(())
     }
+}
+
+fn print_repo_diff_stats(
+    ui: &mut Ui,
+    old_repo: &ReadonlyRepo,
+    new_repo: &ReadonlyRepo,
+) -> Result<(), std::io::Error> {
+    let old_heads = old_repo.view().heads();
+    let new_heads = new_repo.view().heads();
+    let added_heads = new_heads.difference(old_heads).cloned().collect_vec();
+    let removed_heads = old_heads.difference(new_heads).cloned().collect_vec();
+    let mut old_change_ids = HashSet::new();
+    let mut new_change_ids = HashSet::new();
+    for entry in new_repo.index().walk_revs(&removed_heads, &added_heads) {
+        old_change_ids.insert(entry.change_id());
+    }
+    for entry in new_repo.index().walk_revs(&added_heads, &removed_heads) {
+        new_change_ids.insert(entry.change_id());
+    }
+    let num_added_changes = new_change_ids.difference(&old_change_ids).count();
+    let num_removed_changes = old_change_ids.difference(&new_change_ids).count();
+    let num_modified_changes = new_change_ids.intersection(&old_change_ids).count();
+    writeln!(
+        ui,
+        "Added {} changes, modified {} changes, removed {} changes",
+        num_added_changes, num_modified_changes, num_removed_changes
+    )?;
+    Ok(())
 }
 
 pub fn print_checkout_stats(ui: &mut Ui, stats: CheckoutStats) -> Result<(), std::io::Error> {

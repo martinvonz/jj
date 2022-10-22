@@ -87,6 +87,7 @@ fn test_rebase_branch() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b", "c", "-d", "e"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
+    Added 0 changes, modified 3 changes, removed 0 changes
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     o d
@@ -126,6 +127,7 @@ fn test_rebase_branch_with_merge() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-b", "d", "-d", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
+    Added 0 changes, modified 3 changes, removed 0 changes
     Working copy now at: b2674fa494af e
     Added 1 files, modified 0 files, removed 0 files
     "###);
@@ -142,6 +144,7 @@ fn test_rebase_branch_with_merge() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-d", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
+    Added 0 changes, modified 3 changes, removed 0 changes
     Working copy now at: fef1da569696 e
     Added 1 files, modified 0 files, removed 0 files
     "###);
@@ -185,6 +188,7 @@ fn test_rebase_single_revision() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "b", "-d", "a"]);
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 2 descendant commits onto parent of rebased commit
+    Added 0 changes, modified 3 changes, removed 0 changes
     Working copy now at: ed4d09bb181f d
     Added 0 files, modified 0 files, removed 1 files
     "###);
@@ -203,6 +207,7 @@ fn test_rebase_single_revision() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "c", "-d", "root"]);
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
+    Added 0 changes, modified 2 changes, removed 0 changes
     Working copy now at: 59a16d87a26f d
     Added 0 files, modified 0 files, removed 1 files
     "###);
@@ -245,6 +250,7 @@ fn test_rebase_single_revision_merge_parent() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "c", "-d", "a"]);
     insta::assert_snapshot!(stdout, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
+    Added 0 changes, modified 2 changes, removed 0 changes
     Working copy now at: a4fccbb7582d d
     Added 0 files, modified 0 files, removed 1 files
     "###);
@@ -280,7 +286,9 @@ fn test_rebase_multiple_destinations() {
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "c"]);
-    insta::assert_snapshot!(stdout, @r###""###);
+    insta::assert_snapshot!(stdout, @r###"
+    Added 0 changes, modified 1 changes, removed 0 changes
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     o   a
     |\  
@@ -317,6 +325,7 @@ fn test_rebase_with_descendants() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-s", "b", "-d", "a"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 3 commits
+    Added 0 changes, modified 3 changes, removed 0 changes
     Working copy now at: 9afba1135175 d
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"

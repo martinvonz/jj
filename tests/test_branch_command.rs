@@ -38,7 +38,9 @@ fn test_branch_multiple_names() {
         .jj_cmd(&repo_path, &["branch", "set", "foo", "bar"])
         .assert()
         .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"");
+    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    Added 0 changes, modified 0 changes, removed 0 changes
+    "###);
     insta::assert_snapshot!(get_stderr_string(&assert), @"warning: Updating multiple branches (2).
 ");
 
@@ -48,7 +50,9 @@ fn test_branch_multiple_names() {
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "delete", "foo", "bar"]);
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stdout, @r###"
+    Added 0 changes, modified 0 changes, removed 0 changes
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  230dd059e1b0
     o  000000000000

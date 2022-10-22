@@ -30,6 +30,7 @@ fn test_checkout() {
     // Check out current commit
     let stdout = test_env.jj_cmd_success(&repo_path, &["checkout", "@"]);
     insta::assert_snapshot!(stdout, @r###"
+    Added 1 changes, modified 0 changes, removed 0 changes
     Working copy now at: 66f7f3f8235b (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"

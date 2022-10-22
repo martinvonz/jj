@@ -92,6 +92,7 @@ fn test_git_push_current_branch() {
     Branch changes to push to origin:
       Move branch branch2 from 752dad8b1718 to a7ba797894a9
       Add branch my-branch to a7ba797894a9
+    Added 0 changes, modified 0 changes, removed 0 changes
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -163,6 +164,7 @@ fn test_git_push_all() {
       Delete branch branch1 from 828a683493c6
       Force branch branch2 from 752dad8b1718 to afc3e612e744
       Add branch my-branch to afc3e612e744
+    Added 0 changes, modified 0 changes, removed 3 changes
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
