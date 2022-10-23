@@ -42,14 +42,6 @@ pub fn new_temp_dir() -> TempDir {
         .unwrap()
 }
 
-pub fn new_user_home() -> TempDir {
-    // Set $HOME to some arbitrary place so libgit2 doesn't use ~/.gitignore
-    // of the person running the tests.
-    let home_dir = new_temp_dir();
-    std::env::set_var("HOME", home_dir.path());
-    home_dir
-}
-
 pub fn user_settings() -> UserSettings {
     let config = config::Config::builder()
         .set_override("user.name", "Test User")

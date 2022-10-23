@@ -396,7 +396,6 @@ fn test_checkout_discard() {
 fn test_snapshot_racy_timestamps(use_git: bool) {
     // Tests that file modifications are detected even if they happen the same
     // millisecond as the updated working copy state.
-    let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
@@ -428,7 +427,6 @@ fn test_snapshot_racy_timestamps(use_git: bool) {
 fn test_snapshot_special_file() {
     // Tests that we ignore when special files (such as sockets and pipes) exist on
     // disk.
-    let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings, false);
     let workspace_root = test_workspace.workspace.workspace_root().clone();
@@ -485,7 +483,6 @@ fn test_snapshot_special_file() {
 fn test_gitignores(use_git: bool) {
     // Tests that .gitignore files are respected.
 
-    let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
@@ -561,7 +558,6 @@ fn test_gitignores_checkout_never_overwrites_ignored(use_git: bool) {
     // Tests that a .gitignore'd file doesn't get overwritten if check out a commit
     // where the file is tracked.
 
-    let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
@@ -599,7 +595,6 @@ fn test_gitignores_ignored_directory_already_tracked(use_git: bool) {
     // Tests that a .gitignore'd directory that already has a tracked file in it
     // does not get removed when snapshotting the working directory.
 
-    let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
@@ -643,7 +638,6 @@ fn test_dotgit_ignored(use_git: bool) {
     // Tests that .git directories and files are always ignored (we could accept
     // them if the backend is not git).
 
-    let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
@@ -680,7 +674,6 @@ fn test_dotgit_ignored(use_git: bool) {
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
 fn test_existing_directory_symlink(use_git: bool) {
-    let _home_dir = testutils::new_user_home();
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;
