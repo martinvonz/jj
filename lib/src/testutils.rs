@@ -59,6 +59,7 @@ pub fn hermetic_libgit2() {
 }
 
 pub fn new_temp_dir() -> TempDir {
+    hermetic_libgit2();
     tempfile::Builder::new()
         .prefix("jj-test-")
         .tempdir()
