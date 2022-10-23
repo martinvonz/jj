@@ -33,7 +33,7 @@ use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::{BackendFactories, MutableRepo, ReadonlyRepo, RepoRef, RewriteRootCommit};
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
-use jujutsu_lib::revset::{RevsetError, RevsetParseError};
+use jujutsu_lib::revset::{Revset, RevsetError, RevsetExpression, RevsetParseError};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::{Tree, TreeMergeError};
@@ -553,8 +553,7 @@ impl WorkspaceCommandHelper {
 
     pub fn resolve_single_rev(&self, revision_str: &str) -> Result<Commit, CommandError> {
         let revset_expression = revset::parse(revision_str)?;
-        let revset =
-            revset_expression.evaluate(self.repo.as_repo_ref(), Some(&self.workspace_id()))?;
+        let revset = self.evaluate_revset(&revset_expression)?;
         let mut iter = revset.iter().commits(self.repo.store());
         match iter.next() {
             None => Err(CommandError::UserError(format!(
@@ -576,13 +575,19 @@ impl WorkspaceCommandHelper {
 
     pub fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
         let revset_expression = revset::parse(revision_str)?;
-        let revset =
-            revset_expression.evaluate(self.repo.as_repo_ref(), Some(&self.workspace_id()))?;
+        let revset = self.evaluate_revset(&revset_expression)?;
         Ok(revset
             .iter()
             .commits(self.repo.store())
             .map(Result::unwrap)
             .collect())
+    }
+
+    pub fn evaluate_revset<'repo>(
+        &'repo self,
+        revset_expression: &RevsetExpression,
+    ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
+        revset_expression.evaluate(self.repo.as_repo_ref(), Some(&self.workspace_id()))
     }
 
     pub fn check_rewriteable(&self, commit: &Commit) -> Result<(), CommandError> {

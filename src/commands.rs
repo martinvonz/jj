@@ -2073,7 +2073,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = repo.view().get_wc_commit_id(&workspace_id);
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let mut revset = revset_expression.evaluate(repo.as_repo_ref(), Some(&workspace_id))?;
+    let mut revset = workspace_command.evaluate_revset(&revset_expression)?;
     if !args.paths.is_empty() {
         revset = revset::filter_by_diff(repo.as_repo_ref(), matcher.as_ref(), revset);
     }
@@ -3095,11 +3095,8 @@ fn rebase_branch(
         .roots();
     let mut num_rebased = 0;
     let store = workspace_command.repo().store();
-    for root_result in roots_expression
-        .evaluate(
-            workspace_command.repo().as_repo_ref(),
-            Some(&workspace_command.workspace_id()),
-        )
+    for root_result in workspace_command
+        .evaluate_revset(&roots_expression)
         .unwrap()
         .iter()
         .commits(store)
@@ -3154,11 +3151,8 @@ fn rebase_revision(
     let mut num_rebased_descendants = 0;
     let store = workspace_command.repo().store();
 
-    for child_commit in children_expression
-        .evaluate(
-            workspace_command.repo().as_repo_ref(),
-            Some(&workspace_command.workspace_id()),
-        )
+    for child_commit in workspace_command
+        .evaluate_revset(&children_expression)
         .unwrap()
         .iter()
         .commits(store)
@@ -3182,20 +3176,18 @@ fn rebase_revision(
 
         // Some of the new parents may be ancestors of others as in
         // `test_rebase_single_revision`.
-        let new_child_parents: Result<Vec<Commit>, BackendError> = RevsetExpression::Difference(
+        let new_child_parents_expression = RevsetExpression::Difference(
             RevsetExpression::commits(new_child_parent_ids.clone()),
             RevsetExpression::commits(new_child_parent_ids.clone())
                 .parents()
                 .ancestors(),
-        )
-        .evaluate(
-            workspace_command.repo().as_repo_ref(),
-            Some(&workspace_command.workspace_id()),
-        )
-        .unwrap()
-        .iter()
-        .commits(store)
-        .collect();
+        );
+        let new_child_parents: Result<Vec<Commit>, BackendError> = workspace_command
+            .evaluate_revset(&new_child_parents_expression)
+            .unwrap()
+            .iter()
+            .commits(store)
+            .collect();
 
         rebase_commit(
             ui.settings(),
