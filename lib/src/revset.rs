@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Borrow;
 use std::cmp::{Ordering, Reverse};
 use std::collections::HashSet;
 use std::iter::Peekable;
@@ -1378,7 +1379,7 @@ pub fn revset_for_commits<'revset, 'repo: 'revset>(
 
 pub fn filter_by_diff<'revset, 'repo: 'revset>(
     repo: RepoRef<'repo>,
-    matcher: &'repo dyn Matcher,
+    matcher: impl Borrow<dyn Matcher + 'repo> + 'repo,
     candidates: Box<dyn Revset<'repo> + 'revset>,
 ) -> Box<dyn Revset<'repo> + 'revset> {
     Box::new(FilterRevset {
@@ -1388,7 +1389,7 @@ pub fn filter_by_diff<'revset, 'repo: 'revset>(
             let parents = commit.parents();
             let from_tree = rewrite::merge_commit_trees(repo, &parents);
             let to_tree = commit.tree();
-            from_tree.diff(&to_tree, matcher).next().is_some()
+            from_tree.diff(&to_tree, matcher.borrow()).next().is_some()
         }),
     })
 }

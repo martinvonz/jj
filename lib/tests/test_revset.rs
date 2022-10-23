@@ -14,7 +14,7 @@
 
 use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jujutsu_lib::commit_builder::CommitBuilder;
-use jujutsu_lib::matchers::FilesMatcher;
+use jujutsu_lib::matchers::{FilesMatcher, Matcher};
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::repo_path::RepoPath;
@@ -1783,7 +1783,7 @@ fn test_filter_by_diff(use_git: bool) {
         let repo_ref = mut_repo.as_repo_ref();
         let matcher = FilesMatcher::new([file_path.clone()].into());
         let candidates = RevsetExpression::all().evaluate(repo_ref, None).unwrap();
-        let commit_ids = revset::filter_by_diff(repo_ref, &matcher, candidates)
+        let commit_ids = revset::filter_by_diff(repo_ref, &matcher as &dyn Matcher, candidates)
             .iter()
             .commit_ids()
             .collect();
