@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+use crossterm::terminal::{Clear, ClearType};
 use jujutsu_lib::git;
 
 use crate::ui::Ui;
@@ -36,19 +37,25 @@ impl<'a> Progress<'a> {
         self.printed = true;
         self.next_print = now.min(self.next_print + Duration::from_secs(1) / UPDATE_HZ);
 
-        const CLEAR_TRAILING: &str = "\x1b[K";
         self.buffer.clear();
-        write!(
-            self.buffer,
-            "\r{}{: >3.0}%",
-            CLEAR_TRAILING,
-            100.0 * progress.overall
-        )
-        .unwrap();
+        write!(self.buffer, "\r{}", Clear(ClearType::CurrentLine)).unwrap();
+        let control_chars = self.buffer.len();
+        write!(self.buffer, "{: >3.0}% ", 100.0 * progress.overall).unwrap();
         if let Some(estimate) = rate {
             let (scaled, prefix) = binary_prefix(estimate);
-            write!(self.buffer, " at {: >5.1} {}B/s", scaled, prefix).unwrap();
+            write!(self.buffer, " at {: >5.1} {}B/s ", scaled, prefix).unwrap();
         }
+
+        let bar_width = self
+            .ui
+            .size()
+            .map(|(cols, _rows)| usize::from(cols))
+            .unwrap_or(0)
+            .saturating_sub(self.buffer.len() - control_chars + 2);
+        self.buffer.push('[');
+        draw_progress(progress.overall, &mut self.buffer, bar_width);
+        self.buffer.push(']');
+
         _ = write!(self.ui, "{}", self.buffer);
         _ = self.ui.flush();
     }
@@ -59,6 +66,23 @@ impl Drop for Progress<'_> {
         if self.printed {
             let _ = writeln!(self.ui);
         }
+    }
+}
+
+fn draw_progress(progress: f32, buffer: &mut String, width: usize) {
+    const CHARS: [char; 9] = [' ', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█'];
+    const RESOLUTION: usize = CHARS.len() - 1;
+    let ticks = (width as f32 * progress.min(1.0).max(0.0) * RESOLUTION as f32).round() as usize;
+    let whole = ticks / RESOLUTION;
+    for _ in 0..whole {
+        buffer.push(CHARS[CHARS.len() - 1]);
+    }
+    if whole < width {
+        let fraction = ticks % RESOLUTION;
+        buffer.push(CHARS[fraction]);
+    }
+    for _ in (whole + 1)..width {
+        buffer.push(CHARS[0]);
     }
 }
 
@@ -127,5 +151,27 @@ impl RateEstimateState {
                 *avg_rate
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bar() {
+        let mut buf = String::new();
+        draw_progress(0.0, &mut buf, 10);
+        assert_eq!(buf, "          ");
+        buf.clear();
+        draw_progress(1.0, &mut buf, 10);
+        assert_eq!(buf, "██████████");
+        buf.clear();
+        draw_progress(0.5, &mut buf, 10);
+        assert_eq!(buf, "█████     ");
+        buf.clear();
+        draw_progress(0.54, &mut buf, 10);
+        assert_eq!(buf, "█████▍    ");
+        buf.clear();
     }
 }
