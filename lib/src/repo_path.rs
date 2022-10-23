@@ -16,6 +16,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::path::{Component, Path, PathBuf};
 
 use itertools::Itertools;
+use thiserror::Error;
 
 use crate::file_util;
 
@@ -178,8 +179,9 @@ impl RepoPathJoin<RepoPathComponent> for RepoPath {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum FsPathParseError {
+    #[error(r#"Path "{0}" is not in the repo"#)]
     InputNotInRepo(String),
 }
 

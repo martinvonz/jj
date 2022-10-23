@@ -168,11 +168,7 @@ impl From<RevsetError> for CommandError {
 
 impl From<FsPathParseError> for CommandError {
     fn from(err: FsPathParseError) -> Self {
-        match err {
-            FsPathParseError::InputNotInRepo(input) => {
-                CommandError::UserError(format!("Path \"{input}\" is not in the repo"))
-            }
-        }
+        CommandError::UserError(format!("{err}"))
     }
 }
 
