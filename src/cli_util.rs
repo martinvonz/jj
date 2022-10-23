@@ -33,7 +33,9 @@ use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::{BackendFactories, MutableRepo, ReadonlyRepo, RepoRef, RewriteRootCommit};
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
-use jujutsu_lib::revset::{Revset, RevsetError, RevsetExpression, RevsetParseError};
+use jujutsu_lib::revset::{
+    Revset, RevsetError, RevsetExpression, RevsetParseError, RevsetWorkspaceContext,
+};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::transaction::Transaction;
 use jujutsu_lib::tree::{Tree, TreeMergeError};
@@ -587,7 +589,10 @@ impl WorkspaceCommandHelper {
         &'repo self,
         revset_expression: &RevsetExpression,
     ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
-        revset_expression.evaluate(self.repo.as_repo_ref(), Some(&self.workspace_id()))
+        let workspace_ctx = RevsetWorkspaceContext {
+            workspace_id: self.workspace.workspace_id(),
+        };
+        revset_expression.evaluate(self.repo.as_repo_ref(), Some(&workspace_ctx))
     }
 
     pub fn check_rewriteable(&self, commit: &Commit) -> Result<(), CommandError> {

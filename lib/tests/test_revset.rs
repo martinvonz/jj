@@ -18,7 +18,9 @@ use jujutsu_lib::matchers::{FilesMatcher, Matcher};
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::revset::{self, parse, resolve_symbol, RevsetError, RevsetExpression};
+use jujutsu_lib::revset::{
+    self, parse, resolve_symbol, RevsetError, RevsetExpression, RevsetWorkspaceContext,
+};
 use jujutsu_lib::testutils::{CommitGraphBuilder, TestRepo};
 use jujutsu_lib::{git, testutils};
 use test_case::test_case;
@@ -433,8 +435,9 @@ fn resolve_commit_ids_in_workspace(
     workspace_id: &WorkspaceId,
 ) -> Vec<CommitId> {
     let expression = parse(revset_str).unwrap();
+    let workspace_ctx = RevsetWorkspaceContext { workspace_id };
     expression
-        .evaluate(repo, Some(workspace_id))
+        .evaluate(repo, Some(&workspace_ctx))
         .unwrap()
         .iter()
         .commit_ids()
