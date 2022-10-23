@@ -4157,7 +4157,7 @@ fn git_fetch(
 ) -> Result<Option<String>, GitFetchError> {
     let mut callback = None;
     if ui.use_progress_indicator() {
-        let mut progress = Progress::new(ui);
+        let mut progress = Progress::new(Instant::now(), ui);
         callback = Some(move |x: &git::Progress| {
             progress.update(Instant::now(), x);
         });
