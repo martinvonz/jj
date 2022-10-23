@@ -21,7 +21,8 @@ use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
     self, parse, resolve_symbol, RevsetError, RevsetExpression, RevsetWorkspaceContext,
 };
-use jujutsu_lib::testutils::{CommitGraphBuilder, TestRepo};
+use jujutsu_lib::testutils::{CommitGraphBuilder, TestRepo, TestWorkspace};
+use jujutsu_lib::workspace::Workspace;
 use jujutsu_lib::{git, testutils};
 use test_case::test_case;
 
@@ -432,10 +433,12 @@ fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
 fn resolve_commit_ids_in_workspace(
     repo: RepoRef,
     revset_str: &str,
-    workspace_id: &WorkspaceId,
+    workspace: &Workspace,
 ) -> Vec<CommitId> {
     let expression = parse(revset_str).unwrap();
-    let workspace_ctx = RevsetWorkspaceContext { workspace_id };
+    let workspace_ctx = RevsetWorkspaceContext {
+        workspace_id: workspace.workspace_id(),
+    };
     expression
         .evaluate(repo, Some(&workspace_ctx))
         .unwrap()
@@ -448,8 +451,8 @@ fn resolve_commit_ids_in_workspace(
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_root_and_checkout(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
-    let repo = &test_repo.repo;
+    let test_workspace = TestWorkspace::init(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -468,7 +471,7 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
         .set_wc_commit(WorkspaceId::default(), commit1.id().clone())
         .unwrap();
     assert_eq!(
-        resolve_commit_ids_in_workspace(mut_repo.as_repo_ref(), "@", &WorkspaceId::default()),
+        resolve_commit_ids_in_workspace(mut_repo.as_repo_ref(), "@", &test_workspace.workspace),
         vec![commit1.id().clone()]
     );
 }
@@ -601,8 +604,8 @@ fn test_evaluate_expression_roots(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_evaluate_expression_parents(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
-    let repo = &test_repo.repo;
+    let test_workspace = TestWorkspace::init(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction("test");
@@ -622,7 +625,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
         .set_wc_commit(WorkspaceId::default(), commit2.id().clone())
         .unwrap();
     assert_eq!(
-        resolve_commit_ids_in_workspace(mut_repo.as_repo_ref(), "@-", &WorkspaceId::default()),
+        resolve_commit_ids_in_workspace(mut_repo.as_repo_ref(), "@-", &test_workspace.workspace),
         vec![commit1.id().clone()]
     );
 
