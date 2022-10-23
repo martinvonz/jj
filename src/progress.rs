@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use jujutsu_lib::git;
 
@@ -6,15 +6,17 @@ use crate::ui::Ui;
 
 pub struct Progress<'a> {
     ui: &'a mut Ui,
+    next_print: Instant,
     rate: RateEstimate,
     buffer: String,
     printed: bool,
 }
 
 impl<'a> Progress<'a> {
-    pub fn new(ui: &'a mut Ui) -> Self {
+    pub fn new(now: Instant, ui: &'a mut Ui) -> Self {
         Self {
             ui,
+            next_print: now + INITIAL_DELAY,
             rate: RateEstimate::new(),
             buffer: String::new(),
             printed: false,
@@ -23,6 +25,16 @@ impl<'a> Progress<'a> {
 
     pub fn update(&mut self, now: Instant, progress: &git::Progress) {
         use std::fmt::Write as _;
+
+        let rate = progress
+            .bytes_downloaded
+            .and_then(|x| self.rate.update(now, x));
+
+        if now < self.next_print {
+            return;
+        }
+        self.printed = true;
+        self.next_print = now.min(self.next_print + Duration::from_secs(1) / UPDATE_HZ);
 
         const CLEAR_TRAILING: &str = "\x1b[K";
         self.buffer.clear();
@@ -33,15 +45,12 @@ impl<'a> Progress<'a> {
             100.0 * progress.overall
         )
         .unwrap();
-        if let Some(estimate) = progress
-            .bytes_downloaded
-            .and_then(|x| self.rate.update(now, x))
-        {
+        if let Some(estimate) = rate {
             let (scaled, prefix) = binary_prefix(estimate);
             write!(self.buffer, " at {: >5.1} {}B/s", scaled, prefix).unwrap();
         }
         _ = write!(self.ui, "{}", self.buffer);
-        self.printed = true;
+        _ = self.ui.flush();
     }
 }
 
@@ -52,6 +61,9 @@ impl Drop for Progress<'_> {
         }
     }
 }
+
+const UPDATE_HZ: u32 = 30;
+const INITIAL_DELAY: Duration = Duration::from_millis(250);
 
 /// Find the smallest binary prefix with which the whole part of `x` is at most
 /// three digits, and return the scaled `x` and that prefix.

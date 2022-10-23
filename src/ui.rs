@@ -170,6 +170,12 @@ impl Ui {
         formatter.remove_label()?;
         Ok(())
     }
+
+    pub fn flush(&mut self) -> io::Result<()> {
+        match &mut self.output_pair {
+            UiOutputPair::Terminal { stdout, .. } => stdout.flush(),
+        }
+    }
 }
 
 enum UiOutputPair {
