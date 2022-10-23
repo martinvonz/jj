@@ -112,6 +112,9 @@ revsets (expressions) as arguments.
 * `committer(needle[, x])`: Commits with the given string in the committer's
   name or email. If a second argument was provided, then only commits in that
   set are considered, otherwise all visible commits are considered.
+* `file(pattern[, x])`: Commits modifying the paths specified by the `pattern`.
+  If a second argument was provided, then only commits in that set are
+  considered, otherwise all visible commits are considered.
 
 
 ## Examples
