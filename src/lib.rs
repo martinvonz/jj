@@ -20,6 +20,7 @@ pub mod config;
 pub mod diff_edit;
 pub mod formatter;
 pub mod graphlog;
+mod progress;
 pub mod template_parser;
 pub mod templater;
 pub mod ui;
