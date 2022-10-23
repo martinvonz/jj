@@ -4171,31 +4171,28 @@ fn git_fetch(
         }
         let mut guard = Guard { ui, printed: false };
 
+        let mut buffer = String::new();
         callback = Some(move |progress: &git::Progress| {
-            const HIDE_CURSOR: &str = "\x1b[25l";
-            const MOVE_TO_START: &str = "\x1b[G";
-            const SHOW_CURSOR: &str = "\x1b[25h";
+            use std::fmt::Write;
+
             const CLEAR_TRAILING: &str = "\x1b[K";
-            let _ = write!(
-                guard.ui,
-                "{}{}{: >3.0}%",
-                HIDE_CURSOR,
-                MOVE_TO_START,
+            buffer.clear();
+            write!(
+                buffer,
+                "\r{}{: >3.0}%",
+                CLEAR_TRAILING,
                 100.0 * progress.overall
-            );
+            )
+            .unwrap();
             if let Some(estimate) = progress
                 .bytes_downloaded
                 .and_then(|x| rate.update(Instant::now(), x))
             {
                 let (scaled, prefix) = binary_prefix(estimate);
-                let _ = write!(
-                    guard.ui,
-                    "at {: >5.1} {}B/s{}{}",
-                    scaled, prefix, CLEAR_TRAILING, SHOW_CURSOR,
-                );
+                write!(buffer, " at {: >5.1} {}B/s", scaled, prefix).unwrap();
                 guard.printed = true;
             }
-            let _ = write!(guard.ui, "{}{}", CLEAR_TRAILING, SHOW_CURSOR);
+            _ = write!(guard.ui, "{}", buffer);
         });
     }
     let result = git::fetch(
