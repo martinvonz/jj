@@ -176,6 +176,10 @@ impl Ui {
             UiOutputPair::Terminal { stdout, .. } => stdout.flush(),
         }
     }
+
+    pub fn size(&self) -> Option<(u16, u16)> {
+        crossterm::terminal::size().ok()
+    }
 }
 
 enum UiOutputPair {

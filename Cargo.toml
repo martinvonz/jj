@@ -40,6 +40,7 @@ clap = { version = "4.0.18", features = ["derive", "deprecated"] }
 clap_complete = "4.0.3"
 clap_mangen = "0.2.3"
 config = { version = "0.13.2", default-features = false, features = ["toml"] }
+crossterm = { version = "0.25", default-features = false }
 dirs = "4.0.0"
 git2 = "0.15.0"
 hex = "0.4.3"
