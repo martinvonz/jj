@@ -17,7 +17,6 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use jujutsu_lib::testutils;
-use lazy_static::lazy_static;
 use tempfile::TempDir;
 
 pub struct TestEnvironment {
@@ -30,27 +29,9 @@ pub struct TestEnvironment {
     command_number: RefCell<i64>,
 }
 
-lazy_static! {
-    // libgit2 respects init.defaultBranch (and possibly other config
-    // variables) in the user's config files. Disable access to them to make
-    // our tests hermetic.
-    //
-    // set_search_path is unsafe because it cannot guarantee thread safety (as
-    // its documentation states). For the same reason, we wrap these invocations
-    // in lazy_static!.
-    static ref CONFIGURE_GIT2: () = {
-        unsafe {
-            git2::opts::set_search_path(git2::ConfigLevel::System, "").unwrap();
-            git2::opts::set_search_path(git2::ConfigLevel::Global, "").unwrap();
-            git2::opts::set_search_path(git2::ConfigLevel::XDG, "").unwrap();
-            git2::opts::set_search_path(git2::ConfigLevel::ProgramData, "").unwrap();
-        }
-    };
-}
-
 impl Default for TestEnvironment {
     fn default() -> Self {
-        lazy_static::initialize(&CONFIGURE_GIT2);
+        testutils::hermetic_libgit2();
 
         let tmp_dir = testutils::new_temp_dir();
         let env_root = tmp_dir.path().canonicalize().unwrap();
