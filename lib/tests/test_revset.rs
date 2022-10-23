@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+
 use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::matchers::{FilesMatcher, Matcher};
@@ -434,10 +436,13 @@ fn resolve_commit_ids_in_workspace(
     repo: RepoRef,
     revset_str: &str,
     workspace: &Workspace,
+    cwd: Option<&Path>,
 ) -> Vec<CommitId> {
     let expression = parse(revset_str).unwrap();
     let workspace_ctx = RevsetWorkspaceContext {
+        cwd: cwd.unwrap_or_else(|| workspace.workspace_root()),
         workspace_id: workspace.workspace_id(),
+        workspace_root: workspace.workspace_root(),
     };
     expression
         .evaluate(repo, Some(&workspace_ctx))
@@ -471,7 +476,12 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
         .set_wc_commit(WorkspaceId::default(), commit1.id().clone())
         .unwrap();
     assert_eq!(
-        resolve_commit_ids_in_workspace(mut_repo.as_repo_ref(), "@", &test_workspace.workspace),
+        resolve_commit_ids_in_workspace(
+            mut_repo.as_repo_ref(),
+            "@",
+            &test_workspace.workspace,
+            None,
+        ),
         vec![commit1.id().clone()]
     );
 }
@@ -625,7 +635,12 @@ fn test_evaluate_expression_parents(use_git: bool) {
         .set_wc_commit(WorkspaceId::default(), commit2.id().clone())
         .unwrap();
     assert_eq!(
-        resolve_commit_ids_in_workspace(mut_repo.as_repo_ref(), "@-", &test_workspace.workspace),
+        resolve_commit_ids_in_workspace(
+            mut_repo.as_repo_ref(),
+            "@-",
+            &test_workspace.workspace,
+            None,
+        ),
         vec![commit1.id().clone()]
     );
 
@@ -1739,8 +1754,8 @@ fn test_evaluate_expression_difference(use_git: bool) {
 #[test_case(true ; "git backend")]
 fn test_filter_by_diff(use_git: bool) {
     let settings = testutils::user_settings();
-    let test_repo = TestRepo::init(use_git);
-    let repo = &test_repo.repo;
+    let test_workspace = TestWorkspace::init(&settings, use_git);
+    let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
@@ -1785,6 +1800,7 @@ fn test_filter_by_diff(use_git: bool) {
         CommitBuilder::for_new_commit(&settings, vec![commit2.id().clone()], tree3.id().clone())
             .write_to_repo(mut_repo);
 
+    // matcher API:
     let resolve = |file_path: &RepoPath| -> Vec<CommitId> {
         let repo_ref = mut_repo.as_repo_ref();
         let matcher = FilesMatcher::new([file_path.clone()].into());
@@ -1808,5 +1824,25 @@ fn test_filter_by_diff(use_git: bool) {
             commit2.id().clone(),
             commit1.id().clone()
         ]
+    );
+
+    // file() revset:
+    assert_eq!(
+        resolve_commit_ids_in_workspace(
+            mut_repo.as_repo_ref(),
+            r#"file("repo/added_clean_clean")"#,
+            &test_workspace.workspace,
+            Some(test_workspace.workspace.workspace_root().parent().unwrap()),
+        ),
+        vec![commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids_in_workspace(
+            mut_repo.as_repo_ref(),
+            &format!(r#"file("added_modified_clean", {}:)"#, commit2.id().hex()),
+            &test_workspace.workspace,
+            Some(test_workspace.workspace.workspace_root()),
+        ),
+        vec![commit2.id().clone()]
     );
 }

@@ -197,6 +197,24 @@ fn test_log_filtered_by_path() {
     second
     A file2
     "###);
+
+    // file() revset doesn't filter the diff.
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-T",
+            "description",
+            "-s",
+            "-rfile(file2)",
+            "--no-graph",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    second
+    M file1
+    A file2
+    "###);
 }
 
 #[test]

@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj git push` will search `@-` for branches to push if `@` has none.
 
+* The new revset function `file(pattern[, x])` finds commits modifying the
+  paths specified by the `pattern`.
+
 ### Fixed bugs
 
 * `jj edit root` now fails gracefully.

@@ -17,6 +17,7 @@ use std::cmp::{Ordering, Reverse};
 use std::collections::HashSet;
 use std::iter::Peekable;
 use std::ops::Range;
+use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -29,9 +30,10 @@ use thiserror::Error;
 use crate::backend::{BackendError, BackendResult, CommitId};
 use crate::commit::Commit;
 use crate::index::{HexPrefix, IndexEntry, IndexPosition, PrefixResolution, RevWalk};
-use crate::matchers::Matcher;
+use crate::matchers::{Matcher, PrefixMatcher};
 use crate::op_store::WorkspaceId;
 use crate::repo::RepoRef;
+use crate::repo_path::{FsPathParseError, RepoPath};
 use crate::revset_graph_iterator::RevsetGraphIterator;
 use crate::rewrite;
 use crate::store::Store;
@@ -44,6 +46,10 @@ pub enum RevsetError {
     AmbiguousCommitIdPrefix(String),
     #[error("Change id prefix \"{0}\" is ambiguous")]
     AmbiguousChangeIdPrefix(String),
+    #[error("Invalid file pattern: {0}")]
+    FsPathParseError(#[from] FsPathParseError),
+    #[error("Cannot resolve file pattern without workspace")]
+    FsPathWithoutWorkspace,
     #[error("Unexpected error from store: {0}")]
     StoreError(#[from] BackendError),
 }
@@ -244,6 +250,10 @@ pub enum RevsetExpression {
         needle: String,
         candidates: Rc<RevsetExpression>,
     },
+    File {
+        pattern: String,
+        candidates: Rc<RevsetExpression>,
+    },
     Union(Rc<RevsetExpression>, Rc<RevsetExpression>),
     Intersection(Rc<RevsetExpression>, Rc<RevsetExpression>),
     Difference(Rc<RevsetExpression>, Rc<RevsetExpression>),
@@ -389,6 +399,14 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Committer {
             candidates: self.clone(),
             needle,
+        })
+    }
+
+    /// Commits in `self` modifying the paths specified by the `pattern`.
+    pub fn with_file(self: &Rc<RevsetExpression>, pattern: String) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::File {
+            candidates: self.clone(),
+            pattern,
         })
     }
 
@@ -748,7 +766,7 @@ fn parse_function_expression(
             };
             Ok(candidates.with_parent_count(2..u32::MAX))
         }
-        "description" | "author" | "committer" => {
+        "description" | "author" | "committer" | "file" => {
             if !(1..=2).contains(&arg_count) {
                 return Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -768,6 +786,7 @@ fn parse_function_expression(
                 "description" => Ok(candidates.with_description(needle)),
                 "author" => Ok(candidates.with_author(needle)),
                 "committer" => Ok(candidates.with_committer(needle)),
+                "file" => Ok(candidates.with_file(needle)),
                 _ => {
                     panic!("unexpected function name: {}", name)
                 }
@@ -1140,7 +1159,9 @@ impl<'revset, 'repo> Iterator for DifferenceRevsetIterator<'revset, 'repo> {
 /// Workspace information needed to evaluate revset expression.
 #[derive(Clone, Debug)]
 pub struct RevsetWorkspaceContext<'a> {
+    pub cwd: &'a Path,
     pub workspace_id: &'a WorkspaceId,
+    pub workspace_root: &'a Path,
 }
 
 pub fn evaluate_expression<'repo>(
@@ -1338,6 +1359,20 @@ pub fn evaluate_expression<'repo>(
                 }),
             }))
         }
+        RevsetExpression::File {
+            pattern,
+            candidates,
+        } => {
+            if let Some(ctx) = workspace_ctx {
+                // TODO: Add support for globs and other formats
+                let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, pattern)?;
+                let matcher: Box<dyn Matcher> = Box::new(PrefixMatcher::new(&[path]));
+                let candidates = candidates.evaluate(repo, workspace_ctx)?;
+                Ok(filter_by_diff(repo, matcher, candidates))
+            } else {
+                Err(RevsetError::FsPathWithoutWorkspace)
+            }
+        }
         RevsetExpression::Union(expression1, expression2) => {
             let set1 = expression1.evaluate(repo, workspace_ctx)?;
             let set2 = expression2.evaluate(repo, workspace_ctx)?;
@@ -1488,6 +1523,13 @@ mod tests {
             Rc::new(RevsetExpression::Committer {
                 candidates: foo_symbol.clone(),
                 needle: "needle".to_string()
+            })
+        );
+        assert_eq!(
+            foo_symbol.with_file("pattern".to_string()),
+            Rc::new(RevsetExpression::File {
+                candidates: foo_symbol.clone(),
+                pattern: "pattern".to_string(),
             })
         );
         assert_eq!(

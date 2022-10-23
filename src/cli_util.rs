@@ -590,7 +590,9 @@ impl WorkspaceCommandHelper {
         revset_expression: &RevsetExpression,
     ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
         let workspace_ctx = RevsetWorkspaceContext {
+            cwd: &self.cwd,
             workspace_id: self.workspace.workspace_id(),
+            workspace_root: self.workspace.workspace_root(),
         };
         revset_expression.evaluate(self.repo.as_repo_ref(), Some(&workspace_ctx))
     }
