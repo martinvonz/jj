@@ -117,8 +117,7 @@ commit to any other commit using `jj move`.
 The tool is quite feature-complete, but some important features like (the
 equivalent of) `git blame` are not yet supported. There
 are also several performance bugs. It's also likely that workflows and setups
-different from what I personally use are not well supported. For example,
-pull-request workflows currently require too many manual steps.
+different from what I personally use are not well supported.
 
 I have almost exclusively used `jj` to develop the project itself since early
 January 2021. I haven't had to re-clone from source (I don't think I've even had
