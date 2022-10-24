@@ -10,7 +10,6 @@ pub struct Progress<'a> {
     next_print: Instant,
     rate: RateEstimate,
     buffer: String,
-    printed: bool,
 }
 
 impl<'a> Progress<'a> {
@@ -20,7 +19,6 @@ impl<'a> Progress<'a> {
             next_print: now + INITIAL_DELAY,
             rate: RateEstimate::new(),
             buffer: String::new(),
-            printed: false,
         }
     }
 
@@ -34,7 +32,6 @@ impl<'a> Progress<'a> {
         if now < self.next_print {
             return;
         }
-        self.printed = true;
         self.next_print = now.min(self.next_print + Duration::from_secs(1) / UPDATE_HZ);
 
         self.buffer.clear();
@@ -63,9 +60,7 @@ impl<'a> Progress<'a> {
 
 impl Drop for Progress<'_> {
     fn drop(&mut self) {
-        if self.printed {
-            let _ = writeln!(self.ui);
-        }
+        _ = write!(self.ui, "\r{}", Clear(ClearType::CurrentLine));
     }
 }
 
