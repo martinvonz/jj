@@ -117,16 +117,16 @@ commit to any other commit using `jj move`.
 The tool is quite feature-complete, but some important features like (the
 equivalent of) `git blame` are not yet supported. There
 are also several performance bugs. It's also likely that workflows and setups
-different from what I personally use are not well supported.
+different from what the core developers use are not well supported.
 
-I have almost exclusively used `jj` to develop the project itself since early
-January 2021. I haven't had to re-clone from source (I don't think I've even had
-to restore from backup).
+I (Martin von Zweigbergk) have almost exclusively used `jj` to develop the
+project itself since early January 2021. I haven't had to re-clone from source
+(I don't think I've even had to restore from backup).
 
 There *will* be changes to workflows and backward-incompatible changes to the
 on-disk formats before version 1.0.0. Even the binary's name may change (i.e.
-away from `jj`). For any format changes, I'll try to implement transparent
-upgrades (as I've done with recent changes), or provide upgrade commands or
+away from `jj`). For any format changes, we'll try to implement transparent
+upgrades (as we've done with recent changes), or provide upgrade commands or
 scripts if requested.
 
 
