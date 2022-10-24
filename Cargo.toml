@@ -52,7 +52,7 @@ rand = "0.8.5"
 regex = "1.6.0"
 serde = { version = "1.0", features = ["derive"] }
 tempfile = "3.3.0"
-textwrap = "0.15.0"
+textwrap = "0.16.0"
 thiserror = "1.0.37"
 
 [dev-dependencies]
