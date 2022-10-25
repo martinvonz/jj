@@ -103,18 +103,13 @@ revsets (expressions) as arguments.
 * `roots(x)`: Commits in `x` that are not descendants of other commits in `x`.
 * `merges([x])`: Merge commits within `x`. If `x` was not specified, it selects
   all visible merge commits (as if you had said `merges(all())`).
-* `description(needle[, x])`: Commits with the given string in their
-  description. If a second argument was provided, then only commits in that set
-  are considered, otherwise all visible commits are considered.
-* `author(needle[, x])`: Commits with the given string in the author's name or
-  email. If a second argument was provided, then only commits in that set
-  are considered, otherwise all visible commits are considered.
-* `committer(needle[, x])`: Commits with the given string in the committer's
-  name or email. If a second argument was provided, then only commits in that
-  set are considered, otherwise all visible commits are considered.
-* `file(pattern[, x])`: Commits modifying the paths specified by the `pattern`.
-  If a second argument was provided, then only commits in that set are
-  considered, otherwise all visible commits are considered.
+* `description(needle)`: Commits with the given string in their
+  description.
+* `author(needle)`: Commits with the given string in the author's name or
+  email.
+* `committer(needle)`: Commits with the given string in the committer's
+  name or email.
+* `file(pattern)`: Commits modifying the paths specified by the `pattern`.
 
 
 ## Examples

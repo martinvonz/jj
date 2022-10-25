@@ -1432,7 +1432,10 @@ fn test_evaluate_expression_description(use_git: bool) {
     );
     // Searches only among candidates if specified
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "description(\"commit 2\",heads())"),
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            "heads() & description(\"commit 2\")"
+        ),
         vec![]
     );
 }
@@ -1495,7 +1498,7 @@ fn test_evaluate_expression_author(use_git: bool) {
     );
     // Searches only among candidates if specified
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "author(\"name2\",heads())"),
+        resolve_commit_ids(mut_repo.as_repo_ref(), "heads() & author(\"name2\")"),
         vec![]
     );
 }
@@ -1558,7 +1561,7 @@ fn test_evaluate_expression_committer(use_git: bool) {
     );
     // Searches only among candidates if specified
     assert_eq!(
-        resolve_commit_ids(mut_repo.as_repo_ref(), "committer(\"name2\",heads())"),
+        resolve_commit_ids(mut_repo.as_repo_ref(), "heads() & committer(\"name2\")"),
         vec![]
     );
 }
@@ -1839,7 +1842,7 @@ fn test_filter_by_diff(use_git: bool) {
     assert_eq!(
         resolve_commit_ids_in_workspace(
             mut_repo.as_repo_ref(),
-            &format!(r#"file("added_modified_clean", {}:)"#, commit2.id().hex()),
+            &format!(r#"{}: & file("added_modified_clean")"#, commit2.id().hex()),
             &test_workspace.workspace,
             Some(test_workspace.workspace.workspace_root()),
         ),
