@@ -217,6 +217,7 @@ pub enum RevsetFilterPredicate {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RevsetExpression {
     None,
+    All,
     Commits(Vec<CommitId>),
     Symbol(String),
     Parents(Rc<RevsetExpression>),
@@ -256,7 +257,7 @@ impl RevsetExpression {
     }
 
     pub fn all() -> Rc<RevsetExpression> {
-        RevsetExpression::visible_heads().ancestors()
+        Rc::new(RevsetExpression::All)
     }
 
     pub fn symbol(value: String) -> Rc<RevsetExpression> {
@@ -1164,6 +1165,11 @@ pub fn evaluate_expression<'repo>(
         RevsetExpression::None => Ok(Box::new(EagerRevset {
             index_entries: vec![],
         })),
+        RevsetExpression::All => evaluate_expression(
+            repo,
+            &RevsetExpression::visible_heads().ancestors(),
+            workspace_ctx,
+        ),
         RevsetExpression::Commits(commit_ids) => Ok(revset_for_commit_ids(repo, commit_ids)),
         RevsetExpression::Symbol(symbol) => {
             let commit_ids = resolve_symbol(repo, symbol, workspace_ctx.map(|c| c.workspace_id))?;
