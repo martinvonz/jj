@@ -1264,17 +1264,6 @@ pub fn evaluate_expression<'repo>(
             }
             Ok(Box::new(EagerRevset { index_entries }))
         }
-        RevsetExpression::ParentCount {
-            candidates,
-            parent_count_range,
-        } => {
-            let candidates = candidates.evaluate(repo, workspace_ctx)?;
-            let parent_count_range = parent_count_range.clone();
-            Ok(Box::new(FilterRevset {
-                candidates,
-                predicate: Box::new(move |entry| parent_count_range.contains(&entry.num_parents())),
-            }))
-        }
         RevsetExpression::PublicHeads => Ok(revset_for_commit_ids(
             repo,
             &repo.view().public_heads().iter().cloned().collect_vec(),
@@ -1314,6 +1303,17 @@ pub fn evaluate_expression<'repo>(
         RevsetExpression::GitHead => {
             let commit_ids = repo.view().git_head().into_iter().collect_vec();
             Ok(revset_for_commit_ids(repo, &commit_ids))
+        }
+        RevsetExpression::ParentCount {
+            candidates,
+            parent_count_range,
+        } => {
+            let candidates = candidates.evaluate(repo, workspace_ctx)?;
+            let parent_count_range = parent_count_range.clone();
+            Ok(Box::new(FilterRevset {
+                candidates,
+                predicate: Box::new(move |entry| parent_count_range.contains(&entry.num_parents())),
+            }))
         }
         RevsetExpression::Description { needle, candidates } => {
             let candidates = candidates.evaluate(repo, workspace_ctx)?;
