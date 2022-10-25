@@ -2070,7 +2070,9 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     let workspace_command = command.workspace_helper(ui)?;
 
     let default_revset = ui.settings().default_revset();
-    let revset_expression = revset::parse(args.revisions.as_ref().unwrap_or(&default_revset))?;
+    let revset_expression = revset::optimize(revset::parse(
+        args.revisions.as_ref().unwrap_or(&default_revset),
+    )?);
     let repo = workspace_command.repo();
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = repo.view().get_wc_commit_id(&workspace_id);
