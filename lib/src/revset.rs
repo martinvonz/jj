@@ -759,21 +759,17 @@ fn parse_function_expression(
             Ok(candidates.with_parent_count(2..u32::MAX))
         }
         "description" | "author" | "committer" | "file" => {
-            if !(1..=2).contains(&arg_count) {
+            if arg_count != 1 {
                 return Err(RevsetParseError::InvalidFunctionArguments {
                     name,
-                    message: "Expected 1 or 2 arguments".to_string(),
+                    message: "Expected 1 argument".to_string(),
                 });
             }
             let needle = parse_function_argument_to_string(
                 &name,
                 argument_pairs.next().unwrap().into_inner(),
             )?;
-            let candidates = if arg_count == 1 {
-                RevsetExpression::all()
-            } else {
-                parse_expression_rule(argument_pairs.next().unwrap().into_inner())?
-            };
+            let candidates = RevsetExpression::all();
             match name.as_str() {
                 "description" => Ok(candidates.with_description(needle)),
                 "author" => Ok(candidates.with_author(needle)),
@@ -1788,9 +1784,10 @@ mod tests {
         // Incomplete parse
         assert_matches!(parse("foo | -"), Err(RevsetParseError::SyntaxError(_)));
         // Space is allowed around infix operators and function arguments
+        // TODO: test two_arg_function(  arg1 ,   arg2 ) if any
         assert_eq!(
-            parse("   description(  arg1 ,   arg2 ) ~    parents(   arg1  )  ~ heads(  )  "),
-            Ok(RevsetExpression::symbol("arg2".to_string())
+            parse("   description(  arg1 ) ~    parents(   arg1  )  ~ heads(  )  "),
+            Ok(RevsetExpression::all()
                 .with_description("arg1".to_string())
                 .minus(&RevsetExpression::symbol("arg1".to_string()).parents())
                 .minus(&RevsetExpression::visible_heads()))
@@ -1848,23 +1845,23 @@ mod tests {
             })
         );
         assert_eq!(
-            parse("description(foo,bar)"),
-            Ok(RevsetExpression::symbol("bar".to_string()).with_description("foo".to_string()))
+            parse("description(foo)"),
+            Ok(RevsetExpression::all().with_description("foo".to_string()))
         );
         assert_eq!(
-            parse("description(heads(),bar)"),
+            parse("description(heads())"),
             Err(RevsetParseError::InvalidFunctionArguments {
                 name: "description".to_string(),
                 message: "Expected function argument of type string, found: heads()".to_string()
             })
         );
         assert_eq!(
-            parse("description((foo),bar)"),
-            Ok(RevsetExpression::symbol("bar".to_string()).with_description("foo".to_string()))
+            parse("description((foo))"),
+            Ok(RevsetExpression::all().with_description("foo".to_string()))
         );
         assert_eq!(
-            parse("description(\"(foo)\",bar)"),
-            Ok(RevsetExpression::symbol("bar".to_string()).with_description("(foo)".to_string()))
+            parse("description(\"(foo)\")"),
+            Ok(RevsetExpression::all().with_description("(foo)".to_string()))
         );
     }
 
