@@ -205,6 +205,15 @@ pub enum RevsetParseError {
     InvalidFunctionArguments { name: String, message: String },
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RevsetFilterPredicate {
+    ParentCount(Range<u32>),
+    Description(String),
+    Author(String),    // Matches against both name and email
+    Committer(String), // Matches against both name and email
+    File(String),
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RevsetExpression {
     None,
@@ -232,27 +241,9 @@ pub enum RevsetExpression {
     Tags,
     GitRefs,
     GitHead,
-    ParentCount {
+    Filter {
         candidates: Rc<RevsetExpression>,
-        parent_count_range: Range<u32>,
-    },
-    Description {
-        needle: String,
-        candidates: Rc<RevsetExpression>,
-    },
-    Author {
-        // Matches against both name and email
-        needle: String,
-        candidates: Rc<RevsetExpression>,
-    },
-    Committer {
-        // Matches against both name and email
-        needle: String,
-        candidates: Rc<RevsetExpression>,
-    },
-    File {
-        pattern: String,
-        candidates: Rc<RevsetExpression>,
+        predicate: RevsetFilterPredicate,
     },
     Union(Rc<RevsetExpression>, Rc<RevsetExpression>),
     Intersection(Rc<RevsetExpression>, Rc<RevsetExpression>),
@@ -372,41 +363,41 @@ impl RevsetExpression {
         self: &Rc<RevsetExpression>,
         parent_count_range: Range<u32>,
     ) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::ParentCount {
+        Rc::new(RevsetExpression::Filter {
             candidates: self.clone(),
-            parent_count_range,
+            predicate: RevsetFilterPredicate::ParentCount(parent_count_range),
         })
     }
 
     /// Commits in `self` with description containing `needle`.
     pub fn with_description(self: &Rc<RevsetExpression>, needle: String) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Description {
+        Rc::new(RevsetExpression::Filter {
             candidates: self.clone(),
-            needle,
+            predicate: RevsetFilterPredicate::Description(needle),
         })
     }
 
     /// Commits in `self` with author's name or email containing `needle`.
     pub fn with_author(self: &Rc<RevsetExpression>, needle: String) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Author {
+        Rc::new(RevsetExpression::Filter {
             candidates: self.clone(),
-            needle,
+            predicate: RevsetFilterPredicate::Author(needle),
         })
     }
 
     /// Commits in `self` with committer's name or email containing `needle`.
     pub fn with_committer(self: &Rc<RevsetExpression>, needle: String) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Committer {
+        Rc::new(RevsetExpression::Filter {
             candidates: self.clone(),
-            needle,
+            predicate: RevsetFilterPredicate::Committer(needle),
         })
     }
 
     /// Commits in `self` modifying the paths specified by the `pattern`.
     pub fn with_file(self: &Rc<RevsetExpression>, pattern: String) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::File {
+        Rc::new(RevsetExpression::Filter {
             candidates: self.clone(),
-            pattern,
+            predicate: RevsetFilterPredicate::File(pattern),
         })
     }
 
@@ -1304,73 +1295,69 @@ pub fn evaluate_expression<'repo>(
             let commit_ids = repo.view().git_head().into_iter().collect_vec();
             Ok(revset_for_commit_ids(repo, &commit_ids))
         }
-        RevsetExpression::ParentCount {
+        RevsetExpression::Filter {
             candidates,
-            parent_count_range,
+            predicate,
         } => {
             let candidates = candidates.evaluate(repo, workspace_ctx)?;
-            let parent_count_range = parent_count_range.clone();
-            Ok(Box::new(FilterRevset {
-                candidates,
-                predicate: Box::new(move |entry| parent_count_range.contains(&entry.num_parents())),
-            }))
-        }
-        RevsetExpression::Description { needle, candidates } => {
-            let candidates = candidates.evaluate(repo, workspace_ctx)?;
-            let repo = repo;
-            let needle = needle.clone();
-            Ok(Box::new(FilterRevset {
-                candidates,
-                predicate: Box::new(move |entry| {
-                    repo.store()
-                        .get_commit(&entry.commit_id())
-                        .unwrap()
-                        .description()
-                        .contains(needle.as_str())
-                }),
-            }))
-        }
-        RevsetExpression::Author { needle, candidates } => {
-            let candidates = candidates.evaluate(repo, workspace_ctx)?;
-            let repo = repo;
-            let needle = needle.clone();
-            // TODO: Make these functions that take a needle to search for accept some
-            // syntax for specifying whether it's a regex and whether it's
-            // case-sensitive.
-            Ok(Box::new(FilterRevset {
-                candidates,
-                predicate: Box::new(move |entry| {
-                    let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
-                    commit.author().name.contains(needle.as_str())
-                        || commit.author().email.contains(needle.as_str())
-                }),
-            }))
-        }
-        RevsetExpression::Committer { needle, candidates } => {
-            let candidates = candidates.evaluate(repo, workspace_ctx)?;
-            let repo = repo;
-            let needle = needle.clone();
-            Ok(Box::new(FilterRevset {
-                candidates,
-                predicate: Box::new(move |entry| {
-                    let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
-                    commit.committer().name.contains(needle.as_str())
-                        || commit.committer().email.contains(needle.as_str())
-                }),
-            }))
-        }
-        RevsetExpression::File {
-            pattern,
-            candidates,
-        } => {
-            if let Some(ctx) = workspace_ctx {
-                // TODO: Add support for globs and other formats
-                let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, pattern)?;
-                let matcher: Box<dyn Matcher> = Box::new(PrefixMatcher::new(&[path]));
-                let candidates = candidates.evaluate(repo, workspace_ctx)?;
-                Ok(filter_by_diff(repo, matcher, candidates))
-            } else {
-                Err(RevsetError::FsPathWithoutWorkspace)
+            match predicate {
+                RevsetFilterPredicate::ParentCount(parent_count_range) => {
+                    let parent_count_range = parent_count_range.clone();
+                    Ok(Box::new(FilterRevset {
+                        candidates,
+                        predicate: Box::new(move |entry| {
+                            parent_count_range.contains(&entry.num_parents())
+                        }),
+                    }))
+                }
+                RevsetFilterPredicate::Description(needle) => {
+                    let needle = needle.clone();
+                    Ok(Box::new(FilterRevset {
+                        candidates,
+                        predicate: Box::new(move |entry| {
+                            repo.store()
+                                .get_commit(&entry.commit_id())
+                                .unwrap()
+                                .description()
+                                .contains(needle.as_str())
+                        }),
+                    }))
+                }
+                RevsetFilterPredicate::Author(needle) => {
+                    let needle = needle.clone();
+                    // TODO: Make these functions that take a needle to search for accept some
+                    // syntax for specifying whether it's a regex and whether it's
+                    // case-sensitive.
+                    Ok(Box::new(FilterRevset {
+                        candidates,
+                        predicate: Box::new(move |entry| {
+                            let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
+                            commit.author().name.contains(needle.as_str())
+                                || commit.author().email.contains(needle.as_str())
+                        }),
+                    }))
+                }
+                RevsetFilterPredicate::Committer(needle) => {
+                    let needle = needle.clone();
+                    Ok(Box::new(FilterRevset {
+                        candidates,
+                        predicate: Box::new(move |entry| {
+                            let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
+                            commit.committer().name.contains(needle.as_str())
+                                || commit.committer().email.contains(needle.as_str())
+                        }),
+                    }))
+                }
+                RevsetFilterPredicate::File(pattern) => {
+                    if let Some(ctx) = workspace_ctx {
+                        // TODO: Add support for globs and other formats
+                        let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, pattern)?;
+                        let matcher: Box<dyn Matcher> = Box::new(PrefixMatcher::new(&[path]));
+                        Ok(filter_by_diff(repo, matcher, candidates))
+                    } else {
+                        Err(RevsetError::FsPathWithoutWorkspace)
+                    }
+                }
             }
         }
         RevsetExpression::Union(expression1, expression2) => {
@@ -1499,37 +1486,37 @@ mod tests {
         );
         assert_eq!(
             foo_symbol.with_parent_count(3..5),
-            Rc::new(RevsetExpression::ParentCount {
+            Rc::new(RevsetExpression::Filter {
                 candidates: foo_symbol.clone(),
-                parent_count_range: 3..5
+                predicate: RevsetFilterPredicate::ParentCount(3..5),
             })
         );
         assert_eq!(
             foo_symbol.with_description("needle".to_string()),
-            Rc::new(RevsetExpression::Description {
+            Rc::new(RevsetExpression::Filter {
                 candidates: foo_symbol.clone(),
-                needle: "needle".to_string()
+                predicate: RevsetFilterPredicate::Description("needle".to_string()),
             })
         );
         assert_eq!(
             foo_symbol.with_author("needle".to_string()),
-            Rc::new(RevsetExpression::Author {
+            Rc::new(RevsetExpression::Filter {
                 candidates: foo_symbol.clone(),
-                needle: "needle".to_string()
+                predicate: RevsetFilterPredicate::Author("needle".to_string()),
             })
         );
         assert_eq!(
             foo_symbol.with_committer("needle".to_string()),
-            Rc::new(RevsetExpression::Committer {
+            Rc::new(RevsetExpression::Filter {
                 candidates: foo_symbol.clone(),
-                needle: "needle".to_string()
+                predicate: RevsetFilterPredicate::Committer("needle".to_string()),
             })
         );
         assert_eq!(
             foo_symbol.with_file("pattern".to_string()),
-            Rc::new(RevsetExpression::File {
+            Rc::new(RevsetExpression::Filter {
                 candidates: foo_symbol.clone(),
-                pattern: "pattern".to_string(),
+                predicate: RevsetFilterPredicate::File("pattern".to_string()),
             })
         );
         assert_eq!(
