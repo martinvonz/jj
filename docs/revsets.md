@@ -101,8 +101,7 @@ revsets (expressions) as arguments.
   If `x` was not specified, it selects all visible heads (as if you had said
   `heads(all())`).
 * `roots(x)`: Commits in `x` that are not descendants of other commits in `x`.
-* `merges([x])`: Merge commits within `x`. If `x` was not specified, it selects
-  all visible merge commits (as if you had said `merges(all())`).
+* `merges()`: Merge commits.
 * `description(needle)`: Commits with the given string in their
   description.
 * `author(needle)`: Commits with the given string in the author's name or

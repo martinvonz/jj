@@ -745,18 +745,14 @@ fn parse_function_expression(
             }
         }
         "merges" => {
-            if arg_count > 1 {
-                return Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 0 or 1 arguments".to_string(),
-                });
-            }
-            let candidates = if arg_count == 0 {
-                RevsetExpression::all()
+            if arg_count == 0 {
+                Ok(RevsetExpression::all().with_parent_count(2..u32::MAX))
             } else {
-                parse_expression_rule(argument_pairs.next().unwrap().into_inner())?
-            };
-            Ok(candidates.with_parent_count(2..u32::MAX))
+                Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 0 arguments".to_string(),
+                })
+            }
         }
         "description" | "author" | "committer" | "file" => {
             if arg_count != 1 {
