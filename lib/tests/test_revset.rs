@@ -21,7 +21,7 @@ use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
-    self, parse, resolve_symbol, RevsetError, RevsetExpression, RevsetWorkspaceContext,
+    self, optimize, parse, resolve_symbol, RevsetError, RevsetExpression, RevsetWorkspaceContext,
 };
 use jujutsu_lib::testutils::{CommitGraphBuilder, TestRepo, TestWorkspace};
 use jujutsu_lib::workspace::Workspace;
@@ -423,7 +423,7 @@ fn test_resolve_symbol_git_refs() {
 }
 
 fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
-    let expression = parse(revset_str).unwrap();
+    let expression = optimize(parse(revset_str).unwrap());
     expression
         .evaluate(repo, None)
         .unwrap()
@@ -438,7 +438,7 @@ fn resolve_commit_ids_in_workspace(
     workspace: &Workspace,
     cwd: Option<&Path>,
 ) -> Vec<CommitId> {
-    let expression = parse(revset_str).unwrap();
+    let expression = optimize(parse(revset_str).unwrap());
     let workspace_ctx = RevsetWorkspaceContext {
         cwd: cwd.unwrap_or_else(|| workspace.workspace_root()),
         workspace_id: workspace.workspace_id(),
