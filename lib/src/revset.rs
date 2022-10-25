@@ -824,6 +824,188 @@ pub fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseError>
     parse_expression_rule(first.into_inner())
 }
 
+/// Walks `expression` tree and applies `f` recursively from leaf nodes.
+///
+/// If `f` returns `None`, the original expression node is reused. If no nodes
+/// rewritten, returns `None`. `std::iter::successors()` could be used if
+/// the transformation needs to be applied repeatedly until converged.
+fn transform_expression_bottom_up(
+    expression: &Rc<RevsetExpression>,
+    mut f: impl FnMut(&Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>>,
+) -> Option<Rc<RevsetExpression>> {
+    fn transform_child_rec(
+        expression: &Rc<RevsetExpression>,
+        f: &mut impl FnMut(&Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>>,
+    ) -> Option<Rc<RevsetExpression>> {
+        match expression.as_ref() {
+            RevsetExpression::None => None,
+            RevsetExpression::All => None,
+            RevsetExpression::Commits(_) => None,
+            RevsetExpression::Symbol(_) => None,
+            RevsetExpression::Parents(base) => {
+                transform_rec(base, f).map(RevsetExpression::Parents)
+            }
+            RevsetExpression::Children(roots) => {
+                transform_rec(roots, f).map(RevsetExpression::Children)
+            }
+            RevsetExpression::Ancestors(base) => {
+                transform_rec(base, f).map(RevsetExpression::Ancestors)
+            }
+            RevsetExpression::Range { roots, heads } => transform_rec_pair((roots, heads), f)
+                .map(|(roots, heads)| RevsetExpression::Range { roots, heads }),
+            RevsetExpression::DagRange { roots, heads } => transform_rec_pair((roots, heads), f)
+                .map(|(roots, heads)| RevsetExpression::DagRange { roots, heads }),
+            RevsetExpression::VisibleHeads => None,
+            RevsetExpression::Heads(candidates) => {
+                transform_rec(candidates, f).map(RevsetExpression::Heads)
+            }
+            RevsetExpression::Roots(candidates) => {
+                transform_rec(candidates, f).map(RevsetExpression::Roots)
+            }
+            RevsetExpression::PublicHeads => None,
+            RevsetExpression::Branches => None,
+            RevsetExpression::RemoteBranches => None,
+            RevsetExpression::Tags => None,
+            RevsetExpression::GitRefs => None,
+            RevsetExpression::GitHead => None,
+            RevsetExpression::Filter {
+                candidates,
+                predicate,
+            } => transform_rec(candidates, f).map(|candidates| RevsetExpression::Filter {
+                candidates,
+                predicate: predicate.clone(),
+            }),
+            RevsetExpression::Union(expression1, expression2) => {
+                transform_rec_pair((expression1, expression2), f).map(
+                    |(expression1, expression2)| RevsetExpression::Union(expression1, expression2),
+                )
+            }
+            RevsetExpression::Intersection(expression1, expression2) => {
+                transform_rec_pair((expression1, expression2), f).map(
+                    |(expression1, expression2)| {
+                        RevsetExpression::Intersection(expression1, expression2)
+                    },
+                )
+            }
+            RevsetExpression::Difference(expression1, expression2) => {
+                transform_rec_pair((expression1, expression2), f).map(
+                    |(expression1, expression2)| {
+                        RevsetExpression::Difference(expression1, expression2)
+                    },
+                )
+            }
+        }
+        .map(Rc::new)
+    }
+
+    fn transform_rec_pair(
+        (expression1, expression2): (&Rc<RevsetExpression>, &Rc<RevsetExpression>),
+        f: &mut impl FnMut(&Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>>,
+    ) -> Option<(Rc<RevsetExpression>, Rc<RevsetExpression>)> {
+        match (transform_rec(expression1, f), transform_rec(expression2, f)) {
+            (Some(new_expression1), Some(new_expression2)) => {
+                Some((new_expression1, new_expression2))
+            }
+            (Some(new_expression1), None) => Some((new_expression1, expression2.clone())),
+            (None, Some(new_expression2)) => Some((expression1.clone(), new_expression2)),
+            (None, None) => None,
+        }
+    }
+
+    fn transform_rec(
+        expression: &Rc<RevsetExpression>,
+        f: &mut impl FnMut(&Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>>,
+    ) -> Option<Rc<RevsetExpression>> {
+        if let Some(new_expression) = transform_child_rec(expression, f) {
+            // must propagate new expression tree
+            Some(f(&new_expression).unwrap_or(new_expression))
+        } else {
+            f(expression)
+        }
+    }
+
+    transform_rec(expression, &mut f)
+}
+
+/// Transforms intersection of filter expressions. The resulting tree may
+/// contain redundant intersections like `all() & e`.
+fn internalize_filter_intersection(
+    expression: &Rc<RevsetExpression>,
+) -> Option<Rc<RevsetExpression>> {
+    // Since both sides must have already been "internalize"d, we don't need to
+    // apply the whole bottom-up pass to new intersection node. Instead, just push
+    // new 'c & g(d)' down to 'g(c & d)' while either side is a filter node.
+    fn intersect_down(
+        expression1: &Rc<RevsetExpression>,
+        expression2: &Rc<RevsetExpression>,
+    ) -> Rc<RevsetExpression> {
+        if let RevsetExpression::Filter {
+            candidates,
+            predicate,
+        } = expression2.as_ref()
+        {
+            // e1 & f2(c2) -> f2(e1 & c2)
+            // f1(c1) & f2(c2) -> f2(f1(c1) & c2) -> f2(f1(c1 & c2))
+            Rc::new(RevsetExpression::Filter {
+                candidates: intersect_down(expression1, candidates),
+                predicate: predicate.clone(),
+            })
+        } else if let RevsetExpression::Filter {
+            candidates,
+            predicate,
+        } = expression1.as_ref()
+        {
+            // f1(c1) & e2 -> f1(c1 & e2)
+            // g1(f1(c1)) & e2 -> g1(f1(c1) & e2) -> g1(f1(c1 & e2))
+            Rc::new(RevsetExpression::Filter {
+                candidates: intersect_down(candidates, expression2),
+                predicate: predicate.clone(),
+            })
+        } else {
+            expression1.intersection(expression2)
+        }
+    }
+
+    // Bottom-up pass pulls up filter node from leaf 'f(c) & e' -> 'f(c & e)',
+    // so that a filter node can be found as a direct child of an intersection node.
+    // However, the rewritten intersection node 'c & e' can also be a rewrite target
+    // if 'e' is a filter node. That's why intersect_down() is also recursive.
+    transform_expression_bottom_up(expression, |expression| {
+        if let RevsetExpression::Intersection(expression1, expression2) = expression.as_ref() {
+            match (expression1.as_ref(), expression2.as_ref()) {
+                (_, RevsetExpression::Filter { .. }) | (RevsetExpression::Filter { .. }, _) => {
+                    Some(intersect_down(expression1, expression2))
+                }
+                _ => None, // don't recreate identical node
+            }
+        } else {
+            None
+        }
+    })
+}
+
+/// Eliminates redundant intersection with `all()`.
+fn fold_intersection_with_all(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
+    transform_expression_bottom_up(expression, |expression| {
+        if let RevsetExpression::Intersection(expression1, expression2) = expression.as_ref() {
+            match (expression1.as_ref(), expression2.as_ref()) {
+                (_, RevsetExpression::All) => Some(expression1.clone()),
+                (RevsetExpression::All, _) => Some(expression2.clone()),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    })
+}
+
+/// Rewrites the given `expression` tree to reduce evaluation cost. Returns new
+/// tree.
+pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+    let expression = internalize_filter_intersection(&expression).unwrap_or(expression);
+    fold_intersection_with_all(&expression).unwrap_or(expression)
+}
+
 pub trait Revset<'repo> {
     // All revsets currently iterate in order of descending index position
     fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo>;
@@ -1684,5 +1866,362 @@ mod tests {
             parse("description(\"(foo)\",bar)"),
             Ok(RevsetExpression::symbol("bar".to_string()).with_description("(foo)".to_string()))
         );
+    }
+
+    #[test]
+    fn test_optimize_subtree() {
+        // Check that transform_expression_bottom_up() never rewrites enum variant
+        // (e.g. Range -> DagRange) nor reorders arguments unintentionally.
+
+        assert_eq!(
+            optimize(parse("parents(branches() & all())").unwrap()),
+            RevsetExpression::branches().parents()
+        );
+        assert_eq!(
+            optimize(parse("children(branches() & all())").unwrap()),
+            RevsetExpression::branches().children()
+        );
+        assert_eq!(
+            optimize(parse("ancestors(branches() & all())").unwrap()),
+            RevsetExpression::branches().ancestors()
+        );
+        assert_eq!(
+            optimize(parse("descendants(branches() & all())").unwrap()),
+            RevsetExpression::branches().descendants()
+        );
+
+        assert_eq!(
+            optimize(parse("(branches() & all())..(all() & tags())").unwrap()),
+            RevsetExpression::branches().range(&RevsetExpression::tags())
+        );
+        assert_eq!(
+            optimize(parse("(branches() & all()):(all() & tags())").unwrap()),
+            RevsetExpression::branches().dag_range_to(&RevsetExpression::tags())
+        );
+
+        assert_eq!(
+            optimize(parse("heads(branches() & all())").unwrap()),
+            RevsetExpression::branches().heads()
+        );
+        assert_eq!(
+            optimize(parse("roots(branches() & all())").unwrap()),
+            RevsetExpression::branches().roots()
+        );
+
+        assert_eq!(
+            optimize(parse("(branches() & all()) | (all() & tags())").unwrap()),
+            RevsetExpression::branches().union(&RevsetExpression::tags())
+        );
+        assert_eq!(
+            optimize(parse("(branches() & all()) & (all() & tags())").unwrap()),
+            RevsetExpression::branches().intersection(&RevsetExpression::tags())
+        );
+        assert_eq!(
+            optimize(parse("(branches() & all()) ~ (all() & tags())").unwrap()),
+            RevsetExpression::branches().minus(&RevsetExpression::tags())
+        );
+    }
+
+    #[test]
+    fn test_optimize_unchanged_subtree() {
+        fn unwrap_union(
+            expression: &RevsetExpression,
+        ) -> (&Rc<RevsetExpression>, &Rc<RevsetExpression>) {
+            match expression {
+                RevsetExpression::Union(left, right) => (left, right),
+                _ => panic!("unexpected expression: {expression:?}"),
+            }
+        }
+
+        // transform_expression_bottom_up() should not recreate tree unnecessarily.
+        let parsed = parse("foo-").unwrap();
+        let optimized = optimize(parsed.clone());
+        assert!(Rc::ptr_eq(&parsed, &optimized));
+
+        let parsed = parse("branches() | tags()").unwrap();
+        let optimized = optimize(parsed.clone());
+        assert!(Rc::ptr_eq(&parsed, &optimized));
+
+        let parsed = parse("branches() & tags()").unwrap();
+        let optimized = optimize(parsed.clone());
+        assert!(Rc::ptr_eq(&parsed, &optimized));
+
+        let parsed = parse("branches() ~ tags()").unwrap();
+        let optimized = optimize(parsed.clone());
+        assert!(Rc::ptr_eq(&parsed, &optimized));
+
+        // Only left subtree should be rewritten.
+        let parsed = parse("(branches() & all()) | tags()").unwrap();
+        let optimized = optimize(parsed.clone());
+        assert_eq!(
+            unwrap_union(&optimized).0.as_ref(),
+            &RevsetExpression::Branches
+        );
+        assert!(Rc::ptr_eq(
+            unwrap_union(&parsed).1,
+            unwrap_union(&optimized).1
+        ));
+
+        // Only right subtree should be rewritten.
+        let parsed = parse("branches() | (all() & tags())").unwrap();
+        let optimized = optimize(parsed.clone());
+        assert!(Rc::ptr_eq(
+            unwrap_union(&parsed).0,
+            unwrap_union(&optimized).0
+        ));
+        assert_eq!(unwrap_union(&optimized).1.as_ref(), &RevsetExpression::Tags);
+    }
+
+    #[test]
+    fn test_optimize_filter_intersection() {
+        insta::assert_debug_snapshot!(optimize(parse("author(foo)").unwrap()), @r###"
+        Filter {
+            candidates: All,
+            predicate: Author(
+                "foo",
+            ),
+        }
+        "###);
+
+        insta::assert_debug_snapshot!(optimize(parse("foo & description(bar)").unwrap()), @r###"
+        Filter {
+            candidates: Symbol(
+                "foo",
+            ),
+            predicate: Description(
+                "bar",
+            ),
+        }
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("author(foo) & bar").unwrap()), @r###"
+        Filter {
+            candidates: Symbol(
+                "bar",
+            ),
+            predicate: Author(
+                "foo",
+            ),
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("author(foo) & committer(bar)").unwrap()), @r###"
+        Filter {
+            candidates: Filter {
+                candidates: All,
+                predicate: Author(
+                    "foo",
+                ),
+            },
+            predicate: Committer(
+                "bar",
+            ),
+        }
+        "###);
+
+        insta::assert_debug_snapshot!(
+            optimize(parse("foo & description(bar) & author(baz)").unwrap()), @r###"
+        Filter {
+            candidates: Filter {
+                candidates: Symbol(
+                    "foo",
+                ),
+                predicate: Description(
+                    "bar",
+                ),
+            },
+            predicate: Author(
+                "baz",
+            ),
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("committer(foo) & bar & author(baz)").unwrap()), @r###"
+        Filter {
+            candidates: Filter {
+                candidates: Symbol(
+                    "bar",
+                ),
+                predicate: Committer(
+                    "foo",
+                ),
+            },
+            predicate: Author(
+                "baz",
+            ),
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("committer(foo) & file(bar) & baz").unwrap()), @r###"
+        Filter {
+            candidates: Filter {
+                candidates: Symbol(
+                    "baz",
+                ),
+                predicate: Committer(
+                    "foo",
+                ),
+            },
+            predicate: File(
+                "bar",
+            ),
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("committer(foo) & file(bar) & author(baz)").unwrap()), @r###"
+        Filter {
+            candidates: Filter {
+                candidates: Filter {
+                    candidates: All,
+                    predicate: Committer(
+                        "foo",
+                    ),
+                },
+                predicate: File(
+                    "bar",
+                ),
+            },
+            predicate: Author(
+                "baz",
+            ),
+        }
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("foo & file(bar) & baz").unwrap()), @r###"
+        Filter {
+            candidates: Intersection(
+                Symbol(
+                    "foo",
+                ),
+                Symbol(
+                    "baz",
+                ),
+            ),
+            predicate: File(
+                "bar",
+            ),
+        }
+        "###);
+
+        insta::assert_debug_snapshot!(
+            optimize(parse("foo & description(bar) & author(baz) & qux").unwrap()), @r###"
+        Filter {
+            candidates: Filter {
+                candidates: Intersection(
+                    Symbol(
+                        "foo",
+                    ),
+                    Symbol(
+                        "qux",
+                    ),
+                ),
+                predicate: Description(
+                    "bar",
+                ),
+            },
+            predicate: Author(
+                "baz",
+            ),
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("foo & description(bar) & parents(author(baz)) & qux").unwrap()), @r###"
+        Filter {
+            candidates: Intersection(
+                Intersection(
+                    Symbol(
+                        "foo",
+                    ),
+                    Parents(
+                        Filter {
+                            candidates: All,
+                            predicate: Author(
+                                "baz",
+                            ),
+                        },
+                    ),
+                ),
+                Symbol(
+                    "qux",
+                ),
+            ),
+            predicate: Description(
+                "bar",
+            ),
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("foo & description(bar) & parents(author(baz) & qux)").unwrap()), @r###"
+        Filter {
+            candidates: Intersection(
+                Symbol(
+                    "foo",
+                ),
+                Parents(
+                    Filter {
+                        candidates: Symbol(
+                            "qux",
+                        ),
+                        predicate: Author(
+                            "baz",
+                        ),
+                    },
+                ),
+            ),
+            predicate: Description(
+                "bar",
+            ),
+        }
+        "###);
+
+        // Symbols have to be pushed down to the innermost filter node.
+        insta::assert_debug_snapshot!(
+            optimize(parse("(a & author(A)) & (b & author(B)) & (c & author(C))").unwrap()), @r###"
+        Filter {
+            candidates: Filter {
+                candidates: Filter {
+                    candidates: Intersection(
+                        Intersection(
+                            Symbol(
+                                "a",
+                            ),
+                            Symbol(
+                                "b",
+                            ),
+                        ),
+                        Symbol(
+                            "c",
+                        ),
+                    ),
+                    predicate: Author(
+                        "A",
+                    ),
+                },
+                predicate: Author(
+                    "B",
+                ),
+            },
+            predicate: Author(
+                "C",
+            ),
+        }
+        "###);
+
+        // 'all()' moves in to 'filter()' first, so 'A & filter()' can be found.
+        insta::assert_debug_snapshot!(
+            optimize(parse("foo & (all() & description(bar)) & (author(baz) & all())").unwrap()),
+            @r###"
+        Filter {
+            candidates: Filter {
+                candidates: Symbol(
+                    "foo",
+                ),
+                predicate: Description(
+                    "bar",
+                ),
+            },
+            predicate: Author(
+                "baz",
+            ),
+        }
+        "###);
     }
 }
