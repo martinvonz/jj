@@ -1388,7 +1388,7 @@ fn test_evaluate_expression_merges(use_git: bool) {
     assert_eq!(
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
-            &format!("merges(:{})", commit5.id().hex())
+            &format!(":{} & merges()", commit5.id().hex())
         ),
         vec![commit5.id().clone()]
     );

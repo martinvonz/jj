@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Breaking changes
 
 * Dropped candidates set argument from `description(needle)`, `author(needle)`,
-  `committer(needle)` revsets. Use `x & description(needle)` instead.
+  `committer(needle)`, `merges()` revsets. Use `x & description(needle)`
+  instead.
 
 ### New features
 
