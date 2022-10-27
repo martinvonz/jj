@@ -129,35 +129,38 @@ impl Debug for ReadonlyRepo {
 }
 
 impl ReadonlyRepo {
-    fn init_repo_dir(repo_path: &Path) {
-        fs::create_dir(repo_path.join("store")).unwrap();
-        fs::create_dir(repo_path.join("op_store")).unwrap();
-        fs::create_dir(repo_path.join("op_heads")).unwrap();
-        fs::create_dir(repo_path.join("index")).unwrap();
-    }
-
     pub fn init(
         user_settings: &UserSettings,
         repo_path: &Path,
         backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
     ) -> Arc<ReadonlyRepo> {
         let repo_path = repo_path.canonicalize().unwrap();
-        ReadonlyRepo::init_repo_dir(&repo_path);
+
         let store_path = repo_path.join("store");
+        fs::create_dir(&store_path).unwrap();
         let backend = backend_factory(&store_path);
         fs::write(&store_path.join("backend"), backend.name()).unwrap();
         let store = Store::new(backend);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
-        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(repo_path.join("op_store")));
+
+        let op_store_path = repo_path.join("op_store");
+        fs::create_dir(&op_store_path).unwrap();
+        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(op_store_path));
         let mut root_view = op_store::View::default();
         root_view.head_ids.insert(store.root_commit_id().clone());
         root_view
             .public_head_ids
             .insert(store.root_commit_id().clone());
-        let (op_heads_store, init_op) =
-            OpHeadsStore::init(repo_path.join("op_heads"), &op_store, &root_view);
+
+        let op_heads_path = repo_path.join("op_heads");
+        fs::create_dir(&op_heads_path).unwrap();
+        let (op_heads_store, init_op) = OpHeadsStore::init(op_heads_path, &op_store, &root_view);
         let op_heads_store = Arc::new(op_heads_store);
-        let index_store = Arc::new(IndexStore::init(repo_path.join("index")));
+
+        let index_path = repo_path.join("index");
+        fs::create_dir(&index_path).unwrap();
+        let index_store = Arc::new(IndexStore::init(index_path));
+
         let view = View::new(root_view);
         Arc::new(ReadonlyRepo {
             repo_path,
