@@ -82,7 +82,9 @@ impl UserSettings {
     pub fn default_revset(&self) -> String {
         self.config
             .get_string("ui.default-revset")
-            .unwrap_or_else(|_| "@ | remote_branches().. | (remote_branches()..)-".to_string())
+            .unwrap_or_else(|_| {
+                "@ | (remote_branches() | tags()).. | ((remote_branches() | tags())..)-".to_string()
+            })
     }
 
     pub fn signature(&self) -> Signature {
