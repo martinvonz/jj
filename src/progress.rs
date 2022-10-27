@@ -67,7 +67,7 @@ impl Drop for Progress<'_> {
 fn draw_progress(progress: f32, buffer: &mut String, width: usize) {
     const CHARS: [char; 9] = [' ', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█'];
     const RESOLUTION: usize = CHARS.len() - 1;
-    let ticks = (width as f32 * progress.min(1.0).max(0.0) * RESOLUTION as f32).round() as usize;
+    let ticks = (width as f32 * progress.clamp(0.0, 1.0) * RESOLUTION as f32).round() as usize;
     let whole = ticks / RESOLUTION;
     for _ in 0..whole {
         buffer.push(CHARS[CHARS.len() - 1]);
