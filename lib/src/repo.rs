@@ -43,25 +43,6 @@ use crate::transaction::Transaction;
 use crate::view::{RefName, View};
 use crate::{backend, op_store};
 
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum RepoError {
-    #[error("Object not found")]
-    NotFound,
-    #[error("Error: {0}")]
-    Other(String),
-}
-
-impl From<BackendError> for RepoError {
-    fn from(err: BackendError) -> Self {
-        match err {
-            BackendError::NotFound => RepoError::NotFound,
-            BackendError::Other(description) => RepoError::Other(description),
-        }
-    }
-}
-
-pub type RepoResult<T> = Result<T, RepoError>;
-
 // TODO: Should we implement From<&ReadonlyRepo> and From<&MutableRepo> for
 // RepoRef?
 #[derive(Clone, Copy)]
