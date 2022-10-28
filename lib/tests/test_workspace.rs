@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use assert_matches::assert_matches;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::BackendFactories;
 use jujutsu_lib::testutils;
@@ -26,9 +27,9 @@ fn test_load_bad_path() {
     let workspace_root = temp_dir.path().to_owned();
     // We haven't created a repo in the workspace_root, so it should fail to load.
     let result = Workspace::load(&settings, &workspace_root, &BackendFactories::default());
-    assert_eq!(
+    assert_matches!(
         result.err(),
-        Some(WorkspaceLoadError::NoWorkspaceHere(workspace_root))
+        Some(WorkspaceLoadError::NoWorkspaceHere(root)) if root == workspace_root
     );
 }
 

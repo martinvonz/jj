@@ -15,11 +15,11 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
-use std::fs;
 use std::io::ErrorKind;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::{fs, io};
 
 use itertools::Itertools;
 use thiserror::Error;
@@ -967,3 +967,24 @@ impl MutableRepo {
 #[derive(Debug, Copy, Clone, Error)]
 #[error("Cannot rewrite the root commit")]
 pub struct RewriteRootCommit;
+
+#[derive(Debug, Error)]
+#[error("Cannot access {path}")]
+pub struct PathError {
+    pub path: PathBuf,
+    #[source]
+    pub error: io::Error,
+}
+
+pub(crate) trait IoResultExt<T> {
+    fn context(self, path: impl AsRef<Path>) -> Result<T, PathError>;
+}
+
+impl<T> IoResultExt<T> for io::Result<T> {
+    fn context(self, path: impl AsRef<Path>) -> Result<T, PathError> {
+        self.map_err(|error| PathError {
+            path: path.as_ref().to_path_buf(),
+            error,
+        })
+    }
+}

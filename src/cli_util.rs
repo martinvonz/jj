@@ -230,6 +230,9 @@ jj init --git-repo=.";
                     repo_dir.to_str().unwrap()
                 )));
             }
+            Err(WorkspaceLoadError::Path(e)) => {
+                return Err(CommandError::UserError(format!("{}: {}", e, e.error)));
+            }
         };
         let repo_loader = workspace.repo_loader();
         let op_heads = resolve_op_for_load(

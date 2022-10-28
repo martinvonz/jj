@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -23,22 +23,26 @@ use crate::backend::Backend;
 use crate::git_backend::GitBackend;
 use crate::local_backend::LocalBackend;
 use crate::op_store::WorkspaceId;
-use crate::repo::{BackendFactories, ReadonlyRepo, RepoLoader};
+use crate::repo::{BackendFactories, IoResultExt, PathError, ReadonlyRepo, RepoLoader};
 use crate::settings::UserSettings;
 use crate::working_copy::WorkingCopy;
 
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Debug)]
 pub enum WorkspaceInitError {
     #[error("The destination repo ({0}) already exists")]
     DestinationExists(PathBuf),
+    #[error(transparent)]
+    Path(#[from] PathError),
 }
 
-#[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Error, Debug)]
 pub enum WorkspaceLoadError {
     #[error("The repo appears to no longer be at {0}")]
     RepoDoesNotExist(PathBuf),
     #[error("There is no Jujutsu repo in {0}")]
     NoWorkspaceHere(PathBuf),
+    #[error(transparent)]
+    Path(#[from] PathError),
 }
 
 /// Represents a workspace, i.e. what's typically the .jj/ directory and its
@@ -53,11 +57,12 @@ pub struct Workspace {
 
 fn create_jj_dir(workspace_root: &Path) -> Result<PathBuf, WorkspaceInitError> {
     let jj_dir = workspace_root.join(".jj");
-    if jj_dir.exists() {
-        Err(WorkspaceInitError::DestinationExists(jj_dir))
-    } else {
-        std::fs::create_dir(&jj_dir).unwrap();
-        Ok(jj_dir)
+    match std::fs::create_dir(&jj_dir).context(&jj_dir) {
+        Ok(()) => Ok(jj_dir),
+        Err(ref e) if e.error.kind() == io::ErrorKind::AlreadyExists => {
+            Err(WorkspaceInitError::DestinationExists(jj_dir))
+        }
+        Err(e) => Err(e.into()),
     }
 }
 
@@ -67,9 +72,9 @@ fn init_working_copy(
     workspace_root: &Path,
     jj_dir: &Path,
     workspace_id: WorkspaceId,
-) -> (WorkingCopy, Arc<ReadonlyRepo>) {
+) -> Result<(WorkingCopy, Arc<ReadonlyRepo>), WorkspaceInitError> {
     let working_copy_state_path = jj_dir.join("working_copy");
-    std::fs::create_dir(&working_copy_state_path).unwrap();
+    std::fs::create_dir(&working_copy_state_path).context(&working_copy_state_path)?;
 
     let mut tx = repo.start_transaction(&format!("add workspace '{}'", workspace_id.as_str()));
     tx.mut_repo().check_out(
@@ -86,17 +91,21 @@ fn init_working_copy(
         repo.op_id().clone(),
         workspace_id,
     );
-    (working_copy, repo)
+    Ok((working_copy, repo))
 }
 
 impl Workspace {
-    fn new(workspace_root: &Path, working_copy: WorkingCopy, repo_loader: RepoLoader) -> Workspace {
-        let workspace_root = workspace_root.canonicalize().unwrap();
-        Workspace {
+    fn new(
+        workspace_root: &Path,
+        working_copy: WorkingCopy,
+        repo_loader: RepoLoader,
+    ) -> Result<Workspace, PathError> {
+        let workspace_root = workspace_root.canonicalize().context(&workspace_root)?;
+        Ok(Workspace {
             workspace_root,
             repo_loader,
             working_copy,
-        }
+        })
     }
 
     pub fn init_local(
@@ -138,7 +147,7 @@ impl Workspace {
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
         let repo_dir = jj_dir.join("repo");
-        std::fs::create_dir(&repo_dir).unwrap();
+        std::fs::create_dir(&repo_dir).context(&repo_dir)?;
         let repo = ReadonlyRepo::init(user_settings, &repo_dir, backend_factory);
         let (working_copy, repo) = init_working_copy(
             user_settings,
@@ -146,9 +155,9 @@ impl Workspace {
             workspace_root,
             &jj_dir,
             WorkspaceId::default(),
-        );
+        )?;
         let repo_loader = repo.loader();
-        let workspace = Workspace::new(workspace_root, working_copy, repo_loader);
+        let workspace = Workspace::new(workspace_root, working_copy, repo_loader)?;
         Ok((workspace, repo))
     }
 
@@ -160,15 +169,16 @@ impl Workspace {
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
 
-        let repo_dir = repo.repo_path().canonicalize().unwrap();
-        let mut repo_file = File::create(jj_dir.join("repo")).unwrap();
+        let repo_dir = repo.repo_path().canonicalize().context(repo.repo_path())?;
+        let repo_file_path = jj_dir.join("repo");
+        let mut repo_file = File::create(&repo_file_path).context(&repo_file_path)?;
         repo_file
             .write_all(repo_dir.to_str().unwrap().as_bytes())
-            .unwrap();
+            .context(&repo_file_path)?;
 
         let (working_copy, repo) =
-            init_working_copy(user_settings, repo, workspace_root, &jj_dir, workspace_id);
-        let workspace = Workspace::new(workspace_root, working_copy, repo.loader());
+            init_working_copy(user_settings, repo, workspace_root, &jj_dir, workspace_id)?;
+        let workspace = Workspace::new(workspace_root, working_copy, repo.loader())?;
         Ok((workspace, repo))
     }
 
@@ -184,11 +194,14 @@ impl Workspace {
         // If .jj/repo is a file, then we interpret its contents as a relative path to
         // the actual repo directory (typically in another workspace).
         if repo_dir.is_file() {
-            let mut repo_file = File::open(repo_dir).unwrap();
+            let mut repo_file = File::open(&repo_dir).context(&repo_dir)?;
             let mut buf = Vec::new();
-            repo_file.read_to_end(&mut buf).unwrap();
+            repo_file.read_to_end(&mut buf).context(&repo_dir)?;
             let repo_path_str = String::from_utf8(buf).unwrap();
-            repo_dir = jj_dir.join(repo_path_str).canonicalize().unwrap();
+            repo_dir = jj_dir
+                .join(&repo_path_str)
+                .canonicalize()
+                .context(&repo_path_str)?;
             if !repo_dir.is_dir() {
                 return Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir));
             }
@@ -200,7 +213,7 @@ impl Workspace {
             workspace_root.clone(),
             working_copy_state_path,
         );
-        Ok(Workspace::new(&workspace_root, working_copy, repo_loader))
+        Ok(Workspace::new(&workspace_root, working_copy, repo_loader)?)
     }
 
     pub fn workspace_root(&self) -> &PathBuf {
