@@ -210,33 +210,33 @@ impl CommandHelper {
     pub fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
         let wc_path_str = self.global_args.repository.as_deref().unwrap_or(".");
         let wc_path = ui.cwd().join(wc_path_str);
-        let workspace = match Workspace::load(ui.settings(), &wc_path, &self.backend_factories) {
-            Ok(workspace) => workspace,
-            Err(WorkspaceLoadError::NoWorkspaceHere(wc_path)) => {
-                let mut message = format!("There is no jj repo in \"{}\"", wc_path_str);
-                let git_dir = wc_path.join(".git");
-                if git_dir.is_dir() {
-                    // TODO: Make this hint separate from the error, so the caller can format
-                    // it differently.
-                    message += "
+        let workspace =
+            Workspace::load(ui.settings(), &wc_path, &self.backend_factories).map_err(|err| {
+                match err {
+                    WorkspaceLoadError::NoWorkspaceHere(wc_path) => {
+                        let mut message = format!("There is no jj repo in \"{}\"", wc_path_str);
+                        let git_dir = wc_path.join(".git");
+                        if git_dir.is_dir() {
+                            // TODO: Make this hint separate from the error, so the caller can
+                            // format it differently.
+                            message += "
 It looks like this is a git repo. You can create a jj repo backed by it by running this:
 jj init --git-repo=.";
+                        }
+                        CommandError::UserError(message)
+                    }
+                    WorkspaceLoadError::RepoDoesNotExist(repo_dir) => {
+                        CommandError::UserError(format!(
+                            "The repository directory at {} is missing. Was it moved?",
+                            repo_dir.to_str().unwrap()
+                        ))
+                    }
+                    WorkspaceLoadError::Path(e) => {
+                        CommandError::UserError(format!("{}: {}", e, e.error))
+                    }
+                    WorkspaceLoadError::NonUnicodePath => CommandError::UserError(err.to_string()),
                 }
-                return Err(CommandError::UserError(message));
-            }
-            Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir)) => {
-                return Err(CommandError::UserError(format!(
-                    "The repository directory at {} is missing. Was it moved?",
-                    repo_dir.to_str().unwrap()
-                )));
-            }
-            Err(WorkspaceLoadError::Path(e)) => {
-                return Err(CommandError::UserError(format!("{}: {}", e, e.error)));
-            }
-            Err(e @ WorkspaceLoadError::NonUnicodePath) => {
-                return Err(CommandError::UserError(e.to_string()));
-            }
-        };
+            })?;
         let repo_loader = workspace.repo_loader();
         let op_heads = resolve_op_for_load(
             repo_loader.op_store(),
