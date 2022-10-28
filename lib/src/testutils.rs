@@ -96,10 +96,12 @@ impl TestRepo {
             ReadonlyRepo::init(&settings, &repo_dir, |store_path| {
                 Box::new(GitBackend::init_external(store_path, &git_path))
             })
+            .unwrap()
         } else {
             ReadonlyRepo::init(&settings, &repo_dir, |store_path| {
                 Box::new(LocalBackend::init(store_path))
             })
+            .unwrap()
         };
 
         Self {

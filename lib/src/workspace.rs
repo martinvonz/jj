@@ -148,7 +148,7 @@ impl Workspace {
         let jj_dir = create_jj_dir(workspace_root)?;
         let repo_dir = jj_dir.join("repo");
         std::fs::create_dir(&repo_dir).context(&repo_dir)?;
-        let repo = ReadonlyRepo::init(user_settings, &repo_dir, backend_factory);
+        let repo = ReadonlyRepo::init(user_settings, &repo_dir, backend_factory)?;
         let (working_copy, repo) = init_working_copy(
             user_settings,
             &repo,

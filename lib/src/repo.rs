@@ -114,18 +114,19 @@ impl ReadonlyRepo {
         user_settings: &UserSettings,
         repo_path: &Path,
         backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
-    ) -> Arc<ReadonlyRepo> {
-        let repo_path = repo_path.canonicalize().unwrap();
+    ) -> Result<Arc<ReadonlyRepo>, PathError> {
+        let repo_path = repo_path.canonicalize().context(repo_path)?;
 
         let store_path = repo_path.join("store");
-        fs::create_dir(&store_path).unwrap();
+        fs::create_dir(&store_path).context(&store_path)?;
         let backend = backend_factory(&store_path);
-        fs::write(&store_path.join("backend"), backend.name()).unwrap();
+        let backend_path = store_path.join("backend");
+        fs::write(&backend_path, backend.name()).context(&backend_path)?;
         let store = Store::new(backend);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
 
         let op_store_path = repo_path.join("op_store");
-        fs::create_dir(&op_store_path).unwrap();
+        fs::create_dir(&op_store_path).context(&op_store_path)?;
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(op_store_path));
         let mut root_view = op_store::View::default();
         root_view.head_ids.insert(store.root_commit_id().clone());
@@ -134,16 +135,16 @@ impl ReadonlyRepo {
             .insert(store.root_commit_id().clone());
 
         let op_heads_path = repo_path.join("op_heads");
-        fs::create_dir(&op_heads_path).unwrap();
+        fs::create_dir(&op_heads_path).context(&op_heads_path)?;
         let (op_heads_store, init_op) = OpHeadsStore::init(op_heads_path, &op_store, &root_view);
         let op_heads_store = Arc::new(op_heads_store);
 
         let index_path = repo_path.join("index");
-        fs::create_dir(&index_path).unwrap();
+        fs::create_dir(&index_path).context(&index_path)?;
         let index_store = Arc::new(IndexStore::init(index_path));
 
         let view = View::new(root_view);
-        Arc::new(ReadonlyRepo {
+        Ok(Arc::new(ReadonlyRepo {
             repo_path,
             store,
             op_store,
@@ -153,7 +154,7 @@ impl ReadonlyRepo {
             index_store,
             index: Mutex::new(None),
             view,
-        })
+        }))
     }
 
     pub fn load_at_head(
