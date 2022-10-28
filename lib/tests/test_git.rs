@@ -287,6 +287,34 @@ fn test_import_refs_reimport_git_head_counts() {
     assert!(tx.mut_repo().view().heads().contains(&commit_id));
 }
 
+#[test]
+fn test_import_refs_reimport_all_from_root_removed() {
+    // Test that if a chain of commits all the way from the root gets unreferenced,
+    // we abandon the whole stack, but not including the root commit.
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+    let git_repo = repo.store().git_repo().unwrap();
+
+    let commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    let mut tx = repo.start_transaction("test");
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let commit_id = CommitId::from_bytes(commit.id().as_bytes());
+    // Test the setup
+    assert!(tx.mut_repo().view().heads().contains(&commit_id));
+
+    // Remove all git refs and re-import
+    git_repo
+        .find_reference("refs/heads/main")
+        .unwrap()
+        .delete()
+        .unwrap();
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    assert!(!tx.mut_repo().view().heads().contains(&commit_id));
+}
+
 fn git_ref(git_repo: &git2::Repository, name: &str, target: Oid) {
     git_repo.reference(name, target, true, "").unwrap();
 }
@@ -366,7 +394,7 @@ fn test_import_refs_detached_head() {
         .unwrap();
     let repo = tx.commit();
 
-    let expected_heads = hashset!{ commit_id(&commit1) };
+    let expected_heads = hashset! { commit_id(&commit1) };
     assert_eq!(*repo.view().heads(), expected_heads);
     assert_eq!(repo.view().git_refs().len(), 0);
     assert_eq!(

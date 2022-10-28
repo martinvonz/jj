@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj git import` used to abandon a commit if Git branches and tags referring
   to it were removed. We now keep it if a detached HEAD refers to it.
 
+* `jj git import` no longer crashes when all Git refs are removed.
+
 ## [0.5.1] - 2022-10-17
 
 No changes (just trying to get automated GitHub release to work).

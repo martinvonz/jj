@@ -151,8 +151,11 @@ pub fn import_refs(
         .walk_revs(&old_git_heads, &new_git_heads)
         .map(|entry| entry.commit_id())
         .collect_vec();
+    let root_commit_id = mut_repo.store().root_commit_id().clone();
     for abandoned_commit in abandoned_commits {
-        mut_repo.record_abandoned_commit(abandoned_commit);
+        if abandoned_commit != root_commit_id {
+            mut_repo.record_abandoned_commit(abandoned_commit);
+        }
     }
 
     Ok(())
