@@ -285,12 +285,15 @@ fn hash(x: &impl ContentHash) -> digest::Output<Blake2b512> {
     hasher.finalize()
 }
 
-fn read_thrift<T: TSerializable>(input: &mut impl Read) -> OpStoreResult<T> {
+pub fn read_thrift<T: TSerializable>(input: &mut impl Read) -> OpStoreResult<T> {
     let mut protocol = TCompactInputProtocol::new(input);
     Ok(TSerializable::read_from_in_protocol(&mut protocol).unwrap())
 }
 
-fn write_thrift<T: TSerializable>(thrift_object: &T, output: &mut impl Write) -> OpStoreResult<()> {
+pub fn write_thrift<T: TSerializable>(
+    thrift_object: &T,
+    output: &mut impl Write,
+) -> OpStoreResult<()> {
     let mut protocol = TCompactOutputProtocol::new(output);
     thrift_object.write_to_out_protocol(&mut protocol)?;
     Ok(())

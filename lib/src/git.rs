@@ -14,7 +14,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs::OpenOptions;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -25,9 +25,9 @@ use thiserror::Error;
 use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::op_store::{OperationId, RefTarget};
-use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo};
 use crate::view::{RefName, View};
+use crate::{op_store, simple_op_store, simple_op_store_model};
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GitImportError {
@@ -166,6 +166,10 @@ pub fn import_refs(
 pub enum GitExportError {
     #[error("Cannot export conflicted branch '{0}'")]
     ConflictedBranch(String),
+    #[error("Failed to read export state: {0}")]
+    ReadStateError(String),
+    #[error("Failed to write export state: {0}")]
+    WriteStateError(String),
     #[error("Git error: {0}")]
     InternalGitError(#[from] git2::Error),
 }
@@ -236,34 +240,59 @@ pub fn export_changes(
 
 /// Reflect changes made in the Jujutsu repo since last export in the underlying
 /// Git repo. If this is the first export, nothing will be exported. The
-/// exported state's operation ID is recorded in the repo
-/// (`.jj/repo/git_export_operation_id`).
+/// exported view is recorded in the repo (`.jj/repo/git_export_view`).
 pub fn export_refs(
     repo: &Arc<ReadonlyRepo>,
     git_repo: &git2::Repository,
 ) -> Result<(), GitExportError> {
-    let last_export_path = repo.repo_path().join("git_export_operation_id");
+    upgrade_old_export_state(repo);
+
+    let last_export_path = repo.repo_path().join("git_export_view");
     if let Ok(mut last_export_file) = OpenOptions::new().read(true).open(&last_export_path) {
-        let mut buf = vec![];
-        last_export_file.read_to_end(&mut buf).unwrap();
-        let last_export_op_id = OperationId::from_hex(String::from_utf8(buf).unwrap().as_str());
-        let loader = repo.loader();
-        let op_store = loader.op_store();
-        let last_export_store_op = op_store.read_operation(&last_export_op_id).unwrap();
-        let last_export_op =
-            Operation::new(op_store.clone(), last_export_op_id, last_export_store_op);
-        let old_repo = repo.loader().load_at(&last_export_op);
-        export_changes(old_repo.view(), repo.view(), git_repo)?;
+        let thrift_view = simple_op_store::read_thrift(&mut last_export_file)
+            .map_err(|err| GitExportError::ReadStateError(err.to_string()))?;
+        let last_export_store_view = op_store::View::from(&thrift_view);
+        let last_export_view = View::new(last_export_store_view);
+        export_changes(&last_export_view, repo.view(), git_repo)?;
     }
     if let Ok(mut last_export_file) = OpenOptions::new()
         .write(true)
         .create(true)
         .open(&last_export_path)
     {
-        let buf = repo.op_id().hex().as_bytes().to_vec();
-        last_export_file.write_all(&buf).unwrap();
+        let thrift_view = simple_op_store_model::View::from(repo.operation().view().store_view());
+        simple_op_store::write_thrift(&thrift_view, &mut last_export_file)
+            .map_err(|err| GitExportError::WriteStateError(err.to_string()))?;
     }
     Ok(())
+}
+
+fn upgrade_old_export_state(repo: &Arc<ReadonlyRepo>) {
+    // Migrate repos that use the old git_export_operation_id file
+    let last_operation_export_path = repo.repo_path().join("git_export_operation_id");
+    if let Ok(mut last_operation_export_file) = OpenOptions::new()
+        .read(true)
+        .open(&last_operation_export_path)
+    {
+        let mut buf = vec![];
+        last_operation_export_file.read_to_end(&mut buf).unwrap();
+        let last_export_op_id = OperationId::from_hex(String::from_utf8(buf).unwrap().as_str());
+        let loader = repo.loader();
+        let op_store = loader.op_store();
+        let last_export_store_op = op_store.read_operation(&last_export_op_id).unwrap();
+        let last_export_store_view = op_store.read_view(&last_export_store_op.view_id).unwrap();
+        if let Ok(mut last_export_file) = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .open(&repo.repo_path().join("git_export_view"))
+        {
+            let thrift_view = simple_op_store_model::View::from(&last_export_store_view);
+            simple_op_store::write_thrift(&thrift_view, &mut last_export_file)
+                .map_err(|err| GitExportError::WriteStateError(err.to_string()))
+                .unwrap();
+        }
+        std::fs::remove_file(last_operation_export_path).unwrap();
+    }
 }
 
 #[derive(Error, Debug, PartialEq)]
