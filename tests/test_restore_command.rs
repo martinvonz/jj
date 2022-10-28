@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use regex::Regex;
+
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -132,8 +134,9 @@ fn test_restore_interactive() {
     // Nothing happens if the diff-editor exits with an error
     std::fs::write(&edit_script, "rm file2\0fail").unwrap();
     let stderr = test_env.jj_cmd_failure(&repo_path, &["restore", "-i"]);
-    insta::assert_snapshot!(stderr, @r###"
+    insta::assert_snapshot!(Regex::new(r"Details: [^\n]+").unwrap().replace(&stderr, "Details: <OS-Dependent>"), @r###"
     Error: Failed to edit diff: Tool exited with a non-zero code.
+     Details: <OS-Dependent>
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
