@@ -169,7 +169,7 @@ impl From<GitExportError> for CommandError {
             GitExportError::ConflictedBranch(branch_name) => {
                 user_error(format!("Cannot export conflicted branch '{branch_name}'"))
             }
-            GitExportError::InternalGitError(err) => CommandError::InternalError(format!(
+            err => CommandError::InternalError(format!(
                 "Failed to export refs to underlying Git repo: {err}"
             )),
         }

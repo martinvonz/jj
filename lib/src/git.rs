@@ -166,7 +166,7 @@ pub fn import_refs(
 pub enum GitExportError {
     #[error("Cannot export conflicted branch '{0}'")]
     ConflictedBranch(String),
-    #[error("Unexpected git error when exporting refs: {0}")]
+    #[error("Git error: {0}")]
     InternalGitError(#[from] git2::Error),
 }
 
