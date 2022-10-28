@@ -52,7 +52,7 @@ use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
 use jujutsu_lib::{dag_walk, file_util, git, revset};
 
 use crate::config::read_config;
-use crate::diff_edit::DiffEditError;
+use crate::diff_edit::{ConflictResolveError, DiffEditError};
 use crate::formatter::Formatter;
 use crate::templater::TemplateFormatter;
 use crate::ui::{ColorChoice, Ui};
@@ -151,6 +151,12 @@ impl From<ResetError> for CommandError {
 impl From<DiffEditError> for CommandError {
     fn from(err: DiffEditError) -> Self {
         user_error(format!("Failed to edit diff: {err}"))
+    }
+}
+
+impl From<ConflictResolveError> for CommandError {
+    fn from(err: ConflictResolveError) -> Self {
+        user_error(format!("Failed to use external tool to resolve: {err}"))
     }
 }
 
@@ -756,14 +762,33 @@ impl WorkspaceCommandHelper {
         Ok(())
     }
 
+    pub fn run_mergetool(
+        &self,
+        ui: &mut Ui,
+        tree: &Tree,
+        path: &str,
+    ) -> Result<TreeId, CommandError> {
+        Ok(crate::diff_edit::run_mergetool(
+            ui,
+            tree,
+            &self.parse_file_path(path)?,
+        )?)
+    }
+
     pub fn edit_diff(
         &self,
         ui: &mut Ui,
         left_tree: &Tree,
         right_tree: &Tree,
         instructions: &str,
-    ) -> Result<TreeId, DiffEditError> {
-        crate::diff_edit::edit_diff(ui, left_tree, right_tree, instructions, self.base_ignores())
+    ) -> Result<TreeId, CommandError> {
+        Ok(crate::diff_edit::edit_diff(
+            ui,
+            left_tree,
+            right_tree,
+            instructions,
+            self.base_ignores(),
+        )?)
     }
 
     pub fn select_diff(
