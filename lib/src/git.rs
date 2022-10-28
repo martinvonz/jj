@@ -26,8 +26,8 @@ use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::op_store::{OperationId, RefTarget};
 use crate::operation::Operation;
-use crate::repo::{MutableRepo, ReadonlyRepo, RepoRef};
-use crate::view::RefName;
+use crate::repo::{MutableRepo, ReadonlyRepo};
+use crate::view::{RefName, View};
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GitImportError {
@@ -170,14 +170,12 @@ pub enum GitExportError {
     InternalGitError(#[from] git2::Error),
 }
 
-/// Reflect changes between two Jujutsu repo states in the underlying Git repo.
+/// Reflect changes between two Jujutsu repo views in the underlying Git repo.
 pub fn export_changes(
-    old_repo: RepoRef,
-    new_repo: RepoRef,
+    old_view: &View,
+    new_view: &View,
     git_repo: &git2::Repository,
 ) -> Result<(), GitExportError> {
-    let old_view = old_repo.view();
-    let new_view = new_repo.view();
     let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
     let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
     // TODO: Check that the ref is not pointed to by any worktree's HEAD.
@@ -255,7 +253,7 @@ pub fn export_refs(
         let last_export_op =
             Operation::new(op_store.clone(), last_export_op_id, last_export_store_op);
         let old_repo = repo.loader().load_at(&last_export_op);
-        export_changes(old_repo.as_repo_ref(), repo.as_repo_ref(), git_repo)?;
+        export_changes(old_repo.view(), repo.view(), git_repo)?;
     }
     if let Ok(mut last_export_file) = OpenOptions::new()
         .write(true)
