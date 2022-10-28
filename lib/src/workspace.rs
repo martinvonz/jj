@@ -31,6 +31,8 @@ use crate::working_copy::WorkingCopy;
 pub enum WorkspaceInitError {
     #[error("The destination repo ({0}) already exists")]
     DestinationExists(PathBuf),
+    #[error("Repo path could not be interpreted as Unicode text")]
+    NonUnicodePath,
     #[error(transparent)]
     Path(#[from] PathError),
 }
@@ -41,6 +43,8 @@ pub enum WorkspaceLoadError {
     RepoDoesNotExist(PathBuf),
     #[error("There is no Jujutsu repo in {0}")]
     NoWorkspaceHere(PathBuf),
+    #[error("Repo path could not be interpreted as Unicode text")]
+    NonUnicodePath,
     #[error(transparent)]
     Path(#[from] PathError),
 }
@@ -173,7 +177,12 @@ impl Workspace {
         let repo_file_path = jj_dir.join("repo");
         let mut repo_file = File::create(&repo_file_path).context(&repo_file_path)?;
         repo_file
-            .write_all(repo_dir.to_str().unwrap().as_bytes())
+            .write_all(
+                repo_dir
+                    .to_str()
+                    .ok_or(WorkspaceInitError::NonUnicodePath)?
+                    .as_bytes(),
+            )
             .context(&repo_file_path)?;
 
         let (working_copy, repo) =
@@ -189,7 +198,10 @@ impl Workspace {
     ) -> Result<Self, WorkspaceLoadError> {
         let jj_dir = find_jj_dir(workspace_path)
             .ok_or_else(|| WorkspaceLoadError::NoWorkspaceHere(workspace_path.to_owned()))?;
-        let workspace_root = jj_dir.parent().unwrap().to_owned();
+        let workspace_root = jj_dir
+            .parent()
+            .ok_or(WorkspaceLoadError::NonUnicodePath)?
+            .to_owned();
         let mut repo_dir = jj_dir.join("repo");
         // If .jj/repo is a file, then we interpret its contents as a relative path to
         // the actual repo directory (typically in another workspace).
@@ -197,7 +209,8 @@ impl Workspace {
             let mut repo_file = File::open(&repo_dir).context(&repo_dir)?;
             let mut buf = Vec::new();
             repo_file.read_to_end(&mut buf).context(&repo_dir)?;
-            let repo_path_str = String::from_utf8(buf).unwrap();
+            let repo_path_str =
+                String::from_utf8(buf).map_err(|_| WorkspaceLoadError::NonUnicodePath)?;
             repo_dir = jj_dir
                 .join(&repo_path_str)
                 .canonicalize()
