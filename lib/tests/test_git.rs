@@ -258,6 +258,35 @@ fn test_import_refs_reimport_head_removed() {
     assert!(!tx.mut_repo().view().heads().contains(&commit_id));
 }
 
+#[test]
+fn test_import_refs_reimport_git_head_counts() {
+    // Test that if a branch is removed but the Git HEAD points to the commit (or a
+    // descendant of it), we still keep it alive.
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(true);
+    let repo = &test_repo.repo;
+    let git_repo = repo.store().git_repo().unwrap();
+
+    let commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
+    git_repo.set_head_detached(commit.id()).unwrap();
+
+    let mut tx = repo.start_transaction("test");
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+
+    // Delete the branch and re-import. The commit should still be there since HEAD
+    // points to it
+    git_repo
+        .find_reference("refs/heads/main")
+        .unwrap()
+        .delete()
+        .unwrap();
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let commit_id = CommitId::from_bytes(commit.id().as_bytes());
+    assert!(tx.mut_repo().view().heads().contains(&commit_id));
+}
+
 fn git_ref(git_repo: &git2::Repository, name: &str, target: Oid) {
     git_repo.reference(name, target, true, "").unwrap();
 }
@@ -337,9 +366,7 @@ fn test_import_refs_detached_head() {
         .unwrap();
     let repo = tx.commit();
 
-    let expected_heads = hashset! {
-            commit_id(&commit1),
-    };
+    let expected_heads = hashset!{ commit_id(&commit1) };
     assert_eq!(*repo.view().heads(), expected_heads);
     assert_eq!(repo.view().git_refs().len(), 0);
     assert_eq!(

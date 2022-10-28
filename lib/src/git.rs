@@ -58,11 +58,30 @@ pub fn import_refs(
 ) -> Result<(), GitImportError> {
     let store = mut_repo.store().clone();
     let mut existing_git_refs = mut_repo.view().git_refs().clone();
-    let old_git_heads = existing_git_refs
+    let mut old_git_heads = existing_git_refs
         .values()
         .flat_map(|old_target| old_target.adds())
         .collect_vec();
+    if let Some(old_git_head) = mut_repo.view().git_head() {
+        old_git_heads.push(old_git_head);
+    }
+
     let mut new_git_heads = HashSet::new();
+    // TODO: Should this be a separate function? We may not always want to import
+    // the Git HEAD (and add it to our set of heads).
+    if let Ok(head_git_commit) = git_repo
+        .head()
+        .and_then(|head_ref| head_ref.peel_to_commit())
+    {
+        let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
+        let head_commit = store.get_commit(&head_commit_id).unwrap();
+        new_git_heads.insert(head_commit_id.clone());
+        mut_repo.add_head(&head_commit);
+        mut_repo.set_git_head(head_commit_id);
+    } else {
+        mut_repo.clear_git_head();
+    }
+
     let mut changed_git_refs = BTreeMap::new();
     let git_refs = git_repo.references()?;
     for git_ref in git_refs {
@@ -136,19 +155,6 @@ pub fn import_refs(
         mut_repo.record_abandoned_commit(abandoned_commit);
     }
 
-    // TODO: Should this be a separate function? We may not always want to import
-    // the Git HEAD (and add it to our set of heads).
-    if let Ok(head_git_commit) = git_repo
-        .head()
-        .and_then(|head_ref| head_ref.peel_to_commit())
-    {
-        let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
-        let head_commit = store.get_commit(&head_commit_id).unwrap();
-        mut_repo.add_head(&head_commit);
-        mut_repo.set_git_head(head_commit_id);
-    } else {
-        mut_repo.clear_git_head();
-    }
     Ok(())
 }
 
