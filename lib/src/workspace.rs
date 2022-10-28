@@ -104,7 +104,7 @@ impl Workspace {
         working_copy: WorkingCopy,
         repo_loader: RepoLoader,
     ) -> Result<Workspace, PathError> {
-        let workspace_root = workspace_root.canonicalize().context(&workspace_root)?;
+        let workspace_root = workspace_root.canonicalize().context(workspace_root)?;
         Ok(Workspace {
             workspace_root,
             repo_loader,
