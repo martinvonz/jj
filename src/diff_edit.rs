@@ -42,14 +42,23 @@ pub enum ExternalToolError {
     ConfigError(#[from] ConfigError),
     #[error("Error setting up temporary directory: {0:?}")]
     SetUpDirError(#[source] std::io::Error),
-    #[error("Error executing '{tool_binary}': {source}")]
+    #[error("Error executing '{tool_binary}' with args {args:?}: {source}")]
     FailedToExecute {
         tool_binary: String,
+        args: Vec<String>,
         #[source]
         source: std::io::Error,
     },
-    #[error("Tool exited with a non-zero code.")]
-    ToolAborted,
+    #[error(
+        "Tool exited with a non-zero code.\n Details: tool '{tool_binary}' was \
+         executed with args {args:?}. Exit code: {}.",
+         exit_status.code().map(|c| c.to_string()).unwrap_or_else(|| "<unknown>".to_string())
+    )]
+    ToolAborted {
+        tool_binary: String,
+        args: Vec<String>,
+        exit_status: std::process::ExitStatus,
+    },
     #[error("I/O error: {0:?}")]
     IoError(#[from] std::io::Error),
 }
@@ -134,7 +143,7 @@ fn set_readonly_recursively(path: &Path) -> Result<(), std::io::Error> {
 }
 
 pub fn run_mergetool(
-    _ui: &mut Ui,
+    ui: &mut Ui,
     tree: &Tree,
     repo_path: &RepoPath,
 ) -> Result<TreeId, ConflictResolveError> {
@@ -205,20 +214,27 @@ pub fn run_mergetool(
         .collect();
     let paths = paths?;
 
-    let progname = "vimdiff";
-    let exit_status = Command::new(progname)
-        .args(["-f", "-d"])
-        .arg(paths.get("output").unwrap())
-        .arg("-M")
-        .args(["left", "base", "right"].map(|n| paths.get(n).unwrap()))
-        .args(["-c", "wincmd J", "-c", "setl modifiable write"])
+    let editor = get_merge_tool_from_settings(ui)?;
+    // TODO: Error if `editor.merge_args` is empty
+    let args = interpolate_mergetool_filename_patterns(&editor.merge_args, &paths);
+    let args_str = args
+        .iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect_vec();
+    let exit_status = Command::new(&editor.program)
+        .args(args)
         .status()
         .map_err(|e| ExternalToolError::FailedToExecute {
-            tool_binary: progname.to_string(),
+            tool_binary: editor.program.clone(),
+            args: args_str.clone(),
             source: e,
         })?;
     if !exit_status.success() {
-        return Err(ConflictResolveError::from(ExternalToolError::ToolAborted));
+        return Err(ConflictResolveError::from(ExternalToolError::ToolAborted {
+            tool_binary: editor.program,
+            args: args_str,
+            exit_status,
+        }));
     }
 
     let output_file_contents: Vec<u8> = std::fs::read(paths.get("output").unwrap())?;
@@ -238,6 +254,27 @@ pub fn run_mergetool(
         },
     );
     Ok(tree_builder.write_tree())
+}
+
+fn interpolate_mergetool_filename_patterns<T: std::str::FromStr + From<PathBuf>>(
+    merge_args: &[String],
+    paths: &HashMap<&str, PathBuf>,
+) -> Vec<T>
+where
+    Vec<T>: FromIterator<PathBuf>,
+{
+    merge_args
+        .iter()
+        .map(|arg| {
+            // TODO: Match all instances of `\$\w+` pattern and replace them
+            // so that portions of args can be replaced, and so that file paths
+            // that include the '$' character are processed correctly.
+            arg.strip_prefix('$')
+                .and_then(|p| paths.get(p))
+                .and_then(|p| From::from(p.clone()))
+                .unwrap_or_else(|| From::from(arg.clone()))
+        })
+        .collect()
 }
 
 pub fn edit_diff(
@@ -291,21 +328,10 @@ pub fn edit_diff(
             .map_err(ExternalToolError::SetUpDirError)?;
     }
 
-    // TODO: Make this configuration have a table of possible editors and detect the
-    // best one here.
-    let editor_name = match ui.settings().config().get_string("ui.diff-editor") {
-        Ok(editor_binary) => editor_binary,
-        Err(_) => {
-            let default_editor = "meld".to_string();
-            ui.write_hint(format!(
-                "Using default editor '{}'; you can change this by setting ui.diff-editor\n",
-                default_editor
-            ))
-            .map_err(ExternalToolError::IoError)?;
-            default_editor
-        }
-    };
-    let editor = get_tool(ui.settings(), &editor_name).map_err(ExternalToolError::ConfigError)?;
+    let editor = get_diff_editor_from_settings(ui)?;
+    let mut args_str = editor.edit_args.clone();
+    args_str.push(left_wc_dir.display().to_string());
+    args_str.push(right_wc_dir.display().to_string());
     // Start a diff editor on the two directories.
     let exit_status = Command::new(&editor.program)
         .args(&editor.edit_args)
@@ -314,10 +340,15 @@ pub fn edit_diff(
         .status()
         .map_err(|e| ExternalToolError::FailedToExecute {
             tool_binary: editor.program.clone(),
+            args: args_str.clone(),
             source: e,
         })?;
     if !exit_status.success() {
-        return Err(DiffEditError::from(ExternalToolError::ToolAborted));
+        return Err(DiffEditError::from(ExternalToolError::ToolAborted {
+            tool_binary: editor.program,
+            args: args_str,
+            exit_status,
+        }));
     }
     if add_instructions {
         std::fs::remove_file(instructions_path).ok();
@@ -331,11 +362,20 @@ pub fn edit_diff(
 #[derive(Clone, Debug, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 struct MergeTool {
-    /// Program to execute.
+    /// Program to execute. Must be defined; defaults to the tool name
+    /// if not specified in the config.
+    #[serde(default)]
     pub program: String,
     /// Arguments to pass to the program when editing diffs.
     #[serde(default)]
     pub edit_args: Vec<String>,
+    /// Arguments to pass to the program when resolving 3-way conflicts.
+    /// `$left`, `$right`, `$base`, and `$output` are replaced with
+    /// paths to the corresponding files.
+    /// TODO: Currently, the entire argument has to match one of these 4
+    /// strings to be substituted.
+    #[serde(default)]
+    pub merge_args: Vec<String>,
 }
 
 impl MergeTool {
@@ -343,13 +383,14 @@ impl MergeTool {
         MergeTool {
             program: program.to_owned(),
             edit_args: vec![],
+            merge_args: vec![],
         }
     }
 }
 
 /// Loads merge tool options from `[merge-tools.<name>]`. The given name is used
 /// as an executable name if no configuration found for that name.
-fn get_tool(settings: &UserSettings, name: &str) -> Result<MergeTool, ConfigError> {
+fn get_tool_config(settings: &UserSettings, name: &str) -> Result<MergeTool, ConfigError> {
     const TABLE_KEY: &str = "merge-tools";
     let tools_table = match settings.config().get_table(TABLE_KEY) {
         Ok(table) => table,
@@ -357,11 +398,50 @@ fn get_tool(settings: &UserSettings, name: &str) -> Result<MergeTool, ConfigErro
         Err(err) => return Err(err),
     };
     if let Some(v) = tools_table.get(name) {
-        v.clone()
+        let mut result: MergeTool = v
+            .clone()
             .try_deserialize()
             // add config key, deserialize error is otherwise unclear
-            .map_err(|e| ConfigError::Message(format!("{TABLE_KEY}.{name}: {e}")))
+            .map_err(|e| ConfigError::Message(format!("{TABLE_KEY}.{name}: {e}")))?;
+
+        if result.program.is_empty() {
+            result.program.clone_from(&name.to_string());
+        };
+        Ok(result)
     } else {
         Ok(MergeTool::with_program(name))
     }
+}
+
+fn get_diff_editor_from_settings(ui: &mut Ui) -> Result<MergeTool, ExternalToolError> {
+    _get_editor_from_settings_helper(ui, "diff")
+}
+
+fn get_merge_tool_from_settings(ui: &mut Ui) -> Result<MergeTool, ExternalToolError> {
+    _get_editor_from_settings_helper(ui, "merge")
+}
+
+/// Finds the appropriate tool for diff editing or merges
+fn _get_editor_from_settings_helper(
+    ui: &mut Ui,
+    diff_or_merge: &str,
+) -> Result<MergeTool, ExternalToolError> {
+    // TODO: Make this configuration have a table of possible editors and detect the
+    // best one here.
+    let editor_name = match ui
+        .settings()
+        .config()
+        .get_string(&format!("ui.{diff_or_merge}-editor"))
+    {
+        Ok(editor_binary) => editor_binary,
+        Err(_) => {
+            let default_editor = "meld".to_string();
+            ui.write_hint(format!(
+                "Using default editor '{default_editor}'; you can change this by setting \
+                 ui.{diff_or_merge}-editor\n"
+            ))?;
+            default_editor
+        }
+    };
+    Ok(get_tool_config(ui.settings(), &editor_name)?)
 }
