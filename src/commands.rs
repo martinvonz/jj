@@ -91,6 +91,7 @@ enum Commands {
     Unsquash(UnsquashArgs),
     Restore(RestoreArgs),
     Touchup(TouchupArgs),
+    Resolve(ResolveArgs),
     Split(SplitArgs),
     /// Merge work from multiple branches
     ///
@@ -493,6 +494,35 @@ struct UnsquashArgs {
     // the default.
     #[arg(long, short)]
     interactive: bool,
+}
+
+/// Resolve a conflicted file with an external merge tool
+///
+/// Only conflicts that can be resolved with a 3-way merge are supported. See
+/// docs for merge tool configuration instructions.
+///
+/// Note that conflicts can also be resolved without using this command. You may
+/// edit the conflict markers in the conflicted file directly with a text
+/// editor.
+//  TODOs:
+//   - `jj resolve --list` to list conflicts
+//   - `jj resolve --editor` to resolve a conflict in the default text editor. Should work for
+//     conflicts with 3+ adds. Useful to resolve conflicts in a commit other than the current one.
+//   - Make the `path` argument optional and/or repeatable. If a specific file is not specified,
+//     either pick an arbitrary file with a conflict (e.g. first one `jj resolve --list` shows),
+//     offer a UI, and/or loop over all the conflicted files.
+//   - A way to help split commits with conflicts that are too complicated (more than two sides)
+//     into commits with simpler conflicts. In case of a tree with many merges, we could for example
+//     point to existing commits with simpler conflicts where resolving those conflicts would help
+//     simplify the present one.
+#[derive(clap::Args, Clone, Debug)]
+struct ResolveArgs {
+    #[arg(long, short, default_value = "@")]
+    revision: String,
+    /// The path to a file with conflicts. You can use `jj status` to find such
+    /// files
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    path: String,
 }
 
 /// Restore paths from another revision
@@ -2828,6 +2858,25 @@ aborted.
     Ok(())
 }
 
+fn cmd_resolve(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &ResolveArgs,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    workspace_command.check_rewriteable(&commit)?;
+    let mut tx = workspace_command.start_transaction(&format!(
+        "Resolve conflicts in commit {}",
+        commit.id().hex()
+    ));
+    let new_tree_id = workspace_command.run_mergetool(ui, &commit.tree(), &args.path)?;
+    CommitBuilder::for_rewrite_from(ui.settings(), &commit)
+        .set_tree(new_tree_id)
+        .write_to_repo(tx.mut_repo());
+    workspace_command.finish_transaction(ui, tx)
+}
+
 fn cmd_restore(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -4651,6 +4700,7 @@ pub fn run_command(
         Commands::Merge(sub_args) => cmd_merge(ui, command_helper, sub_args),
         Commands::Rebase(sub_args) => cmd_rebase(ui, command_helper, sub_args),
         Commands::Backout(sub_args) => cmd_backout(ui, command_helper, sub_args),
+        Commands::Resolve(sub_args) => cmd_resolve(ui, command_helper, sub_args),
         Commands::Branch(sub_args) => cmd_branch(ui, command_helper, sub_args),
         Commands::Undo(sub_args) => cmd_op_undo(ui, command_helper, sub_args),
         Commands::Operation(sub_args) => cmd_operation(ui, command_helper, sub_args),

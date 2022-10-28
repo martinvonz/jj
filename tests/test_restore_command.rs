@@ -133,7 +133,7 @@ fn test_restore_interactive() {
     std::fs::write(&edit_script, "rm file2\0fail").unwrap();
     let stderr = test_env.jj_cmd_failure(&repo_path, &["restore", "-i"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to edit diff: The diff tool exited with a non-zero code
+    Error: Failed to edit diff: Tool exited with a non-zero code.
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
