@@ -145,6 +145,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         rewritten: HashMap<CommitId, HashSet<CommitId>>,
         abandoned: HashSet<CommitId>,
     ) -> DescendantRebaser<'settings, 'repo> {
+        let root_commit_id = mut_repo.store().root_commit_id();
+        assert!(!abandoned.contains(root_commit_id));
+        assert!(!rewritten.contains_key(root_commit_id));
         let old_commits_expression = RevsetExpression::commits(rewritten.keys().cloned().collect())
             .union(&RevsetExpression::commits(
                 abandoned.iter().cloned().collect(),

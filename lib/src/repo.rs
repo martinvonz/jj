@@ -539,6 +539,7 @@ impl MutableRepo {
     /// convenient place to record it. It won't matter after the transaction
     /// has been committed.
     pub fn record_rewritten_commit(&mut self, old_id: CommitId, new_id: CommitId) {
+        assert_ne!(old_id, *self.store().root_commit_id());
         self.rewritten_commits
             .entry(old_id)
             .or_default()
@@ -556,6 +557,7 @@ impl MutableRepo {
     /// convenient place to record it. It won't matter after the transaction
     /// has been committed.
     pub fn record_abandoned_commit(&mut self, old_id: CommitId) {
+        assert_ne!(old_id, *self.store().root_commit_id());
         self.abandoned_commits.insert(old_id);
     }
 
