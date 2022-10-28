@@ -58,7 +58,8 @@ fn describe_conflict_part(part: &ConflictPart) -> String {
     }
 }
 
-fn describe_conflict(conflict: &Conflict, file: &mut dyn Write) -> std::io::Result<()> {
+/// Give a summary description of a conflict's "adds" and "removes"
+pub fn describe_conflict(conflict: &Conflict, file: &mut dyn Write) -> std::io::Result<()> {
     file.write_all(b"Conflict:\n")?;
     for part in &conflict.removes {
         file.write_all(format!("  Removing {}\n", describe_conflict_part(part)).as_bytes())?;
@@ -132,15 +133,33 @@ pub fn materialize_conflict(
     conflict: &Conflict,
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
+    match extract_file_conflict_data(store, path, conflict) {
+        None => {
+            // Unless all parts are regular files, we can't do much better than to try to
+            // describe the conflict.
+            describe_conflict(conflict, output)
+        }
+        Some(content) => materialize_merge_result(&content, output),
+    }
+}
+
+/// The contents of every version of the file that participates in a conflict.
+pub struct FileConflictData {
+    removes: Vec<Vec<u8>>,
+    adds: Vec<Vec<u8>>,
+}
+
+/// Only works if all parts of the conflict are regular, non-executable files
+pub fn extract_file_conflict_data(
+    store: &Store,
+    path: &RepoPath,
+    conflict: &Conflict,
+) -> Option<FileConflictData> {
     let file_adds = file_parts(&conflict.adds);
     let file_removes = file_parts(&conflict.removes);
     if file_adds.len() != conflict.adds.len() || file_removes.len() != conflict.removes.len() {
-        // Unless all parts are regular files, we can't do much better than to try to
-        // describe the conflict.
-        describe_conflict(conflict, output)?;
-        return Ok(());
+        return None;
     }
-
     let added_content = file_adds
         .iter()
         .map(|part| get_file_contents(store, path, part))
@@ -149,9 +168,19 @@ pub fn materialize_conflict(
         .iter()
         .map(|part| get_file_contents(store, path, part))
         .collect_vec();
-    let removed_slices = removed_content.iter().map(Vec::as_slice).collect_vec();
-    let added_slices = added_content.iter().map(Vec::as_slice).collect_vec();
 
+    Some(FileConflictData {
+        removes: removed_content,
+        adds: added_content,
+    })
+}
+
+pub fn materialize_merge_result(
+    single_hunk: &FileConflictData,
+    output: &mut dyn Write,
+) -> std::io::Result<()> {
+    let removed_slices = single_hunk.removes.iter().map(Vec::as_slice).collect_vec();
+    let added_slices = single_hunk.adds.iter().map(Vec::as_slice).collect_vec();
     let merge_result = files::merge(&removed_slices, &added_slices);
     match merge_result {
         MergeResult::Resolved(content) => {
@@ -337,6 +366,7 @@ fn parse_conflict_hunk(input: &[u8]) -> MergeHunk {
     MergeHunk::Conflict { removes, adds }
 }
 
+/// Returns `None` if there are no conflict markers in `content`.
 pub fn update_conflict_from_content(
     store: &Store,
     path: &RepoPath,
