@@ -287,7 +287,8 @@ impl GitRepoData {
         std::fs::create_dir(&jj_repo_dir).unwrap();
         let repo = ReadonlyRepo::init(&settings, &jj_repo_dir, |store_path| {
             Box::new(GitBackend::init_external(store_path, &git_repo_dir))
-        });
+        })
+        .unwrap();
         Self {
             settings,
             _temp_dir: temp_dir,
@@ -525,7 +526,8 @@ fn test_init() {
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let repo = ReadonlyRepo::init(&settings, &jj_repo_dir, |store_path| {
         Box::new(GitBackend::init_external(store_path, &git_repo_dir))
-    });
+    })
+    .unwrap();
     // The refs were *not* imported -- it's the caller's responsibility to import
     // any refs they care about.
     assert!(!repo.view().heads().contains(&initial_commit_id));
@@ -689,7 +691,8 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let jj_repo = ReadonlyRepo::init(settings, &jj_repo_dir, |store_path| {
         Box::new(GitBackend::init_external(store_path, &clone_repo_dir))
-    });
+    })
+    .unwrap();
     let mut tx = jj_repo.start_transaction("test");
     let new_commit = testutils::create_random_commit(settings, &jj_repo)
         .set_parents(vec![initial_commit_id])
