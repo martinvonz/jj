@@ -1062,7 +1062,7 @@ fn cmd_version(
 
 fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(), CommandError> {
     if command.global_args().repository.is_some() {
-        return Err(CommandError::UserError(
+        return Err(UserError(
             "'--repository' cannot be used with 'init'".to_string(),
         ));
     }
@@ -1114,7 +1114,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
         Workspace::init_internal_git(ui.settings(), &wc_path)?;
     } else {
         if !ui.settings().allow_native_backend() {
-            return Err(CommandError::UserError(
+            return Err(UserError(
                 "The native backend is disallowed by default. Did you mean to pass `--git`?
 Set `ui.allow-init-native` to allow initializing a repo with the native backend."
                     .to_string(),
@@ -1223,7 +1223,7 @@ fn cmd_untrack(
                     ui_path
                 )
             };
-            return Err(CommandError::UserError(message));
+            return Err(UserError(message));
         } else {
             // This means there were some concurrent changes made in the working copy. We
             // don't want to mix those in, so reset the working copy again.
@@ -1259,7 +1259,7 @@ fn cmd_print(ui: &mut Ui, command: &CommandHelper, args: &PrintArgs) -> Result<(
     let repo = workspace_command.repo();
     match commit.tree().path_value(&path) {
         None => {
-            return Err(CommandError::UserError("No such path".to_string()));
+            return Err(UserError("No such path".to_string()));
         }
         Some(TreeValue::Normal { id, .. }) => {
             let mut contents = repo.store().read_file(&path, &id)?;
@@ -1272,9 +1272,7 @@ fn cmd_print(ui: &mut Ui, command: &CommandHelper, args: &PrintArgs) -> Result<(
             ui.stdout_formatter().write_all(&contents)?;
         }
         _ => {
-            return Err(CommandError::UserError(
-                "Path exists but is not a file".to_string(),
-            ));
+            return Err(UserError("Path exists but is not a file".to_string()));
         }
     }
     Ok(())
@@ -2375,11 +2373,9 @@ fn edit_description(
         .args(editor_args)
         .arg(&description_file_path)
         .status()
-        .map_err(|_| CommandError::UserError(format!("Failed to run editor '{editor}'")))?;
+        .map_err(|_| UserError(format!("Failed to run editor '{editor}'")))?;
     if !exit_status.success() {
-        return Err(CommandError::UserError(format!(
-            "Editor '{editor}' exited with an error"
-        )));
+        return Err(UserError(format!("Editor '{editor}' exited with an error")));
     }
 
     let mut description_file = OpenOptions::new()
@@ -2630,7 +2626,7 @@ fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(),
     let mut destination =
         workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
     if source.id() == destination.id() {
-        return Err(CommandError::UserError(String::from(
+        return Err(UserError(String::from(
             "Source and destination cannot be the same.",
         )));
     }
@@ -2671,7 +2667,7 @@ from the source will be moved into the destination.
         matcher.as_ref(),
     )?;
     if &new_parent_tree_id == parent_tree.id() {
-        return Err(CommandError::UserError(String::from("No changes to move")));
+        return Err(UserError(String::from("No changes to move")));
     }
     let new_parent_tree = repo
         .store()
@@ -2719,9 +2715,7 @@ fn cmd_squash(ui: &mut Ui, command: &CommandHelper, args: &SquashArgs) -> Result
     workspace_command.check_rewriteable(&commit)?;
     let parents = commit.parents();
     if parents.len() != 1 {
-        return Err(CommandError::UserError(String::from(
-            "Cannot squash merge commits",
-        )));
+        return Err(UserError(String::from("Cannot squash merge commits")));
     }
     let parent = &parents[0];
     workspace_command.check_rewriteable(parent)?;
@@ -2753,7 +2747,7 @@ from the source will be moved into the parent.
         matcher.as_ref(),
     )?;
     if &new_parent_tree_id == parent.tree_id() {
-        return Err(CommandError::UserError(String::from("No changes selected")));
+        return Err(UserError(String::from("No changes selected")));
     }
     // Abandon the child if the parent now has all the content from the child
     // (always the case in the non-interactive case).
@@ -2788,9 +2782,7 @@ fn cmd_unsquash(
     workspace_command.check_rewriteable(&commit)?;
     let parents = commit.parents();
     if parents.len() != 1 {
-        return Err(CommandError::UserError(String::from(
-            "Cannot unsquash merge commits",
-        )));
+        return Err(UserError(String::from("Cannot unsquash merge commits")));
     }
     let parent = &parents[0];
     workspace_command.check_rewriteable(parent)?;
@@ -2818,7 +2810,7 @@ aborted.
         new_parent_tree_id =
             workspace_command.edit_diff(ui, &parent_base_tree, &parent.tree(), &instructions)?;
         if &new_parent_tree_id == parent_base_tree.id() {
-            return Err(CommandError::UserError(String::from("No changes selected")));
+            return Err(UserError(String::from("No changes selected")));
         }
     } else {
         new_parent_tree_id = parent_base_tree.id().clone();
@@ -3225,7 +3217,7 @@ fn check_rebase_destinations(
             .index()
             .is_ancestor(commit.id(), parent.id())
         {
-            return Err(CommandError::UserError(format!(
+            return Err(UserError(format!(
                 "Cannot rebase {} onto descendant {}",
                 short_commit_hash(commit.id()),
                 short_commit_hash(parent.id())
@@ -3281,10 +3273,7 @@ fn cmd_branch(
     ) -> Result<(), CommandError> {
         for branch_name in names {
             if view.get_local_branch(branch_name).is_none() {
-                return Err(CommandError::UserError(format!(
-                    "No such branch: {}",
-                    branch_name
-                )));
+                return Err(UserError(format!("No such branch: {}", branch_name)));
             }
         }
         Ok(())
@@ -3307,7 +3296,7 @@ fn cmd_branch(
             let branch_names: Vec<&str> = names
                 .iter()
                 .map(|branch_name| match view.get_local_branch(branch_name) {
-                    Some(_) => Err(CommandError::UserError(format!(
+                    Some(_) => Err(UserError(format!(
                         "Branch already exists: {} (use `jj branch set` to update it)",
                         branch_name
                     ))),
@@ -3361,7 +3350,7 @@ fn cmd_branch(
                     )
                 })
             {
-                return Err(CommandError::UserError(
+                return Err(UserError(
                     "Use --allow-backwards to allow moving a branch backwards or sideways"
                         .to_string(),
                 ));
@@ -3685,14 +3674,10 @@ fn cmd_op_undo(
     let bad_op = workspace_command.resolve_single_op(&args.operation)?;
     let parent_ops = bad_op.parents();
     if parent_ops.len() > 1 {
-        return Err(CommandError::UserError(
-            "Cannot undo a merge operation".to_string(),
-        ));
+        return Err(UserError("Cannot undo a merge operation".to_string()));
     }
     if parent_ops.is_empty() {
-        return Err(CommandError::UserError(
-            "Cannot undo repo initialization".to_string(),
-        ));
+        return Err(UserError("Cannot undo repo initialization".to_string()));
     }
 
     let mut tx =
@@ -3757,9 +3742,7 @@ fn cmd_workspace_add(
     let old_workspace_command = command.workspace_helper(ui)?;
     let destination_path = ui.cwd().join(&args.destination);
     if destination_path.exists() {
-        return Err(CommandError::UserError(
-            "Workspace already exists".to_string(),
-        ));
+        return Err(UserError("Workspace already exists".to_string()));
     } else {
         fs::create_dir(&destination_path).unwrap();
     }
@@ -3925,7 +3908,7 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
 
 fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
     match store.git_repo() {
-        None => Err(CommandError::UserError(
+        None => Err(UserError(
             "The repo is not backed by a git repo".to_string(),
         )),
         Some(git_repo) => Ok(git_repo),
@@ -3941,11 +3924,11 @@ fn cmd_git_remote_add(
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     if git_repo.find_remote(&args.remote).is_ok() {
-        return Err(CommandError::UserError("Remote already exists".to_string()));
+        return Err(UserError("Remote already exists".to_string()));
     }
     git_repo
         .remote(&args.remote, &args.url)
-        .map_err(|err| CommandError::UserError(err.to_string()))?;
+        .map_err(|err| UserError(err.to_string()))?;
     Ok(())
 }
 
@@ -3958,11 +3941,11 @@ fn cmd_git_remote_remove(
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     if git_repo.find_remote(&args.remote).is_err() {
-        return Err(CommandError::UserError("Remote doesn't exist".to_string()));
+        return Err(UserError("Remote doesn't exist".to_string()));
     }
     git_repo
         .remote_delete(&args.remote)
-        .map_err(|err| CommandError::UserError(err.to_string()))?;
+        .map_err(|err| UserError(err.to_string()))?;
     let mut branches_to_delete = vec![];
     for (branch, target) in repo.view().branches() {
         if target.remote_targets.contains_key(&args.remote) {
@@ -3989,11 +3972,11 @@ fn cmd_git_remote_rename(
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     if git_repo.find_remote(&args.old).is_err() {
-        return Err(CommandError::UserError("Remote doesn't exist".to_string()));
+        return Err(UserError("Remote doesn't exist".to_string()));
     }
     git_repo
         .remote_rename(&args.old, &args.new)
-        .map_err(|err| CommandError::UserError(err.to_string()))?;
+        .map_err(|err| UserError(err.to_string()))?;
     let mut tx = workspace_command
         .start_transaction(&format!("rename git remote {} to {}", &args.old, &args.new));
     tx.mut_repo().rename_remote(&args.old, &args.new);
@@ -4029,7 +4012,7 @@ fn cmd_git_fetch(
     let mut tx =
         workspace_command.start_transaction(&format!("fetch from git remote {}", &args.remote));
     git_fetch(ui, tx.mut_repo(), &git_repo, &args.remote)
-        .map_err(|err| CommandError::UserError(err.to_string()))?;
+        .map_err(|err| UserError(err.to_string()))?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -4056,7 +4039,7 @@ fn cmd_git_clone(
     args: &GitCloneArgs,
 ) -> Result<(), CommandError> {
     if command.global_args().repository.is_some() {
-        return Err(CommandError::UserError(
+        return Err(UserError(
             "'--repository' cannot be used with 'git clone'".to_string(),
         ));
     }
@@ -4066,15 +4049,13 @@ fn cmd_git_clone(
         .as_deref()
         .or_else(|| clone_destination_for_source(source))
         .ok_or_else(|| {
-            CommandError::UserError(
-                "No destination specified and wasn't able to guess it".to_string(),
-            )
+            UserError("No destination specified and wasn't able to guess it".to_string())
         })?;
     let wc_path = ui.cwd().join(wc_path_str);
     let wc_path_existed = wc_path.exists();
     if wc_path_existed {
         if !is_empty_dir(&wc_path) {
-            return Err(CommandError::UserError(
+            return Err(UserError(
                 "Destination path exists and is not an empty directory".to_string(),
             ));
         }
@@ -4143,9 +4124,7 @@ fn do_git_clone(
             GitFetchError::NoSuchRemote(_) => {
                 panic!("shouldn't happen as we just created the git remote")
             }
-            GitFetchError::InternalGitError(err) => {
-                CommandError::UserError(format!("Fetch failed: {err}"))
-            }
+            GitFetchError::InternalGitError(err) => UserError(format!("Fetch failed: {err}")),
         })?;
     workspace_command.finish_transaction(ui, fetch_tx)?;
     Ok((workspace_command, maybe_default_branch))
@@ -4434,7 +4413,7 @@ fn cmd_git_push(
 
     let git_repo = get_git_repo(repo.store())?;
     git::push_updates(&git_repo, &args.remote, &ref_updates)
-        .map_err(|err| CommandError::UserError(err.to_string()))?;
+        .map_err(|err| UserError(err.to_string()))?;
     git::import_refs(tx.mut_repo(), &git_repo)?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -4447,16 +4426,15 @@ fn branch_updates_for_push(
 ) -> Result<Option<BranchPushUpdate>, CommandError> {
     let maybe_branch_target = repo.view().get_branch(branch_name);
     let branch_target = maybe_branch_target
-        .ok_or_else(|| CommandError::UserError(format!("Branch {} doesn't exist", branch_name)))?;
+        .ok_or_else(|| UserError(format!("Branch {} doesn't exist", branch_name)))?;
     let push_action = classify_branch_push_action(branch_target, remote_name);
 
     match push_action {
         BranchPushAction::AlreadyMatches => Ok(None),
-        BranchPushAction::LocalConflicted => Err(CommandError::UserError(format!(
-            "Branch {} is conflicted",
-            branch_name
-        ))),
-        BranchPushAction::RemoteConflicted => Err(CommandError::UserError(format!(
+        BranchPushAction::LocalConflicted => {
+            Err(UserError(format!("Branch {} is conflicted", branch_name)))
+        }
+        BranchPushAction::RemoteConflicted => Err(UserError(format!(
             "Branch {}@{} is conflicted",
             branch_name, remote_name
         ))),
