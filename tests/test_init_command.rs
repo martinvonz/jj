@@ -14,7 +14,7 @@
 
 use std::path::PathBuf;
 
-use crate::common::TestEnvironment;
+use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
 pub mod common;
 
@@ -140,6 +140,24 @@ fn test_init_git_colocated() {
     insta::assert_snapshot!(stdout, @r###"
     o 8d698d4a8ee1 d3866db7e30a git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch   HEAD@git
     ~ My commit message
+    "###);
+}
+
+#[test]
+fn test_init_git_internal_but_could_be_colocated() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    init_git_repo(&workspace_root);
+
+    let assert = test_env
+        .jj_cmd(&workspace_root, &["init", "--git"])
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    Initialized repo in "."
+    "###);
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Empty repo created. To create repo backed by existing Git repo, run `jj init --git-repo=.` instead.
     "###);
 }
 
