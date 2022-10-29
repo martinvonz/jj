@@ -19,7 +19,7 @@ use git2::Oid;
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git;
-use jujutsu_lib::git::{GitFetchError, GitPushError, GitRefUpdate};
+use jujutsu_lib::git::{GitExportError, GitFetchError, GitPushError, GitRefUpdate};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::repo::ReadonlyRepo;
@@ -616,6 +616,47 @@ fn test_export_import_sequence() {
             removes: vec![commit_a.id().clone()],
             adds: vec![commit_b.id().clone(), commit_c.id().clone()],
         })
+    );
+}
+
+#[test]
+fn test_export_conflicts() {
+    // We skip export of conflicted branches
+    let mut test_data = GitRepoData::create();
+    let git_repo = test_data.git_repo;
+    let mut tx = test_data.repo.start_transaction("test");
+    let commit_a =
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
+    let commit_b =
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
+    let commit_c =
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
+    tx.mut_repo()
+        .set_local_branch("main".to_string(), RefTarget::Normal(commit_a.id().clone()));
+    tx.mut_repo().set_local_branch(
+        "feature".to_string(),
+        RefTarget::Normal(commit_a.id().clone()),
+    );
+    test_data.repo = tx.commit();
+    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+
+    // Create a conflict and export. It should not be exported, but other changes
+    // should be.
+    let mut tx = test_data.repo.start_transaction("test");
+    tx.mut_repo()
+        .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
+    tx.mut_repo().set_local_branch(
+        "feature".to_string(),
+        RefTarget::Conflict {
+            removes: vec![commit_a.id().clone()],
+            adds: vec![commit_b.id().clone(), commit_c.id().clone()],
+        },
+    );
+    test_data.repo = tx.commit();
+    // TODO: Make it succeed instead, just skipping the conflicted branch
+    assert_eq!(
+        git::export_refs(&test_data.repo, &git_repo),
+        Err(GitExportError::ConflictedBranch("feature".to_string()))
     );
 }
 
