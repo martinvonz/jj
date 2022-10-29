@@ -78,6 +78,7 @@ enum Commands {
     Obslog(ObslogArgs),
     Interdiff(InterdiffArgs),
     Describe(DescribeArgs),
+    Commit(CommitArgs),
     Close(CloseArgs),
     Open(OpenArgs),
     Duplicate(DuplicateArgs),
@@ -349,12 +350,21 @@ struct DescribeArgs {
     stdin: bool,
 }
 
+/// Update the description and create a new change on top.
+#[derive(clap::Args, Clone, Debug)]
+#[command(hide = true)]
+struct CommitArgs {
+    /// The change description to use (don't open editor)
+    #[arg(long, short)]
+    message: Option<String>,
+}
+
 /// Mark a revision closed
 ///
 /// For information about open/closed revisions, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[command(visible_alias = "commit", hide = true)]
+#[command(hide = true)]
 struct CloseArgs {
     /// The revision to close
     #[arg(default_value = "@")]
@@ -2435,6 +2445,45 @@ fn cmd_describe(
             .write_to_repo(tx.mut_repo());
         workspace_command.finish_transaction(ui, tx)?;
     }
+    Ok(())
+}
+
+fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+
+    let commit_id = workspace_command
+        .repo()
+        .view()
+        .get_wc_commit_id(&workspace_command.workspace_id())
+        .ok_or_else(|| UserError("This command requires a working copy".to_string()))?;
+    let commit = workspace_command.repo().store().get_commit(commit_id)?;
+
+    let mut commit_builder =
+        CommitBuilder::for_rewrite_from(ui.settings(), &commit).set_open(false);
+    let description = if let Some(message) = &args.message {
+        message.to_string()
+    } else {
+        edit_description(ui, workspace_command.repo(), commit.description())?
+    };
+    commit_builder = commit_builder.set_description(description);
+    let mut tx = workspace_command.start_transaction(&format!("commit {}", commit.id().hex()));
+    let new_commit = commit_builder.write_to_repo(tx.mut_repo());
+    let workspace_ids = tx
+        .mut_repo()
+        .view()
+        .workspaces_for_wc_commit_id(commit.id());
+    if !workspace_ids.is_empty() {
+        let new_checkout = CommitBuilder::for_open_commit(
+            ui.settings(),
+            new_commit.id().clone(),
+            new_commit.tree_id().clone(),
+        )
+        .write_to_repo(tx.mut_repo());
+        for workspace_id in workspace_ids {
+            tx.mut_repo().edit(workspace_id, &new_checkout).unwrap();
+        }
+    }
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
@@ -4527,6 +4576,7 @@ pub fn run_command(
         Commands::Interdiff(sub_args) => cmd_interdiff(ui, command_helper, sub_args),
         Commands::Obslog(sub_args) => cmd_obslog(ui, command_helper, sub_args),
         Commands::Describe(sub_args) => cmd_describe(ui, command_helper, sub_args),
+        Commands::Commit(sub_args) => cmd_commit(ui, command_helper, sub_args),
         Commands::Close(sub_args) => cmd_close(ui, command_helper, sub_args),
         Commands::Open(sub_args) => cmd_open(ui, command_helper, sub_args),
         Commands::Duplicate(sub_args) => cmd_duplicate(ui, command_helper, sub_args),
