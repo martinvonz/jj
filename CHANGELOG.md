@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `committer(needle)`, `merges()` revsets. Use `x & description(needle)`
   instead.
 
+* `jj commit` is now a separate command from `jj close` (which is deprecated).
+  The behavior has changed slightly. It now always asks for a description, even
+  if there already was a description set. It now also only works on the
+  working-copy commit (there's no `-r` argument).
+
 ### New features
 
 * The new `jj git remote rename` command allows git remotes to be renamed
