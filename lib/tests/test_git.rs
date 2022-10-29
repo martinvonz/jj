@@ -49,8 +49,12 @@ fn empty_git_commit<'r>(
     git_repo.find_commit(oid).unwrap()
 }
 
-fn commit_id(commit: &git2::Commit) -> CommitId {
+fn jj_id(commit: &git2::Commit) -> CommitId {
     CommitId::from_bytes(commit.id().as_bytes())
+}
+
+fn git_id(commit: &Commit) -> Oid {
+    Oid::from_bytes(commit.id().as_bytes()).unwrap()
 }
 
 #[test]
@@ -80,16 +84,16 @@ fn test_import_refs() {
     let view = repo.view();
 
     let expected_heads = hashset! {
-        commit_id(&commit3),
-        commit_id(&commit4),
-        commit_id(&commit5)
+        jj_id(&commit3),
+        jj_id(&commit4),
+        jj_id(&commit5)
     };
     assert_eq!(*view.heads(), expected_heads);
 
     let expected_main_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(commit_id(&commit2))),
+        local_target: Some(RefTarget::Normal(jj_id(&commit2))),
         remote_targets: btreemap! {
-          "origin".to_string() => RefTarget::Normal(commit_id(&commit1)),
+          "origin".to_string() => RefTarget::Normal(jj_id(&commit1)),
         },
     };
     assert_eq!(
@@ -97,7 +101,7 @@ fn test_import_refs() {
         Some(expected_main_branch).as_ref()
     );
     let expected_feature1_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(commit_id(&commit3))),
+        local_target: Some(RefTarget::Normal(jj_id(&commit3))),
         remote_targets: btreemap! {},
     };
     assert_eq!(
@@ -105,7 +109,7 @@ fn test_import_refs() {
         Some(expected_feature1_branch).as_ref()
     );
     let expected_feature2_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(commit_id(&commit4))),
+        local_target: Some(RefTarget::Normal(jj_id(&commit4))),
         remote_targets: btreemap! {},
     };
     assert_eq!(
@@ -115,31 +119,31 @@ fn test_import_refs() {
 
     assert_eq!(
         view.tags().get("v1.0"),
-        Some(RefTarget::Normal(commit_id(&commit5))).as_ref()
+        Some(RefTarget::Normal(jj_id(&commit5))).as_ref()
     );
 
     assert_eq!(view.git_refs().len(), 5);
     assert_eq!(
         view.git_refs().get("refs/heads/main"),
-        Some(RefTarget::Normal(commit_id(&commit2))).as_ref()
+        Some(RefTarget::Normal(jj_id(&commit2))).as_ref()
     );
     assert_eq!(
         view.git_refs().get("refs/heads/feature1"),
-        Some(RefTarget::Normal(commit_id(&commit3))).as_ref()
+        Some(RefTarget::Normal(jj_id(&commit3))).as_ref()
     );
     assert_eq!(
         view.git_refs().get("refs/heads/feature2"),
-        Some(RefTarget::Normal(commit_id(&commit4))).as_ref()
+        Some(RefTarget::Normal(jj_id(&commit4))).as_ref()
     );
     assert_eq!(
         view.git_refs().get("refs/remotes/origin/main"),
-        Some(RefTarget::Normal(commit_id(&commit1))).as_ref()
+        Some(RefTarget::Normal(jj_id(&commit1))).as_ref()
     );
     assert_eq!(
         view.git_refs().get("refs/tags/v1.0"),
-        Some(RefTarget::Normal(commit_id(&commit5))).as_ref()
+        Some(RefTarget::Normal(jj_id(&commit5))).as_ref()
     );
-    assert_eq!(view.git_head(), Some(commit_id(&commit2)));
+    assert_eq!(view.git_head(), Some(jj_id(&commit2)));
 }
 
 #[test]
@@ -172,7 +176,7 @@ fn test_import_refs_reimport() {
     // Also modify feature2 on the jj side
     let mut tx = repo.start_transaction("test");
     let commit6 = create_random_commit(&settings, &repo)
-        .set_parents(vec![commit_id(&commit2)])
+        .set_parents(vec![jj_id(&commit2)])
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().set_local_branch(
         "feature2".to_string(),
@@ -187,16 +191,16 @@ fn test_import_refs_reimport() {
 
     let view = repo.view();
     let expected_heads = hashset! {
-            commit_id(&commit5),
+            jj_id(&commit5),
             commit6.id().clone(),
     };
     assert_eq!(*view.heads(), expected_heads);
 
     assert_eq!(view.branches().len(), 2);
-    let commit1_target = RefTarget::Normal(commit_id(&commit1));
-    let commit2_target = RefTarget::Normal(commit_id(&commit2));
+    let commit1_target = RefTarget::Normal(jj_id(&commit1));
+    let commit2_target = RefTarget::Normal(jj_id(&commit2));
     let expected_main_branch = BranchTarget {
-        local_target: Some(RefTarget::Normal(commit_id(&commit2))),
+        local_target: Some(RefTarget::Normal(jj_id(&commit2))),
         remote_targets: btreemap! {
           "origin".to_string() => commit1_target.clone(),
         },
@@ -207,8 +211,8 @@ fn test_import_refs_reimport() {
     );
     let expected_feature2_branch = BranchTarget {
         local_target: Some(RefTarget::Conflict {
-            removes: vec![commit_id(&commit4)],
-            adds: vec![commit6.id().clone(), commit_id(&commit5)],
+            removes: vec![jj_id(&commit4)],
+            adds: vec![commit6.id().clone(), jj_id(&commit5)],
         }),
         remote_targets: btreemap! {},
     };
@@ -228,7 +232,7 @@ fn test_import_refs_reimport() {
         view.git_refs().get("refs/remotes/origin/main"),
         Some(commit1_target).as_ref()
     );
-    let commit5_target = RefTarget::Normal(commit_id(&commit5));
+    let commit5_target = RefTarget::Normal(jj_id(&commit5));
     assert_eq!(
         view.git_refs().get("refs/heads/feature2"),
         Some(commit5_target).as_ref()
@@ -247,7 +251,7 @@ fn test_import_refs_reimport_head_removed() {
     let mut tx = repo.start_transaction("test");
     git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let commit_id = CommitId::from_bytes(commit.id().as_bytes());
+    let commit_id = jj_id(&commit);
     // Test the setup
     assert!(tx.mut_repo().view().heads().contains(&commit_id));
 
@@ -283,8 +287,7 @@ fn test_import_refs_reimport_git_head_counts() {
         .unwrap();
     git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let commit_id = CommitId::from_bytes(commit.id().as_bytes());
-    assert!(tx.mut_repo().view().heads().contains(&commit_id));
+    assert!(tx.mut_repo().view().heads().contains(&jj_id(&commit)));
 }
 
 #[test]
@@ -300,9 +303,8 @@ fn test_import_refs_reimport_all_from_root_removed() {
     let mut tx = repo.start_transaction("test");
     git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let commit_id = CommitId::from_bytes(commit.id().as_bytes());
     // Test the setup
-    assert!(tx.mut_repo().view().heads().contains(&commit_id));
+    assert!(tx.mut_repo().view().heads().contains(&jj_id(&commit)));
 
     // Remove all git refs and re-import
     git_repo
@@ -312,7 +314,7 @@ fn test_import_refs_reimport_all_from_root_removed() {
         .unwrap();
     git::import_refs(tx.mut_repo(), &git_repo).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    assert!(!tx.mut_repo().view().heads().contains(&commit_id));
+    assert!(!tx.mut_repo().view().heads().contains(&jj_id(&commit)));
 }
 
 fn git_ref(git_repo: &git2::Repository, name: &str, target: Oid) {
@@ -394,13 +396,10 @@ fn test_import_refs_detached_head() {
         .unwrap();
     let repo = tx.commit();
 
-    let expected_heads = hashset! { commit_id(&commit1) };
+    let expected_heads = hashset! { jj_id(&commit1) };
     assert_eq!(*repo.view().heads(), expected_heads);
     assert_eq!(repo.view().git_refs().len(), 0);
-    assert_eq!(
-        repo.view().git_head(),
-        Some(CommitId::from_bytes(commit1.id().as_bytes()))
-    );
+    assert_eq!(repo.view().git_head(), Some(jj_id(&commit1)));
 }
 
 #[test]
@@ -473,7 +472,7 @@ fn test_export_refs_branch_changed() {
     assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
     let mut tx = test_data.repo.start_transaction("test");
     let new_commit = create_random_commit(&test_data.settings, &test_data.repo)
-        .set_parents(vec![CommitId::from_bytes(commit.id().as_bytes())])
+        .set_parents(vec![jj_id(&commit)])
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().set_local_branch(
         "main".to_string(),
@@ -488,7 +487,7 @@ fn test_export_refs_branch_changed() {
             .peel_to_commit()
             .unwrap()
             .id(),
-        Oid::from_bytes(new_commit.id().as_bytes()).unwrap()
+        git_id(&new_commit)
     );
     // HEAD should be unchanged since its target branch didn't change
     assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/feature"));
@@ -511,7 +510,7 @@ fn test_export_refs_current_branch_changed() {
     assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
     let mut tx = test_data.repo.start_transaction("test");
     let new_commit = create_random_commit(&test_data.settings, &test_data.repo)
-        .set_parents(vec![CommitId::from_bytes(commit1.id().as_bytes())])
+        .set_parents(vec![jj_id(&commit1)])
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().set_local_branch(
         "main".to_string(),
@@ -526,7 +525,7 @@ fn test_export_refs_current_branch_changed() {
             .peel_to_commit()
             .unwrap()
             .id(),
-        Oid::from_bytes(new_commit.id().as_bytes()).unwrap()
+        git_id(&new_commit)
     );
     assert!(git_repo.head_detached().unwrap());
 }
@@ -561,7 +560,7 @@ fn test_export_refs_unborn_git_branch() {
             .peel_to_commit()
             .unwrap()
             .id(),
-        Oid::from_bytes(new_commit.id().as_bytes()).unwrap()
+        git_id(&new_commit)
     );
     // It's weird that the head is still pointing to refs/heads/main, but
     // it doesn't seem that Git lets you be on an "unborn branch" while
@@ -577,7 +576,6 @@ fn test_init() {
     let jj_repo_dir = temp_dir.path().join("jj");
     let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
     let initial_git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
-    let initial_commit_id = commit_id(&initial_git_commit);
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let repo = ReadonlyRepo::init(&settings, &jj_repo_dir, |store_path| {
         Box::new(GitBackend::init_external(store_path, &git_repo_dir))
@@ -585,7 +583,7 @@ fn test_init() {
     .unwrap();
     // The refs were *not* imported -- it's the caller's responsibility to import
     // any refs they care about.
-    assert!(!repo.view().heads().contains(&initial_commit_id));
+    assert!(!repo.view().heads().contains(&jj_id(&initial_git_commit)));
 }
 
 #[test]
@@ -624,8 +622,8 @@ fn test_fetch_initial_commit() {
     let repo = tx.commit();
     // The initial commit is visible after git::fetch().
     let view = repo.view();
-    assert!(view.heads().contains(&commit_id(&initial_git_commit)));
-    let initial_commit_target = RefTarget::Normal(commit_id(&initial_git_commit));
+    assert!(view.heads().contains(&jj_id(&initial_git_commit)));
+    let initial_commit_target = RefTarget::Normal(jj_id(&initial_git_commit));
     assert_eq!(
         *view.git_refs(),
         btreemap! {
@@ -678,8 +676,8 @@ fn test_fetch_success() {
     let repo = tx.commit();
     // The new commit is visible after we fetch again
     let view = repo.view();
-    assert!(view.heads().contains(&commit_id(&new_git_commit)));
-    let new_commit_target = RefTarget::Normal(commit_id(&new_git_commit));
+    assert!(view.heads().contains(&jj_id(&new_git_commit)));
+    let new_commit_target = RefTarget::Normal(jj_id(&new_git_commit));
     assert_eq!(
         *view.git_refs(),
         btreemap! {
@@ -794,7 +792,6 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let jj_repo_dir = temp_dir.path().join("jj");
     let source_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
     let initial_git_commit = empty_git_commit(&source_repo, "refs/heads/main", &[]);
-    let initial_commit_id = commit_id(&initial_git_commit);
     git2::Repository::clone(source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let jj_repo = ReadonlyRepo::init(settings, &jj_repo_dir, |store_path| {
@@ -803,7 +800,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     .unwrap();
     let mut tx = jj_repo.start_transaction("test");
     let new_commit = create_random_commit(settings, &jj_repo)
-        .set_parents(vec![initial_commit_id])
+        .set_parents(vec![jj_id(&initial_git_commit)])
         .write_to_repo(tx.mut_repo());
     let jj_repo = tx.commit();
     PushTestSetup {
@@ -837,7 +834,7 @@ fn test_push_updates_success() {
         .find_reference("refs/heads/main")
         .unwrap()
         .target();
-    let new_oid = Oid::from_bytes(setup.new_commit.id().as_bytes()).unwrap();
+    let new_oid = git_id(&setup.new_commit);
     assert_eq!(new_target, Some(new_oid));
 
     // Check that the ref got updated in the cloned repo. This just tests our
@@ -915,8 +912,7 @@ fn test_push_updates_mixed_deletion_and_addition() {
         .find_reference("refs/heads/topic")
         .unwrap()
         .target();
-    let new_oid = Oid::from_bytes(setup.new_commit.id().as_bytes()).unwrap();
-    assert_eq!(new_target, Some(new_oid));
+    assert_eq!(new_target, Some(git_id(&setup.new_commit)));
 
     // Check that the main ref got deleted in the source repo
     assert!(source_repo.find_reference("refs/heads/main").is_err());
@@ -969,8 +965,7 @@ fn test_push_updates_not_fast_forward_with_force() {
         .find_reference("refs/heads/main")
         .unwrap()
         .target();
-    let new_oid = Oid::from_bytes(new_commit.id().as_bytes()).unwrap();
-    assert_eq!(new_target, Some(new_oid));
+    assert_eq!(new_target, Some(git_id(&new_commit)));
 }
 
 #[test]
