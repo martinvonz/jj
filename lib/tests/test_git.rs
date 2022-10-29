@@ -569,6 +569,57 @@ fn test_export_refs_unborn_git_branch() {
 }
 
 #[test]
+fn test_export_import_sequence() {
+    // Import a branch pointing to A, modify it in jj to point to B, export it,
+    // modify it in git to point to C, then import it again. There should be no
+    // conflict.
+    let mut test_data = GitRepoData::create();
+    let git_repo = test_data.git_repo;
+    let mut tx = test_data.repo.start_transaction("test");
+    let commit_a =
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
+    let commit_b =
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
+    let commit_c =
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
+    test_data.repo = tx.commit();
+
+    // Import the branch pointing to A
+    git_repo
+        .reference("refs/heads/main", git_id(&commit_a), true, "test")
+        .unwrap();
+    let mut tx = test_data.repo.start_transaction("test");
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    test_data.repo = tx.commit();
+
+    // Modify the branch in jj to point to B
+    let mut tx = test_data.repo.start_transaction("test");
+    tx.mut_repo()
+        .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
+    test_data.repo = tx.commit();
+
+    // Export the branch to git
+    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+
+    // Modify the branch in git to point to C
+    git_repo
+        .reference("refs/heads/main", git_id(&commit_c), true, "test")
+        .unwrap();
+
+    // Import from git
+    let mut tx = test_data.repo.start_transaction("test");
+    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    // TODO: The branch should point to C, it shouldn't be a conflict
+    assert_eq!(
+        tx.mut_repo().view().get_local_branch("main"),
+        Some(RefTarget::Conflict {
+            removes: vec![commit_a.id().clone()],
+            adds: vec![commit_b.id().clone(), commit_c.id().clone()],
+        })
+    );
+}
+
+#[test]
 fn test_init() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
