@@ -26,7 +26,7 @@ use jujutsu_lib::revset::{
 };
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
-use testutils::{CommitGraphBuilder, TestRepo, TestWorkspace};
+use testutils::{create_random_commit, CommitGraphBuilder, TestRepo, TestWorkspace};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -263,8 +263,8 @@ fn test_resolve_symbol_checkout(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
 
     let ws1 = WorkspaceId::new("ws1".to_string());
     let ws2 = WorkspaceId::new("ws2".to_string());
@@ -315,11 +315,11 @@ fn test_resolve_symbol_git_refs() {
     let mut_repo = tx.mut_repo();
 
     // Create some commits and refs to work with and so the repo is not empty
-    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit5 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit3 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit4 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit5 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.set_git_ref(
         "refs/heads/branch1".to_string(),
         RefTarget::Normal(commit1.id().clone()),
@@ -476,7 +476,7 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
     let mut_repo = tx.mut_repo();
 
     let root_commit = repo.store().root_commit();
-    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
 
     // Can find the root commit
     assert_eq!(
@@ -701,17 +701,17 @@ fn test_evaluate_expression_children(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, repo)
+    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = create_random_commit(&settings, repo)
         .set_parents(vec![commit1.id().clone()])
         .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, repo)
+    let commit3 = create_random_commit(&settings, repo)
         .set_parents(vec![commit2.id().clone()])
         .write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, repo)
+    let commit4 = create_random_commit(&settings, repo)
         .set_parents(vec![commit1.id().clone()])
         .write_to_repo(mut_repo);
-    let commit5 = testutils::create_random_commit(&settings, repo)
+    let commit5 = create_random_commit(&settings, repo)
         .set_parents(vec![commit3.id().clone(), commit4.id().clone()])
         .write_to_repo(mut_repo);
 
@@ -1005,17 +1005,17 @@ fn test_evaluate_expression_descendants(use_git: bool) {
     let mut_repo = tx.mut_repo();
 
     let root_commit_id = repo.store().root_commit_id().clone();
-    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, repo)
+    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = create_random_commit(&settings, repo)
         .set_parents(vec![commit1.id().clone()])
         .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, repo)
+    let commit3 = create_random_commit(&settings, repo)
         .set_parents(vec![commit2.id().clone()])
         .write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, repo)
+    let commit4 = create_random_commit(&settings, repo)
         .set_parents(vec![commit1.id().clone()])
         .write_to_repo(mut_repo);
-    let commit5 = testutils::create_random_commit(&settings, repo)
+    let commit5 = create_random_commit(&settings, repo)
         .set_parents(vec![commit3.id().clone(), commit4.id().clone()])
         .write_to_repo(mut_repo);
 
@@ -1144,10 +1144,10 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit3 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit4 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
 
     // Can get git refs when there are none
     assert_eq!(
@@ -1213,7 +1213,7 @@ fn test_evaluate_expression_git_head(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
 
     // Can get git head when it's not set
     assert_eq!(
@@ -1237,10 +1237,10 @@ fn test_evaluate_expression_branches(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit3 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit4 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
 
     // Can get branches when there are none
     assert_eq!(
@@ -1306,10 +1306,10 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit4 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit3 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit4 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
 
     // Can get branches when there are none
     assert_eq!(
@@ -1417,14 +1417,14 @@ fn test_evaluate_expression_description(use_git: bool) {
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = testutils::create_random_commit(&settings, repo)
+    let commit1 = create_random_commit(&settings, repo)
         .set_description("commit 1".to_string())
         .write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, repo)
+    let commit2 = create_random_commit(&settings, repo)
         .set_parents(vec![commit1.id().clone()])
         .set_description("commit 2".to_string())
         .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, repo)
+    let commit3 = create_random_commit(&settings, repo)
         .set_parents(vec![commit2.id().clone()])
         .set_description("commit 3".to_string())
         .write_to_repo(mut_repo);
@@ -1467,14 +1467,14 @@ fn test_evaluate_expression_author(use_git: bool) {
         timestamp: MillisSinceEpoch(0),
         tz_offset: 0,
     };
-    let commit1 = testutils::create_random_commit(&settings, repo)
+    let commit1 = create_random_commit(&settings, repo)
         .set_author(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
             timestamp: timestamp.clone(),
         })
         .write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, repo)
+    let commit2 = create_random_commit(&settings, repo)
         .set_parents(vec![commit1.id().clone()])
         .set_author(Signature {
             name: "name2".to_string(),
@@ -1482,7 +1482,7 @@ fn test_evaluate_expression_author(use_git: bool) {
             timestamp: timestamp.clone(),
         })
         .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, repo)
+    let commit3 = create_random_commit(&settings, repo)
         .set_parents(vec![commit2.id().clone()])
         .set_author(Signature {
             name: "name3".to_string(),
@@ -1530,14 +1530,14 @@ fn test_evaluate_expression_committer(use_git: bool) {
         timestamp: MillisSinceEpoch(0),
         tz_offset: 0,
     };
-    let commit1 = testutils::create_random_commit(&settings, repo)
+    let commit1 = create_random_commit(&settings, repo)
         .set_committer(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
             timestamp: timestamp.clone(),
         })
         .write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, repo)
+    let commit2 = create_random_commit(&settings, repo)
         .set_parents(vec![commit1.id().clone()])
         .set_committer(Signature {
             name: "name2".to_string(),
@@ -1545,7 +1545,7 @@ fn test_evaluate_expression_committer(use_git: bool) {
             timestamp: timestamp.clone(),
         })
         .write_to_repo(mut_repo);
-    let commit3 = testutils::create_random_commit(&settings, repo)
+    let commit3 = create_random_commit(&settings, repo)
         .set_parents(vec![commit2.id().clone()])
         .set_committer(Signature {
             name: "name3".to_string(),

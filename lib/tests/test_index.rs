@@ -25,7 +25,7 @@ use testutils::{create_random_commit, CommitGraphBuilder, TestRepo};
 
 #[must_use]
 fn child_commit(settings: &UserSettings, repo: &ReadonlyRepo, commit: &Commit) -> CommitBuilder {
-    testutils::create_random_commit(settings, repo).set_parents(vec![commit.id().clone()])
+    create_random_commit(settings, repo).set_parents(vec![commit.id().clone()])
 }
 
 // Helper just to reduce line wrapping

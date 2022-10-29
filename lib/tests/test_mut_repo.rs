@@ -16,7 +16,7 @@ use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use maplit::hashset;
 use test_case::test_case;
-use testutils::{assert_rebased, CommitGraphBuilder, TestRepo};
+use testutils::{assert_rebased, create_random_commit, CommitGraphBuilder, TestRepo};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -27,7 +27,7 @@ fn test_edit(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
-    let wc_commit = testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
+    let wc_commit = create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -46,8 +46,7 @@ fn test_checkout(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
-    let requested_checkout =
-        testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
+    let requested_checkout = create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -76,14 +75,14 @@ fn test_checkout_previous_not_empty(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let old_checkout = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let old_checkout = create_random_commit(&settings, repo).write_to_repo(mut_repo);
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let new_checkout = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let new_checkout = create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     mut_repo.edit(ws_id, &new_checkout).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
     assert!(mut_repo.view().heads().contains(old_checkout.id()));
@@ -112,7 +111,7 @@ fn test_checkout_previous_empty(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let new_wc_commit = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let new_wc_commit = create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     mut_repo.edit(ws_id, &new_wc_commit).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
     assert!(!mut_repo.view().heads().contains(old_checkout.id()));
@@ -142,7 +141,7 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let new_checkout = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let new_checkout = create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     mut_repo.edit(ws_id, &new_checkout).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
     assert!(mut_repo.view().heads().contains(old_checkout.id()));
@@ -177,7 +176,7 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let new_checkout = testutils::create_random_commit(&settings, &repo).write_to_repo(mut_repo);
+    let new_checkout = create_random_commit(&settings, &repo).write_to_repo(mut_repo);
     mut_repo.edit(ws_id, &new_checkout).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
     assert_eq!(
@@ -196,7 +195,7 @@ fn test_edit_initial(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
-    let checkout = testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
+    let checkout = create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -221,7 +220,7 @@ fn test_add_head_success(use_git: bool) {
     // Create a commit outside of the repo by using a temporary transaction. Then
     // add that as a head.
     let mut tx = repo.start_transaction("test");
-    let new_commit = testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
+    let new_commit = create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
     drop(tx);
 
     let index_stats = repo.index().stats();
@@ -284,17 +283,17 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
-    let initial = testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
+    let initial = create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
     // Create some commit outside of the repo by using a temporary transaction. Then
     // add one of them as a head.
     let mut tx = repo.start_transaction("test");
-    let rewritten = testutils::create_random_commit(&settings, &repo)
+    let rewritten = create_random_commit(&settings, &repo)
         .set_change_id(initial.change_id().clone())
         .set_predecessors(vec![initial.id().clone()])
         .write_to_repo(tx.mut_repo());
-    let child = testutils::create_random_commit(&settings, &repo)
+    let child = create_random_commit(&settings, &repo)
         .set_parents(vec![rewritten.id().clone()])
         .write_to_repo(tx.mut_repo());
     drop(tx);
@@ -370,7 +369,7 @@ fn test_add_public_head(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction("test");
-    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
+    let commit1 = create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction("test");
@@ -418,7 +417,7 @@ fn test_remove_public_head(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.add_public_head(&commit1);
     let repo = tx.commit();
 
@@ -443,8 +442,8 @@ fn test_has_changed(use_git: bool) {
 
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let commit1 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit2 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
     mut_repo.remove_head(commit2.id());
     mut_repo.add_public_head(&commit1);
     let ws_id = WorkspaceId::default();
@@ -607,7 +606,7 @@ fn test_rename_remote(use_git: bool) {
     let repo = &test_repo.repo;
     let mut tx = repo.start_transaction("test");
     let mut_repo = tx.mut_repo();
-    let commit = testutils::create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit = create_random_commit(&settings, repo).write_to_repo(mut_repo);
     let target = RefTarget::Normal(commit.id().clone());
     mut_repo.set_remote_branch("main".to_string(), "origin".to_string(), target.clone());
     mut_repo.rename_remote("origin", "upstream");

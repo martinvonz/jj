@@ -32,7 +32,7 @@ use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::tree_builder::TreeBuilder;
 use jujutsu_lib::working_copy::WorkingCopy;
 use test_case::test_case;
-use testutils::TestWorkspace;
+use testutils::{create_random_commit, TestWorkspace};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -164,7 +164,7 @@ fn test_checkout_file_transitions(use_git: bool) {
             }
             Kind::GitSubmodule => {
                 let mut tx = repo.start_transaction("test");
-                let id = testutils::create_random_commit(settings, repo)
+                let id = create_random_commit(settings, repo)
                     .write_to_repo(tx.mut_repo())
                     .id()
                     .clone();
