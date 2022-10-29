@@ -472,7 +472,7 @@ fn test_export_refs_branch_changed() {
 
     assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
     let mut tx = test_data.repo.start_transaction("test");
-    let new_commit = testutils::create_random_commit(&test_data.settings, &test_data.repo)
+    let new_commit = create_random_commit(&test_data.settings, &test_data.repo)
         .set_parents(vec![CommitId::from_bytes(commit.id().as_bytes())])
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().set_local_branch(
@@ -510,7 +510,7 @@ fn test_export_refs_current_branch_changed() {
 
     assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
     let mut tx = test_data.repo.start_transaction("test");
-    let new_commit = testutils::create_random_commit(&test_data.settings, &test_data.repo)
+    let new_commit = create_random_commit(&test_data.settings, &test_data.repo)
         .set_parents(vec![CommitId::from_bytes(commit1.id().as_bytes())])
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().set_local_branch(
@@ -546,8 +546,8 @@ fn test_export_refs_unborn_git_branch() {
 
     assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
     let mut tx = test_data.repo.start_transaction("test");
-    let new_commit = testutils::create_random_commit(&test_data.settings, &test_data.repo)
-        .write_to_repo(tx.mut_repo());
+    let new_commit =
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
     tx.mut_repo().set_local_branch(
         "main".to_string(),
         RefTarget::Normal(new_commit.id().clone()),
@@ -802,7 +802,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     })
     .unwrap();
     let mut tx = jj_repo.start_transaction("test");
-    let new_commit = testutils::create_random_commit(settings, &jj_repo)
+    let new_commit = create_random_commit(settings, &jj_repo)
         .set_parents(vec![initial_commit_id])
         .write_to_repo(tx.mut_repo());
     let jj_repo = tx.commit();
@@ -928,8 +928,7 @@ fn test_push_updates_not_fast_forward() {
     let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
     let mut tx = setup.jj_repo.start_transaction("test");
-    let new_commit =
-        testutils::create_random_commit(&settings, &setup.jj_repo).write_to_repo(tx.mut_repo());
+    let new_commit = create_random_commit(&settings, &setup.jj_repo).write_to_repo(tx.mut_repo());
     setup.jj_repo = tx.commit();
     let result = git::push_updates(
         &setup.jj_repo.store().git_repo().unwrap(),
@@ -950,8 +949,7 @@ fn test_push_updates_not_fast_forward_with_force() {
     let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
     let mut tx = setup.jj_repo.start_transaction("test");
-    let new_commit =
-        testutils::create_random_commit(&settings, &setup.jj_repo).write_to_repo(tx.mut_repo());
+    let new_commit = create_random_commit(&settings, &setup.jj_repo).write_to_repo(tx.mut_repo());
     setup.jj_repo = tx.commit();
     let result = git::push_updates(
         &setup.jj_repo.store().git_repo().unwrap(),

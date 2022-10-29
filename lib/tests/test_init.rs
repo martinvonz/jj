@@ -18,7 +18,7 @@ use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
-use testutils::TestWorkspace;
+use testutils::{create_random_commit, TestWorkspace};
 
 fn canonicalize(input: &Path) -> (PathBuf, PathBuf) {
     let uncanonical = input.join("..").join(input.file_name().unwrap());
@@ -38,7 +38,7 @@ fn test_init_local() {
 
     // Just test that we can write a commit to the store
     let mut tx = repo.start_transaction("test");
-    testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+    create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn test_init_internal_git() {
 
     // Just test that we ca write a commit to the store
     let mut tx = repo.start_transaction("test");
-    testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+    create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn test_init_external_git() {
 
     // Just test that we can write a commit to the store
     let mut tx = repo.start_transaction("test");
-    testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+    create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
 }
 
 #[test_case(false ; "local backend")]

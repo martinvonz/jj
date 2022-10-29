@@ -18,7 +18,7 @@ use std::thread;
 use jujutsu_lib::dag_walk;
 use jujutsu_lib::repo::{BackendFactories, ReadonlyRepo};
 use test_case::test_case;
-use testutils::TestWorkspace;
+use testutils::{create_random_commit, TestWorkspace};
 
 fn count_non_merge_operations(repo: &ReadonlyRepo) -> usize {
     let op_store = repo.op_store();
@@ -54,7 +54,7 @@ fn test_commit_parallel(use_git: bool) {
         let repo = repo.clone();
         let handle = thread::spawn(move || {
             let mut tx = repo.start_transaction("test");
-            testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+            create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
             tx.commit();
         });
         threads.push(handle);
@@ -90,7 +90,7 @@ fn test_commit_parallel_instances(use_git: bool) {
                 .unwrap();
         let handle = thread::spawn(move || {
             let mut tx = repo.start_transaction("test");
-            testutils::create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
+            create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
             tx.commit();
         });
         threads.push(handle);

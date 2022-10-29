@@ -17,7 +17,7 @@ use std::path::Path;
 use jujutsu_lib::repo::{BackendFactories, ReadonlyRepo};
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
-use testutils::TestWorkspace;
+use testutils::{create_random_commit, TestWorkspace};
 
 fn copy_directory(src: &Path, dst: &Path) {
     std::fs::create_dir(dst).ok();
@@ -99,7 +99,7 @@ fn test_bad_locking_children(use_git: bool) {
     let workspace_root = test_workspace.workspace.workspace_root();
 
     let mut tx = repo.start_transaction("test");
-    let initial = testutils::create_random_commit(&settings, repo)
+    let initial = create_random_commit(&settings, repo)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write_to_repo(tx.mut_repo());
     tx.commit();
@@ -119,7 +119,7 @@ fn test_bad_locking_children(use_git: bool) {
         .resolve(&settings)
         .unwrap();
     let mut machine1_tx = machine1_repo.start_transaction("test");
-    let child1 = testutils::create_random_commit(&settings, &machine1_repo)
+    let child1 = create_random_commit(&settings, &machine1_repo)
         .set_parents(vec![initial.id().clone()])
         .write_to_repo(machine1_tx.mut_repo());
     machine1_tx.commit();
@@ -139,7 +139,7 @@ fn test_bad_locking_children(use_git: bool) {
         .resolve(&settings)
         .unwrap();
     let mut machine2_tx = machine2_repo.start_transaction("test");
-    let child2 = testutils::create_random_commit(&settings, &machine2_repo)
+    let child2 = create_random_commit(&settings, &machine2_repo)
         .set_parents(vec![initial.id().clone()])
         .write_to_repo(machine2_tx.mut_repo());
     machine2_tx.commit();
@@ -178,7 +178,7 @@ fn test_bad_locking_interrupted(use_git: bool) {
     let repo = &test_workspace.repo;
 
     let mut tx = repo.start_transaction("test");
-    let initial = testutils::create_random_commit(&settings, repo)
+    let initial = create_random_commit(&settings, repo)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write_to_repo(tx.mut_repo());
     let repo = tx.commit();
@@ -191,7 +191,7 @@ fn test_bad_locking_interrupted(use_git: bool) {
     let backup_path = testutils::new_temp_dir();
     copy_directory(&op_heads_dir, backup_path.path());
     let mut tx = repo.start_transaction("test");
-    testutils::create_random_commit(&settings, &repo)
+    create_random_commit(&settings, &repo)
         .set_parents(vec![initial.id().clone()])
         .write_to_repo(tx.mut_repo());
     let op_id = tx.commit().operation().id().clone();
