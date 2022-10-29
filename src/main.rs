@@ -23,6 +23,7 @@ fn run(ui: &mut Ui) -> Result<(), CommandError> {
 }
 
 fn main() {
+    jujutsu::cleanup_guard::init();
     let (mut ui, result) = create_ui();
     let result = result.and_then(|()| run(&mut ui));
     let exit_code = handle_command_result(&mut ui, result);
