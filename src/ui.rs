@@ -180,8 +180,30 @@ impl Ui {
     pub fn size(&self) -> Option<(u16, u16)> {
         crossterm::terminal::size().ok()
     }
+
+    /// Construct a guard object which writes `data` when dropped. Useful for
+    /// restoring terminal state.
+    pub fn output_guard(&self, text: String) -> OutputGuard {
+        OutputGuard {
+            text,
+            output: match self.output_pair {
+                UiOutputPair::Terminal { .. } => io::stdout(),
+            },
+        }
+    }
 }
 
 enum UiOutputPair {
     Terminal { stdout: Stdout, stderr: Stderr },
+}
+
+pub struct OutputGuard {
+    text: String,
+    output: Stdout,
+}
+
+impl Drop for OutputGuard {
+    fn drop(&mut self) {
+        _ = self.output.write_all(self.text.as_bytes());
+    }
 }

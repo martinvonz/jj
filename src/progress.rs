@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 use crossterm::terminal::{Clear, ClearType};
 use jujutsu_lib::git;
 
+use crate::cleanup_guard::CleanupGuard;
 use crate::ui::Ui;
 
 pub struct Progress<'a> {
@@ -10,6 +11,7 @@ pub struct Progress<'a> {
     next_print: Instant,
     rate: RateEstimate,
     buffer: String,
+    guard: Option<CleanupGuard>,
 }
 
 impl<'a> Progress<'a> {
@@ -19,6 +21,7 @@ impl<'a> Progress<'a> {
             next_print: now + INITIAL_DELAY,
             rate: RateEstimate::new(),
             buffer: String::new(),
+            guard: None,
         }
     }
 
@@ -31,6 +34,14 @@ impl<'a> Progress<'a> {
 
         if now < self.next_print {
             return;
+        }
+        if self.guard.is_none() {
+            let guard = self.ui.output_guard(crossterm::cursor::Show.to_string());
+            let guard = CleanupGuard::new(move || {
+                drop(guard);
+            });
+            _ = write!(self.ui, "{}", crossterm::cursor::Hide);
+            self.guard = Some(guard);
         }
         self.next_print = now.min(self.next_print + Duration::from_secs(1) / UPDATE_HZ);
 
