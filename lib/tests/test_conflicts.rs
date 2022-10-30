@@ -14,7 +14,7 @@
 
 use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
 use jujutsu_lib::conflicts::{materialize_conflict, parse_conflict, update_conflict_from_content};
-use jujutsu_lib::files::MergeHunk;
+use jujutsu_lib::files::{ConflictHunk, MergeHunk};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::Store;
 use testutils::TestRepo;
@@ -307,10 +307,10 @@ line 5
         ),
         Some(vec![
             MergeHunk::Resolved(b"line 1\n".to_vec()),
-            MergeHunk::Conflict {
+            MergeHunk::Conflict(ConflictHunk {
                 removes: vec![b"line 2\nline 3\nline 4\n".to_vec()],
                 adds: vec![b"line 2\nleft\nline 4\n".to_vec(), b"right\n".to_vec()]
-            },
+            }),
             MergeHunk::Resolved(b"line 5\n".to_vec())
         ])
     )
@@ -342,7 +342,7 @@ line 5
         ),
         Some(vec![
             MergeHunk::Resolved(b"line 1\n".to_vec()),
-            MergeHunk::Conflict {
+            MergeHunk::Conflict(ConflictHunk {
                 removes: vec![
                     b"line 2\nline 3\nline 4\n".to_vec(),
                     b"line 2\nline 3\nline 4\n".to_vec()
@@ -352,7 +352,7 @@ line 5
                     b"right\n".to_vec(),
                     b"line 2\nforward\nline 3\nline 4\n".to_vec()
                 ]
-            },
+            }),
             MergeHunk::Resolved(b"line 5\n".to_vec())
         ])
     )
