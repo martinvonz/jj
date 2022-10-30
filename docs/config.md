@@ -113,6 +113,70 @@ to diff:
     merge-tools.kdiff3.edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
 
 
+## 3-way merge tools for conflict resolution
+
+The `ui.merge-editor` key specifies the tool used for three-way merge
+tools by `jj resolve`.  For example:
+
+    ui.merge-editor = "meld"  # Or "kdiff3" or "vimdiff"
+
+The "meld", "kdiff3", and "vimdiff" tools can be used out of the box,
+as long as they are installed.
+
+To use a different tool named `TOOL`, the arguments to pass to the tool
+MUST be specified in the `merge-tools.TOOL.merge-args` key. As an example
+of how to set this key and other tool configuration options, here is
+the out-of-the-box configuration of the three default tools. (There is
+no need to copy it to your config file verbatim, but you are welcome to
+customize it.)
+
+    # merge-tools.kdiff3.program  = "kdiff3"     # Defaults to the name of the tool if not specified
+    merge-tools.kdiff3.merge-args = ["$base", "$left", "$right", "-o", "$output", "--auto"]
+    merge-tools.meld.merge-args   = ["$left", "$base", "$right", "-o", "$output", "--auto-merge"]
+
+    merge-tools.vimdiff.merge-args = ["-f", "-d", "$output", "-M",
+                                      "$left", "$base", "$right",
+                                      "-c", "wincmd J", "-c", "set modifiable",
+                                      "-c", "set write"]
+    merge-tools.vimdiff.program = "vim"
+    merge-tools.vimdiff.merge-tool-edits-conflict-markers = true    # See below for an explanation
+
+`jj` replaces the following arguments with the appropriate file names:
+
+- `$output` (REQUIRED) is replaced with the name of the file that the
+merge tool should output. `jj` will read this file after the merge tool
+exits.
+
+- `$left` and `$right` are replaced with the paths to two files containing
+the content of each side of the conflict.
+
+- `$base` is replaced with the path to a file containing the
+contents of the conflicted file in the last common ancestor of the two
+sides of the conflict.
+
+### Editing conflict markers with a tool or a text editor
+
+By default, the merge tool starts with an empty output file. If the tool
+puts anything into the output file, and exits with the 0 exit code,
+`jj` assumes that the conflict is fully resolved. This is appropriate
+for most graphical merge tools.
+
+Some tools (e.g. `vimdiff`) can present a multi-way diff but
+don't resolve conflict themselves. When using such tools, `jj`
+can help you by populating the output file with conflict markers
+before starting the merge tool (instead of leaving the output file
+empty and letting the merge tool fill it in). To do that, set the
+`merge-tools.vimdiff.merge-tool-edits-conflict-markers = true` option.
+
+With this option set, if the output file still contains conflict markers
+after the conflict is done, `jj` assumes that the conflict was only
+partially resolved and parses the conflict markers to get the new state
+of the conflict. The conflict is considered fully resolved when there
+are no conflict markers left.
+
+
+
+
 # Alternative ways to specify configuration settings
 
 Instead of `~/.jjconfig.toml`, the config settings can be located at

@@ -41,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The new `jj git remote rename` command allows git remotes to be renamed
   in-place.
 
+* The new `jj resolve` command allows resolving simple conflicts with
+  an external 3-way-merge tool.
+
 * `jj git push` will search `@-` for branches to push if `@` has none.
 
 * The new revset function `file(pattern..)` finds commits modifying the
