@@ -13,6 +13,15 @@ ui.relative-timestamps = false # the default
 ui.editor = "pico" # the default
 # ui.editor = "vim"
 
+ui.diff-editor = "meld" # default, requires meld to be installed
+# ui.diff-editor = "vimdiff"
 
-diff-editor = "meld" # default, requires meld to be installed
-# diff-editor = "vimdiff"
+ui.merge-editor = "meld" # default
+# ui.merge-editor = "vimdiff"
+# ui.merge-editor = "kdiff3"
+
+# The three merge tools above are pre-configured. For detailed information
+# about how to change the default configuration or how to configure another tool,
+# see documentation in config.md. An example:
+
+# merge-tools.meld.program = "C:\\Program Files\\Meld\\meld.exe" # If not in PATH
