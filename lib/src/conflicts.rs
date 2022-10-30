@@ -19,7 +19,7 @@ use itertools::Itertools;
 use crate::backend::{BackendResult, Conflict, ConflictId, ConflictPart, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files;
-use crate::files::{MergeHunk, MergeResult};
+use crate::files::{ConflictHunk, MergeHunk, MergeResult};
 use crate::repo_path::RepoPath;
 use crate::store::Store;
 
@@ -133,7 +133,7 @@ pub fn materialize_conflict(
     conflict: &Conflict,
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
-    match extract_file_conflict_data(store, path, conflict) {
+    match extract_file_conflict_as_single_hunk(store, path, conflict) {
         None => {
             // Unless all parts are regular files, we can't do much better than to try to
             // describe the conflict.
@@ -143,18 +143,12 @@ pub fn materialize_conflict(
     }
 }
 
-/// The contents of every version of the file that participates in a conflict.
-pub struct FileConflictData {
-    removes: Vec<Vec<u8>>,
-    adds: Vec<Vec<u8>>,
-}
-
 /// Only works if all parts of the conflict are regular, non-executable files
-pub fn extract_file_conflict_data(
+pub fn extract_file_conflict_as_single_hunk(
     store: &Store,
     path: &RepoPath,
     conflict: &Conflict,
-) -> Option<FileConflictData> {
+) -> Option<ConflictHunk> {
     let file_adds = file_parts(&conflict.adds);
     let file_removes = file_parts(&conflict.removes);
     if file_adds.len() != conflict.adds.len() || file_removes.len() != conflict.removes.len() {
@@ -169,14 +163,14 @@ pub fn extract_file_conflict_data(
         .map(|part| get_file_contents(store, path, part))
         .collect_vec();
 
-    Some(FileConflictData {
+    Some(ConflictHunk {
         removes: removed_content,
         adds: added_content,
     })
 }
 
 pub fn materialize_merge_result(
-    single_hunk: &FileConflictData,
+    single_hunk: &ConflictHunk,
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
     let removed_slices = single_hunk.removes.iter().map(Vec::as_slice).collect_vec();
@@ -192,10 +186,10 @@ pub fn materialize_merge_result(
                     MergeHunk::Resolved(content) => {
                         output.write_all(&content)?;
                     }
-                    MergeHunk::Conflict {
+                    MergeHunk::Conflict(ConflictHunk {
                         mut removes,
                         mut adds,
-                    } => {
+                    }) => {
                         output.write_all(CONFLICT_START_LINE)?;
                         while !removes.is_empty() && !adds.is_empty() {
                             let left = &removes[0];
@@ -279,7 +273,7 @@ pub fn parse_conflict(input: &[u8], num_removes: usize, num_adds: usize) -> Opti
             let conflict_body = &input[conflict_start.unwrap() + CONFLICT_START_LINE.len()..pos];
             let hunk = parse_conflict_hunk(conflict_body);
             match &hunk {
-                MergeHunk::Conflict { removes, adds }
+                MergeHunk::Conflict(ConflictHunk { removes, adds })
                     if removes.len() == num_removes && adds.len() == num_adds =>
                 {
                     let resolved_slice = &input[resolved_start..conflict_start.unwrap()];
@@ -363,7 +357,7 @@ fn parse_conflict_hunk(input: &[u8]) -> MergeHunk {
         }
     }
 
-    MergeHunk::Conflict { removes, adds }
+    MergeHunk::Conflict(ConflictHunk { removes, adds })
 }
 
 /// Returns `None` if there are no conflict markers in `content`.
@@ -399,7 +393,7 @@ pub fn update_conflict_from_content(
                         buf.extend_from_slice(&slice);
                     }
                 }
-                MergeHunk::Conflict { removes, adds } => {
+                MergeHunk::Conflict(ConflictHunk { removes, adds }) => {
                     for (i, buf) in removes.iter().enumerate() {
                         removed_content[i].extend_from_slice(buf);
                     }

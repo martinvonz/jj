@@ -142,12 +142,15 @@ impl<'a> Iterator for DiffLineIterator<'a> {
 }
 
 #[derive(PartialEq, Eq, Clone)]
+pub struct ConflictHunk {
+    pub removes: Vec<Vec<u8>>,
+    pub adds: Vec<Vec<u8>>,
+}
+
+#[derive(PartialEq, Eq, Clone)]
 pub enum MergeHunk {
     Resolved(Vec<u8>),
-    Conflict {
-        removes: Vec<Vec<u8>>,
-        adds: Vec<Vec<u8>>,
-    },
+    Conflict(ConflictHunk),
 }
 
 impl Debug for MergeHunk {
@@ -157,7 +160,7 @@ impl Debug for MergeHunk {
                 .debug_tuple("Resolved")
                 .field(&String::from_utf8_lossy(data))
                 .finish(),
-            MergeHunk::Conflict { removes, adds } => f
+            MergeHunk::Conflict(ConflictHunk { removes, adds }) => f
                 .debug_struct("Conflict")
                 .field(
                     "removes",
@@ -267,7 +270,7 @@ pub fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
                     }
                     // Include the unfiltered lists of removed and added here, so the caller
                     // knows which part corresponds to which input.
-                    merge_hunks.push(MergeHunk::Conflict {
+                    merge_hunks.push(MergeHunk::Conflict(ConflictHunk {
                         removes: parts[..num_removes]
                             .iter()
                             .map(|part| part.to_vec())
@@ -276,7 +279,7 @@ pub fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
                             .iter()
                             .map(|part| part.to_vec())
                             .collect_vec(),
-                    });
+                    }));
                 }
             }
         }
@@ -341,10 +344,10 @@ mod tests {
         // One side modified, two sides added
         assert_eq!(
             merge(&[b"a"], &[b"b", b"b", b"b"]),
-            MergeResult::Conflict(vec![MergeHunk::Conflict {
+            MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
                 removes: vec![b"a".to_vec()],
                 adds: vec![b"b".to_vec(), b"b".to_vec(), b"b".to_vec()]
-            }])
+            })])
         );
         // All sides removed same content
         assert_eq!(
@@ -354,10 +357,10 @@ mod tests {
         // One side modified, two sides removed
         assert_eq!(
             merge(&[b"a\n", b"a\n", b"a\n"], &[b""]),
-            MergeResult::Conflict(vec![MergeHunk::Conflict {
+            MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
                 removes: vec![b"a\n".to_vec(), b"a\n".to_vec(), b"a\n".to_vec()],
                 adds: vec![b"".to_vec()]
-            }])
+            })])
         );
         // Three sides made the same change
         assert_eq!(
@@ -367,45 +370,45 @@ mod tests {
         // One side unchanged, one side added
         assert_eq!(
             merge(&[b"a\n"], &[b"a\nb\n"]),
-            MergeResult::Conflict(vec![MergeHunk::Conflict {
+            MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
                 removes: vec![b"".to_vec()],
                 adds: vec![b"b\n".to_vec()]
-            }])
+            })])
         );
         // Two sides left one line unchanged, and added conflicting additional lines
         assert_eq!(
             merge(&[b"a\n"], &[b"a\nb\n", b"a\nc\n"]),
             MergeResult::Conflict(vec![
                 MergeHunk::Resolved(b"a\n".to_vec()),
-                MergeHunk::Conflict {
+                MergeHunk::Conflict(ConflictHunk {
                     removes: vec![b"".to_vec()],
                     adds: vec![b"b\n".to_vec(), b"c\n".to_vec()]
-                }
+                })
             ])
         );
         // One side removed, one side modified
         assert_eq!(
             merge(&[b"a\n"], &[b"", b"b\n"]),
-            MergeResult::Conflict(vec![MergeHunk::Conflict {
+            MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
                 removes: vec![b"a\n".to_vec()],
                 adds: vec![b"".to_vec(), b"b\n".to_vec()]
-            }])
+            })])
         );
         // One side modified, one side removed
         assert_eq!(
             merge(&[b"a\n"], &[b"b\n", b""]),
-            MergeResult::Conflict(vec![MergeHunk::Conflict {
+            MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
                 removes: vec![b"a\n".to_vec()],
                 adds: vec![b"b\n".to_vec(), b"".to_vec()]
-            }])
+            })])
         );
         // Two sides modified in different ways
         assert_eq!(
             merge(&[b"a"], &[b"b", b"c"]),
-            MergeResult::Conflict(vec![MergeHunk::Conflict {
+            MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
                 removes: vec![b"a".to_vec()],
                 adds: vec![b"b".to_vec(), b"c".to_vec()]
-            }])
+            })])
         );
         // Two of three sides don't change, third side changes
         assert_eq!(
@@ -420,10 +423,10 @@ mod tests {
         // One side unchanged, two other sides make the different change
         assert_eq!(
             merge(&[b"a", b"a"], &[b"b", b"a", b"c"]),
-            MergeResult::Conflict(vec![MergeHunk::Conflict {
+            MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
                 removes: vec![b"a".to_vec(), b"a".to_vec()],
                 adds: vec![b"b".to_vec(), b"a".to_vec(), b"c".to_vec()]
-            }])
+            })])
         );
         // Merge of an unresolved conflict and another branch, where the other branch
         // undid the change from one of the inputs to the unresolved conflict in the
@@ -435,10 +438,10 @@ mod tests {
         // Merge of an unresolved conflict and another branch.
         assert_eq!(
             merge(&[b"a", b"b"], &[b"c", b"d", b"e"]),
-            MergeResult::Conflict(vec![MergeHunk::Conflict {
+            MergeResult::Conflict(vec![MergeHunk::Conflict(ConflictHunk {
                 removes: vec![b"a".to_vec(), b"b".to_vec()],
                 adds: vec![b"c".to_vec(), b"d".to_vec(), b"e".to_vec()]
-            }])
+            })])
         );
     }
 }
