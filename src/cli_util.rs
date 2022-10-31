@@ -19,6 +19,7 @@ use std::fmt::Debug;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use clap;
 use clap::{ArgMatches, FromArgMatches};
 use git2::{Oid, Repository};
 use itertools::Itertools;
@@ -56,6 +57,8 @@ pub enum CommandError {
     ConfigError(String),
     /// Invalid command line
     CliError(String),
+    /// Invalid command line detected by clap
+    ClapCliError(clap::Error),
     BrokenPipe,
     InternalError(String),
 }
@@ -171,6 +174,12 @@ impl From<RevsetError> for CommandError {
 impl From<FsPathParseError> for CommandError {
     fn from(err: FsPathParseError) -> Self {
         CommandError::UserError(format!("{err}"))
+    }
+}
+
+impl From<clap::Error> for CommandError {
+    fn from(err: clap::Error) -> Self {
+        CommandError::ClapCliError(err)
     }
 }
 
@@ -1223,8 +1232,8 @@ fn string_list_from_config(value: config::Value) -> Option<Vec<String>> {
 }
 
 fn resolve_aliases(
+    ui: &mut Ui,
     app: &clap::Command,
-    settings: &UserSettings,
     string_args: &[String],
 ) -> Result<Vec<String>, CommandError> {
     let mut resolved_aliases = HashSet::new();
@@ -1238,7 +1247,7 @@ fn resolve_aliases(
     }
     loop {
         let app_clone = app.clone().allow_external_subcommands(true);
-        let matches = app_clone.get_matches_from(&string_args);
+        let matches = app_clone.try_get_matches_from(&string_args)?;
         if let Some((command_name, submatches)) = matches.subcommand() {
             if !real_commands.contains(command_name) {
                 let alias_name = command_name.to_string();
@@ -1252,7 +1261,8 @@ fn resolve_aliases(
                         r#"Recursive alias definition involving "{alias_name}""#
                     )));
                 }
-                match settings
+                match ui
+                    .settings()
                     .config()
                     .get::<config::Value>(&format!("alias.{}", alias_name))
                 {
@@ -1298,8 +1308,9 @@ pub fn parse_args(
         }
     }
 
-    let string_args = resolve_aliases(&app, ui.settings(), &string_args)?;
-    let matches = app.clone().get_matches_from(&string_args);
+    let string_args = resolve_aliases(ui, &app, &string_args)?;
+    let matches = app.clone().try_get_matches_from(&string_args)?;
+
     let args: Args = Args::from_arg_matches(&matches).unwrap();
     if let Some(choice) = args.global_args.color {
         ui.reset_color(choice);
@@ -1325,6 +1336,26 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
         Err(CommandError::CliError(message)) => {
             ui.write_error(&format!("Error: {}\n", message)).unwrap();
             2
+        }
+        Err(CommandError::ClapCliError(inner)) => {
+            let clap_str = if ui.color() {
+                inner.render().ansi().to_string()
+            } else {
+                inner.render().to_string()
+            };
+
+            // Definitions for exit codes and streams come from
+            // https://github.com/clap-rs/clap/blob/master/src/error/mod.rs
+            match inner.kind() {
+                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion => {
+                    ui.write(&clap_str).unwrap();
+                    0
+                }
+                _ => {
+                    ui.write_stderr(&clap_str).unwrap();
+                    2
+                }
+            }
         }
         Err(CommandError::BrokenPipe) => std::process::exit(3),
         Err(CommandError::InternalError(message)) => {
