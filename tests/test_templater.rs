@@ -27,8 +27,6 @@ fn test_templater_branches() {
         .join("repo")
         .join("store")
         .join("git");
-    // TODO: This initial export shouldn't be needed
-    test_env.jj_cmd_success(&origin_path, &["git", "export"]);
 
     // Created some branches on the remote
     test_env.jj_cmd_success(&origin_path, &["describe", "-m=description 1"]);
@@ -68,12 +66,12 @@ fn test_templater_branches() {
         &["log", "-T", r#"commit_id.short() " " branches"#],
     );
     insta::assert_snapshot!(output, @r###"
-    o 212985c08a44 branch3?
-    | @ cbf02da4e154 branch2* new-branch
-    | | o c794a4eab3b9 branch1*
+    o 48e0b6c42296 branch3?
+    | @ 092b2e0283a9 branch2* new-branch
+    | | o f4a739b1677f branch1*
     | |/  
     |/|   
-    | o 8cd8e5dc9595 branch2@origin
+    | o 752dad8b1718 branch2@origin
     |/  
     o 000000000000 
     "###);
