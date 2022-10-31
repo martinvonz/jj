@@ -75,8 +75,35 @@ fn test_resolution() {
             "###);
 
     let editor_script = test_env.set_up_fake_editor();
+    // Check that output file starts out empty and resolve the conflict
+    std::fs::write(&editor_script, "expect\n\0write\nresolution\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["resolve", "file"]);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "-r", "conflict"]), 
+    @r###"
+    Resolved conflict in file:
+       1    1: <<<<<<<resolution
+       2     : %%%%%%%
+       3     : -base
+       4     : +a
+       5     : +++++++
+       6     : b
+       7     : >>>>>>>
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]), 
+    @r###"
+    Parent commit: 77c5ed9eda54 a
+    Working copy : 665f83829a6a conflict
+    Working copy changes:
+    M file
+    "###);
+
+    // Check that the output file starts with conflict markers if
+    // `merge-tool-edits-conflict-markers=true`
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "-r", "conflict"]), 
+    @"");
     std::fs::write(
-        editor_script,
+        &editor_script,
         "expect
 <<<<<<<
 %%%%%%%
@@ -90,7 +117,15 @@ resolution
 ",
     )
     .unwrap();
-    test_env.jj_cmd_success(&repo_path, &["resolve", "file"]);
+    test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "resolve",
+            "--config-toml",
+            "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
+            "file",
+        ],
+    );
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "-r", "conflict"]), 
     @r###"
     Resolved conflict in file:
@@ -101,6 +136,105 @@ resolution
        5     : +++++++
        6     : b
        7     : >>>>>>>
+    "###);
+
+    // Check that if merge tool leaves conflict markers in output file and
+    // `merge-tool-edits-conflict-markers=true`, these markers are properly parsed.
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "-r", "conflict"]), 
+    @"");
+    std::fs::write(
+        &editor_script,
+        "expect
+<<<<<<<
+%%%%%%%
+-base
++a
++++++++
+b
+>>>>>>>
+\0write
+<<<<<<<
+%%%%%%%
+-some
++fake
++++++++
+conflict
+>>>>>>>
+",
+    )
+    .unwrap();
+    test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "resolve",
+            "--config-toml",
+            "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
+            "file",
+        ],
+    );
+    // Note the "Modified" below
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "-r", "conflict"]), 
+    @r###"
+    Modified conflict in file:
+       1    1: <<<<<<<
+       2    2: %%%%%%%
+       3    3: -basesome
+       4    4: +afake
+       5    5: +++++++
+       6    6: bconflict
+       7    7: >>>>>>>
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]), 
+    @r###"
+    Parent commit: 77c5ed9eda54 a
+    Working copy : cbd3d65d2612 conflict
+    Working copy changes:
+    M file
+    There are unresolved conflicts at these paths:
+    file
+    "###);
+
+    // Check that if merge tool leaves conflict markers in output file but
+    // `merge-tool-edits-conflict-markers=false` or is not specified,
+    // `jj` considers the conflict resolved.
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "-r", "conflict"]), 
+    @"");
+    std::fs::write(
+        &editor_script,
+        "expect
+\0write
+<<<<<<<
+%%%%%%%
+-some
++fake
++++++++
+conflict
+>>>>>>>
+",
+    )
+    .unwrap();
+    test_env.jj_cmd_success(&repo_path, &["resolve", "file"]);
+    // Note the "Resolved" below
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "-r", "conflict"]), 
+    @r###"
+    Resolved conflict in file:
+       1    1: <<<<<<<
+       2    2: %%%%%%%
+       3    3: -basesome
+       4    4: +afake
+       5    5: +++++++
+       6    6: bconflict
+       7    7: >>>>>>>
+    "###);
+    // No "there are unresolved conflicts..." message below
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]), 
+    @r###"
+    Parent commit: 77c5ed9eda54 a
+    Working copy : d5b735448648 conflict
+    Working copy changes:
+    M file
     "###);
 }
 

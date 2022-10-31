@@ -24,6 +24,7 @@ use itertools::Itertools;
 use jujutsu_lib::backend::{TreeId, TreeValue};
 use jujutsu_lib::conflicts::{
     describe_conflict, extract_file_conflict_as_single_hunk, materialize_merge_result,
+    update_conflict_from_content,
 };
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::matchers::EverythingMatcher;
@@ -147,6 +148,8 @@ fn set_readonly_recursively(path: &Path) -> Result<(), std::io::Error> {
     }
 }
 
+// TODO: Rearrange the functions. This should be on the bottom, options should
+// be on the top.
 pub fn run_mergetool(
     ui: &mut Ui,
     tree: &Tree,
@@ -182,16 +185,20 @@ pub fn run_mergetool(
         });
     };
 
-    let mut materialized_conflict: Vec<u8> = vec![];
-    materialize_merge_result(&content, &mut materialized_conflict)
-        .expect("Writing to an in-memory buffer should never fail");
-    let materialized_conflict = materialized_conflict;
-
+    let editor = get_merge_tool_from_settings(ui)?;
+    let initial_output_content: Vec<u8> = if editor.merge_tool_edits_conflict_markers {
+        let mut materialized_conflict = vec![];
+        materialize_merge_result(&content, &mut materialized_conflict)
+            .expect("Writing to an in-memory buffer should never fail");
+        materialized_conflict
+    } else {
+        vec![]
+    };
     let files: HashMap<&str, _> = maplit::hashmap! {
         "base" => content.removes.pop().unwrap_or_default(),
         "right" => content.adds.pop().unwrap_or_default(),
         "left" => content.adds.pop().unwrap_or_default(),
-        "output" => materialized_conflict.clone(),
+        "output" => initial_output_content.clone(),
     };
 
     let temp_dir = tempfile::Builder::new()
@@ -219,7 +226,6 @@ pub fn run_mergetool(
         .collect();
     let paths = paths?;
 
-    let editor = get_merge_tool_from_settings(ui)?;
     let args = interpolate_mergetool_filename_patterns(&editor.merge_args, &paths);
     let args_str = args
         .iter()
@@ -242,21 +248,32 @@ pub fn run_mergetool(
     }
 
     let output_file_contents: Vec<u8> = std::fs::read(paths.get("output").unwrap())?;
-    if output_file_contents.is_empty() || output_file_contents == materialized_conflict {
+    if output_file_contents.is_empty() || output_file_contents == initial_output_content {
         return Err(ConflictResolveError::EmptyOrUnchanged);
     }
-    // TODO: parse any remaining conflicts (done in followup commit)
-    let new_file_id = tree
-        .store()
-        .write_file(repo_path, &mut File::open(paths.get("output").unwrap())?)?;
-    let mut tree_builder = tree.store().tree_builder(tree.id().clone());
-    tree_builder.set(
-        repo_path.clone(),
+
+    let mut new_tree_value: Option<TreeValue> = None;
+    if editor.merge_tool_edits_conflict_markers {
+        if let Some(new_conflict_id) = update_conflict_from_content(
+            tree.store(),
+            repo_path,
+            &conflict_id,
+            output_file_contents.as_slice(),
+        )? {
+            new_tree_value = Some(TreeValue::Conflict(new_conflict_id));
+        }
+    }
+    let new_tree_value = new_tree_value.unwrap_or({
+        let new_file_id = tree
+            .store()
+            .write_file(repo_path, &mut File::open(paths.get("output").unwrap())?)?;
         TreeValue::File {
             id: new_file_id,
             executable: false,
-        },
-    );
+        }
+    });
+    let mut tree_builder = tree.store().tree_builder(tree.id().clone());
+    tree_builder.set(repo_path.clone(), new_tree_value);
     Ok(tree_builder.write_tree())
 }
 
@@ -380,6 +397,17 @@ struct MergeTool {
     /// strings to be substituted.
     #[serde(default)]
     pub merge_args: Vec<String>,
+    /// If false (default), the `$output` file starts out empty and is accepted
+    /// as a full conflict resolution as-is by `jj` after the merge tool is
+    /// done with it. If true, the `$output` file starts out with the
+    /// contents of the conflict, with JJ's conflict markers. After the
+    /// merge tool is done, any remaining conflict markers in the
+    /// file parsed and taken to mean that the conflict was only partially
+    /// resolved.
+    // TODO: Instead of a boolean, this could denote the flavor of conflict markers to put in
+    // the file (`jj` or `diff3` for example).
+    #[serde(default)]
+    pub merge_tool_edits_conflict_markers: bool,
 }
 
 impl MergeTool {
@@ -388,6 +416,7 @@ impl MergeTool {
             program: program.to_owned(),
             edit_args: vec![],
             merge_args: vec![],
+            merge_tool_edits_conflict_markers: false,
         }
     }
 }
