@@ -23,6 +23,7 @@ use jujutsu_lib::settings::UserSettings;
 use crate::formatter::{Formatter, FormatterFactory};
 
 pub struct Ui {
+    color: bool,
     cwd: PathBuf,
     formatter_factory: FormatterFactory,
     output_pair: UiOutputPair,
@@ -78,6 +79,7 @@ impl Ui {
         let color = use_color(color_setting(&settings));
         let formatter_factory = FormatterFactory::prepare(&settings, color);
         Ui {
+            color,
             cwd,
             formatter_factory,
             output_pair: UiOutputPair::Terminal {
@@ -90,10 +92,14 @@ impl Ui {
 
     /// Reconfigures the underlying outputs with the new color choice.
     pub fn reset_color(&mut self, choice: ColorChoice) {
-        let color = use_color(choice);
-        if self.formatter_factory.is_color() != color {
-            self.formatter_factory = FormatterFactory::prepare(&self.settings, color);
+        self.color = use_color(choice);
+        if self.formatter_factory.is_color() != self.color {
+            self.formatter_factory = FormatterFactory::prepare(&self.settings, self.color);
         }
+    }
+
+    pub fn color(&self) -> bool {
+        self.color
     }
 
     pub fn cwd(&self) -> &Path {
