@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+
+use git2::Oid;
+
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -21,21 +25,73 @@ fn test_git_colocated() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
     let git_repo = git2::Repository::init(&workspace_root).unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
 
-    // Create a commit from jj and check that it's reflected in git
-    std::fs::write(workspace_root.join("new-file"), "contents").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["commit", "-m", "add a file"]);
-    let stdout =
-        test_env.jj_cmd_success(&workspace_root, &["log", "-T", "commit_id \" \" branches"]);
-    insta::assert_snapshot!(stdout, @r###"
-    @ 2588800a4ee68926773f1e9c44dcc50ada923650 
-    o 172b1cbfe88c97cbd1b1c8a98a48e729a4540e85 master
+    // Create an initial commit in Git
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    git_repo
+        .index()
+        .unwrap()
+        .add_path(Path::new("file"))
+        .unwrap();
+    let tree1_oid = git_repo.index().unwrap().write_tree().unwrap();
+    let tree1 = git_repo.find_tree(tree1_oid).unwrap();
+    let signature = git2::Signature::new(
+        "Someone",
+        "someone@example.com",
+        &git2::Time::new(1234567890, 60),
+    )
+    .unwrap();
+    git_repo
+        .commit(
+            Some("refs/heads/master"),
+            &signature,
+            &signature,
+            "initial",
+            &tree1,
+            &[],
+        )
+        .unwrap();
+    insta::assert_snapshot!(
+        git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
+        @"e61b6729ff4292870702f2f72b2a60165679ef37"
+    );
+
+    // Import the repo
+    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @ 3e9369cd54227eb88455e1834dbc08aad6a16ac4 
+    o e61b6729ff4292870702f2f72b2a60165679ef37 master
     o 0000000000000000000000000000000000000000 
     "###);
-    assert_eq!(
+    insta::assert_snapshot!(
+        git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
+        @"e61b6729ff4292870702f2f72b2a60165679ef37"
+    );
+
+    // Modify the working copy. The working-copy commit should changed, but the Git
+    // HEAD commit should not
+    std::fs::write(workspace_root.join("file"), "modified").unwrap();
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @ b26951a9c6f5c270e4d039880208952fd5faae5e 
+    o e61b6729ff4292870702f2f72b2a60165679ef37 master
+    o 0000000000000000000000000000000000000000 
+    "###);
+    insta::assert_snapshot!(
+        git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
+        @"e61b6729ff4292870702f2f72b2a60165679ef37"
+    );
+
+    // Create a new change from jj and check that it's reflected in Git
+    test_env.jj_cmd_success(&workspace_root, &["new"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @ 9dbb23ff2ff5e66c43880f1042369d704f7a321e 
+    o b26951a9c6f5c270e4d039880208952fd5faae5e 
+    o e61b6729ff4292870702f2f72b2a60165679ef37 master
+    o 0000000000000000000000000000000000000000 
+    "###);
+    insta::assert_snapshot!(
         git_repo.head().unwrap().target().unwrap().to_string(),
-        "172b1cbfe88c97cbd1b1c8a98a48e729a4540e85".to_string()
+        @"b26951a9c6f5c270e4d039880208952fd5faae5e"
     );
 }
 
@@ -68,11 +124,57 @@ fn test_git_colocated_rebase_on_import() {
     let commit1 = commit2.parents().next().unwrap();
     git_repo.branch("master", &commit1, true).unwrap();
     git_repo.set_head("refs/heads/master").unwrap();
-    let stdout =
-        test_env.jj_cmd_success(&workspace_root, &["log", "-T", "commit_id \" \" branches"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @ 840303b127545e55dfa5858a97555acf54a80513 
     o f0f3ab56bfa927e3a65c2ac9a513693d438e271b master
     o 0000000000000000000000000000000000000000 
     "###);
+}
+
+#[test]
+fn test_git_colocated_branches() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&workspace_root).unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "foo"]);
+    test_env.jj_cmd_success(&workspace_root, &["new", "@-", "-m", "bar"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @ 086821b6c35f5fdf07da884b859a14dcf85b5e36 
+    | o 6c0e140886d181602ae7a8e1ac41bc3094842370 
+    |/  
+    o 230dd059e1b059aefc0da06a2e5a7dbf22362f22 master
+    o 0000000000000000000000000000000000000000 
+    "###);
+
+    // Create a branch in jj. It should be exported to Git even though it points to
+    // the working- copy commit.
+    test_env.jj_cmd_success(&workspace_root, &["branch", "set", "master"]);
+    insta::assert_snapshot!(
+        git_repo.find_reference("refs/heads/master").unwrap().target().unwrap().to_string(),
+        @"086821b6c35f5fdf07da884b859a14dcf85b5e36"
+    );
+    insta::assert_snapshot!(
+        git_repo.head().unwrap().target().unwrap().to_string(),
+        @"230dd059e1b059aefc0da06a2e5a7dbf22362f22"
+    );
+
+    // Update the branch in Git
+    git_repo
+        .reference(
+            "refs/heads/master",
+            Oid::from_str("6c0e140886d181602ae7a8e1ac41bc3094842370").unwrap(),
+            true,
+            "test",
+        )
+        .unwrap();
+    // TODO: Shouldn't be a conflict (https://github.com/martinvonz/jj/issues/463)
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["st"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot export conflicted branch 'master'
+    "###);
+}
+
+fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
+    test_env.jj_cmd_success(workspace_root, &["log", "-T", "commit_id \" \" branches"])
 }
