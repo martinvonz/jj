@@ -4501,10 +4501,12 @@ fn cmd_git_export(
     command: &CommandHelper,
     _args: &GitExportArgs,
 ) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
+    let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
-    git::export_refs(repo, &git_repo)?;
+    let mut tx = workspace_command.start_transaction("export git refs");
+    git::export_refs(tx.mut_repo(), &git_repo)?;
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
