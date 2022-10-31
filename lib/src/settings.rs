@@ -41,6 +41,21 @@ impl UserSettings {
         UserSettings { config, timestamp }
     }
 
+    pub fn with_toml_strings(
+        &self,
+        toml_strs: &[String],
+    ) -> Result<UserSettings, config::ConfigError> {
+        let mut config_builder = config::Config::builder().add_source(self.config.clone());
+        for s in toml_strs {
+            config_builder =
+                config_builder.add_source(config::File::from_str(s, config::FileFormat::Toml));
+        }
+        Ok(UserSettings {
+            config: config_builder.build()?,
+            timestamp: self.timestamp.clone(),
+        })
+    }
+
     pub fn with_repo(&self, repo_path: &Path) -> Result<RepoSettings, config::ConfigError> {
         let config = config::Config::builder()
             .add_source(self.config.clone())
