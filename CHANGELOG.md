@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The new revset function `file(pattern..)` finds commits modifying the
   paths specified by the `pattern..`.
 
+* It is now possible to specity configuration options on the command line
+  with he new `--config-toml` global option.
+
 ### Fixed bugs
 
 * `jj edit root` now fails gracefully.

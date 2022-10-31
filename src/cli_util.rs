@@ -1195,6 +1195,16 @@ pub struct GlobalArgs {
         help_heading = "Global Options"
     )]
     pub color: Option<ColorChoice>,
+    /// Additional configuration options
+    //  TODO: Introduce a `--config` option with simpler syntax for simple
+    //  cases, designed so that `--config ui.color=auto` works
+    #[arg(
+        long,
+        value_name = "TOML",
+        global = true,
+        help_heading = "Global Options"
+    )]
+    pub config_toml: Vec<String>,
 }
 
 pub fn create_ui() -> (Ui, Result<(), CommandError>) {
@@ -1315,9 +1325,14 @@ pub fn parse_args(
     let string_args = resolve_aliases(ui, &app, &string_args)?;
     let matches = app.clone().try_get_matches_from(&string_args)?;
 
-    let args: Args = Args::from_arg_matches(&matches).unwrap();
+    let mut args: Args = Args::from_arg_matches(&matches).unwrap();
     if let Some(choice) = args.global_args.color {
-        ui.reset_color(choice);
+        args.global_args
+            .config_toml
+            .push(format!("ui.color=\"{}\"", choice.to_string()));
+    }
+    if !args.global_args.config_toml.is_empty() {
+        ui.extra_toml_settings(&args.global_args.config_toml)?;
     }
     let command_helper = CommandHelper::new(app, string_args, args.global_args);
     Ok((command_helper, matches))

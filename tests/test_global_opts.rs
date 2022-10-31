@@ -123,6 +123,47 @@ color="always""#,
     o 0000000000000000000000000000000000000000
     "###);
 
+    // Test that --color=auto overrides the config.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--color=auto", "log", "-T", "commit_id"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    o 0000000000000000000000000000000000000000
+    "###);
+
+    // Test that --config-toml 'ui.color="never"' overrides the config.
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "--config-toml",
+            "ui.color=\"never\"",
+            "log",
+            "-T",
+            "commit_id",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @ 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    o 0000000000000000000000000000000000000000
+    "###);
+
+    // --color overrides --config-toml 'ui.color=...'.
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "--color",
+            "never",
+            "--config-toml",
+            "ui.color=\"always\"",
+            "log",
+            "-T",
+            "commit_id",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @ 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    o 0000000000000000000000000000000000000000
+    "###);
+
     // Test that NO_COLOR does NOT override the request for color in the config file
     test_env.add_env_var("NO_COLOR", "");
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
@@ -193,5 +234,6 @@ fn test_help() {
           --no-commit-working-copy       Don't commit the working copy
           --at-operation <AT_OPERATION>  Operation to load the repo at [default: @] [aliases: at-op]
           --color <WHEN>                 When to colorize output (always, never, auto)
+          --config-toml <TOML>           Additional configuration options
     "###);
 }

@@ -56,6 +56,17 @@ impl FromStr for ColorChoice {
     }
 }
 
+impl ToString for ColorChoice {
+    fn to_string(&self) -> String {
+        match self {
+            ColorChoice::Always => "always",
+            ColorChoice::Never => "never",
+            ColorChoice::Auto => "auto",
+        }
+        .to_string()
+    }
+}
+
 fn color_setting(settings: &UserSettings) -> ColorChoice {
     settings
         .config()
@@ -108,6 +119,12 @@ impl Ui {
 
     pub fn settings(&self) -> &UserSettings {
         &self.settings
+    }
+
+    pub fn extra_toml_settings(&mut self, toml_strs: &[String]) -> Result<(), config::ConfigError> {
+        self.settings = self.settings.with_toml_strings(toml_strs)?;
+        self.reset_color(color_setting(&self.settings));
+        Ok(())
     }
 
     pub fn new_formatter<'output, W: Write + 'output>(
