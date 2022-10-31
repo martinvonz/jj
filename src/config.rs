@@ -68,7 +68,30 @@ fn env_base() -> config::Config {
     } else if let Ok(value) = env::var("EDITOR") {
         builder = builder.set_override("ui.editor", value).unwrap();
     }
+
     builder.build().unwrap()
+}
+
+fn default_mergetool_config() -> config::Config {
+    config::Config::builder()
+        .add_source(config::File::from_str(
+            r#"
+                [merge-tools]
+                meld.merge-args    = ["$left", "$base", "$right",
+                                      "-o", "$output", "--auto-merge"]
+                kdiff3.merge-args  = ["$base", "$left", "$right",
+                                      "-o", "$output", "--auto"]
+                vimdiff.program = "vim"
+                vimdiff.merge-args = ["-f", "-d", "$output", "-M",
+                                      "$left", "$base", "$right",
+                                      "-c", "wincmd J", "-c", "set modifiable",
+                                      "-c", "set write"]
+                vimdiff.merge-tool-edits-conflict-markers=true
+            "#,
+            config::FileFormat::Toml,
+        ))
+        .build()
+        .unwrap()
 }
 
 /// Environment variables that override config values
@@ -99,7 +122,9 @@ fn env_overrides() -> config::Config {
 }
 
 pub fn read_config() -> Result<UserSettings, ConfigError> {
-    let mut config_builder = config::Config::builder().add_source(env_base());
+    let mut config_builder = config::Config::builder()
+        .add_source(default_mergetool_config())
+        .add_source(env_base());
 
     if let Some(config_path) = config_path()? {
         let mut files = vec![];
