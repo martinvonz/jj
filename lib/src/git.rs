@@ -182,14 +182,6 @@ pub fn export_changes(
 ) -> Result<(), GitExportError> {
     let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
     let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
-    // TODO: Check that the ref is not pointed to by any worktree's HEAD.
-    let mut active_branches = HashSet::new();
-    if let Ok(head_ref) = git_repo.find_reference("HEAD") {
-        if let Some(head_target) = head_ref.symbolic_target() {
-            active_branches.insert(head_target.to_string());
-        }
-    }
-    let mut detach_head = false;
     // First find the changes we want need to make and then make them all at once to
     // reduce the risk of making some changes before we fail.
     let mut refs_to_update = BTreeMap::new();
@@ -216,13 +208,18 @@ pub fn export_changes(
         } else {
             refs_to_delete.insert(git_ref_name.clone());
         }
-        if active_branches.contains(&git_ref_name) {
-            detach_head = true;
-        }
     }
-    if detach_head {
-        if let Ok(head_ref) = git_repo.find_reference("HEAD") {
-            if let Ok(current_git_commit) = head_ref.peel_to_commit() {
+    // TODO: Also check other worktrees' HEAD.
+    if let Ok(head_ref) = git_repo.find_reference("HEAD") {
+        if let (Some(head_target), Ok(current_git_commit)) =
+            (head_ref.symbolic_target(), head_ref.peel_to_commit())
+        {
+            let detach_head = if let Some(new_target) = refs_to_update.get(head_target) {
+                *new_target != current_git_commit.id()
+            } else {
+                refs_to_delete.contains(head_target)
+            };
+            if detach_head {
                 git_repo.set_head_detached(current_git_commit.id())?;
             }
         }
