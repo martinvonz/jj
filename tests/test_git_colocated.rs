@@ -168,10 +168,13 @@ fn test_git_colocated_branches() {
             "test",
         )
         .unwrap();
-    // TODO: Shouldn't be a conflict (https://github.com/martinvonz/jj/issues/463)
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["st"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Cannot export conflicted branch 'master'
+    // TODO: Shouldn't be a conflict
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @ 086821b6c35f5fdf07da884b859a14dcf85b5e36 master?
+    | o 6c0e140886d181602ae7a8e1ac41bc3094842370 master?
+    |/  
+    o 230dd059e1b059aefc0da06a2e5a7dbf22362f22 
+    o 0000000000000000000000000000000000000000 
     "###);
 }
 

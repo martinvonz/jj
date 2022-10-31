@@ -19,7 +19,7 @@ use git2::Oid;
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git;
-use jujutsu_lib::git::{GitExportError, GitFetchError, GitPushError, GitRefUpdate};
+use jujutsu_lib::git::{GitFetchError, GitPushError, GitRefUpdate};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::repo::ReadonlyRepo;
@@ -659,10 +659,22 @@ fn test_export_conflicts() {
         },
     );
     test_data.repo = tx.commit();
-    // TODO: Make it succeed instead, just skipping the conflicted branch
+    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
     assert_eq!(
-        git::export_refs(&test_data.repo, &git_repo),
-        Err(GitExportError::ConflictedBranch("feature".to_string()))
+        git_repo
+            .find_reference("refs/heads/feature")
+            .unwrap()
+            .target()
+            .unwrap(),
+        git_id(&commit_a)
+    );
+    assert_eq!(
+        git_repo
+            .find_reference("refs/heads/main")
+            .unwrap()
+            .target()
+            .unwrap(),
+        git_id(&commit_b)
     );
 }
 

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::default::Default;
 use std::fs::OpenOptions;
 use std::io::Read;
 use std::path::PathBuf;
@@ -24,7 +25,7 @@ use thiserror::Error;
 
 use crate::backend::CommitId;
 use crate::commit::Commit;
-use crate::op_store::{OperationId, RefTarget};
+use crate::op_store::{BranchTarget, OperationId, RefTarget};
 use crate::repo::{MutableRepo, ReadonlyRepo};
 use crate::view::{RefName, View};
 use crate::{op_store, simple_op_store, simple_op_store_model};
@@ -175,13 +176,16 @@ pub enum GitExportError {
 }
 
 /// Reflect changes between two Jujutsu repo views in the underlying Git repo.
-pub fn export_changes(
+/// Returns a stripped-down repo view of the state we just exported, to be used
+/// as `old_view` next time.
+fn export_changes(
     old_view: &View,
     new_view: &View,
     git_repo: &git2::Repository,
-) -> Result<(), GitExportError> {
+) -> Result<crate::op_store::View, GitExportError> {
     let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
     let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
+    let mut exported_view = old_view.store_view().clone();
     // First find the changes we want need to make and then make them all at once to
     // reduce the risk of making some changes before we fail.
     let mut refs_to_update = BTreeMap::new();
@@ -196,16 +200,25 @@ pub fn export_changes(
         if let Some(new_branch) = new_branch {
             match new_branch {
                 RefTarget::Normal(id) => {
+                    exported_view.branches.insert(
+                        branch_name.clone(),
+                        BranchTarget {
+                            local_target: Some(RefTarget::Normal(id.clone())),
+                            remote_targets: Default::default(),
+                        },
+                    );
                     refs_to_update.insert(
                         git_ref_name.clone(),
                         Oid::from_bytes(id.as_bytes()).unwrap(),
                     );
                 }
                 RefTarget::Conflict { .. } => {
-                    return Err(GitExportError::ConflictedBranch(branch_name.to_string()));
+                    // Skip conflicts and leave the old value in `exported_view`
+                    continue;
                 }
             }
         } else {
+            exported_view.branches.remove(branch_name);
             refs_to_delete.insert(git_ref_name.clone());
         }
     }
@@ -232,7 +245,7 @@ pub fn export_changes(
             git_ref.delete()?;
         }
     }
-    Ok(())
+    Ok(exported_view)
 }
 
 /// Reflect changes made in the Jujutsu repo since last export in the underlying
@@ -254,13 +267,13 @@ pub fn export_refs(
             op_store::View::default()
         };
     let last_export_view = View::new(last_export_store_view);
-    export_changes(&last_export_view, repo.view(), git_repo)?;
+    let new_export_store_view = export_changes(&last_export_view, repo.view(), git_repo)?;
     if let Ok(mut last_export_file) = OpenOptions::new()
         .write(true)
         .create(true)
         .open(&last_export_path)
     {
-        let thrift_view = simple_op_store_model::View::from(repo.operation().view().store_view());
+        let thrift_view = simple_op_store_model::View::from(&new_export_store_view);
         simple_op_store::write_thrift(&thrift_view, &mut last_export_file)
             .map_err(|err| GitExportError::WriteStateError(err.to_string()))?;
     }

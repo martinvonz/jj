@@ -165,14 +165,9 @@ impl From<GitImportError> for CommandError {
 
 impl From<GitExportError> for CommandError {
     fn from(err: GitExportError) -> Self {
-        match err {
-            GitExportError::ConflictedBranch(branch_name) => {
-                user_error(format!("Cannot export conflicted branch '{branch_name}'"))
-            }
-            err => CommandError::InternalError(format!(
-                "Failed to export refs to underlying Git repo: {err}"
-            )),
-        }
+        CommandError::InternalError(format!(
+            "Failed to export refs to underlying Git repo: {err}"
+        ))
     }
 }
 
