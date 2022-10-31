@@ -252,12 +252,12 @@ fn export_changes(
 /// Git repo. If this is the first export, nothing will be exported. The
 /// exported view is recorded in the repo (`.jj/repo/git_export_view`).
 pub fn export_refs(
-    repo: &Arc<ReadonlyRepo>,
+    mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
 ) -> Result<(), GitExportError> {
-    upgrade_old_export_state(repo);
+    upgrade_old_export_state(mut_repo.base_repo());
 
-    let last_export_path = repo.repo_path().join("git_export_view");
+    let last_export_path = mut_repo.base_repo().repo_path().join("git_export_view");
     let last_export_store_view =
         if let Ok(mut last_export_file) = OpenOptions::new().read(true).open(&last_export_path) {
             let thrift_view = simple_op_store::read_thrift(&mut last_export_file)
@@ -267,7 +267,7 @@ pub fn export_refs(
             op_store::View::default()
         };
     let last_export_view = View::new(last_export_store_view);
-    let new_export_store_view = export_changes(&last_export_view, repo.view(), git_repo)?;
+    let new_export_store_view = export_changes(&last_export_view, mut_repo.view(), git_repo)?;
     if let Ok(mut last_export_file) = OpenOptions::new()
         .write(true)
         .create(true)

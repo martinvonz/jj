@@ -842,6 +842,8 @@ impl WorkspaceCommandHelper {
         }
         if self.working_copy_shared_with_git {
             self.export_head_to_git(mut_repo)?;
+            let git_repo = self.repo.store().git_repo().unwrap();
+            git::export_refs(mut_repo, &git_repo)?;
         }
         let maybe_old_commit = tx
             .base_repo()
@@ -861,10 +863,6 @@ impl WorkspaceCommandHelper {
             if let Some(stats) = stats {
                 print_checkout_stats(ui, stats)?;
             }
-        }
-        if self.working_copy_shared_with_git {
-            let git_repo = self.repo.store().git_repo().unwrap();
-            git::export_refs(&self.repo, &git_repo)?;
         }
         let settings = ui.settings();
         if settings.user_name() == UserSettings::user_name_placeholder()

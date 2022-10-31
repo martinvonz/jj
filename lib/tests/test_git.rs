@@ -406,19 +406,17 @@ fn test_import_refs_detached_head() {
 fn test_export_refs_no_detach() {
     // When exporting the branch that's current checked out, don't detach HEAD if
     // the target already matches
-    let mut test_data = GitRepoData::create();
+    let test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     git_repo.set_head("refs/heads/main").unwrap();
     let mut tx = test_data.repo.start_transaction("test");
-    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
-    tx.mut_repo()
-        .rebase_descendants(&test_data.settings)
-        .unwrap();
-    test_data.repo = tx.commit();
+    let mut_repo = tx.mut_repo();
+    git::import_refs(mut_repo, &git_repo).unwrap();
+    mut_repo.rebase_descendants(&test_data.settings).unwrap();
 
     // Do an initial export to make sure `main` is considered
-    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
     assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/main"));
     assert_eq!(
         git_repo.find_reference("refs/heads/main").unwrap().target(),
@@ -429,22 +427,20 @@ fn test_export_refs_no_detach() {
 #[test]
 fn test_export_refs_no_op() {
     // Nothing changes on the git side if nothing changed on the jj side
-    let mut test_data = GitRepoData::create();
+    let test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     git_repo.set_head("refs/heads/main").unwrap();
 
     let mut tx = test_data.repo.start_transaction("test");
-    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
-    tx.mut_repo()
-        .rebase_descendants(&test_data.settings)
-        .unwrap();
-    test_data.repo = tx.commit();
+    let mut_repo = tx.mut_repo();
+    git::import_refs(mut_repo, &git_repo).unwrap();
+    mut_repo.rebase_descendants(&test_data.settings).unwrap();
 
-    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
     // The export should be a no-op since nothing changed on the jj side since last
     // export
-    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
     assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/main"));
     assert_eq!(
         git_repo.find_reference("refs/heads/main").unwrap().target(),
@@ -455,7 +451,7 @@ fn test_export_refs_no_op() {
 #[test]
 fn test_export_refs_branch_changed() {
     // We can export a change to a branch
-    let mut test_data = GitRepoData::create();
+    let test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
     let commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     git_repo
@@ -467,24 +463,20 @@ fn test_export_refs_branch_changed() {
     git_repo.set_head("refs/heads/feature").unwrap();
 
     let mut tx = test_data.repo.start_transaction("test");
-    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
-    tx.mut_repo()
-        .rebase_descendants(&test_data.settings)
-        .unwrap();
-    test_data.repo = tx.commit();
+    let mut_repo = tx.mut_repo();
+    git::import_refs(mut_repo, &git_repo).unwrap();
+    mut_repo.rebase_descendants(&test_data.settings).unwrap();
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
 
-    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
-    let mut tx = test_data.repo.start_transaction("test");
     let new_commit = create_random_commit(&test_data.settings, &test_data.repo)
         .set_parents(vec![jj_id(&commit)])
-        .write_to_repo(tx.mut_repo());
-    tx.mut_repo().set_local_branch(
+        .write_to_repo(mut_repo);
+    mut_repo.set_local_branch(
         "main".to_string(),
         RefTarget::Normal(new_commit.id().clone()),
     );
-    tx.mut_repo().remove_local_branch("delete-me");
-    test_data.repo = tx.commit();
-    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    mut_repo.remove_local_branch("delete-me");
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
     assert_eq!(
         git_repo
             .find_reference("refs/heads/main")
@@ -502,28 +494,24 @@ fn test_export_refs_branch_changed() {
 #[test]
 fn test_export_refs_current_branch_changed() {
     // If we update a branch that is checked out in the git repo, HEAD gets detached
-    let mut test_data = GitRepoData::create();
+    let test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     git_repo.set_head("refs/heads/main").unwrap();
     let mut tx = test_data.repo.start_transaction("test");
-    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
-    tx.mut_repo()
-        .rebase_descendants(&test_data.settings)
-        .unwrap();
-    test_data.repo = tx.commit();
+    let mut_repo = tx.mut_repo();
+    git::import_refs(mut_repo, &git_repo).unwrap();
+    mut_repo.rebase_descendants(&test_data.settings).unwrap();
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
 
-    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
-    let mut tx = test_data.repo.start_transaction("test");
     let new_commit = create_random_commit(&test_data.settings, &test_data.repo)
         .set_parents(vec![jj_id(&commit1)])
-        .write_to_repo(tx.mut_repo());
-    tx.mut_repo().set_local_branch(
+        .write_to_repo(mut_repo);
+    mut_repo.set_local_branch(
         "main".to_string(),
         RefTarget::Normal(new_commit.id().clone()),
     );
-    test_data.repo = tx.commit();
-    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
     assert_eq!(
         git_repo
             .find_reference("refs/heads/main")
@@ -539,26 +527,22 @@ fn test_export_refs_current_branch_changed() {
 #[test]
 fn test_export_refs_unborn_git_branch() {
     // Can export to an empty Git repo (we can handle Git's "unborn branch" state)
-    let mut test_data = GitRepoData::create();
+    let test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
     git_repo.set_head("refs/heads/main").unwrap();
     let mut tx = test_data.repo.start_transaction("test");
-    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
-    tx.mut_repo()
-        .rebase_descendants(&test_data.settings)
-        .unwrap();
-    test_data.repo = tx.commit();
+    let mut_repo = tx.mut_repo();
+    git::import_refs(mut_repo, &git_repo).unwrap();
+    mut_repo.rebase_descendants(&test_data.settings).unwrap();
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
 
-    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
-    let mut tx = test_data.repo.start_transaction("test");
     let new_commit =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
-    tx.mut_repo().set_local_branch(
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
+    mut_repo.set_local_branch(
         "main".to_string(),
         RefTarget::Normal(new_commit.id().clone()),
     );
-    test_data.repo = tx.commit();
-    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
     assert_eq!(
         git_repo
             .find_reference("refs/heads/main")
@@ -579,33 +563,28 @@ fn test_export_import_sequence() {
     // Import a branch pointing to A, modify it in jj to point to B, export it,
     // modify it in git to point to C, then import it again. There should be no
     // conflict.
-    let mut test_data = GitRepoData::create();
+    let test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
     let mut tx = test_data.repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
     let commit_a =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
     let commit_b =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
     let commit_c =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
-    test_data.repo = tx.commit();
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
 
     // Import the branch pointing to A
     git_repo
         .reference("refs/heads/main", git_id(&commit_a), true, "test")
         .unwrap();
-    let mut tx = test_data.repo.start_transaction("test");
-    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
-    test_data.repo = tx.commit();
+    git::import_refs(mut_repo, &git_repo).unwrap();
 
     // Modify the branch in jj to point to B
-    let mut tx = test_data.repo.start_transaction("test");
-    tx.mut_repo()
-        .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
-    test_data.repo = tx.commit();
+    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
 
     // Export the branch to git
-    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
 
     // Modify the branch in git to point to C
     git_repo
@@ -613,11 +592,10 @@ fn test_export_import_sequence() {
         .unwrap();
 
     // Import from git
-    let mut tx = test_data.repo.start_transaction("test");
-    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    git::import_refs(mut_repo, &git_repo).unwrap();
     // TODO: The branch should point to C, it shouldn't be a conflict
     assert_eq!(
-        tx.mut_repo().view().get_local_branch("main"),
+        mut_repo.view().get_local_branch("main"),
         Some(RefTarget::Conflict {
             removes: vec![commit_a.id().clone()],
             adds: vec![commit_b.id().clone(), commit_c.id().clone()],
@@ -628,38 +606,34 @@ fn test_export_import_sequence() {
 #[test]
 fn test_export_conflicts() {
     // We skip export of conflicted branches
-    let mut test_data = GitRepoData::create();
+    let test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
     let mut tx = test_data.repo.start_transaction("test");
+    let mut_repo = tx.mut_repo();
     let commit_a =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
     let commit_b =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
     let commit_c =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(tx.mut_repo());
-    tx.mut_repo()
-        .set_local_branch("main".to_string(), RefTarget::Normal(commit_a.id().clone()));
-    tx.mut_repo().set_local_branch(
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
+    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit_a.id().clone()));
+    mut_repo.set_local_branch(
         "feature".to_string(),
         RefTarget::Normal(commit_a.id().clone()),
     );
-    test_data.repo = tx.commit();
-    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
 
     // Create a conflict and export. It should not be exported, but other changes
     // should be.
-    let mut tx = test_data.repo.start_transaction("test");
-    tx.mut_repo()
-        .set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
-    tx.mut_repo().set_local_branch(
+    mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
+    mut_repo.set_local_branch(
         "feature".to_string(),
         RefTarget::Conflict {
             removes: vec![commit_a.id().clone()],
             adds: vec![commit_b.id().clone(), commit_c.id().clone()],
         },
     );
-    test_data.repo = tx.commit();
-    assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
     assert_eq!(
         git_repo
             .find_reference("refs/heads/feature")
