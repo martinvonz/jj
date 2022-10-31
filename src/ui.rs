@@ -147,6 +147,13 @@ impl Ui {
         }
     }
 
+    pub fn write_stderr(&mut self, text: &str) -> io::Result<()> {
+        let data = text.as_bytes();
+        match &mut self.output_pair {
+            UiOutputPair::Terminal { stderr, .. } => stderr.write_all(data),
+        }
+    }
+
     pub fn write_fmt(&mut self, fmt: fmt::Arguments<'_>) -> io::Result<()> {
         match &mut self.output_pair {
             UiOutputPair::Terminal { stdout, .. } => stdout.write_fmt(fmt),
