@@ -245,13 +245,16 @@ pub fn export_refs(
     upgrade_old_export_state(repo);
 
     let last_export_path = repo.repo_path().join("git_export_view");
-    if let Ok(mut last_export_file) = OpenOptions::new().read(true).open(&last_export_path) {
-        let thrift_view = simple_op_store::read_thrift(&mut last_export_file)
-            .map_err(|err| GitExportError::ReadStateError(err.to_string()))?;
-        let last_export_store_view = op_store::View::from(&thrift_view);
-        let last_export_view = View::new(last_export_store_view);
-        export_changes(&last_export_view, repo.view(), git_repo)?;
-    }
+    let last_export_store_view =
+        if let Ok(mut last_export_file) = OpenOptions::new().read(true).open(&last_export_path) {
+            let thrift_view = simple_op_store::read_thrift(&mut last_export_file)
+                .map_err(|err| GitExportError::ReadStateError(err.to_string()))?;
+            op_store::View::from(&thrift_view)
+        } else {
+            op_store::View::default()
+        };
+    let last_export_view = View::new(last_export_store_view);
+    export_changes(&last_export_view, repo.view(), git_repo)?;
     if let Ok(mut last_export_file) = OpenOptions::new()
         .write(true)
         .create(true)

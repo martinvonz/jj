@@ -403,8 +403,9 @@ fn test_import_refs_detached_head() {
 }
 
 #[test]
-fn test_export_refs_initial() {
-    // The first export doesn't do anything
+fn test_export_refs_no_detach() {
+    // When exporting the branch that's current checked out, don't detach HEAD if
+    // the target already matches
     let mut test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
@@ -416,7 +417,7 @@ fn test_export_refs_initial() {
         .unwrap();
     test_data.repo = tx.commit();
 
-    // The first export shouldn't do anything
+    // Do an initial export to make sure `main` is considered
     assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
     assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/main"));
     assert_eq!(
