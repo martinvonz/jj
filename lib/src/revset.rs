@@ -435,10 +435,13 @@ impl RevsetExpression {
     }
 }
 
-fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+fn parse_expression_rule(
+    mut pairs: Pairs<Rule>,
+    workspace_ctx: Option<&RevsetWorkspaceContext>,
+) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let first = pairs.next().unwrap();
     match first.as_rule() {
-        Rule::infix_expression => parse_infix_expression_rule(first.into_inner()),
+        Rule::infix_expression => parse_infix_expression_rule(first.into_inner(), workspace_ctx),
         _ => {
             panic!(
                 "unxpected revset parse rule {:?} in: {:?}",
@@ -451,10 +454,13 @@ fn parse_expression_rule(mut pairs: Pairs<Rule>) -> Result<Rc<RevsetExpression>,
 
 fn parse_infix_expression_rule(
     mut pairs: Pairs<Rule>,
+    workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let mut expression1 = parse_range_expression_rule(pairs.next().unwrap().into_inner())?;
+    let mut expression1 =
+        parse_range_expression_rule(pairs.next().unwrap().into_inner(), workspace_ctx)?;
     while let Some(operator) = pairs.next() {
-        let expression2 = parse_range_expression_rule(pairs.next().unwrap().into_inner())?;
+        let expression2 =
+            parse_range_expression_rule(pairs.next().unwrap().into_inner(), workspace_ctx)?;
         expression1 = match operator.as_rule() {
             Rule::union_op => expression1.union(&expression2),
             Rule::intersection_op => expression1.intersection(&expression2),
@@ -472,13 +478,16 @@ fn parse_infix_expression_rule(
 
 fn parse_range_expression_rule(
     mut pairs: Pairs<Rule>,
+    workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let first = pairs.next().unwrap();
     match first.as_rule() {
         Rule::dag_range_op | Rule::range_op => {
-            return Ok(
-                parse_neighbors_expression_rule(pairs.next().unwrap().into_inner())?.ancestors(),
-            );
+            return Ok(parse_neighbors_expression_rule(
+                pairs.next().unwrap().into_inner(),
+                workspace_ctx,
+            )?
+            .ancestors());
         }
         Rule::neighbors_expression => {
             // Fall through
@@ -487,13 +496,13 @@ fn parse_range_expression_rule(
             panic!("unxpected revset range operator rule {:?}", first.as_rule());
         }
     }
-    let mut expression = parse_neighbors_expression_rule(first.into_inner())?;
+    let mut expression = parse_neighbors_expression_rule(first.into_inner(), workspace_ctx)?;
     if let Some(next) = pairs.next() {
         match next.as_rule() {
             Rule::dag_range_op => {
                 if let Some(heads_pair) = pairs.next() {
                     let heads_expression =
-                        parse_neighbors_expression_rule(heads_pair.into_inner())?;
+                        parse_neighbors_expression_rule(heads_pair.into_inner(), workspace_ctx)?;
                     expression = expression.dag_range_to(&heads_expression);
                 } else {
                     expression = expression.descendants();
@@ -502,7 +511,7 @@ fn parse_range_expression_rule(
             Rule::range_op => {
                 if let Some(heads_pair) = pairs.next() {
                     let heads_expression =
-                        parse_neighbors_expression_rule(heads_pair.into_inner())?;
+                        parse_neighbors_expression_rule(heads_pair.into_inner(), workspace_ctx)?;
                     expression = expression.range(&heads_expression);
                 } else {
                     expression = expression.range(&RevsetExpression::visible_heads());
@@ -518,8 +527,9 @@ fn parse_range_expression_rule(
 
 fn parse_neighbors_expression_rule(
     mut pairs: Pairs<Rule>,
+    workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let mut expression = parse_primary_rule(pairs.next().unwrap().into_inner())?;
+    let mut expression = parse_primary_rule(pairs.next().unwrap().into_inner(), workspace_ctx)?;
     for operator in pairs {
         match operator.as_rule() {
             Rule::parents_op => {
@@ -539,14 +549,17 @@ fn parse_neighbors_expression_rule(
     Ok(expression)
 }
 
-fn parse_primary_rule(mut pairs: Pairs<Rule>) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+fn parse_primary_rule(
+    mut pairs: Pairs<Rule>,
+    workspace_ctx: Option<&RevsetWorkspaceContext>,
+) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let first = pairs.next().unwrap();
     match first.as_rule() {
-        Rule::expression => parse_expression_rule(first.into_inner()),
+        Rule::expression => parse_expression_rule(first.into_inner(), workspace_ctx),
         Rule::function_name => {
             let name = first.as_str().to_owned();
             let argument_pairs = pairs.next().unwrap().into_inner();
-            parse_function_expression(name, argument_pairs)
+            parse_function_expression(name, argument_pairs, workspace_ctx)
         }
         Rule::symbol => parse_symbol_rule(first.into_inner()),
         _ => {
@@ -579,12 +592,17 @@ fn parse_symbol_rule(mut pairs: Pairs<Rule>) -> Result<Rc<RevsetExpression>, Rev
 fn parse_function_expression(
     name: String,
     mut argument_pairs: Pairs<Rule>,
+    workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let arg_count = argument_pairs.clone().count();
     match name.as_str() {
         "parents" => {
             if arg_count == 1 {
-                Ok(parse_expression_rule(argument_pairs.next().unwrap().into_inner())?.parents())
+                Ok(parse_expression_rule(
+                    argument_pairs.next().unwrap().into_inner(),
+                    workspace_ctx,
+                )?
+                .parents())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -594,8 +612,10 @@ fn parse_function_expression(
         }
         "children" => {
             if arg_count == 1 {
-                let expression =
-                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
+                let expression = parse_expression_rule(
+                    argument_pairs.next().unwrap().into_inner(),
+                    workspace_ctx,
+                )?;
                 Ok(expression.children())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
@@ -606,7 +626,11 @@ fn parse_function_expression(
         }
         "ancestors" => {
             if arg_count == 1 {
-                Ok(parse_expression_rule(argument_pairs.next().unwrap().into_inner())?.ancestors())
+                Ok(parse_expression_rule(
+                    argument_pairs.next().unwrap().into_inner(),
+                    workspace_ctx,
+                )?
+                .ancestors())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -616,8 +640,10 @@ fn parse_function_expression(
         }
         "descendants" => {
             if arg_count == 1 {
-                let expression =
-                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
+                let expression = parse_expression_rule(
+                    argument_pairs.next().unwrap().into_inner(),
+                    workspace_ctx,
+                )?;
                 Ok(expression.descendants())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
@@ -628,8 +654,10 @@ fn parse_function_expression(
         }
         "connected" => {
             if arg_count == 1 {
-                let candidates =
-                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
+                let candidates = parse_expression_rule(
+                    argument_pairs.next().unwrap().into_inner(),
+                    workspace_ctx,
+                )?;
                 Ok(candidates.connected())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
@@ -662,8 +690,10 @@ fn parse_function_expression(
             if arg_count == 0 {
                 Ok(RevsetExpression::visible_heads())
             } else if arg_count == 1 {
-                let candidates =
-                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
+                let candidates = parse_expression_rule(
+                    argument_pairs.next().unwrap().into_inner(),
+                    workspace_ctx,
+                )?;
                 Ok(candidates.heads())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
@@ -674,8 +704,10 @@ fn parse_function_expression(
         }
         "roots" => {
             if arg_count == 1 {
-                let candidates =
-                    parse_expression_rule(argument_pairs.next().unwrap().into_inner())?;
+                let candidates = parse_expression_rule(
+                    argument_pairs.next().unwrap().into_inner(),
+                    workspace_ctx,
+                )?;
                 Ok(candidates.roots())
             } else {
                 Err(RevsetParseError::InvalidFunctionArguments {
@@ -784,7 +816,8 @@ fn parse_function_argument_to_string(
     name: &str,
     pairs: Pairs<Rule>,
 ) -> Result<String, RevsetParseError> {
-    let expression = parse_expression_rule(pairs.clone())?;
+    let workspace_ctx = None; // string literal shouldn't depend on workspace information
+    let expression = parse_expression_rule(pairs.clone(), workspace_ctx)?;
     match expression.as_ref() {
         RevsetExpression::Symbol(symbol) => Ok(symbol.clone()),
         _ => Err(RevsetParseError::InvalidFunctionArguments {
@@ -797,7 +830,10 @@ fn parse_function_argument_to_string(
     }
 }
 
-pub fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+pub fn parse(
+    revset_str: &str,
+    workspace_ctx: Option<&RevsetWorkspaceContext>,
+) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let mut pairs = RevsetParser::parse(Rule::expression, revset_str)
         .map_err(|err| RevsetParseError::SyntaxError(Box::new(err)))?;
     let first = pairs.next().unwrap();
@@ -813,7 +849,7 @@ pub fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseError>
         return Err(RevsetParseError::SyntaxError(Box::new(err)));
     }
 
-    parse_expression_rule(first.into_inner())
+    parse_expression_rule(first.into_inner(), workspace_ctx)
 }
 
 /// Walks `expression` tree and applies `f` recursively from leaf nodes.
@@ -1607,6 +1643,10 @@ mod tests {
     use assert_matches::assert_matches;
 
     use super::*;
+
+    fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+        super::parse(revset_str, None)
+    }
 
     #[test]
     fn test_revset_expression_building() {
