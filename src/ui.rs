@@ -25,6 +25,7 @@ use crate::formatter::{Formatter, FormatterFactory};
 
 pub struct Ui {
     color: bool,
+    paginate: PaginationChoice,
     progress_indicator: bool,
     cwd: PathBuf,
     formatter_factory: FormatterFactory,
@@ -93,6 +94,18 @@ fn use_color(choice: ColorChoice) -> bool {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PaginationChoice {
+    No,
+    Auto,
+}
+
+impl Default for PaginationChoice {
+    fn default() -> Self {
+        PaginationChoice::Auto
+    }
+}
+
 fn pager_setting(settings: &UserSettings) -> String {
     settings
         .config()
@@ -110,6 +123,7 @@ impl Ui {
             color,
             cwd,
             formatter_factory,
+            paginate: PaginationChoice::Auto,
             progress_indicator,
             output: UiOutput::new_terminal(),
             settings,
@@ -124,8 +138,17 @@ impl Ui {
         }
     }
 
+    /// Sets the pagination value.
+    pub fn set_pagination(&mut self, choice: PaginationChoice) {
+        self.paginate = choice;
+    }
+
     /// Switches the output to use the pager, if allowed.
     pub fn request_pager(&mut self) {
+        if self.paginate == PaginationChoice::No {
+            return;
+        }
+
         match self.output {
             UiOutput::Paged { .. } => {}
             UiOutput::Terminal { .. } => {
