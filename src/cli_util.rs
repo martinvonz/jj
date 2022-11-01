@@ -1237,6 +1237,14 @@ pub struct GlobalArgs {
         help_heading = "Global Options"
     )]
     pub color: Option<ColorChoice>,
+    /// Disable the pager
+    #[arg(
+        long,
+        value_name = "WHEN",
+        global = true,
+        help_heading = "Global Options"
+    )]
+    pub no_pager: bool,
     /// Additional configuration options
     //  TODO: Introduce a `--config` option with simpler syntax for simple
     //  cases, designed so that `--config ui.color=auto` works
@@ -1410,6 +1418,9 @@ pub fn parse_args(
         args.global_args
             .config_toml
             .push(format!("ui.color=\"{}\"", choice.to_string()));
+    }
+    if args.global_args.no_pager {
+        ui.set_pagination(crate::ui::PaginationChoice::No);
     }
     if !args.global_args.config_toml.is_empty() {
         ui.extra_toml_settings(&args.global_args.config_toml)?;

@@ -253,6 +253,7 @@ fn test_help() {
           --no-commit-working-copy       Don't commit the working copy
           --at-operation <AT_OPERATION>  Operation to load the repo at [default: @] [aliases: at-op]
           --color <WHEN>                 When to colorize output (always, never, auto)
+          --no-pager                     Disable the pager
           --config-toml <TOML>           Additional configuration options
       -v, --verbose                      Enable verbose logging
     "###);
