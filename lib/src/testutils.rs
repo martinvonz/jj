@@ -16,10 +16,9 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Once};
 
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use tempfile::TempDir;
 
 use crate::backend::{FileId, TreeId, TreeValue};
@@ -36,26 +35,21 @@ use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
 use crate::workspace::Workspace;
 
-lazy_static! {
+pub fn hermetic_libgit2() {
     // libgit2 respects init.defaultBranch (and possibly other config
     // variables) in the user's config files. Disable access to them to make
     // our tests hermetic.
     //
     // set_search_path is unsafe because it cannot guarantee thread safety (as
     // its documentation states). For the same reason, we wrap these invocations
-    // in lazy_static!.
-    static ref CONFIGURE_GIT2: () = {
-        unsafe {
-            git2::opts::set_search_path(git2::ConfigLevel::System, "").unwrap();
-            git2::opts::set_search_path(git2::ConfigLevel::Global, "").unwrap();
-            git2::opts::set_search_path(git2::ConfigLevel::XDG, "").unwrap();
-            git2::opts::set_search_path(git2::ConfigLevel::ProgramData, "").unwrap();
-        }
-    };
-}
-
-pub fn hermetic_libgit2() {
-    lazy_static::initialize(&CONFIGURE_GIT2);
+    // in `call_once`.
+    static CONFIGURE_GIT2: Once = Once::new();
+    CONFIGURE_GIT2.call_once(|| unsafe {
+        git2::opts::set_search_path(git2::ConfigLevel::System, "").unwrap();
+        git2::opts::set_search_path(git2::ConfigLevel::Global, "").unwrap();
+        git2::opts::set_search_path(git2::ConfigLevel::XDG, "").unwrap();
+        git2::opts::set_search_path(git2::ConfigLevel::ProgramData, "").unwrap();
+    });
 }
 
 pub fn new_temp_dir() -> TempDir {
