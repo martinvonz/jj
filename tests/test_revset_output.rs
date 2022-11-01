@@ -22,6 +22,56 @@ fn test_bad_function_call() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "all(or:nothing)"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:5
+      |
+    1 | all(or:nothing)
+      |     ^--------^
+      |
+      = Invalid arguments to revset function "all": Expected 0 arguments
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "parents()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:9
+      |
+    1 | parents()
+      |         ^
+      |
+      = Invalid arguments to revset function "parents": Expected 1 argument
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "parents(foo, bar)"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:9
+      |
+    1 | parents(foo, bar)
+      |         ^------^
+      |
+      = Invalid arguments to revset function "parents": Expected 1 argument
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "heads(foo, bar)"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:7
+      |
+    1 | heads(foo, bar)
+      |       ^------^
+      |
+      = Invalid arguments to revset function "heads": Expected 0 or 1 arguments
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:6
+      |
+    1 | file()
+      |      ^
+      |
+      = Invalid arguments to revset function "file": Expected at least 1 argument
+    "###);
+
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file(a, not:a-string)"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to parse revset:  --> 1:9

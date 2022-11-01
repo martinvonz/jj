@@ -622,8 +622,8 @@ fn parse_primary_rule(
     match first.as_rule() {
         Rule::expression => parse_expression_rule(first.into_inner(), workspace_ctx),
         Rule::function_name => {
-            let argument_pairs = pairs.next().unwrap().into_inner();
-            parse_function_expression(first, argument_pairs, workspace_ctx)
+            let arguments_pair = pairs.next().unwrap();
+            parse_function_expression(first, arguments_pair, workspace_ctx)
         }
         Rule::symbol => parse_symbol_rule(first.into_inner()),
         _ => {
@@ -655,46 +655,46 @@ fn parse_symbol_rule(mut pairs: Pairs<Rule>) -> Result<Rc<RevsetExpression>, Rev
 
 fn parse_function_expression(
     name_pair: Pair<Rule>,
-    argument_pairs: Pairs<Rule>,
+    arguments_pair: Pair<Rule>,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let name = name_pair.as_str();
     match name {
         "parents" => {
-            let arg = expect_one_argument(name, argument_pairs)?;
+            let arg = expect_one_argument(name, arguments_pair)?;
             let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
             Ok(expression.parents())
         }
         "children" => {
-            let arg = expect_one_argument(name, argument_pairs)?;
+            let arg = expect_one_argument(name, arguments_pair)?;
             let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
             Ok(expression.children())
         }
         "ancestors" => {
-            let arg = expect_one_argument(name, argument_pairs)?;
+            let arg = expect_one_argument(name, arguments_pair)?;
             let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
             Ok(expression.ancestors())
         }
         "descendants" => {
-            let arg = expect_one_argument(name, argument_pairs)?;
+            let arg = expect_one_argument(name, arguments_pair)?;
             let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
             Ok(expression.descendants())
         }
         "connected" => {
-            let arg = expect_one_argument(name, argument_pairs)?;
+            let arg = expect_one_argument(name, arguments_pair)?;
             let candidates = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
             Ok(candidates.connected())
         }
         "none" => {
-            expect_no_arguments(name, argument_pairs)?;
+            expect_no_arguments(name, arguments_pair)?;
             Ok(RevsetExpression::none())
         }
         "all" => {
-            expect_no_arguments(name, argument_pairs)?;
+            expect_no_arguments(name, arguments_pair)?;
             Ok(RevsetExpression::all())
         }
         "heads" => {
-            if let Some(arg) = expect_one_optional_argument(name, argument_pairs)? {
+            if let Some(arg) = expect_one_optional_argument(name, arguments_pair)? {
                 let candidates = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
                 Ok(candidates.heads())
             } else {
@@ -702,40 +702,40 @@ fn parse_function_expression(
             }
         }
         "roots" => {
-            let arg = expect_one_argument(name, argument_pairs)?;
+            let arg = expect_one_argument(name, arguments_pair)?;
             let candidates = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
             Ok(candidates.roots())
         }
         "public_heads" => {
-            expect_no_arguments(name, argument_pairs)?;
+            expect_no_arguments(name, arguments_pair)?;
             Ok(RevsetExpression::public_heads())
         }
         "branches" => {
-            expect_no_arguments(name, argument_pairs)?;
+            expect_no_arguments(name, arguments_pair)?;
             Ok(RevsetExpression::branches())
         }
         "remote_branches" => {
-            expect_no_arguments(name, argument_pairs)?;
+            expect_no_arguments(name, arguments_pair)?;
             Ok(RevsetExpression::remote_branches())
         }
         "tags" => {
-            expect_no_arguments(name, argument_pairs)?;
+            expect_no_arguments(name, arguments_pair)?;
             Ok(RevsetExpression::tags())
         }
         "git_refs" => {
-            expect_no_arguments(name, argument_pairs)?;
+            expect_no_arguments(name, arguments_pair)?;
             Ok(RevsetExpression::git_refs())
         }
         "git_head" => {
-            expect_no_arguments(name, argument_pairs)?;
+            expect_no_arguments(name, arguments_pair)?;
             Ok(RevsetExpression::git_head())
         }
         "merges" => {
-            expect_no_arguments(name, argument_pairs)?;
+            expect_no_arguments(name, arguments_pair)?;
             Ok(RevsetExpression::all().with_parent_count(2..u32::MAX))
         }
         "description" | "author" | "committer" => {
-            let arg = expect_one_argument(name, argument_pairs)?;
+            let arg = expect_one_argument(name, arguments_pair)?;
             let needle = parse_function_argument_to_string(name, arg)?;
             let candidates = RevsetExpression::all();
             match name {
@@ -749,7 +749,9 @@ fn parse_function_expression(
         }
         "file" => {
             if let Some(ctx) = workspace_ctx {
-                let paths = argument_pairs
+                let arguments_span = arguments_pair.as_span();
+                let paths = arguments_pair
+                    .into_inner()
                     .map(|arg| {
                         let span = arg.as_span();
                         let needle = parse_function_argument_to_string(name, arg)?;
@@ -764,11 +766,12 @@ fn parse_function_expression(
                     })
                     .collect::<Result<Vec<_>, RevsetParseError>>()?;
                 if paths.is_empty() {
-                    Err(RevsetParseError::new(
+                    Err(RevsetParseError::with_span(
                         RevsetParseErrorKind::InvalidFunctionArguments {
                             name: name.to_owned(),
                             message: "Expected at least 1 argument".to_string(),
                         },
+                        arguments_span,
                     ))
                 } else {
                     Ok(RevsetExpression::all().with_file(paths))
@@ -786,52 +789,56 @@ fn parse_function_expression(
     }
 }
 
-fn expect_no_arguments(
-    name: &str,
-    mut argument_pairs: Pairs<Rule>,
-) -> Result<(), RevsetParseError> {
+fn expect_no_arguments(name: &str, arguments_pair: Pair<Rule>) -> Result<(), RevsetParseError> {
+    let span = arguments_pair.as_span();
+    let mut argument_pairs = arguments_pair.into_inner();
     if argument_pairs.next().is_none() {
         Ok(())
     } else {
-        Err(RevsetParseError::new(
+        Err(RevsetParseError::with_span(
             RevsetParseErrorKind::InvalidFunctionArguments {
                 name: name.to_owned(),
                 message: "Expected 0 arguments".to_string(),
             },
+            span,
         ))
     }
 }
 
 fn expect_one_argument<'i>(
     name: &str,
-    argument_pairs: Pairs<'i, Rule>,
+    arguments_pair: Pair<'i, Rule>,
 ) -> Result<Pair<'i, Rule>, RevsetParseError> {
-    let mut argument_pairs = argument_pairs.fuse();
+    let span = arguments_pair.as_span();
+    let mut argument_pairs = arguments_pair.into_inner().fuse();
     if let (Some(arg), None) = (argument_pairs.next(), argument_pairs.next()) {
         Ok(arg)
     } else {
-        Err(RevsetParseError::new(
+        Err(RevsetParseError::with_span(
             RevsetParseErrorKind::InvalidFunctionArguments {
                 name: name.to_owned(),
                 message: "Expected 1 argument".to_string(),
             },
+            span,
         ))
     }
 }
 
 fn expect_one_optional_argument<'i>(
     name: &str,
-    argument_pairs: Pairs<'i, Rule>,
+    arguments_pair: Pair<'i, Rule>,
 ) -> Result<Option<Pair<'i, Rule>>, RevsetParseError> {
-    let mut argument_pairs = argument_pairs.fuse();
+    let span = arguments_pair.as_span();
+    let mut argument_pairs = arguments_pair.into_inner().fuse();
     if let (opt_arg, None) = (argument_pairs.next(), argument_pairs.next()) {
         Ok(opt_arg)
     } else {
-        Err(RevsetParseError::new(
+        Err(RevsetParseError::with_span(
             RevsetParseErrorKind::InvalidFunctionArguments {
                 name: name.to_owned(),
                 message: "Expected 0 or 1 arguments".to_string(),
             },
+            span,
         ))
     }
 }
