@@ -220,6 +220,19 @@ impl RevsetParseError {
         }
     }
 
+    fn with_span(kind: RevsetParseErrorKind, span: pest::Span<'_>) -> Self {
+        let err = pest::error::Error::new_from_span(
+            pest::error::ErrorVariant::CustomError {
+                message: kind.to_string(),
+            },
+            span,
+        );
+        RevsetParseError {
+            kind,
+            pest_error: Some(Box::new(err)),
+        }
+    }
+
     pub fn kind(&self) -> &RevsetParseErrorKind {
         &self.kind
     }
@@ -738,10 +751,14 @@ fn parse_function_expression(
             if let Some(ctx) = workspace_ctx {
                 let paths = argument_pairs
                     .map(|arg| {
+                        let span = arg.as_span();
                         let needle = parse_function_argument_to_string(&name, arg.into_inner())?;
                         let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, &needle)
                             .map_err(|e| {
-                                RevsetParseError::new(RevsetParseErrorKind::FsPathParseError(e))
+                                RevsetParseError::with_span(
+                                    RevsetParseErrorKind::FsPathParseError(e),
+                                    span,
+                                )
                             })?;
                         Ok(path)
                     })
