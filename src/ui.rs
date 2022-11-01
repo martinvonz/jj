@@ -24,10 +24,18 @@ use crate::formatter::{Formatter, FormatterFactory};
 
 pub struct Ui {
     color: bool,
+    progress_indicator: bool,
     cwd: PathBuf,
     formatter_factory: FormatterFactory,
     output: UiOutput,
     settings: UserSettings,
+}
+
+fn progress_indicator_setting(settings: &UserSettings) -> bool {
+    settings
+        .config()
+        .get_bool("ui.progress-indicator")
+        .unwrap_or(true)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -88,11 +96,13 @@ impl Ui {
     pub fn for_terminal(settings: UserSettings) -> Ui {
         let cwd = std::env::current_dir().unwrap();
         let color = use_color(color_setting(&settings));
+        let progress_indicator = progress_indicator_setting(&settings);
         let formatter_factory = FormatterFactory::prepare(&settings, color);
         Ui {
             color,
             cwd,
             formatter_factory,
+            progress_indicator,
             output: UiOutput::new_terminal(),
             settings,
         }
@@ -151,7 +161,7 @@ impl Ui {
     /// Whether continuous feedback should be displayed for long-running
     /// operations
     pub fn use_progress_indicator(&self) -> bool {
-        self.settings().use_progress_indicator() && io::stdout().is_tty()
+        self.progress_indicator && io::stdout().is_tty()
     }
 
     pub fn write(&mut self, text: &str) -> io::Result<()> {
