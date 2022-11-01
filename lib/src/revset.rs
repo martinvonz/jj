@@ -736,7 +736,7 @@ fn parse_function_expression(
         }
         "description" | "author" | "committer" => {
             let arg = expect_one_argument(name, argument_pairs)?;
-            let needle = parse_function_argument_to_string(name, arg.into_inner())?;
+            let needle = parse_function_argument_to_string(name, arg)?;
             let candidates = RevsetExpression::all();
             match name {
                 "description" => Ok(candidates.with_description(needle)),
@@ -752,7 +752,7 @@ fn parse_function_expression(
                 let paths = argument_pairs
                     .map(|arg| {
                         let span = arg.as_span();
-                        let needle = parse_function_argument_to_string(name, arg.into_inner())?;
+                        let needle = parse_function_argument_to_string(name, arg)?;
                         let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, &needle)
                             .map_err(|e| {
                                 RevsetParseError::with_span(
@@ -838,20 +838,19 @@ fn expect_one_optional_argument<'i>(
 
 fn parse_function_argument_to_string(
     name: &str,
-    pairs: Pairs<Rule>,
+    pair: Pair<Rule>,
 ) -> Result<String, RevsetParseError> {
+    let span = pair.as_span();
     let workspace_ctx = None; // string literal shouldn't depend on workspace information
-    let expression = parse_expression_rule(pairs.clone(), workspace_ctx)?;
+    let expression = parse_expression_rule(pair.into_inner(), workspace_ctx)?;
     match expression.as_ref() {
         RevsetExpression::Symbol(symbol) => Ok(symbol.clone()),
-        _ => Err(RevsetParseError::new(
+        _ => Err(RevsetParseError::with_span(
             RevsetParseErrorKind::InvalidFunctionArguments {
                 name: name.to_string(),
-                message: format!(
-                    "Expected function argument of type string, found: {}",
-                    pairs.as_str()
-                ),
+                message: "Expected function argument of type string".to_owned(),
             },
+            span,
         )),
     }
 }
@@ -1917,7 +1916,7 @@ mod tests {
             parse("description(heads())"),
             Err(RevsetParseErrorKind::InvalidFunctionArguments {
                 name: "description".to_string(),
-                message: "Expected function argument of type string, found: heads()".to_string()
+                message: "Expected function argument of type string".to_string()
             })
         );
         assert_eq!(
