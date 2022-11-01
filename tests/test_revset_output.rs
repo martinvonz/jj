@@ -22,6 +22,16 @@ fn test_bad_function_call() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file(a, not:a-string)"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:9
+      |
+    1 | file(a, not:a-string)
+      |         ^----------^
+      |
+      = Invalid arguments to revset function "file": Expected function argument of type string
+    "###);
+
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(a, "../out")"#]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to parse revset:  --> 1:9
