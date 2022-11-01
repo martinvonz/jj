@@ -17,6 +17,7 @@ use std::env::ArgsOs;
 use std::ffi::OsString;
 use std::fmt::Debug;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use clap;
@@ -569,7 +570,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn resolve_single_rev(&self, revision_str: &str) -> Result<Commit, CommandError> {
-        let revset_expression = revset::optimize(revset::parse(revision_str)?);
+        let revset_expression = self.parse_revset(revision_str)?;
         let revset = self.evaluate_revset(&revset_expression)?;
         let mut iter = revset.iter().commits(self.repo.store());
         match iter.next() {
@@ -591,7 +592,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
-        let revset_expression = revset::optimize(revset::parse(revision_str)?);
+        let revset_expression = self.parse_revset(revision_str)?;
         let revset = self.evaluate_revset(&revset_expression)?;
         Ok(revset
             .iter()
@@ -600,16 +601,27 @@ impl WorkspaceCommandHelper {
             .collect())
     }
 
+    pub fn parse_revset(
+        &self,
+        revision_str: &str,
+    ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+        let expression = revset::parse(revision_str)?;
+        Ok(revset::optimize(expression))
+    }
+
     pub fn evaluate_revset<'repo>(
         &'repo self,
         revset_expression: &RevsetExpression,
     ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
-        let workspace_ctx = RevsetWorkspaceContext {
+        revset_expression.evaluate(self.repo.as_repo_ref(), Some(&self.revset_context()))
+    }
+
+    fn revset_context(&self) -> RevsetWorkspaceContext {
+        RevsetWorkspaceContext {
             cwd: &self.cwd,
             workspace_id: self.workspace.workspace_id(),
             workspace_root: self.workspace.workspace_root(),
-        };
-        revset_expression.evaluate(self.repo.as_repo_ref(), Some(&workspace_ctx))
+        }
     }
 
     pub fn check_rewriteable(&self, commit: &Commit) -> Result<(), CommandError> {
