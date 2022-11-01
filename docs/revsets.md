@@ -108,7 +108,7 @@ revsets (expressions) as arguments.
   email.
 * `committer(needle)`: Commits with the given string in the committer's
   name or email.
-* `file(pattern)`: Commits modifying the paths specified by the `pattern`.
+* `file(pattern..)`: Commits modifying the paths specified by the `pattern..`.
 
 
 ## Examples

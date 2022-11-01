@@ -211,7 +211,7 @@ pub enum RevsetFilterPredicate {
     Description(String),
     Author(String),    // Matches against both name and email
     Committer(String), // Matches against both name and email
-    File(RepoPath),
+    File(Vec<RepoPath>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -395,10 +395,10 @@ impl RevsetExpression {
     }
 
     /// Commits in `self` modifying the paths specified by the `pattern`.
-    pub fn with_file(self: &Rc<RevsetExpression>, pattern: RepoPath) -> Rc<RevsetExpression> {
+    pub fn with_file(self: &Rc<RevsetExpression>, paths: Vec<RepoPath>) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Filter {
             candidates: self.clone(),
-            predicate: RevsetFilterPredicate::File(pattern),
+            predicate: RevsetFilterPredicate::File(paths),
         })
     }
 
@@ -808,19 +808,21 @@ fn parse_function_expression(
             }
         }
         "file" => {
-            if arg_count != 1 {
+            if arg_count < 1 {
                 return Err(RevsetParseError::InvalidFunctionArguments {
                     name,
-                    message: "Expected 1 argument".to_string(),
+                    message: "Expected at least 1 argument".to_string(),
                 });
             }
             if let Some(ctx) = workspace_ctx {
-                let needle = parse_function_argument_to_string(
-                    &name,
-                    argument_pairs.next().unwrap().into_inner(),
-                )?;
-                let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, &needle)?;
-                Ok(RevsetExpression::all().with_file(path))
+                let paths = argument_pairs
+                    .map(|arg| {
+                        let needle = parse_function_argument_to_string(&name, arg.into_inner())?;
+                        let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, &needle)?;
+                        Ok(path)
+                    })
+                    .collect::<Result<Vec<_>, RevsetParseError>>()?;
+                Ok(RevsetExpression::all().with_file(paths))
             } else {
                 Err(RevsetParseError::FsPathWithoutWorkspace)
             }
@@ -1581,10 +1583,9 @@ pub fn evaluate_expression<'repo>(
                         }),
                     }))
                 }
-                RevsetFilterPredicate::File(pattern) => {
+                RevsetFilterPredicate::File(paths) => {
                     // TODO: Add support for globs and other formats
-                    let matcher: Box<dyn Matcher> =
-                        Box::new(PrefixMatcher::new(std::slice::from_ref(pattern)));
+                    let matcher: Box<dyn Matcher> = Box::new(PrefixMatcher::new(paths));
                     Ok(filter_by_diff(repo, matcher, candidates))
                 }
             }
@@ -1752,10 +1753,12 @@ mod tests {
             })
         );
         assert_eq!(
-            foo_symbol.with_file(RepoPath::from_internal_string("pattern")),
+            foo_symbol.with_file(vec![RepoPath::from_internal_string("pattern")]),
             Rc::new(RevsetExpression::Filter {
                 candidates: foo_symbol.clone(),
-                predicate: RevsetFilterPredicate::File(RepoPath::from_internal_string("pattern")),
+                predicate: RevsetFilterPredicate::File(vec![RepoPath::from_internal_string(
+                    "pattern"
+                )]),
             })
         );
         assert_eq!(
@@ -1839,12 +1842,14 @@ mod tests {
         // Incomplete parse
         assert_matches!(parse("foo | -"), Err(RevsetParseError::SyntaxError(_)));
         // Space is allowed around infix operators and function arguments
-        // TODO: test two_arg_function(  arg1 ,   arg2 ) if any
         assert_eq!(
-            parse("   description(  arg1 ) ~    parents(   arg1  )  ~ heads(  )  "),
+            parse("   description(  arg1 ) ~    file(  arg1 ,   arg2 )  ~ heads(  )  "),
             Ok(RevsetExpression::all()
                 .with_description("arg1".to_string())
-                .minus(&RevsetExpression::symbol("arg1".to_string()).parents())
+                .minus(&RevsetExpression::all().with_file(vec![
+                    RepoPath::from_internal_string("arg1"),
+                    RepoPath::from_internal_string("arg2"),
+                ]))
                 .minus(&RevsetExpression::visible_heads()))
         );
     }
@@ -1917,6 +1922,19 @@ mod tests {
         assert_eq!(
             parse("description(\"(foo)\")"),
             Ok(RevsetExpression::all().with_description("(foo)".to_string()))
+        );
+        assert!(parse("file()").is_err());
+        assert_eq!(
+            parse("file(foo)"),
+            Ok(RevsetExpression::all().with_file(vec![RepoPath::from_internal_string("foo")]))
+        );
+        assert_eq!(
+            parse("file(foo, bar, baz)"),
+            Ok(RevsetExpression::all().with_file(vec![
+                RepoPath::from_internal_string("foo"),
+                RepoPath::from_internal_string("bar"),
+                RepoPath::from_internal_string("baz"),
+            ]))
         );
     }
 
@@ -2114,7 +2132,9 @@ mod tests {
                 ),
             },
             predicate: File(
-                "bar",
+                [
+                    "bar",
+                ],
             ),
         }
         "###);
@@ -2129,7 +2149,9 @@ mod tests {
                     ),
                 },
                 predicate: File(
-                    "bar",
+                    [
+                        "bar",
+                    ],
                 ),
             },
             predicate: Author(
@@ -2148,7 +2170,9 @@ mod tests {
                 ),
             ),
             predicate: File(
-                "bar",
+                [
+                    "bar",
+                ],
             ),
         }
         "###);
