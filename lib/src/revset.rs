@@ -20,6 +20,7 @@ use std::ops::Range;
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::{error, fmt};
 
 use itertools::Itertools;
 use pest::iterators::{Pair, Pairs};
@@ -191,18 +192,69 @@ pub fn resolve_symbol(
 #[grammar = "revset.pest"]
 pub struct RevsetParser;
 
+#[derive(Debug)]
+pub struct RevsetParseError {
+    kind: RevsetParseErrorKind,
+    pest_error: Option<Box<pest::error::Error<Rule>>>,
+}
+
 #[derive(Debug, Error, PartialEq, Eq)]
-pub enum RevsetParseError {
-    #[error("{0}")]
-    SyntaxError(#[from] Box<pest::error::Error<Rule>>),
+pub enum RevsetParseErrorKind {
+    #[error("Syntax error")]
+    SyntaxError,
     #[error("Revset function \"{0}\" doesn't exist")]
     NoSuchFunction(String),
     #[error("Invalid arguments to revset function \"{name}\": {message}")]
     InvalidFunctionArguments { name: String, message: String },
     #[error("Invalid file pattern: {0}")]
-    FsPathParseError(#[from] FsPathParseError),
+    FsPathParseError(#[source] FsPathParseError),
     #[error("Cannot resolve file pattern without workspace")]
     FsPathWithoutWorkspace,
+}
+
+impl RevsetParseError {
+    fn new(kind: RevsetParseErrorKind) -> Self {
+        RevsetParseError {
+            kind,
+            pest_error: None,
+        }
+    }
+
+    pub fn kind(&self) -> &RevsetParseErrorKind {
+        &self.kind
+    }
+}
+
+impl From<pest::error::Error<Rule>> for RevsetParseError {
+    fn from(err: pest::error::Error<Rule>) -> Self {
+        RevsetParseError {
+            kind: RevsetParseErrorKind::SyntaxError,
+            pest_error: Some(Box::new(err)),
+        }
+    }
+}
+
+impl fmt::Display for RevsetParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(err) = &self.pest_error {
+            err.fmt(f)
+        } else {
+            self.kind.fmt(f)
+        }
+    }
+}
+
+impl error::Error for RevsetParseError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match &self.kind {
+            // SyntaxError is a wrapper for pest::error::Error.
+            RevsetParseErrorKind::SyntaxError => {
+                self.pest_error.as_ref().map(|e| e as &dyn error::Error)
+            }
+            // Otherwise the kind represents this error.
+            e => e.source(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -687,23 +739,32 @@ fn parse_function_expression(
                 let paths = argument_pairs
                     .map(|arg| {
                         let needle = parse_function_argument_to_string(&name, arg.into_inner())?;
-                        let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, &needle)?;
+                        let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, &needle)
+                            .map_err(|e| {
+                                RevsetParseError::new(RevsetParseErrorKind::FsPathParseError(e))
+                            })?;
                         Ok(path)
                     })
                     .collect::<Result<Vec<_>, RevsetParseError>>()?;
                 if paths.is_empty() {
-                    Err(RevsetParseError::InvalidFunctionArguments {
-                        name,
-                        message: "Expected at least 1 argument".to_string(),
-                    })
+                    Err(RevsetParseError::new(
+                        RevsetParseErrorKind::InvalidFunctionArguments {
+                            name,
+                            message: "Expected at least 1 argument".to_string(),
+                        },
+                    ))
                 } else {
                     Ok(RevsetExpression::all().with_file(paths))
                 }
             } else {
-                Err(RevsetParseError::FsPathWithoutWorkspace)
+                Err(RevsetParseError::new(
+                    RevsetParseErrorKind::FsPathWithoutWorkspace,
+                ))
             }
         }
-        _ => Err(RevsetParseError::NoSuchFunction(name)),
+        _ => Err(RevsetParseError::new(RevsetParseErrorKind::NoSuchFunction(
+            name,
+        ))),
     }
 }
 
@@ -714,10 +775,12 @@ fn expect_no_arguments(
     if argument_pairs.next().is_none() {
         Ok(())
     } else {
-        Err(RevsetParseError::InvalidFunctionArguments {
-            name: name.to_owned(),
-            message: "Expected 0 arguments".to_string(),
-        })
+        Err(RevsetParseError::new(
+            RevsetParseErrorKind::InvalidFunctionArguments {
+                name: name.to_owned(),
+                message: "Expected 0 arguments".to_string(),
+            },
+        ))
     }
 }
 
@@ -729,10 +792,12 @@ fn expect_one_argument<'i>(
     if let (Some(arg), None) = (argument_pairs.next(), argument_pairs.next()) {
         Ok(arg)
     } else {
-        Err(RevsetParseError::InvalidFunctionArguments {
-            name: name.to_owned(),
-            message: "Expected 1 argument".to_string(),
-        })
+        Err(RevsetParseError::new(
+            RevsetParseErrorKind::InvalidFunctionArguments {
+                name: name.to_owned(),
+                message: "Expected 1 argument".to_string(),
+            },
+        ))
     }
 }
 
@@ -744,10 +809,12 @@ fn expect_one_optional_argument<'i>(
     if let (opt_arg, None) = (argument_pairs.next(), argument_pairs.next()) {
         Ok(opt_arg)
     } else {
-        Err(RevsetParseError::InvalidFunctionArguments {
-            name: name.to_owned(),
-            message: "Expected 0 or 1 arguments".to_string(),
-        })
+        Err(RevsetParseError::new(
+            RevsetParseErrorKind::InvalidFunctionArguments {
+                name: name.to_owned(),
+                message: "Expected 0 or 1 arguments".to_string(),
+            },
+        ))
     }
 }
 
@@ -759,13 +826,15 @@ fn parse_function_argument_to_string(
     let expression = parse_expression_rule(pairs.clone(), workspace_ctx)?;
     match expression.as_ref() {
         RevsetExpression::Symbol(symbol) => Ok(symbol.clone()),
-        _ => Err(RevsetParseError::InvalidFunctionArguments {
-            name: name.to_string(),
-            message: format!(
-                "Expected function argument of type string, found: {}",
-                pairs.as_str()
-            ),
-        }),
+        _ => Err(RevsetParseError::new(
+            RevsetParseErrorKind::InvalidFunctionArguments {
+                name: name.to_string(),
+                message: format!(
+                    "Expected function argument of type string, found: {}",
+                    pairs.as_str()
+                ),
+            },
+        )),
     }
 }
 
@@ -773,8 +842,7 @@ pub fn parse(
     revset_str: &str,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let mut pairs = RevsetParser::parse(Rule::expression, revset_str)
-        .map_err(|err| RevsetParseError::SyntaxError(Box::new(err)))?;
+    let mut pairs = RevsetParser::parse(Rule::expression, revset_str)?;
     let first = pairs.next().unwrap();
     assert!(pairs.next().is_none());
     if first.as_span().end() != revset_str.len() {
@@ -785,7 +853,7 @@ pub fn parse(
             },
             pos,
         );
-        return Err(RevsetParseError::SyntaxError(Box::new(err)));
+        return Err(RevsetParseError::from(err));
     }
 
     parse_expression_rule(first.into_inner(), workspace_ctx)
@@ -1574,18 +1642,17 @@ pub fn filter_by_diff<'revset, 'repo: 'revset>(
 
 #[cfg(test)]
 mod tests {
-    use assert_matches::assert_matches;
-
     use super::*;
 
-    fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
         // Set up pseudo context to resolve file(path)
         let workspace_ctx = RevsetWorkspaceContext {
             cwd: Path::new("/"),
             workspace_id: &WorkspaceId::default(),
             workspace_root: Path::new("/"),
         };
-        super::parse(revset_str, Some(&workspace_ctx))
+        // Map error to comparable object
+        super::parse(revset_str, Some(&workspace_ctx)).map_err(|e| e.kind)
     }
 
     #[test]
@@ -1720,12 +1787,12 @@ mod tests {
             Ok(RevsetExpression::symbol("foo.bar-v1+7".to_string()).parents())
         );
         // '.' is not allowed at the beginning or end
-        assert_matches!(parse(".foo"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("foo."), Err(RevsetParseError::SyntaxError(_)));
+        assert_eq!(parse(".foo"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo."), Err(RevsetParseErrorKind::SyntaxError));
         // Multiple '.', '-', '+' are not allowed
-        assert_matches!(parse("foo.+bar"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("foo--bar"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("foo+-bar"), Err(RevsetParseError::SyntaxError(_)));
+        assert_eq!(parse("foo.+bar"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo--bar"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo+-bar"), Err(RevsetParseErrorKind::SyntaxError));
         // Parse a parenthesized symbol
         assert_eq!(parse("(foo)"), Ok(foo_symbol.clone()));
         // Parse a quoted symbol
@@ -1758,9 +1825,9 @@ mod tests {
         // Space is allowed around expressions
         assert_eq!(parse(" :@ "), Ok(wc_symbol.ancestors()));
         // Space is not allowed around prefix operators
-        assert_matches!(parse(" : @ "), Err(RevsetParseError::SyntaxError(_)));
+        assert_eq!(parse(" : @ "), Err(RevsetParseErrorKind::SyntaxError));
         // Incomplete parse
-        assert_matches!(parse("foo | -"), Err(RevsetParseError::SyntaxError(_)));
+        assert_eq!(parse("foo | -"), Err(RevsetParseErrorKind::SyntaxError));
         // Space is allowed around infix operators and function arguments
         assert_eq!(
             parse("   description(  arg1 ) ~    file(  arg1 ,   arg2 )  ~ heads(  )  "),
@@ -1788,17 +1855,17 @@ mod tests {
             Ok(foo_symbol.children().children().children())
         );
         // Parse repeated "ancestors"/"descendants"/"dag range"/"range" operators
-        assert_matches!(parse(":foo:"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("::foo"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("foo::"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("foo::bar"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse(":foo:bar"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("foo:bar:"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("....foo"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("foo...."), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("foo.....bar"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("..foo..bar"), Err(RevsetParseError::SyntaxError(_)));
-        assert_matches!(parse("foo..bar.."), Err(RevsetParseError::SyntaxError(_)));
+        assert_eq!(parse(":foo:"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("::foo"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo::"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo::bar"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse(":foo:bar"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo:bar:"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("....foo"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo...."), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo.....bar"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("..foo..bar"), Err(RevsetParseErrorKind::SyntaxError));
+        assert_eq!(parse("foo..bar.."), Err(RevsetParseErrorKind::SyntaxError));
         // Parse combinations of "parents"/"children" operators and the range operators.
         // The former bind more strongly.
         assert_eq!(parse("foo-+"), Ok(foo_symbol.parents().children()));
@@ -1816,10 +1883,10 @@ mod tests {
             parse("ancestors(parents(@))"),
             Ok(wc_symbol.parents().ancestors())
         );
-        assert_matches!(parse("parents(@"), Err(RevsetParseError::SyntaxError(_)));
+        assert_eq!(parse("parents(@"), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(
             parse("parents(@,@)"),
-            Err(RevsetParseError::InvalidFunctionArguments {
+            Err(RevsetParseErrorKind::InvalidFunctionArguments {
                 name: "parents".to_string(),
                 message: "Expected 1 argument".to_string()
             })
@@ -1830,7 +1897,7 @@ mod tests {
         );
         assert_eq!(
             parse("description(heads())"),
-            Err(RevsetParseError::InvalidFunctionArguments {
+            Err(RevsetParseErrorKind::InvalidFunctionArguments {
                 name: "description".to_string(),
                 message: "Expected function argument of type string, found: heads()".to_string()
             })
