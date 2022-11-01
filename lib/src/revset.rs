@@ -22,7 +22,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use pest::iterators::Pairs;
+use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
@@ -591,212 +591,88 @@ fn parse_symbol_rule(mut pairs: Pairs<Rule>) -> Result<Rc<RevsetExpression>, Rev
 
 fn parse_function_expression(
     name: String,
-    mut argument_pairs: Pairs<Rule>,
+    argument_pairs: Pairs<Rule>,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let arg_count = argument_pairs.clone().count();
     match name.as_str() {
         "parents" => {
-            if arg_count == 1 {
-                Ok(parse_expression_rule(
-                    argument_pairs.next().unwrap().into_inner(),
-                    workspace_ctx,
-                )?
-                .parents())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 1 argument".to_string(),
-                })
-            }
+            let arg = expect_one_argument(&name, argument_pairs)?;
+            let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            Ok(expression.parents())
         }
         "children" => {
-            if arg_count == 1 {
-                let expression = parse_expression_rule(
-                    argument_pairs.next().unwrap().into_inner(),
-                    workspace_ctx,
-                )?;
-                Ok(expression.children())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 1 argument".to_string(),
-                })
-            }
+            let arg = expect_one_argument(&name, argument_pairs)?;
+            let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            Ok(expression.children())
         }
         "ancestors" => {
-            if arg_count == 1 {
-                Ok(parse_expression_rule(
-                    argument_pairs.next().unwrap().into_inner(),
-                    workspace_ctx,
-                )?
-                .ancestors())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 1 argument".to_string(),
-                })
-            }
+            let arg = expect_one_argument(&name, argument_pairs)?;
+            let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            Ok(expression.ancestors())
         }
         "descendants" => {
-            if arg_count == 1 {
-                let expression = parse_expression_rule(
-                    argument_pairs.next().unwrap().into_inner(),
-                    workspace_ctx,
-                )?;
-                Ok(expression.descendants())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 1 argument".to_string(),
-                })
-            }
+            let arg = expect_one_argument(&name, argument_pairs)?;
+            let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            Ok(expression.descendants())
         }
         "connected" => {
-            if arg_count == 1 {
-                let candidates = parse_expression_rule(
-                    argument_pairs.next().unwrap().into_inner(),
-                    workspace_ctx,
-                )?;
-                Ok(candidates.connected())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 1 argument".to_string(),
-                })
-            }
+            let arg = expect_one_argument(&name, argument_pairs)?;
+            let candidates = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            Ok(candidates.connected())
         }
         "none" => {
-            if arg_count == 0 {
-                Ok(RevsetExpression::none())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 0 arguments".to_string(),
-                })
-            }
+            expect_no_arguments(&name, argument_pairs)?;
+            Ok(RevsetExpression::none())
         }
         "all" => {
-            if arg_count == 0 {
-                Ok(RevsetExpression::all())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 0 arguments".to_string(),
-                })
-            }
+            expect_no_arguments(&name, argument_pairs)?;
+            Ok(RevsetExpression::all())
         }
         "heads" => {
-            if arg_count == 0 {
-                Ok(RevsetExpression::visible_heads())
-            } else if arg_count == 1 {
-                let candidates = parse_expression_rule(
-                    argument_pairs.next().unwrap().into_inner(),
-                    workspace_ctx,
-                )?;
+            if let Some(arg) = expect_one_optional_argument(&name, argument_pairs)? {
+                let candidates = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
                 Ok(candidates.heads())
             } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 0 or 1 arguments".to_string(),
-                })
+                Ok(RevsetExpression::visible_heads())
             }
         }
         "roots" => {
-            if arg_count == 1 {
-                let candidates = parse_expression_rule(
-                    argument_pairs.next().unwrap().into_inner(),
-                    workspace_ctx,
-                )?;
-                Ok(candidates.roots())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 1 argument".to_string(),
-                })
-            }
+            let arg = expect_one_argument(&name, argument_pairs)?;
+            let candidates = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            Ok(candidates.roots())
         }
         "public_heads" => {
-            if arg_count == 0 {
-                Ok(RevsetExpression::public_heads())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 0 arguments".to_string(),
-                })
-            }
+            expect_no_arguments(&name, argument_pairs)?;
+            Ok(RevsetExpression::public_heads())
         }
         "branches" => {
-            if arg_count == 0 {
-                Ok(RevsetExpression::branches())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 0 arguments".to_string(),
-                })
-            }
+            expect_no_arguments(&name, argument_pairs)?;
+            Ok(RevsetExpression::branches())
         }
         "remote_branches" => {
-            if arg_count == 0 {
-                Ok(RevsetExpression::remote_branches())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 0 arguments".to_string(),
-                })
-            }
+            expect_no_arguments(&name, argument_pairs)?;
+            Ok(RevsetExpression::remote_branches())
         }
         "tags" => {
-            if arg_count == 0 {
-                Ok(RevsetExpression::tags())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 0 arguments".to_string(),
-                })
-            }
+            expect_no_arguments(&name, argument_pairs)?;
+            Ok(RevsetExpression::tags())
         }
         "git_refs" => {
-            if arg_count == 0 {
-                Ok(RevsetExpression::git_refs())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 0 arguments".to_string(),
-                })
-            }
+            expect_no_arguments(&name, argument_pairs)?;
+            Ok(RevsetExpression::git_refs())
         }
         "git_head" => {
-            if arg_count == 0 {
-                Ok(RevsetExpression::git_head())
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 0 arguments".to_string(),
-                })
-            }
+            expect_no_arguments(&name, argument_pairs)?;
+            Ok(RevsetExpression::git_head())
         }
         "merges" => {
-            if arg_count == 0 {
-                Ok(RevsetExpression::all().with_parent_count(2..u32::MAX))
-            } else {
-                Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 0 arguments".to_string(),
-                })
-            }
+            expect_no_arguments(&name, argument_pairs)?;
+            Ok(RevsetExpression::all().with_parent_count(2..u32::MAX))
         }
         "description" | "author" | "committer" => {
-            if arg_count != 1 {
-                return Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected 1 argument".to_string(),
-                });
-            }
-            let needle = parse_function_argument_to_string(
-                &name,
-                argument_pairs.next().unwrap().into_inner(),
-            )?;
+            let arg = expect_one_argument(&name, argument_pairs)?;
+            let needle = parse_function_argument_to_string(&name, arg.into_inner())?;
             let candidates = RevsetExpression::all();
             match name.as_str() {
                 "description" => Ok(candidates.with_description(needle)),
@@ -828,6 +704,50 @@ fn parse_function_expression(
             }
         }
         _ => Err(RevsetParseError::NoSuchFunction(name)),
+    }
+}
+
+fn expect_no_arguments(
+    name: &str,
+    mut argument_pairs: Pairs<Rule>,
+) -> Result<(), RevsetParseError> {
+    if argument_pairs.next().is_none() {
+        Ok(())
+    } else {
+        Err(RevsetParseError::InvalidFunctionArguments {
+            name: name.to_owned(),
+            message: "Expected 0 arguments".to_string(),
+        })
+    }
+}
+
+fn expect_one_argument<'i>(
+    name: &str,
+    argument_pairs: Pairs<'i, Rule>,
+) -> Result<Pair<'i, Rule>, RevsetParseError> {
+    let mut argument_pairs = argument_pairs.fuse();
+    if let (Some(arg), None) = (argument_pairs.next(), argument_pairs.next()) {
+        Ok(arg)
+    } else {
+        Err(RevsetParseError::InvalidFunctionArguments {
+            name: name.to_owned(),
+            message: "Expected 1 argument".to_string(),
+        })
+    }
+}
+
+fn expect_one_optional_argument<'i>(
+    name: &str,
+    argument_pairs: Pairs<'i, Rule>,
+) -> Result<Option<Pair<'i, Rule>>, RevsetParseError> {
+    let mut argument_pairs = argument_pairs.fuse();
+    if let (opt_arg, None) = (argument_pairs.next(), argument_pairs.next()) {
+        Ok(opt_arg)
+    } else {
+        Err(RevsetParseError::InvalidFunctionArguments {
+            name: name.to_owned(),
+            message: "Expected 0 or 1 arguments".to_string(),
+        })
     }
 }
 
