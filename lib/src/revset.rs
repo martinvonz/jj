@@ -46,10 +46,6 @@ pub enum RevsetError {
     AmbiguousCommitIdPrefix(String),
     #[error("Change id prefix \"{0}\" is ambiguous")]
     AmbiguousChangeIdPrefix(String),
-    #[error("Invalid file pattern: {0}")]
-    FsPathParseError(#[from] FsPathParseError),
-    #[error("Cannot resolve file pattern without workspace")]
-    FsPathWithoutWorkspace,
     #[error("Unexpected error from store: {0}")]
     StoreError(#[from] BackendError),
 }
@@ -203,6 +199,10 @@ pub enum RevsetParseError {
     NoSuchFunction(String),
     #[error("Invalid arguments to revset function \"{name}\": {message}")]
     InvalidFunctionArguments { name: String, message: String },
+    #[error("Invalid file pattern: {0}")]
+    FsPathParseError(#[from] FsPathParseError),
+    #[error("Cannot resolve file pattern without workspace")]
+    FsPathWithoutWorkspace,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -211,7 +211,7 @@ pub enum RevsetFilterPredicate {
     Description(String),
     Author(String),    // Matches against both name and email
     Committer(String), // Matches against both name and email
-    File(String),
+    File(RepoPath),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -395,7 +395,7 @@ impl RevsetExpression {
     }
 
     /// Commits in `self` modifying the paths specified by the `pattern`.
-    pub fn with_file(self: &Rc<RevsetExpression>, pattern: String) -> Rc<RevsetExpression> {
+    pub fn with_file(self: &Rc<RevsetExpression>, pattern: RepoPath) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Filter {
             candidates: self.clone(),
             predicate: RevsetFilterPredicate::File(pattern),
@@ -786,7 +786,7 @@ fn parse_function_expression(
                 })
             }
         }
-        "description" | "author" | "committer" | "file" => {
+        "description" | "author" | "committer" => {
             if arg_count != 1 {
                 return Err(RevsetParseError::InvalidFunctionArguments {
                     name,
@@ -802,10 +802,27 @@ fn parse_function_expression(
                 "description" => Ok(candidates.with_description(needle)),
                 "author" => Ok(candidates.with_author(needle)),
                 "committer" => Ok(candidates.with_committer(needle)),
-                "file" => Ok(candidates.with_file(needle)),
                 _ => {
                     panic!("unexpected function name: {}", name)
                 }
+            }
+        }
+        "file" => {
+            if arg_count != 1 {
+                return Err(RevsetParseError::InvalidFunctionArguments {
+                    name,
+                    message: "Expected 1 argument".to_string(),
+                });
+            }
+            if let Some(ctx) = workspace_ctx {
+                let needle = parse_function_argument_to_string(
+                    &name,
+                    argument_pairs.next().unwrap().into_inner(),
+                )?;
+                let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, &needle)?;
+                Ok(RevsetExpression::all().with_file(path))
+            } else {
+                Err(RevsetParseError::FsPathWithoutWorkspace)
             }
         }
         _ => Err(RevsetParseError::NoSuchFunction(name)),
@@ -1565,14 +1582,10 @@ pub fn evaluate_expression<'repo>(
                     }))
                 }
                 RevsetFilterPredicate::File(pattern) => {
-                    if let Some(ctx) = workspace_ctx {
-                        // TODO: Add support for globs and other formats
-                        let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, pattern)?;
-                        let matcher: Box<dyn Matcher> = Box::new(PrefixMatcher::new(&[path]));
-                        Ok(filter_by_diff(repo, matcher, candidates))
-                    } else {
-                        Err(RevsetError::FsPathWithoutWorkspace)
-                    }
+                    // TODO: Add support for globs and other formats
+                    let matcher: Box<dyn Matcher> =
+                        Box::new(PrefixMatcher::new(std::slice::from_ref(pattern)));
+                    Ok(filter_by_diff(repo, matcher, candidates))
                 }
             }
         }
@@ -1645,7 +1658,13 @@ mod tests {
     use super::*;
 
     fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-        super::parse(revset_str, None)
+        // Set up pseudo context to resolve file(path)
+        let workspace_ctx = RevsetWorkspaceContext {
+            cwd: Path::new("/"),
+            workspace_id: &WorkspaceId::default(),
+            workspace_root: Path::new("/"),
+        };
+        super::parse(revset_str, Some(&workspace_ctx))
     }
 
     #[test]
@@ -1733,10 +1752,10 @@ mod tests {
             })
         );
         assert_eq!(
-            foo_symbol.with_file("pattern".to_string()),
+            foo_symbol.with_file(RepoPath::from_internal_string("pattern")),
             Rc::new(RevsetExpression::Filter {
                 candidates: foo_symbol.clone(),
-                predicate: RevsetFilterPredicate::File("pattern".to_string()),
+                predicate: RevsetFilterPredicate::File(RepoPath::from_internal_string("pattern")),
             })
         );
         assert_eq!(
