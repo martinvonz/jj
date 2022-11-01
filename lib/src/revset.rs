@@ -594,7 +594,6 @@ fn parse_function_expression(
     argument_pairs: Pairs<Rule>,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let arg_count = argument_pairs.clone().count();
     match name.as_str() {
         "parents" => {
             let arg = expect_one_argument(&name, argument_pairs)?;
@@ -684,12 +683,6 @@ fn parse_function_expression(
             }
         }
         "file" => {
-            if arg_count < 1 {
-                return Err(RevsetParseError::InvalidFunctionArguments {
-                    name,
-                    message: "Expected at least 1 argument".to_string(),
-                });
-            }
             if let Some(ctx) = workspace_ctx {
                 let paths = argument_pairs
                     .map(|arg| {
@@ -698,7 +691,14 @@ fn parse_function_expression(
                         Ok(path)
                     })
                     .collect::<Result<Vec<_>, RevsetParseError>>()?;
-                Ok(RevsetExpression::all().with_file(paths))
+                if paths.is_empty() {
+                    Err(RevsetParseError::InvalidFunctionArguments {
+                        name,
+                        message: "Expected at least 1 argument".to_string(),
+                    })
+                } else {
+                    Ok(RevsetExpression::all().with_file(paths))
+                }
             } else {
                 Err(RevsetParseError::FsPathWithoutWorkspace)
             }
