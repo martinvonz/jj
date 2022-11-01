@@ -423,7 +423,7 @@ fn test_resolve_symbol_git_refs() {
 }
 
 fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
-    let expression = optimize(parse(revset_str).unwrap());
+    let expression = optimize(parse(revset_str, None).unwrap());
     expression
         .evaluate(repo, None)
         .unwrap()
@@ -438,12 +438,12 @@ fn resolve_commit_ids_in_workspace(
     workspace: &Workspace,
     cwd: Option<&Path>,
 ) -> Vec<CommitId> {
-    let expression = optimize(parse(revset_str).unwrap());
     let workspace_ctx = RevsetWorkspaceContext {
         cwd: cwd.unwrap_or_else(|| workspace.workspace_root()),
         workspace_id: workspace.workspace_id(),
         workspace_root: workspace.workspace_root(),
     };
+    let expression = optimize(parse(revset_str, Some(&workspace_ctx)).unwrap());
     expression
         .evaluate(repo, Some(&workspace_ctx))
         .unwrap()

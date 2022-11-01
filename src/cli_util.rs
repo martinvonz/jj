@@ -605,7 +605,7 @@ impl WorkspaceCommandHelper {
         &self,
         revision_str: &str,
     ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-        let expression = revset::parse(revision_str)?;
+        let expression = revset::parse(revision_str, Some(&self.revset_context()))?;
         Ok(revset::optimize(expression))
     }
 
