@@ -752,7 +752,6 @@ dependencies = [
  "hex",
  "insta",
  "itertools",
- "lazy_static",
  "maplit",
  "num_cpus",
  "once_cell",
