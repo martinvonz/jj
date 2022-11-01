@@ -31,4 +31,14 @@ fn test_bad_function_call() {
       |
       = Invalid file pattern: Path "../out" is not in the repo
     "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root:whatever()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:6
+      |
+    1 | root:whatever()
+      |      ^------^
+      |
+      = Revset function "whatever" doesn't exist
+    "###);
 }
