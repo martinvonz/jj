@@ -137,12 +137,6 @@ impl UserSettings {
             .unwrap_or(false)
     }
 
-    pub fn use_progress_indicator(&self) -> bool {
-        self.config
-            .get_bool("ui.progress-indicator")
-            .unwrap_or(true)
-    }
-
     pub fn relative_timestamps(&self) -> bool {
         self.config
             .get_bool("ui.relative-timestamps")
