@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   description, even if there already was a description set. It now also only
   works on the working-copy commit (there's no `-r` argument).
 
+* The storage format for the operation log has changed. It will be
+  automatically upgraded the first time you run a command in an existing repo.
+  The operation IDs will change in that process.
+
 ### New features
 
 * The new `jj git remote rename` command allows git remotes to be renamed
