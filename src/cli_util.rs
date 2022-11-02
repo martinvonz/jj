@@ -1369,7 +1369,7 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
                 }
             }
         }
-        Err(CommandError::BrokenPipe) => std::process::exit(3),
+        Err(CommandError::BrokenPipe) => 3,
         Err(CommandError::InternalError(message)) => {
             ui.write_error(&format!("Internal error: {}\n", message))
                 .unwrap();
