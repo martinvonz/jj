@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use blake2::{Blake2b512, Digest};
 use itertools::Itertools;
 use protobuf::{Message, MessageField};
-use tempfile::{NamedTempFile, PersistError};
+use tempfile::NamedTempFile;
 
 use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
 use crate::file_util::persist_content_addressed_temp_file;
@@ -30,18 +30,6 @@ use crate::op_store::{
     BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
     RefTarget, View, ViewId, WorkspaceId,
 };
-
-impl From<std::io::Error> for OpStoreError {
-    fn from(err: std::io::Error) -> Self {
-        OpStoreError::Other(err.to_string())
-    }
-}
-
-impl From<PersistError> for OpStoreError {
-    fn from(err: PersistError) -> Self {
-        OpStoreError::Other(err.to_string())
-    }
-}
 
 impl From<protobuf::Error> for OpStoreError {
     fn from(err: protobuf::Error) -> Self {
@@ -55,7 +43,8 @@ pub struct ProtoOpStore {
 }
 
 impl ProtoOpStore {
-    pub fn init(store_path: PathBuf) -> Self {
+    #[allow(dead_code)]
+    fn init(store_path: PathBuf) -> Self {
         fs::create_dir(store_path.join("views")).unwrap();
         fs::create_dir(store_path.join("operations")).unwrap();
         Self::load(store_path)

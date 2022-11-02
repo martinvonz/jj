@@ -34,6 +34,7 @@ pub mod nightly_shims;
 pub mod op_heads_store;
 pub mod op_store;
 pub mod operation;
+#[cfg(feature = "legacy_protobuf")]
 mod proto_op_store;
 pub mod protos;
 pub mod refs;
@@ -44,6 +45,8 @@ pub mod revset_graph_iterator;
 pub mod rewrite;
 pub mod settings;
 pub mod simple_op_store;
+#[allow(dead_code)]
+mod simple_op_store_model;
 pub mod stacked_table;
 pub mod store;
 pub mod transaction;
