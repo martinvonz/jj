@@ -38,6 +38,8 @@ regex = "1.7.0"
 serde_json = "1.0.87"
 tempfile = "3.3.0"
 thiserror = "1.0.37"
+# thrift v0.17.0 (specified by hash for security reasons)
+thrift = { git = "https://github.com/apache/thrift", rev = "4d493e867b349f3475203ef9848353b315203c51",  default-features = false }
 uuid = { version = "1.2.1", features = ["v4"] }
 whoami = "1.2.3"
 zstd = "0.11.2"
@@ -50,4 +52,8 @@ test-case = "2.2.2"
 testutils = { path = "testutils" }
 
 [features]
+default = ["legacy_protobuf"]
 vendored-openssl = ["git2/vendored-openssl"]
+# Enable upgrade of repositories created with storage backends based on
+# Protobuf format (from before we switched to Thrift)
+legacy_protobuf = []
