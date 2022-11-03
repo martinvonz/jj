@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use jujutsu_lib::testutils;
+use regex::{Captures, Regex};
 use tempfile::TempDir;
 
 pub struct TestEnvironment {
@@ -77,14 +78,14 @@ impl TestEnvironment {
     /// Run a `jj` command, check that it was successful, and return its stdout
     pub fn jj_cmd_success(&self, current_dir: &Path, args: &[&str]) -> String {
         let assert = self.jj_cmd(current_dir, args).assert().success().stderr("");
-        get_stdout_string(&assert)
+        self.normalize_output(get_stdout_string(&assert))
     }
 
     /// Run a `jj` command, check that it failed with code 1, and return its
     /// stderr
     pub fn jj_cmd_failure(&self, current_dir: &Path, args: &[&str]) -> String {
         let assert = self.jj_cmd(current_dir, args).assert().code(1).stdout("");
-        get_stderr_string(&assert)
+        self.normalize_output(get_stderr_string(&assert))
     }
 
     /// Run a `jj` command and check that it failed with code 2 (for invalid
@@ -153,6 +154,19 @@ impl TestEnvironment {
         let edit_script = self.env_root().join("diff_edit_script");
         self.add_env_var("DIFF_EDIT_SCRIPT", edit_script.to_str().unwrap());
         edit_script
+    }
+
+    pub fn normalize_output(&self, text: String) -> String {
+        let regex = Regex::new(&format!(
+            r"{}(\S+)",
+            regex::escape(&self.env_root.display().to_string())
+        ))
+        .unwrap();
+        regex
+            .replace_all(&text, |caps: &Captures| {
+                format!("$TEST_ENV{}", caps[1].replace('\\', "/"))
+            })
+            .to_string()
     }
 }
 
