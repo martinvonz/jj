@@ -179,10 +179,11 @@ pub enum GitExportError {
 /// Returns a stripped-down repo view of the state we just exported, to be used
 /// as `old_view` next time.
 fn export_changes(
+    mut_repo: &mut MutableRepo,
     old_view: &View,
-    new_view: &View,
     git_repo: &git2::Repository,
 ) -> Result<crate::op_store::View, GitExportError> {
+    let new_view = mut_repo.view();
     let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
     let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
     let mut exported_view = old_view.store_view().clone();
@@ -239,11 +240,16 @@ fn export_changes(
     }
     for (git_ref_name, new_target) in refs_to_update {
         git_repo.reference(&git_ref_name, new_target, true, "export from jj")?;
+        mut_repo.set_git_ref(
+            git_ref_name,
+            RefTarget::Normal(CommitId::from_bytes(new_target.as_bytes())),
+        );
     }
     for git_ref_name in refs_to_delete {
         if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
             git_ref.delete()?;
         }
+        mut_repo.remove_git_ref(&git_ref_name);
     }
     Ok(exported_view)
 }
@@ -267,7 +273,7 @@ pub fn export_refs(
             op_store::View::default()
         };
     let last_export_view = View::new(last_export_store_view);
-    let new_export_store_view = export_changes(&last_export_view, mut_repo.view(), git_repo)?;
+    let new_export_store_view = export_changes(mut_repo, &last_export_view, git_repo)?;
     if let Ok(mut last_export_file) = OpenOptions::new()
         .write(true)
         .create(true)

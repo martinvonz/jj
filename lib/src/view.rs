@@ -232,6 +232,10 @@ impl View {
         self.data.tags.remove(name);
     }
 
+    pub fn get_git_ref(&self, name: &str) -> Option<RefTarget> {
+        self.data.git_refs.get(name).cloned()
+    }
+
     pub fn set_git_ref(&mut self, name: String, target: RefTarget) {
         self.data.git_refs.insert(name, target);
     }

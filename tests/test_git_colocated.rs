@@ -168,10 +168,10 @@ fn test_git_colocated_branches() {
             "test",
         )
         .unwrap();
-    // TODO: Shouldn't be a conflict
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
-    @ 086821b6c35f5fdf07da884b859a14dcf85b5e36 master?
-    | o 6c0e140886d181602ae7a8e1ac41bc3094842370 master?
+    Working copy now at: eb08b363bb5e (no description set)
+    @ eb08b363bb5ef8ee549314260488980d7bbe8f63 
+    | o 6c0e140886d181602ae7a8e1ac41bc3094842370 master
     |/  
     o 230dd059e1b059aefc0da06a2e5a7dbf22362f22 
     o 0000000000000000000000000000000000000000 
