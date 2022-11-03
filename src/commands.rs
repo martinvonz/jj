@@ -1076,10 +1076,12 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
 
     if let Some(git_store_str) = &args.git_repo {
         let mut git_store_path = ui.cwd().join(git_store_str);
+        git_store_path = git_store_path
+            .canonicalize()
+            .map_err(|_| UserError(format!("{} doesn't exist", git_store_path.display())))?;
         if !git_store_path.ends_with(".git") {
             git_store_path = git_store_path.join(".git");
         }
-        git_store_path = git_store_path.canonicalize().unwrap();
         // If the git repo is inside the workspace, use a relative path to it so the
         // whole workspace can be moved without breaking.
         if let Ok(relative_path) = git_store_path.strip_prefix(&wc_path) {
