@@ -113,6 +113,18 @@ fn test_init_git_external() {
 }
 
 #[test]
+fn test_init_git_external_bad_path() {
+    let test_env = TestEnvironment::default();
+    let stderr = test_env.jj_cmd_failure(
+        test_env.env_root(),
+        &["init", "repo", "--git-repo", "non-existent"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: $TEST_ENV/non-existent doesn't exist
+    "###);
+}
+
+#[test]
 fn test_init_git_colocated() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
