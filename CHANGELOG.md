@@ -47,6 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* (#463) A bug in the export of branches to Git caused spurious conflicted
+  branches. This typically occurred when running in a working copy colocated
+  with Git (created by running `jj init --git-dir=.`).
+
 * `jj edit root` now fails gracefully.
 
 * `jj git import` used to abandon a commit if Git branches and tags referring

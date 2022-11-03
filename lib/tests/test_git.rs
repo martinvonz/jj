@@ -417,6 +417,10 @@ fn test_export_refs_no_detach() {
 
     // Do an initial export to make sure `main` is considered
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
+    assert_eq!(
+        mut_repo.get_git_ref("refs/heads/main"),
+        Some(RefTarget::Normal(jj_id(&commit1)))
+    );
     assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/main"));
     assert_eq!(
         git_repo.find_reference("refs/heads/main").unwrap().target(),
@@ -441,6 +445,10 @@ fn test_export_refs_no_op() {
     // The export should be a no-op since nothing changed on the jj side since last
     // export
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
+    assert_eq!(
+        mut_repo.get_git_ref("refs/heads/main"),
+        Some(RefTarget::Normal(jj_id(&commit1)))
+    );
     assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/main"));
     assert_eq!(
         git_repo.find_reference("refs/heads/main").unwrap().target(),
@@ -478,6 +486,11 @@ fn test_export_refs_branch_changed() {
     mut_repo.remove_local_branch("delete-me");
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
     assert_eq!(
+        mut_repo.get_git_ref("refs/heads/main"),
+        Some(RefTarget::Normal(new_commit.id().clone()))
+    );
+    assert_eq!(mut_repo.get_git_ref("refs/heads/delete-me"), None);
+    assert_eq!(
         git_repo
             .find_reference("refs/heads/main")
             .unwrap()
@@ -513,6 +526,10 @@ fn test_export_refs_current_branch_changed() {
     );
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
     assert_eq!(
+        mut_repo.get_git_ref("refs/heads/main"),
+        Some(RefTarget::Normal(new_commit.id().clone()))
+    );
+    assert_eq!(
         git_repo
             .find_reference("refs/heads/main")
             .unwrap()
@@ -543,6 +560,10 @@ fn test_export_refs_unborn_git_branch() {
         RefTarget::Normal(new_commit.id().clone()),
     );
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
+    assert_eq!(
+        mut_repo.get_git_ref("refs/heads/main"),
+        Some(RefTarget::Normal(new_commit.id().clone()))
+    );
     assert_eq!(
         git_repo
             .find_reference("refs/heads/main")
@@ -579,12 +600,20 @@ fn test_export_import_sequence() {
         .reference("refs/heads/main", git_id(&commit_a), true, "test")
         .unwrap();
     git::import_refs(mut_repo, &git_repo).unwrap();
+    assert_eq!(
+        mut_repo.get_git_ref("refs/heads/main"),
+        Some(RefTarget::Normal(commit_a.id().clone()))
+    );
 
     // Modify the branch in jj to point to B
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
 
     // Export the branch to git
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(()));
+    assert_eq!(
+        mut_repo.get_git_ref("refs/heads/main"),
+        Some(RefTarget::Normal(commit_b.id().clone()))
+    );
 
     // Modify the branch in git to point to C
     git_repo
@@ -593,13 +622,13 @@ fn test_export_import_sequence() {
 
     // Import from git
     git::import_refs(mut_repo, &git_repo).unwrap();
-    // TODO: The branch should point to C, it shouldn't be a conflict
+    assert_eq!(
+        mut_repo.get_git_ref("refs/heads/main"),
+        Some(RefTarget::Normal(commit_c.id().clone()))
+    );
     assert_eq!(
         mut_repo.view().get_local_branch("main"),
-        Some(RefTarget::Conflict {
-            removes: vec![commit_a.id().clone()],
-            adds: vec![commit_b.id().clone(), commit_c.id().clone()],
-        })
+        Some(RefTarget::Normal(commit_c.id().clone()))
     );
 }
 
