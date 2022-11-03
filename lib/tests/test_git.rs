@@ -460,6 +460,9 @@ fn test_export_refs_branch_changed() {
     git_repo
         .reference("refs/heads/feature", commit.id(), false, "test")
         .unwrap();
+    git_repo
+        .reference("refs/heads/delete-me", commit.id(), false, "test")
+        .unwrap();
     git_repo.set_head("refs/heads/feature").unwrap();
 
     let mut tx = test_data.repo.start_transaction("test");
@@ -478,6 +481,7 @@ fn test_export_refs_branch_changed() {
         "main".to_string(),
         RefTarget::Normal(new_commit.id().clone()),
     );
+    tx.mut_repo().remove_local_branch("delete-me");
     test_data.repo = tx.commit();
     assert_eq!(git::export_refs(&test_data.repo, &git_repo), Ok(()));
     assert_eq!(
@@ -489,6 +493,7 @@ fn test_export_refs_branch_changed() {
             .id(),
         git_id(&new_commit)
     );
+    assert!(git_repo.find_reference("refs/heads/delete-me").is_err());
     // HEAD should be unchanged since its target branch didn't change
     assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/feature"));
 }
