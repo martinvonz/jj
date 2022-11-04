@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::io::ErrorKind;
@@ -462,7 +462,7 @@ pub struct MutableRepo {
     base_repo: Arc<ReadonlyRepo>,
     index: MutableIndex,
     view: RefCell<View>,
-    view_dirty: bool,
+    view_dirty: Cell<bool>,
     rewritten_commits: HashMap<CommitId, HashSet<CommitId>>,
     abandoned_commits: HashSet<CommitId>,
 }
@@ -479,7 +479,7 @@ impl MutableRepo {
             base_repo,
             index: mut_index,
             view: RefCell::new(mut_view),
-            view_dirty: false,
+            view_dirty: Cell::new(false),
             rewritten_commits: Default::default(),
             abandoned_commits: Default::default(),
         }
@@ -648,7 +648,7 @@ impl MutableRepo {
     }
 
     fn enforce_view_invariants(&self) {
-        if !self.view_dirty {
+        if !self.view_dirty.get() {
             return;
         }
         let mut view_borrow_mut = self.view.borrow_mut();
@@ -666,6 +666,7 @@ impl MutableRepo {
             .iter()
             .cloned()
             .collect();
+        self.view_dirty.set(false);
     }
 
     pub fn add_head(&mut self, head: &Commit) {
@@ -699,23 +700,23 @@ impl MutableRepo {
                 self.index.add_commit(missing_commit);
             }
             self.view.get_mut().add_head(head.id());
-            self.view_dirty = true;
+            *self.view_dirty.get_mut() = true;
         }
     }
 
     pub fn remove_head(&mut self, head: &CommitId) {
         self.view_mut().remove_head(head);
-        self.view_dirty = true;
+        *self.view_dirty.get_mut() = true;
     }
 
     pub fn add_public_head(&mut self, head: &Commit) {
         self.view_mut().add_public_head(head.id());
-        self.view_dirty = true;
+        *self.view_dirty.get_mut() = true;
     }
 
     pub fn remove_public_head(&mut self, head: &CommitId) {
         self.view_mut().remove_public_head(head);
-        self.view_dirty = true;
+        *self.view_dirty.get_mut() = true;
     }
 
     pub fn get_branch(&self, name: &str) -> Option<BranchTarget> {
@@ -788,7 +789,7 @@ impl MutableRepo {
 
     pub fn set_view(&mut self, data: op_store::View) {
         self.view_mut().set_view(data);
-        self.view_dirty = true;
+        *self.view_dirty.get_mut() = true;
     }
 
     pub fn merge(&mut self, base_repo: &ReadonlyRepo, other_repo: &ReadonlyRepo) {
@@ -801,7 +802,7 @@ impl MutableRepo {
 
         self.enforce_view_invariants();
         self.merge_view(&base_repo.view, &other_repo.view);
-        self.view_dirty = true;
+        *self.view_dirty.get_mut() = true;
     }
 
     fn merge_view(&mut self, base: &View, other: &View) {
