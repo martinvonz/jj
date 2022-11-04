@@ -65,7 +65,7 @@ impl GitBackend {
     }
 
     pub fn init_internal(store_path: &Path) -> Self {
-        let git_repo = git2::Repository::init_bare(&store_path.join("git")).unwrap();
+        let git_repo = git2::Repository::init_bare(store_path.join("git")).unwrap();
         let extra_path = store_path.join("extra");
         std::fs::create_dir(&extra_path).unwrap();
         let mut git_target_file = File::create(store_path.join("git_target")).unwrap();
@@ -174,7 +174,7 @@ impl Backend for GitBackend {
 
     fn git_repo(&self) -> Option<git2::Repository> {
         let path = self.repo.lock().unwrap().path().to_owned();
-        Some(git2::Repository::open(&path).unwrap())
+        Some(git2::Repository::open(path).unwrap())
     }
 
     fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {

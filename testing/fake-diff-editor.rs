@@ -49,7 +49,7 @@ fn files_recursively(dir: &Path) -> HashSet<String> {
 fn main() {
     let args: Args = Args::parse();
     let edit_script_path = PathBuf::from(std::env::var_os("DIFF_EDIT_SCRIPT").unwrap());
-    let edit_script = String::from_utf8(std::fs::read(&edit_script_path).unwrap()).unwrap();
+    let edit_script = String::from_utf8(std::fs::read(edit_script_path).unwrap()).unwrap();
     for instruction in edit_script.split('\0') {
         let (command, payload) = instruction.split_once('\n').unwrap_or((instruction, ""));
         let parts = command.split(' ').collect_vec();
@@ -83,7 +83,7 @@ fn main() {
             }
             ["reset", file] => {
                 if args.before.join(file).exists() {
-                    std::fs::copy(&args.before.join(file), &args.after.join(file)).unwrap();
+                    std::fs::copy(args.before.join(file), args.after.join(file)).unwrap();
                 } else {
                     std::fs::remove_file(args.after.join(file)).unwrap();
                 }

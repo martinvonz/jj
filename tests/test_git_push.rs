@@ -21,7 +21,7 @@ pub mod common;
 fn set_up() -> (TestEnvironment, PathBuf) {
     let test_env = TestEnvironment::default();
     let git_repo_path = test_env.env_root().join("git-repo");
-    let git_repo = git2::Repository::init_bare(&git_repo_path).unwrap();
+    let git_repo = git2::Repository::init_bare(git_repo_path).unwrap();
     let signature =
         git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
     let empty_tree_oid = git_repo.treebuilder(None).unwrap().write().unwrap();

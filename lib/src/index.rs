@@ -280,7 +280,7 @@ impl HexPrefix {
             let bytes = hex::decode(&self.0).unwrap();
             (CommitId::new(bytes.clone()), CommitId::new(bytes))
         } else {
-            let min_bytes = hex::decode(&(self.0.clone() + "0")).unwrap();
+            let min_bytes = hex::decode(self.0.clone() + "0").unwrap();
             let prefix = min_bytes[0..min_bytes.len() - 1].to_vec();
             (CommitId::new(prefix), CommitId::new(min_bytes))
         }
@@ -559,7 +559,7 @@ impl MutableIndex {
         let mut temp_file = NamedTempFile::new_in(&dir)?;
         let file = temp_file.as_file_mut();
         file.write_all(&buf)?;
-        persist_content_addressed_temp_file(temp_file, &index_file_path)?;
+        persist_content_addressed_temp_file(temp_file, index_file_path)?;
 
         let mut cursor = Cursor::new(&buf);
         ReadonlyIndex::load_from(&mut cursor, dir, index_file_id_hex, hash_length).map_err(|err| {
@@ -1307,7 +1307,7 @@ impl ReadonlyIndex {
             file.read_exact(&mut parent_filename_bytes)?;
             let parent_filename = String::from_utf8(parent_filename_bytes).unwrap();
             let parent_file_path = dir.join(&parent_filename);
-            let mut index_file = File::open(&parent_file_path).unwrap();
+            let mut index_file = File::open(parent_file_path).unwrap();
             let parent_file =
                 ReadonlyIndex::load_from(&mut index_file, dir, parent_filename, hash_length)?;
             num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;

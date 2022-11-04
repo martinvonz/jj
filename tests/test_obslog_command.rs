@@ -131,7 +131,7 @@ fn test_obslog_squash() {
     std::fs::write(repo_path.join("file1"), "foo\nbar\n").unwrap();
 
     let edit_script = test_env.set_up_fake_editor();
-    std::fs::write(&edit_script, "write\nsquashed").unwrap();
+    std::fs::write(edit_script, "write\nsquashed").unwrap();
     test_env.jj_cmd_success(&repo_path, &["squash"]);
 
     let stdout = get_log_output(&test_env, &repo_path, &["obslog", "-p", "-r", "@-"]);
