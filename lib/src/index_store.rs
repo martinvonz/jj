@@ -52,7 +52,7 @@ impl IndexStore {
 
     pub fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Arc<ReadonlyIndex> {
         let op_id_hex = op.id().hex();
-        let op_id_file = self.dir.join("operations").join(&op_id_hex);
+        let op_id_file = self.dir.join("operations").join(op_id_hex);
         if op_id_file.exists() {
             match self.load_index_at_operation(store.hash_length(), op.id()) {
                 Err(IndexLoadError::IndexCorrupt(_)) => {
@@ -88,7 +88,7 @@ impl IndexStore {
             .unwrap();
         let index_file_id_hex = String::from_utf8(buf).unwrap();
         let index_file_path = self.dir.join(&index_file_id_hex);
-        let mut index_file = File::open(&index_file_path).unwrap();
+        let mut index_file = File::open(index_file_path).unwrap();
         ReadonlyIndex::load_from(
             &mut index_file,
             self.dir.clone(),
@@ -164,7 +164,7 @@ impl IndexStore {
         file.write_all(index.name().as_bytes())?;
         persist_content_addressed_temp_file(
             temp_file,
-            &self.dir.join("operations").join(op_id.hex()),
+            self.dir.join("operations").join(op_id.hex()),
         )?;
         Ok(())
     }

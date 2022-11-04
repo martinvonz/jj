@@ -20,7 +20,7 @@ pub mod common;
 fn test_git_clone() {
     let test_env = TestEnvironment::default();
     let git_repo_path = test_env.env_root().join("source");
-    let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
 
     // Clone an empty repo
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "empty"]);

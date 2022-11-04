@@ -335,7 +335,7 @@ impl MutableTable {
         let mut temp_file = NamedTempFile::new_in(&store.dir)?;
         let file = temp_file.as_file_mut();
         file.write_all(&buf)?;
-        persist_content_addressed_temp_file(temp_file, &file_path)?;
+        persist_content_addressed_temp_file(temp_file, file_path)?;
 
         let mut cursor = Cursor::new(&buf);
         ReadonlyTable::load_from(&mut cursor, store, file_id_hex, store.key_size)
@@ -442,7 +442,7 @@ impl TableStore {
             }
         }
         let table_file_path = self.dir.join(&name);
-        let mut table_file = File::open(&table_file_path)?;
+        let mut table_file = File::open(table_file_path)?;
         let table = ReadonlyTable::load_from(&mut table_file, self, name, self.key_size)?;
         {
             let mut write_locked_cache = self.cached_tables.write().unwrap();

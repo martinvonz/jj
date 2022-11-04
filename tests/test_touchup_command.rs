@@ -120,7 +120,7 @@ fn test_touchup_merge() {
 
     // Remove file1. The conflict remains in the working copy on top of the merge.
     std::fs::write(
-        &edit_script,
+        edit_script,
         "files-before file1\0files-after JJ-INSTRUCTIONS file1 file3\0rm file1",
     )
     .unwrap();
