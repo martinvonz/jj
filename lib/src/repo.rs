@@ -506,6 +506,10 @@ impl MutableRepo {
     }
 
     pub fn view(&self) -> &View {
+        // SAFETY: We don't really rely on runtime Ref/RefMut tracking. Since view_dirty
+        // is set only by &mut self functions, and view() is the solo function which
+        // publicly provides view-related reference, there should be no view reference
+        // alive if view_dirty == true.
         self.enforce_view_invariants();
         let view_borrow = self.view.borrow();
         let view = view_borrow.deref();
