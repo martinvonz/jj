@@ -22,11 +22,14 @@ branches from the remote will be imported as branches in your local repo.
 
 Jujutsu also records the last seen position on each remote (just like Git's
 remote-tracking branches). You can refer to these with
-`<branch name>@<remote name>`, such as `jj co main@origin`. Most commands don't
+`<branch name>@<remote name>`, such as `jj new main@origin`. Most commands don't
 show the remote branch if it has the same target as the local branch. The local
 branch (without `@<remote name>`) is considered the branch's desired target.
 Consequently, if you want to update a branch on a remote, you first update the
-branch locally and then push the update to the remote.
+branch locally and then push the update to the remote. If a local branch also
+exists on some remote but points to a different target there, `jj log` will
+show the branch name with an asterisk suffix (e.g. `main*`). That is meant to
+remind you that you may want to push the branch to some remote.
 
 When you pull from a remote, any changes compared to the current record of the
 remote's state will be propagated to the local branch. Let's say you run

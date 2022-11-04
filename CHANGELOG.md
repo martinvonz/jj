@@ -38,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * (#469) `jj git` subcommands will prompt for credentials when
   required for HTTPS remotes rather than failing.
 
+* (#254) Branches that have a different target on some remote than they do
+  locally are now indicated by an asterisk suffix (e.g. `main*`) in `jj log`.
+
 ### Fixed bugs
 
 * `jj edit root` now fails gracefully.

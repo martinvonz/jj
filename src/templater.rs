@@ -240,6 +240,12 @@ impl TemplateProperty<Commit, String> for BranchProperty<'_> {
                 if local_target.has_add(context.id()) {
                     if local_target.is_conflict() {
                         names.push(format!("{}?", branch_name));
+                    } else if branch_target
+                        .remote_targets
+                        .values()
+                        .any(|remote_target| remote_target != local_target)
+                    {
+                        names.push(format!("{}*", branch_name));
                     } else {
                         names.push(branch_name.clone());
                     }
