@@ -31,6 +31,7 @@ pub mod gitignore;
 pub mod index;
 pub mod index_store;
 pub mod local_backend;
+mod local_backend_model;
 pub mod lock;
 pub mod matchers;
 pub mod nightly_shims;
