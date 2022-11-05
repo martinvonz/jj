@@ -196,14 +196,6 @@ impl TemplateProperty<Commit, Signature> for CommitterProperty {
     }
 }
 
-pub struct OpenProperty;
-
-impl TemplateProperty<Commit, bool> for OpenProperty {
-    fn extract(&self, context: &Commit) -> bool {
-        context.is_open()
-    }
-}
-
 pub struct WorkingCopiesProperty<'a> {
     pub repo: RepoRef<'a>,
 }

@@ -140,7 +140,6 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result.insert(String::from("hint"), String::from("blue"));
 
     result.insert(String::from("commit_id"), String::from("blue"));
-    result.insert(String::from("commit_id open"), String::from("green"));
     result.insert(String::from("change_id"), String::from("magenta"));
     result.insert(String::from("author"), String::from("yellow"));
     result.insert(String::from("author timestamp"), String::from("cyan"));
@@ -162,10 +161,6 @@ fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
     result.insert(
         String::from("working_copy commit_id"),
         String::from("bright blue"),
-    );
-    result.insert(
-        String::from("working_copy commit_id open"),
-        String::from("bright green"),
     );
     result.insert(
         String::from("working_copy change_id"),
