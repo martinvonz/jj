@@ -26,9 +26,8 @@ use crate::templater::{
     AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdKeyword, CommitterProperty,
     ConditionalTemplate, ConflictProperty, ConstantTemplateProperty, DescriptionProperty,
     DivergentProperty, DynamicLabelTemplate, GitRefsProperty, IsGitHeadProperty,
-    IsWorkingCopyProperty, LabelTemplate, ListTemplate, LiteralTemplate, OpenProperty,
-    StringPropertyTemplate, TagProperty, Template, TemplateFunction, TemplateProperty,
-    WorkingCopiesProperty,
+    IsWorkingCopyProperty, LabelTemplate, ListTemplate, LiteralTemplate, StringPropertyTemplate,
+    TagProperty, Template, TemplateFunction, TemplateProperty, WorkingCopiesProperty,
 };
 
 #[derive(Parser)]
@@ -242,7 +241,6 @@ fn parse_commit_keyword<'a>(
         "commit_id" => Property::CommitId(Box::new(CommitIdKeyword)),
         "author" => Property::Signature(Box::new(AuthorProperty)),
         "committer" => Property::Signature(Box::new(CommitterProperty)),
-        "open" => Property::Boolean(Box::new(OpenProperty)),
         "working_copies" => Property::String(Box::new(WorkingCopiesProperty { repo })),
         "current_working_copy" => Property::Boolean(Box::new(IsWorkingCopyProperty {
             repo,
