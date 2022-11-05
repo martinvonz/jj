@@ -58,7 +58,7 @@ message Commit {
   Signature author = 6;
   Signature committer = 7;
 
-  bool is_open = 8;
+  bool is_open = 8 [deprecated = true];
   bool is_pruned = 9 [deprecated = true];
 }
 

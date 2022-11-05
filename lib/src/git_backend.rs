@@ -125,7 +125,6 @@ fn signature_to_git(signature: &Signature) -> git2::Signature {
 
 fn serialize_extras(commit: &Commit) -> Vec<u8> {
     let mut proto = crate::protos::store::Commit::new();
-    proto.is_open = commit.is_open;
     proto.change_id = commit.change_id.to_bytes();
     for predecessor in &commit.predecessors {
         proto.predecessors.push(predecessor.to_bytes());
@@ -136,7 +135,6 @@ fn serialize_extras(commit: &Commit) -> Vec<u8> {
 fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
     let mut cursor = Cursor::new(bytes);
     let proto: crate::protos::store::Commit = Message::parse_from_reader(&mut cursor).unwrap();
-    commit.is_open = proto.is_open;
     commit.change_id = ChangeId::new(proto.change_id);
     for predecessor in &proto.predecessors {
         commit.predecessors.push(CommitId::from_bytes(predecessor));
@@ -390,7 +388,6 @@ impl Backend for GitBackend {
             description,
             author,
             committer,
-            is_open: false,
         };
 
         let table = self.extra_metadata_store.get_head().map_err(|err| {
@@ -591,7 +588,6 @@ mod tests {
         assert_eq!(commit.parents, vec![CommitId::from_bytes(&[0; 20])]);
         assert_eq!(commit.predecessors, vec![]);
         assert_eq!(commit.root_tree.as_bytes(), root_tree_id.as_bytes());
-        assert!(!commit.is_open);
         assert_eq!(commit.description, "git commit message");
         assert_eq!(commit.author.name, "git author");
         assert_eq!(commit.author.email, "git.author@example.com");
@@ -668,7 +664,6 @@ mod tests {
             description: "initial".to_string(),
             author: signature.clone(),
             committer: signature,
-            is_open: false,
         };
         let commit_id = store.write_commit(&commit).unwrap();
         let git_refs = store
@@ -704,7 +699,6 @@ mod tests {
             description: "initial".to_string(),
             author: signature.clone(),
             committer: signature,
-            is_open: false,
         };
         let commit_id1 = store.write_commit(&commit1).unwrap();
         let mut commit2 = commit1;

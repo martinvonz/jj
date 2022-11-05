@@ -46,7 +46,6 @@ impl CommitBuilder {
             description: String::new(),
             author: signature.clone(),
             committer: signature,
-            is_open: false,
         };
         CommitBuilder {
             commit,
@@ -86,7 +85,6 @@ impl CommitBuilder {
             description: String::new(),
             author: signature.clone(),
             committer: signature,
-            is_open: true,
         };
         CommitBuilder {
             commit,
@@ -122,11 +120,6 @@ impl CommitBuilder {
 
     pub fn set_description(mut self, description: String) -> Self {
         self.commit.description = description;
-        self
-    }
-
-    pub fn set_open(mut self, is_open: bool) -> Self {
-        self.commit.is_open = is_open;
         self
     }
 

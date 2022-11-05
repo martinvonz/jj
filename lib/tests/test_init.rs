@@ -125,7 +125,6 @@ fn test_init_checkout(use_git: bool) {
     );
     assert_eq!(wc_commit.predecessors(), vec![]);
     assert_eq!(wc_commit.description(), "");
-    assert!(wc_commit.is_open());
     assert_eq!(wc_commit.author().name, settings.user_name());
     assert_eq!(wc_commit.author().email, settings.user_email());
     assert_eq!(wc_commit.committer().name, settings.user_name());

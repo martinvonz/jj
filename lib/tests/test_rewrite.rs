@@ -1275,7 +1275,6 @@ fn test_rebase_descendants_update_checkout(use_git: bool) {
     let commit_a = create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
     let commit_b = create_random_commit(&settings, repo)
         .set_parents(vec![commit_a.id().clone()])
-        .set_open(true)
         .write_to_repo(tx.mut_repo());
     let ws1_id = WorkspaceId::new("ws1".to_string());
     let ws2_id = WorkspaceId::new("ws2".to_string());
@@ -1312,7 +1311,7 @@ fn test_rebase_descendants_update_checkout_abandoned(use_git: bool) {
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
-    // Checked-out, open commit B was abandoned. A child of A
+    // Checked-out commit B was abandoned. A child of A
     // should become checked out.
     //
     // B
@@ -1322,7 +1321,6 @@ fn test_rebase_descendants_update_checkout_abandoned(use_git: bool) {
     let commit_a = create_random_commit(&settings, repo).write_to_repo(tx.mut_repo());
     let commit_b = create_random_commit(&settings, repo)
         .set_parents(vec![commit_a.id().clone()])
-        .set_open(true)
         .write_to_repo(tx.mut_repo());
     let ws1_id = WorkspaceId::new("ws1".to_string());
     let ws2_id = WorkspaceId::new("ws2".to_string());
@@ -1353,7 +1351,6 @@ fn test_rebase_descendants_update_checkout_abandoned(use_git: bool) {
         .store()
         .get_commit(repo.view().get_wc_commit_id(&ws1_id).unwrap())
         .unwrap();
-    assert!(checkout.is_open());
     assert_eq!(checkout.parent_ids(), vec![commit_a.id().clone()]);
     assert_eq!(repo.view().get_wc_commit_id(&ws3_id), Some(commit_a.id()));
 }
@@ -1365,7 +1362,7 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
-    // Checked-out, open merge commit D was abandoned. A parent commit should become
+    // Checked-out merge commit D was abandoned. A parent commit should become
     // checked out.
     //
     // D
@@ -1383,7 +1380,6 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
         .write_to_repo(tx.mut_repo());
     let commit_d = create_random_commit(&settings, repo)
         .set_parents(vec![commit_b.id().clone(), commit_c.id().clone()])
-        .set_open(true)
         .write_to_repo(tx.mut_repo());
     let workspace_id = WorkspaceId::default();
     tx.mut_repo()
@@ -1398,6 +1394,5 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
 
     let new_checkout_id = repo.view().get_wc_commit_id(&workspace_id).unwrap();
     let checkout = repo.store().get_commit(new_checkout_id).unwrap();
-    assert!(checkout.is_open());
     assert_eq!(checkout.parent_ids(), vec![commit_b.id().clone()]);
 }

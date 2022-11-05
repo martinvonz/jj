@@ -2374,8 +2374,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
         .ok_or_else(|| UserError("This command requires a working copy".to_string()))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
 
-    let mut commit_builder =
-        CommitBuilder::for_rewrite_from(ui.settings(), &commit).set_open(false);
+    let mut commit_builder = CommitBuilder::for_rewrite_from(ui.settings(), &commit);
     let description = if let Some(message) = &args.message {
         message.to_string()
     } else {
@@ -2505,7 +2504,6 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
     let new_commit =
         CommitBuilder::for_new_commit(ui.settings(), parent_ids, merged_tree.id().clone())
             .set_description(args.message.clone())
-            .set_open(true)
             .write_to_repo(tx.mut_repo());
     let workspace_id = workspace_command.workspace_id();
     tx.mut_repo().edit(workspace_id, &new_commit).unwrap();
