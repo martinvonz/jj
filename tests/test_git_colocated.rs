@@ -26,7 +26,6 @@ fn test_git_colocated() {
     // Create a commit from jj and check that it's reflected in git
     std::fs::write(workspace_root.join("new-file"), "contents").unwrap();
     test_env.jj_cmd_success(&workspace_root, &["close", "-m", "add a file"]);
-    test_env.jj_cmd_success(&workspace_root, &["git", "import"]);
     let stdout =
         test_env.jj_cmd_success(&workspace_root, &["log", "-T", "commit_id \" \" branches"]);
     insta::assert_snapshot!(stdout, @r###"
