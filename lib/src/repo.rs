@@ -620,12 +620,15 @@ impl MutableRepo {
         commit: &Commit,
     ) -> Commit {
         self.leave_commit(&workspace_id);
-        let open_commit =
-            CommitBuilder::for_open_commit(settings, commit.id().clone(), commit.tree_id().clone())
-                .write_to_repo(self);
-        self.set_wc_commit(workspace_id, open_commit.id().clone())
+        let wc_commit = CommitBuilder::for_new_commit(
+            settings,
+            vec![commit.id().clone()],
+            commit.tree_id().clone(),
+        )
+        .write_to_repo(self);
+        self.set_wc_commit(workspace_id, wc_commit.id().clone())
             .unwrap();
-        open_commit
+        wc_commit
     }
 
     pub fn edit(

@@ -226,17 +226,6 @@ fn test_commit_builder_descendants(use_git: bool) {
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     assert!(rebaser.rebase_next().unwrap().is_none());
 
-    // Test with for_open_commit()
-    let mut tx = repo.start_transaction("test");
-    CommitBuilder::for_open_commit(
-        &settings,
-        commit2.id().clone(),
-        store.empty_tree_id().clone(),
-    )
-    .write_to_repo(tx.mut_repo());
-    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-
     // Test with for_rewrite_from()
     let mut tx = repo.start_transaction("test");
     let commit4 = CommitBuilder::for_rewrite_from(&settings, &commit2).write_to_repo(tx.mut_repo());

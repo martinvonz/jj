@@ -71,27 +71,6 @@ impl CommitBuilder {
         }
     }
 
-    pub fn for_open_commit(
-        settings: &UserSettings,
-        parent_id: CommitId,
-        tree_id: TreeId,
-    ) -> CommitBuilder {
-        let signature = settings.signature();
-        let commit = backend::Commit {
-            parents: vec![parent_id],
-            predecessors: vec![],
-            root_tree: tree_id,
-            change_id: new_change_id(),
-            description: String::new(),
-            author: signature.clone(),
-            committer: signature,
-        };
-        CommitBuilder {
-            commit,
-            rewrite_source: None,
-        }
-    }
-
     pub fn set_parents(mut self, parents: Vec<CommitId>) -> Self {
         assert!(!parents.is_empty());
         self.commit.parents = parents;
