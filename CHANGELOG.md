@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `committer(needle)`, `merges()` revsets. Use `x & description(needle)`
   instead.
 
+* Support for open commits has been dropped. The `ui.enable-open-commits` config
+  that was added in 0.5.0 is no longer respected.
+
 * `jj commit` is now a separate command from `jj close` (which is deprecated).
   The behavior has changed slightly. It now always asks for a description, even
   if there already was a description set. It now also only works on the

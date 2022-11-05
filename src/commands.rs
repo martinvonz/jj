@@ -1155,45 +1155,17 @@ fn cmd_checkout(
     let mut workspace_command = command.workspace_helper(ui)?;
     let target = workspace_command.resolve_single_rev(&args.revision)?;
     let workspace_id = workspace_command.workspace_id();
-    if ui.settings().enable_open_commits() {
-        if workspace_command
-            .repo()
-            .view()
-            .get_wc_commit_id(&workspace_id)
-            == Some(target.id())
-        {
-            ui.write("Already on that commit\n")?;
-        } else {
-            let mut tx = workspace_command
-                .start_transaction(&format!("check out commit {}", target.id().hex()));
-            if target.is_open() {
-                // Root is never open
-                tx.mut_repo().edit(workspace_id, &target).unwrap();
-            } else {
-                let commit_builder = CommitBuilder::for_open_commit(
-                    ui.settings(),
-                    target.id().clone(),
-                    target.tree_id().clone(),
-                )
-                .set_description(args.message.clone());
-                let new_commit = commit_builder.write_to_repo(tx.mut_repo());
-                tx.mut_repo().edit(workspace_id, &new_commit).unwrap();
-            }
-            workspace_command.finish_transaction(ui, tx)?;
-        }
-    } else {
-        let mut tx =
-            workspace_command.start_transaction(&format!("check out commit {}", target.id().hex()));
-        let commit_builder = CommitBuilder::for_open_commit(
-            ui.settings(),
-            target.id().clone(),
-            target.tree_id().clone(),
-        )
-        .set_description(args.message.clone());
-        let new_commit = commit_builder.write_to_repo(tx.mut_repo());
-        tx.mut_repo().edit(workspace_id, &new_commit).unwrap();
-        workspace_command.finish_transaction(ui, tx)?;
-    }
+    let mut tx =
+        workspace_command.start_transaction(&format!("check out commit {}", target.id().hex()));
+    let commit_builder = CommitBuilder::for_open_commit(
+        ui.settings(),
+        target.id().clone(),
+        target.tree_id().clone(),
+    )
+    .set_description(args.message.clone());
+    let new_commit = commit_builder.write_to_repo(tx.mut_repo());
+    tx.mut_repo().edit(workspace_id, &new_commit).unwrap();
+    workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
 
@@ -1440,18 +1412,10 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
             "\n"
             description
             "\n""#;
-    let template_string = if ui.settings().enable_open_commits() {
-        format!(
-            r#"
-            label(if(open, "open"), {template_string})"#
-        )
-    } else {
-        String::from(template_string)
-    };
     let template = crate::template_parser::parse_commit_template(
         workspace_command.repo().as_repo_ref(),
         &workspace_command.workspace_id(),
-        &template_string,
+        template_string,
     );
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
@@ -2070,18 +2034,10 @@ fn log_template(settings: &UserSettings) -> String {
             "\n"
             description.first_line()
             "\n""#;
-    let default_template = if settings.enable_open_commits() {
-        format!(
-            r#"
-            label(if(open, "open"), {default_template})"#
-        )
-    } else {
-        String::from(default_template)
-    };
     settings
         .config()
         .get_string("template.log.graph")
-        .unwrap_or(default_template)
+        .unwrap_or_else(|_| default_template.to_string())
 }
 
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {

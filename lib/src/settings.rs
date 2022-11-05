@@ -96,12 +96,6 @@ impl UserSettings {
         }
     }
 
-    pub fn enable_open_commits(&self) -> bool {
-        self.config
-            .get_bool("ui.enable-open-commits")
-            .unwrap_or(false)
-    }
-
     pub fn allow_native_backend(&self) -> bool {
         self.config
             .get_bool("ui.allow-init-native")
