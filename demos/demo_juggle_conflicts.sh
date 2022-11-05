@@ -6,13 +6,13 @@ new_tmp_dir
 jj init
 echo "first" > file
 jj branch create first
-jj close -m 'first' 
+jj commit -m 'first' 
 echo "second" > file
 jj branch create second
-jj close -m 'second' 
+jj commit -m 'second' 
 echo "third" > file
 jj branch create third
-jj close -m 'third' 
+jj commit -m 'third' 
 
 comment "We are in a repo with three commits, all
 editing the same line:"

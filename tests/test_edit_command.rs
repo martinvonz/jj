@@ -24,7 +24,7 @@ fn test_edit() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     std::fs::write(repo_path.join("file1"), "0").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["close", "-m", "first"]);
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "second"]);
     std::fs::write(repo_path.join("file1"), "1").unwrap();
 
