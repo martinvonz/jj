@@ -56,7 +56,7 @@ use crate::cli_util::{
     write_commit_summary, Args, CommandError, CommandHelper, WorkspaceCommandHelper,
 };
 use crate::commands::CommandError::UserError;
-use crate::formatter::Formatter;
+use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::progress::Progress;
 use crate::template_parser::TemplateParser;
@@ -1433,6 +1433,17 @@ fn show_diff(
         }
     }
     Ok(())
+}
+
+fn diff_as_bytes(
+    workspace_command: &WorkspaceCommandHelper,
+    tree_diff: TreeDiffIterator,
+    format: DiffFormat,
+) -> Result<Vec<u8>, CommandError> {
+    let mut diff_bytes: Vec<u8> = vec![];
+    let mut formatter = PlainTextFormatter::new(&mut diff_bytes);
+    show_diff(&mut formatter, workspace_command, tree_diff, format)?;
+    Ok(diff_bytes)
 }
 
 fn diff_content(
@@ -2882,6 +2893,22 @@ don't make any changes, then the operation will be aborted.",
     Ok(())
 }
 
+fn description_template_for_cmd_split(
+    workspace_command: &WorkspaceCommandHelper,
+    intro: &str,
+    overall_commit_description: &str,
+    diff_iter: TreeDiffIterator,
+) -> Result<String, CommandError> {
+    let diff_summary_bytes = diff_as_bytes(workspace_command, diff_iter, DiffFormat::Summary)?;
+    let diff_summary = std::str::from_utf8(&diff_summary_bytes).expect(
+        "Summary diffs and repo paths must always be valid UTF8.",
+        // Double-check this assumption for diffs that include file content.
+    );
+    Ok(format!("JJ: {intro}\n{overall_commit_description}\n")
+        + "JJ: This part contains the following changes:\n"
+        + &textwrap::indent(diff_summary, "JJ:     "))
+}
+
 fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
@@ -2913,22 +2940,29 @@ don't make any changes, then the operation will be aborted.
     } else {
         let mut tx =
             workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
-        let first_description = edit_description(
-            ui,
-            tx.base_repo(),
-            &("JJ: Enter commit description for the first part.\n".to_string()
-                + commit.description()),
+        let middle_tree = workspace_command
+            .repo()
+            .store()
+            .get_tree(&RepoPath::root(), &tree_id)?;
+
+        let first_template = description_template_for_cmd_split(
+            &workspace_command,
+            "Enter commit description for the first part (parent).",
+            commit.description(),
+            base_tree.diff(&middle_tree, &EverythingMatcher),
         )?;
+        let first_description = edit_description(ui, tx.base_repo(), &first_template)?;
         let first_commit = CommitBuilder::for_rewrite_from(ui.settings(), &commit)
             .set_tree(tree_id)
             .set_description(first_description)
             .write_to_repo(tx.mut_repo());
-        let second_description = edit_description(
-            ui,
-            tx.base_repo(),
-            &("JJ: Enter commit description for the second part.\n".to_string()
-                + commit.description()),
+        let second_template = description_template_for_cmd_split(
+            &workspace_command,
+            "Enter commit description for the second part (child).",
+            commit.description(),
+            middle_tree.diff(&commit.tree(), &EverythingMatcher),
         )?;
+        let second_description = edit_description(ui, tx.base_repo(), &second_template)?;
         let second_commit = CommitBuilder::for_rewrite_from(ui.settings(), &commit)
             .set_parents(vec![first_commit.id().clone()])
             .set_tree(commit.tree_id().clone())
