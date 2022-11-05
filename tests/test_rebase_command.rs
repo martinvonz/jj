@@ -20,9 +20,7 @@ pub mod common;
 
 fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, parents: &[&str]) {
     if parents.is_empty() {
-        test_env.jj_cmd_success(repo_path, &["co", "root"]);
-    } else if parents.len() == 1 {
-        test_env.jj_cmd_success(repo_path, &["co", parents[0]]);
+        test_env.jj_cmd_success(repo_path, &["new", "root"]);
     } else {
         let mut args = vec!["new", "-m", name];
         args.extend(parents);
