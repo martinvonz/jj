@@ -53,15 +53,14 @@ markers by the resolved text. You don't need to resolve all conflicts at once.
 You can even resolve part of a conflict by updating the different parts of the
 conflict marker.
 
-If the commit with conflicts was closed, your conflict resolution would be in
-the working-copy commit. Once you have resolved the conflicts, you would then
-typically use `jj squash` to move the conflict resolutions into the conflicted
-commit.
-
-If the commit with conflicts was open, it would simply not have conflicts
-anymore once you have resolved them. If you prefer to do the conflict resolution
-in a separate commit, you can use `jj new` before you resolve the conflicts and
-then `jj squash` once you're done.
+To resolve conflicts in a commit, use `jj new <commit>` to create a working-copy
+commit on top. You would then have the same conflicts in the working-copy
+commit. Once you have resolved the conflicts, you can inspect the conflict
+resolutions with `jj diff`. Then run `jj squash` to move the conflict
+resolutions into the conflicted commit. Alternatively, you can edit the commit
+with conflicts directly in the working copy by using `jj edit <commit>`. The
+main disadvantage of that is that it's harder to inspect the conflict
+resolutions.
 
 There's not yet a way of resolving conflicts in an external merge tool
 (https://github.com/martinvonz/jj/issues/18). There's also no good way of
