@@ -1102,15 +1102,7 @@ pub fn write_commit_summary(
     let template_string = settings
         .config()
         .get_string("template.commit_summary")
-        .unwrap_or_else(|_| {
-            if settings.enable_open_commits() {
-                String::from(
-                    r#"label(if(open, "open"), commit_id.short() " " description.first_line())"#,
-                )
-            } else {
-                String::from(r#"commit_id.short() " " description.first_line()"#)
-            }
-        });
+        .unwrap_or_else(|_| String::from(r#"commit_id.short() " " description.first_line()"#));
     let template =
         crate::template_parser::parse_commit_template(repo, workspace_id, &template_string);
     let mut template_writer = TemplateFormatter::new(template, formatter);

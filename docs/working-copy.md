@@ -20,26 +20,6 @@ the working copy, first make sure it's [ignored](#ignored-files) and then run
 `jj untrack <path>`.
 
 
-## Open/closed revisions
-
-This section only applies if you have set `ui.enable-open-commits = true`
-in your config.
-
-As described in the introduction, Jujutsu automatically rewrites the current
-working-copy commit with any changes from the working copy. That works well
-while you're developing that revision. On the other hand, if you check out some
-existing revision, you generally don't want changes to the working copy to
-automatically rewrite that revision. Jujutsu has a concept of "open" and
-"closed" revisions to solve this. When you check out a closed revision, Jujutsu
-will actually create a new, *open* revision on top of it and check that out. The
-working-copy commit is thus always open. When you are done making changes to
-the current working-copy commit, you close it by running `jj close`. That
-command then updates to the rewritten revision (as most `jj` commands do), and
-since the rewritten revision is now closed, it creates a new open revision on
-top. If you check out a closed revision and make changes on top of it that you
-want to go into the revision, use `jj squash`.
-
-
 ## Conflicts
 
 When you check out a commit with conflicts, those conflicts need to be
