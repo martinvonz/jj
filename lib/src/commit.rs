@@ -117,10 +117,6 @@ impl Commit {
         &self.data
     }
 
-    pub fn is_open(&self) -> bool {
-        self.data.is_open
-    }
-
     pub fn is_empty(&self) -> bool {
         let parents = self.parents();
         // TODO: Perhaps the root commit should also be considered empty.

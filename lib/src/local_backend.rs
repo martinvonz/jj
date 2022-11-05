@@ -267,7 +267,6 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::store::Commit {
     proto.description = commit.description.clone();
     proto.author = MessageField::some(signature_to_proto(&commit.author));
     proto.committer = MessageField::some(signature_to_proto(&commit.committer));
-    proto.is_open = commit.is_open;
     proto
 }
 
@@ -289,7 +288,6 @@ fn commit_from_proto(proto: &crate::protos::store::Commit) -> Commit {
         description: proto.description.clone(),
         author: signature_from_proto(&proto.author),
         committer: signature_from_proto(&proto.committer),
-        is_open: proto.is_open,
     }
 }
 

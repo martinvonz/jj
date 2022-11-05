@@ -266,7 +266,6 @@ pub struct Commit {
     pub description: String,
     pub author: Signature,
     pub committer: Signature,
-    pub is_open: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -393,7 +392,6 @@ pub fn make_root_commit(empty_tree_id: TreeId) -> Commit {
         description: String::new(),
         author: signature.clone(),
         committer: signature,
-        is_open: false,
     }
 }
 
