@@ -14,12 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead.
 
 * Support for open commits has been dropped. The `ui.enable-open-commits` config
-  that was added in 0.5.0 is no longer respected.
-
-* `jj commit` is now a separate command from `jj close` (which is deprecated).
-  The behavior has changed slightly. It now always asks for a description, even
-  if there already was a description set. It now also only works on the
-  working-copy commit (there's no `-r` argument).
+  that was added in 0.5.0 is no longer respected. The `jj open/close` commands
+  have been deleted.
+  
+* `jj commit` is now a separate command from `jj close` (which no longer
+  exists). The behavior has changed slightly. It now always asks for a
+  description, even if there already was a description set. It now also only
+  works on the working-copy commit (there's no `-r` argument).
 
 ### New features
 
