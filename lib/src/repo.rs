@@ -973,7 +973,6 @@ impl<T> IoResultExt<T> for io::Result<T> {
 
 mod dirty_cell {
     use std::cell::{Cell, RefCell};
-    use std::ops::Deref;
 
     /// Cell that lazily updates the value after `mark_dirty()`.
     #[derive(Clone, Debug)]
@@ -994,9 +993,7 @@ mod dirty_cell {
             // SAFETY: get_mut/mark_dirty(&mut self) should invalidate any previously-clean
             // references leaked by this method. Clean value never changes until then.
             self.ensure_clean(f);
-            let borrow = self.value.borrow();
-            let temp_ref = borrow.deref();
-            unsafe { std::mem::transmute(temp_ref) }
+            unsafe { &*self.value.as_ptr() }
         }
 
         pub fn ensure_clean(&self, f: impl FnOnce(&mut T)) {
