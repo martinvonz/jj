@@ -1037,12 +1037,14 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
         ));
     }
     let wc_path = ui.cwd().join(&args.destination);
-    if wc_path.exists() {
-        assert!(wc_path.is_dir());
-    } else {
-        fs::create_dir(&wc_path).unwrap();
+    match fs::create_dir(&wc_path) {
+        Ok(()) => {}
+        Err(_) if wc_path.is_dir() => {}
+        Err(e) => return Err(UserError(format!("Failed to create workspace: {e}"))),
     }
-    let wc_path = wc_path.canonicalize().unwrap();
+    let wc_path = wc_path
+        .canonicalize()
+        .map_err(|e| UserError(format!("Failed to create workspace: {e}")))?; // raced?
 
     if let Some(git_store_str) = &args.git_repo {
         let mut git_store_path = ui.cwd().join(git_store_str);
