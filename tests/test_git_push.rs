@@ -198,13 +198,13 @@ fn test_git_push_unsnapshotted_change() {
 fn test_git_push_conflict() {
     let (test_env, workspace_root) = set_up();
     std::fs::write(workspace_root.join("file"), "first").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["close", "-m", "first"]);
+    test_env.jj_cmd_success(&workspace_root, &["commit", "-m", "first"]);
     std::fs::write(workspace_root.join("file"), "second").unwrap();
-    test_env.jj_cmd_success(&workspace_root, &["close", "-m", "second"]);
+    test_env.jj_cmd_success(&workspace_root, &["commit", "-m", "second"]);
     std::fs::write(workspace_root.join("file"), "third").unwrap();
     test_env.jj_cmd_success(&workspace_root, &["rebase", "-r", "@", "-d", "@--"]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "set", "my-branch"]);
-    test_env.jj_cmd_success(&workspace_root, &["close", "-m", "third"]);
+    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "third"]);
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 50ccff1aeab0 since it has conflicts
@@ -215,11 +215,11 @@ fn test_git_push_conflict() {
 fn test_git_push_no_description() {
     let (test_env, workspace_root) = set_up();
     test_env.jj_cmd_success(&workspace_root, &["branch", "create", "my-branch"]);
-    test_env.jj_cmd_success(&workspace_root, &["close", "-m", ""]);
+    test_env.jj_cmd_success(&workspace_root, &["describe", "-m="]);
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch", "my-branch"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit 4e5f01c842af since it has no description
+    Error: Won't push commit 230dd059e1b0 since it has no description
     "###);
 }
 
@@ -233,25 +233,21 @@ fn test_git_push_missing_author() {
             .assert()
             .success();
     };
-    run_without_var("JJ_USER", &["checkout", "root"]);
+    run_without_var("JJ_USER", &["checkout", "root", "-m=initial"]);
     run_without_var("JJ_USER", &["branch", "create", "missing-name"]);
-    run_without_var("JJ_USER", &["close", "-m", "initial"]);
     let stderr = test_env.jj_cmd_failure(
         &workspace_root,
         &["git", "push", "--branch", "missing-name"],
     );
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit 567e1ab3da0e since it has no author and/or committer set
+    Error: Won't push commit 91a20b396803 since it has no author and/or committer set
     "###);
-    run_without_var("JJ_EMAIL", &["checkout", "root"]);
+    run_without_var("JJ_EMAIL", &["checkout", "root", "-m=initial"]);
     run_without_var("JJ_EMAIL", &["branch", "create", "missing-email"]);
-    run_without_var("JJ_EMAIL", &["close", "-m", "initial"]);
-    let stderr = test_env.jj_cmd_failure(
-        &workspace_root,
-        &["git", "push", "--branch", "missing-email"],
-    );
+    let stderr =
+        test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-email"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit ce7b456bb11a since it has no author and/or committer set
+    Error: Won't push commit 7186423bd158 since it has no author and/or committer set
     "###);
 }
 
@@ -266,32 +262,26 @@ fn test_git_push_missing_committer() {
             .success();
     };
     test_env.jj_cmd_success(&workspace_root, &["branch", "create", "missing-name"]);
-    run_without_var("JJ_USER", &["close", "-m", "no committer name"]);
-    let stderr = test_env.jj_cmd_failure(
-        &workspace_root,
-        &["git", "push", "--branch", "missing-name"],
-    );
+    run_without_var("JJ_USER", &["describe", "-m=no committer name"]);
+    let stderr =
+        test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-name"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit df8d9f6cf625 since it has no author and/or committer set
     "###);
     test_env.jj_cmd_success(&workspace_root, &["checkout", "root"]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "create", "missing-email"]);
-    run_without_var("JJ_EMAIL", &["close", "-m", "no committer email"]);
-    let stderr = test_env.jj_cmd_failure(
-        &workspace_root,
-        &["git", "push", "--branch", "missing-email"],
-    );
+    run_without_var("JJ_EMAIL", &["describe", "-m=no committer email"]);
+    let stderr =
+        test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-email"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 61b8a14387d7 since it has no author and/or committer set
     "###);
 
     // Test message when there are multiple reasons (missing committer and
     // description)
-    run_without_var("JJ_EMAIL", &["describe", "-m", "", "missing-email"]);
-    let stderr = test_env.jj_cmd_failure(
-        &workspace_root,
-        &["git", "push", "--branch", "missing-email"],
-    );
+    run_without_var("JJ_EMAIL", &["describe", "-m=", "missing-email"]);
+    let stderr =
+        test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-email"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 9e1aae45b6a3 since it has no description and it has no author and/or committer set
     "###);

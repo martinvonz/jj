@@ -29,7 +29,7 @@ fn test_workspaces_add_second_workspace() {
     let secondary_path = test_env.env_root().join("secondary");
 
     std::fs::write(main_path.join("file"), "contents").unwrap();
-    test_env.jj_cmd_success(&main_path, &["close", "-m", "initial"]);
+    test_env.jj_cmd_success(&main_path, &["commit", "-m", "initial"]);
 
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -81,15 +81,15 @@ fn test_workspaces_conflicting_edits() {
     let secondary_path = test_env.env_root().join("secondary");
 
     std::fs::write(main_path.join("file"), "contents\n").unwrap();
-    test_env.jj_cmd_success(&main_path, &["close", "-m", "initial"]);
+    test_env.jj_cmd_success(&main_path, &["new"]);
 
     test_env.jj_cmd_success(&main_path, &["workspace", "add", "../secondary"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    o 6bafff1a880f313aebb6d357c79b7aa4befa0af8 secondary@
-    | @ c8f1217f93a0bc570a8bbfe055980f27062339ef default@
+    o 265af0cdbcc7bb33e3734ad72565c943ce3fb0d4 secondary@
+    | @ 351099fa72cfbb1b34e410e89821efc623295974 default@
     |/  
-    o 5af56dcc2cc27bb234e5574b5a3ebc5f22081462 
+    o cf911c223d3e24e001fc8264d6dbf0610804fc40 
     o 0000000000000000000000000000000000000000 
     "###);
 
@@ -101,15 +101,15 @@ fn test_workspaces_conflicting_edits() {
     let stdout = test_env.jj_cmd_success(&main_path, &["squash"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
-    Working copy now at: 86bef7fee095 (no description set)
+    Working copy now at: fe8f41ed01d6 (no description set)
     "###);
 
     // The secondary workspace's checkout was updated
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    @ 86bef7fee095bb5626d853c222764fc7c9fb88ac default@
-    | o 8d8269a323a01a287236c4fd5f64dc9737febb5b secondary@
+    @ fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
+    | o a1896a17282f19089a5cec44358d6609910e0513 secondary@
     |/  
-    o 52601f748bf6cb00ad5389922f530f20a7ecffaa 
+    o c0d4a99ef98ada7da8dc73a778bbb747c4178385 
     o 0000000000000000000000000000000000000000 
     "###);
     let stdout = get_log_output(&test_env, &secondary_path);
@@ -118,10 +118,10 @@ fn test_workspaces_conflicting_edits() {
     // have been committed first (causing divergence)
     assert!(stdout.starts_with("The working copy is stale"));
     insta::assert_snapshot!(stdout.lines().skip(1).join("\n"), @r###"
-    o 86bef7fee095bb5626d853c222764fc7c9fb88ac default@
-    | @ 8d8269a323a01a287236c4fd5f64dc9737febb5b secondary@
+    o fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
+    | @ a1896a17282f19089a5cec44358d6609910e0513 secondary@
     |/  
-    o 52601f748bf6cb00ad5389922f530f20a7ecffaa 
+    o c0d4a99ef98ada7da8dc73a778bbb747c4178385 
     o 0000000000000000000000000000000000000000 
     "###);
 
@@ -129,10 +129,10 @@ fn test_workspaces_conflicting_edits() {
     let stdout = get_log_output(&test_env, &secondary_path);
     assert!(!stdout.starts_with("The working copy is stale"));
     insta::assert_snapshot!(stdout, @r###"
-    o 86bef7fee095bb5626d853c222764fc7c9fb88ac default@
-    | @ 8d8269a323a01a287236c4fd5f64dc9737febb5b secondary@
+    o fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
+    | @ a1896a17282f19089a5cec44358d6609910e0513 secondary@
     |/  
-    o 52601f748bf6cb00ad5389922f530f20a7ecffaa 
+    o c0d4a99ef98ada7da8dc73a778bbb747c4178385 
     o 0000000000000000000000000000000000000000 
     "###);
 }
@@ -145,7 +145,7 @@ fn test_workspaces_forget() {
     let main_path = test_env.env_root().join("main");
 
     std::fs::write(main_path.join("file"), "contents").unwrap();
-    test_env.jj_cmd_success(&main_path, &["close", "-m", "initial"]);
+    test_env.jj_cmd_success(&main_path, &["new"]);
 
     test_env.jj_cmd_success(&main_path, &["workspace", "add", "../secondary"]);
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "forget"]);
@@ -154,7 +154,7 @@ fn test_workspaces_forget() {
     // When listing workspaces, only the secondary workspace shows up
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    secondary: 39a6d6c6f295 (no description set)
+    secondary: feda1c4e5ffe (no description set)
     "###);
 
     // `jj status` tells us that there's no working copy here
@@ -169,10 +169,10 @@ fn test_workspaces_forget() {
     // there's only one workspace. We should show it when the command is not run
     // from that workspace.
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    o 39a6d6c6f29557f886ded65d50063da4321ab2a8 
-    | o 988d8c1dca7e0944210ccc33584a6a42cd2962d4 
+    o feda1c4e5ffe63fb16818ccdd8c21483537e31f2 
+    | o e949be04e93e830fcce23fefac985c1deee52eea 
     |/  
-    o 2062e7d6f1f46b4fe1453040d691931e77a88f7c 
+    o 123ed18e4c4c0d77428df41112bc02ffc83fb935 
     o 0000000000000000000000000000000000000000 
     "###);
 
