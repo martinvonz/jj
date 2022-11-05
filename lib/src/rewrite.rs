@@ -351,9 +351,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let new_wc_commit = if edit {
             new_commit
         } else {
-            CommitBuilder::for_open_commit(
+            CommitBuilder::for_new_commit(
                 self.settings,
-                new_commit.id().clone(),
+                vec![new_commit.id().clone()],
                 new_commit.tree_id().clone(),
             )
             .write_to_repo(self.mut_repo)

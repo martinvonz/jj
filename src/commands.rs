@@ -1117,9 +1117,9 @@ fn cmd_checkout(
     let workspace_id = workspace_command.workspace_id();
     let mut tx =
         workspace_command.start_transaction(&format!("check out commit {}", target.id().hex()));
-    let commit_builder = CommitBuilder::for_open_commit(
+    let commit_builder = CommitBuilder::for_new_commit(
         ui.settings(),
-        target.id().clone(),
+        vec![target.id().clone()],
         target.tree_id().clone(),
     )
     .set_description(args.message.clone());
@@ -2388,9 +2388,9 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
         .view()
         .workspaces_for_wc_commit_id(commit.id());
     if !workspace_ids.is_empty() {
-        let new_checkout = CommitBuilder::for_open_commit(
+        let new_checkout = CommitBuilder::for_new_commit(
             ui.settings(),
-            new_commit.id().clone(),
+            vec![new_commit.id().clone()],
             new_commit.tree_id().clone(),
         )
         .write_to_repo(tx.mut_repo());
