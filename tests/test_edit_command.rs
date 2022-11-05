@@ -31,16 +31,16 @@ fn test_edit() {
     // Errors out without argument
     test_env.jj_cmd_cli_error(&repo_path, &["edit"]);
 
-    // Can edit a closed commit
+    // Makes the specified commit the working-copy commit
     let stdout = test_env.jj_cmd_success(&repo_path, &["edit", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 5c9d6c787f29 first
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o 37ed5225d0fd open second
-    @ 5c9d6c787f29 closed first
-    o 000000000000 closed (no description set)
+    o 37ed5225d0fd second
+    @ 5c9d6c787f29 first
+    o 000000000000 (no description set)
     "###);
     insta::assert_snapshot!(read_file(&repo_path.join("file1")), @"0");
 
@@ -48,9 +48,9 @@ fn test_edit() {
     std::fs::write(repo_path.join("file2"), "0").unwrap();
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     Rebased 1 descendant commits onto updated working copy
-    o 57e61f6b2ce1 open second
-    @ f1b9706b17d0 closed first
-    o 000000000000 closed (no description set)
+    o 57e61f6b2ce1 second
+    @ f1b9706b17d0 first
+    o 000000000000 (no description set)
     "###);
 }
 
@@ -59,14 +59,7 @@ fn read_file(path: &Path) -> String {
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    test_env.jj_cmd_success(
-        cwd,
-        &[
-            "log",
-            "-T",
-            r#"commit_id.short() " " if(open, "open", "closed")  " " description"#,
-        ],
-    )
+    test_env.jj_cmd_success(cwd, &["log", "-T", r#"commit_id.short() " " description"#])
 }
 
 #[test]
