@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #![deny(unused_must_use)]
-#![cfg_attr(feature = "map_first_last", feature(map_first_last))]
 
 pub mod backend;
 pub mod commit;
