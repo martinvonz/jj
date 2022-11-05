@@ -174,6 +174,14 @@ fn test_init_git_internal_but_could_be_colocated() {
 }
 
 #[test]
+fn test_init_git_bad_wc_path() {
+    let test_env = TestEnvironment::default();
+    std::fs::write(test_env.env_root().join("existing-file"), b"").unwrap();
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["init", "--git", "existing-file"]);
+    assert!(stderr.contains("Failed to create workspace"));
+}
+
+#[test]
 fn test_init_local_disallowed() {
     let test_env = TestEnvironment::default();
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo"]);
