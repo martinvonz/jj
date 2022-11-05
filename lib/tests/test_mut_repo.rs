@@ -19,11 +19,8 @@ use jujutsu_lib::testutils::{assert_rebased, CommitGraphBuilder, TestRepo};
 use maplit::hashset;
 use test_case::test_case;
 
-// TODO Many of the tests here are not run with Git because they end up creating
-// two commits with the same contents.
-
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_edit(use_git: bool) {
     // Test that MutableRepo::check_out() uses the requested commit if it's open
     let settings = testutils::user_settings();
@@ -44,7 +41,7 @@ fn test_edit(use_git: bool) {
 }
 
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_checkout_closed(use_git: bool) {
     // Test that MutableRepo::check_out() creates a child if the requested commit is
     // closed
@@ -74,7 +71,7 @@ fn test_checkout_closed(use_git: bool) {
 }
 
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_checkout_previous_not_empty(use_git: bool) {
     // Test that MutableRepo::check_out() does not usually abandon the previous
     // commit.
@@ -102,7 +99,7 @@ fn test_checkout_previous_not_empty(use_git: bool) {
 }
 
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_checkout_previous_empty(use_git: bool) {
     // Test that MutableRepo::check_out() abandons the previous commit if it was
     // empty.
@@ -133,7 +130,7 @@ fn test_checkout_previous_empty(use_git: bool) {
 }
 
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_checkout_previous_empty_with_description(use_git: bool) {
     // Test that MutableRepo::check_out() does not abandon the previous commit if it
     // has a non-empty description.
@@ -165,7 +162,7 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
 }
 
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_checkout_previous_empty_non_head(use_git: bool) {
     // Test that MutableRepo::check_out() does not abandon the previous commit if it
     // was empty and is not a head
@@ -205,7 +202,7 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
 }
 
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_edit_initial(use_git: bool) {
     // Test that MutableRepo::edit() can be used on the initial checkout in a
     // workspace
@@ -230,7 +227,7 @@ fn test_edit_initial(use_git: bool) {
 }
 
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_add_head_success(use_git: bool) {
     // Test that MutableRepo::add_head() adds the head, and that it's still there
     // after commit. It should also be indexed.
@@ -265,7 +262,7 @@ fn test_add_head_success(use_git: bool) {
 }
 
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_add_head_ancestor(use_git: bool) {
     // Test that MutableRepo::add_head() does not add a head if it's an ancestor of
     // an existing head.
@@ -295,7 +292,7 @@ fn test_add_head_ancestor(use_git: bool) {
 }
 
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_add_head_not_immediate_child(use_git: bool) {
     // Test that MutableRepo::add_head() can be used for adding a head that is not
     // an immediate child of a current head.
@@ -339,7 +336,7 @@ fn test_add_head_not_immediate_child(use_git: bool) {
 }
 
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_remove_head(use_git: bool) {
     // Test that MutableRepo::remove_head() removes the head, and that it's still
     // removed after commit. It should remain in the index, since we otherwise would
@@ -381,7 +378,7 @@ fn test_remove_head(use_git: bool) {
 }
 
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_add_public_head(use_git: bool) {
     // Test that MutableRepo::add_public_head() adds the head, and that it's still
     // there after commit.
@@ -403,7 +400,7 @@ fn test_add_public_head(use_git: bool) {
 }
 
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_add_public_head_ancestor(use_git: bool) {
     // Test that MutableRepo::add_public_head() does not add a public head if it's
     // an ancestor of an existing public head.
@@ -428,7 +425,7 @@ fn test_add_public_head_ancestor(use_git: bool) {
 }
 
 #[test_case(false ; "local backend")]
-// #[test_case(true ; "git backend")]
+#[test_case(true ; "git backend")]
 fn test_remove_public_head(use_git: bool) {
     // Test that MutableRepo::remove_public_head() removes the head, and that it's
     // still removed after commit.
