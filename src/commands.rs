@@ -37,7 +37,7 @@ use jujutsu_lib::matchers::{EverythingMatcher, Matcher};
 use jujutsu_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoRef};
+use jujutsu_lib::repo::{ReadonlyRepo, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::RevsetExpression;
 use jujutsu_lib::revset_graph_iterator::{RevsetGraphEdge, RevsetGraphEdgeType};
@@ -3971,8 +3971,10 @@ fn cmd_git_fetch(
     let git_repo = get_git_repo(repo.store())?;
     let mut tx =
         workspace_command.start_transaction(&format!("fetch from git remote {}", &args.remote));
-    git_fetch(ui, tx.mut_repo(), &git_repo, &args.remote)
-        .map_err(|err| UserError(err.to_string()))?;
+    with_remote_callbacks(ui, |cb| {
+        git::fetch(tx.mut_repo(), &git_repo, &args.remote, cb)
+    })
+    .map_err(|err| UserError(err.to_string()))?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -4079,24 +4081,21 @@ fn do_git_clone(
     let remote_name = "origin";
     git_repo.remote(remote_name, source).unwrap();
     let mut fetch_tx = workspace_command.start_transaction("fetch from git remote into empty repo");
-    let maybe_default_branch =
-        git_fetch(ui, fetch_tx.mut_repo(), &git_repo, remote_name).map_err(|err| match err {
-            GitFetchError::NoSuchRemote(_) => {
-                panic!("shouldn't happen as we just created the git remote")
-            }
-            GitFetchError::InternalGitError(err) => UserError(format!("Fetch failed: {err}")),
-        })?;
+
+    let maybe_default_branch = with_remote_callbacks(ui, |cb| {
+        git::fetch(fetch_tx.mut_repo(), &git_repo, remote_name, cb)
+    })
+    .map_err(|err| match err {
+        GitFetchError::NoSuchRemote(_) => {
+            panic!("shouldn't happen as we just created the git remote")
+        }
+        GitFetchError::InternalGitError(err) => UserError(format!("Fetch failed: {err}")),
+    })?;
     workspace_command.finish_transaction(ui, fetch_tx)?;
     Ok((workspace_command, maybe_default_branch))
 }
 
-// Wrapper around git::fetch that adds progress feedback on TTYs
-fn git_fetch(
-    ui: &mut Ui,
-    mut_repo: &mut MutableRepo,
-    git_repo: &git2::Repository,
-    remote_name: &str,
-) -> Result<Option<String>, GitFetchError> {
+fn with_remote_callbacks<T>(ui: &mut Ui, f: impl FnOnce(git::RemoteCallbacks<'_>) -> T) -> T {
     let mut callback = None;
     if ui.use_progress_indicator() {
         let mut progress = Progress::new(Instant::now(), ui);
@@ -4108,10 +4107,9 @@ fn git_fetch(
     callbacks.progress = callback
         .as_mut()
         .map(|x| x as &mut dyn FnMut(&git::Progress));
-    let mut get_ssh_key = get_ssh_key; // Hack around odd borrowck behavior
+    let mut get_ssh_key = get_ssh_key; // Coerce to unit fn type
     callbacks.get_ssh_key = Some(&mut get_ssh_key);
-    let result = git::fetch(mut_repo, git_repo, remote_name, callbacks);
-    result
+    f(callbacks)
 }
 
 fn get_ssh_key(_username: &str) -> Option<PathBuf> {
@@ -4381,11 +4379,10 @@ fn cmd_git_push(
     }
 
     let git_repo = get_git_repo(repo.store())?;
-    let mut get_ssh_key = get_ssh_key; // Coerce to unit fn type
-    let mut callbacks = git::RemoteCallbacks::default();
-    callbacks.get_ssh_key = Some(&mut get_ssh_key);
-    git::push_updates(&git_repo, &args.remote, &ref_updates, callbacks)
-        .map_err(|err| UserError(err.to_string()))?;
+    with_remote_callbacks(ui, |cb| {
+        git::push_updates(&git_repo, &args.remote, &ref_updates, cb)
+    })
+    .map_err(|err| UserError(err.to_string()))?;
     git::import_refs(tx.mut_repo(), &git_repo)?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
