@@ -17,7 +17,7 @@ use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::sync::Arc;
 
-use git2::{Oid, RemoteCallbacks};
+use git2::Oid;
 use itertools::Itertools;
 use thiserror::Error;
 
@@ -280,7 +280,7 @@ pub fn fetch(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     remote_name: &str,
-    progress: Option<&mut dyn FnMut(&Progress)>,
+    callbacks: RemoteCallbacks<'_>,
 ) -> Result<Option<String>, GitFetchError> {
     let mut remote =
         git_repo
@@ -298,7 +298,7 @@ pub fn fetch(
     let mut proxy_options = git2::ProxyOptions::new();
     proxy_options.auto();
     fetch_options.proxy_options(proxy_options);
-    let callbacks = create_remote_callbacks(progress);
+    let callbacks = callbacks.into_git();
     fetch_options.remote_callbacks(callbacks);
     let refspec: &[&str] = &[];
     remote.download(refspec, Some(&mut fetch_options))?;
@@ -435,7 +435,7 @@ fn push_refs(
     let mut proxy_options = git2::ProxyOptions::new();
     proxy_options.auto();
     push_options.proxy_options(proxy_options);
-    let mut callbacks = create_remote_callbacks(None);
+    let mut callbacks = RemoteCallbacks::default().into_git();
     callbacks.push_update_reference(|refname, status| {
         // The status is Some if the ref update was rejected
         if status.is_none() {
@@ -466,39 +466,53 @@ fn push_refs(
     }
 }
 
-fn create_remote_callbacks(progress_cb: Option<&mut dyn FnMut(&Progress)>) -> RemoteCallbacks<'_> {
-    let mut callbacks = git2::RemoteCallbacks::new();
-    if let Some(progress_cb) = progress_cb {
-        callbacks.transfer_progress(move |progress| {
-            progress_cb(&Progress {
-                bytes_downloaded: if progress.received_objects() < progress.total_objects() {
-                    Some(progress.received_bytes() as u64)
-                } else {
-                    None
-                },
-                overall: (progress.indexed_objects() + progress.indexed_deltas()) as f32
-                    / (progress.total_objects() + progress.total_deltas()) as f32,
+#[non_exhaustive]
+#[derive(Default)]
+pub struct RemoteCallbacks<'a> {
+    pub progress: Option<&'a mut dyn FnMut(&Progress)>,
+}
+
+impl<'a> RemoteCallbacks<'a> {
+    fn into_git(self) -> git2::RemoteCallbacks<'a> {
+        let mut callbacks = git2::RemoteCallbacks::new();
+        if let Some(progress_cb) = self.progress {
+            callbacks.transfer_progress(move |progress| {
+                progress_cb(&Progress {
+                    bytes_downloaded: if progress.received_objects() < progress.total_objects() {
+                        Some(progress.received_bytes() as u64)
+                    } else {
+                        None
+                    },
+                    overall: (progress.indexed_objects() + progress.indexed_deltas()) as f32
+                        / (progress.total_objects() + progress.total_deltas()) as f32,
+                });
+                true
             });
-            true
-        });
-    }
-    // TODO: We should expose the callbacks to the caller instead -- the library
-    // crate shouldn't look in $HOME etc.
-    callbacks.credentials(|_url, username_from_url, allowed_types| {
-        if allowed_types.contains(git2::CredentialType::SSH_KEY) {
-            if std::env::var("SSH_AUTH_SOCK").is_ok() || std::env::var("SSH_AGENT_PID").is_ok() {
-                return git2::Cred::ssh_key_from_agent(username_from_url.unwrap());
-            }
-            if let Ok(home_dir) = std::env::var("HOME") {
-                let key_path = std::path::Path::new(&home_dir).join(".ssh").join("id_rsa");
-                if key_path.is_file() {
-                    return git2::Cred::ssh_key(username_from_url.unwrap(), None, &key_path, None);
+        }
+        // TODO: We should expose the callbacks to the caller instead -- the library
+        // crate shouldn't look in $HOME etc.
+        callbacks.credentials(|_url, username_from_url, allowed_types| {
+            if allowed_types.contains(git2::CredentialType::SSH_KEY) {
+                if std::env::var("SSH_AUTH_SOCK").is_ok() || std::env::var("SSH_AGENT_PID").is_ok()
+                {
+                    return git2::Cred::ssh_key_from_agent(username_from_url.unwrap());
+                }
+                if let Ok(home_dir) = std::env::var("HOME") {
+                    let key_path = std::path::Path::new(&home_dir).join(".ssh").join("id_rsa");
+                    if key_path.is_file() {
+                        return git2::Cred::ssh_key(
+                            username_from_url.unwrap(),
+                            None,
+                            &key_path,
+                            None,
+                        );
+                    }
                 }
             }
-        }
-        git2::Cred::default()
-    });
-    callbacks
+            git2::Cred::default()
+        });
+        callbacks
+    }
 }
 
 pub struct Progress {

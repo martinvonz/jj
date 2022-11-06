@@ -4066,14 +4066,11 @@ fn git_fetch(
             progress.update(Instant::now(), x);
         });
     }
-    let result = git::fetch(
-        mut_repo,
-        git_repo,
-        remote_name,
-        callback
-            .as_mut()
-            .map(|x| x as &mut dyn FnMut(&git::Progress)),
-    );
+    let mut callbacks = git::RemoteCallbacks::default();
+    callbacks.progress = callback
+        .as_mut()
+        .map(|x| x as &mut dyn FnMut(&git::Progress));
+    let result = git::fetch(mut_repo, git_repo, remote_name, callbacks);
     result
 }
 
