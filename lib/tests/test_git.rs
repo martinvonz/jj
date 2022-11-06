@@ -827,6 +827,7 @@ fn test_push_updates_success() {
             force: false,
             new_target: Some(setup.new_commit.id().clone()),
         }],
+        git::RemoteCallbacks::default(),
     );
     assert_eq!(result, Ok(()));
 
@@ -868,6 +869,7 @@ fn test_push_updates_deletion() {
             force: false,
             new_target: None,
         }],
+        git::RemoteCallbacks::default(),
     );
     assert_eq!(result, Ok(()));
 
@@ -903,6 +905,7 @@ fn test_push_updates_mixed_deletion_and_addition() {
                 new_target: Some(setup.new_commit.id().clone()),
             },
         ],
+        git::RemoteCallbacks::default(),
     );
     assert_eq!(result, Ok(()));
 
@@ -936,6 +939,7 @@ fn test_push_updates_not_fast_forward() {
             force: false,
             new_target: Some(new_commit.id().clone()),
         }],
+        git::RemoteCallbacks::default(),
     );
     assert_eq!(result, Err(GitPushError::NotFastForward));
 }
@@ -957,6 +961,7 @@ fn test_push_updates_not_fast_forward_with_force() {
             force: true,
             new_target: Some(new_commit.id().clone()),
         }],
+        git::RemoteCallbacks::default(),
     );
     assert_eq!(result, Ok(()));
 
@@ -983,6 +988,7 @@ fn test_push_updates_no_such_remote() {
             force: false,
             new_target: Some(setup.new_commit.id().clone()),
         }],
+        git::RemoteCallbacks::default(),
     );
     assert!(matches!(result, Err(GitPushError::NoSuchRemote(_))));
 }
@@ -1000,6 +1006,7 @@ fn test_push_updates_invalid_remote() {
             force: false,
             new_target: Some(setup.new_commit.id().clone()),
         }],
+        git::RemoteCallbacks::default(),
     );
     assert!(matches!(result, Err(GitPushError::NoSuchRemote(_))));
 }
