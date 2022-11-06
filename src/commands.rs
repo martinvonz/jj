@@ -208,9 +208,9 @@ struct DiffFormatArgs {
 /// result to the given revision will be shown.
 ///
 /// With the `--from` and/or `--to` options, shows the difference from/to the
-/// given revisions. If either is left out, it defaults to the current checkout.
-/// For example, `jj diff --from main` shows the changes from "main" (perhaps a
-/// branch name) to the current checkout.
+/// given revisions. If either is left out, it defaults to the working-copy
+/// commit. For example, `jj diff --from main` shows the changes from "main"
+/// (perhaps a branch name) to the working-copy commit.
 #[derive(clap::Args, Clone, Debug)]
 struct DiffArgs {
     /// Show changes in this revision, compared to its parent(s)
@@ -758,7 +758,7 @@ struct WorkspaceAddArgs {
     name: Option<String>,
 }
 
-/// Stop tracking a workspace's checkout in the repo
+/// Stop tracking a workspace's working-copy commit in the repo
 ///
 /// The workspace will not be touched on disk. It can be deleted from disk
 /// before or after running this command.
@@ -772,7 +772,8 @@ struct WorkspaceForgetArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct WorkspaceListArgs {}
 
-/// Manage which paths from the current checkout are present in the working copy
+/// Manage which paths from the working-copy commit are present in the working
+/// copy
 #[derive(clap::Args, Clone, Debug)]
 struct SparseArgs {
     /// Patterns to add to the working copy
@@ -3703,10 +3704,12 @@ fn cmd_workspace_add(
         command.global_args(),
         repo,
     )?;
-    let mut tx = new_workspace_command
-        .start_transaction(&format!("Initial checkout in workspace {}", &name));
-    // Check out a parent of the checkout of the current workspace, or the root if
-    // there is no checkout in the current workspace.
+    let mut tx = new_workspace_command.start_transaction(&format!(
+        "Create initial working-copy commit in workspace {}",
+        &name
+    ));
+    // Check out a parent of the current workspace's working-copy commit, or the
+    // root if there is no working-copy commit in the current workspace.
     let new_wc_commit = if let Some(old_checkout_id) = new_workspace_command
         .repo()
         .view()
