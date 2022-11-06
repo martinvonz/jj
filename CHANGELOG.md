@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * It is now possible to specity configuration options on the command line
   with he new `--config-toml` global option.
 
+* (#469) `jj git` subcommands will prompt for credentials when
+  required for HTTPS remotes rather than failing.
+
 ### Fixed bugs
 
 * `jj edit root` now fails gracefully.

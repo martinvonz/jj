@@ -207,6 +207,30 @@ impl Ui {
         }
     }
 
+    pub fn prompt(&mut self, prompt: &str) -> io::Result<String> {
+        if !atty::is(Stream::Stdout) {
+            return Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "Cannot prompt for input since the output is not connected to a terminal",
+            ));
+        }
+        write!(self, "{}: ", prompt)?;
+        self.flush()?;
+        let mut buf = String::new();
+        io::stdin().read_line(&mut buf)?;
+        Ok(buf)
+    }
+
+    pub fn prompt_password(&mut self, prompt: &str) -> io::Result<String> {
+        if !atty::is(Stream::Stdout) {
+            return Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "Cannot prompt for input since the output is not connected to a terminal",
+            ));
+        }
+        rpassword::prompt_password(&format!("{}: ", prompt))
+    }
+
     pub fn size(&self) -> Option<(u16, u16)> {
         crossterm::terminal::size().ok()
     }
