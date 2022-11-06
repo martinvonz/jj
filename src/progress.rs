@@ -5,30 +5,32 @@ use jujutsu_lib::git;
 
 use crate::ui::Ui;
 
-pub struct Progress<'a> {
-    ui: &'a mut Ui,
+pub struct Progress {
     next_print: Instant,
     rate: RateEstimate,
     buffer: String,
 }
 
-impl<'a> Progress<'a> {
-    pub fn new(now: Instant, ui: &'a mut Ui) -> Self {
+impl Progress {
+    pub fn new(now: Instant) -> Self {
         Self {
-            ui,
             next_print: now + INITIAL_DELAY,
             rate: RateEstimate::new(),
             buffer: String::new(),
         }
     }
 
-    pub fn update(&mut self, now: Instant, progress: &git::Progress) {
+    pub fn update(&mut self, now: Instant, progress: &git::Progress, ui: &mut Ui) {
         use std::fmt::Write as _;
+
+        if progress.overall == 1.0 {
+            _ = write!(ui, "\r{}", Clear(ClearType::CurrentLine));
+            return;
+        }
 
         let rate = progress
             .bytes_downloaded
             .and_then(|x| self.rate.update(now, x));
-
         if now < self.next_print {
             return;
         }
@@ -43,8 +45,7 @@ impl<'a> Progress<'a> {
             write!(self.buffer, " at {: >5.1} {}B/s ", scaled, prefix).unwrap();
         }
 
-        let bar_width = self
-            .ui
+        let bar_width = ui
             .size()
             .map(|(cols, _rows)| usize::from(cols))
             .unwrap_or(0)
@@ -53,14 +54,8 @@ impl<'a> Progress<'a> {
         draw_progress(progress.overall, &mut self.buffer, bar_width);
         self.buffer.push(']');
 
-        _ = write!(self.ui, "{}", self.buffer);
-        _ = self.ui.flush();
-    }
-}
-
-impl Drop for Progress<'_> {
-    fn drop(&mut self) {
-        _ = write!(self.ui, "\r{}", Clear(ClearType::CurrentLine));
+        _ = write!(ui, "{}", self.buffer);
+        _ = ui.flush();
     }
 }
 

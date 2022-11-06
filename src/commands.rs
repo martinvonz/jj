@@ -4098,9 +4098,9 @@ fn do_git_clone(
 fn with_remote_callbacks<T>(ui: &mut Ui, f: impl FnOnce(git::RemoteCallbacks<'_>) -> T) -> T {
     let mut callback = None;
     if ui.use_progress_indicator() {
-        let mut progress = Progress::new(Instant::now(), ui);
+        let mut progress = Progress::new(Instant::now());
         callback = Some(move |x: &git::Progress| {
-            progress.update(Instant::now(), x);
+            progress.update(Instant::now(), x, ui);
         });
     }
     let mut callbacks = git::RemoteCallbacks::default();
