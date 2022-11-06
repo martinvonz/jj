@@ -355,12 +355,9 @@ fn parse_commit_term<'a>(
                         let content: Box<dyn Template<Commit> + 'a> =
                             parse_commit_template_rule(repo, workspace_id, arg_template);
                         let get_labels = move |commit: &Commit| -> String {
-                            let mut buf: Vec<u8> = vec![];
-                            {
-                                let writer = Box::new(&mut buf);
-                                let mut formatter = PlainTextFormatter::new(writer);
-                                label_template.format(commit, &mut formatter).unwrap();
-                            }
+                            let mut buf = vec![];
+                            let mut formatter = PlainTextFormatter::new(&mut buf);
+                            label_template.format(commit, &mut formatter).unwrap();
                             String::from_utf8(buf).unwrap()
                         };
                         Box::new(DynamicLabelTemplate::new(content, Box::new(get_labels)))
