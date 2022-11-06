@@ -15,6 +15,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use git2::Oid;
@@ -346,6 +347,7 @@ pub fn push_commit(
     // It's a blunt "force" option instead until git2-rs supports the "push negotiation" callback
     // (https://github.com/rust-lang/git2-rs/issues/733).
     force: bool,
+    callbacks: RemoteCallbacks<'_>,
 ) -> Result<(), GitPushError> {
     push_updates(
         git_repo,
@@ -355,6 +357,7 @@ pub fn push_commit(
             force,
             new_target: Some(target.id().clone()),
         }],
+        callbacks,
     )
 }
 
@@ -371,6 +374,7 @@ pub fn push_updates(
     git_repo: &git2::Repository,
     remote_name: &str,
     updates: &[GitRefUpdate],
+    callbacks: RemoteCallbacks<'_>,
 ) -> Result<(), GitPushError> {
     let mut temp_refs = vec![];
     let mut qualified_remote_refs = vec![];
@@ -396,7 +400,13 @@ pub fn push_updates(
             refspecs.push(format!(":{}", update.qualified_name));
         }
     }
-    let result = push_refs(git_repo, remote_name, &qualified_remote_refs, &refspecs);
+    let result = push_refs(
+        git_repo,
+        remote_name,
+        &qualified_remote_refs,
+        &refspecs,
+        callbacks,
+    );
     for mut temp_ref in temp_refs {
         // TODO: Figure out how to do the equivalent of absl::Cleanup for
         // temp_ref.delete().
@@ -417,6 +427,7 @@ fn push_refs(
     remote_name: &str,
     qualified_remote_refs: &[&str],
     refspecs: &[String],
+    callbacks: RemoteCallbacks<'_>,
 ) -> Result<(), GitPushError> {
     let mut remote =
         git_repo
@@ -435,7 +446,7 @@ fn push_refs(
     let mut proxy_options = git2::ProxyOptions::new();
     proxy_options.auto();
     push_options.proxy_options(proxy_options);
-    let mut callbacks = RemoteCallbacks::default().into_git();
+    let mut callbacks = callbacks.into_git();
     callbacks.push_update_reference(|refname, status| {
         // The status is Some if the ref update was rejected
         if status.is_none() {
@@ -468,12 +479,14 @@ fn push_refs(
 
 #[non_exhaustive]
 #[derive(Default)]
+#[allow(clippy::type_complexity)]
 pub struct RemoteCallbacks<'a> {
     pub progress: Option<&'a mut dyn FnMut(&Progress)>,
+    pub get_ssh_key: Option<&'a mut dyn FnMut(&str) -> Option<PathBuf>>,
 }
 
 impl<'a> RemoteCallbacks<'a> {
-    fn into_git(self) -> git2::RemoteCallbacks<'a> {
+    fn into_git(mut self) -> git2::RemoteCallbacks<'a> {
         let mut callbacks = git2::RemoteCallbacks::new();
         if let Some(progress_cb) = self.progress {
             callbacks.transfer_progress(move |progress| {
@@ -490,22 +503,18 @@ impl<'a> RemoteCallbacks<'a> {
             });
         }
         // TODO: We should expose the callbacks to the caller instead -- the library
-        // crate shouldn't look in $HOME etc.
-        callbacks.credentials(|_url, username_from_url, allowed_types| {
+        // crate shouldn't read environment variables.
+        callbacks.credentials(move |_url, username_from_url, allowed_types| {
             if allowed_types.contains(git2::CredentialType::SSH_KEY) {
                 if std::env::var("SSH_AUTH_SOCK").is_ok() || std::env::var("SSH_AGENT_PID").is_ok()
                 {
                     return git2::Cred::ssh_key_from_agent(username_from_url.unwrap());
                 }
-                if let Ok(home_dir) = std::env::var("HOME") {
-                    let key_path = std::path::Path::new(&home_dir).join(".ssh").join("id_rsa");
-                    if key_path.is_file() {
-                        return git2::Cred::ssh_key(
-                            username_from_url.unwrap(),
-                            None,
-                            &key_path,
-                            None,
-                        );
+                if let (&mut Some(ref mut cb), Some(username)) =
+                    (&mut self.get_ssh_key, username_from_url)
+                {
+                    if let Some(path) = cb(username) {
+                        return git2::Cred::ssh_key(username, None, &path, None);
                     }
                 }
             }

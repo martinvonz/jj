@@ -4070,8 +4070,20 @@ fn git_fetch(
     callbacks.progress = callback
         .as_mut()
         .map(|x| x as &mut dyn FnMut(&git::Progress));
+    let mut get_ssh_key = get_ssh_key; // Hack around odd borrowck behavior
+    callbacks.get_ssh_key = Some(&mut get_ssh_key);
     let result = git::fetch(mut_repo, git_repo, remote_name, callbacks);
     result
+}
+
+fn get_ssh_key(_username: &str) -> Option<PathBuf> {
+    let home_dir = std::env::var("HOME").ok()?;
+    let key_path = std::path::Path::new(&home_dir).join(".ssh").join("id_rsa");
+    if key_path.is_file() {
+        Some(key_path)
+    } else {
+        None
+    }
 }
 
 fn cmd_git_push(
@@ -4331,7 +4343,10 @@ fn cmd_git_push(
     }
 
     let git_repo = get_git_repo(repo.store())?;
-    git::push_updates(&git_repo, &args.remote, &ref_updates)
+    let mut get_ssh_key = get_ssh_key; // Coerce to unit fn type
+    let mut callbacks = git::RemoteCallbacks::default();
+    callbacks.get_ssh_key = Some(&mut get_ssh_key);
+    git::push_updates(&git_repo, &args.remote, &ref_updates, callbacks)
         .map_err(|err| UserError(err.to_string()))?;
     git::import_refs(tx.mut_repo(), &git_repo)?;
     workspace_command.finish_transaction(ui, tx)?;
