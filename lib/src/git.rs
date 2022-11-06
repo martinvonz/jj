@@ -483,6 +483,8 @@ fn push_refs(
 pub struct RemoteCallbacks<'a> {
     pub progress: Option<&'a mut dyn FnMut(&Progress)>,
     pub get_ssh_key: Option<&'a mut dyn FnMut(&str) -> Option<PathBuf>>,
+    pub get_password: Option<&'a mut dyn FnMut(&str, &str) -> Option<String>>,
+    pub get_username_password: Option<&'a mut dyn FnMut(&str) -> Option<(String, String)>>,
 }
 
 impl<'a> RemoteCallbacks<'a> {
@@ -504,17 +506,31 @@ impl<'a> RemoteCallbacks<'a> {
         }
         // TODO: We should expose the callbacks to the caller instead -- the library
         // crate shouldn't read environment variables.
-        callbacks.credentials(move |_url, username_from_url, allowed_types| {
-            if allowed_types.contains(git2::CredentialType::SSH_KEY) {
-                if std::env::var("SSH_AUTH_SOCK").is_ok() || std::env::var("SSH_AGENT_PID").is_ok()
-                {
-                    return git2::Cred::ssh_key_from_agent(username_from_url.unwrap());
+        callbacks.credentials(move |url, username_from_url, allowed_types| {
+            if let Some(username) = username_from_url {
+                if allowed_types.contains(git2::CredentialType::SSH_KEY) {
+                    if std::env::var("SSH_AUTH_SOCK").is_ok()
+                        || std::env::var("SSH_AGENT_PID").is_ok()
+                    {
+                        return git2::Cred::ssh_key_from_agent(username);
+                    }
+                    if let Some(ref mut cb) = self.get_ssh_key {
+                        if let Some(path) = cb(username) {
+                            return git2::Cred::ssh_key(username, None, &path, None);
+                        }
+                    }
                 }
-                if let (&mut Some(ref mut cb), Some(username)) =
-                    (&mut self.get_ssh_key, username_from_url)
-                {
-                    if let Some(path) = cb(username) {
-                        return git2::Cred::ssh_key(username, None, &path, None);
+                if allowed_types.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+                    if let Some(ref mut cb) = self.get_password {
+                        if let Some(pw) = cb(url, username) {
+                            return git2::Cred::userpass_plaintext(username, &pw);
+                        }
+                    }
+                }
+            } else if allowed_types.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+                if let Some(ref mut cb) = self.get_username_password {
+                    if let Some((username, pw)) = cb(url) {
+                        return git2::Cred::userpass_plaintext(&username, &pw);
                     }
                 }
             }

@@ -18,7 +18,8 @@ use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use std::{fs, io};
 
@@ -4057,12 +4058,15 @@ fn do_git_clone(
     Ok((workspace_command, maybe_default_branch))
 }
 
+#[allow(clippy::explicit_auto_deref)] // https://github.com/rust-lang/rust-clippy/issues/9763
 fn with_remote_callbacks<T>(ui: &mut Ui, f: impl FnOnce(git::RemoteCallbacks<'_>) -> T) -> T {
+    let mut ui = Mutex::new(ui);
     let mut callback = None;
-    if ui.use_progress_indicator() {
+    if ui.get_mut().unwrap().use_progress_indicator() {
         let mut progress = Progress::new(Instant::now());
+        let ui = &ui;
         callback = Some(move |x: &git::Progress| {
-            progress.update(Instant::now(), x, ui);
+            progress.update(Instant::now(), x, *ui.lock().unwrap());
         });
     }
     let mut callbacks = git::RemoteCallbacks::default();
@@ -4071,7 +4075,84 @@ fn with_remote_callbacks<T>(ui: &mut Ui, f: impl FnOnce(git::RemoteCallbacks<'_>
         .map(|x| x as &mut dyn FnMut(&git::Progress));
     let mut get_ssh_key = get_ssh_key; // Coerce to unit fn type
     callbacks.get_ssh_key = Some(&mut get_ssh_key);
+    let mut get_pw = |url: &str, _username: &str| {
+        pinentry_get_pw(url).or_else(|| terminal_get_pw(*ui.lock().unwrap(), url))
+    };
+    callbacks.get_password = Some(&mut get_pw);
+    let mut get_user_pw = |url: &str| {
+        let ui = &mut *ui.lock().unwrap();
+        Some((terminal_get_username(ui, url)?, terminal_get_pw(ui, url)?))
+    };
+    callbacks.get_username_password = Some(&mut get_user_pw);
     f(callbacks)
+}
+
+fn terminal_get_username(ui: &mut Ui, url: &str) -> Option<String> {
+    ui.prompt(&format!("Username for {}", url)).ok()
+}
+
+fn terminal_get_pw(ui: &mut Ui, url: &str) -> Option<String> {
+    ui.prompt_password(&format!("Passphrase for {}: ", url))
+        .ok()
+}
+
+fn pinentry_get_pw(url: &str) -> Option<String> {
+    let mut pinentry = Command::new("pinentry")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .ok()?;
+    #[rustfmt::skip]
+    pinentry
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(
+            format!(
+                "SETTITLE jj passphrase\n\
+                 SETDESC Enter passphrase for {url}\n\
+                 SETPROMPT Passphrase:\n\
+                 GETPIN\n"
+            )
+            .as_bytes(),
+        )
+        .ok()?;
+    let mut out = String::new();
+    pinentry
+        .stdout
+        .take()
+        .unwrap()
+        .read_to_string(&mut out)
+        .ok()?;
+    _ = pinentry.wait();
+    for line in out.split('\n') {
+        if !line.starts_with("D ") {
+            continue;
+        }
+        let (_, encoded) = line.split_at(2);
+        return decode_assuan_data(encoded);
+    }
+    None
+}
+
+// https://www.gnupg.org/documentation/manuals/assuan/Server-responses.html#Server-responses
+fn decode_assuan_data(encoded: &str) -> Option<String> {
+    let encoded = encoded.as_bytes();
+    let mut decoded = Vec::with_capacity(encoded.len());
+    let mut i = 0;
+    while i < encoded.len() {
+        if encoded[i] != b'%' {
+            decoded.push(encoded[i]);
+            i += 1;
+            continue;
+        }
+        i += 1;
+        let byte =
+            u8::from_str_radix(std::str::from_utf8(encoded.get(i..i + 2)?).ok()?, 16).ok()?;
+        decoded.push(byte);
+        i += 2;
+    }
+    String::from_utf8(decoded).ok()
 }
 
 fn get_ssh_key(_username: &str) -> Option<PathBuf> {
