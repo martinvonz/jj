@@ -18,10 +18,11 @@ use std::fmt::{Debug, Formatter};
 use std::io::ErrorKind;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::{fs, io};
 
 use itertools::Itertools;
+use once_cell::sync::OnceCell;
 use thiserror::Error;
 
 use crate::backend::{Backend, BackendError, ChangeId, CommitId};
@@ -96,7 +97,7 @@ pub struct ReadonlyRepo {
     operation: Operation,
     settings: RepoSettings,
     index_store: Arc<IndexStore>,
-    index: Mutex<Option<Arc<ReadonlyIndex>>>,
+    index: OnceCell<Arc<ReadonlyIndex>>,
     view: View,
 }
 
@@ -152,7 +153,7 @@ impl ReadonlyRepo {
             operation: init_op,
             settings: repo_settings,
             index_store,
-            index: Mutex::new(None),
+            index: OnceCell::new(),
             view,
         }))
     }
@@ -199,27 +200,15 @@ impl ReadonlyRepo {
     }
 
     pub fn index(&self) -> &Arc<ReadonlyIndex> {
-        let mut locked_index = self.index.lock().unwrap();
-        if locked_index.is_none() {
-            locked_index.replace(
-                self.index_store
-                    .get_index_at_op(&self.operation, &self.store),
-            );
-        }
-        let index: &Arc<ReadonlyIndex> = locked_index.as_ref().unwrap();
-        // Extend lifetime from that of mutex lock to that of self. Safe since we never
-        // change value once it's been set (except in `reindex()` but that
-        // requires a mutable reference).
-        let index: &Arc<ReadonlyIndex> = unsafe { std::mem::transmute(index) };
-        index
+        self.index.get_or_init(|| {
+            self.index_store
+                .get_index_at_op(&self.operation, &self.store)
+        })
     }
 
     pub fn reindex(&mut self) -> &Arc<ReadonlyIndex> {
         self.index_store.reinit();
-        {
-            let mut locked_index = self.index.lock().unwrap();
-            locked_index.take();
-        }
+        self.index.take();
         self.index()
     }
 
@@ -436,7 +425,7 @@ impl RepoLoader {
             operation,
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
-            index: Mutex::new(Some(index)),
+            index: OnceCell::with_value(index),
             view,
         };
         Arc::new(repo)
@@ -451,7 +440,7 @@ impl RepoLoader {
             operation,
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
-            index: Mutex::new(None),
+            index: OnceCell::new(),
             view,
         };
         Arc::new(repo)
