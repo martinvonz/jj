@@ -311,6 +311,7 @@ pub enum RevsetExpression {
         candidates: Rc<RevsetExpression>,
         predicate: RevsetFilterPredicate,
     },
+    Present(Rc<RevsetExpression>),
     Union(Rc<RevsetExpression>, Rc<RevsetExpression>),
     Intersection(Rc<RevsetExpression>, Rc<RevsetExpression>),
     Difference(Rc<RevsetExpression>, Rc<RevsetExpression>),
@@ -782,6 +783,11 @@ fn parse_function_expression(
                 ))
             }
         }
+        "present" => {
+            let arg = expect_one_argument(name, arguments_pair)?;
+            let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            Ok(Rc::new(RevsetExpression::Present(expression)))
+        }
         _ => Err(RevsetParseError::with_span(
             RevsetParseErrorKind::NoSuchFunction(name.to_owned()),
             name_pair.as_span(),
@@ -934,6 +940,9 @@ fn transform_expression_bottom_up(
                 candidates,
                 predicate: predicate.clone(),
             }),
+            RevsetExpression::Present(candidates) => {
+                transform_rec(candidates, f).map(RevsetExpression::Present)
+            }
             RevsetExpression::Union(expression1, expression2) => {
                 transform_rec_pair((expression1, expression2), f).map(
                     |(expression1, expression2)| RevsetExpression::Union(expression1, expression2),
@@ -1608,6 +1617,15 @@ pub fn evaluate_expression<'repo>(
                 }
             }
         }
+        RevsetExpression::Present(candidates) => match candidates.evaluate(repo, workspace_ctx) {
+            Ok(set) => Ok(set),
+            Err(RevsetError::NoSuchRevision(_)) => Ok(Box::new(EagerRevset::empty())),
+            r @ Err(
+                RevsetError::AmbiguousCommitIdPrefix(_)
+                | RevsetError::AmbiguousChangeIdPrefix(_)
+                | RevsetError::StoreError(_),
+            ) => r,
+        },
         RevsetExpression::Union(expression1, expression2) => {
             let set1 = expression1.evaluate(repo, workspace_ctx)?;
             let set2 = expression2.evaluate(repo, workspace_ctx)?;
@@ -1993,6 +2011,11 @@ mod tests {
         assert_eq!(
             optimize(parse("roots(branches() & all())").unwrap()),
             RevsetExpression::branches().roots()
+        );
+
+        assert_eq!(
+            optimize(parse("present(branches() & all())").unwrap()),
+            Rc::new(RevsetExpression::Present(RevsetExpression::branches()))
         );
 
         assert_eq!(
