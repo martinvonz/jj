@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The new revset function `file(pattern..)` finds commits modifying the
   paths specified by the `pattern..`.
 
-* It is now possible to specity configuration options on the command line
+* It is now possible to specify configuration options on the command line
   with he new `--config-toml` global option.
 
 * (#469) `jj git` subcommands will prompt for credentials when
