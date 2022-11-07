@@ -3519,10 +3519,14 @@ fn cmd_debug(
             }
         }
         DebugCommands::ReIndex(_reindex_matches) => {
-            let mut workspace_command = command.workspace_helper(ui)?;
-            let mut_repo = Arc::get_mut(workspace_command.repo_mut()).unwrap();
-            let index = mut_repo.reindex();
-            writeln!(ui, "Finished indexing {:?} commits.", index.num_commits())?;
+            let workspace_command = command.workspace_helper(ui)?;
+            let repo = workspace_command.repo();
+            let repo = repo.reload_at(repo.operation());
+            writeln!(
+                ui,
+                "Finished indexing {:?} commits.",
+                repo.index().num_commits()
+            )?;
         }
         DebugCommands::Operation(operation_args) => {
             let workspace_command = command.workspace_helper(ui)?;
