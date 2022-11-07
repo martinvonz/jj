@@ -206,12 +206,6 @@ impl ReadonlyRepo {
         })
     }
 
-    pub fn reindex(&mut self) -> &Arc<ReadonlyIndex> {
-        self.index_store.reinit();
-        self.index.take();
-        self.index()
-    }
-
     pub fn store(&self) -> &Arc<Store> {
         &self.store
     }

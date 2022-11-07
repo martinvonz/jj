@@ -465,10 +465,6 @@ impl WorkspaceCommandHelper {
         &self.repo
     }
 
-    pub fn repo_mut(&mut self) -> &mut Arc<ReadonlyRepo> {
-        &mut self.repo
-    }
-
     pub fn working_copy(&self) -> &WorkingCopy {
         self.workspace.working_copy()
     }
