@@ -4066,7 +4066,7 @@ fn with_remote_callbacks<T>(ui: &mut Ui, f: impl FnOnce(git::RemoteCallbacks<'_>
         let mut progress = Progress::new(Instant::now());
         let ui = &ui;
         callback = Some(move |x: &git::Progress| {
-            progress.update(Instant::now(), x, *ui.lock().unwrap());
+            _ = progress.update(Instant::now(), x, *ui.lock().unwrap());
         });
     }
     let mut callbacks = git::RemoteCallbacks::default();
