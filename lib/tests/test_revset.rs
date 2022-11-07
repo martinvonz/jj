@@ -125,6 +125,19 @@ fn test_resolve_symbol_commit_id() {
         resolve_symbol(repo_ref, "foo", None),
         Err(RevsetError::NoSuchRevision("foo".to_string()))
     );
+
+    // Test present() suppresses only NoSuchRevision error
+    assert_eq!(resolve_commit_ids(repo_ref, "present(foo)"), []);
+    assert_eq!(
+        optimize(parse("present(04)", None).unwrap())
+            .evaluate(repo_ref, None)
+            .map(|_| ()),
+        Err(RevsetError::AmbiguousCommitIdPrefix("04".to_string()))
+    );
+    assert_eq!(
+        resolve_commit_ids(repo_ref, "present(046)"),
+        vec![commits[2].id().clone()]
+    );
 }
 
 #[test]
