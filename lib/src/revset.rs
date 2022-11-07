@@ -1152,6 +1152,14 @@ struct EagerRevset<'repo> {
     index_entries: Vec<IndexEntry<'repo>>,
 }
 
+impl EagerRevset<'static> {
+    pub const fn empty() -> Self {
+        EagerRevset {
+            index_entries: Vec::new(),
+        }
+    }
+}
+
 impl<'repo> Revset<'repo> for EagerRevset<'repo> {
     fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
         RevsetIterator::new(Box::new(self.index_entries.iter().cloned()))
@@ -1403,9 +1411,7 @@ pub fn evaluate_expression<'repo>(
     workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
     match expression {
-        RevsetExpression::None => Ok(Box::new(EagerRevset {
-            index_entries: vec![],
-        })),
+        RevsetExpression::None => Ok(Box::new(EagerRevset::empty())),
         RevsetExpression::All => evaluate_expression(
             repo,
             &RevsetExpression::visible_heads().ancestors(),
