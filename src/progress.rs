@@ -44,11 +44,11 @@ impl Progress {
             return Ok(());
         }
         if self.guard.is_none() {
-            let guard = self.ui.output_guard(crossterm::cursor::Show.to_string());
+            let guard = ui.output_guard(crossterm::cursor::Show.to_string());
             let guard = CleanupGuard::new(move || {
                 drop(guard);
             });
-            _ = write!(self.ui, "{}", crossterm::cursor::Hide);
+            _ = write!(ui, "{}", crossterm::cursor::Hide);
             self.guard = Some(guard);
         }
         self.next_print = now.min(self.next_print + Duration::from_secs(1) / UPDATE_HZ);
