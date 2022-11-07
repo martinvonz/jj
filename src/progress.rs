@@ -1,3 +1,4 @@
+use std::io;
 use std::time::{Duration, Instant};
 
 use crossterm::terminal::{Clear, ClearType};
@@ -20,19 +21,24 @@ impl Progress {
         }
     }
 
-    pub fn update(&mut self, now: Instant, progress: &git::Progress, ui: &mut Ui) {
+    pub fn update(
+        &mut self,
+        now: Instant,
+        progress: &git::Progress,
+        ui: &mut Ui,
+    ) -> io::Result<()> {
         use std::fmt::Write as _;
 
         if progress.overall == 1.0 {
-            _ = write!(ui, "\r{}", Clear(ClearType::CurrentLine));
-            return;
+            write!(ui, "\r{}", Clear(ClearType::CurrentLine))?;
+            return Ok(());
         }
 
         let rate = progress
             .bytes_downloaded
             .and_then(|x| self.rate.update(now, x));
         if now < self.next_print {
-            return;
+            return Ok(());
         }
         self.next_print = now.min(self.next_print + Duration::from_secs(1) / UPDATE_HZ);
 
@@ -54,8 +60,9 @@ impl Progress {
         draw_progress(progress.overall, &mut self.buffer, bar_width);
         self.buffer.push(']');
 
-        _ = write!(ui, "{}", self.buffer);
-        _ = ui.flush();
+        write!(ui, "{}", self.buffer)?;
+        ui.flush()?;
+        Ok(())
     }
 }
 
