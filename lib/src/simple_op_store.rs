@@ -368,7 +368,6 @@ mod tests {
     use maplit::{btreemap, hashmap, hashset};
 
     use super::*;
-    use crate::testutils;
 
     #[test]
     fn test_read_write_view() {

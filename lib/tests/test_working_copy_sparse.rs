@@ -16,9 +16,8 @@ use itertools::Itertools;
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::TestWorkspace;
 use jujutsu_lib::working_copy::{CheckoutStats, WorkingCopy};
+use testutils::TestWorkspace;
 
 #[test]
 fn test_sparse_checkout() {

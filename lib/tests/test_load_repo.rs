@@ -13,9 +13,8 @@
 // limitations under the License.
 
 use jujutsu_lib::repo::{BackendFactories, RepoLoader};
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::TestRepo;
 use test_case::test_case;
+use testutils::TestRepo;
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]

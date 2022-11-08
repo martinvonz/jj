@@ -17,8 +17,7 @@ use jujutsu_lib::conflicts::{materialize_conflict, parse_conflict, update_confli
 use jujutsu_lib::files::MergeHunk;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::store::Store;
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::TestRepo;
+use testutils::TestRepo;
 
 #[test]
 fn test_materialize_conflict_basic() {

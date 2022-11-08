@@ -16,6 +16,7 @@ use std::path::Path;
 
 use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::git;
 use jujutsu_lib::matchers::{FilesMatcher, Matcher};
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::RepoRef;
@@ -23,10 +24,9 @@ use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
     self, optimize, parse, resolve_symbol, RevsetError, RevsetExpression, RevsetWorkspaceContext,
 };
-use jujutsu_lib::testutils::{CommitGraphBuilder, TestRepo, TestWorkspace};
 use jujutsu_lib::workspace::Workspace;
-use jujutsu_lib::{git, testutils};
 use test_case::test_case;
+use testutils::{CommitGraphBuilder, TestRepo, TestWorkspace};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]

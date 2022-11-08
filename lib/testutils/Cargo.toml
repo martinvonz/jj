@@ -1,0 +1,23 @@
+[package]
+name = "testutils"
+version = "0.5.1"
+authors = ["Martin von Zweigbergk <martinvonz@google.com>"]
+edition = "2021"
+rust-version = "1.60"
+license = "Apache-2.0"
+description = "Integration test utils for the jujutsu-lib crate"
+homepage = "https://github.com/martinvonz/jj"
+repository = "https://github.com/martinvonz/jj"
+documentation = "https://docs.rs/jujutsu"
+readme = "../..//README.md"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+config = { version = "0.13.2", default-features = false, features = ["toml"] }
+git2 = "0.15.0"
+itertools = "0.10.5"
+jujutsu-lib = { path = ".." }
+rand = "0.8.5"
+tempfile = "3.3.0"

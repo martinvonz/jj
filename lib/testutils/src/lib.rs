@@ -19,21 +19,20 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Once};
 
 use itertools::Itertools;
+use jujutsu_lib::backend::{FileId, TreeId, TreeValue};
+use jujutsu_lib::commit::Commit;
+use jujutsu_lib::commit_builder::CommitBuilder;
+use jujutsu_lib::git_backend::GitBackend;
+use jujutsu_lib::local_backend::LocalBackend;
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo};
+use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::rewrite::RebasedDescendant;
+use jujutsu_lib::settings::UserSettings;
+use jujutsu_lib::store::Store;
+use jujutsu_lib::tree::Tree;
+use jujutsu_lib::tree_builder::TreeBuilder;
+use jujutsu_lib::workspace::Workspace;
 use tempfile::TempDir;
-
-use crate::backend::{FileId, TreeId, TreeValue};
-use crate::commit::Commit;
-use crate::commit_builder::CommitBuilder;
-use crate::git_backend::GitBackend;
-use crate::local_backend::LocalBackend;
-use crate::repo::{MutableRepo, ReadonlyRepo};
-use crate::repo_path::RepoPath;
-use crate::rewrite::RebasedDescendant;
-use crate::settings::UserSettings;
-use crate::store::Store;
-use crate::tree::Tree;
-use crate::tree_builder::TreeBuilder;
-use crate::workspace::Workspace;
 
 pub fn hermetic_libgit2() {
     // libgit2 respects init.defaultBranch (and possibly other config

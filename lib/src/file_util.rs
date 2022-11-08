@@ -91,7 +91,6 @@ mod tests {
     use test_case::test_case;
 
     use super::*;
-    use crate::testutils;
 
     #[test]
     fn normalize_too_many_dot_dot() {

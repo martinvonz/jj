@@ -15,10 +15,9 @@
 use std::path::Path;
 
 use jujutsu_lib::repo::{BackendFactories, ReadonlyRepo};
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::TestWorkspace;
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
+use testutils::TestWorkspace;
 
 fn copy_directory(src: &Path, dst: &Path) {
     std::fs::create_dir(dst).ok();

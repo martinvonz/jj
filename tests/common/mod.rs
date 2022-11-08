@@ -16,9 +16,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use jujutsu_lib::testutils;
 use regex::{Captures, Regex};
 use tempfile::TempDir;
+use testutils;
 
 pub struct TestEnvironment {
     _temp_dir: TempDir,

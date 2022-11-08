@@ -14,11 +14,10 @@
 
 use jujutsu_lib::matchers::{EverythingMatcher, FilesMatcher};
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::TestRepo;
 use jujutsu_lib::tree::DiffSummary;
 use maplit::hashset;
 use test_case::test_case;
+use testutils::TestRepo;
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]

@@ -29,11 +29,10 @@ use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::TestWorkspace;
 use jujutsu_lib::tree_builder::TreeBuilder;
 use jujutsu_lib::working_copy::WorkingCopy;
 use test_case::test_case;
+use testutils::TestWorkspace;
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]

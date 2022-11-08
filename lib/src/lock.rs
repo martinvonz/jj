@@ -77,7 +77,6 @@ mod tests {
     use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
     use super::*;
-    use crate::testutils;
 
     #[test]
     fn lock_basic() {
