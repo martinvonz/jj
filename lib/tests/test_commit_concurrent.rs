@@ -15,10 +15,10 @@
 use std::cmp::max;
 use std::thread;
 
+use jujutsu_lib::dag_walk;
 use jujutsu_lib::repo::{BackendFactories, ReadonlyRepo};
-use jujutsu_lib::testutils::TestWorkspace;
-use jujutsu_lib::{dag_walk, testutils};
 use test_case::test_case;
+use testutils::TestWorkspace;
 
 fn count_non_merge_operations(repo: &ReadonlyRepo) -> usize {
     let op_store = repo.op_store();

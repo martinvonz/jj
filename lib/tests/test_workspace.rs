@@ -15,10 +15,9 @@
 use assert_matches::assert_matches;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::BackendFactories;
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::TestWorkspace;
 use jujutsu_lib::workspace::{Workspace, WorkspaceLoadError};
 use test_case::test_case;
+use testutils::TestWorkspace;
 
 #[test]
 fn test_load_bad_path() {

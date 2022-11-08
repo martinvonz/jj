@@ -19,11 +19,10 @@ use assert_matches::assert_matches;
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::repo::BackendFactories;
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::TestWorkspace;
 use jujutsu_lib::working_copy::CheckoutError;
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
+use testutils::TestWorkspace;
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]

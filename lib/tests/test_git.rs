@@ -18,15 +18,15 @@ use std::sync::Arc;
 use git2::Oid;
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
+use jujutsu_lib::git;
 use jujutsu_lib::git::{GitFetchError, GitPushError, GitRefUpdate};
 use jujutsu_lib::git_backend::GitBackend;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::testutils::{create_random_commit, TestRepo};
-use jujutsu_lib::{git, testutils};
 use maplit::{btreemap, hashset};
 use tempfile::TempDir;
+use testutils::{create_random_commit, TestRepo};
 
 fn empty_git_commit<'r>(
     git_repo: &'r git2::Repository,

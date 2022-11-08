@@ -14,10 +14,9 @@
 
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::{assert_rebased, CommitGraphBuilder, TestRepo};
 use maplit::hashset;
 use test_case::test_case;
+use testutils::{assert_rebased, CommitGraphBuilder, TestRepo};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]

@@ -16,10 +16,9 @@ use std::path::{Path, PathBuf};
 
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::TestWorkspace;
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
+use testutils::TestWorkspace;
 
 fn canonicalize(input: &Path) -> (PathBuf, PathBuf) {
     let uncanonical = input.join("..").join(input.file_name().unwrap());

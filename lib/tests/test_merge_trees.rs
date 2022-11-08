@@ -18,10 +18,10 @@ use jujutsu_lib::backend::{ConflictPart, TreeValue};
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::rewrite::rebase_commit;
-use jujutsu_lib::testutils::TestRepo;
+use jujutsu_lib::tree;
 use jujutsu_lib::tree::Tree;
-use jujutsu_lib::{testutils, tree};
 use test_case::test_case;
+use testutils::TestRepo;
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]

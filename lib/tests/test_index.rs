@@ -20,9 +20,8 @@ use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::index::IndexRef;
 use jujutsu_lib::repo::{BackendFactories, ReadonlyRepo};
 use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::{create_random_commit, CommitGraphBuilder, TestRepo};
 use test_case::test_case;
+use testutils::{create_random_commit, CommitGraphBuilder, TestRepo};
 
 #[must_use]
 fn child_commit(settings: &UserSettings, repo: &ReadonlyRepo, commit: &Commit) -> CommitBuilder {

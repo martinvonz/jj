@@ -18,11 +18,10 @@ use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::{CommitGraphBuilder, TestRepo};
 use jujutsu_lib::transaction::Transaction;
 use maplit::{btreemap, hashset};
 use test_case::test_case;
+use testutils::{CommitGraphBuilder, TestRepo};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]

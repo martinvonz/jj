@@ -15,9 +15,8 @@
 use itertools::Itertools;
 use jujutsu_lib::revset::revset_for_commits;
 use jujutsu_lib::revset_graph_iterator::RevsetGraphEdge;
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::{CommitGraphBuilder, TestRepo};
 use test_case::test_case;
+use testutils::{CommitGraphBuilder, TestRepo};
 
 #[test_case(false ; "keep transitive edges")]
 #[test_case(true ; "skip transitive edges")]

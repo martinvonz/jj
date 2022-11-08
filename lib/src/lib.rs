@@ -45,7 +45,6 @@ pub mod settings;
 pub mod simple_op_store;
 pub mod stacked_table;
 pub mod store;
-pub mod testutils;
 pub mod transaction;
 pub mod tree;
 pub mod tree_builder;

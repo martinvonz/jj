@@ -16,10 +16,9 @@ use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::{assert_rebased, CommitGraphBuilder, TestRepo};
 use jujutsu_lib::tree::DiffSummary;
 use test_case::test_case;
+use testutils::{assert_rebased, CommitGraphBuilder, TestRepo};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]

@@ -1466,7 +1466,6 @@ mod tests {
 
     use super::*;
     use crate::commit_builder::new_change_id;
-    use crate::testutils;
 
     #[test_case(false; "memory")]
     #[test_case(true; "file")]

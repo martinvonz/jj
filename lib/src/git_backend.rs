@@ -532,7 +532,6 @@ mod tests {
 
     use super::*;
     use crate::backend::{FileId, MillisSinceEpoch};
-    use crate::testutils;
 
     #[test]
     fn read_plain_git_commit() {

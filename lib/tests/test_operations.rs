@@ -17,9 +17,8 @@ use std::path::Path;
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo::RepoRef;
-use jujutsu_lib::testutils;
-use jujutsu_lib::testutils::TestRepo;
 use test_case::test_case;
+use testutils::TestRepo;
 
 fn list_dir(dir: &Path) -> Vec<String> {
     std::fs::read_dir(dir)
