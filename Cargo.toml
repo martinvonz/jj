@@ -63,7 +63,7 @@ thiserror = "1.0.37"
 libc = { version = "0.2.137" }
 
 [dev-dependencies]
-assert_cmd = "2.0.5"
+assert_cmd = "2.0.6"
 criterion = "0.4.0"
 criterion_bencher_compat = "0.4.0"
 insta = "1.21.0"
