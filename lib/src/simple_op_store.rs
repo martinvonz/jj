@@ -16,15 +16,16 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
-use std::io::{ErrorKind, Write};
+use std::io::ErrorKind;
 use std::path::PathBuf;
 
-use blake2::{Blake2b512, Digest};
+use blake2::Blake2b512;
 use itertools::Itertools;
 use protobuf::{Message, MessageField};
 use tempfile::{NamedTempFile, PersistError};
 
 use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
+use crate::content_hash::ContentHash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
     BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
@@ -95,12 +96,9 @@ impl OpStore for SimpleOpStore {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
         let proto = view_to_proto(view);
-        let mut proto_bytes: Vec<u8> = Vec::new();
-        proto.write_to_writer(&mut proto_bytes)?;
+        proto.write_to_writer(&mut temp_file.as_file())?;
 
-        temp_file.as_file().write_all(&proto_bytes)?;
-
-        let id = ViewId::new(Blake2b512::digest(&proto_bytes).to_vec());
+        let id = ViewId::new(hash(view).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.view_path(&id))?;
         Ok(id)
@@ -118,12 +116,9 @@ impl OpStore for SimpleOpStore {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
         let proto = operation_to_proto(operation);
-        let mut proto_bytes: Vec<u8> = Vec::new();
-        proto.write_to_writer(&mut proto_bytes)?;
+        proto.write_to_writer(&mut temp_file.as_file())?;
 
-        temp_file.as_file().write_all(&proto_bytes)?;
-
-        let id = OperationId::new(Blake2b512::digest(&proto_bytes).to_vec());
+        let id = OperationId::new(hash(operation).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.operation_path(&id))?;
         Ok(id)
@@ -361,6 +356,13 @@ fn ref_target_from_proto(proto: &crate::protos::op_store::RefTarget) -> RefTarge
             RefTarget::Conflict { removes, adds }
         }
     }
+}
+
+fn hash(x: &impl ContentHash) -> digest::Output<Blake2b512> {
+    use digest::Digest;
+    let mut hasher = Blake2b512::default();
+    x.hash(&mut hasher);
+    hasher.finalize()
 }
 
 #[cfg(test)]
