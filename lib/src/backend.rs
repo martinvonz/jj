@@ -22,8 +22,10 @@ use thiserror::Error;
 
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct CommitId(Vec<u8>);
+content_hash! {
+    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+    pub struct CommitId(Vec<u8>);
+}
 
 impl Debug for CommitId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -225,14 +227,18 @@ pub enum Phase {
     Draft,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
-pub struct MillisSinceEpoch(pub i64);
+content_hash! {
+    #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+    pub struct MillisSinceEpoch(pub i64);
+}
 
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
-pub struct Timestamp {
-    pub timestamp: MillisSinceEpoch,
-    // time zone offset in minutes
-    pub tz_offset: i32,
+content_hash! {
+    #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+    pub struct Timestamp {
+        pub timestamp: MillisSinceEpoch,
+        // time zone offset in minutes
+        pub tz_offset: i32,
+    }
 }
 
 impl Timestamp {
