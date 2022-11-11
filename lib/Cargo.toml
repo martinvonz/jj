@@ -19,7 +19,7 @@ version_check = "0.9.4"
 
 [dependencies]
 backoff = "0.4.0"
-blake2 = "0.10.4"
+blake2 = "0.10.5"
 bytes = "1.2.1"
 byteorder = "1.4.3"
 chrono = { version = "0.4.22", default-features = false, features = ["std", "clock"] }
