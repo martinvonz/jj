@@ -15,6 +15,12 @@ impl ContentHash for () {
     fn hash(&self, _: &mut impl digest::Update) {}
 }
 
+impl ContentHash for bool {
+    fn hash(&self, state: &mut impl digest::Update) {
+        u8::from(*self).hash(state);
+    }
+}
+
 impl ContentHash for u8 {
     fn hash(&self, state: &mut impl digest::Update) {
         state.update(&[*self]);

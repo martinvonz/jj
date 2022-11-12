@@ -20,9 +20,11 @@ use thiserror::Error;
 
 use crate::file_util;
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct RepoPathComponent {
-    value: String,
+content_hash! {
+    #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+    pub struct RepoPathComponent {
+        value: String,
+    }
 }
 
 impl RepoPathComponent {

@@ -27,6 +27,7 @@ use crate::backend::{
     ConflictId, ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree,
     TreeId, TreeValue,
 };
+use crate::content_hash::ContentHash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
@@ -72,7 +73,7 @@ impl LocalBackend {
 
     pub fn load(store_path: &Path) -> Self {
         let root_commit_id = CommitId::from_bytes(&[0; 64]);
-        let empty_tree_id = TreeId::from_hex("786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce");
+        let empty_tree_id = TreeId::from_hex("482ae5a29fbe856c7272f2071b8b0f0359ee2d89ff392b8a900643fbd0836eccd067b8bf41909e206c90d45d6e7d8b6686b93ecaee5fe1a9060d87b672101310");
         LocalBackend {
             path: store_path.to_path_buf(),
             root_commit_id,
@@ -192,12 +193,9 @@ impl Backend for LocalBackend {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
         let proto = tree_to_proto(tree);
-        let mut proto_bytes: Vec<u8> = Vec::new();
-        proto.write_to_writer(&mut proto_bytes)?;
+        proto.write_to_writer(&mut temp_file.as_file())?;
 
-        temp_file.as_file().write_all(&proto_bytes)?;
-
-        let id = TreeId::new(Blake2b512::digest(&proto_bytes).to_vec());
+        let id = TreeId::new(hash(tree).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.tree_path(&id))?;
         Ok(id)
@@ -215,12 +213,9 @@ impl Backend for LocalBackend {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
         let proto = conflict_to_proto(conflict);
-        let mut proto_bytes: Vec<u8> = Vec::new();
-        proto.write_to_writer(&mut proto_bytes)?;
+        proto.write_to_writer(&mut temp_file.as_file())?;
 
-        temp_file.as_file().write_all(&proto_bytes)?;
-
-        let id = ConflictId::new(Blake2b512::digest(&proto_bytes).to_vec());
+        let id = ConflictId::new(hash(conflict).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.conflict_path(&id))?;
         Ok(id)
@@ -242,12 +237,9 @@ impl Backend for LocalBackend {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
         let proto = commit_to_proto(commit);
-        let mut proto_bytes: Vec<u8> = Vec::new();
-        proto.write_to_writer(&mut proto_bytes)?;
+        proto.write_to_writer(&mut temp_file.as_file())?;
 
-        temp_file.as_file().write_all(&proto_bytes)?;
-
-        let id = CommitId::new(Blake2b512::digest(&proto_bytes).to_vec());
+        let id = CommitId::new(hash(commit).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.commit_path(&id))?;
         Ok(id)
@@ -411,4 +403,10 @@ fn conflict_part_to_proto(part: &ConflictPart) -> crate::protos::store::conflict
     let mut proto = crate::protos::store::conflict::Part::new();
     proto.content = MessageField::some(tree_value_to_proto(&part.value));
     proto
+}
+
+fn hash(x: &impl ContentHash) -> digest::Output<Blake2b512> {
+    let mut hasher = Blake2b512::default();
+    x.hash(&mut hasher);
+    hasher.finalize()
 }
