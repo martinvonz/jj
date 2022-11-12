@@ -64,6 +64,10 @@ pub enum CommandError {
     InternalError(String),
 }
 
+pub fn user_error(message: impl Into<String>) -> CommandError {
+    CommandError::UserError(message.into())
+}
+
 impl From<std::io::Error> for CommandError {
     fn from(err: std::io::Error) -> Self {
         if err.kind() == std::io::ErrorKind::BrokenPipe {
@@ -83,19 +87,19 @@ impl From<config::ConfigError> for CommandError {
 
 impl From<RewriteRootCommit> for CommandError {
     fn from(err: RewriteRootCommit) -> Self {
-        CommandError::UserError(err.to_string())
+        user_error(err.to_string())
     }
 }
 
 impl From<BackendError> for CommandError {
     fn from(err: BackendError) -> Self {
-        CommandError::UserError(format!("Unexpected error from store: {err}"))
+        user_error(format!("Unexpected error from store: {err}"))
     }
 }
 
 impl From<WorkspaceInitError> for CommandError {
     fn from(_: WorkspaceInitError) -> Self {
-        CommandError::UserError("The target repo already exists".to_string())
+        user_error("The target repo already exists")
     }
 }
 
@@ -129,13 +133,13 @@ impl From<ResetError> for CommandError {
 
 impl From<DiffEditError> for CommandError {
     fn from(err: DiffEditError) -> Self {
-        CommandError::UserError(format!("Failed to edit diff: {err}"))
+        user_error(format!("Failed to edit diff: {err}"))
     }
 }
 
 impl From<git2::Error> for CommandError {
     fn from(err: git2::Error) -> Self {
-        CommandError::UserError(format!("Git operation failed: {err}"))
+        user_error(format!("Git operation failed: {err}"))
     }
 }
 
@@ -151,7 +155,7 @@ impl From<GitExportError> for CommandError {
     fn from(err: GitExportError) -> Self {
         match err {
             GitExportError::ConflictedBranch(branch_name) => {
-                CommandError::UserError(format!("Cannot export conflicted branch '{branch_name}'"))
+                user_error(format!("Cannot export conflicted branch '{branch_name}'"))
             }
             GitExportError::InternalGitError(err) => CommandError::InternalError(format!(
                 "Failed to export refs to underlying Git repo: {err}"
@@ -162,19 +166,19 @@ impl From<GitExportError> for CommandError {
 
 impl From<RevsetParseError> for CommandError {
     fn from(err: RevsetParseError) -> Self {
-        CommandError::UserError(format!("Failed to parse revset: {err}"))
+        user_error(format!("Failed to parse revset: {err}"))
     }
 }
 
 impl From<RevsetError> for CommandError {
     fn from(err: RevsetError) -> Self {
-        CommandError::UserError(format!("{err}"))
+        user_error(format!("{err}"))
     }
 }
 
 impl From<FsPathParseError> for CommandError {
     fn from(err: FsPathParseError) -> Self {
-        CommandError::UserError(format!("{err}"))
+        user_error(format!("{err}"))
     }
 }
 
@@ -233,18 +237,14 @@ impl CommandHelper {
 It looks like this is a git repo. You can create a jj repo backed by it by running this:
 jj init --git-repo=.";
                         }
-                        CommandError::UserError(message)
+                        user_error(message)
                     }
-                    WorkspaceLoadError::RepoDoesNotExist(repo_dir) => {
-                        CommandError::UserError(format!(
-                            "The repository directory at {} is missing. Was it moved?",
-                            repo_dir.to_str().unwrap()
-                        ))
-                    }
-                    WorkspaceLoadError::Path(e) => {
-                        CommandError::UserError(format!("{}: {}", e, e.error))
-                    }
-                    WorkspaceLoadError::NonUnicodePath => CommandError::UserError(err.to_string()),
+                    WorkspaceLoadError::RepoDoesNotExist(repo_dir) => user_error(format!(
+                        "The repository directory at {} is missing. Was it moved?",
+                        repo_dir.to_str().unwrap()
+                    )),
+                    WorkspaceLoadError::Path(e) => user_error(format!("{}: {}", e, e.error)),
+                    WorkspaceLoadError::NonUnicodePath => user_error(err.to_string()),
                 }
             })?;
         let repo_loader = workspace.repo_loader();
@@ -356,15 +356,13 @@ impl WorkspaceCommandHelper {
         if self.may_update_working_copy {
             Ok(())
         } else if self.global_args.no_commit_working_copy {
-            Err(CommandError::UserError(
+            Err(user_error(
                 "This command must be able to update the working copy (don't use \
-                 --no-commit-working-copy)."
-                    .to_string(),
+                 --no-commit-working-copy).",
             ))
         } else {
-            Err(CommandError::UserError(
-                "This command must be able to update the working copy (don't use --at-op)."
-                    .to_string(),
+            Err(user_error(
+                "This command must be able to update the working copy (don't use --at-op).",
             ))
         }
     }
@@ -477,16 +475,12 @@ impl WorkspaceCommandHelper {
         let wc_commit = if let Some(wc_commit_id) = wc_commit_id {
             self.repo.store().get_commit(wc_commit_id)?
         } else {
-            return Err(CommandError::UserError(
-                "Nothing checked out in this workspace".to_string(),
-            ));
+            return Err(user_error("Nothing checked out in this workspace"));
         };
 
         let locked_working_copy = self.workspace.working_copy_mut().start_mutation();
         if wc_commit.tree_id() != locked_working_copy.old_tree_id() {
-            return Err(CommandError::UserError(
-                "Concurrent working copy operation. Try again.".to_string(),
-            ));
+            return Err(user_error("Concurrent working copy operation. Try again."));
         }
 
         Ok((locked_working_copy, wc_commit))
@@ -570,13 +564,13 @@ impl WorkspaceCommandHelper {
         let revset = self.evaluate_revset(&revset_expression)?;
         let mut iter = revset.iter().commits(self.repo.store());
         match iter.next() {
-            None => Err(CommandError::UserError(format!(
+            None => Err(user_error(format!(
                 "Revset \"{}\" didn't resolve to any revisions",
                 revision_str
             ))),
             Some(commit) => {
                 if iter.next().is_some() {
-                    Err(CommandError::UserError(format!(
+                    Err(user_error(format!(
                         "Revset \"{}\" resolved to more than one revision",
                         revision_str
                     )))
@@ -622,16 +616,14 @@ impl WorkspaceCommandHelper {
 
     pub fn check_rewriteable(&self, commit: &Commit) -> Result<(), CommandError> {
         if commit.id() == self.repo.store().root_commit_id() {
-            return Err(CommandError::UserError(
-                "Cannot rewrite the root commit".to_string(),
-            ));
+            return Err(user_error("Cannot rewrite the root commit"));
         }
         Ok(())
     }
 
     pub fn check_non_empty(&self, commits: &[Commit]) -> Result<(), CommandError> {
         if commits.is_empty() {
-            return Err(CommandError::UserError("Empty revision set".to_string()));
+            return Err(user_error("Empty revision set"));
         }
         Ok(())
     }
@@ -910,7 +902,7 @@ fn resolve_op_for_load(
                 let resolved_op = resolve_single_op(op_store, op_heads_store, &current_op, op_str)?;
                 Ok(OpHeads::Single(resolved_op))
             }
-            OpHeads::Unresolved { .. } => Err(CommandError::UserError(format!(
+            OpHeads::Unresolved { .. } => Err(user_error(format!(
                 r#"The "{op_str}" expression resolved to more than one operation"#
             ))),
         }
@@ -931,7 +923,7 @@ fn resolve_single_op(
     } else if op_str == "@-" {
         let parent_ops = current_op.parents();
         if parent_ops.len() != 1 {
-            return Err(CommandError::UserError(format!(
+            return Err(user_error(format!(
                 r#"The "{op_str}" expression resolved to more than one operation"#
             )));
         }
@@ -965,7 +957,7 @@ fn resolve_single_op_from_store(
     op_str: &str,
 ) -> Result<Operation, CommandError> {
     if op_str.is_empty() || !op_str.as_bytes().iter().all(|b| b.is_ascii_hexdigit()) {
-        return Err(CommandError::UserError(format!(
+        return Err(user_error(format!(
             "Operation ID \"{}\" is not a valid hexadecimal prefix",
             op_str
         )));
@@ -993,14 +985,14 @@ fn resolve_single_op_from_store(
         }
     }
     if matches.is_empty() {
-        Err(CommandError::UserError(format!(
+        Err(user_error(format!(
             "No operation ID matching \"{}\"",
             op_str
         )))
     } else if matches.len() == 1 {
         Ok(matches.pop().unwrap())
     } else {
-        Err(CommandError::UserError(format!(
+        Err(user_error(format!(
             "Operation ID prefix \"{}\" is ambiguous",
             op_str
         )))
@@ -1015,7 +1007,7 @@ pub fn resolve_base_revs(
     for revision_str in revisions {
         let commit = workspace_command.resolve_single_rev(revision_str)?;
         if let Some(i) = commits.iter().position(|c| c == &commit) {
-            return Err(CommandError::UserError(format!(
+            return Err(user_error(format!(
                 r#"Revset "{}" and "{}" resolved to the same revision {}"#,
                 revisions[i],
                 revision_str,
@@ -1027,9 +1019,7 @@ pub fn resolve_base_revs(
 
     let root_commit_id = workspace_command.repo().store().root_commit_id();
     if commits.len() >= 2 && commits.iter().any(|c| c.id() == root_commit_id) {
-        Err(CommandError::UserError(
-            "Cannot merge with root revision".to_owned(),
-        ))
+        Err(user_error("Cannot merge with root revision"))
     } else {
         Ok(commits)
     }
@@ -1267,7 +1257,7 @@ fn resolve_aliases(
                     .map(|arg| arg.to_str().unwrap().to_string())
                     .collect_vec();
                 if resolved_aliases.contains(&alias_name) {
-                    return Err(CommandError::UserError(format!(
+                    return Err(user_error(format!(
                         r#"Recursive alias definition involving "{alias_name}""#
                     )));
                 }
@@ -1285,7 +1275,7 @@ fn resolve_aliases(
                             resolved_aliases.insert(alias_name.clone());
                             continue;
                         } else {
-                            return Err(CommandError::UserError(format!(
+                            return Err(user_error(format!(
                                 r#"Alias definition for "{alias_name}" must be a string list"#
                             )));
                         }
