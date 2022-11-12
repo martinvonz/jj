@@ -186,7 +186,8 @@ fn test_init_local_disallowed() {
     let test_env = TestEnvironment::default();
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo"]);
     insta::assert_snapshot!(stdout, @r###"
-    Error: The native backend is disallowed by default. Did you mean to pass `--git`?
+    Error: The native backend is disallowed by default.
+    Hint: Did you mean to pass `--git`?
     Set `ui.allow-init-native` to allow initializing a repo with the native backend.
     "###);
 }

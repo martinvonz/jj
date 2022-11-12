@@ -54,7 +54,10 @@ use crate::templater::TemplateFormatter;
 use crate::ui::{ColorChoice, Ui};
 
 pub enum CommandError {
-    UserError(String),
+    UserError {
+        message: String,
+        hint: Option<String>,
+    },
     ConfigError(String),
     /// Invalid command line
     CliError(String),
@@ -65,7 +68,16 @@ pub enum CommandError {
 }
 
 pub fn user_error(message: impl Into<String>) -> CommandError {
-    CommandError::UserError(message.into())
+    CommandError::UserError {
+        message: message.into(),
+        hint: None,
+    }
+}
+pub fn user_error_with_hint(message: impl Into<String>, hint: impl Into<String>) -> CommandError {
+    CommandError::UserError {
+        message: message.into(),
+        hint: Some(hint.into()),
+    }
 }
 
 impl From<std::io::Error> for CommandError {
@@ -228,16 +240,18 @@ impl CommandHelper {
             Workspace::load(ui.settings(), &wc_path, &self.backend_factories).map_err(|err| {
                 match err {
                     WorkspaceLoadError::NoWorkspaceHere(wc_path) => {
-                        let mut message = format!("There is no jj repo in \"{}\"", wc_path_str);
+                        let message = format!("There is no jj repo in \"{}\"", wc_path_str);
                         let git_dir = wc_path.join(".git");
                         if git_dir.is_dir() {
-                            // TODO: Make this hint separate from the error, so the caller can
-                            // format it differently.
-                            message += "
-It looks like this is a git repo. You can create a jj repo backed by it by running this:
-jj init --git-repo=.";
+                            user_error_with_hint(
+                                message,
+                                "It looks like this is a git repo. You can create a jj repo \
+                                 backed by it by running this:
+jj init --git-repo=.",
+                            )
+                        } else {
+                            user_error(message)
                         }
-                        user_error(message)
                     }
                     WorkspaceLoadError::RepoDoesNotExist(repo_dir) => user_error(format!(
                         "The repository directory at {} is missing. Was it moved?",
@@ -355,14 +369,15 @@ impl WorkspaceCommandHelper {
     fn check_working_copy_writable(&self) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             Ok(())
-        } else if self.global_args.no_commit_working_copy {
-            Err(user_error(
-                "This command must be able to update the working copy (don't use \
-                 --no-commit-working-copy).",
-            ))
         } else {
-            Err(user_error(
-                "This command must be able to update the working copy (don't use --at-op).",
+            let hint = if self.global_args.no_commit_working_copy {
+                "Don't use --no-commit-working-copy."
+            } else {
+                "Don't use --at-op."
+            };
+            Err(user_error_with_hint(
+                "This command must be able to update the working copy.",
+                hint,
             ))
         }
     }
@@ -1329,8 +1344,11 @@ pub fn parse_args(
 pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i32 {
     match result {
         Ok(()) => 0,
-        Err(CommandError::UserError(message)) => {
+        Err(CommandError::UserError { message, hint }) => {
             ui.write_error(&format!("Error: {}\n", message)).unwrap();
+            if let Some(hint) = hint {
+                ui.write_hint(&format!("Hint: {}\n", hint)).unwrap();
+            }
             1
         }
         Err(CommandError::ConfigError(message)) => {
