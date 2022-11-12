@@ -169,7 +169,8 @@ fn test_init_git_internal_but_could_be_colocated() {
     Initialized repo in "."
     "###);
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"
-    Empty repo created. To create repo backed by existing Git repo, run `jj init --git-repo=.` instead.
+    Empty repo created.
+    Hint: To create a repo backed by the existing Git repo, run `jj init --git-repo=.` instead.
     "###);
 }
 
