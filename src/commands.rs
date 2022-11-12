@@ -54,7 +54,8 @@ use pest::Parser;
 
 use crate::cli_util::{
     print_checkout_stats, resolve_base_revs, short_commit_description, short_commit_hash,
-    user_error, write_commit_summary, Args, CommandError, CommandHelper, WorkspaceCommandHelper,
+    user_error, user_error_with_hint, write_commit_summary, Args, CommandError, CommandHelper,
+    WorkspaceCommandHelper,
 };
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{AsciiGraphDrawer, Edge};
@@ -1087,8 +1088,9 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
         Workspace::init_internal_git(ui.settings(), &wc_path)?;
     } else {
         if !ui.settings().allow_native_backend() {
-            return Err(user_error(
-                "The native backend is disallowed by default. Did you mean to pass `--git`?
+            return Err(user_error_with_hint(
+                "The native backend is disallowed by default.",
+                "Did you mean to pass `--git`?
 Set `ui.allow-init-native` to allow initializing a repo with the native backend.",
             ));
         }
