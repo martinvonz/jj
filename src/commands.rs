@@ -3248,10 +3248,10 @@ fn cmd_branch(
             let branch_names: Vec<&str> = names
                 .iter()
                 .map(|branch_name| match view.get_local_branch(branch_name) {
-                    Some(_) => Err(user_error(format!(
-                        "Branch already exists: {} (use `jj branch set` to update it)",
-                        branch_name
-                    ))),
+                    Some(_) => Err(user_error_with_hint(
+                        format!("Branch already exists: {}", branch_name),
+                        "Use `jj branch set` to update it.",
+                    )),
                     None => Ok(branch_name.as_str()),
                 })
                 .try_collect()?;
@@ -3302,8 +3302,9 @@ fn cmd_branch(
                     )
                 })
             {
-                return Err(user_error(
-                    "Use --allow-backwards to allow moving a branch backwards or sideways",
+                return Err(user_error_with_hint(
+                    "Refusing to move branch backwards or sideways.",
+                    "Use --allow-backwards to allow it.",
                 ));
             }
             let mut tx = workspace_command.start_transaction(&format!(
