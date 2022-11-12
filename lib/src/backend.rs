@@ -20,6 +20,7 @@ use std::vec::Vec;
 
 use thiserror::Error;
 
+use crate::content_hash::ContentHash;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
 content_hash! {
@@ -59,8 +60,10 @@ impl CommitId {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct ChangeId(Vec<u8>);
+content_hash! {
+    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+    pub struct ChangeId(Vec<u8>);
+}
 
 impl Debug for ChangeId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -94,8 +97,10 @@ impl ChangeId {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct TreeId(Vec<u8>);
+content_hash! {
+    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+    pub struct TreeId(Vec<u8>);
+}
 
 impl Debug for TreeId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -129,8 +134,10 @@ impl TreeId {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct FileId(Vec<u8>);
+content_hash! {
+    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+    pub struct FileId(Vec<u8>);
+}
 
 impl Debug for FileId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -160,8 +167,10 @@ impl FileId {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct SymlinkId(Vec<u8>);
+content_hash! {
+    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+    pub struct SymlinkId(Vec<u8>);
+}
 
 impl Debug for SymlinkId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -191,8 +200,10 @@ impl SymlinkId {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct ConflictId(Vec<u8>);
+content_hash! {
+    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+    pub struct ConflictId(Vec<u8>);
+}
 
 impl Debug for ConflictId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -256,39 +267,47 @@ impl Timestamp {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Signature {
-    pub name: String,
-    pub email: String,
-    pub timestamp: Timestamp,
+content_hash! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    pub struct Signature {
+        pub name: String,
+        pub email: String,
+        pub timestamp: Timestamp,
+    }
 }
 
-#[derive(Debug, Clone)]
-pub struct Commit {
-    pub parents: Vec<CommitId>,
-    pub predecessors: Vec<CommitId>,
-    pub root_tree: TreeId,
-    pub change_id: ChangeId,
-    pub description: String,
-    pub author: Signature,
-    pub committer: Signature,
+content_hash! {
+    #[derive(Debug, Clone)]
+    pub struct Commit {
+        pub parents: Vec<CommitId>,
+        pub predecessors: Vec<CommitId>,
+        pub root_tree: TreeId,
+        pub change_id: ChangeId,
+        pub description: String,
+        pub author: Signature,
+        pub committer: Signature,
+    }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConflictPart {
-    // TODO: Store e.g. CommitId here too? Labels (theirs/ours/base)? Would those still be
-    //       useful e.g. after rebasing this conflict?
-    pub value: TreeValue,
+content_hash! {
+    #[derive(Debug, PartialEq, Eq, Clone)]
+    pub struct ConflictPart {
+        // TODO: Store e.g. CommitId here too? Labels (theirs/ours/base)? Would those still be
+        //       useful e.g. after rebasing this conflict?
+        pub value: TreeValue,
+    }
 }
 
-#[derive(Default, Debug, PartialEq, Eq, Clone)]
-pub struct Conflict {
-    // A conflict is represented by a list of positive and negative states that need to be applied.
-    // In a simple 3-way merge of B and C with merge base A, the conflict will be { add: [B, C],
-    // remove: [A] }. Also note that a conflict of the form { add: [A], remove: [] } is the
-    // same as non-conflict A.
-    pub removes: Vec<ConflictPart>,
-    pub adds: Vec<ConflictPart>,
+content_hash! {
+    #[derive(Default, Debug, PartialEq, Eq, Clone)]
+    pub struct Conflict {
+        // A conflict is represented by a list of positive and negative states that need to be applied.
+        // In a simple 3-way merge of B and C with merge base A, the conflict will be { add: [B, C],
+        // remove: [A] }. Also note that a conflict of the form { add: [A], remove: [] } is the
+        // same as non-conflict A.
+        pub removes: Vec<ConflictPart>,
+        pub adds: Vec<ConflictPart>,
+    }
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -308,6 +327,35 @@ pub enum TreeValue {
     Tree(TreeId),
     GitSubmodule(CommitId),
     Conflict(ConflictId),
+}
+
+impl ContentHash for TreeValue {
+    fn hash(&self, state: &mut impl digest::Update) {
+        use TreeValue::*;
+        match *self {
+            Normal { ref id, executable } => {
+                state.update(&0u32.to_le_bytes());
+                id.hash(state);
+                executable.hash(state);
+            }
+            Symlink(ref id) => {
+                state.update(&1u32.to_le_bytes());
+                id.hash(state);
+            }
+            Tree(ref id) => {
+                state.update(&2u32.to_le_bytes());
+                id.hash(state);
+            }
+            GitSubmodule(ref id) => {
+                state.update(&3u32.to_le_bytes());
+                id.hash(state);
+            }
+            Conflict(ref id) => {
+                state.update(&4u32.to_le_bytes());
+                id.hash(state);
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -344,9 +392,11 @@ impl<'a> Iterator for TreeEntriesNonRecursiveIterator<'a> {
     }
 }
 
-#[derive(Default, Debug, Clone)]
-pub struct Tree {
-    entries: BTreeMap<RepoPathComponent, TreeValue>,
+content_hash! {
+    #[derive(Default, Debug, Clone)]
+    pub struct Tree {
+        entries: BTreeMap<RepoPathComponent, TreeValue>,
+    }
 }
 
 impl Tree {
