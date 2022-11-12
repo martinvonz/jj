@@ -1164,19 +1164,18 @@ fn cmd_untrack(
             let ui_path = workspace_command.format_file_path(path);
             let message = if added_back.len() > 1 {
                 format!(
-                    "'{}' and {} other files would be added back because they're not ignored. \
-                     Make sure they're ignored, then try again.",
+                    "'{}' and {} other files are not ignored.",
                     ui_path,
                     added_back.len() - 1
                 )
             } else {
-                format!(
-                    "'{}' would be added back because it's not ignored. Make sure it's ignored, \
-                     then try again.",
-                    ui_path
-                )
+                format!("'{}' is not ignored.", ui_path)
             };
-            return Err(user_error(message));
+            return Err(user_error_with_hint(
+                message,
+                "Files that are not ignored will be added back by the next command.
+Make sure they're ignored, then try again.",
+            ));
         } else {
             // This means there were some concurrent changes made in the working copy. We
             // don't want to mix those in, so reset the working copy again.
