@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::backend::Timestamp;
@@ -27,20 +26,17 @@ use crate::view::View;
 pub struct Transaction {
     repo: Option<MutableRepo>,
     parent_ops: Vec<Operation>,
-    description: String,
-    start_time: Timestamp,
-    tags: HashMap<String, String>,
+    op_metadata: OperationMetadata,
 }
 
 impl Transaction {
     pub fn new(mut_repo: MutableRepo, description: &str) -> Transaction {
         let parent_ops = vec![mut_repo.base_repo().operation().clone()];
+        let op_metadata = create_op_metadata(description.to_string());
         Transaction {
             repo: Some(mut_repo),
             parent_ops,
-            description: description.to_owned(),
-            start_time: Timestamp::now(),
-            tags: Default::default(),
+            op_metadata,
         }
     }
 
@@ -49,7 +45,7 @@ impl Transaction {
     }
 
     pub fn set_tag(&mut self, key: String, value: String) {
-        self.tags.insert(key, value);
+        self.op_metadata.tags.insert(key, value);
     }
 
     pub fn repo(&self) -> &MutableRepo {
@@ -96,14 +92,12 @@ impl Transaction {
         let index = base_repo.index_store().write_index(mut_index).unwrap();
 
         let view_id = base_repo.op_store().write_view(view.store_view()).unwrap();
-        let mut operation_metadata =
-            create_op_metadata(self.start_time.clone(), self.description.clone());
-        operation_metadata.tags = self.tags.clone();
+        self.op_metadata.end_time = Timestamp::now();
         let parents = self.parent_ops.iter().map(|op| op.id().clone()).collect();
         let store_operation = op_store::Operation {
             view_id,
             parents,
-            metadata: operation_metadata,
+            metadata: self.op_metadata,
         };
         let new_op_id = base_repo
             .op_store()
@@ -119,8 +113,9 @@ impl Transaction {
     }
 }
 
-pub fn create_op_metadata(start_time: Timestamp, description: String) -> OperationMetadata {
-    let end_time = Timestamp::now();
+pub fn create_op_metadata(description: String) -> OperationMetadata {
+    let start_time = Timestamp::now();
+    let end_time = start_time.clone();
     let hostname = whoami::hostname();
     let username = whoami::username();
     OperationMetadata {

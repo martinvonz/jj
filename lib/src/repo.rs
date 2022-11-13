@@ -24,7 +24,7 @@ use once_cell::sync::OnceCell;
 use thiserror::Error;
 
 use self::dirty_cell::DirtyCell;
-use crate::backend::{Backend, BackendError, ChangeId, CommitId, Timestamp};
+use crate::backend::{Backend, BackendError, ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
@@ -137,7 +137,7 @@ impl ReadonlyRepo {
         let op_heads_path = repo_path.join("op_heads");
         fs::create_dir(&op_heads_path).context(&op_heads_path)?;
         let operation_metadata =
-            crate::transaction::create_op_metadata(Timestamp::now(), "initialize repo".to_string());
+            crate::transaction::create_op_metadata("initialize repo".to_string());
         let (op_heads_store, init_op) =
             OpHeadsStore::init(op_heads_path, &op_store, &root_view, operation_metadata);
         let op_heads_store = Arc::new(op_heads_store);
