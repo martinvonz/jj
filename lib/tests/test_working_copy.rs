@@ -163,7 +163,7 @@ fn test_checkout_file_transitions(use_git: bool) {
                 TreeValue::Tree(id)
             }
             Kind::GitSubmodule => {
-                let mut tx = repo.start_transaction("test");
+                let mut tx = repo.start_transaction(settings, "test");
                 let id = create_random_commit(settings, repo)
                     .write_to_repo(tx.mut_repo())
                     .id()

@@ -80,7 +80,10 @@ fn init_working_copy(
     let working_copy_state_path = jj_dir.join("working_copy");
     std::fs::create_dir(&working_copy_state_path).context(&working_copy_state_path)?;
 
-    let mut tx = repo.start_transaction(&format!("add workspace '{}'", workspace_id.as_str()));
+    let mut tx = repo.start_transaction(
+        user_settings,
+        &format!("add workspace '{}'", workspace_id.as_str()),
+    );
     tx.mut_repo().check_out(
         workspace_id.clone(),
         user_settings,

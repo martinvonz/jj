@@ -89,6 +89,21 @@ fn test_op_log() {
     "###);
 }
 
+#[test]
+fn test_op_log_configurable() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config(
+        br#"operation.hostname = "my-hostname"
+        operation.username = "my-username"
+        "#,
+    );
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
+    assert!(stdout.contains("my-username@my-hostname"));
+}
+
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path, op_id: &str) -> String {
     test_env.jj_cmd_success(
         repo_path,

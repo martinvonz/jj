@@ -717,7 +717,9 @@ impl WorkspaceCommandHelper {
         }
         let new_tree_id = locked_wc.snapshot(base_ignores)?;
         if new_tree_id != *wc_commit.tree_id() {
-            let mut tx = self.repo.start_transaction("commit working copy");
+            let mut tx = self
+                .repo
+                .start_transaction(&self.settings, "commit working copy");
             let mut_repo = tx.mut_repo();
             let commit = CommitBuilder::for_rewrite_from(&self.settings, &wc_commit)
                 .set_tree(new_tree_id)
@@ -797,7 +799,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn start_transaction(&self, description: &str) -> Transaction {
-        let mut tx = self.repo.start_transaction(description);
+        let mut tx = self.repo.start_transaction(&self.settings, description);
         // TODO: Either do better shell-escaping here or store the values in some list
         // type (which we currently don't have).
         let shell_escape = |arg: &String| {

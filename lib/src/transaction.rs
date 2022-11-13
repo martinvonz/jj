@@ -21,6 +21,7 @@ use crate::op_store;
 use crate::op_store::OperationMetadata;
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, RepoLoader};
+use crate::settings::UserSettings;
 use crate::view::View;
 
 pub struct Transaction {
@@ -30,9 +31,13 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn new(mut_repo: MutableRepo, description: &str) -> Transaction {
+    pub fn new(
+        mut_repo: MutableRepo,
+        user_settings: &UserSettings,
+        description: &str,
+    ) -> Transaction {
         let parent_ops = vec![mut_repo.base_repo().operation().clone()];
-        let op_metadata = create_op_metadata(description.to_string());
+        let op_metadata = create_op_metadata(user_settings, description.to_string());
         Transaction {
             repo: Some(mut_repo),
             parent_ops,
@@ -113,11 +118,11 @@ impl Transaction {
     }
 }
 
-pub fn create_op_metadata(description: String) -> OperationMetadata {
+pub fn create_op_metadata(user_settings: &UserSettings, description: String) -> OperationMetadata {
     let start_time = Timestamp::now();
     let end_time = start_time.clone();
-    let hostname = whoami::hostname();
-    let username = whoami::username();
+    let hostname = user_settings.operation_hostname();
+    let username = user_settings.operation_username();
     OperationMetadata {
         start_time,
         end_time,

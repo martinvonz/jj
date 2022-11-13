@@ -76,7 +76,7 @@ fn test_index_commits_standard_cases(use_git: bool) {
     // o root
 
     let root_commit_id = repo.store().root_commit_id();
-    let mut tx = repo.start_transaction("test");
+    let mut tx = repo.start_transaction(&settings, "test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
@@ -134,7 +134,7 @@ fn test_index_commits_criss_cross(use_git: bool) {
     // Create a long chain of criss-crossed merges. If they were traversed without
     // keeping track of visited nodes, it would be 2^50 visits, so if this test
     // finishes in reasonable time, we know that we don't do a naive traversal.
-    let mut tx = repo.start_transaction("test");
+    let mut tx = repo.start_transaction(&settings, "test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let mut left_commits = vec![graph_builder.initial_commit()];
     let mut right_commits = vec![graph_builder.initial_commit()];
@@ -238,14 +238,14 @@ fn test_index_commits_previous_operations(use_git: bool) {
     // |/
     // o root
 
-    let mut tx = repo.start_transaction("test");
+    let mut tx = repo.start_transaction(&settings, "test");
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
     let repo = tx.commit();
 
-    let mut tx = repo.start_transaction("test");
+    let mut tx = repo.start_transaction(&settings, "test");
     tx.mut_repo().remove_head(commit_c.id());
     let repo = tx.commit();
 
@@ -289,7 +289,7 @@ fn test_index_commits_incremental(use_git: bool) {
     // o root
 
     let root_commit = repo.store().root_commit();
-    let mut tx = repo.start_transaction("test");
+    let mut tx = repo.start_transaction(&settings, "test");
     let commit_a = child_commit(&settings, repo, &root_commit).write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
@@ -297,7 +297,7 @@ fn test_index_commits_incremental(use_git: bool) {
     // There should be the root commit, plus 1 more
     assert_eq!(index.num_commits(), 1 + 1);
 
-    let mut tx = repo.start_transaction("test");
+    let mut tx = repo.start_transaction(&settings, "test");
     let commit_b = child_commit(&settings, &repo, &commit_a).write_to_repo(tx.mut_repo());
     let commit_c = child_commit(&settings, &repo, &commit_b).write_to_repo(tx.mut_repo());
     tx.commit();
@@ -337,7 +337,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     // o root
 
     let root_commit = repo.store().root_commit();
-    let mut tx = repo.start_transaction("test");
+    let mut tx = repo.start_transaction(&settings, "test");
     let commit_a = child_commit(&settings, repo, &root_commit).write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
@@ -345,7 +345,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
     // There should be the root commit, plus 1 more
     assert_eq!(index.num_commits(), 1 + 1);
 
-    repo.start_transaction("test").commit();
+    repo.start_transaction(&settings, "test").commit();
 
     let repo =
         ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &BackendFactories::default())
@@ -380,13 +380,13 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
     // o root
 
     let root_commit = repo.store().root_commit();
-    let mut tx = repo.start_transaction("test");
+    let mut tx = repo.start_transaction(&settings, "test");
     let commit_a = child_commit(&settings, repo, &root_commit).write_to_repo(tx.mut_repo());
     let repo = tx.commit();
 
     assert!(repo.index().has_id(commit_a.id()));
     assert_eq!(repo.index().num_commits(), 1 + 1);
-    let mut tx = repo.start_transaction("test");
+    let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
     mut_repo.add_head(&commit_a);
     assert_eq!(mut_repo.index().num_commits(), 1 + 1);
@@ -398,7 +398,7 @@ fn create_n_commits(
     repo: &Arc<ReadonlyRepo>,
     num_commits: i32,
 ) -> Arc<ReadonlyRepo> {
-    let mut tx = repo.start_transaction("test");
+    let mut tx = repo.start_transaction(settings, "test");
     for _ in 0..num_commits {
         create_random_commit(settings, repo).write_to_repo(tx.mut_repo());
     }
