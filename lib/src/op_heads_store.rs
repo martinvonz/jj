@@ -19,7 +19,6 @@ use std::sync::Arc;
 use itertools::Itertools;
 use thiserror::Error;
 
-use crate::backend::Timestamp;
 use crate::lock::FileLock;
 use crate::op_store::{OpStore, OperationId, OperationMetadata};
 use crate::operation::Operation;
@@ -68,10 +67,9 @@ impl OpHeadsStore {
         dir: PathBuf,
         op_store: &Arc<dyn OpStore>,
         root_view: &op_store::View,
+        operation_metadata: OperationMetadata,
     ) -> (Self, Operation) {
         let root_view_id = op_store.write_view(root_view).unwrap();
-        let operation_metadata =
-            OperationMetadata::new("initialize repo".to_string(), Timestamp::now());
         let init_operation = op_store::Operation {
             view_id: root_view_id,
             parents: vec![],
