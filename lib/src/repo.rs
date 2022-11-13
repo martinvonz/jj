@@ -24,7 +24,7 @@ use once_cell::sync::OnceCell;
 use thiserror::Error;
 
 use self::dirty_cell::DirtyCell;
-use crate::backend::{Backend, BackendError, ChangeId, CommitId};
+use crate::backend::{Backend, BackendError, ChangeId, CommitId, Timestamp};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
@@ -33,7 +33,9 @@ use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{LockedOpHeads, OpHeads, OpHeadsStore};
-use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
+use crate::op_store::{
+    BranchTarget, OpStore, OperationId, OperationMetadata, RefTarget, WorkspaceId,
+};
 use crate::operation::Operation;
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
@@ -136,7 +138,10 @@ impl ReadonlyRepo {
 
         let op_heads_path = repo_path.join("op_heads");
         fs::create_dir(&op_heads_path).context(&op_heads_path)?;
-        let (op_heads_store, init_op) = OpHeadsStore::init(op_heads_path, &op_store, &root_view);
+        let operation_metadata =
+            OperationMetadata::new("initialize repo".to_string(), Timestamp::now());
+        let (op_heads_store, init_op) =
+            OpHeadsStore::init(op_heads_path, &op_store, &root_view, operation_metadata);
         let op_heads_store = Arc::new(op_heads_store);
 
         let index_path = repo_path.join("index");
