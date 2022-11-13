@@ -430,8 +430,9 @@ pub fn parse_commit_template<'a>(
     let first_pair = pairs.next().unwrap();
     assert!(pairs.next().is_none());
 
-    assert!(
-        first_pair.as_span().end() == template_text.len(),
+    assert_eq!(
+        first_pair.as_span().end(),
+        template_text.len(),
         "failed to parse template past position {}",
         first_pair.as_span().end()
     );
