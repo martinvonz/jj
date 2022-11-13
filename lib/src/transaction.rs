@@ -97,7 +97,7 @@ impl Transaction {
 
         let view_id = base_repo.op_store().write_view(view.store_view()).unwrap();
         let mut operation_metadata =
-            OperationMetadata::new(self.description.clone(), self.start_time.clone());
+            create_op_metadata(self.start_time.clone(), self.description.clone());
         operation_metadata.tags = self.tags.clone();
         let parents = self.parent_ops.iter().map(|op| op.id().clone()).collect();
         let store_operation = op_store::Operation {
@@ -116,6 +116,20 @@ impl Transaction {
             .associate_file_with_operation(&index, operation.id())
             .unwrap();
         UnpublishedOperation::new(base_repo.loader(), operation, view, index)
+    }
+}
+
+pub fn create_op_metadata(start_time: Timestamp, description: String) -> OperationMetadata {
+    let end_time = Timestamp::now();
+    let hostname = whoami::hostname();
+    let username = whoami::username();
+    OperationMetadata {
+        start_time,
+        end_time,
+        description,
+        hostname,
+        username,
+        tags: Default::default(),
     }
 }
 
