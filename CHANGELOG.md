@@ -49,6 +49,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * (#254) Branches that have a different target on some remote than they do
   locally are now indicated by an asterisk suffix (e.g. `main*`) in `jj log`.
 
+* The commit ID was moved from first on the line in `jj log` output to close to
+  the end. The goal is to encourage users to use the change ID instead, since
+  that is generally more convenient, and it reduces the risk of creating
+  divergent commits.
+
 ### Fixed bugs
 
 * (#463) A bug in the export of branches to Git caused spurious conflicted

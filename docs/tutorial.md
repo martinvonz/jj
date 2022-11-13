@@ -127,19 +127,20 @@ You're probably familiar with `git log`. Jujutsu has very similar functionality
 in its `jj log` command:
 ```shell script
 $ jj log
-@ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
+@ f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00 192b456b024b
 | (no description set)
-o fb563a4c6d26 f63e76f175b9 martinvonz@google.com 2021-05-23 22:13:45.000 -07:00
+o f63e76f175b9 martinvonz@google.com 2021-05-23 22:13:45.000 -07:00 fb563a4c6d26
 | Jujutsu is ready!
-o 080a9b37ff7e 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 main
+o 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 main 080a9b37ff7e
 ~ cli: make `jj st` show parent commit before working copy commit
 ```
 
 The `@` indicates the working-copy commit. The first hash on a line is the
-commit ID. The second hash is a "change ID", which is an ID that follows the
-commit as it's rewritten (similar to Gerrit's Change-Id). You can give either
-hash to commands that take revisions as arguments. We will generally prefer
-change IDs because they stay the same when the commit is rewritten.
+"change ID", which is an ID that follows the commit as it's rewritten (similar
+to Gerrit's Change-Id). The second hash is the commit ID, which changes when you
+rewrite the commit. You can give either hash to commands that take revisions as
+arguments. We will generally prefer change IDs because they stay the same when
+the commit is rewritten.
 
 By default, `jj log` list your local commits, with some remote commits added for
 context.  The `~` indicates that the commit has parents that are not included
@@ -151,11 +152,11 @@ all commits pointed to by branches. We can combine expressions with `|` for
 union, `&` for intersection and `~` for difference. For example:
 ```shell script
 $ jj log -r '@ | root | branches()'
-@ 192b456b024b f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00
+@ f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00 192b456b024b
 : (no description set)
-o 080a9b37ff7e 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 main
+o 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 main 080a9b37ff7e
 : cli: make `jj st` show parent commit before working copy commit
-o 000000000000 000000000000 1970-01-01 00:00:00.000 +00:00
+o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
   (no description set)
 ```
 
@@ -184,13 +185,13 @@ Working copy now at: fd571967346e B2
 $ jj new -m C; echo c > file2
 Working copy now at: 4ae1e0587eef C
 $ jj log
-@ 1769bdaa8d6d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00
+@ 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00 1769bdaa8d6d
 | C
-o de5690380f40 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00
+o 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00 de5690380f40
 | B2
-o 47e336632333 ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00
+o ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00 47e336632333
 | B1
-o 661432c51c08 cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00
+o cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00 661432c51c08
 ~ A
 ```
 
@@ -202,13 +203,13 @@ Rebased 2 commits
 Working copy now at: 9195b6d2e8dc C
 Added 0 files, modified 1 files, removed 0 files
 $ jj log
-@ 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00 conflict
+@ 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00 66274d5a7d2d conflict
 | C
-o 0c305a9e6b27 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00 conflict
+o 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00 0c305a9e6b27 conflict
 | B2
-| o 47e336632333 ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00
+| o ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00 47e336632333
 |/  B1
-o 661432c51c08 cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00
+o cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00 661432c51c08
 ~ A
 ```
 
@@ -246,15 +247,15 @@ $ jj squash
 Rebased 1 descendant commits
 Working copy now at: e659edc4a9fc (no description set)
 $ jj log
-@ e659edc4a9fc 461f38324592 martinvonz@google.com 2021-05-26 12:53:08.000 -07:00
+@ 461f38324592 martinvonz@google.com 2021-05-26 12:53:08.000 -07:00 e659edc4a9fc
 | (no description set)
-| o 69dbcf76642a 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00
+| o 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00 69dbcf76642a
 |/  C
-o 576d647acf36 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00
+o 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00 576d647acf36
 | B2
-| o 47e336632333 ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00
+| o ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00 47e336632333
 |/  B1
-o 661432c51c08 cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00
+o cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00 661432c51c08
 ~ A
 ```
 
@@ -292,15 +293,15 @@ an operation. By default, it will undo the most recent operation. Let's try it:
 $ jj undo
 Working copy now at: 41f0d2289b56
 $ jj log
-@ 41f0d2289b56 b1e3a4afde5e martinvonz@google.com 2021-05-26 12:52:39.000 -07:00
+@ b1e3a4afde5e martinvonz@google.com 2021-05-26 12:52:39.000 -07:00 41f0d2289b56
 | (no description set)
-| o 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00 conflict
+| o 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00 66274d5a7d2d conflict
 |/  C
-o 0c305a9e6b27 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00 conflict
+o 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00 0c305a9e6b27 conflict
 | B2
-| o 47e336632333 ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00
+| o ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00 47e336632333
 |/  B1
-o 661432c51c08 cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00
+o cf49e6bec410 martinvonz@google.com 2021-05-26 12:39:12.000 -07:00 661432c51c08
 ~ A
 ```
 As you can perhaps see, that undid the `jj squash` invocation we used for
@@ -333,11 +334,11 @@ Working copy now at: 9d97c5018b23 ABC
 $ jj new -m ABCD; printf 'A\nB\nC\nD\n' > file
 Working copy now at: c5a985bc3f41 ABCD
 $ jj log
-@ 687009839bae 874f2d307594 martinvonz@google.com 2021-05-26 14:36:38.000 -07:00 
+@ 874f2d307594 martinvonz@google.com 2021-05-26 14:36:38.000 -07:00 687009839bae 
 | ABCD
-o ad9b1ce3b5d0 2bbc0c1eb382 martinvonz@google.com 2021-05-26 14:36:26.000 -07:00 
+o 2bbc0c1eb382 martinvonz@google.com 2021-05-26 14:36:26.000 -07:00 ad9b1ce3b5d0 
 | ABC
-o a355fb177b21 3680117711f5 martinvonz@google.com 2021-05-26 14:36:05.000 -07:00 
+o 3680117711f5 martinvonz@google.com 2021-05-26 14:36:05.000 -07:00 a355fb177b21 
 ~ abc
 ```
 

@@ -34,13 +34,13 @@ fn test_obslog_with_or_without_diff() {
 
     let stdout = get_log_output(&test_env, &repo_path, &["obslog"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ 1daafc17fefb test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    @  test.user@example.com 2001-02-03 04:05:08.000 +07:00 1daafc17fefb
     | my description
-    o 813918f7b4e6 test.user@example.com 2001-02-03 04:05:08.000 +07:00 conflict
+    o  test.user@example.com 2001-02-03 04:05:08.000 +07:00 813918f7b4e6 conflict
     | my description
-    o 8f02f5470c55 test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    o  test.user@example.com 2001-02-03 04:05:08.000 +07:00 8f02f5470c55
     | my description
-    o c8ceb219336b test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    o  test.user@example.com 2001-02-03 04:05:08.000 +07:00 c8ceb219336b
       my description
     "###);
 
@@ -48,43 +48,43 @@ fn test_obslog_with_or_without_diff() {
     // (even even though it resulted in a conflict).
     let stdout = get_log_output(&test_env, &repo_path, &["obslog", "-p"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ 1daafc17fefb test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    @  test.user@example.com 2001-02-03 04:05:08.000 +07:00 1daafc17fefb
     | my description
     | Resolved conflict in file1:
     |    1    1: <<<<<<<resolved
     |    2     : %%%%%%%
     |    3     : +bar
     |    4     : >>>>>>>
-    o 813918f7b4e6 test.user@example.com 2001-02-03 04:05:08.000 +07:00 conflict
+    o  test.user@example.com 2001-02-03 04:05:08.000 +07:00 813918f7b4e6 conflict
     | my description
-    o 8f02f5470c55 test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    o  test.user@example.com 2001-02-03 04:05:08.000 +07:00 8f02f5470c55
     | my description
     | Modified regular file file1:
     |    1    1: foo
     |         2: bar
     | Added regular file file2:
     |         1: foo
-    o c8ceb219336b test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    o  test.user@example.com 2001-02-03 04:05:08.000 +07:00 c8ceb219336b
       my description
     "###);
 
     // Test `--no-graph`
     let stdout = get_log_output(&test_env, &repo_path, &["obslog", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
-    1daafc17fefb test.user@example.com 2001-02-03 04:05:08.000 +07:00
+     test.user@example.com 2001-02-03 04:05:08.000 +07:00 1daafc17fefb
     my description
-    813918f7b4e6 test.user@example.com 2001-02-03 04:05:08.000 +07:00 conflict
+     test.user@example.com 2001-02-03 04:05:08.000 +07:00 813918f7b4e6 conflict
     my description
-    8f02f5470c55 test.user@example.com 2001-02-03 04:05:08.000 +07:00
+     test.user@example.com 2001-02-03 04:05:08.000 +07:00 8f02f5470c55
     my description
-    c8ceb219336b test.user@example.com 2001-02-03 04:05:08.000 +07:00
+     test.user@example.com 2001-02-03 04:05:08.000 +07:00 c8ceb219336b
     my description
     "###);
 
     // Test `--git` format, and that it implies `-p`
     let stdout = get_log_output(&test_env, &repo_path, &["obslog", "--no-graph", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
-    1daafc17fefb test.user@example.com 2001-02-03 04:05:08.000 +07:00
+     test.user@example.com 2001-02-03 04:05:08.000 +07:00 1daafc17fefb
     my description
     diff --git a/file1 b/file1
     index e155302a24...2ab19ae607 100644
@@ -96,9 +96,9 @@ fn test_obslog_with_or_without_diff() {
     -+bar
     ->>>>>>>
     +resolved
-    813918f7b4e6 test.user@example.com 2001-02-03 04:05:08.000 +07:00 conflict
+     test.user@example.com 2001-02-03 04:05:08.000 +07:00 813918f7b4e6 conflict
     my description
-    8f02f5470c55 test.user@example.com 2001-02-03 04:05:08.000 +07:00
+     test.user@example.com 2001-02-03 04:05:08.000 +07:00 8f02f5470c55
     my description
     diff --git a/file1 b/file1
     index 257cc5642c...3bd1f0e297 100644
@@ -114,7 +114,7 @@ fn test_obslog_with_or_without_diff() {
     +++ b/file2
     @@ -1,0 +1,1 @@
     +foo
-    c8ceb219336b test.user@example.com 2001-02-03 04:05:08.000 +07:00
+     test.user@example.com 2001-02-03 04:05:08.000 +07:00 c8ceb219336b
     my description
     "###);
 }
@@ -136,36 +136,36 @@ fn test_obslog_squash() {
 
     let stdout = get_log_output(&test_env, &repo_path, &["obslog", "-p", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    o   9b6d4a272a6a test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    o    test.user@example.com 2001-02-03 04:05:07.000 +07:00 9b6d4a272a6a
     |\  squashed
     | | Modified regular file file1:
     | |    1    1: foo
     | |         2: bar
-    o | 803a7299cb1a test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    o |  test.user@example.com 2001-02-03 04:05:07.000 +07:00 803a7299cb1a
     | | first
     | | Added regular file file1:
     | |         1: foo
-    o | 85a1e2839620 test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    o |  test.user@example.com 2001-02-03 04:05:07.000 +07:00 85a1e2839620
     | | first
-    o | 230dd059e1b0 test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    o |  test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
      /  (no description set)
-    o 69231a40d60d test.user@example.com 2001-02-03 04:05:09.000 +07:00
+    o  test.user@example.com 2001-02-03 04:05:09.000 +07:00 69231a40d60d
     | second
     | Modified regular file file1:
     |    1    1: foo
     |         2: bar
-    o b567edda97ab test.user@example.com 2001-02-03 04:05:09.000 +07:00
+    o  test.user@example.com 2001-02-03 04:05:09.000 +07:00 b567edda97ab
       second
     "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path, args: &[&str]) -> String {
     // Filter out the change ID since it's random
-    let regex = Regex::new("^([o@| ]+)?([0-9a-f]{12}) ([0-9a-f]{12}) ").unwrap();
+    let regex = Regex::new("^([o@| ]+)?([0-9a-f]{12})").unwrap();
     let mut lines = vec![];
     let stdout = test_env.jj_cmd_success(repo_path, args);
     for line in stdout.split_inclusive('\n') {
-        lines.push(regex.replace(line, "$1$2 "));
+        lines.push(regex.replace(line, "$1"));
     }
     lines.join("")
 }
