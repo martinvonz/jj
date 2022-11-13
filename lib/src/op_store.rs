@@ -244,22 +244,6 @@ content_hash! {
     }
 }
 
-impl OperationMetadata {
-    pub fn new(description: String, start_time: Timestamp) -> Self {
-        let end_time = Timestamp::now();
-        let hostname = whoami::hostname();
-        let username = whoami::username();
-        OperationMetadata {
-            start_time,
-            end_time,
-            description,
-            hostname,
-            username,
-            tags: Default::default(),
-        }
-    }
-}
-
 #[derive(Debug, Error)]
 pub enum OpStoreError {
     #[error("Operation not found")]
