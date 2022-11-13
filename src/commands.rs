@@ -1994,8 +1994,7 @@ fn log_template(settings: &UserSettings) -> String {
     // TODO: define a method on boolean values, so we can get auto-coloring
     //       with e.g. `conflict.then("conflict")`
     let default_template = r#"
-            commit_id.short()
-            " " change_id.short()
+            change_id.short()
             " " author.email()
             " " label("timestamp", author.timestamp())
             if(branches, " " branches)
@@ -2003,6 +2002,7 @@ fn log_template(settings: &UserSettings) -> String {
             if(working_copies, " " working_copies)
             if(is_git_head, label("git_head", " HEAD@git"))
             if(divergent, label("divergent", " divergent"))
+            " " commit_id.short()
             if(conflict, label("conflict", " conflict"))
             "\n"
             description.first_line()
