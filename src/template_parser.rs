@@ -289,6 +289,10 @@ fn parse_boolean_commit_property<'a>(
     match pair.as_rule() {
         Rule::identifier => match parse_commit_keyword(repo, workspace_id, pair.clone()).0 {
             Property::Boolean(property) => property,
+            Property::String(property) => Box::new(TemplateFunction::new(
+                property,
+                Box::new(|string| !string.is_empty()),
+            )),
             _ => panic!("cannot yet use this as boolean: {:?}", pair),
         },
         _ => panic!("cannot yet use this as boolean: {:?}", pair),

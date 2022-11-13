@@ -1998,9 +1998,9 @@ fn log_template(settings: &UserSettings) -> String {
             " " change_id.short()
             " " author.email()
             " " label("timestamp", author.timestamp())
-            " " branches
-            " " tags
-            " " working_copies
+            if(branches, " " branches)
+            if(tags, " " tags)
+            if(working_copies, " " working_copies)
             if(is_git_head, label("git_head", " HEAD@git"))
             if(divergent, label("divergent", " divergent"))
             if(conflict, label("conflict", " conflict"))

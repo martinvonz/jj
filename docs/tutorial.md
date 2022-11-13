@@ -155,7 +155,7 @@ $ jj log -r '@ | root | branches()'
 : (no description set)
 o 080a9b37ff7e 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 main
 : cli: make `jj st` show parent commit before working copy commit
-o 000000000000 000000000000  1970-01-01 00:00:00.000 +00:00
+o 000000000000 000000000000 1970-01-01 00:00:00.000 +00:00
 ```
 
 (The `000000000000` commit is a virtual commit that's called the "root commit".
@@ -201,9 +201,9 @@ Rebased 2 commits
 Working copy now at: 9195b6d2e8dc C
 Added 0 files, modified 1 files, removed 0 files
 $ jj log
-@ 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00  conflict
+@ 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00 conflict
 | C
-o 0c305a9e6b27 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00  conflict
+o 0c305a9e6b27 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00 conflict
 | B2
 | o 47e336632333 ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00
 |/  B1
@@ -293,9 +293,9 @@ Working copy now at: 41f0d2289b56
 $ jj log
 @ 41f0d2289b56 b1e3a4afde5e martinvonz@google.com 2021-05-26 12:52:39.000 -07:00
 |
-| o 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00  conflict
+| o 66274d5a7d2d 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00 conflict
 |/  C
-o 0c305a9e6b27 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00  conflict
+o 0c305a9e6b27 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00 conflict
 | B2
 | o 47e336632333 ce619d39bd96 martinvonz@google.com 2021-05-26 12:39:20.000 -07:00
 |/  B1
