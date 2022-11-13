@@ -54,6 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that is generally more convenient, and it reduces the risk of creating
   divergent commits.
 
+* The username and hostname that appear in the operation log are now
+  configurable via config options `operation.username` and `operation.hostname`.
+
 ### Fixed bugs
 
 * (#463) A bug in the export of branches to Git caused spurious conflicted

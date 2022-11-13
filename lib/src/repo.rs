@@ -137,7 +137,7 @@ impl ReadonlyRepo {
         let op_heads_path = repo_path.join("op_heads");
         fs::create_dir(&op_heads_path).context(&op_heads_path)?;
         let operation_metadata =
-            crate::transaction::create_op_metadata("initialize repo".to_string());
+            crate::transaction::create_op_metadata(user_settings, "initialize repo".to_string());
         let (op_heads_store, init_op) =
             OpHeadsStore::init(op_heads_path, &op_store, &root_view, operation_metadata);
         let op_heads_store = Arc::new(op_heads_store);
@@ -228,9 +228,13 @@ impl ReadonlyRepo {
         &self.settings
     }
 
-    pub fn start_transaction(self: &Arc<ReadonlyRepo>, description: &str) -> Transaction {
+    pub fn start_transaction(
+        self: &Arc<ReadonlyRepo>,
+        user_settings: &UserSettings,
+        description: &str,
+    ) -> Transaction {
         let mut_repo = MutableRepo::new(self.clone(), self.index().clone(), &self.view);
-        Transaction::new(mut_repo, description)
+        Transaction::new(mut_repo, user_settings, description)
     }
 
     pub fn reload_at_head(
@@ -268,7 +272,7 @@ pub struct UnresolvedHeadRepo {
 impl UnresolvedHeadRepo {
     pub fn resolve(self, user_settings: &UserSettings) -> Result<Arc<ReadonlyRepo>, BackendError> {
         let base_repo = self.repo_loader.load_at(&self.op_heads[0]);
-        let mut tx = base_repo.start_transaction("resolve concurrent operations");
+        let mut tx = base_repo.start_transaction(user_settings, "resolve concurrent operations");
         for other_op_head in self.op_heads.into_iter().skip(1) {
             tx.merge_operation(other_op_head);
             tx.mut_repo().rebase_descendants(user_settings)?;

@@ -53,7 +53,7 @@ fn test_commit_parallel(use_git: bool) {
         let settings = settings.clone();
         let repo = repo.clone();
         let handle = thread::spawn(move || {
-            let mut tx = repo.start_transaction("test");
+            let mut tx = repo.start_transaction(&settings, "test");
             create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
             tx.commit();
         });
@@ -89,7 +89,7 @@ fn test_commit_parallel_instances(use_git: bool) {
             ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &BackendFactories::default())
                 .unwrap();
         let handle = thread::spawn(move || {
-            let mut tx = repo.start_transaction("test");
+            let mut tx = repo.start_transaction(&settings, "test");
             create_random_commit(&settings, &repo).write_to_repo(tx.mut_repo());
             tx.commit();
         });

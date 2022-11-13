@@ -88,6 +88,18 @@ impl UserSettings {
         "(no email configured)"
     }
 
+    pub fn operation_hostname(&self) -> String {
+        self.config
+            .get_string("operation.hostname")
+            .unwrap_or_else(|_| whoami::hostname())
+    }
+
+    pub fn operation_username(&self) -> String {
+        self.config
+            .get_string("operation.username")
+            .unwrap_or_else(|_| whoami::username())
+    }
+
     pub fn push_branch_prefix(&self) -> String {
         self.config
             .get_string("push.branch-prefix")
