@@ -1243,7 +1243,7 @@ fn string_list_from_config(value: config::Value) -> Option<Vec<String>> {
 }
 
 fn resolve_aliases(
-    ui: &mut Ui,
+    user_settings: &UserSettings,
     app: &clap::Command,
     string_args: &[String],
 ) -> Result<Vec<String>, CommandError> {
@@ -1272,8 +1272,7 @@ fn resolve_aliases(
                         r#"Recursive alias definition involving "{alias_name}""#
                     )));
                 }
-                match ui
-                    .settings()
+                match user_settings
                     .config()
                     .get::<config::Value>(&format!("alias.{}", alias_name))
                 {
@@ -1319,7 +1318,7 @@ pub fn parse_args(
         }
     }
 
-    let string_args = resolve_aliases(ui, &app, &string_args)?;
+    let string_args = resolve_aliases(ui.settings(), &app, &string_args)?;
     let matches = app.clone().try_get_matches_from(&string_args)?;
 
     let mut args: Args = Args::from_arg_matches(&matches).unwrap();
