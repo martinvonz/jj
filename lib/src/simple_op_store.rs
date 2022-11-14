@@ -66,7 +66,7 @@ fn upgrade_to_thrift(store_path: PathBuf) -> std::io::Result<()> {
     let proto_store = ProtoOpStore::load(store_path.clone());
     let tmp_store_dir = tempfile::Builder::new()
         .prefix("jj-op-store-upgrade-")
-        .tempdir()
+        .tempdir_in(store_path.parent().unwrap())
         .unwrap();
     let tmp_store_path = tmp_store_dir.path().to_path_buf();
 
