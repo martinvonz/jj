@@ -65,6 +65,10 @@ pub fn user_settings() -> UserSettings {
         .unwrap()
         .set_override("user.email", "test.user@example.com")
         .unwrap()
+        .set_override("operation.hostname", "host.example.com")
+        .unwrap()
+        .set_override("operation.username", "test-username")
+        .unwrap()
         .build()
         .unwrap();
     UserSettings::from_config(config)
