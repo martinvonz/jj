@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   paths specified by the `pattern..`.
 
 * It is now possible to specify configuration options on the command line
-  with he new `--config-toml` global option.
+  with the new `--config-toml` global option.
 
 * (#469) `jj git` subcommands will prompt for credentials when
   required for HTTPS remotes rather than failing.
