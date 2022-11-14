@@ -3,7 +3,7 @@ set -euo pipefail
 . "$(dirname "$0")"/demo_helpers.sh
 
 new_tmp_dir
-jj init
+jj init --config-toml ui.allow-init-native=true
 echo "first" > file
 jj branch create first
 jj commit -m 'first' 
