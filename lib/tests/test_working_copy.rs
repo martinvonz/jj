@@ -97,21 +97,21 @@ fn test_checkout_file_transitions(use_git: bool) {
             }
             Kind::Normal => {
                 let id = testutils::write_file(store, path, "normal file contents");
-                TreeValue::Normal {
+                TreeValue::File {
                     id,
                     executable: false,
                 }
             }
             Kind::Executable => {
                 let id = testutils::write_file(store, path, "executable file contents");
-                TreeValue::Normal {
+                TreeValue::File {
                     id,
                     executable: true,
                 }
             }
             Kind::ExecutableNormalContent => {
                 let id = testutils::write_file(store, path, "normal file contents");
-                TreeValue::Normal {
+                TreeValue::File {
                     id,
                     executable: true,
                 }
@@ -122,20 +122,20 @@ fn test_checkout_file_transitions(use_git: bool) {
                 let right_file_id = testutils::write_file(store, path, "right file contents");
                 let conflict = Conflict {
                     removes: vec![ConflictPart {
-                        value: TreeValue::Normal {
+                        value: TreeValue::File {
                             id: base_file_id,
                             executable: false,
                         },
                     }],
                     adds: vec![
                         ConflictPart {
-                            value: TreeValue::Normal {
+                            value: TreeValue::File {
                                 id: left_file_id,
                                 executable: false,
                             },
                         },
                         ConflictPart {
-                            value: TreeValue::Normal {
+                            value: TreeValue::File {
                                 id: right_file_id,
                                 executable: false,
                             },

@@ -617,7 +617,7 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     // The conflict should now be resolved.
     let resolved_value = commit_c3.tree().path_value(&path);
     match resolved_value {
-        Some(TreeValue::Normal {
+        Some(TreeValue::File {
             id,
             executable: false,
         }) => {

@@ -633,7 +633,7 @@ fn merge_tree_value(
                 try_resolve_file_conflict(store, &filename, &conflict)?
             {
                 let id = store.write_file(&filename, &mut merged_content.as_slice())?;
-                Some(TreeValue::Normal { id, executable })
+                Some(TreeValue::File { id, executable })
             } else {
                 let conflict_id = store.write_conflict(&filename, &conflict)?;
                 Some(TreeValue::Conflict(conflict_id))
@@ -657,7 +657,7 @@ fn try_resolve_file_conflict(
     let mut added_file_ids = vec![];
     for part in &conflict.removes {
         match &part.value {
-            TreeValue::Normal { id, executable } => {
+            TreeValue::File { id, executable } => {
                 if *executable {
                     exec_delta -= 1;
                 } else {
@@ -672,7 +672,7 @@ fn try_resolve_file_conflict(
     }
     for part in &conflict.adds {
         match &part.value {
-            TreeValue::Normal { id, executable } => {
+            TreeValue::File { id, executable } => {
                 if *executable {
                     exec_delta += 1;
                 } else {

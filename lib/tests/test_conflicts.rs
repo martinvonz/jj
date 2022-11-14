@@ -60,20 +60,20 @@ line 5
 
     let mut conflict = Conflict {
         removes: vec![ConflictPart {
-            value: TreeValue::Normal {
+            value: TreeValue::File {
                 id: base_id,
                 executable: false,
             },
         }],
         adds: vec![
             ConflictPart {
-                value: TreeValue::Normal {
+                value: TreeValue::File {
                     id: left_id,
                     executable: false,
                 },
             },
             ConflictPart {
-                value: TreeValue::Normal {
+                value: TreeValue::File {
                     id: right_id,
                     executable: false,
                 },
@@ -158,20 +158,20 @@ line 5
 
     let conflict = Conflict {
         removes: vec![ConflictPart {
-            value: TreeValue::Normal {
+            value: TreeValue::File {
                 id: base_id,
                 executable: false,
             },
         }],
         adds: vec![
             ConflictPart {
-                value: TreeValue::Normal {
+                value: TreeValue::File {
                     id: left_id,
                     executable: false,
                 },
             },
             ConflictPart {
-                value: TreeValue::Normal {
+                value: TreeValue::File {
                     id: right_id,
                     executable: false,
                 },
@@ -231,20 +231,20 @@ line 5
 
     let conflict = Conflict {
         removes: vec![ConflictPart {
-            value: TreeValue::Normal {
+            value: TreeValue::File {
                 id: base_id,
                 executable: false,
             },
         }],
         adds: vec![
             ConflictPart {
-                value: TreeValue::Normal {
+                value: TreeValue::File {
                     id: left_id,
                     executable: false,
                 },
             },
             ConflictPart {
-                value: TreeValue::Normal {
+                value: TreeValue::File {
                     id: right_id,
                     executable: false,
                 },
@@ -439,20 +439,20 @@ fn test_update_conflict_from_content() {
     let right_file_id = testutils::write_file(store, &path, "right 1\nline 2\nright 3\n");
     let conflict = Conflict {
         removes: vec![ConflictPart {
-            value: TreeValue::Normal {
+            value: TreeValue::File {
                 id: base_file_id,
                 executable: false,
             },
         }],
         adds: vec![
             ConflictPart {
-                value: TreeValue::Normal {
+                value: TreeValue::File {
                     id: left_file_id,
                     executable: false,
                 },
             },
             ConflictPart {
-                value: TreeValue::Normal {
+                value: TreeValue::File {
                     id: right_file_id,
                     executable: false,
                 },
@@ -497,20 +497,20 @@ fn test_update_conflict_from_content() {
         new_conflict,
         Conflict {
             removes: vec![ConflictPart {
-                value: TreeValue::Normal {
+                value: TreeValue::File {
                     id: new_base_file_id,
                     executable: false
                 }
             }],
             adds: vec![
                 ConflictPart {
-                    value: TreeValue::Normal {
+                    value: TreeValue::File {
                         id: new_left_file_id,
                         executable: false
                     }
                 },
                 ConflictPart {
-                    value: TreeValue::Normal {
+                    value: TreeValue::File {
                         id: new_right_file_id,
                         executable: false
                     }

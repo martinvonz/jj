@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-struct NormalFile {
+struct File {
   1: required binary id,
   2: required bool executable,
 }
 
 union TreeValue {
-  1: NormalFile normal_file,
+  1: File file,
   2: binary symlink_id,
   3: binary tree_id,
   4: binary conflict_id,

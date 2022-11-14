@@ -654,7 +654,7 @@ impl TreeState {
         match file_type {
             FileType::Normal { executable } => {
                 let id = self.write_file_to_store(repo_path, disk_path)?;
-                Ok(TreeValue::Normal { id, executable })
+                Ok(TreeValue::File { id, executable })
             }
             FileType::Symlink => {
                 let id = self.write_symlink_to_store(repo_path, disk_path)?;
@@ -851,7 +851,7 @@ impl TreeState {
                 }
                 Diff::Added(after) => {
                     let file_state = match after {
-                        TreeValue::Normal { id, executable } => {
+                        TreeValue::File { id, executable } => {
                             self.write_file(&disk_path, &path, &id, executable)?
                         }
                         TreeValue::Symlink(id) => self.write_symlink(&disk_path, &path, &id)?,
@@ -868,11 +868,11 @@ impl TreeState {
                     stats.added_files += 1;
                 }
                 Diff::Modified(
-                    TreeValue::Normal {
+                    TreeValue::File {
                         id: old_id,
                         executable: old_executable,
                     },
-                    TreeValue::Normal { id, executable },
+                    TreeValue::File { id, executable },
                 ) if id == old_id => {
                     // Optimization for when only the executable bit changed
                     assert_ne!(executable, old_executable);
@@ -884,7 +884,7 @@ impl TreeState {
                 Diff::Modified(before, after) => {
                     fs::remove_file(&disk_path).ok();
                     let file_state = match (before, after) {
-                        (_, TreeValue::Normal { id, executable }) => {
+                        (_, TreeValue::File { id, executable }) => {
                             self.write_file(&disk_path, &path, &id, executable)?
                         }
                         (_, TreeValue::Symlink(id)) => {
@@ -932,7 +932,7 @@ impl TreeState {
                 }
                 Diff::Added(after) | Diff::Modified(_, after) => {
                     let file_type = match after {
-                        TreeValue::Normal { id: _, executable } => FileType::Normal { executable },
+                        TreeValue::File { id: _, executable } => FileType::Normal { executable },
                         TreeValue::Symlink(_id) => FileType::Symlink,
                         TreeValue::Conflict(id) => FileType::Conflict { id },
                         TreeValue::GitSubmodule(_id) => {

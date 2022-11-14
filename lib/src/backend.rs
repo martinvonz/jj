@@ -322,7 +322,7 @@ pub type BackendResult<T> = Result<T, BackendError>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum TreeValue {
-    Normal { id: FileId, executable: bool },
+    File { id: FileId, executable: bool },
     Symlink(SymlinkId),
     Tree(TreeId),
     GitSubmodule(CommitId),
@@ -333,7 +333,7 @@ impl ContentHash for TreeValue {
     fn hash(&self, state: &mut impl digest::Update) {
         use TreeValue::*;
         match *self {
-            Normal { ref id, executable } => {
+            File { ref id, executable } => {
                 state.update(&0u32.to_le_bytes());
                 id.hash(state);
                 executable.hash(state);

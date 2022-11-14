@@ -1214,7 +1214,7 @@ fn cmd_print(ui: &mut Ui, command: &CommandHelper, args: &PrintArgs) -> Result<(
         None => {
             return Err(user_error("No such path"));
         }
-        Some(TreeValue::Normal { id, .. }) => {
+        Some(TreeValue::File { id, .. }) => {
             let mut contents = repo.store().read_file(&path, &id)?;
             std::io::copy(&mut contents, &mut ui.stdout_formatter().as_mut())?;
         }
@@ -1452,7 +1452,7 @@ fn diff_content(
     value: &TreeValue,
 ) -> Result<Vec<u8>, CommandError> {
     match value {
-        TreeValue::Normal { id, .. } => {
+        TreeValue::File { id, .. } => {
             let mut file_reader = repo.store().read_file(path, id).unwrap();
             let mut content = vec![];
             file_reader.read_to_end(&mut content)?;
@@ -1482,7 +1482,7 @@ fn diff_content(
 
 fn basic_diff_file_type(value: &TreeValue) -> String {
     match value {
-        TreeValue::Normal { executable, .. } => {
+        TreeValue::File { executable, .. } => {
             if *executable {
                 "executable file".to_string()
             } else {
@@ -1519,11 +1519,11 @@ fn show_color_words_diff(
                 let right_content = diff_content(repo, &path, &right_value)?;
                 let description = match (left_value, right_value) {
                     (
-                        TreeValue::Normal {
+                        TreeValue::File {
                             executable: left_executable,
                             ..
                         },
-                        TreeValue::Normal {
+                        TreeValue::File {
                             executable: right_executable,
                             ..
                         },
@@ -1592,7 +1592,7 @@ fn git_diff_part(
     let hash;
     let mut content = vec![];
     match value {
-        TreeValue::Normal { id, executable } => {
+        TreeValue::File { id, executable } => {
             mode = if *executable {
                 "100755".to_string()
             } else {

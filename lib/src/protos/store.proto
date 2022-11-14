@@ -17,13 +17,13 @@ syntax = "proto3";
 package store;
 
 message TreeValue {
-  message NormalFile {
+  message File {
     bytes id = 1;
     bool executable = 2;
   }
 
   oneof value {
-    NormalFile normal_file = 2;
+    File file = 2;
     bytes symlink_id = 3;
     bytes tree_id = 4;
     bytes conflict_id = 5;

@@ -152,7 +152,7 @@ pub fn write_normal_file(tree_builder: &mut TreeBuilder, path: &RepoPath, conten
     let id = write_file(tree_builder.store(), path, contents);
     tree_builder.set(
         path.clone(),
-        TreeValue::Normal {
+        TreeValue::File {
             id,
             executable: false,
         },
@@ -163,7 +163,7 @@ pub fn write_executable_file(tree_builder: &mut TreeBuilder, path: &RepoPath, co
     let id = write_file(tree_builder.store(), path, contents);
     tree_builder.set(
         path.clone(),
-        TreeValue::Normal {
+        TreeValue::File {
             id,
             executable: true,
         },
