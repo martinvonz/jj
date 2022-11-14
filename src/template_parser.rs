@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use chrono::{FixedOffset, TimeZone, Utc};
+use chrono::{FixedOffset, LocalResult, TimeZone, Utc};
 use jujutsu_lib::backend::{CommitId, Signature};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::op_store::WorkspaceId;
@@ -98,13 +98,21 @@ struct SignatureTimestamp;
 
 impl TemplateProperty<Signature, String> for SignatureTimestamp {
     fn extract(&self, context: &Signature) -> String {
-        let utc = Utc
-            .timestamp(
-                context.timestamp.timestamp.0.div_euclid(1000),
-                context.timestamp.timestamp.0.rem_euclid(1000) as u32 * 1000000,
-            )
-            .with_timezone(&FixedOffset::east(context.timestamp.tz_offset * 60));
-        utc.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string()
+        let utc = match Utc.timestamp_opt(
+            context.timestamp.timestamp.0.div_euclid(1000),
+            (context.timestamp.timestamp.0.rem_euclid(1000)) as u32 * 1000000,
+        ) {
+            LocalResult::None => {
+                return "<out-of-range date>".to_string();
+            }
+            LocalResult::Single(x) => x,
+            LocalResult::Ambiguous(y, _z) => y,
+        };
+        let datetime = utc.with_timezone(
+            &FixedOffset::east_opt(context.timestamp.tz_offset * 60)
+                .unwrap_or_else(|| FixedOffset::east_opt(0).unwrap()),
+        );
+        datetime.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string()
     }
 }
 

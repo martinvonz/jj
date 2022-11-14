@@ -23,7 +23,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use std::{fs, io};
 
-use chrono::{FixedOffset, TimeZone, Utc};
+use chrono::{FixedOffset, LocalResult, TimeZone, Utc};
 use clap::{ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeValue};
@@ -3537,14 +3537,24 @@ fn cmd_debug(
     Ok(())
 }
 
+// TODO: Move this somewhere where it can be reused by
+// `template_parser::SignatureTimestamp`.
 fn format_timestamp(timestamp: &Timestamp) -> String {
-    let utc = Utc
-        .timestamp(
-            timestamp.timestamp.0.div_euclid(1000),
-            (timestamp.timestamp.0.rem_euclid(1000)) as u32 * 1000000,
-        )
-        .with_timezone(&FixedOffset::east(timestamp.tz_offset * 60));
-    utc.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string()
+    let utc = match Utc.timestamp_opt(
+        timestamp.timestamp.0.div_euclid(1000),
+        (timestamp.timestamp.0.rem_euclid(1000)) as u32 * 1000000,
+    ) {
+        LocalResult::None => {
+            return "<out-of-range date>".to_string();
+        }
+        LocalResult::Single(x) => x,
+        LocalResult::Ambiguous(y, _z) => y,
+    };
+    let datetime = utc.with_timezone(
+        &FixedOffset::east_opt(timestamp.tz_offset * 60)
+            .unwrap_or_else(|| FixedOffset::east_opt(0).unwrap()),
+    );
+    datetime.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string()
 }
 
 fn cmd_op_log(
