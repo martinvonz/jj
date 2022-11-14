@@ -252,7 +252,7 @@ impl Backend for GitBackend {
                         } else {
                             (
                                 name,
-                                TreeValue::Normal {
+                                TreeValue::File {
                                     id,
                                     executable: false,
                                 },
@@ -263,7 +263,7 @@ impl Backend for GitBackend {
                         let id = FileId::from_bytes(entry.id().as_bytes());
                         (
                             name,
-                            TreeValue::Normal {
+                            TreeValue::File {
                                 id,
                                 executable: true,
                             },
@@ -292,11 +292,11 @@ impl Backend for GitBackend {
         for entry in contents.entries() {
             let name = entry.name().string();
             let (name, id, filemode) = match entry.value() {
-                TreeValue::Normal {
+                TreeValue::File {
                     id,
                     executable: false,
                 } => (name, id.as_bytes(), 0o100644),
-                TreeValue::Normal {
+                TreeValue::File {
                     id,
                     executable: true,
                 } => (name, id.as_bytes(), 0o100755),
@@ -483,7 +483,7 @@ fn conflict_part_from_json(json: &serde_json::Value) -> ConflictPart {
 
 fn tree_value_to_json(value: &TreeValue) -> serde_json::Value {
     match value {
-        TreeValue::Normal { id, executable } => serde_json::json!({
+        TreeValue::File { id, executable } => serde_json::json!({
              "file": {
                  "id": id.hex(),
                  "executable": executable,
@@ -506,7 +506,7 @@ fn tree_value_to_json(value: &TreeValue) -> serde_json::Value {
 
 fn tree_value_from_json(json: &serde_json::Value) -> TreeValue {
     if let Some(json_file) = json.get("file") {
-        TreeValue::Normal {
+        TreeValue::File {
             id: FileId::new(bytes_vec_from_json(json_file.get("id").unwrap())),
             executable: json_file.get("executable").unwrap().as_bool().unwrap(),
         }
@@ -624,14 +624,14 @@ mod tests {
                 &TreeId::from_bytes(dir_tree_id.as_bytes()),
             )
             .unwrap();
-        let mut files = dir_tree.entries();
-        let normal_file = files.next().unwrap();
-        let symlink = files.next().unwrap();
-        assert_eq!(files.next(), None);
-        assert_eq!(normal_file.name().as_str(), "normal");
+        let mut entries = dir_tree.entries();
+        let file = entries.next().unwrap();
+        let symlink = entries.next().unwrap();
+        assert_eq!(entries.next(), None);
+        assert_eq!(file.name().as_str(), "normal");
         assert_eq!(
-            normal_file.value(),
-            &TreeValue::Normal {
+            file.value(),
+            &TreeValue::File {
                 id: FileId::from_bytes(blob1.as_bytes()),
                 executable: false
             }

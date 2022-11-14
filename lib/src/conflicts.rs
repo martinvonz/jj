@@ -31,13 +31,13 @@ const CONFLICT_PLUS_LINE: &[u8] = b"+++++++\n";
 
 fn describe_conflict_part(part: &ConflictPart) -> String {
     match &part.value {
-        TreeValue::Normal {
+        TreeValue::File {
             id,
             executable: false,
         } => {
             format!("file with id {}", id.hex())
         }
-        TreeValue::Normal {
+        TreeValue::File {
             id,
             executable: true,
         } => {
@@ -75,7 +75,7 @@ fn file_parts(parts: &[ConflictPart]) -> Vec<&ConflictPart> {
         .filter(|part| {
             matches!(
                 part.value,
-                TreeValue::Normal {
+                TreeValue::File {
                     executable: false,
                     ..
                 }
@@ -85,7 +85,7 @@ fn file_parts(parts: &[ConflictPart]) -> Vec<&ConflictPart> {
 }
 
 fn get_file_contents(store: &Store, path: &RepoPath, part: &ConflictPart) -> Vec<u8> {
-    if let TreeValue::Normal {
+    if let TreeValue::File {
         id,
         executable: false,
     } = &part.value
@@ -223,7 +223,7 @@ pub fn conflict_to_materialized_value(
     let mut buf = vec![];
     materialize_conflict(store, path, conflict, &mut buf).unwrap();
     let file_id = store.write_file(path, &mut Cursor::new(&buf)).unwrap();
-    TreeValue::Normal {
+    TreeValue::File {
         id: file_id,
         executable: false,
     }
@@ -384,7 +384,7 @@ pub fn update_conflict_from_content(
         // FileIds.
         for (i, buf) in removed_content.iter().enumerate() {
             let file_id = store.write_file(path, &mut Cursor::new(buf))?;
-            if let TreeValue::Normal { id, executable: _ } = &mut conflict.removes[i].value {
+            if let TreeValue::File { id, executable: _ } = &mut conflict.removes[i].value {
                 *id = file_id;
             } else {
                 // TODO: This can actually happen. We should check earlier
@@ -395,7 +395,7 @@ pub fn update_conflict_from_content(
         }
         for (i, buf) in added_content.iter().enumerate() {
             let file_id = store.write_file(path, &mut Cursor::new(buf))?;
-            if let TreeValue::Normal { id, executable: _ } = &mut conflict.adds[i].value {
+            if let TreeValue::File { id, executable: _ } = &mut conflict.adds[i].value {
                 *id = file_id;
             } else {
                 panic!("Found conflict markers in merge of non-files");

@@ -25,26 +25,26 @@ use thrift::protocol::verify_expected_service_call;
 use thrift::protocol::verify_required_field_exists;
 
 //
-// NormalFile
+// File
 //
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct NormalFile {
+pub struct File {
   pub id: Vec<u8>,
   pub executable: bool,
 }
 
-impl NormalFile {
-  pub fn new(id: Vec<u8>, executable: bool) -> NormalFile {
-    NormalFile {
+impl File {
+  pub fn new(id: Vec<u8>, executable: bool) -> File {
+    File {
       id,
       executable,
     }
   }
 }
 
-impl TSerializable for NormalFile {
-  fn read_from_in_protocol(i_prot: &mut dyn TInputProtocol) -> thrift::Result<NormalFile> {
+impl TSerializable for File {
+  fn read_from_in_protocol(i_prot: &mut dyn TInputProtocol) -> thrift::Result<File> {
     i_prot.read_struct_begin()?;
     let mut f_1: Option<Vec<u8>> = None;
     let mut f_2: Option<bool> = None;
@@ -70,16 +70,16 @@ impl TSerializable for NormalFile {
       i_prot.read_field_end()?;
     }
     i_prot.read_struct_end()?;
-    verify_required_field_exists("NormalFile.id", &f_1)?;
-    verify_required_field_exists("NormalFile.executable", &f_2)?;
-    let ret = NormalFile {
+    verify_required_field_exists("File.id", &f_1)?;
+    verify_required_field_exists("File.executable", &f_2)?;
+    let ret = File {
       id: f_1.expect("auto-generated code should have checked for presence of required fields"),
       executable: f_2.expect("auto-generated code should have checked for presence of required fields"),
     };
     Ok(ret)
   }
   fn write_to_out_protocol(&self, o_prot: &mut dyn TOutputProtocol) -> thrift::Result<()> {
-    let struct_ident = TStructIdentifier::new("NormalFile");
+    let struct_ident = TStructIdentifier::new("File");
     o_prot.write_struct_begin(&struct_ident)?;
     o_prot.write_field_begin(&TFieldIdentifier::new("id", TType::String, 1))?;
     o_prot.write_bytes(&self.id)?;
@@ -98,7 +98,7 @@ impl TSerializable for NormalFile {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum TreeValue {
-  NormalFile(NormalFile),
+  File(File),
   SymlinkId(Vec<u8>),
   TreeId(Vec<u8>),
   ConflictId(Vec<u8>),
@@ -117,9 +117,9 @@ impl TSerializable for TreeValue {
       let field_id = field_id(&field_ident)?;
       match field_id {
         1 => {
-          let val = NormalFile::read_from_in_protocol(i_prot)?;
+          let val = File::read_from_in_protocol(i_prot)?;
           if ret.is_none() {
-            ret = Some(TreeValue::NormalFile(val));
+            ret = Some(TreeValue::File(val));
           }
           received_field_count += 1;
         },
@@ -178,8 +178,8 @@ impl TSerializable for TreeValue {
     let struct_ident = TStructIdentifier::new("TreeValue");
     o_prot.write_struct_begin(&struct_ident)?;
     match *self {
-      TreeValue::NormalFile(ref f) => {
-        o_prot.write_field_begin(&TFieldIdentifier::new("normal_file", TType::Struct, 1))?;
+      TreeValue::File(ref f) => {
+        o_prot.write_field_begin(&TFieldIdentifier::new("file", TType::Struct, 1))?;
         f.write_to_out_protocol(o_prot)?;
         o_prot.write_field_end()?;
       },

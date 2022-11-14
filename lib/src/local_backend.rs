@@ -327,9 +327,9 @@ fn tree_from_thrift(thrift_tree: &local_backend_model::Tree) -> Tree {
 
 fn tree_value_to_thrift(value: &TreeValue) -> local_backend_model::TreeValue {
     match value {
-        TreeValue::Normal { id, executable } => {
-            let file = local_backend_model::NormalFile::new(id.to_bytes(), *executable);
-            local_backend_model::TreeValue::NormalFile(file)
+        TreeValue::File { id, executable } => {
+            let file = local_backend_model::File::new(id.to_bytes(), *executable);
+            local_backend_model::TreeValue::File(file)
         }
         TreeValue::Symlink(id) => local_backend_model::TreeValue::SymlinkId(id.to_bytes()),
         TreeValue::GitSubmodule(_id) => {
@@ -342,7 +342,7 @@ fn tree_value_to_thrift(value: &TreeValue) -> local_backend_model::TreeValue {
 
 fn tree_value_from_thrift(thrift_tree_value: &local_backend_model::TreeValue) -> TreeValue {
     match thrift_tree_value {
-        local_backend_model::TreeValue::NormalFile(file) => TreeValue::Normal {
+        local_backend_model::TreeValue::File(file) => TreeValue::File {
             id: FileId::from_bytes(&file.id),
             executable: file.executable,
         },
