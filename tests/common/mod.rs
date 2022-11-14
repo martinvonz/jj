@@ -72,6 +72,8 @@ impl TestEnvironment {
         cmd.env("JJ_TIMESTAMP", timestamp.to_rfc3339());
         cmd.env("JJ_USER", "Test User");
         cmd.env("JJ_EMAIL", "test.user@example.com");
+        cmd.env("JJ_OP_HOSTNAME", "host.example.com");
+        cmd.env("JJ_OP_USERNAME", "test-username");
         cmd
     }
 

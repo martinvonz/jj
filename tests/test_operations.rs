@@ -97,7 +97,12 @@ fn test_op_log_configurable() {
         operation.username = "my-username"
         "#,
     );
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env
+        .jj_cmd(&test_env.env_root(), &["init", "repo", "--git"])
+        .env_remove("JJ_OP_HOSTNAME")
+        .env_remove("JJ_OP_USERNAME")
+        .assert()
+        .success();
     let repo_path = test_env.env_root().join("repo");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
