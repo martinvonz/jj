@@ -735,18 +735,20 @@ fn parse_function_expression(
             expect_no_arguments(name, arguments_pair)?;
             Ok(RevsetExpression::all().with_parent_count(2..u32::MAX))
         }
-        "description" | "author" | "committer" => {
+        "description" => {
             let arg = expect_one_argument(name, arguments_pair)?;
             let needle = parse_function_argument_to_string(name, arg)?;
-            let candidates = RevsetExpression::all();
-            match name {
-                "description" => Ok(candidates.with_description(needle)),
-                "author" => Ok(candidates.with_author(needle)),
-                "committer" => Ok(candidates.with_committer(needle)),
-                _ => {
-                    panic!("unexpected function name: {}", name)
-                }
-            }
+            Ok(RevsetExpression::all().with_description(needle))
+        }
+        "author" => {
+            let arg = expect_one_argument(name, arguments_pair)?;
+            let needle = parse_function_argument_to_string(name, arg)?;
+            Ok(RevsetExpression::all().with_author(needle))
+        }
+        "committer" => {
+            let arg = expect_one_argument(name, arguments_pair)?;
+            let needle = parse_function_argument_to_string(name, arg)?;
+            Ok(RevsetExpression::all().with_committer(needle))
         }
         "file" => {
             if let Some(ctx) = workspace_ctx {
