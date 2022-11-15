@@ -31,7 +31,7 @@ use thiserror::Error;
 use crate::backend::{BackendError, BackendResult, CommitId};
 use crate::commit::Commit;
 use crate::index::{HexPrefix, IndexEntry, IndexPosition, PrefixResolution, RevWalk};
-use crate::matchers::{Matcher, PrefixMatcher};
+use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use crate::op_store::WorkspaceId;
 use crate::repo::RepoRef;
 use crate::repo_path::{FsPathParseError, RepoPath};
@@ -280,6 +280,8 @@ pub enum RevsetFilterPredicate {
     Author(String),
     /// Commits with committer's name or email containing the needle.
     Committer(String),
+    /// Commits modifying no files. Equivalent to `Not(File(["."]))`.
+    Empty,
     /// Commits modifying the paths specified by the pattern.
     File(Vec<RepoPath>),
 }
@@ -726,6 +728,10 @@ fn parse_function_expression(
             Ok(RevsetExpression::filter(RevsetFilterPredicate::Committer(
                 needle,
             )))
+        }
+        "empty" => {
+            expect_no_arguments(name, arguments_pair)?;
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::Empty))
         }
         "file" => {
             if let Some(ctx) = workspace_ctx {
@@ -1589,6 +1595,12 @@ pub fn evaluate_expression<'repo>(
                         }),
                     }))
                 }
+                RevsetFilterPredicate::Empty => Ok(Box::new(FilterRevset {
+                    candidates,
+                    predicate: Box::new(move |entry| {
+                        !has_diff_from_parent(repo, entry, &EverythingMatcher)
+                    }),
+                })),
                 RevsetFilterPredicate::File(paths) => {
                     // TODO: Add support for globs and other formats
                     let matcher: Box<dyn Matcher> = Box::new(PrefixMatcher::new(paths));
@@ -1911,6 +1923,11 @@ mod tests {
                 RevsetFilterPredicate::Description("(foo)".to_string())
             ))
         );
+        assert_eq!(
+            parse("empty()"),
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::Empty))
+        );
+        assert!(parse("empty(foo)").is_err());
         assert!(parse("file()").is_err());
         assert_eq!(
             parse("file(foo)"),

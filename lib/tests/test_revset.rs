@@ -1816,6 +1816,9 @@ fn test_filter_by_diff(use_git: bool) {
     let commit3 =
         CommitBuilder::for_new_commit(&settings, vec![commit2.id().clone()], tree3.id().clone())
             .write_to_repo(mut_repo);
+    let commit4 =
+        CommitBuilder::for_new_commit(&settings, vec![commit3.id().clone()], tree3.id().clone())
+            .write_to_repo(mut_repo);
 
     // matcher API:
     let resolve = |file_path: &RepoPath| -> Vec<CommitId> {
@@ -1861,5 +1864,14 @@ fn test_filter_by_diff(use_git: bool) {
             Some(test_workspace.workspace.workspace_root()),
         ),
         vec![commit2.id().clone()]
+    );
+
+    // empty() revset, which is identical to ~file(".")
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("{}: & empty()", commit1.id().hex())
+        ),
+        vec![commit4.id().clone()]
     );
 }

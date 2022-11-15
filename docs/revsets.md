@@ -108,6 +108,8 @@ revsets (expressions) as arguments.
   email.
 * `committer(needle)`: Commits with the given string in the committer's
   name or email.
+* `empty()`: Commits modifying no files. This also includes `merges()` without
+  user modifications and `root`.
 * `file(pattern..)`: Commits modifying the paths specified by the `pattern..`.
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
   in `x` doesn't exist (e.g. is an unknown branch name.)
