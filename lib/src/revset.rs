@@ -272,10 +272,15 @@ impl error::Error for RevsetParseError {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RevsetFilterPredicate {
+    /// Commits with number of parents in the range.
     ParentCount(Range<u32>),
+    /// Commits with description containing the needle.
     Description(String),
-    Author(String),    // Matches against both name and email
-    Committer(String), // Matches against both name and email
+    /// Commits with author's name or email containing the needle.
+    Author(String),
+    /// Commits with committer's name or email containing the needle.
+    Committer(String),
+    /// Commits modifying the paths specified by the pattern.
     File(Vec<RepoPath>),
 }
 
@@ -366,6 +371,13 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::GitHead)
     }
 
+    pub fn filter(predicate: RevsetFilterPredicate) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Filter {
+            candidates: RevsetExpression::all(),
+            predicate,
+        })
+    }
+
     /// Commits in `self` that don't have descendants in `self`.
     pub fn heads(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Heads(self.clone()))
@@ -422,49 +434,6 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Range {
             roots: self.clone(),
             heads: heads.clone(),
-        })
-    }
-
-    /// Commits in `self` with number of parents in the given range.
-    pub fn with_parent_count(
-        self: &Rc<RevsetExpression>,
-        parent_count_range: Range<u32>,
-    ) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Filter {
-            candidates: self.clone(),
-            predicate: RevsetFilterPredicate::ParentCount(parent_count_range),
-        })
-    }
-
-    /// Commits in `self` with description containing `needle`.
-    pub fn with_description(self: &Rc<RevsetExpression>, needle: String) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Filter {
-            candidates: self.clone(),
-            predicate: RevsetFilterPredicate::Description(needle),
-        })
-    }
-
-    /// Commits in `self` with author's name or email containing `needle`.
-    pub fn with_author(self: &Rc<RevsetExpression>, needle: String) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Filter {
-            candidates: self.clone(),
-            predicate: RevsetFilterPredicate::Author(needle),
-        })
-    }
-
-    /// Commits in `self` with committer's name or email containing `needle`.
-    pub fn with_committer(self: &Rc<RevsetExpression>, needle: String) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Filter {
-            candidates: self.clone(),
-            predicate: RevsetFilterPredicate::Committer(needle),
-        })
-    }
-
-    /// Commits in `self` modifying the paths specified by the `pattern`.
-    pub fn with_file(self: &Rc<RevsetExpression>, paths: Vec<RepoPath>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Filter {
-            candidates: self.clone(),
-            predicate: RevsetFilterPredicate::File(paths),
         })
     }
 
@@ -733,22 +702,30 @@ fn parse_function_expression(
         }
         "merges" => {
             expect_no_arguments(name, arguments_pair)?;
-            Ok(RevsetExpression::all().with_parent_count(2..u32::MAX))
+            Ok(RevsetExpression::filter(
+                RevsetFilterPredicate::ParentCount(2..u32::MAX),
+            ))
         }
         "description" => {
             let arg = expect_one_argument(name, arguments_pair)?;
             let needle = parse_function_argument_to_string(name, arg)?;
-            Ok(RevsetExpression::all().with_description(needle))
+            Ok(RevsetExpression::filter(
+                RevsetFilterPredicate::Description(needle),
+            ))
         }
         "author" => {
             let arg = expect_one_argument(name, arguments_pair)?;
             let needle = parse_function_argument_to_string(name, arg)?;
-            Ok(RevsetExpression::all().with_author(needle))
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
+                needle,
+            )))
         }
         "committer" => {
             let arg = expect_one_argument(name, arguments_pair)?;
             let needle = parse_function_argument_to_string(name, arg)?;
-            Ok(RevsetExpression::all().with_committer(needle))
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::Committer(
+                needle,
+            )))
         }
         "file" => {
             if let Some(ctx) = workspace_ctx {
@@ -777,7 +754,7 @@ fn parse_function_expression(
                         arguments_span,
                     ))
                 } else {
-                    Ok(RevsetExpression::all().with_file(paths))
+                    Ok(RevsetExpression::filter(RevsetFilterPredicate::File(paths)))
                 }
             } else {
                 Err(RevsetParseError::new(
@@ -1762,43 +1739,6 @@ mod tests {
             })
         );
         assert_eq!(
-            foo_symbol.with_parent_count(3..5),
-            Rc::new(RevsetExpression::Filter {
-                candidates: foo_symbol.clone(),
-                predicate: RevsetFilterPredicate::ParentCount(3..5),
-            })
-        );
-        assert_eq!(
-            foo_symbol.with_description("needle".to_string()),
-            Rc::new(RevsetExpression::Filter {
-                candidates: foo_symbol.clone(),
-                predicate: RevsetFilterPredicate::Description("needle".to_string()),
-            })
-        );
-        assert_eq!(
-            foo_symbol.with_author("needle".to_string()),
-            Rc::new(RevsetExpression::Filter {
-                candidates: foo_symbol.clone(),
-                predicate: RevsetFilterPredicate::Author("needle".to_string()),
-            })
-        );
-        assert_eq!(
-            foo_symbol.with_committer("needle".to_string()),
-            Rc::new(RevsetExpression::Filter {
-                candidates: foo_symbol.clone(),
-                predicate: RevsetFilterPredicate::Committer("needle".to_string()),
-            })
-        );
-        assert_eq!(
-            foo_symbol.with_file(vec![RepoPath::from_internal_string("pattern")]),
-            Rc::new(RevsetExpression::Filter {
-                candidates: foo_symbol.clone(),
-                predicate: RevsetFilterPredicate::File(vec![RepoPath::from_internal_string(
-                    "pattern"
-                )]),
-            })
-        );
-        assert_eq!(
             foo_symbol.union(&wc_symbol),
             Rc::new(RevsetExpression::Union(
                 foo_symbol.clone(),
@@ -1881,13 +1821,16 @@ mod tests {
         // Space is allowed around infix operators and function arguments
         assert_eq!(
             parse("   description(  arg1 ) ~    file(  arg1 ,   arg2 )  ~ heads(  )  "),
-            Ok(RevsetExpression::all()
-                .with_description("arg1".to_string())
-                .minus(&RevsetExpression::all().with_file(vec![
-                    RepoPath::from_internal_string("arg1"),
-                    RepoPath::from_internal_string("arg2"),
-                ]))
-                .minus(&RevsetExpression::visible_heads()))
+            Ok(
+                RevsetExpression::filter(RevsetFilterPredicate::Description("arg1".to_string()))
+                    .minus(&RevsetExpression::filter(RevsetFilterPredicate::File(
+                        vec![
+                            RepoPath::from_internal_string("arg1"),
+                            RepoPath::from_internal_string("arg2"),
+                        ]
+                    )))
+                    .minus(&RevsetExpression::visible_heads())
+            )
         );
     }
 
@@ -1943,7 +1886,9 @@ mod tests {
         );
         assert_eq!(
             parse("description(foo)"),
-            Ok(RevsetExpression::all().with_description("foo".to_string()))
+            Ok(RevsetExpression::filter(
+                RevsetFilterPredicate::Description("foo".to_string())
+            ))
         );
         assert_eq!(
             parse("description(heads())"),
@@ -1954,24 +1899,30 @@ mod tests {
         );
         assert_eq!(
             parse("description((foo))"),
-            Ok(RevsetExpression::all().with_description("foo".to_string()))
+            Ok(RevsetExpression::filter(
+                RevsetFilterPredicate::Description("foo".to_string())
+            ))
         );
         assert_eq!(
             parse("description(\"(foo)\")"),
-            Ok(RevsetExpression::all().with_description("(foo)".to_string()))
+            Ok(RevsetExpression::filter(
+                RevsetFilterPredicate::Description("(foo)".to_string())
+            ))
         );
         assert!(parse("file()").is_err());
         assert_eq!(
             parse("file(foo)"),
-            Ok(RevsetExpression::all().with_file(vec![RepoPath::from_internal_string("foo")]))
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(vec![
+                RepoPath::from_internal_string("foo")
+            ])))
         );
         assert_eq!(
             parse("file(foo, bar, baz)"),
-            Ok(RevsetExpression::all().with_file(vec![
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(vec![
                 RepoPath::from_internal_string("foo"),
                 RepoPath::from_internal_string("bar"),
                 RepoPath::from_internal_string("baz"),
-            ]))
+            ])))
         );
     }
 
