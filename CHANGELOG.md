@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The new revset function `file(pattern..)` finds commits modifying the
   paths specified by the `pattern..`.
 
+* The new revset function `empty()` finds commits modifying no files.
+
 * It is now possible to specify configuration options on the command line
   with the new `--config-toml` global option.
 
