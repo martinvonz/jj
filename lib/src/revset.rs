@@ -1657,14 +1657,16 @@ pub fn filter_by_diff<'revset, 'repo: 'revset>(
 ) -> Box<dyn Revset<'repo> + 'revset> {
     Box::new(FilterRevset {
         candidates,
-        predicate: Box::new(move |entry| {
-            let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
-            let parents = commit.parents();
-            let from_tree = rewrite::merge_commit_trees(repo, &parents);
-            let to_tree = commit.tree();
-            from_tree.diff(&to_tree, matcher.borrow()).next().is_some()
-        }),
+        predicate: Box::new(move |entry| has_diff_from_parent(repo, entry, matcher.borrow())),
     })
+}
+
+fn has_diff_from_parent(repo: RepoRef<'_>, entry: &IndexEntry<'_>, matcher: &dyn Matcher) -> bool {
+    let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
+    let parents = commit.parents();
+    let from_tree = rewrite::merge_commit_trees(repo, &parents);
+    let to_tree = commit.tree();
+    from_tree.diff(&to_tree, matcher).next().is_some()
 }
 
 #[cfg(test)]
