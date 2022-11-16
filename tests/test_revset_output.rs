@@ -29,7 +29,7 @@ fn test_syntax_error() {
     1 | x &
       |    ^---
       |
-      = expected range_expression
+      = expected dag_range_pre_op, range_pre_op, or primary
     "###);
 }
 
