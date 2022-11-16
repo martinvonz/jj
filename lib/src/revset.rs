@@ -475,23 +475,6 @@ impl RevsetExpression {
 }
 
 fn parse_expression_rule(
-    mut pairs: Pairs<Rule>,
-    workspace_ctx: Option<&RevsetWorkspaceContext>,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let first = pairs.next().unwrap();
-    match first.as_rule() {
-        Rule::infix_expression => parse_infix_expression_rule(first.into_inner(), workspace_ctx),
-        _ => {
-            panic!(
-                "unxpected revset parse rule {:?} in: {:?}",
-                first.as_rule(),
-                first.as_str()
-            );
-        }
-    }
-}
-
-fn parse_infix_expression_rule(
     pairs: Pairs<Rule>,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
@@ -500,31 +483,15 @@ fn parse_infix_expression_rule(
             .op(Op::infix(Rule::union_op, Assoc::Left))
             .op(Op::infix(Rule::intersection_op, Assoc::Left)
                 | Op::infix(Rule::difference_op, Assoc::Left))
-    });
-    PRATT
-        .map_primary(|primary| parse_range_expression_rule(primary.into_inner(), workspace_ctx))
-        .map_infix(|lhs, op, rhs| match op.as_rule() {
-            Rule::union_op => Ok(lhs?.union(&rhs?)),
-            Rule::intersection_op => Ok(lhs?.intersection(&rhs?)),
-            Rule::difference_op => Ok(lhs?.minus(&rhs?)),
-            r => panic!("unexpected infix operator rule {r:?}"),
-        })
-        .parse(pairs)
-}
-
-fn parse_range_expression_rule(
-    pairs: Pairs<Rule>,
-    workspace_ctx: Option<&RevsetWorkspaceContext>,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    static PRATT: Lazy<PrattParser<Rule>> = Lazy::new(|| {
-        PrattParser::new()
             // Ranges can't be nested without parentheses. Associativity doesn't matter.
             .op(Op::infix(Rule::dag_range_op, Assoc::Left) | Op::infix(Rule::range_op, Assoc::Left))
             .op(Op::prefix(Rule::dag_range_pre_op) | Op::prefix(Rule::range_pre_op))
             .op(Op::postfix(Rule::dag_range_post_op) | Op::postfix(Rule::range_post_op))
+            // Neighbors
+            .op(Op::postfix(Rule::parents_op) | Op::postfix(Rule::children_op))
     });
     PRATT
-        .map_primary(|primary| parse_neighbors_expression_rule(primary.into_inner(), workspace_ctx))
+        .map_primary(|primary| parse_primary_rule(primary.into_inner(), workspace_ctx))
         .map_prefix(|op, rhs| match op.as_rule() {
             Rule::dag_range_pre_op | Rule::range_pre_op => Ok(rhs?.ancestors()),
             r => panic!("unexpected prefix operator rule {r:?}"),
@@ -532,29 +499,17 @@ fn parse_range_expression_rule(
         .map_postfix(|lhs, op| match op.as_rule() {
             Rule::dag_range_post_op => Ok(lhs?.descendants()),
             Rule::range_post_op => Ok(lhs?.range(&RevsetExpression::visible_heads())),
-            r => panic!("unexpected postfix operator rule {r:?}"),
-        })
-        .map_infix(|lhs, op, rhs| match op.as_rule() {
-            Rule::dag_range_op => Ok(lhs?.dag_range_to(&rhs?)),
-            Rule::range_op => Ok(lhs?.range(&rhs?)),
-            r => panic!("unexpected infix operator rule {r:?}"),
-        })
-        .parse(pairs)
-}
-
-fn parse_neighbors_expression_rule(
-    pairs: Pairs<Rule>,
-    workspace_ctx: Option<&RevsetWorkspaceContext>,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    static PRATT: Lazy<PrattParser<Rule>> = Lazy::new(|| {
-        PrattParser::new().op(Op::postfix(Rule::parents_op) | Op::postfix(Rule::children_op))
-    });
-    PRATT
-        .map_primary(|primary| parse_primary_rule(primary.into_inner(), workspace_ctx))
-        .map_postfix(|lhs, op| match op.as_rule() {
             Rule::parents_op => Ok(lhs?.parents()),
             Rule::children_op => Ok(lhs?.children()),
             r => panic!("unexpected postfix operator rule {r:?}"),
+        })
+        .map_infix(|lhs, op, rhs| match op.as_rule() {
+            Rule::union_op => Ok(lhs?.union(&rhs?)),
+            Rule::intersection_op => Ok(lhs?.intersection(&rhs?)),
+            Rule::difference_op => Ok(lhs?.minus(&rhs?)),
+            Rule::dag_range_op => Ok(lhs?.dag_range_to(&rhs?)),
+            Rule::range_op => Ok(lhs?.range(&rhs?)),
+            r => panic!("unexpected infix operator rule {r:?}"),
         })
         .parse(pairs)
 }
