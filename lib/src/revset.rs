@@ -857,20 +857,8 @@ pub fn parse(
     revset_str: &str,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let mut pairs = RevsetParser::parse(Rule::expression, revset_str)?;
+    let mut pairs = RevsetParser::parse(Rule::program, revset_str)?;
     let first = pairs.next().unwrap();
-    assert!(pairs.next().is_none());
-    if first.as_span().end() != revset_str.len() {
-        let pos = pest::Position::new(revset_str, first.as_span().end()).unwrap();
-        let err = pest::error::Error::new_from_pos(
-            pest::error::ErrorVariant::CustomError {
-                message: "Incomplete parse".to_string(),
-            },
-            pos,
-        );
-        return Err(RevsetParseError::from(err));
-    }
-
     parse_expression_rule(first.into_inner(), workspace_ctx)
 }
 
