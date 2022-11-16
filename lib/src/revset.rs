@@ -23,7 +23,9 @@ use std::sync::Arc;
 use std::{error, fmt};
 
 use itertools::Itertools;
+use once_cell::sync::Lazy;
 use pest::iterators::{Pair, Pairs};
+use pest::pratt_parser::{Assoc, Op, PrattParser};
 use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
@@ -490,27 +492,23 @@ fn parse_expression_rule(
 }
 
 fn parse_infix_expression_rule(
-    mut pairs: Pairs<Rule>,
+    pairs: Pairs<Rule>,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let mut expression1 =
-        parse_range_expression_rule(pairs.next().unwrap().into_inner(), workspace_ctx)?;
-    while let Some(operator) = pairs.next() {
-        let expression2 =
-            parse_range_expression_rule(pairs.next().unwrap().into_inner(), workspace_ctx)?;
-        expression1 = match operator.as_rule() {
-            Rule::union_op => expression1.union(&expression2),
-            Rule::intersection_op => expression1.intersection(&expression2),
-            Rule::difference_op => expression1.minus(&expression2),
-            _ => {
-                panic!(
-                    "unxpected revset infix operator rule {:?}",
-                    operator.as_rule()
-                );
-            }
-        }
-    }
-    Ok(expression1)
+    static PRATT: Lazy<PrattParser<Rule>> = Lazy::new(|| {
+        PrattParser::new().op(Op::infix(Rule::union_op, Assoc::Left)
+            | Op::infix(Rule::intersection_op, Assoc::Left)
+            | Op::infix(Rule::difference_op, Assoc::Left))
+    });
+    PRATT
+        .map_primary(|primary| parse_range_expression_rule(primary.into_inner(), workspace_ctx))
+        .map_infix(|lhs, op, rhs| match op.as_rule() {
+            Rule::union_op => Ok(lhs?.union(&rhs?)),
+            Rule::intersection_op => Ok(lhs?.intersection(&rhs?)),
+            Rule::difference_op => Ok(lhs?.minus(&rhs?)),
+            r => panic!("unexpected infix operator rule {r:?}"),
+        })
+        .parse(pairs)
 }
 
 fn parse_range_expression_rule(
