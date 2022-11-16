@@ -66,3 +66,5 @@ infix_expression = {
 expression = {
   whitespace* ~ infix_expression ~ whitespace*
 }
+
+program = _{ SOI ~ expression ~ EOI }

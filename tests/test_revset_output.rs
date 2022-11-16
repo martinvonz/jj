@@ -17,6 +17,23 @@ use common::TestEnvironment;
 pub mod common;
 
 #[test]
+fn test_syntax_error() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "x &"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:4
+      |
+    1 | x &
+      |    ^---
+      |
+      = expected range_expression
+    "###);
+}
+
+#[test]
 fn test_bad_function_call() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
