@@ -496,9 +496,10 @@ fn parse_infix_expression_rule(
     workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     static PRATT: Lazy<PrattParser<Rule>> = Lazy::new(|| {
-        PrattParser::new().op(Op::infix(Rule::union_op, Assoc::Left)
-            | Op::infix(Rule::intersection_op, Assoc::Left)
-            | Op::infix(Rule::difference_op, Assoc::Left))
+        PrattParser::new()
+            .op(Op::infix(Rule::union_op, Assoc::Left))
+            .op(Op::infix(Rule::intersection_op, Assoc::Left)
+                | Op::infix(Rule::difference_op, Assoc::Left))
     });
     PRATT
         .map_primary(|primary| parse_range_expression_rule(primary.into_inner(), workspace_ctx))
@@ -1847,6 +1848,11 @@ mod tests {
             parse("foo+++"),
             Ok(foo_symbol.children().children().children())
         );
+        // Set operator associativity/precedence
+        assert_eq!(parse("x|y|z").unwrap(), parse("(x|y)|z").unwrap());
+        assert_eq!(parse("x&y|z").unwrap(), parse("(x&y)|z").unwrap());
+        assert_eq!(parse("x|y&z").unwrap(), parse("x|(y&z)").unwrap());
+        assert_eq!(parse("x|y~z").unwrap(), parse("x|(y~z)").unwrap());
         // Parse repeated "ancestors"/"descendants"/"dag range"/"range" operators
         assert_eq!(parse(":foo:"), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(parse("::foo"), Err(RevsetParseErrorKind::SyntaxError));
