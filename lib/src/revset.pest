@@ -29,6 +29,7 @@ children_op = { "+" }
 
 dag_range_op = { ":" }
 range_op = { ".." }
+range_ops = _{ dag_range_op | range_op }
 
 union_op = { "|" }
 intersection_op = { "&" }
@@ -50,12 +51,9 @@ primary = {
 neighbors_expression = { primary ~ (parents_op | children_op)* }
 
 range_expression = {
-  neighbors_expression ~ dag_range_op ~ neighbors_expression
-  | neighbors_expression ~ range_op ~ neighbors_expression
-  | neighbors_expression ~ range_op
-  | dag_range_op ~ neighbors_expression
-  | range_op ~ neighbors_expression
-  | neighbors_expression ~ dag_range_op
+  neighbors_expression ~ range_ops ~ neighbors_expression
+  | neighbors_expression ~ range_ops
+  | range_ops ~ neighbors_expression
   | neighbors_expression
 }
 
