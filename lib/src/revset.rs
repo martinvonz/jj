@@ -518,7 +518,7 @@ fn parse_range_expression_rule(
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let first = pairs.next().unwrap();
     match first.as_rule() {
-        Rule::dag_range_op | Rule::range_op => {
+        Rule::dag_range_pre_op | Rule::range_pre_op => {
             return Ok(parse_neighbors_expression_rule(
                 pairs.next().unwrap().into_inner(),
                 workspace_ctx,
@@ -535,7 +535,7 @@ fn parse_range_expression_rule(
     let mut expression = parse_neighbors_expression_rule(first.into_inner(), workspace_ctx)?;
     if let Some(next) = pairs.next() {
         match next.as_rule() {
-            Rule::dag_range_op => {
+            Rule::dag_range_op | Rule::dag_range_post_op => {
                 if let Some(heads_pair) = pairs.next() {
                     let heads_expression =
                         parse_neighbors_expression_rule(heads_pair.into_inner(), workspace_ctx)?;
@@ -544,7 +544,7 @@ fn parse_range_expression_rule(
                     expression = expression.descendants();
                 }
             }
-            Rule::range_op => {
+            Rule::range_op | Rule::range_post_op => {
                 if let Some(heads_pair) = pairs.next() {
                     let heads_expression =
                         parse_neighbors_expression_rule(heads_pair.into_inner(), workspace_ctx)?;

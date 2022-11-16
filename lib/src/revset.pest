@@ -28,8 +28,14 @@ parents_op = { "-" }
 children_op = { "+" }
 
 dag_range_op = { ":" }
+dag_range_pre_op = { ":" }
+dag_range_post_op = { ":" }
 range_op = { ".." }
+range_pre_op = { ".." }
+range_post_op = { ".." }
 range_ops = _{ dag_range_op | range_op }
+range_pre_ops = _{ dag_range_pre_op | range_pre_op }
+range_post_ops = _{ dag_range_post_op | range_post_op }
 
 union_op = { "|" }
 intersection_op = { "&" }
@@ -52,8 +58,8 @@ neighbors_expression = { primary ~ (parents_op | children_op)* }
 
 range_expression = {
   neighbors_expression ~ range_ops ~ neighbors_expression
-  | neighbors_expression ~ range_ops
-  | range_ops ~ neighbors_expression
+  | neighbors_expression ~ range_post_ops
+  | range_pre_ops ~ neighbors_expression
   | neighbors_expression
 }
 
