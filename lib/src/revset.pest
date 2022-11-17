@@ -37,6 +37,7 @@ range_ops = _{ dag_range_op | range_op }
 range_pre_ops = _{ dag_range_pre_op | range_pre_op }
 range_post_ops = _{ dag_range_post_op | range_post_op }
 
+negate_op = { "~" }
 union_op = { "|" }
 intersection_op = { "&" }
 difference_op = { "~" }
@@ -68,7 +69,8 @@ range_expression = _{
 }
 
 expression = {
-  whitespace* ~ range_expression ~ whitespace* ~ (infix_op ~ whitespace* ~ range_expression ~ whitespace*)*
+  whitespace* ~ (negate_op ~ whitespace*)* ~ range_expression ~ whitespace*
+  ~ (infix_op ~ whitespace* ~ (negate_op ~ whitespace*)* ~ range_expression ~ whitespace*)*
 }
 
 program = _{ SOI ~ expression ~ EOI }

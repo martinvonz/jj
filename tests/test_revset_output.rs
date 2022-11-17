@@ -29,7 +29,7 @@ fn test_syntax_error() {
     1 | x &
       |    ^---
       |
-      = expected dag_range_pre_op, range_pre_op, or primary
+      = expected dag_range_pre_op, range_pre_op, negate_op, or primary
     "###);
 }
 

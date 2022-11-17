@@ -57,6 +57,7 @@ only symbols.
 * `x & y`: Revisions that are in both `x` and `y`.
 * `x | y`: Revisions that are in either `x` or `y` (or both).
 * `x ~ y`: Revisions that are in `x` but not in `y`.
+* `~x`: Revisions that are not in `x`.
 * `x-`: Parents of `x`.
 * `x+`: Children of `x`.
 * `:x`: Ancestors of `x`, including the commits in `x` itself.
