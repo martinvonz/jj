@@ -321,6 +321,7 @@ pub enum RevsetExpression {
         predicate: RevsetFilterPredicate,
     },
     Present(Rc<RevsetExpression>),
+    NotIn(Rc<RevsetExpression>),
     Union(Rc<RevsetExpression>, Rc<RevsetExpression>),
     Intersection(Rc<RevsetExpression>, Rc<RevsetExpression>),
     Difference(Rc<RevsetExpression>, Rc<RevsetExpression>),
@@ -441,6 +442,11 @@ impl RevsetExpression {
         })
     }
 
+    /// Commits that are not in `self`, i.e. the complement of `self`.
+    pub fn negated(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::NotIn(self.clone()))
+    }
+
     /// Commits that are in `self` or in `other` (or both).
     pub fn union(
         self: &Rc<RevsetExpression>,
@@ -483,6 +489,7 @@ fn parse_expression_rule(
             .op(Op::infix(Rule::union_op, Assoc::Left))
             .op(Op::infix(Rule::intersection_op, Assoc::Left)
                 | Op::infix(Rule::difference_op, Assoc::Left))
+            .op(Op::prefix(Rule::negate_op))
             // Ranges can't be nested without parentheses. Associativity doesn't matter.
             .op(Op::infix(Rule::dag_range_op, Assoc::Left) | Op::infix(Rule::range_op, Assoc::Left))
             .op(Op::prefix(Rule::dag_range_pre_op) | Op::prefix(Rule::range_pre_op))
@@ -493,6 +500,7 @@ fn parse_expression_rule(
     PRATT
         .map_primary(|primary| parse_primary_rule(primary.into_inner(), workspace_ctx))
         .map_prefix(|op, rhs| match op.as_rule() {
+            Rule::negate_op => Ok(rhs?.negated()),
             Rule::dag_range_pre_op | Rule::range_pre_op => Ok(rhs?.ancestors()),
             r => panic!("unexpected prefix operator rule {r:?}"),
         })
@@ -843,6 +851,9 @@ fn transform_expression_bottom_up(
             }),
             RevsetExpression::Present(candidates) => {
                 transform_rec(candidates, f).map(RevsetExpression::Present)
+            }
+            RevsetExpression::NotIn(complement) => {
+                transform_rec(complement, f).map(RevsetExpression::NotIn)
             }
             RevsetExpression::Union(expression1, expression2) => {
                 transform_rec_pair((expression1, expression2), f).map(
@@ -1546,6 +1557,11 @@ pub fn evaluate_expression<'repo>(
                 | RevsetError::StoreError(_),
             ) => r,
         },
+        RevsetExpression::NotIn(complement) => {
+            let set1 = RevsetExpression::All.evaluate(repo, workspace_ctx)?;
+            let set2 = complement.evaluate(repo, workspace_ctx)?;
+            Ok(Box::new(DifferenceRevset { set1, set2 }))
+        }
         RevsetExpression::Union(expression1, expression2) => {
             let set1 = expression1.evaluate(repo, workspace_ctx)?;
             let set2 = expression2.evaluate(repo, workspace_ctx)?;
@@ -1682,6 +1698,10 @@ mod tests {
             })
         );
         assert_eq!(
+            foo_symbol.negated(),
+            Rc::new(RevsetExpression::NotIn(foo_symbol.clone()))
+        );
+        assert_eq!(
             foo_symbol.union(&wc_symbol),
             Rc::new(RevsetExpression::Union(
                 foo_symbol.clone(),
@@ -1747,6 +1767,12 @@ mod tests {
             Ok(wc_symbol.range(&RevsetExpression::visible_heads()))
         );
         assert_eq!(parse("foo..bar"), Ok(foo_symbol.range(&bar_symbol)));
+        // Parse the "negate" operator
+        assert_eq!(parse("~ foo"), Ok(foo_symbol.negated()));
+        assert_eq!(
+            parse("~ ~~ foo"),
+            Ok(foo_symbol.negated().negated().negated())
+        );
         // Parse the "intersection" operator
         assert_eq!(parse("foo & bar"), Ok(foo_symbol.intersection(&bar_symbol)));
         // Parse the "union" operator
@@ -1791,6 +1817,11 @@ mod tests {
             Ok(foo_symbol.children().children().children())
         );
         // Set operator associativity/precedence
+        assert_eq!(parse("~x|y").unwrap(), parse("(~x)|y").unwrap());
+        assert_eq!(parse("x&~y").unwrap(), parse("x&(~y)").unwrap());
+        assert_eq!(parse("x~~y").unwrap(), parse("x~(~y)").unwrap());
+        assert_eq!(parse("x~~~y").unwrap(), parse("x~(~(~y))").unwrap());
+        assert_eq!(parse("~x:y").unwrap(), parse("~(x:y)").unwrap());
         assert_eq!(parse("x|y|z").unwrap(), parse("(x|y)|z").unwrap());
         assert_eq!(parse("x&y|z").unwrap(), parse("(x&y)|z").unwrap());
         assert_eq!(parse("x|y&z").unwrap(), parse("x|(y&z)").unwrap());
@@ -1930,6 +1961,10 @@ mod tests {
             Rc::new(RevsetExpression::Present(RevsetExpression::branches()))
         );
 
+        assert_eq!(
+            optimize(parse("~branches() & all()").unwrap()),
+            RevsetExpression::branches().negated()
+        );
         assert_eq!(
             optimize(parse("(branches() & all()) | (all() & tags())").unwrap()),
             RevsetExpression::branches().union(&RevsetExpression::tags())

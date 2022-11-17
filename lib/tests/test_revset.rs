@@ -1716,6 +1716,12 @@ fn test_evaluate_expression_difference(use_git: bool) {
     let commit4 = graph_builder.commit_with_parents(&[&commit3]);
     let commit5 = graph_builder.commit_with_parents(&[&commit2]);
 
+    // Difference from all
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), &format!("~:{}", commit5.id().hex())),
+        vec![commit4.id().clone(), commit3.id().clone()]
+    );
+
     // Difference between ancestors
     assert_eq!(
         resolve_commit_ids(
@@ -1728,6 +1734,13 @@ fn test_evaluate_expression_difference(use_git: bool) {
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
             &format!(":{} ~ :{}", commit5.id().hex(), commit4.id().hex())
+        ),
+        vec![commit5.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("~:{} & :{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![commit5.id().clone()]
     );
