@@ -1718,69 +1718,10 @@ pub fn evaluate_expression<'repo>(
         RevsetExpression::Filter {
             candidates,
             predicate,
-        } => {
-            let candidates = candidates.evaluate(repo, workspace_ctx)?;
-            match predicate {
-                RevsetFilterPredicate::ParentCount(parent_count_range) => {
-                    let parent_count_range = parent_count_range.clone();
-                    Ok(Box::new(FilterRevset {
-                        candidates,
-                        predicate: Box::new(move |entry| {
-                            parent_count_range.contains(&entry.num_parents())
-                        }),
-                    }))
-                }
-                RevsetFilterPredicate::Description(needle) => {
-                    let needle = needle.clone();
-                    Ok(Box::new(FilterRevset {
-                        candidates,
-                        predicate: Box::new(move |entry| {
-                            repo.store()
-                                .get_commit(&entry.commit_id())
-                                .unwrap()
-                                .description()
-                                .contains(needle.as_str())
-                        }),
-                    }))
-                }
-                RevsetFilterPredicate::Author(needle) => {
-                    let needle = needle.clone();
-                    // TODO: Make these functions that take a needle to search for accept some
-                    // syntax for specifying whether it's a regex and whether it's
-                    // case-sensitive.
-                    Ok(Box::new(FilterRevset {
-                        candidates,
-                        predicate: Box::new(move |entry| {
-                            let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
-                            commit.author().name.contains(needle.as_str())
-                                || commit.author().email.contains(needle.as_str())
-                        }),
-                    }))
-                }
-                RevsetFilterPredicate::Committer(needle) => {
-                    let needle = needle.clone();
-                    Ok(Box::new(FilterRevset {
-                        candidates,
-                        predicate: Box::new(move |entry| {
-                            let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
-                            commit.committer().name.contains(needle.as_str())
-                                || commit.committer().email.contains(needle.as_str())
-                        }),
-                    }))
-                }
-                RevsetFilterPredicate::Empty => Ok(Box::new(FilterRevset {
-                    candidates,
-                    predicate: Box::new(move |entry| {
-                        !has_diff_from_parent(repo, entry, &EverythingMatcher)
-                    }),
-                })),
-                RevsetFilterPredicate::File(paths) => {
-                    // TODO: Add support for globs and other formats
-                    let matcher: Box<dyn Matcher> = Box::new(PrefixMatcher::new(paths));
-                    Ok(filter_by_diff(repo, matcher, candidates))
-                }
-            }
-        }
+        } => Ok(Box::new(FilterRevset {
+            candidates: candidates.evaluate(repo, workspace_ctx)?,
+            predicate: build_predicate_fn(repo, predicate),
+        })),
         RevsetExpression::Present(candidates) => match candidates.evaluate(repo, workspace_ctx) {
             Ok(set) => Ok(set),
             Err(RevsetError::NoSuchRevision(_)) => Ok(Box::new(EagerRevset::empty())),
@@ -1834,6 +1775,55 @@ pub fn revset_for_commits<'revset, 'repo: 'revset>(
         .collect_vec();
     index_entries.sort_by_key(|b| Reverse(b.position()));
     Box::new(EagerRevset { index_entries })
+}
+
+fn build_predicate_fn<'repo>(
+    repo: RepoRef<'repo>,
+    predicate: &RevsetFilterPredicate,
+) -> Box<dyn Fn(&IndexEntry<'repo>) -> bool + 'repo> {
+    match predicate {
+        RevsetFilterPredicate::ParentCount(parent_count_range) => {
+            let parent_count_range = parent_count_range.clone();
+            Box::new(move |entry| parent_count_range.contains(&entry.num_parents()))
+        }
+        RevsetFilterPredicate::Description(needle) => {
+            let needle = needle.clone();
+            Box::new(move |entry| {
+                repo.store()
+                    .get_commit(&entry.commit_id())
+                    .unwrap()
+                    .description()
+                    .contains(needle.as_str())
+            })
+        }
+        RevsetFilterPredicate::Author(needle) => {
+            let needle = needle.clone();
+            // TODO: Make these functions that take a needle to search for accept some
+            // syntax for specifying whether it's a regex and whether it's
+            // case-sensitive.
+            Box::new(move |entry| {
+                let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
+                commit.author().name.contains(needle.as_str())
+                    || commit.author().email.contains(needle.as_str())
+            })
+        }
+        RevsetFilterPredicate::Committer(needle) => {
+            let needle = needle.clone();
+            Box::new(move |entry| {
+                let commit = repo.store().get_commit(&entry.commit_id()).unwrap();
+                commit.committer().name.contains(needle.as_str())
+                    || commit.committer().email.contains(needle.as_str())
+            })
+        }
+        RevsetFilterPredicate::Empty => {
+            Box::new(move |entry| !has_diff_from_parent(repo, entry, &EverythingMatcher))
+        }
+        RevsetFilterPredicate::File(paths) => {
+            // TODO: Add support for globs and other formats
+            let matcher: Box<dyn Matcher> = Box::new(PrefixMatcher::new(paths));
+            Box::new(move |entry| has_diff_from_parent(repo, entry, matcher.as_ref()))
+        }
+    }
 }
 
 pub fn filter_by_diff<'revset, 'repo: 'revset>(
