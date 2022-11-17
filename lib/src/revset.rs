@@ -1238,11 +1238,27 @@ fn fold_intersection_with_all(expression: &Rc<RevsetExpression>) -> Option<Rc<Re
     })
 }
 
+/// Transforms negative intersection to difference. Redundant intersections like
+/// `all() & e` should have been removed.
+fn fold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
+    transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
+        RevsetExpression::Intersection(expression1, expression2) => {
+            match (expression1.as_ref(), expression2.as_ref()) {
+                (_, RevsetExpression::NotIn(complement)) => Some(expression1.minus(complement)),
+                (RevsetExpression::NotIn(complement), _) => Some(expression2.minus(complement)),
+                _ => None,
+            }
+        }
+        _ => None,
+    })
+}
+
 /// Rewrites the given `expression` tree to reduce evaluation cost. Returns new
 /// tree.
 pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
     let expression = internalize_filter_intersection(&expression).unwrap_or(expression);
-    fold_intersection_with_all(&expression).unwrap_or(expression)
+    let expression = fold_intersection_with_all(&expression).unwrap_or(expression);
+    fold_difference(&expression).unwrap_or(expression)
 }
 
 pub trait Revset<'repo> {
@@ -2439,6 +2455,90 @@ mod tests {
             unwrap_union(&optimized).0
         ));
         assert_eq!(unwrap_union(&optimized).1.as_ref(), &RevsetExpression::Tags);
+    }
+
+    #[test]
+    fn test_optimize_difference() {
+        insta::assert_debug_snapshot!(optimize(parse("foo & ~bar").unwrap()), @r###"
+        Difference(
+            Symbol(
+                "foo",
+            ),
+            Symbol(
+                "bar",
+            ),
+        )
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("~foo & bar").unwrap()), @r###"
+        Difference(
+            Symbol(
+                "bar",
+            ),
+            Symbol(
+                "foo",
+            ),
+        )
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("~foo & bar & ~baz").unwrap()), @r###"
+        Difference(
+            Difference(
+                Symbol(
+                    "bar",
+                ),
+                Symbol(
+                    "foo",
+                ),
+            ),
+            Symbol(
+                "baz",
+            ),
+        )
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("(all() & ~foo) & bar").unwrap()), @r###"
+        Difference(
+            Symbol(
+                "bar",
+            ),
+            Symbol(
+                "foo",
+            ),
+        )
+        "###);
+
+        // Should be better than '(all() & ~foo) & (all() & ~bar)'.
+        insta::assert_debug_snapshot!(optimize(parse("~foo & ~bar").unwrap()), @r###"
+        Difference(
+            NotIn(
+                Symbol(
+                    "foo",
+                ),
+            ),
+            Symbol(
+                "bar",
+            ),
+        )
+        "###);
+    }
+
+    #[test]
+    fn test_optimize_filter_difference() {
+        // '& baz' can be moved into the filter node, and form a difference node.
+        insta::assert_debug_snapshot!(
+            optimize(parse("(author(foo) & ~bar) & baz").unwrap()), @r###"
+        Filter {
+            candidates: Difference(
+                Symbol(
+                    "baz",
+                ),
+                Symbol(
+                    "bar",
+                ),
+            ),
+            predicate: Author(
+                "foo",
+            ),
+        }
+        "###)
     }
 
     #[test]
