@@ -220,7 +220,7 @@ fn test_help() {
     let test_env = TestEnvironment::default();
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["touchup", "-h"]);
-    insta::assert_snapshot!(stdout.replace(".exe", ""), @r###"
+    insta::assert_snapshot!(stdout, @r###"
     Touch up the content changes in a revision
 
     Usage: jj touchup [OPTIONS]

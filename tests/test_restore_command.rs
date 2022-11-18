@@ -191,5 +191,12 @@ fn test_restore_interactive() {
 
     // Combining paths with -i is not yet supported
     std::fs::write(&edit_script, "").unwrap();
-    test_env.jj_cmd_cli_error(&repo_path, &["restore", "-i", "file2"]);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["restore", "-i", "file2"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The argument '--interactive' cannot be used with '[PATHS]...'
+
+    Usage: jj restore --interactive [PATHS]...
+
+    For more information try '--help'
+    "###);
 }

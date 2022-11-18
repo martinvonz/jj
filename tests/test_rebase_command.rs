@@ -40,13 +40,37 @@ fn test_rebase_invalid() {
     create_commit(&test_env, &repo_path, "b", &["a"]);
 
     // Missing destination
-    test_env.jj_cmd_cli_error(&repo_path, &["rebase"]);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["rebase"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The following required arguments were not provided:
+      --destination <DESTINATION>
+
+    Usage: jj rebase --destination <DESTINATION>
+
+    For more information try '--help'
+    "###);
 
     // Both -r and -s
-    test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-r", "a", "-s", "a", "-d", "b"]);
+    let stderr =
+        test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-r", "a", "-s", "a", "-d", "b"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The argument '--revision <REVISION>' cannot be used with '--source <SOURCE>'
+
+    Usage: jj rebase --destination <DESTINATION> --revision <REVISION>
+
+    For more information try '--help'
+    "###);
 
     // Both -b and -s
-    test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-b", "a", "-s", "a", "-d", "b"]);
+    let stderr =
+        test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-b", "a", "-s", "a", "-d", "b"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The argument '--branch <BRANCH>' cannot be used with '--source <SOURCE>'
+
+    Usage: jj rebase --destination <DESTINATION> --branch <BRANCH>
+
+    For more information try '--help'
+    "###);
 
     // Rebase onto descendant with -r
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b"]);
@@ -290,7 +314,11 @@ fn test_rebase_multiple_destinations() {
     o 
     "###);
 
-    test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "root"]);
+    let stderr =
+        test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "root"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot merge with root revision
+    "###);
 }
 
 #[test]

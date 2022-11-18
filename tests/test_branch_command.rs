@@ -19,16 +19,6 @@ use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 pub mod common;
 
 #[test]
-fn test_branch_mutually_exclusive_actions() {
-    let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
-    let repo_path = test_env.env_root().join("repo");
-
-    test_env.jj_cmd_cli_error(&repo_path, &["branch", "--forget", "--delete", "foo"]);
-    test_env.jj_cmd_cli_error(&repo_path, &["branch", "--allow-backwards", "foo"]);
-}
-
-#[test]
 fn test_branch_multiple_names() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

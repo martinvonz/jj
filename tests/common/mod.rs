@@ -83,6 +83,7 @@ impl TestEnvironment {
 
     /// Run a `jj` command, check that it failed with code 1, and return its
     /// stderr
+    #[must_use]
     pub fn jj_cmd_failure(&self, current_dir: &Path, args: &[&str]) -> String {
         let assert = self.jj_cmd(current_dir, args).assert().code(1).stdout("");
         self.normalize_output(get_stderr_string(&assert))
@@ -90,8 +91,10 @@ impl TestEnvironment {
 
     /// Run a `jj` command and check that it failed with code 2 (for invalid
     /// usage)
-    pub fn jj_cmd_cli_error(&self, current_dir: &Path, args: &[&str]) {
-        self.jj_cmd(current_dir, args).assert().code(2).stdout("");
+    #[must_use]
+    pub fn jj_cmd_cli_error(&self, current_dir: &Path, args: &[&str]) -> String {
+        let assert = self.jj_cmd(current_dir, args).assert().code(2).stdout("");
+        self.normalize_output(get_stderr_string(&assert))
     }
 
     pub fn env_root(&self) -> &Path {
@@ -157,6 +160,7 @@ impl TestEnvironment {
     }
 
     pub fn normalize_output(&self, text: String) -> String {
+        let text = text.replace("jj.exe", "jj");
         let regex = Regex::new(&format!(
             r"{}(\S+)",
             regex::escape(&self.env_root.display().to_string())

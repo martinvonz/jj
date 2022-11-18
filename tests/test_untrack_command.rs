@@ -45,12 +45,20 @@ fn test_untrack() {
 
     // Errors out when not run at the head operation
     let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack", "file1", "--at-op", "@-"]);
-    insta::assert_snapshot!(stderr.replace("jj.exe", "jj"), @r###"
+    insta::assert_snapshot!(stderr, @r###"
     Error: This command must be able to update the working copy.
     Hint: Don't use --at-op.
     "###);
     // Errors out when no path is specified
-    test_env.jj_cmd_cli_error(&repo_path, &["untrack"]);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["untrack"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The following required arguments were not provided:
+      <PATHS>...
+
+    Usage: jj untrack <PATHS>...
+
+    For more information try '--help'
+    "###);
     // Errors out when a specified file is not ignored
     let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack", "file1", "file1.bak"]);
     insta::assert_snapshot!(stderr, @r###"
