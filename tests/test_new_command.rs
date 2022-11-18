@@ -84,8 +84,14 @@ fn test_new_merge() {
     "###);
 
     // `jj merge` with less than two arguments is an error
-    test_env.jj_cmd_cli_error(&repo_path, &["merge"]);
-    test_env.jj_cmd_cli_error(&repo_path, &["merge", "main"]);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["merge"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Merge requires at least two revisions
+    "###);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["merge", "main"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Merge requires at least two revisions
+    "###);
 
     // merge with non-unique revisions
     let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "c34d"]);
@@ -94,7 +100,10 @@ fn test_new_merge() {
     "###);
 
     // merge with root
-    test_env.jj_cmd_failure(&repo_path, &["new", "@", "root"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "root"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot merge with root revision
+    "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {

@@ -46,8 +46,14 @@ fn test_alias_calls_unknown_command() {
     foo = ["nonexistent"]
     "#,
     );
-    // Should get an error about the unknown command
-    test_env.jj_cmd_cli_error(&repo_path, &["foo"]);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The subcommand 'nonexistent' wasn't recognized
+
+    Usage: jj [OPTIONS] [COMMAND]
+
+    For more information try '--help'
+    "###);
 }
 
 #[test]
