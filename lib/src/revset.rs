@@ -1223,18 +1223,24 @@ fn internalize_filter_intersection(
     })
 }
 
-/// Eliminates redundant intersection with `all()`.
-fn fold_intersection_with_all(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
-    transform_expression_bottom_up(expression, |expression| {
-        if let RevsetExpression::Intersection(expression1, expression2) = expression.as_ref() {
+/// Eliminates redundant nodes like `x & all()`, `~~x`.
+///
+/// This does not rewrite 'x & none()' to 'none()' because 'x' may be an invalid
+/// symbol.
+fn fold_redundant_expression(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
+    transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
+        RevsetExpression::NotIn(outer) => match outer.as_ref() {
+            RevsetExpression::NotIn(inner) => Some(inner.clone()),
+            _ => None,
+        },
+        RevsetExpression::Intersection(expression1, expression2) => {
             match (expression1.as_ref(), expression2.as_ref()) {
                 (_, RevsetExpression::All) => Some(expression1.clone()),
                 (RevsetExpression::All, _) => Some(expression2.clone()),
                 _ => None,
             }
-        } else {
-            None
         }
+        _ => None,
     })
 }
 
@@ -1257,7 +1263,7 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpress
 /// tree.
 pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
     let expression = internalize_filter_intersection(&expression).unwrap_or(expression);
-    let expression = fold_intersection_with_all(&expression).unwrap_or(expression);
+    let expression = fold_redundant_expression(&expression).unwrap_or(expression);
     fold_difference(&expression).unwrap_or(expression)
 }
 
@@ -2501,6 +2507,38 @@ mod tests {
             ),
             Symbol(
                 "foo",
+            ),
+        )
+        "###);
+
+        // Double/triple negates.
+        insta::assert_debug_snapshot!(optimize(parse("foo & ~~bar").unwrap()), @r###"
+        Intersection(
+            Symbol(
+                "foo",
+            ),
+            Symbol(
+                "bar",
+            ),
+        )
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("foo & ~~~bar").unwrap()), @r###"
+        Difference(
+            Symbol(
+                "foo",
+            ),
+            Symbol(
+                "bar",
+            ),
+        )
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("~(all() & ~foo) & bar").unwrap()), @r###"
+        Intersection(
+            Symbol(
+                "foo",
+            ),
+            Symbol(
+                "bar",
             ),
         )
         "###);
