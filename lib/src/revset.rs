@@ -1049,6 +1049,10 @@ pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
 pub trait Revset<'repo> {
     // All revsets currently iterate in order of descending index position
     fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo>;
+
+    fn is_empty(&self) -> bool {
+        self.iter().next().is_none()
+    }
 }
 
 pub struct RevsetIterator<'revset, 'repo: 'revset> {
