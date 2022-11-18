@@ -2023,10 +2023,12 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = repo.view().get_wc_commit_id(&workspace_id);
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let mut revset = workspace_command.evaluate_revset(&revset_expression)?;
-    if !args.paths.is_empty() {
-        revset = revset::filter_by_diff(repo.as_repo_ref(), matcher.as_ref(), revset);
-    }
+    let revset = workspace_command.evaluate_revset(&revset_expression)?;
+    let revset = if !args.paths.is_empty() {
+        revset::filter_by_diff(repo.as_repo_ref(), matcher.as_ref(), revset)
+    } else {
+        revset
+    };
 
     let store = repo.store();
     let diff_format = (args.patch || args.diff_format.git || args.diff_format.summary)
@@ -2042,94 +2044,115 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         &template_string,
     );
 
-    let mut formatter = ui.stdout_formatter();
-    let mut formatter = formatter.as_mut();
-    formatter.add_label("log")?;
+    {
+        let mut formatter = ui.stdout_formatter();
+        let mut formatter = formatter.as_mut();
+        formatter.add_label("log")?;
 
-    if !args.no_graph {
-        let mut graph = AsciiGraphDrawer::new(&mut formatter);
-        let iter: Box<dyn Iterator<Item = (IndexEntry, Vec<RevsetGraphEdge>)>> = if args.reversed {
-            Box::new(revset.iter().graph().reversed())
-        } else {
-            Box::new(revset.iter().graph())
-        };
-        for (index_entry, edges) in iter {
-            let mut graphlog_edges = vec![];
-            // TODO: Should we update RevsetGraphIterator to yield this flag instead of all
-            // the missing edges since we don't care about where they point here
-            // anyway?
-            let mut has_missing = false;
-            for edge in edges {
-                match edge.edge_type {
-                    RevsetGraphEdgeType::Missing => {
-                        has_missing = true;
-                    }
-                    RevsetGraphEdgeType::Direct => graphlog_edges.push(Edge::Present {
-                        direct: true,
-                        target: edge.target,
-                    }),
-                    RevsetGraphEdgeType::Indirect => graphlog_edges.push(Edge::Present {
-                        direct: false,
-                        target: edge.target,
-                    }),
-                }
-            }
-            if has_missing {
-                graphlog_edges.push(Edge::Missing);
-            }
-            let mut buffer = vec![];
-            let commit_id = index_entry.commit_id();
-            let commit = store.get_commit(&commit_id)?;
-            let is_checkout = Some(&commit_id) == checkout_id;
-            {
-                let mut formatter = ui.new_formatter(&mut buffer);
-                if is_checkout {
-                    formatter.with_label("working_copy", |formatter| {
-                        template.format(&commit, formatter)
-                    })?;
+        if !args.no_graph {
+            let mut graph = AsciiGraphDrawer::new(&mut formatter);
+            let iter: Box<dyn Iterator<Item = (IndexEntry, Vec<RevsetGraphEdge>)>> =
+                if args.reversed {
+                    Box::new(revset.iter().graph().reversed())
                 } else {
-                    template.format(&commit, formatter.as_mut())?;
+                    Box::new(revset.iter().graph())
+                };
+            for (index_entry, edges) in iter {
+                let mut graphlog_edges = vec![];
+                // TODO: Should we update RevsetGraphIterator to yield this flag instead of all
+                // the missing edges since we don't care about where they point here
+                // anyway?
+                let mut has_missing = false;
+                for edge in edges {
+                    match edge.edge_type {
+                        RevsetGraphEdgeType::Missing => {
+                            has_missing = true;
+                        }
+                        RevsetGraphEdgeType::Direct => graphlog_edges.push(Edge::Present {
+                            direct: true,
+                            target: edge.target,
+                        }),
+                        RevsetGraphEdgeType::Indirect => graphlog_edges.push(Edge::Present {
+                            direct: false,
+                            target: edge.target,
+                        }),
+                    }
+                }
+                if has_missing {
+                    graphlog_edges.push(Edge::Missing);
+                }
+                let mut buffer = vec![];
+                let commit_id = index_entry.commit_id();
+                let commit = store.get_commit(&commit_id)?;
+                let is_checkout = Some(&commit_id) == checkout_id;
+                {
+                    let mut formatter = ui.new_formatter(&mut buffer);
+                    if is_checkout {
+                        formatter.with_label("working_copy", |formatter| {
+                            template.format(&commit, formatter)
+                        })?;
+                    } else {
+                        template.format(&commit, formatter.as_mut())?;
+                    }
+                }
+                if !buffer.ends_with(b"\n") {
+                    buffer.push(b'\n');
+                }
+                if let Some(diff_format) = diff_format {
+                    let mut formatter = ui.new_formatter(&mut buffer);
+                    show_patch(
+                        formatter.as_mut(),
+                        &workspace_command,
+                        &commit,
+                        matcher.as_ref(),
+                        diff_format,
+                    )?;
+                }
+                let node_symbol = if is_checkout { b"@" } else { b"o" };
+                graph.add_node(
+                    &index_entry.position(),
+                    &graphlog_edges,
+                    node_symbol,
+                    &buffer,
+                )?;
+            }
+        } else {
+            let iter: Box<dyn Iterator<Item = IndexEntry>> = if args.reversed {
+                Box::new(revset.iter().reversed())
+            } else {
+                Box::new(revset.iter())
+            };
+            for index_entry in iter {
+                let commit = store.get_commit(&index_entry.commit_id())?;
+                template.format(&commit, formatter)?;
+                if let Some(diff_format) = diff_format {
+                    show_patch(
+                        formatter,
+                        &workspace_command,
+                        &commit,
+                        matcher.as_ref(),
+                        diff_format,
+                    )?;
                 }
             }
-            if !buffer.ends_with(b"\n") {
-                buffer.push(b'\n');
-            }
-            if let Some(diff_format) = diff_format {
-                let mut formatter = ui.new_formatter(&mut buffer);
-                show_patch(
-                    formatter.as_mut(),
-                    &workspace_command,
-                    &commit,
-                    matcher.as_ref(),
-                    diff_format,
-                )?;
-            }
-            let node_symbol = if is_checkout { b"@" } else { b"o" };
-            graph.add_node(
-                &index_entry.position(),
-                &graphlog_edges,
-                node_symbol,
-                &buffer,
-            )?;
         }
-    } else {
-        let iter: Box<dyn Iterator<Item = IndexEntry>> = if args.reversed {
-            Box::new(revset.iter().reversed())
-        } else {
-            Box::new(revset.iter())
-        };
-        for index_entry in iter {
-            let commit = store.get_commit(&index_entry.commit_id())?;
-            template.format(&commit, formatter)?;
-            if let Some(diff_format) = diff_format {
-                show_patch(
-                    formatter,
-                    &workspace_command,
-                    &commit,
-                    matcher.as_ref(),
-                    diff_format,
-                )?;
-            }
+    }
+
+    // Check to see if the user might have specified a path when they intended
+    // to specify a revset.
+    if let (None, [only_path]) = (&args.revisions, args.paths.as_slice()) {
+        if only_path == "." && workspace_command.parse_file_path(only_path)?.is_root() {
+            // For users of e.g. Mercurial, where `.` indicates the current commit.
+            ui.write_warn(&format!(
+                "warning: The argument {only_path:?} is being interpreted as a path, but this is \
+                 often not useful because all non-empty commits touch '.'.  If you meant to show \
+                 the working copy commit, pass -r '@' instead.\n"
+            ))?;
+        } else if revset.is_empty() && revset::parse(only_path, None).is_ok() {
+            ui.write_warn(&format!(
+                "warning: The argument {only_path:?} is being interpreted as a path. To specify a \
+                 revset, pass -r {only_path:?} instead.\n"
+            ))?;
         }
     }
 

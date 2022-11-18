@@ -64,6 +64,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj git` subcommands now support credential helpers.
 
+* `jj log` will warn if it appears that the provided path was meant to be a
+  revset.
+
 ### Fixed bugs
 
 * (#463) A bug in the export of branches to Git caused spurious conflicted

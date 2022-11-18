@@ -53,6 +53,7 @@ use crate::formatter::Formatter;
 use crate::templater::TemplateFormatter;
 use crate::ui::{ColorChoice, Ui};
 
+#[derive(Debug)]
 pub enum CommandError {
     UserError {
         message: String,
