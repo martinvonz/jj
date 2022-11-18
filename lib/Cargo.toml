@@ -35,7 +35,7 @@ pest_derive = "2.4.1"
 protobuf = { version = "3.0.1", features = ["with-bytes"] }
 rand = "0.8.5"
 regex = "1.7.0"
-serde_json = "1.0.87"
+serde_json = "1.0.88"
 tempfile = "3.3.0"
 thiserror = "1.0.37"
 # thrift v0.17.0 (specified by hash for security reasons)
