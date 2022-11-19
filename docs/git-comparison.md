@@ -227,6 +227,11 @@ parent.
       <td><code>git add -p; git commit --amend</code></td>
     </tr>
     <tr>
+      <td>Move the diff in the working copy into an ancestor</td>
+      <td><code>jj move --to X</code></td>
+      <td><code>git commit --fixup=X; git rebase -i --autosquash X^</code></td>
+    </tr>
+    <tr>
       <td>Interactively move part of the diff in an arbitrary change to another
           arbitrary change</td>
       <td><code>jj move -i --from X --to Y</code></td>
