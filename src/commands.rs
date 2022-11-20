@@ -3991,6 +3991,7 @@ fn cmd_git_remote_list(
     Ok(())
 }
 
+#[tracing::instrument(skip(ui, command))]
 fn cmd_git_fetch(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -4218,12 +4219,15 @@ fn decode_assuan_data(encoded: &str) -> Option<String> {
     String::from_utf8(decoded).ok()
 }
 
+#[tracing::instrument]
 fn get_ssh_key(_username: &str) -> Option<PathBuf> {
     let home_dir = std::env::var("HOME").ok()?;
     let key_path = std::path::Path::new(&home_dir).join(".ssh").join("id_rsa");
     if key_path.is_file() {
+        tracing::debug!(path = ?key_path, "found ssh key");
         Some(key_path)
     } else {
+        tracing::debug!(path = ?key_path, "no ssh key found");
         None
     }
 }
