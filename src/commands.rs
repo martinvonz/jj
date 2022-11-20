@@ -4548,7 +4548,7 @@ fn cmd_git(
 
 pub fn default_app() -> clap::Command {
     let app: clap::Command = Commands::augment_subcommands(Args::command());
-    app.arg_required_else_help(true)
+    app.arg_required_else_help(true).subcommand_required(true)
 }
 
 pub fn run_command(

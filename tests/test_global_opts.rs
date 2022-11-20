@@ -43,6 +43,21 @@ fn test_non_utf8_arg() {
 }
 
 #[test]
+fn test_no_subcommand() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_cli_error(test_env.env_root(), &[]);
+    test_env.jj_cmd_cli_error(test_env.env_root(), &["-R."]);
+
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--version"]);
+    insta::assert_snapshot!(stdout.replace(|c: char| c.is_ascii_digit(), "?"), @r###"
+    jj ?.?.?
+    "###);
+
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--help"]);
+    insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Jujutsu (An experimental VCS)");
+}
+
+#[test]
 fn test_no_commit_working_copy() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
