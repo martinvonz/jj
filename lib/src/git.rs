@@ -553,7 +553,12 @@ impl<'a> RemoteCallbacks<'a> {
         // TODO: We should expose the callbacks to the caller instead -- the library
         // crate shouldn't read environment variables.
         callbacks.credentials(move |url, username_from_url, allowed_types| {
-            if let Some(username) = username_from_url {
+            let git_config = git2::Config::open_default();
+            let credential_helper = git_config
+                .and_then(|conf| git2::Cred::credential_helper(&conf, url, username_from_url));
+            if let Ok(creds) = credential_helper {
+                return Ok(creds);
+            } else if let Some(username) = username_from_url {
                 if allowed_types.contains(git2::CredentialType::SSH_KEY) {
                     if std::env::var("SSH_AUTH_SOCK").is_ok()
                         || std::env::var("SSH_AGENT_PID").is_ok()
