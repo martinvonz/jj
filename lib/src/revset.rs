@@ -1393,11 +1393,20 @@ pub fn evaluate_expression<'repo>(
 ) -> Result<Box<dyn Revset<'repo> + 'repo>, RevsetError> {
     match expression {
         RevsetExpression::None => Ok(Box::new(EagerRevset::empty())),
-        RevsetExpression::All => evaluate_expression(
-            repo,
-            &RevsetExpression::visible_heads().ancestors(),
-            workspace_ctx,
-        ),
+        RevsetExpression::All => {
+            // Since `all()` does not include hidden commits, some of the logical
+            // transformation rules may subtly change the evaluated set. For example,
+            // `all() & x` is not `x` if `x` is hidden. This wouldn't matter in practice,
+            // but if it does, the heads set could be extended to include the commits
+            // (and `remote_branches()`) specified in the revset expression. Alternatively,
+            // some optimization rules could be removed, but that means `author(_) & x`
+            // would have to test `:heads() & x`.
+            evaluate_expression(
+                repo,
+                &RevsetExpression::visible_heads().ancestors(),
+                workspace_ctx,
+            )
+        }
         RevsetExpression::Commits(commit_ids) => Ok(revset_for_commit_ids(repo, commit_ids)),
         RevsetExpression::Symbol(symbol) => {
             let commit_ids = resolve_symbol(repo, symbol, workspace_ctx.map(|c| c.workspace_id))?;
