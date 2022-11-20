@@ -67,6 +67,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj log` will warn if it appears that the provided path was meant to be a
   revset.
 
+* The new global flag `-v/--verbose` will turn on debug logging to give
+  some additional insight into what is happening behind the scenes. 
+  Note: This is not comprehensively supported by all operations yet.
+
 ### Fixed bugs
 
 * (#463) A bug in the export of branches to Git caused spurious conflicted

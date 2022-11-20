@@ -1202,6 +1202,9 @@ pub struct GlobalArgs {
         help_heading = "Global Options"
     )]
     pub config_toml: Vec<String>,
+    /// Enable verbose logging
+    #[arg(long, short = 'v', global = true, help_heading = "Global Options")]
+    pub verbose: bool,
 }
 
 pub fn create_ui() -> (Ui, Result<(), CommandError>) {
