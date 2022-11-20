@@ -1891,6 +1891,12 @@ mod tests {
             })
         );
         assert_eq!(
+            parse(r#"description("")"#),
+            Ok(RevsetExpression::filter(
+                RevsetFilterPredicate::Description("".to_string())
+            ))
+        );
+        assert_eq!(
             parse("description(foo)"),
             Ok(RevsetExpression::filter(
                 RevsetFilterPredicate::Description("foo".to_string())

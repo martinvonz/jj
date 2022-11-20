@@ -102,6 +102,12 @@ fn test_resolve_symbol_commit_id() {
         Ok(vec![commits[2].id().clone()])
     );
 
+    // Test empty commit id
+    assert_eq!(
+        resolve_symbol(repo_ref, "", None),
+        Err(RevsetError::AmbiguousCommitIdPrefix("".to_string()))
+    );
+
     // Test commit id prefix
     assert_eq!(
         resolve_symbol(repo_ref, "046", None),
