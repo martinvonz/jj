@@ -323,6 +323,7 @@ pub enum GitFetchError {
     InternalGitError(#[from] git2::Error),
 }
 
+#[tracing::instrument(skip(mut_repo, git_repo, callbacks))]
 pub fn fetch(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
@@ -348,8 +349,11 @@ pub fn fetch(
     let callbacks = callbacks.into_git();
     fetch_options.remote_callbacks(callbacks);
     let refspec: &[&str] = &[];
+    tracing::debug!("remote.download");
     remote.download(refspec, Some(&mut fetch_options))?;
+    tracing::debug!("remote.update_tips");
     remote.update_tips(None, false, git2::AutotagOption::Unspecified, None)?;
+    tracing::debug!("remote.prune");
     remote.prune(None)?;
     // TODO: We could make it optional to get the default branch since we only care
     // about it on clone.
@@ -359,11 +363,14 @@ pub fn fetch(
             // LocalBranch here is the local branch on the remote, so it's really the remote
             // branch
             if let Some(RefName::LocalBranch(branch_name)) = parse_git_ref(default_ref) {
+                tracing::debug!(default_branch = branch_name);
                 default_branch = Some(branch_name);
             }
         }
     }
+    tracing::debug!("remote.disconnect");
     remote.disconnect()?;
+    tracing::debug!("import_refs");
     import_refs(mut_repo, git_repo).map_err(|err| match err {
         GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
     })?;
@@ -553,38 +560,70 @@ impl<'a> RemoteCallbacks<'a> {
         // TODO: We should expose the callbacks to the caller instead -- the library
         // crate shouldn't read environment variables.
         callbacks.credentials(move |url, username_from_url, allowed_types| {
+            let span = tracing::debug_span!("RemoteCallbacks.credentials");
+            let _ = span.enter();
+
             let git_config = git2::Config::open_default();
             let credential_helper = git_config
                 .and_then(|conf| git2::Cred::credential_helper(&conf, url, username_from_url));
             if let Ok(creds) = credential_helper {
+                tracing::debug!("using credential_helper");
                 return Ok(creds);
             } else if let Some(username) = username_from_url {
                 if allowed_types.contains(git2::CredentialType::SSH_KEY) {
-                    if std::env::var("SSH_AUTH_SOCK").is_ok()
-                        || std::env::var("SSH_AGENT_PID").is_ok()
+                    if let Some((ssh_auth_sock, ssh_agent_pid)) = std::env::var("SSH_AUTH_SOCK")
+                        .ok()
+                        .zip(std::env::var("SSH_AGENT_PID").ok())
                     {
-                        return git2::Cred::ssh_key_from_agent(username);
+                        tracing::debug!(
+                            username,
+                            ssh_auth_sock,
+                            ssh_agent_pid,
+                            "using ssh_key_from_agent"
+                        );
+                        return git2::Cred::ssh_key_from_agent(username).map_err(|err| {
+                            tracing::error!(err = %err);
+                            err
+                        });
                     }
                     if let Some(ref mut cb) = self.get_ssh_key {
                         if let Some(path) = cb(username) {
-                            return git2::Cred::ssh_key(username, None, &path, None);
+                            tracing::debug!(username, path = ?path, "using ssh_key");
+                            return git2::Cred::ssh_key(username, None, &path, None).map_err(
+                                |err| {
+                                    tracing::error!(err = %err);
+                                    err
+                                },
+                            );
                         }
                     }
                 }
                 if allowed_types.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
                     if let Some(ref mut cb) = self.get_password {
                         if let Some(pw) = cb(url, username) {
-                            return git2::Cred::userpass_plaintext(username, &pw);
+                            tracing::debug!(
+                                username,
+                                "using userpass_plaintext with username from url"
+                            );
+                            return git2::Cred::userpass_plaintext(username, &pw).map_err(|err| {
+                                tracing::error!(err = %err);
+                                err
+                            });
                         }
                     }
                 }
             } else if allowed_types.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
                 if let Some(ref mut cb) = self.get_username_password {
                     if let Some((username, pw)) = cb(url) {
-                        return git2::Cred::userpass_plaintext(&username, &pw);
+                        tracing::debug!(username, "using userpass_plaintext");
+                        return git2::Cred::userpass_plaintext(&username, &pw).map_err(|err| {
+                            tracing::error!(err = %err);
+                            err
+                        });
                     }
                 }
             }
+            tracing::debug!("using default");
             git2::Cred::default()
         });
         callbacks
