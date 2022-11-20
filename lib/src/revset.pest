@@ -21,7 +21,7 @@ symbol = {
   identifier
   | literal_string
 }
-literal_string = { "\"" ~ (!"\"" ~ ANY)+ ~ "\"" }
+literal_string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
 whitespace = _{ " " }
 
 parents_op = { "-" }
