@@ -62,6 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The username and hostname that appear in the operation log are now
   configurable via config options `operation.username` and `operation.hostname`.
 
+* `jj git` subcommands now support credential helpers.
+
 ### Fixed bugs
 
 * (#463) A bug in the export of branches to Git caused spurious conflicted
