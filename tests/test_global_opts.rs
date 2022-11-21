@@ -45,8 +45,12 @@ fn test_non_utf8_arg() {
 #[test]
 fn test_no_subcommand() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_cli_error(test_env.env_root(), &[]);
-    test_env.jj_cmd_cli_error(test_env.env_root(), &["-R."]);
+
+    let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &[]);
+    insta::assert_snapshot!(stderr.lines().next().unwrap(), @"Jujutsu (An experimental VCS)");
+
+    let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["-R."]);
+    insta::assert_snapshot!(stderr.lines().next().unwrap(), @"error: 'jj' requires a subcommand but one was not provided");
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--version"]);
     insta::assert_snapshot!(stdout.replace(|c: char| c.is_ascii_digit(), "?"), @r###"
