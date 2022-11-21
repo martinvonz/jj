@@ -50,7 +50,7 @@ fn test_alias_calls_unknown_command() {
     insta::assert_snapshot!(stderr, @r###"
     error: The subcommand 'nonexistent' wasn't recognized
 
-    Usage: jj [OPTIONS] [COMMAND]
+    Usage: jj [OPTIONS] <COMMAND>
 
     For more information try '--help'
     "###);
