@@ -752,14 +752,7 @@ impl WorkspaceCommandHelper {
         right_tree: &Tree,
         instructions: &str,
     ) -> Result<TreeId, DiffEditError> {
-        crate::diff_edit::edit_diff(
-            ui,
-            &self.settings,
-            left_tree,
-            right_tree,
-            instructions,
-            self.base_ignores(),
-        )
+        crate::diff_edit::edit_diff(ui, left_tree, right_tree, instructions, self.base_ignores())
     }
 
     pub fn select_diff(
@@ -774,7 +767,6 @@ impl WorkspaceCommandHelper {
         if interactive {
             Ok(crate::diff_edit::edit_diff(
                 ui,
-                &self.settings,
                 left_tree,
                 right_tree,
                 instructions,
