@@ -970,15 +970,26 @@ impl PartialOrd for IndexEntryByGeneration<'_> {
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct RevWalkWorkItem<'a> {
     entry: IndexEntryByPosition<'a>,
-    wanted: bool,
+    state: RevWalkWorkItemState,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum RevWalkWorkItemState {
+    // Order matters: Unwanted should appear earlier in the max-heap.
+    Wanted,
+    Unwanted,
+}
+
+impl RevWalkWorkItem<'_> {
+    fn is_wanted(&self) -> bool {
+        self.state == RevWalkWorkItemState::Wanted
+    }
 }
 
 #[derive(Clone)]
 pub struct RevWalk<'a> {
     index: CompositeIndex<'a>,
     items: BinaryHeap<RevWalkWorkItem<'a>>,
-    wanted_boundary_set: HashSet<IndexPosition>,
-    unwanted_boundary_set: HashSet<IndexPosition>,
 }
 
 impl<'a> RevWalk<'a> {
@@ -986,29 +997,35 @@ impl<'a> RevWalk<'a> {
         Self {
             index,
             items: BinaryHeap::new(),
-            wanted_boundary_set: HashSet::new(),
-            unwanted_boundary_set: HashSet::new(),
         }
     }
 
     fn add_wanted(&mut self, pos: IndexPosition) {
-        if !self.wanted_boundary_set.insert(pos) {
-            return;
-        }
         self.items.push(RevWalkWorkItem {
             entry: IndexEntryByPosition(self.index.entry_by_pos(pos)),
-            wanted: true,
+            state: RevWalkWorkItemState::Wanted,
         });
     }
 
     fn add_unwanted(&mut self, pos: IndexPosition) {
-        if !self.unwanted_boundary_set.insert(pos) {
-            return;
-        }
         self.items.push(RevWalkWorkItem {
             entry: IndexEntryByPosition(self.index.entry_by_pos(pos)),
-            wanted: false,
+            state: RevWalkWorkItemState::Unwanted,
         });
+    }
+
+    fn pop_eq(&mut self, entry: &IndexEntry<'_>) -> Option<RevWalkWorkItem<'a>> {
+        if let Some(x) = self.items.peek() {
+            (&x.entry.0 == entry).then(|| self.items.pop().unwrap())
+        } else {
+            None
+        }
+    }
+
+    fn skip_while_eq(&mut self, entry: &IndexEntry<'_>) {
+        while self.pop_eq(entry).is_some() {
+            continue;
+        }
     }
 }
 
@@ -1017,17 +1034,13 @@ impl<'a> Iterator for RevWalk<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(item) = self.items.pop() {
-            if item.wanted {
-                self.wanted_boundary_set.remove(&item.entry.0.pos);
-                if self.unwanted_boundary_set.contains(&item.entry.0.pos) {
-                    continue;
-                }
+            self.skip_while_eq(&item.entry.0);
+            if item.is_wanted() {
                 for parent_pos in item.entry.0.parent_positions() {
                     self.add_wanted(parent_pos);
                 }
                 return Some(item.entry.0);
             } else {
-                self.unwanted_boundary_set.remove(&item.entry.0.pos);
                 for parent_pos in item.entry.0.parent_positions() {
                     self.add_unwanted(parent_pos);
                 }
