@@ -28,6 +28,7 @@ pub struct Transaction {
     repo: Option<MutableRepo>,
     parent_ops: Vec<Operation>,
     op_metadata: OperationMetadata,
+    end_time: Option<Timestamp>,
 }
 
 impl Transaction {
@@ -38,10 +39,12 @@ impl Transaction {
     ) -> Transaction {
         let parent_ops = vec![mut_repo.base_repo().operation().clone()];
         let op_metadata = create_op_metadata(user_settings, description.to_string());
+        let end_time = user_settings.operation_timestamp();
         Transaction {
             repo: Some(mut_repo),
             parent_ops,
             op_metadata,
+            end_time,
         }
     }
 
@@ -97,7 +100,7 @@ impl Transaction {
         let index = base_repo.index_store().write_index(mut_index).unwrap();
 
         let view_id = base_repo.op_store().write_view(view.store_view()).unwrap();
-        self.op_metadata.end_time = Timestamp::now();
+        self.op_metadata.end_time = self.end_time.unwrap_or_else(Timestamp::now);
         let parents = self.parent_ops.iter().map(|op| op.id().clone()).collect();
         let store_operation = op_store::Operation {
             view_id,
@@ -119,7 +122,9 @@ impl Transaction {
 }
 
 pub fn create_op_metadata(user_settings: &UserSettings, description: String) -> OperationMetadata {
-    let start_time = Timestamp::now();
+    let start_time = user_settings
+        .operation_timestamp()
+        .unwrap_or_else(Timestamp::now);
     let end_time = start_time.clone();
     let hostname = user_settings.operation_hostname();
     let username = user_settings.operation_username();
