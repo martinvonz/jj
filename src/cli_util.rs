@@ -1501,6 +1501,13 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
                 inner.render().to_string()
             };
 
+            match inner.kind() {
+                clap::error::ErrorKind::DisplayHelp
+                | clap::error::ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => {
+                    ui.request_pager()
+                }
+                _ => {}
+            };
             // Definitions for exit codes and streams come from
             // https://github.com/clap-rs/clap/blob/master/src/error/mod.rs
             match inner.kind() {
