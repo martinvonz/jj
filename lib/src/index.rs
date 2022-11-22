@@ -1102,6 +1102,52 @@ impl<'a> Iterator for RevWalk<'a> {
     }
 }
 
+#[derive(Clone)]
+pub struct RevWalkGenerationRange<'a> {
+    queue: RevWalkQueue<'a, u32>,
+}
+
+impl<'a> Iterator for RevWalkGenerationRange<'a> {
+    type Item = IndexEntry<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(item) = self.queue.pop() {
+            if let RevWalkWorkItemState::Wanted(mut known_gen) = item.state {
+                self.queue.push_wanted_parents(&item.entry.0, known_gen + 1);
+                while let Some(x) = self.queue.pop_eq(&item.entry.0) {
+                    // For wanted item, simply track all generation chains. This can
+                    // be optimized if the wanted range is just upper/lower bounded.
+                    // If the range is fully bounded and if the range is wide, we
+                    // can instead extend 'gen' to a range of the same width, and
+                    // merge overlapping generation ranges.
+                    match x.state {
+                        RevWalkWorkItemState::Wanted(gen) if known_gen != gen => {
+                            self.queue.push_wanted_parents(&item.entry.0, gen + 1);
+                            known_gen = gen;
+                        }
+                        RevWalkWorkItemState::Wanted(_) => {}
+                        RevWalkWorkItemState::Unwanted => unreachable!(),
+                    }
+                }
+                return Some(item.entry.0);
+            } else if self.queue.items.len() == self.queue.unwanted_count {
+                // No more wanted entries to walk
+                debug_assert!(!self.queue.items.iter().any(|x| x.is_wanted()));
+                return None;
+            } else {
+                self.queue.skip_while_eq(&item.entry.0);
+                self.queue.push_unwanted_parents(&item.entry.0);
+            }
+        }
+
+        debug_assert_eq!(
+            self.queue.items.iter().filter(|x| !x.is_wanted()).count(),
+            self.queue.unwanted_count
+        );
+        None
+    }
+}
+
 impl IndexSegment for ReadonlyIndex {
     fn segment_num_parent_commits(&self) -> u32 {
         self.num_parent_commits
