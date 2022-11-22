@@ -42,6 +42,7 @@ config = { version = "0.13.3", default-features = false, features = ["toml"] }
 crossterm = { version = "0.25", default-features = false }
 dirs = "4.0.0"
 git2 = "0.15.0"
+glob = "0.3.0"
 hex = "0.4.3"
 itertools = "0.10.5"
 jujutsu-lib = { version = "=0.6.1", path = "lib", default-features = false }
