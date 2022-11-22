@@ -58,6 +58,48 @@ fn test_branch_empty_name() {
     For more information try '--help'
     "###);
 }
+#[test]
+fn test_branch_forget_glob() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo-1"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "bar-2"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo-3"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "set", "foo-4"]);
+
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @ bar-2 foo-1 foo-3 foo-4 230dd059e1b0
+    o  000000000000
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "forget", "--glob", "foo-[1-3]"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @ bar-2 foo-4 230dd059e1b0
+    o  000000000000
+    "###);
+
+    // Forgetting a branch via both explicit name and glob pattern, or with
+    // multiple glob patterns, shouldn't produce an error.
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "branch", "forget", "foo-4", "--glob", "foo-*", "--glob", "foo-*",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @ bar-2 230dd059e1b0
+    o  000000000000
+    "###);
+
+    // Malformed glob
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "forget", "--glob", "foo-[1-3"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to compile glob: Pattern syntax error near position 4: invalid range pattern
+    "###);
+}
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     test_env.jj_cmd_success(cwd, &["log", "-T", r#"branches " " commit_id.short()"#])
