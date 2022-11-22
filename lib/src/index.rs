@@ -19,7 +19,7 @@ use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io;
 use std::io::{Cursor, Read, Write};
-use std::ops::Bound;
+use std::ops::{Bound, Range};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -980,9 +980,19 @@ enum RevWalkWorkItemState<T> {
     Unwanted,
 }
 
-impl<T> RevWalkWorkItem<'_, T> {
+impl<'a, T> RevWalkWorkItem<'a, T> {
     fn is_wanted(&self) -> bool {
         matches!(self.state, RevWalkWorkItemState::Wanted(_))
+    }
+
+    fn map_wanted<U>(self, f: impl FnOnce(T) -> U) -> RevWalkWorkItem<'a, U> {
+        RevWalkWorkItem {
+            entry: self.entry,
+            state: match self.state {
+                RevWalkWorkItemState::Wanted(t) => RevWalkWorkItemState::Wanted(f(t)),
+                RevWalkWorkItemState::Unwanted => RevWalkWorkItemState::Unwanted,
+            },
+        }
     }
 }
 
@@ -999,6 +1009,18 @@ impl<'a, T: Ord> RevWalkQueue<'a, T> {
             index,
             items: BinaryHeap::new(),
             unwanted_count: 0,
+        }
+    }
+
+    fn map_wanted<U: Ord>(self, mut f: impl FnMut(T) -> U) -> RevWalkQueue<'a, U> {
+        RevWalkQueue {
+            index: self.index,
+            items: self
+                .items
+                .into_iter()
+                .map(|x| x.map_wanted(&mut f))
+                .collect(),
+            unwanted_count: self.unwanted_count,
         }
     }
 
@@ -1074,6 +1096,16 @@ impl<'a> RevWalk<'a> {
     fn add_unwanted(&mut self, pos: IndexPosition) {
         self.queue.push_unwanted(pos);
     }
+
+    /// Filters entries by generation (or depth from the current wanted set.)
+    ///
+    /// The generation of the current wanted entries starts from 0.
+    pub fn filter_by_generation(self, generation_range: Range<u32>) -> RevWalkGenerationRange<'a> {
+        RevWalkGenerationRange {
+            queue: self.queue.map_wanted(|()| 0),
+            generation_range,
+        }
+    }
 }
 
 impl<'a> Iterator for RevWalk<'a> {
@@ -1105,6 +1137,7 @@ impl<'a> Iterator for RevWalk<'a> {
 #[derive(Clone)]
 pub struct RevWalkGenerationRange<'a> {
     queue: RevWalkQueue<'a, u32>,
+    generation_range: Range<u32>,
 }
 
 impl<'a> Iterator for RevWalkGenerationRange<'a> {
@@ -1113,7 +1146,10 @@ impl<'a> Iterator for RevWalkGenerationRange<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(item) = self.queue.pop() {
             if let RevWalkWorkItemState::Wanted(mut known_gen) = item.state {
-                self.queue.push_wanted_parents(&item.entry.0, known_gen + 1);
+                let mut some_in_range = self.generation_range.contains(&known_gen);
+                if known_gen + 1 < self.generation_range.end {
+                    self.queue.push_wanted_parents(&item.entry.0, known_gen + 1);
+                }
                 while let Some(x) = self.queue.pop_eq(&item.entry.0) {
                     // For wanted item, simply track all generation chains. This can
                     // be optimized if the wanted range is just upper/lower bounded.
@@ -1122,14 +1158,19 @@ impl<'a> Iterator for RevWalkGenerationRange<'a> {
                     // merge overlapping generation ranges.
                     match x.state {
                         RevWalkWorkItemState::Wanted(gen) if known_gen != gen => {
-                            self.queue.push_wanted_parents(&item.entry.0, gen + 1);
+                            some_in_range |= self.generation_range.contains(&gen);
+                            if gen + 1 < self.generation_range.end {
+                                self.queue.push_wanted_parents(&item.entry.0, gen + 1);
+                            }
                             known_gen = gen;
                         }
                         RevWalkWorkItemState::Wanted(_) => {}
                         RevWalkWorkItemState::Unwanted => unreachable!(),
                     }
                 }
-                return Some(item.entry.0);
+                if some_in_range {
+                    return Some(item.entry.0);
+                }
             } else if self.queue.items.len() == self.queue.unwanted_count {
                 // No more wanted entries to walk
                 debug_assert!(!self.queue.items.iter().any(|x| x.is_wanted()));
@@ -2127,6 +2168,87 @@ mod tests {
         assert_eq!(
             walk_commit_ids(&[id_5.clone(), id_3.clone()], &[id_2]),
             vec![id_5, id_4, id_3, id_1]
+        );
+    }
+
+    #[test]
+    fn test_walk_revs_filter_by_generation() {
+        let mut index = MutableIndex::full(3);
+        // 8 6
+        // | |
+        // 7 5
+        // |/|
+        // 4 |
+        // | 3
+        // 2 |
+        // |/
+        // 1
+        // |
+        // 0
+        let id_0 = CommitId::from_hex("000000");
+        let id_1 = CommitId::from_hex("111111");
+        let id_2 = CommitId::from_hex("222222");
+        let id_3 = CommitId::from_hex("333333");
+        let id_4 = CommitId::from_hex("444444");
+        let id_5 = CommitId::from_hex("555555");
+        let id_6 = CommitId::from_hex("666666");
+        let id_7 = CommitId::from_hex("777777");
+        let id_8 = CommitId::from_hex("888888");
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_2.clone()]);
+        index.add_commit_data(id_5.clone(), new_change_id(), &[id_4.clone(), id_3.clone()]);
+        index.add_commit_data(id_6.clone(), new_change_id(), &[id_5.clone()]);
+        index.add_commit_data(id_7.clone(), new_change_id(), &[id_4.clone()]);
+        index.add_commit_data(id_8.clone(), new_change_id(), &[id_7.clone()]);
+
+        let walk_commit_ids = |wanted: &[CommitId], unwanted: &[CommitId], range: Range<u32>| {
+            index
+                .walk_revs(wanted, unwanted)
+                .filter_by_generation(range)
+                .map(|entry| entry.commit_id())
+                .collect_vec()
+        };
+
+        // Simple generation bounds
+        assert_eq!(walk_commit_ids(&[&id_8].map(Clone::clone), &[], 0..0), []);
+        assert_eq!(
+            walk_commit_ids(&[&id_2].map(Clone::clone), &[], 0..3),
+            [&id_2, &id_1, &id_0].map(Clone::clone)
+        );
+
+        // Ancestors may be walked with different generations
+        assert_eq!(
+            walk_commit_ids(&[&id_6].map(Clone::clone), &[], 2..4),
+            [&id_4, &id_3, &id_2, &id_1].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_5].map(Clone::clone), &[], 2..3),
+            [&id_2, &id_1].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_5, &id_7].map(Clone::clone), &[], 2..3),
+            [&id_2, &id_1].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_7, &id_8].map(Clone::clone), &[], 0..2),
+            [&id_8, &id_7, &id_4].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_6, &id_7].map(Clone::clone), &[], 0..3),
+            [&id_7, &id_6, &id_5, &id_4, &id_3, &id_2].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_6, &id_7].map(Clone::clone), &[], 2..3),
+            [&id_4, &id_3, &id_2].map(Clone::clone)
+        );
+
+        // Ancestors of both wanted and unwanted commits are not walked
+        assert_eq!(
+            walk_commit_ids(&[&id_5].map(Clone::clone), &[&id_2].map(Clone::clone), 1..5),
+            [&id_4, &id_3].map(Clone::clone)
         );
     }
 
