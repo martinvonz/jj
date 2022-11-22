@@ -29,15 +29,19 @@ pub struct RepoSettings {
     _config: config::Config,
 }
 
+fn get_timestamp_config(config: &config::Config, key: &str) -> Option<Timestamp> {
+    match config.get_string(key) {
+        Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
+            Ok(datetime) => Some(Timestamp::from_datetime(datetime)),
+            Err(_) => None,
+        },
+        Err(_) => None,
+    }
+}
+
 impl UserSettings {
     pub fn from_config(config: config::Config) -> Self {
-        let timestamp = match config.get_string("user.timestamp") {
-            Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
-                Ok(datetime) => Some(Timestamp::from_datetime(datetime)),
-                Err(_) => None,
-            },
-            Err(_) => None,
-        };
+        let timestamp = get_timestamp_config(&config, "user.timestamp");
         UserSettings { config, timestamp }
     }
 
@@ -86,6 +90,10 @@ impl UserSettings {
 
     pub fn user_email_placeholder() -> &'static str {
         "(no email configured)"
+    }
+
+    pub fn operation_timestamp(&self) -> Option<Timestamp> {
+        get_timestamp_config(&self.config, "operation.timestamp")
     }
 
     pub fn operation_hostname(&self) -> String {
