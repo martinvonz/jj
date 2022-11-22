@@ -990,6 +990,7 @@ impl RevWalkWorkItem<'_> {
 pub struct RevWalk<'a> {
     index: CompositeIndex<'a>,
     items: BinaryHeap<RevWalkWorkItem<'a>>,
+    unwanted_count: usize,
 }
 
 impl<'a> RevWalk<'a> {
@@ -997,6 +998,7 @@ impl<'a> RevWalk<'a> {
         Self {
             index,
             items: BinaryHeap::new(),
+            unwanted_count: 0,
         }
     }
 
@@ -1012,11 +1014,21 @@ impl<'a> RevWalk<'a> {
             entry: IndexEntryByPosition(self.index.entry_by_pos(pos)),
             state: RevWalkWorkItemState::Unwanted,
         });
+        self.unwanted_count += 1;
+    }
+
+    fn pop(&mut self) -> Option<RevWalkWorkItem<'a>> {
+        if let Some(x) = self.items.pop() {
+            self.unwanted_count -= !x.is_wanted() as usize;
+            Some(x)
+        } else {
+            None
+        }
     }
 
     fn pop_eq(&mut self, entry: &IndexEntry<'_>) -> Option<RevWalkWorkItem<'a>> {
         if let Some(x) = self.items.peek() {
-            (&x.entry.0 == entry).then(|| self.items.pop().unwrap())
+            (&x.entry.0 == entry).then(|| self.pop().unwrap())
         } else {
             None
         }
@@ -1033,19 +1045,28 @@ impl<'a> Iterator for RevWalk<'a> {
     type Item = IndexEntry<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(item) = self.items.pop() {
+        while let Some(item) = self.pop() {
             self.skip_while_eq(&item.entry.0);
             if item.is_wanted() {
                 for parent_pos in item.entry.0.parent_positions() {
                     self.add_wanted(parent_pos);
                 }
                 return Some(item.entry.0);
+            } else if self.items.len() == self.unwanted_count {
+                // No more wanted entries to walk
+                debug_assert!(!self.items.iter().any(|x| x.is_wanted()));
+                return None;
             } else {
                 for parent_pos in item.entry.0.parent_positions() {
                     self.add_unwanted(parent_pos);
                 }
             }
         }
+
+        debug_assert_eq!(
+            self.items.iter().filter(|x| !x.is_wanted()).count(),
+            self.unwanted_count
+        );
         None
     }
 }
