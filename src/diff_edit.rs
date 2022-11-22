@@ -98,7 +98,6 @@ fn set_readonly_recursively(path: &Path) -> Result<(), std::io::Error> {
 
 pub fn edit_diff(
     ui: &mut Ui,
-    settings: &UserSettings,
     left_tree: &Tree,
     right_tree: &Tree,
     instructions: &str,
@@ -147,7 +146,7 @@ pub fn edit_diff(
 
     // TODO: Make this configuration have a table of possible editors and detect the
     // best one here.
-    let editor_name = match settings.config().get_string("ui.diff-editor") {
+    let editor_name = match ui.settings().config().get_string("ui.diff-editor") {
         Ok(editor_binary) => editor_binary,
         Err(_) => {
             let default_editor = "meld".to_string();
@@ -159,7 +158,7 @@ pub fn edit_diff(
             default_editor
         }
     };
-    let editor = get_tool(settings, &editor_name)?;
+    let editor = get_tool(ui.settings(), &editor_name)?;
     // Start a diff editor on the two directories.
     let exit_status = Command::new(&editor.program)
         .args(&editor.edit_args)
