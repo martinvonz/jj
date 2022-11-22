@@ -2,7 +2,7 @@
 
 - [Disclaimer](#disclaimer)
 - [Introduction](#introduction)
-- [Status](#status)
+- [Status](#status) ![](https://github.com/martinvonz/jj/workflows/build/badge.svg)
 - [Installation](#installation)
 - [Command-line completion](#command-line-completion)
 - [Getting started](#getting-started)
