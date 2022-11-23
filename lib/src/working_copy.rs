@@ -48,6 +48,7 @@ use crate::tree_builder::TreeBuilder;
 pub enum FileType {
     Normal { executable: bool },
     Symlink,
+    GitSubmodule,
     Conflict { id: ConflictId },
 }
 
@@ -89,6 +90,14 @@ impl FileState {
         }
     }
 
+    fn for_gitsubmodule() -> Self {
+        FileState {
+            file_type: FileType::GitSubmodule,
+            mtime: MillisSinceEpoch(0),
+            size: 0,
+        }
+    }
+
     #[cfg_attr(unix, allow(dead_code))]
     fn is_executable(&self) -> bool {
         if let FileType::Normal { executable } = &self.file_type {
@@ -125,6 +134,7 @@ fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> File
             let id = ConflictId::new(proto.conflict_id.to_vec());
             FileType::Conflict { id }
         }
+        crate::protos::working_copy::FileType::GitSubmodule => FileType::GitSubmodule,
     };
     FileState {
         file_type,
@@ -143,6 +153,7 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
             proto.conflict_id = id.to_bytes();
             crate::protos::working_copy::FileType::Conflict
         }
+        FileType::GitSubmodule => crate::protos::working_copy::FileType::GitSubmodule,
     };
     proto.file_type = EnumOrUnknown::new(file_type);
     proto.mtime_millis_since_epoch = file_state.mtime.0;
@@ -468,8 +479,19 @@ impl TreeState {
             self.working_copy_path.clone(),
             base_ignores,
         )];
+
         let mut tree_builder = self.store.tree_builder(self.tree_id.clone());
-        let mut deleted_files: HashSet<_> = self.file_states.keys().cloned().collect();
+        let mut deleted_files: HashSet<_> = self
+            .file_states
+            .iter()
+            .filter_map(|(path, state)| {
+                if state.file_type != FileType::GitSubmodule {
+                    Some(path.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
         while let Some((dir, disk_dir, git_ignore)) = work.pop() {
             if sparse_matcher.visit(&dir).is_nothing() {
                 continue;
@@ -489,6 +511,12 @@ impl TreeState {
                     continue;
                 }
                 let sub_path = dir.join(&RepoPathComponent::from(name));
+                if let Some(file_state) = self.file_states.get(&sub_path) {
+                    if file_state.file_type == FileType::GitSubmodule {
+                        continue;
+                    }
+                }
+
                 if file_type.is_dir() {
                     // If the whole directory is ignored, skip it unless we're already tracking
                     // some file in it.
@@ -555,6 +583,7 @@ impl TreeState {
             // ignore it.
             return Ok(());
         }
+
         let disk_path = dir_entry.path();
         let metadata = dir_entry.metadata().map_err(|err| SnapshotError::IoError {
             message: format!("Failed to stat file {}", disk_path.display()),
@@ -661,6 +690,7 @@ impl TreeState {
                 Ok(TreeValue::Symlink(id))
             }
             FileType::Conflict { .. } => panic!("conflicts should be handled by the caller"),
+            FileType::GitSubmodule => panic!("git submodule cannot be written to store"),
         }
     }
 
@@ -858,7 +888,7 @@ impl TreeState {
                         TreeValue::Conflict(id) => self.write_conflict(&disk_path, &path, &id)?,
                         TreeValue::GitSubmodule(_id) => {
                             println!("ignoring git submodule at {:?}", path);
-                            return Ok(());
+                            FileState::for_gitsubmodule()
                         }
                         TreeValue::Tree(_id) => {
                             panic!("unexpected tree entry in diff at {:?}", path);
@@ -895,8 +925,7 @@ impl TreeState {
                         }
                         (_, TreeValue::GitSubmodule(_id)) => {
                             println!("ignoring git submodule at {:?}", path);
-                            self.file_states.remove(&path);
-                            return Ok(());
+                            FileState::for_gitsubmodule()
                         }
                         (_, TreeValue::Tree(_id)) => {
                             panic!("unexpected tree entry in diff at {:?}", path);
@@ -937,7 +966,7 @@ impl TreeState {
                         TreeValue::Conflict(id) => FileType::Conflict { id },
                         TreeValue::GitSubmodule(_id) => {
                             println!("ignoring git submodule at {:?}", path);
-                            continue;
+                            FileType::GitSubmodule
                         }
                         TreeValue::Tree(_id) => {
                             panic!("unexpected tree entry in diff at {:?}", path);

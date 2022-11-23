@@ -69,7 +69,7 @@ fn test_checkout_file_transitions(use_git: bool) {
     let store = repo.store().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, PartialEq, Eq, Clone, Copy)]
     enum Kind {
         Missing,
         Normal,
@@ -667,6 +667,71 @@ fn test_dotgit_ignored(use_git: bool) {
     let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
     assert_eq!(new_tree_id, *repo.store().empty_tree_id());
     locked_wc.discard();
+}
+
+#[test]
+fn test_gitsubmodule() {
+    // Tests that git submodules are ignored.
+
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings, true);
+    let repo = &test_workspace.repo;
+    let store = repo.store().clone();
+    let workspace_root = test_workspace.workspace.workspace_root().clone();
+
+    let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
+
+    let added_path = RepoPath::from_internal_string("added");
+    let submodule_path = RepoPath::from_internal_string("submodule");
+    let added_submodule_path = RepoPath::from_internal_string("submodule/added");
+
+    tree_builder.set(
+        added_path.clone(),
+        TreeValue::File {
+            id: testutils::write_file(repo.store(), &added_path, "added\n"),
+            executable: false,
+        },
+    );
+
+    let mut tx = repo.start_transaction(&settings, "create submodule commit");
+    let submodule_id = create_random_commit(&settings, repo)
+        .write_to_repo(tx.mut_repo())
+        .id()
+        .clone();
+    tx.commit();
+
+    tree_builder.set(
+        submodule_path.clone(),
+        TreeValue::GitSubmodule(submodule_id),
+    );
+
+    let tree_id = tree_builder.write_tree();
+    let tree = store.get_tree(&RepoPath::root(), &tree_id).unwrap();
+    let wc = test_workspace.workspace.working_copy_mut();
+    wc.check_out(repo.op_id().clone(), None, &tree).unwrap();
+
+    std::fs::create_dir(submodule_path.to_fs_path(&workspace_root)).unwrap();
+
+    testutils::write_working_copy_file(
+        &workspace_root,
+        &added_submodule_path,
+        "i am a file in a submodule\n",
+    );
+
+    // Check that the files present in the submodule are not tracked
+    // when we snapshot
+    let mut locked_wc = wc.start_mutation();
+    let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
+    locked_wc.discard();
+    assert_eq!(new_tree_id, tree_id);
+
+    // Check that the files in the submodule are not deleted
+    let file_in_submodule_path = added_submodule_path.to_fs_path(&workspace_root);
+    assert!(
+        file_in_submodule_path.metadata().is_ok(),
+        "{:?} should exist",
+        file_in_submodule_path
+    );
 }
 
 #[cfg(unix)]
