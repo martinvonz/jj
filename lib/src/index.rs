@@ -987,13 +987,13 @@ impl RevWalkWorkItem<'_> {
 }
 
 #[derive(Clone)]
-pub struct RevWalk<'a> {
+struct RevWalkQueue<'a> {
     index: CompositeIndex<'a>,
     items: BinaryHeap<RevWalkWorkItem<'a>>,
     unwanted_count: usize,
 }
 
-impl<'a> RevWalk<'a> {
+impl<'a> RevWalkQueue<'a> {
     fn new(index: CompositeIndex<'a>) -> Self {
         Self {
             index,
@@ -1002,14 +1002,14 @@ impl<'a> RevWalk<'a> {
         }
     }
 
-    fn add_wanted(&mut self, pos: IndexPosition) {
+    fn push_wanted(&mut self, pos: IndexPosition) {
         self.items.push(RevWalkWorkItem {
             entry: IndexEntryByPosition(self.index.entry_by_pos(pos)),
             state: RevWalkWorkItemState::Wanted,
         });
     }
 
-    fn add_unwanted(&mut self, pos: IndexPosition) {
+    fn push_unwanted(&mut self, pos: IndexPosition) {
         self.items.push(RevWalkWorkItem {
             entry: IndexEntryByPosition(self.index.entry_by_pos(pos)),
             state: RevWalkWorkItemState::Unwanted,
@@ -1041,20 +1041,40 @@ impl<'a> RevWalk<'a> {
     }
 }
 
+#[derive(Clone)]
+pub struct RevWalk<'a> {
+    queue: RevWalkQueue<'a>,
+}
+
+impl<'a> RevWalk<'a> {
+    fn new(index: CompositeIndex<'a>) -> Self {
+        let queue = RevWalkQueue::new(index);
+        Self { queue }
+    }
+
+    fn add_wanted(&mut self, pos: IndexPosition) {
+        self.queue.push_wanted(pos);
+    }
+
+    fn add_unwanted(&mut self, pos: IndexPosition) {
+        self.queue.push_unwanted(pos);
+    }
+}
+
 impl<'a> Iterator for RevWalk<'a> {
     type Item = IndexEntry<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(item) = self.pop() {
-            self.skip_while_eq(&item.entry.0);
+        while let Some(item) = self.queue.pop() {
+            self.queue.skip_while_eq(&item.entry.0);
             if item.is_wanted() {
                 for parent_pos in item.entry.0.parent_positions() {
                     self.add_wanted(parent_pos);
                 }
                 return Some(item.entry.0);
-            } else if self.items.len() == self.unwanted_count {
+            } else if self.queue.items.len() == self.queue.unwanted_count {
                 // No more wanted entries to walk
-                debug_assert!(!self.items.iter().any(|x| x.is_wanted()));
+                debug_assert!(!self.queue.items.iter().any(|x| x.is_wanted()));
                 return None;
             } else {
                 for parent_pos in item.entry.0.parent_positions() {
@@ -1064,8 +1084,8 @@ impl<'a> Iterator for RevWalk<'a> {
         }
 
         debug_assert_eq!(
-            self.items.iter().filter(|x| !x.is_wanted()).count(),
-            self.unwanted_count
+            self.queue.items.iter().filter(|x| !x.is_wanted()).count(),
+            self.queue.unwanted_count
         );
         None
     }
