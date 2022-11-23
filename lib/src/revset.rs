@@ -32,7 +32,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, CommitId};
 use crate::commit::Commit;
-use crate::index::{HexPrefix, IndexEntry, PrefixResolution, RevWalk};
+use crate::index::{HexPrefix, IndexEntry, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use crate::op_store::WorkspaceId;
 use crate::repo::RepoRef;
@@ -1434,17 +1434,28 @@ impl<'repo> ToPredicateFn<'repo> for EagerRevset<'repo> {
     }
 }
 
-struct RevWalkRevset<'repo> {
-    walk: RevWalk<'repo>,
+struct RevWalkRevset<'repo, T>
+where
+    // RevWalkRevset<'repo> appears to be needed to assert 'repo outlives 'a
+    // in to_predicate_fn<'a>(&'a self) -> Box<dyn 'a>.
+    T: Iterator<Item = IndexEntry<'repo>>,
+{
+    walk: T,
 }
 
-impl<'repo> Revset<'repo> for RevWalkRevset<'repo> {
+impl<'repo, T> Revset<'repo> for RevWalkRevset<'repo, T>
+where
+    T: Iterator<Item = IndexEntry<'repo>> + Clone,
+{
     fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
         RevsetIterator::new(Box::new(self.walk.clone()))
     }
 }
 
-impl<'repo> ToPredicateFn<'repo> for RevWalkRevset<'repo> {
+impl<'repo, T> ToPredicateFn<'repo> for RevWalkRevset<'repo, T>
+where
+    T: Iterator<Item = IndexEntry<'repo>> + Clone,
+{
     fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
         self.iter().into_predicate_fn()
     }
