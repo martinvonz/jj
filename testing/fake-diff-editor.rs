@@ -61,8 +61,9 @@ fn main() {
                 let actual = files_recursively(&args.before);
                 if actual != expected {
                     eprintln!(
-                        "unexpected files before: {:?}",
-                        actual.iter().sorted().collect_vec()
+                        "fake-diff-editor: unexpected files before. EXPECTED: {:?} ACTUAL: {:?}",
+                        expected.iter().sorted().collect_vec(),
+                        actual.iter().sorted().collect_vec(),
                     );
                     exit(1)
                 }
@@ -72,8 +73,9 @@ fn main() {
                 let actual = files_recursively(&args.after);
                 if actual != expected {
                     eprintln!(
-                        "unexpected files after: {:?}",
-                        actual.iter().sorted().collect_vec()
+                        "fake-diff-editor: unexpected files after. EXPECTED: {:?} ACTUAL: {:?}",
+                        expected.iter().sorted().collect_vec(),
+                        actual.iter().sorted().collect_vec(),
                     );
                     exit(1)
                 }
@@ -92,7 +94,7 @@ fn main() {
                 std::fs::write(args.after.join(file), payload).unwrap();
             }
             _ => {
-                eprintln!("unexpected command: {}", command);
+                eprintln!("fake-diff-editor: unexpected command: {}", command);
                 exit(1)
             }
         }

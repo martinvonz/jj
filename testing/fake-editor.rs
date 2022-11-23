@@ -48,7 +48,8 @@ fn main() {
             ["expect"] => {
                 let actual = String::from_utf8(std::fs::read(&args.file).unwrap()).unwrap();
                 if actual != payload {
-                    eprintln!("unexpected content: {}", actual);
+                    eprintln!("fake-editor: Unexpected content.\n");
+                    eprintln!("EXPECTED: {payload}\nRECEIVED: {actual}");
                     exit(1)
                 }
             }
@@ -56,7 +57,7 @@ fn main() {
                 std::fs::write(&args.file, payload).unwrap();
             }
             _ => {
-                eprintln!("unexpected command: {}", command);
+                eprintln!("fake-editor: unexpected command: {}", command);
                 exit(1)
             }
         }
