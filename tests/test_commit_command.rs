@@ -44,7 +44,7 @@ fn test_commit_with_editor() {
     test_env.jj_cmd_success(&workspace_path, &["describe", "-m=initial"]);
     let edit_script = test_env.set_up_fake_editor();
     std::fs::write(
-        &edit_script,
+        edit_script,
         "expect
 initial
 JJ: Lines starting with \"JJ: \" (like this one) will be removed.

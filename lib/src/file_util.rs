@@ -112,7 +112,7 @@ mod tests {
         let target = temp_dir.path().join("file");
         let mut temp_file = NamedTempFile::new_in(&temp_dir).unwrap();
         temp_file.write_all(b"contents").unwrap();
-        assert!(persist_content_addressed_temp_file(temp_file, &target).is_ok());
+        assert!(persist_content_addressed_temp_file(temp_file, target).is_ok());
     }
 
     #[test_case(false ; "existing file open")]
