@@ -228,7 +228,7 @@ impl Ui {
                 "Cannot prompt for input since the output is not connected to a terminal",
             ));
         }
-        rpassword::prompt_password(&format!("{}: ", prompt))
+        rpassword::prompt_password(format!("{prompt}: "))
     }
 
     pub fn size(&self) -> Option<(u16, u16)> {

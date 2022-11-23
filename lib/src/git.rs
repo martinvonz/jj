@@ -303,7 +303,7 @@ fn upgrade_old_export_state(repo: &Arc<ReadonlyRepo>) {
         if let Ok(mut last_export_file) = OpenOptions::new()
             .write(true)
             .create(true)
-            .open(&repo.repo_path().join("git_export_view"))
+            .open(repo.repo_path().join("git_export_view"))
         {
             let thrift_view = simple_op_store_model::View::from(&last_export_store_view);
             simple_op_store::write_thrift(&thrift_view, &mut last_export_file)
