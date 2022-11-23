@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::{fmt, io};
 
-use atty::Stream;
+use crossterm::tty::IsTty;
 use jujutsu_lib::settings::UserSettings;
 
 use crate::formatter::{Formatter, FormatterFactory};
@@ -80,7 +80,7 @@ fn use_color(choice: ColorChoice) -> bool {
     match choice {
         ColorChoice::Always => true,
         ColorChoice::Never => false,
-        ColorChoice::Auto => atty::is(Stream::Stdout),
+        ColorChoice::Auto => io::stdout().is_tty(),
     }
 }
 
@@ -154,7 +154,7 @@ impl Ui {
     /// Whether continuous feedback should be displayed for long-running
     /// operations
     pub fn use_progress_indicator(&self) -> bool {
-        self.settings().use_progress_indicator() && atty::is(Stream::Stdout)
+        self.settings().use_progress_indicator() && io::stdout().is_tty()
     }
 
     pub fn write(&mut self, text: &str) -> io::Result<()> {
@@ -208,7 +208,7 @@ impl Ui {
     }
 
     pub fn prompt(&mut self, prompt: &str) -> io::Result<String> {
-        if !atty::is(Stream::Stdout) {
+        if !io::stdout().is_tty() {
             return Err(io::Error::new(
                 io::ErrorKind::Unsupported,
                 "Cannot prompt for input since the output is not connected to a terminal",
@@ -222,7 +222,7 @@ impl Ui {
     }
 
     pub fn prompt_password(&mut self, prompt: &str) -> io::Result<String> {
-        if !atty::is(Stream::Stdout) {
+        if !io::stdout().is_tty() {
             return Err(io::Error::new(
                 io::ErrorKind::Unsupported,
                 "Cannot prompt for input since the output is not connected to a terminal",

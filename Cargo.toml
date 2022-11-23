@@ -34,7 +34,6 @@ harness = false
 members = ["lib"]
 
 [dependencies]
-atty = "0.2.14"
 chrono = { version = "0.4.23", default-features = false, features = ["std", "clock"] }
 clap = { version = "4.0.26", features = ["derive", "deprecated"] }
 clap_complete = "4.0.5"
