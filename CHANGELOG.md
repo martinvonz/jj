@@ -97,6 +97,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj git import` no longer crashes when all Git refs are removed.
 
+* Git submodules are now ignored completely. Earlier, files present in the
+  submodule directory in the working copy would become added (tracked), and
+  later removed if you checked out another commit. You can now use `git` to
+  populate the submodule directory and `jj` will leave it alone.
+
 ### Contributors
 
 Thanks to the people who made this release happen!
@@ -109,6 +114,7 @@ Thanks to the people who made this release happen!
  * Ruben Slabbert (@rslabbert)
  * Waleed Khan (@arxanas)
  * Sean E. Russell (@xxxserxxx)
+ * Pranay Sashank (@pranaysashank)
 
 
 ## [0.5.1] - 2022-10-17

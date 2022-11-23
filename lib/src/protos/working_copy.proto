@@ -21,6 +21,7 @@ enum FileType {
   Symlink = 1;
   Executable = 2;
   Conflict = 3;
+  GitSubmodule = 4;
 }
 
 message FileState {
