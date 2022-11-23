@@ -1017,6 +1017,18 @@ impl<'a> RevWalkQueue<'a> {
         self.unwanted_count += 1;
     }
 
+    fn push_wanted_parents(&mut self, entry: &IndexEntry<'_>) {
+        for pos in entry.parent_positions() {
+            self.push_wanted(pos);
+        }
+    }
+
+    fn push_unwanted_parents(&mut self, entry: &IndexEntry<'_>) {
+        for pos in entry.parent_positions() {
+            self.push_unwanted(pos);
+        }
+    }
+
     fn pop(&mut self) -> Option<RevWalkWorkItem<'a>> {
         if let Some(x) = self.items.pop() {
             self.unwanted_count -= !x.is_wanted() as usize;
@@ -1068,18 +1080,14 @@ impl<'a> Iterator for RevWalk<'a> {
         while let Some(item) = self.queue.pop() {
             self.queue.skip_while_eq(&item.entry.0);
             if item.is_wanted() {
-                for parent_pos in item.entry.0.parent_positions() {
-                    self.add_wanted(parent_pos);
-                }
+                self.queue.push_wanted_parents(&item.entry.0);
                 return Some(item.entry.0);
             } else if self.queue.items.len() == self.queue.unwanted_count {
                 // No more wanted entries to walk
                 debug_assert!(!self.queue.items.iter().any(|x| x.is_wanted()));
                 return None;
             } else {
-                for parent_pos in item.entry.0.parent_positions() {
-                    self.add_unwanted(parent_pos);
-                }
+                self.queue.push_unwanted_parents(&item.entry.0);
             }
         }
 
