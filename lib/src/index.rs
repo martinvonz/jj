@@ -968,32 +968,32 @@ impl PartialOrd for IndexEntryByGeneration<'_> {
 }
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
-struct RevWalkWorkItem<'a> {
+struct RevWalkWorkItem<'a, T> {
     entry: IndexEntryByPosition<'a>,
-    state: RevWalkWorkItemState,
+    state: RevWalkWorkItemState<T>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-enum RevWalkWorkItemState {
+enum RevWalkWorkItemState<T> {
     // Order matters: Unwanted should appear earlier in the max-heap.
-    Wanted,
+    Wanted(T),
     Unwanted,
 }
 
-impl RevWalkWorkItem<'_> {
+impl<T> RevWalkWorkItem<'_, T> {
     fn is_wanted(&self) -> bool {
-        self.state == RevWalkWorkItemState::Wanted
+        matches!(self.state, RevWalkWorkItemState::Wanted(_))
     }
 }
 
 #[derive(Clone)]
-struct RevWalkQueue<'a> {
+struct RevWalkQueue<'a, T> {
     index: CompositeIndex<'a>,
-    items: BinaryHeap<RevWalkWorkItem<'a>>,
+    items: BinaryHeap<RevWalkWorkItem<'a, T>>,
     unwanted_count: usize,
 }
 
-impl<'a> RevWalkQueue<'a> {
+impl<'a, T: Ord> RevWalkQueue<'a, T> {
     fn new(index: CompositeIndex<'a>) -> Self {
         Self {
             index,
@@ -1002,10 +1002,10 @@ impl<'a> RevWalkQueue<'a> {
         }
     }
 
-    fn push_wanted(&mut self, pos: IndexPosition) {
+    fn push_wanted(&mut self, pos: IndexPosition, t: T) {
         self.items.push(RevWalkWorkItem {
             entry: IndexEntryByPosition(self.index.entry_by_pos(pos)),
-            state: RevWalkWorkItemState::Wanted,
+            state: RevWalkWorkItemState::Wanted(t),
         });
     }
 
@@ -1017,9 +1017,12 @@ impl<'a> RevWalkQueue<'a> {
         self.unwanted_count += 1;
     }
 
-    fn push_wanted_parents(&mut self, entry: &IndexEntry<'_>) {
+    fn push_wanted_parents(&mut self, entry: &IndexEntry<'_>, t: T)
+    where
+        T: Clone,
+    {
         for pos in entry.parent_positions() {
-            self.push_wanted(pos);
+            self.push_wanted(pos, t.clone());
         }
     }
 
@@ -1029,7 +1032,7 @@ impl<'a> RevWalkQueue<'a> {
         }
     }
 
-    fn pop(&mut self) -> Option<RevWalkWorkItem<'a>> {
+    fn pop(&mut self) -> Option<RevWalkWorkItem<'a, T>> {
         if let Some(x) = self.items.pop() {
             self.unwanted_count -= !x.is_wanted() as usize;
             Some(x)
@@ -1038,7 +1041,7 @@ impl<'a> RevWalkQueue<'a> {
         }
     }
 
-    fn pop_eq(&mut self, entry: &IndexEntry<'_>) -> Option<RevWalkWorkItem<'a>> {
+    fn pop_eq(&mut self, entry: &IndexEntry<'_>) -> Option<RevWalkWorkItem<'a, T>> {
         if let Some(x) = self.items.peek() {
             (&x.entry.0 == entry).then(|| self.pop().unwrap())
         } else {
@@ -1055,7 +1058,7 @@ impl<'a> RevWalkQueue<'a> {
 
 #[derive(Clone)]
 pub struct RevWalk<'a> {
-    queue: RevWalkQueue<'a>,
+    queue: RevWalkQueue<'a, ()>,
 }
 
 impl<'a> RevWalk<'a> {
@@ -1065,7 +1068,7 @@ impl<'a> RevWalk<'a> {
     }
 
     fn add_wanted(&mut self, pos: IndexPosition) {
-        self.queue.push_wanted(pos);
+        self.queue.push_wanted(pos, ());
     }
 
     fn add_unwanted(&mut self, pos: IndexPosition) {
@@ -1080,7 +1083,7 @@ impl<'a> Iterator for RevWalk<'a> {
         while let Some(item) = self.queue.pop() {
             self.queue.skip_while_eq(&item.entry.0);
             if item.is_wanted() {
-                self.queue.push_wanted_parents(&item.entry.0);
+                self.queue.push_wanted_parents(&item.entry.0, ());
                 return Some(item.entry.0);
             } else if self.queue.items.len() == self.queue.unwanted_count {
                 // No more wanted entries to walk
