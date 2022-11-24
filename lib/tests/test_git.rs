@@ -700,6 +700,42 @@ fn test_export_conflicts() {
 }
 
 #[test]
+fn test_export_partial_failure() {
+    // Check that we skip branches that fail to export
+    let test_data = GitRepoData::create();
+    let git_repo = test_data.git_repo;
+    let mut tx = test_data
+        .repo
+        .start_transaction(&test_data.settings, "test");
+    let mut_repo = tx.mut_repo();
+    let commit_a =
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
+    let target = RefTarget::Normal(commit_a.id().clone());
+    // Empty string is disallowed by Git
+    mut_repo.set_local_branch("".to_string(), target.clone());
+    mut_repo.set_local_branch("main".to_string(), target.clone());
+    // `main/sub` will conflict with `main` in Git, at least when using loose ref
+    // storage
+    mut_repo.set_local_branch("main/sub".to_string(), target);
+    // TODO: this should succeed
+    assert!(git::export_refs(mut_repo, &git_repo).is_err());
+
+    // The `main` branch should have succeeded but the other should have failed
+    assert!(git_repo.find_reference("refs/heads/").is_err());
+    assert!(git_repo.find_reference("refs/heads/main").is_err());
+    assert!(git_repo.find_reference("refs/heads/main/sub").is_err());
+
+    // Now remove the `main` branch and make sure that the `main/sub` gets exported
+    // even though it didn't change
+    // TODO: this should succeed
+    mut_repo.remove_local_branch("main");
+    assert!(git::export_refs(mut_repo, &git_repo).is_err());
+    assert!(git_repo.find_reference("refs/heads/").is_err());
+    assert!(git_repo.find_reference("refs/heads/main").is_err());
+    assert!(git_repo.find_reference("refs/heads/main/sub").is_err());
+}
+
+#[test]
 fn test_init() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
