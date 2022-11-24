@@ -474,9 +474,14 @@ impl RevsetExpression {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+struct ParseState<'a> {
+    workspace_ctx: Option<&'a RevsetWorkspaceContext<'a>>,
+}
+
 fn parse_expression_rule(
     pairs: Pairs<Rule>,
-    workspace_ctx: Option<&RevsetWorkspaceContext>,
+    state: ParseState,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     static PRATT: Lazy<PrattParser<Rule>> = Lazy::new(|| {
         PrattParser::new()
@@ -491,7 +496,7 @@ fn parse_expression_rule(
             .op(Op::postfix(Rule::parents_op) | Op::postfix(Rule::children_op))
     });
     PRATT
-        .map_primary(|primary| parse_primary_rule(primary.into_inner(), workspace_ctx))
+        .map_primary(|primary| parse_primary_rule(primary.into_inner(), state))
         .map_prefix(|op, rhs| match op.as_rule() {
             Rule::dag_range_pre_op | Rule::range_pre_op => Ok(rhs?.ancestors()),
             r => panic!("unexpected prefix operator rule {r:?}"),
@@ -516,23 +521,26 @@ fn parse_expression_rule(
 
 fn parse_primary_rule(
     mut pairs: Pairs<Rule>,
-    workspace_ctx: Option<&RevsetWorkspaceContext>,
+    state: ParseState,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let first = pairs.next().unwrap();
     match first.as_rule() {
-        Rule::expression => parse_expression_rule(first.into_inner(), workspace_ctx),
+        Rule::expression => parse_expression_rule(first.into_inner(), state),
         Rule::function_name => {
             let arguments_pair = pairs.next().unwrap();
-            parse_function_expression(first, arguments_pair, workspace_ctx)
+            parse_function_expression(first, arguments_pair, state)
         }
-        Rule::symbol => parse_symbol_rule(first.into_inner()),
+        Rule::symbol => parse_symbol_rule(first.into_inner(), state),
         _ => {
             panic!("unxpected revset parse rule: {:?}", first.as_str());
         }
     }
 }
 
-fn parse_symbol_rule(mut pairs: Pairs<Rule>) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+fn parse_symbol_rule(
+    mut pairs: Pairs<Rule>,
+    _state: ParseState,
+) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let first = pairs.next().unwrap();
     match first.as_rule() {
         Rule::identifier => Ok(RevsetExpression::symbol(first.as_str().to_owned())),
@@ -556,33 +564,33 @@ fn parse_symbol_rule(mut pairs: Pairs<Rule>) -> Result<Rc<RevsetExpression>, Rev
 fn parse_function_expression(
     name_pair: Pair<Rule>,
     arguments_pair: Pair<Rule>,
-    workspace_ctx: Option<&RevsetWorkspaceContext>,
+    state: ParseState,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let name = name_pair.as_str();
     match name {
         "parents" => {
             let arg = expect_one_argument(name, arguments_pair)?;
-            let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            let expression = parse_expression_rule(arg.into_inner(), state)?;
             Ok(expression.parents())
         }
         "children" => {
             let arg = expect_one_argument(name, arguments_pair)?;
-            let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            let expression = parse_expression_rule(arg.into_inner(), state)?;
             Ok(expression.children())
         }
         "ancestors" => {
             let arg = expect_one_argument(name, arguments_pair)?;
-            let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            let expression = parse_expression_rule(arg.into_inner(), state)?;
             Ok(expression.ancestors())
         }
         "descendants" => {
             let arg = expect_one_argument(name, arguments_pair)?;
-            let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            let expression = parse_expression_rule(arg.into_inner(), state)?;
             Ok(expression.descendants())
         }
         "connected" => {
             let arg = expect_one_argument(name, arguments_pair)?;
-            let candidates = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            let candidates = parse_expression_rule(arg.into_inner(), state)?;
             Ok(candidates.connected())
         }
         "none" => {
@@ -595,7 +603,7 @@ fn parse_function_expression(
         }
         "heads" => {
             if let Some(arg) = expect_one_optional_argument(name, arguments_pair)? {
-                let candidates = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+                let candidates = parse_expression_rule(arg.into_inner(), state)?;
                 Ok(candidates.heads())
             } else {
                 Ok(RevsetExpression::visible_heads())
@@ -603,7 +611,7 @@ fn parse_function_expression(
         }
         "roots" => {
             let arg = expect_one_argument(name, arguments_pair)?;
-            let candidates = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            let candidates = parse_expression_rule(arg.into_inner(), state)?;
             Ok(candidates.roots())
         }
         "public_heads" => {
@@ -638,21 +646,21 @@ fn parse_function_expression(
         }
         "description" => {
             let arg = expect_one_argument(name, arguments_pair)?;
-            let needle = parse_function_argument_to_string(name, arg)?;
+            let needle = parse_function_argument_to_string(name, arg, state)?;
             Ok(RevsetExpression::filter(
                 RevsetFilterPredicate::Description(needle),
             ))
         }
         "author" => {
             let arg = expect_one_argument(name, arguments_pair)?;
-            let needle = parse_function_argument_to_string(name, arg)?;
+            let needle = parse_function_argument_to_string(name, arg, state)?;
             Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
                 needle,
             )))
         }
         "committer" => {
             let arg = expect_one_argument(name, arguments_pair)?;
-            let needle = parse_function_argument_to_string(name, arg)?;
+            let needle = parse_function_argument_to_string(name, arg, state)?;
             Ok(RevsetExpression::filter(RevsetFilterPredicate::Committer(
                 needle,
             )))
@@ -662,13 +670,13 @@ fn parse_function_expression(
             Ok(RevsetExpression::filter(RevsetFilterPredicate::Empty))
         }
         "file" => {
-            if let Some(ctx) = workspace_ctx {
+            if let Some(ctx) = state.workspace_ctx {
                 let arguments_span = arguments_pair.as_span();
                 let paths = arguments_pair
                     .into_inner()
                     .map(|arg| {
                         let span = arg.as_span();
-                        let needle = parse_function_argument_to_string(name, arg)?;
+                        let needle = parse_function_argument_to_string(name, arg, state)?;
                         let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, &needle)
                             .map_err(|e| {
                                 RevsetParseError::with_span(
@@ -698,7 +706,7 @@ fn parse_function_expression(
         }
         "present" => {
             let arg = expect_one_argument(name, arguments_pair)?;
-            let expression = parse_expression_rule(arg.into_inner(), workspace_ctx)?;
+            let expression = parse_expression_rule(arg.into_inner(), state)?;
             Ok(Rc::new(RevsetExpression::Present(expression)))
         }
         _ => Err(RevsetParseError::with_span(
@@ -765,10 +773,10 @@ fn expect_one_optional_argument<'i>(
 fn parse_function_argument_to_string(
     name: &str,
     pair: Pair<Rule>,
+    state: ParseState,
 ) -> Result<String, RevsetParseError> {
     let span = pair.as_span();
-    let workspace_ctx = None; // string literal shouldn't depend on workspace information
-    let expression = parse_expression_rule(pair.into_inner(), workspace_ctx)?;
+    let expression = parse_expression_rule(pair.into_inner(), state)?;
     match expression.as_ref() {
         RevsetExpression::Symbol(symbol) => Ok(symbol.clone()),
         _ => Err(RevsetParseError::with_span(
@@ -787,7 +795,8 @@ pub fn parse(
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let mut pairs = RevsetParser::parse(Rule::program, revset_str)?;
     let first = pairs.next().unwrap();
-    parse_expression_rule(first.into_inner(), workspace_ctx)
+    let state = ParseState { workspace_ctx };
+    parse_expression_rule(first.into_inner(), state)
 }
 
 /// Walks `expression` tree and applies `f` recursively from leaf nodes.
