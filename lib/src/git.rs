@@ -177,12 +177,13 @@ pub enum GitExportError {
 
 /// Reflect changes between two Jujutsu repo views in the underlying Git repo.
 /// Returns a stripped-down repo view of the state we just exported, to be used
-/// as `old_view` next time.
+/// as `old_view` next time. Also returns a list of names of branches that
+/// failed to export.
 fn export_changes(
     mut_repo: &mut MutableRepo,
     old_view: &View,
     git_repo: &git2::Repository,
-) -> Result<crate::op_store::View, GitExportError> {
+) -> Result<(op_store::View, Vec<String>), GitExportError> {
     let new_view = mut_repo.view();
     let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
     let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
@@ -228,9 +229,16 @@ fn export_changes(
         }
     }
     let mut exported_view = old_view.store_view().clone();
+    let mut failed_branches = vec![];
     for (branch_name, new_target) in branches_to_update {
         let git_ref_name = format!("refs/heads/{}", branch_name);
-        git_repo.reference(&git_ref_name, new_target, true, "export from jj")?;
+        if git_repo
+            .reference(&git_ref_name, new_target, true, "export from jj")
+            .is_err()
+        {
+            failed_branches.push(branch_name);
+            continue;
+        }
         exported_view.branches.insert(
             branch_name.clone(),
             BranchTarget {
@@ -248,21 +256,25 @@ fn export_changes(
     for branch_name in branches_to_delete {
         let git_ref_name = format!("refs/heads/{}", branch_name);
         if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
-            git_ref.delete()?;
+            if git_ref.delete().is_err() {
+                failed_branches.push(branch_name);
+                continue;
+            }
         }
         exported_view.branches.remove(&branch_name);
         mut_repo.remove_git_ref(&git_ref_name);
     }
-    Ok(exported_view)
+    Ok((exported_view, failed_branches))
 }
 
 /// Reflect changes made in the Jujutsu repo since last export in the underlying
 /// Git repo. The exported view is recorded in the repo
-/// (`.jj/repo/git_export_view`).
+/// (`.jj/repo/git_export_view`). Returns the names of any branches that failed
+/// to export.
 pub fn export_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
-) -> Result<(), GitExportError> {
+) -> Result<Vec<String>, GitExportError> {
     upgrade_old_export_state(mut_repo.base_repo());
 
     let last_export_path = mut_repo.base_repo().repo_path().join("git_export_view");
@@ -275,7 +287,8 @@ pub fn export_refs(
             op_store::View::default()
         };
     let last_export_view = View::new(last_export_store_view);
-    let new_export_store_view = export_changes(mut_repo, &last_export_view, git_repo)?;
+    let (new_export_store_view, failed_branches) =
+        export_changes(mut_repo, &last_export_view, git_repo)?;
     if let Ok(mut last_export_file) = OpenOptions::new()
         .write(true)
         .create(true)
@@ -285,7 +298,7 @@ pub fn export_refs(
         simple_op_store::write_thrift(&thrift_view, &mut last_export_file)
             .map_err(|err| GitExportError::WriteStateError(err.to_string()))?;
     }
-    Ok(())
+    Ok(failed_branches)
 }
 
 fn upgrade_old_export_state(repo: &Arc<ReadonlyRepo>) {
