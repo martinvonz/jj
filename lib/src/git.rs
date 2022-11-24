@@ -187,10 +187,9 @@ fn export_changes(
     let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
     let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
     let mut exported_view = old_view.store_view().clone();
-    // First find the changes we want need to make and then make them all at once to
-    // reduce the risk of making some changes before we fail.
     let mut refs_to_update = BTreeMap::new();
     let mut refs_to_delete = BTreeSet::new();
+    // First find the changes we want need to make without modifying mut_repo
     for branch_name in old_branches.union(&new_branches) {
         let old_branch = old_view.get_local_branch(branch_name);
         let new_branch = new_view.get_local_branch(branch_name);
