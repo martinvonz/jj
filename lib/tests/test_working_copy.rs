@@ -436,7 +436,7 @@ fn test_snapshot_special_file() {
     std::fs::write(&file1_disk_path, "contents".as_bytes()).unwrap();
     let file2_path = RepoPath::from_internal_string("file2");
     let file2_disk_path = file2_path.to_fs_path(&workspace_root);
-    std::fs::write(&file2_disk_path, "contents".as_bytes()).unwrap();
+    std::fs::write(file2_disk_path, "contents".as_bytes()).unwrap();
     let socket_disk_path = workspace_root.join("socket");
     UnixListener::bind(&socket_disk_path).unwrap();
     // Test the setup
