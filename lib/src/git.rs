@@ -186,7 +186,6 @@ fn export_changes(
     let new_view = mut_repo.view();
     let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
     let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
-    let mut exported_view = old_view.store_view().clone();
     let mut branches_to_update = BTreeMap::new();
     let mut branches_to_delete = BTreeSet::new();
     // First find the changes we want need to make without modifying mut_repo
@@ -199,13 +198,6 @@ fn export_changes(
         if let Some(new_branch) = new_branch {
             match new_branch {
                 RefTarget::Normal(id) => {
-                    exported_view.branches.insert(
-                        branch_name.clone(),
-                        BranchTarget {
-                            local_target: Some(RefTarget::Normal(id.clone())),
-                            remote_targets: Default::default(),
-                        },
-                    );
                     branches_to_update
                         .insert(branch_name.clone(), Oid::from_bytes(id.as_bytes()).unwrap());
                 }
@@ -215,7 +207,6 @@ fn export_changes(
                 }
             }
         } else {
-            exported_view.branches.remove(branch_name);
             branches_to_delete.insert(branch_name.clone());
         }
     }
@@ -236,9 +227,19 @@ fn export_changes(
             }
         }
     }
+    let mut exported_view = old_view.store_view().clone();
     for (branch_name, new_target) in branches_to_update {
         let git_ref_name = format!("refs/heads/{}", branch_name);
         git_repo.reference(&git_ref_name, new_target, true, "export from jj")?;
+        exported_view.branches.insert(
+            branch_name.clone(),
+            BranchTarget {
+                local_target: Some(RefTarget::Normal(CommitId::from_bytes(
+                    new_target.as_bytes(),
+                ))),
+                remote_targets: Default::default(),
+            },
+        );
         mut_repo.set_git_ref(
             git_ref_name,
             RefTarget::Normal(CommitId::from_bytes(new_target.as_bytes())),
@@ -249,6 +250,7 @@ fn export_changes(
         if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
             git_ref.delete()?;
         }
+        exported_view.branches.remove(&branch_name);
         mut_repo.remove_git_ref(&git_ref_name);
     }
     Ok(exported_view)
