@@ -815,7 +815,8 @@ impl WorkspaceCommandHelper {
                 format!("'{}'", arg.replace('\'', "\\'"))
             }
         };
-        let quoted_strings = self.string_args.iter().map(shell_escape).collect_vec();
+        let mut quoted_strings = vec!["jj".to_string()];
+        quoted_strings.extend(self.string_args.iter().skip(1).map(shell_escape));
         tx.set_tag("args".to_string(), quoted_strings.join(" "));
         tx
     }
