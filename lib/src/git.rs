@@ -187,8 +187,8 @@ fn export_changes(
     let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
     let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
     let mut exported_view = old_view.store_view().clone();
-    let mut refs_to_update = BTreeMap::new();
-    let mut refs_to_delete = BTreeSet::new();
+    let mut branches_to_update = BTreeMap::new();
+    let mut branches_to_delete = BTreeSet::new();
     // First find the changes we want need to make without modifying mut_repo
     for branch_name in old_branches.union(&new_branches) {
         let old_branch = old_view.get_local_branch(branch_name);
@@ -196,7 +196,6 @@ fn export_changes(
         if new_branch == old_branch {
             continue;
         }
-        let git_ref_name = format!("refs/heads/{}", branch_name);
         if let Some(new_branch) = new_branch {
             match new_branch {
                 RefTarget::Normal(id) => {
@@ -207,10 +206,8 @@ fn export_changes(
                             remote_targets: Default::default(),
                         },
                     );
-                    refs_to_update.insert(
-                        git_ref_name.clone(),
-                        Oid::from_bytes(id.as_bytes()).unwrap(),
-                    );
+                    branches_to_update
+                        .insert(branch_name.clone(), Oid::from_bytes(id.as_bytes()).unwrap());
                 }
                 RefTarget::Conflict { .. } => {
                     // Skip conflicts and leave the old value in `exported_view`
@@ -219,32 +216,36 @@ fn export_changes(
             }
         } else {
             exported_view.branches.remove(branch_name);
-            refs_to_delete.insert(git_ref_name.clone());
+            branches_to_delete.insert(branch_name.clone());
         }
     }
     // TODO: Also check other worktrees' HEAD.
     if let Ok(head_ref) = git_repo.find_reference("HEAD") {
-        if let (Some(head_target), Ok(current_git_commit)) =
+        if let (Some(head_git_ref), Ok(current_git_commit)) =
             (head_ref.symbolic_target(), head_ref.peel_to_commit())
         {
-            let detach_head = if let Some(new_target) = refs_to_update.get(head_target) {
-                *new_target != current_git_commit.id()
-            } else {
-                refs_to_delete.contains(head_target)
-            };
-            if detach_head {
-                git_repo.set_head_detached(current_git_commit.id())?;
+            if let Some(branch_name) = head_git_ref.strip_prefix("refs/heads/") {
+                let detach_head = if let Some(new_target) = branches_to_update.get(branch_name) {
+                    *new_target != current_git_commit.id()
+                } else {
+                    branches_to_delete.contains(branch_name)
+                };
+                if detach_head {
+                    git_repo.set_head_detached(current_git_commit.id())?;
+                }
             }
         }
     }
-    for (git_ref_name, new_target) in refs_to_update {
+    for (branch_name, new_target) in branches_to_update {
+        let git_ref_name = format!("refs/heads/{}", branch_name);
         git_repo.reference(&git_ref_name, new_target, true, "export from jj")?;
         mut_repo.set_git_ref(
             git_ref_name,
             RefTarget::Normal(CommitId::from_bytes(new_target.as_bytes())),
         );
     }
-    for git_ref_name in refs_to_delete {
+    for branch_name in branches_to_delete {
+        let git_ref_name = format!("refs/heads/{}", branch_name);
         if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
             git_ref.delete()?;
         }
