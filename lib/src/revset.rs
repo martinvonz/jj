@@ -198,6 +198,7 @@ pub struct RevsetParser;
 pub struct RevsetParseError {
     kind: RevsetParseErrorKind,
     pest_error: Option<Box<pest::error::Error<Rule>>>,
+    origin: Option<Box<RevsetParseError>>,
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -219,6 +220,7 @@ impl RevsetParseError {
         RevsetParseError {
             kind,
             pest_error: None,
+            origin: None,
         }
     }
 
@@ -232,11 +234,35 @@ impl RevsetParseError {
         RevsetParseError {
             kind,
             pest_error: Some(Box::new(err)),
+            origin: None,
+        }
+    }
+
+    fn with_span_and_origin(
+        kind: RevsetParseErrorKind,
+        span: pest::Span<'_>,
+        origin: Self,
+    ) -> Self {
+        let err = pest::error::Error::new_from_span(
+            pest::error::ErrorVariant::CustomError {
+                message: kind.to_string(),
+            },
+            span,
+        );
+        RevsetParseError {
+            kind,
+            pest_error: Some(Box::new(err)),
+            origin: Some(Box::new(origin)),
         }
     }
 
     pub fn kind(&self) -> &RevsetParseErrorKind {
         &self.kind
+    }
+
+    /// Original parsing error which typically occurred in an alias expression.
+    pub fn origin(&self) -> Option<&Self> {
+        self.origin.as_deref()
     }
 }
 
@@ -245,6 +271,7 @@ impl From<pest::error::Error<Rule>> for RevsetParseError {
         RevsetParseError {
             kind: RevsetParseErrorKind::SyntaxError,
             pest_error: Some(Box::new(err)),
+            origin: None,
         }
     }
 }
@@ -261,6 +288,9 @@ impl fmt::Display for RevsetParseError {
 
 impl error::Error for RevsetParseError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        if let Some(e) = self.origin() {
+            return Some(e as &dyn error::Error);
+        }
         match &self.kind {
             // SyntaxError is a wrapper for pest::error::Error.
             RevsetParseErrorKind::SyntaxError => {

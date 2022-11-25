@@ -16,6 +16,7 @@ use std::collections::{HashSet, VecDeque};
 use std::env::ArgsOs;
 use std::ffi::OsString;
 use std::fmt::Debug;
+use std::iter;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -175,7 +176,8 @@ impl From<GitExportError> for CommandError {
 
 impl From<RevsetParseError> for CommandError {
     fn from(err: RevsetParseError) -> Self {
-        user_error(format!("Failed to parse revset: {err}"))
+        let message = iter::successors(Some(&err), |e| e.origin()).join("\n");
+        user_error(format!("Failed to parse revset: {message}"))
     }
 }
 
