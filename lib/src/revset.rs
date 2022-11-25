@@ -213,6 +213,10 @@ pub enum RevsetParseErrorKind {
     FsPathParseError(#[source] FsPathParseError),
     #[error("Cannot resolve file pattern without workspace")]
     FsPathWithoutWorkspace,
+    #[error(r#"Alias "{0}" cannot be expanded"#)]
+    BadAliasExpansion(String),
+    #[error(r#"Alias "{0}" expanded recursively"#)]
+    RecursiveAlias(String),
 }
 
 impl RevsetParseError {
@@ -574,7 +578,48 @@ impl fmt::Display for RevsetAliasId<'_> {
 #[derive(Clone, Copy, Debug)]
 struct ParseState<'a> {
     aliases_map: &'a RevsetAliasesMap,
+    aliases_expanding: &'a [RevsetAliasId<'a>],
     workspace_ctx: Option<&'a RevsetWorkspaceContext<'a>>,
+}
+
+impl ParseState<'_> {
+    fn with_alias_expanding<T>(
+        self,
+        id: RevsetAliasId<'_>,
+        span: pest::Span<'_>,
+        f: impl FnOnce(ParseState<'_>) -> Result<T, RevsetParseError>,
+    ) -> Result<T, RevsetParseError> {
+        // The stack should be short, so let's simply do linear search and duplicate.
+        if self.aliases_expanding.contains(&id) {
+            return Err(RevsetParseError::with_span(
+                RevsetParseErrorKind::RecursiveAlias(id.to_string()),
+                span,
+            ));
+        }
+        let mut aliases_expanding = self.aliases_expanding.to_vec();
+        aliases_expanding.push(id);
+        let expanding_state = ParseState {
+            aliases_map: self.aliases_map,
+            aliases_expanding: &aliases_expanding,
+            workspace_ctx: self.workspace_ctx,
+        };
+        f(expanding_state).map_err(|e| {
+            RevsetParseError::with_span_and_origin(
+                RevsetParseErrorKind::BadAliasExpansion(id.to_string()),
+                span,
+                e,
+            )
+        })
+    }
+}
+
+fn parse_program(
+    revset_str: &str,
+    state: ParseState,
+) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    let mut pairs = RevsetParser::parse(Rule::program, revset_str)?;
+    let first = pairs.next().unwrap();
+    parse_expression_rule(first.into_inner(), state)
 }
 
 fn parse_expression_rule(
@@ -637,11 +682,19 @@ fn parse_primary_rule(
 
 fn parse_symbol_rule(
     mut pairs: Pairs<Rule>,
-    _state: ParseState,
+    state: ParseState,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let first = pairs.next().unwrap();
     match first.as_rule() {
-        Rule::identifier => Ok(RevsetExpression::symbol(first.as_str().to_owned())),
+        Rule::identifier => {
+            let name = first.as_str();
+            // TODO: look up locals while expanding function alias
+            if let Some((id, defn)) = state.aliases_map.get_symbol(name) {
+                state.with_alias_expanding(id, first.as_span(), |state| parse_program(defn, state))
+            } else {
+                Ok(RevsetExpression::symbol(name.to_owned()))
+            }
+        }
         Rule::literal_string => {
             return Ok(RevsetExpression::symbol(
                 first
@@ -892,13 +945,12 @@ pub fn parse(
     aliases_map: &RevsetAliasesMap,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let mut pairs = RevsetParser::parse(Rule::program, revset_str)?;
-    let first = pairs.next().unwrap();
     let state = ParseState {
         aliases_map,
+        aliases_expanding: &[],
         workspace_ctx,
     };
-    parse_expression_rule(first.into_inner(), state)
+    parse_program(revset_str, state)
 }
 
 /// Walks `expression` tree and applies `f` recursively from leaf nodes.
@@ -2004,6 +2056,58 @@ mod tests {
                 RepoPath::from_internal_string("bar"),
                 RepoPath::from_internal_string("baz"),
             ])))
+        );
+    }
+
+    #[test]
+    fn test_expand_symbol_alias() {
+        assert_eq!(
+            parse_with_aliases("AB|c", [("AB", "a|b")]).unwrap(),
+            parse("(a|b)|c").unwrap()
+        );
+        assert_eq!(
+            parse_with_aliases("AB:heads(AB)", [("AB", "a|b")]).unwrap(),
+            parse("(a|b):heads(a|b)").unwrap()
+        );
+
+        // Not string substitution 'a&b|c', but tree substitution.
+        assert_eq!(
+            parse_with_aliases("a&BC", [("BC", "b|c")]).unwrap(),
+            parse("a&(b|c)").unwrap()
+        );
+
+        // String literal should not be substituted with alias.
+        assert_eq!(
+            parse_with_aliases(r#"A|"A""#, [("A", "a")]).unwrap(),
+            parse("a|A").unwrap()
+        );
+
+        // Alias can be substituted to string literal.
+        assert_eq!(
+            parse_with_aliases("author(A)", [("A", "a")]).unwrap(),
+            parse("author(a)").unwrap()
+        );
+
+        // Multi-level substitution.
+        assert_eq!(
+            parse_with_aliases("A", [("A", "BC"), ("BC", "b|C"), ("C", "c")]).unwrap(),
+            parse("b|c").unwrap()
+        );
+
+        // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.
+        assert_eq!(
+            parse_with_aliases("A", [("A", "A")]),
+            Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
+        );
+        assert_eq!(
+            parse_with_aliases("A", [("A", "B"), ("B", "b|C"), ("C", "c|B")]),
+            Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
+        );
+
+        // Error in alias definition.
+        assert_eq!(
+            parse_with_aliases("A", [("A", "a(")]),
+            Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
         );
     }
 
