@@ -737,14 +737,20 @@ fn test_export_partial_failure() {
     // Now remove the `main` branch and make sure that the `main/sub` gets exported
     // even though it didn't change
     mut_repo.remove_local_branch("main");
-    // TODO: main/sub should not have failed
     assert_eq!(
         git::export_refs(mut_repo, &git_repo),
-        Ok(vec!["".to_string(), "main/sub".to_string()])
+        Ok(vec!["".to_string()])
     );
     assert!(git_repo.find_reference("refs/heads/").is_err());
     assert!(git_repo.find_reference("refs/heads/main").is_err());
-    assert!(git_repo.find_reference("refs/heads/main/sub").is_err());
+    assert_eq!(
+        git_repo
+            .find_reference("refs/heads/main/sub")
+            .unwrap()
+            .target()
+            .unwrap(),
+        git_id(&commit_a)
+    );
 }
 
 #[test]
