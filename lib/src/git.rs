@@ -230,6 +230,17 @@ fn export_changes(
     }
     let mut exported_view = old_view.store_view().clone();
     let mut failed_branches = vec![];
+    for branch_name in branches_to_delete {
+        let git_ref_name = format!("refs/heads/{}", branch_name);
+        if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
+            if git_ref.delete().is_err() {
+                failed_branches.push(branch_name);
+                continue;
+            }
+        }
+        exported_view.branches.remove(&branch_name);
+        mut_repo.remove_git_ref(&git_ref_name);
+    }
     for (branch_name, new_target) in branches_to_update {
         let git_ref_name = format!("refs/heads/{}", branch_name);
         if git_repo
@@ -252,17 +263,6 @@ fn export_changes(
             git_ref_name,
             RefTarget::Normal(CommitId::from_bytes(new_target.as_bytes())),
         );
-    }
-    for branch_name in branches_to_delete {
-        let git_ref_name = format!("refs/heads/{}", branch_name);
-        if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
-            if git_ref.delete().is_err() {
-                failed_branches.push(branch_name);
-                continue;
-            }
-        }
-        exported_view.branches.remove(&branch_name);
-        mut_repo.remove_git_ref(&git_ref_name);
     }
     Ok((exported_view, failed_branches))
 }
