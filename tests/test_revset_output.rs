@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common::TestEnvironment;
+use common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
 pub mod common;
 
@@ -117,5 +117,99 @@ fn test_bad_function_call() {
       |      ^------^
       |
       = Revset function "whatever" doesn't exist
+    "###);
+}
+
+#[test]
+fn test_alias() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(
+        br###"
+    [revset-aliases]
+    'my-root' = 'root'
+    'syntax-error' = 'whatever &'
+    'recurse' = 'recurse1'
+    'recurse1' = 'recurse'
+    "###,
+    );
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "my-root"]);
+    insta::assert_snapshot!(stdout, @r###"
+    o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
+      (no description set)
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root & syntax-error"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:8
+      |
+    1 | root & syntax-error
+      |        ^----------^
+      |
+      = Alias "syntax-error" cannot be expanded
+     --> 1:11
+      |
+    1 | whatever &
+      |           ^---
+      |
+      = expected dag_range_pre_op, range_pre_op, or primary
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root & recurse"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:8
+      |
+    1 | root & recurse
+      |        ^-----^
+      |
+      = Alias "recurse" cannot be expanded
+     --> 1:1
+      |
+    1 | recurse1
+      | ^------^
+      |
+      = Alias "recurse1" cannot be expanded
+     --> 1:1
+      |
+    1 | recurse
+      | ^-----^
+      |
+      = Alias "recurse" expanded recursively
+    "###);
+}
+
+#[test]
+fn test_bad_alias_decl() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(
+        br###"
+    [revset-aliases]
+    'my-root' = 'root'
+    '"bad"' = 'root'
+    "###,
+    );
+
+    // Invalid declaration should be warned and ignored.
+    let assert = test_env
+        .jj_cmd(&repo_path, &["log", "-r", "my-root"])
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
+      (no description set)
+    "###);
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Failed to load "revset-aliases."bad"":  --> 1:1
+      |
+    1 | "bad"
+      | ^---
+      |
+      = expected identifier
     "###);
 }

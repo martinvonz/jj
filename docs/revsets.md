@@ -115,6 +115,18 @@ revsets (expressions) as arguments.
   in `x` doesn't exist (e.g. is an unknown branch name.)
 
 
+## Aliases
+
+New symbols can be defined in the config file, by using any combination
+of the predefined symbols/functions and other aliases.
+
+For example:
+```toml
+[revset-aliases]
+'mine' = 'author(martinvonz)'
+```
+
+
 ## Examples
 
 Show the parent(s) of the working-copy commit (like `git log -1 HEAD`):
