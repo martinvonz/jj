@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The new revset function `empty()` finds commits modifying no files.
 
+* Added support for revset aliases. New symbols can be configured by
+  `revset-aliases.<name> = <expression>`.
+
 * It is now possible to specify configuration options on the command line
   with the new `--config-toml` global option.
 

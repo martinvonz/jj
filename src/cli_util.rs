@@ -307,7 +307,7 @@ jj init --git-repo=.",
 
     pub fn for_loaded_repo(
         &self,
-        ui: &Ui,
+        ui: &mut Ui,
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
@@ -330,13 +330,14 @@ pub struct WorkspaceCommandHelper {
     settings: UserSettings,
     workspace: Workspace,
     repo: Arc<ReadonlyRepo>,
+    revset_aliases_map: RevsetAliasesMap,
     may_update_working_copy: bool,
     working_copy_shared_with_git: bool,
 }
 
 impl WorkspaceCommandHelper {
     pub fn new(
-        ui: &Ui,
+        ui: &mut Ui,
         workspace: Workspace,
         string_args: Vec<String>,
         global_args: &GlobalArgs,
@@ -360,6 +361,7 @@ impl WorkspaceCommandHelper {
             settings: ui.settings().clone(),
             workspace,
             repo,
+            revset_aliases_map: load_revset_aliases(ui)?,
             may_update_working_copy,
             working_copy_shared_with_git,
         })
@@ -609,8 +611,11 @@ impl WorkspaceCommandHelper {
         &self,
         revision_str: &str,
     ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-        let aliases_map = RevsetAliasesMap::new(); // TODO: load from settings
-        let expression = revset::parse(revision_str, &aliases_map, Some(&self.revset_context()))?;
+        let expression = revset::parse(
+            revision_str,
+            &self.revset_aliases_map,
+            Some(&self.revset_context()),
+        )?;
         Ok(revset::optimize(expression))
     }
 
@@ -1022,6 +1027,23 @@ fn resolve_single_op_from_store(
             op_str
         )))
     }
+}
+
+fn load_revset_aliases(ui: &mut Ui) -> Result<RevsetAliasesMap, CommandError> {
+    const TABLE_KEY: &str = "revset-aliases";
+    let mut aliases_map = RevsetAliasesMap::new();
+    if let Ok(table) = ui.settings().config().get_table(TABLE_KEY) {
+        for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
+            let r = value
+                .into_string()
+                .map_err(|e| e.to_string())
+                .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
+            if let Err(s) = r {
+                ui.write_warn(format!("Failed to load \"{TABLE_KEY}.{decl}\": {s}\n"))?;
+            }
+        }
+    }
+    Ok(aliases_map)
 }
 
 pub fn resolve_base_revs(
