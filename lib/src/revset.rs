@@ -14,7 +14,7 @@
 
 use std::borrow::Borrow;
 use std::cmp::{Ordering, Reverse};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::iter::Peekable;
 use std::ops::Range;
 use std::path::Path;
@@ -474,8 +474,76 @@ impl RevsetExpression {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct RevsetAliasesMap {
+    symbol_aliases: HashMap<String, String>,
+}
+
+impl RevsetAliasesMap {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Adds new substitution rule `decl = defn`.
+    ///
+    /// Returns error if `decl` is invalid. The `defn` part isn't checked. A bad
+    /// `defn` will be reported when the alias is substituted.
+    pub fn insert(
+        &mut self,
+        decl: impl AsRef<str>,
+        defn: impl Into<String>,
+    ) -> Result<(), RevsetParseError> {
+        match RevsetAliasDeclaration::parse(decl.as_ref())? {
+            RevsetAliasDeclaration::Symbol(name) => {
+                self.symbol_aliases.insert(name, defn.into());
+            }
+        }
+        Ok(())
+    }
+
+    fn get_symbol<'a>(&'a self, name: &str) -> Option<(RevsetAliasId<'a>, &'a str)> {
+        self.symbol_aliases
+            .get_key_value(name)
+            .map(|(name, defn)| (RevsetAliasId::Symbol(name), defn.as_ref()))
+    }
+}
+
+/// Parsed declaration part of alias rule.
+#[derive(Clone, Debug)]
+enum RevsetAliasDeclaration {
+    Symbol(String),
+    // TODO: Function(String, Vec<String>)
+}
+
+impl RevsetAliasDeclaration {
+    fn parse(source: &str) -> Result<Self, RevsetParseError> {
+        let mut pairs = RevsetParser::parse(Rule::alias_declaration, source)?;
+        let first = pairs.next().unwrap();
+        match first.as_rule() {
+            Rule::identifier => Ok(RevsetAliasDeclaration::Symbol(first.as_str().to_owned())),
+            r => panic!("unxpected alias declaration rule {r:?}"),
+        }
+    }
+}
+
+/// Borrowed reference to identify alias expression.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RevsetAliasId<'a> {
+    Symbol(&'a str),
+    // TODO: Function(&'a str)
+}
+
+impl fmt::Display for RevsetAliasId<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RevsetAliasId::Symbol(name) => write!(f, "{name}"),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 struct ParseState<'a> {
+    aliases_map: &'a RevsetAliasesMap,
     workspace_ctx: Option<&'a RevsetWorkspaceContext<'a>>,
 }
 
@@ -791,11 +859,15 @@ fn parse_function_argument_to_string(
 
 pub fn parse(
     revset_str: &str,
+    aliases_map: &RevsetAliasesMap,
     workspace_ctx: Option<&RevsetWorkspaceContext>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let mut pairs = RevsetParser::parse(Rule::program, revset_str)?;
     let first = pairs.next().unwrap();
-    let state = ParseState { workspace_ctx };
+    let state = ParseState {
+        aliases_map,
+        workspace_ctx,
+    };
     parse_expression_rule(first.into_inner(), state)
 }
 
@@ -1624,6 +1696,17 @@ mod tests {
     use super::*;
 
     fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
+        parse_with_aliases(revset_str, [] as [(&str, &str); 0])
+    }
+
+    fn parse_with_aliases(
+        revset_str: &str,
+        aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
+    ) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
+        let mut aliases_map = RevsetAliasesMap::new();
+        for (decl, defn) in aliases {
+            aliases_map.insert(decl, defn).unwrap();
+        }
         // Set up pseudo context to resolve file(path)
         let workspace_ctx = RevsetWorkspaceContext {
             cwd: Path::new("/"),
@@ -1631,7 +1714,7 @@ mod tests {
             workspace_root: Path::new("/"),
         };
         // Map error to comparable object
-        super::parse(revset_str, Some(&workspace_ctx)).map_err(|e| e.kind)
+        super::parse(revset_str, &aliases_map, Some(&workspace_ctx)).map_err(|e| e.kind)
     }
 
     #[test]

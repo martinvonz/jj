@@ -40,7 +40,7 @@ use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
 use jujutsu_lib::repo::{ReadonlyRepo, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::revset::RevsetExpression;
+use jujutsu_lib::revset::{RevsetAliasesMap, RevsetExpression};
 use jujutsu_lib::revset_graph_iterator::{RevsetGraphEdge, RevsetGraphEdgeType};
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
@@ -2164,7 +2164,9 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                  often not useful because all non-empty commits touch '.'.  If you meant to show \
                  the working copy commit, pass -r '@' instead.\n"
             ))?;
-        } else if revset.is_empty() && revset::parse(only_path, None).is_ok() {
+        } else if revset.is_empty()
+            && revset::parse(only_path, &RevsetAliasesMap::new(), None).is_ok()
+        {
             ui.write_warn(&format!(
                 "warning: The argument {only_path:?} is being interpreted as a path. To specify a \
                  revset, pass -r {only_path:?} instead.\n"

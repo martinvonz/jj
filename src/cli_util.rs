@@ -36,7 +36,8 @@ use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::{BackendFactories, MutableRepo, ReadonlyRepo, RepoRef, RewriteRootCommit};
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
 use jujutsu_lib::revset::{
-    Revset, RevsetError, RevsetExpression, RevsetParseError, RevsetWorkspaceContext,
+    Revset, RevsetAliasesMap, RevsetError, RevsetExpression, RevsetParseError,
+    RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::transaction::Transaction;
@@ -606,7 +607,8 @@ impl WorkspaceCommandHelper {
         &self,
         revision_str: &str,
     ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-        let expression = revset::parse(revision_str, Some(&self.revset_context()))?;
+        let aliases_map = RevsetAliasesMap::new(); // TODO: load from settings
+        let expression = revset::parse(revision_str, &aliases_map, Some(&self.revset_context()))?;
         Ok(revset::optimize(expression))
     }
 

@@ -22,7 +22,8 @@ use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
-    self, optimize, parse, resolve_symbol, RevsetError, RevsetExpression, RevsetWorkspaceContext,
+    self, optimize, parse, resolve_symbol, RevsetAliasesMap, RevsetError, RevsetExpression,
+    RevsetWorkspaceContext,
 };
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
@@ -135,7 +136,7 @@ fn test_resolve_symbol_commit_id() {
     // Test present() suppresses only NoSuchRevision error
     assert_eq!(resolve_commit_ids(repo_ref, "present(foo)"), []);
     assert_eq!(
-        optimize(parse("present(04)", None).unwrap())
+        optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap())
             .evaluate(repo_ref, None)
             .map(|_| ()),
         Err(RevsetError::AmbiguousCommitIdPrefix("04".to_string()))
@@ -443,7 +444,7 @@ fn test_resolve_symbol_git_refs() {
 }
 
 fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
-    let expression = optimize(parse(revset_str, None).unwrap());
+    let expression = optimize(parse(revset_str, &RevsetAliasesMap::new(), None).unwrap());
     expression
         .evaluate(repo, None)
         .unwrap()
@@ -463,7 +464,8 @@ fn resolve_commit_ids_in_workspace(
         workspace_id: workspace.workspace_id(),
         workspace_root: workspace.workspace_root(),
     };
-    let expression = optimize(parse(revset_str, Some(&workspace_ctx)).unwrap());
+    let expression =
+        optimize(parse(revset_str, &RevsetAliasesMap::new(), Some(&workspace_ctx)).unwrap());
     expression
         .evaluate(repo, Some(&workspace_ctx))
         .unwrap()
