@@ -53,9 +53,9 @@ use maplit::{hashmap, hashset};
 use pest::Parser;
 
 use crate::cli_util::{
-    print_checkout_stats, resolve_base_revs, short_commit_description, short_commit_hash,
-    user_error, user_error_with_hint, write_commit_summary, Args, CommandError, CommandHelper,
-    WorkspaceCommandHelper,
+    print_checkout_stats, print_failed_git_export, resolve_base_revs, short_commit_description,
+    short_commit_hash, user_error, user_error_with_hint, write_commit_summary, Args, CommandError,
+    CommandHelper, WorkspaceCommandHelper,
 };
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{AsciiGraphDrawer, Edge};
@@ -4542,8 +4542,9 @@ fn cmd_git_export(
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction("export git refs");
-    git::export_refs(tx.mut_repo(), &git_repo)?;
+    let failed_branches = git::export_refs(tx.mut_repo(), &git_repo)?;
     workspace_command.finish_transaction(ui, tx)?;
+    print_failed_git_export(ui, &failed_branches)?;
     Ok(())
 }
 
