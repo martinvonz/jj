@@ -68,3 +68,7 @@ expression = {
 }
 
 program = _{ SOI ~ expression ~ EOI }
+
+alias_declaration = _{
+  SOI ~ identifier ~ EOI
+}
