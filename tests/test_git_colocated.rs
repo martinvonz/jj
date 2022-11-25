@@ -16,7 +16,7 @@ use std::path::Path;
 
 use git2::Oid;
 
-use crate::common::TestEnvironment;
+use crate::common::{get_stderr_string, TestEnvironment};
 
 pub mod common;
 
@@ -175,6 +175,42 @@ fn test_git_colocated_branches() {
     |/  
     o 230dd059e1b059aefc0da06a2e5a7dbf22362f22 
     o 0000000000000000000000000000000000000000 
+    "###);
+}
+
+#[test]
+fn test_git_colocated_conflicting_git_refs() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    git2::Repository::init(&workspace_root).unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    let assert = test_env
+        .jj_cmd(&workspace_root, &["branch", "create", ""])
+        .assert()
+        .success()
+        .stdout("");
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Failed to export some branches:
+      
+    "###);
+    let assert = test_env
+        .jj_cmd(&workspace_root, &["branch", "create", "main"])
+        .assert()
+        .success()
+        .stdout("");
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Failed to export some branches:
+      
+    "###);
+    let assert = test_env
+        .jj_cmd(&workspace_root, &["branch", "create", "main/sub"])
+        .assert()
+        .success()
+        .stdout("");
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Failed to export some branches:
+      
+      main/sub
     "###);
 }
 

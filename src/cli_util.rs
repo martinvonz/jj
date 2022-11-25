@@ -839,7 +839,8 @@ impl WorkspaceCommandHelper {
         if self.working_copy_shared_with_git {
             self.export_head_to_git(mut_repo)?;
             let git_repo = self.repo.store().git_repo().unwrap();
-            git::export_refs(mut_repo, &git_repo)?;
+            let failed_branches = git::export_refs(mut_repo, &git_repo)?;
+            print_failed_git_export(ui, &failed_branches)?;
         }
         let maybe_old_commit = tx
             .base_repo()
@@ -879,6 +880,22 @@ pub fn print_checkout_stats(ui: &mut Ui, stats: CheckoutStats) -> Result<(), std
             "Added {} files, modified {} files, removed {} files",
             stats.added_files, stats.updated_files, stats.removed_files
         )?;
+    }
+    Ok(())
+}
+
+pub fn print_failed_git_export(
+    ui: &mut Ui,
+    failed_branches: &[String],
+) -> Result<(), std::io::Error> {
+    if !failed_branches.is_empty() {
+        ui.write_warn("Failed to export some branches:\n")?;
+        let mut formatter = ui.stderr_formatter();
+        for branch_name in failed_branches {
+            formatter.write_str("  ")?;
+            formatter.with_label("branch", |formatter| formatter.write_str(branch_name))?;
+            formatter.write_str("\n")?;
+        }
     }
     Ok(())
 }

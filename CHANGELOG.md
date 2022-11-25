@@ -71,6 +71,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   some additional insight into what is happening behind the scenes. 
   Note: This is not comprehensively supported by all operations yet.
 
+* (#493) When exporting branches to Git, we used to fail if some branches could
+  not be exported (e.g. because Git doesn't allow a branch called `main` and
+  another branch called `main/sub`). We now print a warning about these branches
+  instead.
+
 ### Fixed bugs
 
 * (#463) A bug in the export of branches to Git caused spurious conflicted
