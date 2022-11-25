@@ -36,7 +36,7 @@ members = ["lib"]
 [dependencies]
 chrono = { version = "0.4.23", default-features = false, features = ["std", "clock"] }
 clap = { version = "4.0.27", features = ["derive", "deprecated"] }
-clap_complete = "4.0.5"
+clap_complete = "4.0.6"
 clap_mangen = "0.2.5"
 config = { version = "0.13.2", default-features = false, features = ["toml"] }
 crossterm = { version = "0.25", default-features = false }
