@@ -76,6 +76,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   another branch called `main/sub`). We now print a warning about these branches
   instead.
 
+* `jj log`, `jj show`, and `jj obslog` now all support showing relative
+  timestamps by setting `ui.relative-timestamps = true` in the config file.
+
 ### Fixed bugs
 
 * (#463) A bug in the export of branches to Git caused spurious conflicted

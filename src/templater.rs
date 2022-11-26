@@ -18,7 +18,7 @@ use std::io;
 use std::ops::{Add, AddAssign};
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{ChangeId, CommitId, Signature};
+use jujutsu_lib::backend::{ChangeId, CommitId, Signature, Timestamp};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
@@ -436,5 +436,13 @@ impl CommitIdKeyword {
 impl TemplateProperty<Commit, CommitId> for CommitIdKeyword {
     fn extract(&self, context: &Commit) -> CommitId {
         context.id().clone()
+    }
+}
+
+pub struct SignatureTimestamp;
+
+impl TemplateProperty<Signature, Timestamp> for SignatureTimestamp {
+    fn extract(&self, context: &Signature) -> Timestamp {
+        context.timestamp.clone()
     }
 }

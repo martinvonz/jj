@@ -798,6 +798,7 @@ dependencies = [
  "testutils",
  "textwrap 0.16.0",
  "thiserror",
+ "timeago",
  "tracing",
  "tracing-subscriber",
 ]
@@ -1762,6 +1763,12 @@ dependencies = [
  "integer-encoding",
  "ordered-float",
 ]
+
+[[package]]
+name = "timeago"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ec32dde57efb15c035ac074118d7f32820451395f28cb0524a01d4e94983b26"
 
 [[package]]
 name = "tinytemplate"
