@@ -1366,18 +1366,26 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
     let diff_iterator = from_tree.diff(&to_tree, &EverythingMatcher);
     // TODO: Add branches, tags, etc
     // TODO: Indent the description like Git does
-    let template_string = r#"
+    let (author_timestamp_template, committer_timestamp_template) =
+        if ui.settings().relative_timestamps() {
+            ("author.timestamp().ago()", "committer.timestamp().ago()")
+        } else {
+            ("author.timestamp()", "committer.timestamp()")
+        };
+    let template_string = format!(
+        r#"
             "Commit ID: " commit_id "\n"
             "Change ID: " change_id "\n"
-            "Author: " author " <" author.email() "> (" author.timestamp() ")\n"
-            "Committer: " committer " <" committer.email() "> (" committer.timestamp() ")\n"
+            "Author: " author " <" author.email() "> (" {author_timestamp_template} ")\n"
+            "Committer: " committer " <" committer.email() "> (" {committer_timestamp_template} ")\n"
             "\n"
             description
-            "\n""#;
+            "\n""#,
+    );
     let template = crate::template_parser::parse_commit_template(
         workspace_command.repo().as_repo_ref(),
         &workspace_command.workspace_id(),
-        template_string,
+        &template_string,
     );
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
@@ -1993,10 +2001,17 @@ fn cmd_status(
 fn log_template(settings: &UserSettings) -> String {
     // TODO: define a method on boolean values, so we can get auto-coloring
     //       with e.g. `conflict.then("conflict")`
-    let default_template = r#"
+
+    let author_timestamp = if settings.relative_timestamps() {
+        "author.timestamp().ago()"
+    } else {
+        "author.timestamp()"
+    };
+    let default_template = format!(
+        r#"
             change_id.short()
             " " author.email()
-            " " label("timestamp", author.timestamp())
+            " " label("timestamp", {author_timestamp})
             if(branches, " " branches)
             if(tags, " " tags)
             if(working_copies, " " working_copies)
@@ -2006,11 +2021,12 @@ fn log_template(settings: &UserSettings) -> String {
             if(conflict, label("conflict", " conflict"))
             "\n"
             description.first_line()
-            "\n""#;
+            "\n""#,
+    );
     settings
         .config()
         .get_string("template.log.graph")
-        .unwrap_or_else(|_| default_template.to_string())
+        .unwrap_or(default_template)
 }
 
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {

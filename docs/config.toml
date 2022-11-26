@@ -13,3 +13,6 @@ ui.editor = "pico" # the default
 
 diff-editor = "meld" # default, requires meld to be installed
 # diff-editor = "vimdiff"
+
+ui.relative-timestamps = false # the default
+# ui.relative-timestamps = true # renders timestamps relatively, e.g. "x hours ago"

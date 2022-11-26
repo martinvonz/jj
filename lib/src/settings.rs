@@ -143,6 +143,12 @@ impl UserSettings {
             .unwrap_or(true)
     }
 
+    pub fn relative_timestamps(&self) -> bool {
+        self.config
+            .get_bool("ui.relative-timestamps")
+            .unwrap_or(false)
+    }
+
     pub fn config(&self) -> &config::Config {
         &self.config
     }

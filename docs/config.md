@@ -91,6 +91,15 @@ further settings are passed on via the following:
     merge-tools.kdiff3.program = "kdiff3"
     merge-tools.kdiff3.edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
 
+
+## Relative timestamps
+
+    ui.relative-timestamps = true
+
+False by default, but setting to true will change timestamps to be rendered
+as `x days/hours/seconds ago` instead of being rendered as a full timestamp.
+
+
 # Alternative ways to specify configuration settings
 
 Instead of `~/.jjconfig.toml`, the config settings can be located at
