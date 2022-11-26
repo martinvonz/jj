@@ -116,13 +116,14 @@ revsets (expressions) as arguments.
 
 ## Aliases
 
-New symbols can be defined in the config file, by using any combination
-of the predefined symbols/functions and other aliases.
+New symbols and functions can be defined in the config file, by using any
+combination of the predefined symbols/functions and other aliases.
 
 For example:
 ```toml
 [revset-aliases]
 'mine' = 'author(martinvonz)'
+'user(x)' = 'author(x) | committer(x)'
 ```
 
 

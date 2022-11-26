@@ -47,6 +47,10 @@ function_arguments = {
   (whitespace* ~ expression ~ whitespace* ~ ",")* ~ whitespace* ~ expression ~ whitespace*
   | whitespace*
 }
+formal_parameters = {
+  (whitespace* ~ identifier ~ whitespace* ~ ",")* ~ whitespace* ~ identifier ~ whitespace*
+  | whitespace*
+}
 
 primary = {
   function_name ~ "(" ~ function_arguments ~ ")"
@@ -69,6 +73,10 @@ expression = {
 
 program = _{ SOI ~ expression ~ EOI }
 
+alias_declaration_part = _{
+  function_name ~ "(" ~ formal_parameters ~ ")"
+  | identifier
+}
 alias_declaration = _{
-  SOI ~ identifier ~ EOI
+  SOI ~ alias_declaration_part ~ EOI
 }
