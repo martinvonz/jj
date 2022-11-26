@@ -213,6 +213,8 @@ pub enum RevsetParseErrorKind {
     FsPathParseError(#[source] FsPathParseError),
     #[error("Cannot resolve file pattern without workspace")]
     FsPathWithoutWorkspace,
+    #[error("Redefinition of function parameter")]
+    RedefinedFunctionParameter,
     #[error(r#"Alias "{0}" cannot be expanded"#)]
     BadAliasExpansion(String),
     #[error(r#"Alias "{0}" expanded recursively"#)]
@@ -511,6 +513,7 @@ impl RevsetExpression {
 #[derive(Clone, Debug, Default)]
 pub struct RevsetAliasesMap {
     symbol_aliases: HashMap<String, String>,
+    function_aliases: HashMap<String, (Vec<String>, String)>,
 }
 
 impl RevsetAliasesMap {
@@ -531,6 +534,9 @@ impl RevsetAliasesMap {
             RevsetAliasDeclaration::Symbol(name) => {
                 self.symbol_aliases.insert(name, defn.into());
             }
+            RevsetAliasDeclaration::Function(name, params) => {
+                self.function_aliases.insert(name, (params, defn.into()));
+            }
         }
         Ok(())
     }
@@ -540,13 +546,28 @@ impl RevsetAliasesMap {
             .get_key_value(name)
             .map(|(name, defn)| (RevsetAliasId::Symbol(name), defn.as_ref()))
     }
+
+    fn get_function<'a>(
+        &'a self,
+        name: &str,
+    ) -> Option<(RevsetAliasId<'a>, &'a [String], &'a str)> {
+        self.function_aliases
+            .get_key_value(name)
+            .map(|(name, (params, defn))| {
+                (
+                    RevsetAliasId::Function(name),
+                    params.as_ref(),
+                    defn.as_ref(),
+                )
+            })
+    }
 }
 
 /// Parsed declaration part of alias rule.
 #[derive(Clone, Debug)]
 enum RevsetAliasDeclaration {
     Symbol(String),
-    // TODO: Function(String, Vec<String>)
+    Function(String, Vec<String>),
 }
 
 impl RevsetAliasDeclaration {
@@ -555,6 +576,26 @@ impl RevsetAliasDeclaration {
         let first = pairs.next().unwrap();
         match first.as_rule() {
             Rule::identifier => Ok(RevsetAliasDeclaration::Symbol(first.as_str().to_owned())),
+            Rule::function_name => {
+                let name = first.as_str().to_owned();
+                let params_pair = pairs.next().unwrap();
+                let params_span = params_pair.as_span();
+                let params = params_pair
+                    .into_inner()
+                    .map(|pair| match pair.as_rule() {
+                        Rule::identifier => pair.as_str().to_owned(),
+                        r => panic!("unxpected formal parameter rule {r:?}"),
+                    })
+                    .collect_vec();
+                if params.iter().all_unique() {
+                    Ok(RevsetAliasDeclaration::Function(name, params))
+                } else {
+                    Err(RevsetParseError::with_span(
+                        RevsetParseErrorKind::RedefinedFunctionParameter,
+                        params_span,
+                    ))
+                }
+            }
             r => panic!("unxpected alias declaration rule {r:?}"),
         }
     }
@@ -564,13 +605,14 @@ impl RevsetAliasDeclaration {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RevsetAliasId<'a> {
     Symbol(&'a str),
-    // TODO: Function(&'a str)
+    Function(&'a str),
 }
 
 impl fmt::Display for RevsetAliasId<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RevsetAliasId::Symbol(name) => write!(f, "{name}"),
+            RevsetAliasId::Function(name) => write!(f, "{name}()"),
         }
     }
 }
@@ -579,6 +621,7 @@ impl fmt::Display for RevsetAliasId<'_> {
 struct ParseState<'a> {
     aliases_map: &'a RevsetAliasesMap,
     aliases_expanding: &'a [RevsetAliasId<'a>],
+    locals: &'a HashMap<&'a str, Rc<RevsetExpression>>,
     workspace_ctx: Option<&'a RevsetWorkspaceContext<'a>>,
 }
 
@@ -586,6 +629,7 @@ impl ParseState<'_> {
     fn with_alias_expanding<T>(
         self,
         id: RevsetAliasId<'_>,
+        locals: &HashMap<&str, Rc<RevsetExpression>>,
         span: pest::Span<'_>,
         f: impl FnOnce(ParseState<'_>) -> Result<T, RevsetParseError>,
     ) -> Result<T, RevsetParseError> {
@@ -601,6 +645,7 @@ impl ParseState<'_> {
         let expanding_state = ParseState {
             aliases_map: self.aliases_map,
             aliases_expanding: &aliases_expanding,
+            locals,
             workspace_ctx: self.workspace_ctx,
         };
         f(expanding_state).map_err(|e| {
@@ -688,9 +733,13 @@ fn parse_symbol_rule(
     match first.as_rule() {
         Rule::identifier => {
             let name = first.as_str();
-            // TODO: look up locals while expanding function alias
-            if let Some((id, defn)) = state.aliases_map.get_symbol(name) {
-                state.with_alias_expanding(id, first.as_span(), |state| parse_program(defn, state))
+            if let Some(expr) = state.locals.get(name) {
+                Ok(expr.clone())
+            } else if let Some((id, defn)) = state.aliases_map.get_symbol(name) {
+                let locals = HashMap::new(); // Don't spill out the current scope
+                state.with_alias_expanding(id, &locals, first.as_span(), |state| {
+                    parse_program(defn, state)
+                })
             } else {
                 Ok(RevsetExpression::symbol(name.to_owned()))
             }
@@ -713,6 +762,39 @@ fn parse_symbol_rule(
 }
 
 fn parse_function_expression(
+    name_pair: Pair<Rule>,
+    arguments_pair: Pair<Rule>,
+    state: ParseState,
+) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    let name = name_pair.as_str();
+    if let Some((id, params, defn)) = state.aliases_map.get_function(name) {
+        // Resolve arguments in the current scope, and pass them in to the alias
+        // expansion scope.
+        let arguments_span = arguments_pair.as_span();
+        let args = arguments_pair
+            .into_inner()
+            .map(|arg| parse_expression_rule(arg.into_inner(), state))
+            .collect::<Result<Vec<_>, RevsetParseError>>()?;
+        if params.len() == args.len() {
+            let locals = params.iter().map(|s| s.as_str()).zip(args).collect();
+            state.with_alias_expanding(id, &locals, name_pair.as_span(), |state| {
+                parse_program(defn, state)
+            })
+        } else {
+            Err(RevsetParseError::with_span(
+                RevsetParseErrorKind::InvalidFunctionArguments {
+                    name: name.to_owned(),
+                    message: format!("Expected {} arguments", params.len()),
+                },
+                arguments_span,
+            ))
+        }
+    } else {
+        parse_builtin_function(name_pair, arguments_pair, state)
+    }
+}
+
+fn parse_builtin_function(
     name_pair: Pair<Rule>,
     arguments_pair: Pair<Rule>,
     state: ParseState,
@@ -948,6 +1030,7 @@ pub fn parse(
     let state = ParseState {
         aliases_map,
         aliases_expanding: &[],
+        locals: &HashMap::new(),
         workspace_ctx,
     };
     parse_program(revset_str, state)
@@ -2108,6 +2191,100 @@ mod tests {
         assert_eq!(
             parse_with_aliases("A", [("A", "a(")]),
             Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
+        );
+    }
+
+    #[test]
+    fn test_expand_function_alias() {
+        assert_eq!(
+            parse_with_aliases("F()", [("F(  )", "a")]).unwrap(),
+            parse("a").unwrap()
+        );
+        assert_eq!(
+            parse_with_aliases("F(a)", [("F( x  )", "x")]).unwrap(),
+            parse("a").unwrap()
+        );
+        assert_eq!(
+            parse_with_aliases("F(a, b)", [("F( x,  y )", "x|y")]).unwrap(),
+            parse("a|b").unwrap()
+        );
+
+        // Arguments should be resolved in the current scope.
+        assert_eq!(
+            parse_with_aliases("F(a:y,b:x)", [("F(x,y)", "x|y")]).unwrap(),
+            parse("(a:y)|(b:x)").unwrap()
+        );
+        // F(a) -> G(a)&y -> (x|a)&y
+        assert_eq!(
+            parse_with_aliases("F(a)", [("F(x)", "G(x)&y"), ("G(y)", "x|y")]).unwrap(),
+            parse("(x|a)&y").unwrap()
+        );
+        // F(G(a)) -> F(x|a) -> G(x|a)&y -> (x|(x|a))&y
+        assert_eq!(
+            parse_with_aliases("F(G(a))", [("F(x)", "G(x)&y"), ("G(y)", "x|y")]).unwrap(),
+            parse("(x|(x|a))&y").unwrap()
+        );
+
+        // Function parameter should precede the symbol alias.
+        assert_eq!(
+            parse_with_aliases("F(a)|X", [("F(X)", "X"), ("X", "x")]).unwrap(),
+            parse("a|x").unwrap()
+        );
+
+        // Function parameter shouldn't be expanded in symbol alias.
+        assert_eq!(
+            parse_with_aliases("F(a)", [("F(x)", "x|A"), ("A", "x")]).unwrap(),
+            parse("a|x").unwrap()
+        );
+
+        // String literal should not be substituted with function parameter.
+        assert_eq!(
+            parse_with_aliases("F(a)", [("F(x)", r#"x|"x""#)]).unwrap(),
+            parse("a|x").unwrap()
+        );
+
+        // Pass string literal as parameter.
+        assert_eq!(
+            parse_with_aliases("F(a)", [("F(x)", "author(x)|committer(x)")]).unwrap(),
+            parse("author(a)|committer(a)").unwrap()
+        );
+
+        // Function and symbol aliases reside in separate namespaces.
+        assert_eq!(
+            parse_with_aliases("A()", [("A()", "A"), ("A", "a")]).unwrap(),
+            parse("a").unwrap()
+        );
+
+        // Invalid number of arguments.
+        assert_eq!(
+            parse_with_aliases("F(a)", [("F()", "x")]),
+            Err(RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "F".to_owned(),
+                message: "Expected 0 arguments".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_with_aliases("F()", [("F(x)", "x")]),
+            Err(RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "F".to_owned(),
+                message: "Expected 1 arguments".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_with_aliases("F(a,b,c)", [("F(x,y)", "x|y")]),
+            Err(RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "F".to_owned(),
+                message: "Expected 2 arguments".to_owned()
+            })
+        );
+
+        // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.
+        assert_eq!(
+            parse_with_aliases(
+                "F(a)",
+                [("F(x)", "G(x)"), ("G(x)", "H(x)"), ("H(x)", "F(x)")]
+            ),
+            Err(RevsetParseErrorKind::BadAliasExpansion("F()".to_owned()))
         );
     }
 
