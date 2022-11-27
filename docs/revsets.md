@@ -46,8 +46,7 @@ Jujutsu attempts to resolve a symbol in the following order:
 3. Tag name
 4. Branch name
 5. Git ref
-6. Commit ID
-7. Change ID
+6. Commit ID or change ID
 
 
 ## Operators

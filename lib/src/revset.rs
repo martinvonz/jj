@@ -83,30 +83,37 @@ fn resolve_branch(repo: RepoRef, symbol: &str) -> Option<Vec<CommitId>> {
     None
 }
 
-fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Option<Vec<CommitId>>, RevsetError> {
-    // First check if it's a full commit id.
+fn resolve_full_commit_id(
+    repo: RepoRef,
+    symbol: &str,
+) -> Result<Option<Vec<CommitId>>, RevsetError> {
     if let Ok(binary_commit_id) = hex::decode(symbol) {
         let commit_id = CommitId::new(binary_commit_id);
         match repo.store().get_commit(&commit_id) {
-            Ok(_) => return Ok(Some(vec![commit_id])),
-            Err(BackendError::NotFound) => {} // fall through
-            Err(err) => return Err(RevsetError::StoreError(err)),
+            Ok(_) => Ok(Some(vec![commit_id])),
+            Err(BackendError::NotFound) => Ok(None),
+            Err(err) => Err(RevsetError::StoreError(err)),
         }
+    } else {
+        Ok(None)
     }
+}
 
+fn resolve_short_commit_id(
+    repo: RepoRef,
+    symbol: &str,
+) -> Result<Option<Vec<CommitId>>, RevsetError> {
     if let Some(prefix) = HexPrefix::new(symbol.to_owned()) {
         match repo.index().resolve_prefix(&prefix) {
-            PrefixResolution::NoMatch => {
-                return Ok(None);
-            }
+            PrefixResolution::NoMatch => Ok(None),
             PrefixResolution::AmbiguousMatch => {
-                return Err(RevsetError::AmbiguousCommitIdPrefix(symbol.to_owned()));
+                Err(RevsetError::AmbiguousCommitIdPrefix(symbol.to_owned()))
             }
-            PrefixResolution::SingleMatch(commit_id) => return Ok(Some(vec![commit_id])),
+            PrefixResolution::SingleMatch(commit_id) => Ok(Some(vec![commit_id])),
         }
+    } else {
+        Ok(None)
     }
-
-    Ok(None)
 }
 
 fn resolve_change_id(
@@ -177,17 +184,24 @@ pub fn resolve_symbol(
             return Ok(ids);
         }
 
-        // Try to resolve as a commit id.
-        if let Some(ids) = resolve_commit_id(repo, symbol)? {
+        // Try to resolve as a full commit id. We assume a full commit id is unambiguous
+        // even if it's shorter than change id.
+        if let Some(ids) = resolve_full_commit_id(repo, symbol)? {
             return Ok(ids);
         }
 
-        // Try to resolve as a change id.
-        if let Some(ids) = resolve_change_id(repo, symbol)? {
-            return Ok(ids);
+        // Try to resolve as a commit/change id.
+        match (
+            resolve_short_commit_id(repo, symbol)?,
+            resolve_change_id(repo, symbol)?,
+        ) {
+            // Likely a root_commit_id, but not limited to it.
+            (Some(ids1), Some(ids2)) if ids1 == ids2 => Ok(ids1),
+            // TODO: maybe unify Ambiguous*IdPrefix error variants?
+            (Some(_), Some(_)) => Err(RevsetError::AmbiguousCommitIdPrefix(symbol.to_owned())),
+            (Some(ids), None) | (None, Some(ids)) => Ok(ids),
+            (None, None) => Err(RevsetError::NoSuchRevision(symbol.to_owned())),
         }
-
-        Err(RevsetError::NoSuchRevision(symbol.to_owned()))
     }
 }
 
