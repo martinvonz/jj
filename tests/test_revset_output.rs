@@ -182,7 +182,7 @@ fn test_alias() {
     Error: Failed to parse revset:  --> 1:1
       |
     1 | my_author(none())
-      | ^-------^
+      | ^---------------^
       |
       = Alias "my_author()" cannot be expanded
      --> 1:8
@@ -210,7 +210,7 @@ fn test_alias() {
      --> 1:1
       |
     1 | recurse2()
-      | ^------^
+      | ^--------^
       |
       = Alias "recurse2()" cannot be expanded
      --> 1:1

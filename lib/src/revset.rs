@@ -684,7 +684,7 @@ fn parse_expression_rule(
             .op(Op::postfix(Rule::parents_op) | Op::postfix(Rule::children_op))
     });
     PRATT
-        .map_primary(|primary| parse_primary_rule(primary.into_inner(), state))
+        .map_primary(|primary| parse_primary_rule(primary, state))
         .map_prefix(|op, rhs| match op.as_rule() {
             Rule::dag_range_pre_op | Rule::range_pre_op => Ok(rhs?.ancestors()),
             r => panic!("unexpected prefix operator rule {r:?}"),
@@ -708,15 +708,17 @@ fn parse_expression_rule(
 }
 
 fn parse_primary_rule(
-    mut pairs: Pairs<Rule>,
+    pair: Pair<Rule>,
     state: ParseState,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    let span = pair.as_span();
+    let mut pairs = pair.into_inner();
     let first = pairs.next().unwrap();
     match first.as_rule() {
         Rule::expression => parse_expression_rule(first.into_inner(), state),
         Rule::function_name => {
             let arguments_pair = pairs.next().unwrap();
-            parse_function_expression(first, arguments_pair, state)
+            parse_function_expression(first, arguments_pair, state, span)
         }
         Rule::symbol => parse_symbol_rule(first.into_inner(), state),
         _ => {
@@ -765,6 +767,7 @@ fn parse_function_expression(
     name_pair: Pair<Rule>,
     arguments_pair: Pair<Rule>,
     state: ParseState,
+    primary_span: pest::Span<'_>,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let name = name_pair.as_str();
     if let Some((id, params, defn)) = state.aliases_map.get_function(name) {
@@ -777,7 +780,7 @@ fn parse_function_expression(
             .collect::<Result<Vec<_>, RevsetParseError>>()?;
         if params.len() == args.len() {
             let locals = params.iter().map(|s| s.as_str()).zip(args).collect();
-            state.with_alias_expanding(id, &locals, name_pair.as_span(), |state| {
+            state.with_alias_expanding(id, &locals, primary_span, |state| {
                 parse_program(defn, state)
             })
         } else {
