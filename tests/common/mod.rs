@@ -127,6 +127,7 @@ impl TestEnvironment {
     }
 
     /// Sets up the fake editor to read an edit script from the returned path
+    /// Also sets up the fake editor as a merge tool named "fake-editor"
     pub fn set_up_fake_editor(&mut self) -> PathBuf {
         let editor_path = assert_cmd::cargo::cargo_bin("fake-editor");
         assert!(editor_path.is_file());
@@ -134,6 +135,19 @@ impl TestEnvironment {
         // in it
         let escaped_editor_path = editor_path.to_str().unwrap().replace('\\', r"\\");
         self.add_env_var("EDITOR", &escaped_editor_path);
+        self.add_config(
+            format!(
+                r###"
+                    [ui]
+                    merge-editor = "fake-editor"
+
+                    [merge-tools]
+                    fake-editor.program="{escaped_editor_path}"
+                    fake-editor.merge-args = ["$output"]
+                "###
+            )
+            .as_bytes(),
+        );
         let edit_script = self.env_root().join("edit_script");
         self.add_env_var("EDIT_SCRIPT", edit_script.to_str().unwrap());
         edit_script
@@ -150,9 +164,9 @@ impl TestEnvironment {
         self.add_config(
             format!(
                 r###"
-        [ui]
-        diff-editor = "{}"
-        "###,
+                    [ui]
+                    diff-editor = "{}"
+                "###,
                 escaped_diff_editor_path
             )
             .as_bytes(),
