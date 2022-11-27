@@ -170,7 +170,7 @@ fn test_resolve_symbol_change_id() {
     .unwrap();
     let git_tree = git_repo.find_tree(empty_tree_id).unwrap();
     let mut git_commit_ids = vec![];
-    for i in &[133, 664, 840] {
+    for i in &[133, 664, 840, 5085] {
         let git_commit_id = git_repo
             .commit(
                 Some(&format!("refs/heads/branch{}", i)),
@@ -203,6 +203,11 @@ fn test_resolve_symbol_change_id() {
         hex::encode(git_commit_ids[2]),
         // "04e1c7082e4e34f3f371d8a1a46770b861b9b547" reversed
         "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
+    );
+    assert_eq!(
+        hex::encode(git_commit_ids[3]),
+        // "911d7e52fd5ba04b8f289e14c3d30b52d38c0020" reversed
+        "040031cb4ad0cbc3287914f1d205dabf4a7eb889"
     );
 
     // Test lookup by full change id
@@ -251,6 +256,18 @@ fn test_resolve_symbol_change_id() {
     assert_eq!(
         resolve_symbol(repo_ref, "04e13", None),
         Err(RevsetError::NoSuchRevision("04e13".to_string()))
+    );
+
+    // Test commit/changed id conflicts.
+    assert_eq!(
+        resolve_symbol(repo_ref, "040b", None),
+        Ok(vec![CommitId::from_hex(
+            "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
+        )])
+    );
+    assert_eq!(
+        resolve_symbol(repo_ref, "040", None),
+        Err(RevsetError::AmbiguousCommitIdPrefix("040".to_string()))
     );
 
     // Test non-hex string
