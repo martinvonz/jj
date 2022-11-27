@@ -53,40 +53,42 @@ pub enum RevsetError {
     StoreError(#[from] BackendError),
 }
 
-fn resolve_git_ref(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetError> {
+fn resolve_git_ref(repo: RepoRef, symbol: &str) -> Option<Vec<CommitId>> {
     let view = repo.view();
     for git_ref_prefix in &["", "refs/", "refs/heads/", "refs/tags/", "refs/remotes/"] {
         if let Some(ref_target) = view.git_refs().get(&(git_ref_prefix.to_string() + symbol)) {
-            return Ok(ref_target.adds());
+            return Some(ref_target.adds());
         }
     }
-    Err(RevsetError::NoSuchRevision(symbol.to_owned()))
+    None
 }
 
-fn resolve_branch(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetError> {
+fn resolve_branch(repo: RepoRef, symbol: &str) -> Option<Vec<CommitId>> {
     if let Some(branch_target) = repo.view().branches().get(symbol) {
-        return Ok(branch_target
-            .local_target
-            .as_ref()
-            .map(|target| target.adds())
-            .unwrap_or_default());
+        return Some(
+            branch_target
+                .local_target
+                .as_ref()
+                .map(|target| target.adds())
+                .unwrap_or_default(),
+        );
     }
     if let Some((name, remote_name)) = symbol.split_once('@') {
         if let Some(branch_target) = repo.view().branches().get(name) {
             if let Some(target) = branch_target.remote_targets.get(remote_name) {
-                return Ok(target.adds());
+                return Some(target.adds());
             }
         }
     }
-    Err(RevsetError::NoSuchRevision(symbol.to_owned()))
+    None
 }
 
-fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, RevsetError> {
+fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Option<Vec<CommitId>>, RevsetError> {
     // First check if it's a full commit id.
     if let Ok(binary_commit_id) = hex::decode(symbol) {
         let commit_id = CommitId::new(binary_commit_id);
         match repo.store().get_commit(&commit_id) {
-            Ok(_) => return Ok(vec![commit_id]),
+            Ok(_) => return Ok(Some(vec![commit_id])),
             Err(BackendError::NotFound) => {} // fall through
             Err(err) => return Err(RevsetError::StoreError(err)),
         }
@@ -95,19 +97,22 @@ fn resolve_commit_id(repo: RepoRef, symbol: &str) -> Result<Vec<CommitId>, Revse
     if let Some(prefix) = HexPrefix::new(symbol.to_owned()) {
         match repo.index().resolve_prefix(&prefix) {
             PrefixResolution::NoMatch => {
-                return Err(RevsetError::NoSuchRevision(symbol.to_owned()))
+                return Ok(None);
             }
             PrefixResolution::AmbiguousMatch => {
-                return Err(RevsetError::AmbiguousCommitIdPrefix(symbol.to_owned()))
+                return Err(RevsetError::AmbiguousCommitIdPrefix(symbol.to_owned()));
             }
-            PrefixResolution::SingleMatch(commit_id) => return Ok(vec![commit_id]),
+            PrefixResolution::SingleMatch(commit_id) => return Ok(Some(vec![commit_id])),
         }
     }
 
-    Err(RevsetError::NoSuchRevision(symbol.to_owned()))
+    Ok(None)
 }
 
-fn resolve_change_id(repo: RepoRef, change_id_prefix: &str) -> Result<Vec<CommitId>, RevsetError> {
+fn resolve_change_id(
+    repo: RepoRef,
+    change_id_prefix: &str,
+) -> Result<Option<Vec<CommitId>>, RevsetError> {
     if let Some(hex_prefix) = HexPrefix::new(change_id_prefix.to_owned()) {
         let mut found_change_id = None;
         let mut commit_ids = vec![];
@@ -126,11 +131,11 @@ fn resolve_change_id(repo: RepoRef, change_id_prefix: &str) -> Result<Vec<Commit
             }
         }
         if found_change_id.is_none() {
-            return Err(RevsetError::NoSuchRevision(change_id_prefix.to_owned()));
+            return Ok(None);
         }
-        Ok(commit_ids)
+        Ok(Some(commit_ids))
     } else {
-        Err(RevsetError::NoSuchRevision(change_id_prefix.to_owned()))
+        Ok(None)
     }
 }
 
@@ -163,27 +168,23 @@ pub fn resolve_symbol(
         }
 
         // Try to resolve as a branch
-        let branch_result = resolve_branch(repo, symbol);
-        if !matches!(branch_result, Err(RevsetError::NoSuchRevision(_))) {
-            return branch_result;
+        if let Some(ids) = resolve_branch(repo, symbol) {
+            return Ok(ids);
         }
 
         // Try to resolve as a git ref
-        let git_ref_result = resolve_git_ref(repo, symbol);
-        if !matches!(git_ref_result, Err(RevsetError::NoSuchRevision(_))) {
-            return git_ref_result;
+        if let Some(ids) = resolve_git_ref(repo, symbol) {
+            return Ok(ids);
         }
 
         // Try to resolve as a commit id.
-        let commit_id_result = resolve_commit_id(repo, symbol);
-        if !matches!(commit_id_result, Err(RevsetError::NoSuchRevision(_))) {
-            return commit_id_result;
+        if let Some(ids) = resolve_commit_id(repo, symbol)? {
+            return Ok(ids);
         }
 
         // Try to resolve as a change id.
-        let change_id_result = resolve_change_id(repo, symbol);
-        if !matches!(change_id_result, Err(RevsetError::NoSuchRevision(_))) {
-            return change_id_result;
+        if let Some(ids) = resolve_change_id(repo, symbol)? {
+            return Ok(ids);
         }
 
         Err(RevsetError::NoSuchRevision(symbol.to_owned()))
