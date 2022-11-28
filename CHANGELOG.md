@@ -95,6 +95,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj git import` no longer crashes when all Git refs are removed.
 
+### Contributors
+
+Thanks to the people who made this release happen!
+
+ * Martin von Zweigbergk (@martinvonz)
+ * Benjamin Saunders (@Ralith)
+ * Yuya Nishihara (@yuja)
+ * Glen Choo (@chooglen)
+ * Ilya Grigoriev (@ilyagr)
+ * Ruben Slabbert (@rslabbert)
+ * Waleed Khan (@arxanas)
+
+
 ## [0.5.1] - 2022-10-17
 
 No changes (just trying to get automated GitHub release to work).
