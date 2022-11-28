@@ -45,6 +45,20 @@ fn test_branch_multiple_names() {
     "###);
 }
 
+#[test]
+fn test_branch_empty_name() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["branch", "create", ""]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The argument '<NAMES>...' requires a value but none was supplied
+
+    For more information try '--help'
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     test_env.jj_cmd_success(cwd, &["log", "-T", r#"branches " " commit_id.short()"#])
 }

@@ -24,6 +24,7 @@ use std::time::Instant;
 use std::{fs, io};
 
 use chrono::{FixedOffset, LocalResult, TimeZone, Utc};
+use clap::builder::NonEmptyStringValueParser;
 use clap::{ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeValue};
@@ -656,7 +657,7 @@ enum BranchSubcommand {
         revision: Option<String>,
 
         /// The branches to create.
-        #[arg(required = true)]
+        #[arg(required = true, value_parser=NonEmptyStringValueParser::new())]
         names: Vec<String>,
     },
 
