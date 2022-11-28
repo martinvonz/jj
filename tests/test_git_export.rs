@@ -22,8 +22,6 @@ fn test_git_export_conflicting_git_refs() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    // TODO: Make it an error to try to create a branch with an empty name
-    test_env.jj_cmd_success(&repo_path, &["branch", "create", ""]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "main"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "main/sub"]);
     let assert = test_env
@@ -33,7 +31,6 @@ fn test_git_export_conflicting_git_refs() {
         .stdout("");
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"
     Failed to export some branches:
-      
       main/sub
     "###);
 }

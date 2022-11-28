@@ -184,24 +184,7 @@ fn test_git_colocated_conflicting_git_refs() {
     let workspace_root = test_env.env_root().join("repo");
     git2::Repository::init(&workspace_root).unwrap();
     test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
-    let assert = test_env
-        .jj_cmd(&workspace_root, &["branch", "create", ""])
-        .assert()
-        .success()
-        .stdout("");
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
-    Failed to export some branches:
-      
-    "###);
-    let assert = test_env
-        .jj_cmd(&workspace_root, &["branch", "create", "main"])
-        .assert()
-        .success()
-        .stdout("");
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
-    Failed to export some branches:
-      
-    "###);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "main"]);
     let assert = test_env
         .jj_cmd(&workspace_root, &["branch", "create", "main/sub"])
         .assert()
@@ -209,7 +192,6 @@ fn test_git_colocated_conflicting_git_refs() {
         .stdout("");
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"
     Failed to export some branches:
-      
       main/sub
     "###);
 }
