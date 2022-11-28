@@ -49,7 +49,7 @@ fn main() {
                 let actual = String::from_utf8(std::fs::read(&args.file).unwrap()).unwrap();
                 if actual != payload {
                     eprintln!("fake-editor: Unexpected content.\n");
-                    eprintln!("EXPECTED: {payload}\nRECEIVED: {actual}");
+                    eprintln!("EXPECTED: <{payload}>\nRECEIVED: <{actual}>");
                     exit(1)
                 }
             }
