@@ -586,16 +586,10 @@ impl<'a> RemoteCallbacks<'a> {
                 return Ok(creds);
             } else if let Some(username) = username_from_url {
                 if allowed_types.contains(git2::CredentialType::SSH_KEY) {
-                    if let Some((ssh_auth_sock, ssh_agent_pid)) = std::env::var("SSH_AUTH_SOCK")
-                        .ok()
-                        .zip(std::env::var("SSH_AGENT_PID").ok())
+                    if std::env::var("SSH_AUTH_SOCK").is_ok()
+                        || std::env::var("SSH_AGENT_PID").is_ok()
                     {
-                        tracing::debug!(
-                            username,
-                            ssh_auth_sock,
-                            ssh_agent_pid,
-                            "using ssh_key_from_agent"
-                        );
+                        tracing::debug!(username, "using ssh_key_from_agent");
                         return git2::Cred::ssh_key_from_agent(username).map_err(|err| {
                             tracing::error!(err = %err);
                             err
