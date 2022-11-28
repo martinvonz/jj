@@ -1,5 +1,6 @@
 # How to Contribute
 
+
 ## Policies
 
 We'd love to accept your patches and contributions to this project. There are
@@ -29,12 +30,14 @@ information on using pull requests.
 This project follows [Google's Open Source Community
 Guidelines](https://opensource.google/conduct/).
 
+
 ## Setting up a development environment
 
 To develop `jj`, the mandatory steps are simply to [install
-Rust](https://www.rust-lang.org/tools/install), clone the repository,
-and use `cargo build`, `cargo fmt`, `cargo test`, etc.  If you are
-preparing a PR, there are some additional recommended steps.
+Rust](https://www.rust-lang.org/tools/install) (the default installer options
+are fine), clone the repository, and use `cargo build`, `cargo fmt`,
+`cargo test`, etc.  If you are preparing a PR, there are some additional
+recommended steps.
 
 ### Summary
 
@@ -47,7 +50,8 @@ One-time setup:
 
 During development (adapt according to your preference):
 
-    cargo watch --ignore '.jj/**' -s 'cargo +nightly fmt && cargo clippy && cargo +1.60 check'
+    cargo watch --ignore '.jj/**' -s \
+      'cargo +nightly fmt && cargo clippy --all-targets && cargo +1.60 check --all-targets'
     cargo insta test  # Occasionally
 
 WARNING: Build artifacts from debug builds and especially from repeated
@@ -57,7 +61,7 @@ Cargo will happily use up your entire hard drive. If this happens, run
 
 ### Explanation
 
-These are ordered roughly in order of decreasing importance.
+These are listed roughly in order of decreasing importance.
 
 1. Nearly any change to `jj`'s interface will require writing or updating
 golden tests that use the [`insta`](https://insta.rs/) crate.  To make
