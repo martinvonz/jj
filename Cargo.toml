@@ -68,7 +68,7 @@ libc = { version = "0.2.137" }
 assert_cmd = "2.0.6"
 criterion = "0.4.0"
 criterion_bencher_compat = "0.4.0"
-insta = "1.21.1"
+insta = "1.21.2"
 regex = "1.7.0"
 predicates = "2.1.3"
 test-case = "2.2.2"
