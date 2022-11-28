@@ -907,6 +907,13 @@ pub fn print_failed_git_export(
             formatter.with_label("branch", |formatter| formatter.write_str(branch_name))?;
             formatter.write_str("\n")?;
         }
+        drop(formatter);
+        ui.write_hint(
+            r#"Hint: Git doesn't allow a branch name that looks like a parent directory of
+another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
+export or their "parent" branches.
+"#,
+        )?;
     }
     Ok(())
 }
