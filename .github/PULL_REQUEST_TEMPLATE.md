@@ -12,3 +12,4 @@ rewrite a branch).
 If applicable:
 - [ ] I have updated `CHANGELOG.md`
 - [ ] I have updated the documentation (README.md, docs/, demos/)
+- [ ] I have added myself to the contributors in `CHANGELOG.md` (optional)
