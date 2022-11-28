@@ -14,15 +14,17 @@
 
 use std::collections::{HashSet, VecDeque};
 use std::env::ArgsOs;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
 use std::iter;
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use clap;
-use clap::{ArgMatches, FromArgMatches};
+use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
+use clap::{Arg, ArgMatches, Command, Error, FromArgMatches};
 use git2::{Oid, Repository};
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, CommitId, TreeId};
@@ -1048,7 +1050,7 @@ fn load_revset_aliases(ui: &mut Ui) -> Result<RevsetAliasesMap, CommandError> {
 
 pub fn resolve_base_revs(
     workspace_command: &WorkspaceCommandHelper,
-    revisions: &[String],
+    revisions: &[RevisionArg],
 ) -> Result<Vec<Commit>, CommandError> {
     let mut commits = vec![];
     for revision_str in revisions {
@@ -1056,8 +1058,8 @@ pub fn resolve_base_revs(
         if let Some(i) = commits.iter().position(|c| c == &commit) {
             return Err(user_error(format!(
                 r#"Revset "{}" and "{}" resolved to the same revision {}"#,
-                revisions[i],
-                revision_str,
+                &revisions[i].0,
+                &revision_str.0,
                 short_commit_hash(commit.id()),
             )));
         }
@@ -1241,6 +1243,42 @@ pub struct GlobalArgs {
     /// Enable verbose logging
     #[arg(long, short = 'v', global = true, help_heading = "Global Options")]
     pub verbose: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct RevisionArg(String);
+
+impl Deref for RevisionArg {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_str()
+    }
+}
+
+#[derive(Clone)]
+pub struct RevisionArgValueParser;
+
+impl TypedValueParser for RevisionArgValueParser {
+    type Value = RevisionArg;
+
+    fn parse_ref(
+        &self,
+        cmd: &Command,
+        arg: Option<&Arg>,
+        value: &OsStr,
+    ) -> Result<Self::Value, Error> {
+        let string = NonEmptyStringValueParser::new().parse(cmd, arg, value.to_os_string())?;
+        Ok(RevisionArg(string))
+    }
+}
+
+impl ValueParserFactory for RevisionArg {
+    type Parser = RevisionArgValueParser;
+
+    fn value_parser() -> RevisionArgValueParser {
+        RevisionArgValueParser
+    }
 }
 
 pub fn create_ui() -> (Ui, Result<(), CommandError>) {
