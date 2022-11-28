@@ -558,59 +558,73 @@ struct SplitArgs {
 /// descendants, and `-r` to rebase a single commit. If none of them is
 /// specified, it defaults to `-b @`.
 ///
-/// With `-b`, it rebases the whole branch containing the specified revision.
-/// Unlike `-s` and `-r`, the `-b` mode takes the destination into account
-/// when calculating the set of revisions to rebase. That set includes the
-/// specified revision and all ancestors that are not also ancestors
-/// of the destination. It also includes all descendants of those commits. For
-/// example, `jj rebase -b B -d D` or `jj rebase -b C -d D`  would transform
-/// your history like this:
+/// With `-s`, the command rebases the specified revision and its descendants
+/// onto the destination. For example, `jj rebase -s M -d O` would transform
+/// your history like this (letters followed by an apostrophe are post-rebase
+/// versions):
 ///
-/// D          B'
+/// O           N'
+/// |           |
+/// | N         M'
+/// | |         |
+/// | M         O
+/// | |    =>   |
+/// | | L       | L
+/// | |/        | |
+/// | K         | K
+/// |/          |/
+/// J           J
+///
+/// With `-b`, the command rebases the whole "branch" containing the specified
+/// revision. A "branch" is the set of commits that includes:
+///
+/// * the specified revision and ancestors that are not also ancestors of the
+///   destination
+/// * all descendants of those commits
+///
+/// In other words, `jj rebase -b X -d Y` rebases commits in the revset
+/// `(Y..X):` (which is equivalent to `jj rebase -s 'roots(Y..X)' -d Y` for a
+/// single root). For example, either `jj rebase -b L -d O` or `jj rebase -b M
+/// -d O` would transform your history like this (because `L` and `M` are on the
+/// same "branch", relative to the destination):
+///
+/// O           N'
+/// |           |
+/// | N         M'
+/// | |         |
+/// | M         | L'
+/// | |    =>   |/
+/// | | L       K'
+/// | |/        |
+/// | K         O
+/// |/          |
+/// J           J
+///
+/// With `-r`, the command rebases only the specified revision onto the
+/// destination. Any "hole" left behind will be filled by rebasing descendants
+/// onto the specified revision's parent(s). For example, `jj rebase -r K -d M`
+/// would transform your history like this:
+///
+/// M          K'
 /// |          |
-/// | C        D
+/// | L        M
 /// | |   =>   |
-/// | B        | C'
+/// | K        | L'
 /// |/         |/
-/// A          A
-///
-/// With `-s`, it rebases the specified revision and its descendants onto the
-/// destination. For example, `jj rebase -s C -d D` would transform your history
-/// like this:
-///
-/// D          C'
-/// |          |
-/// | C        D
-/// | |   =>   |
-/// | B        | B
-/// |/         |/
-/// A          A
-///
-/// With `-r`, it rebases only the specified revision onto the destination. Any
-/// "hole" left behind will be filled by rebasing descendants onto the specified
-/// revision's parent(s). For example, `jj rebase -r B -d D` would transform
-/// your history like this:
-///
-/// D          B'
-/// |          |
-/// | C        D
-/// | |   =>   |
-/// | B        | C'
-/// |/         |/
-/// A          A
+/// J          J
 ///
 /// Note that you can create a merge commit by repeating the `-d` argument.
-/// For example, if you realize that commit C actually depends on commit D in
-/// order to work (in addition to its current parent B), you can run `jj rebase
-/// -s C -d B -d D`:
+/// For example, if you realize that commit L actually depends on commit M in
+/// order to work (in addition to its current parent K), you can run `jj rebase
+/// -s L -d K -d M`:
 ///
-/// D          C'
+/// M          L'
 /// |          |\
-/// | C        D |
+/// | L        M |
 /// | |   =>   | |
-/// | B        | B
+/// | K        | K
 /// |/         |/
-/// A          A
+/// J          J
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 #[command(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revision"])))]
