@@ -18,6 +18,20 @@ use regex::Regex;
 pub mod common;
 
 #[test]
+fn test_log_with_empty_revision() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["log", "-r="]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The argument '--revisions <REVISIONS>' requires a value but none was supplied
+
+    For more information try '--help'
+    "###);
+}
+
+#[test]
 fn test_log_with_or_without_diff() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

@@ -16,7 +16,7 @@ use std::collections::{HashSet, VecDeque};
 use std::fmt::Debug;
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::ops::Range;
+use std::ops::{Deref, Range};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -56,7 +56,7 @@ use pest::Parser;
 use crate::cli_util::{
     print_checkout_stats, print_failed_git_export, resolve_base_revs, short_commit_description,
     short_commit_hash, user_error, user_error_with_hint, write_commit_summary, Args, CommandError,
-    CommandHelper, WorkspaceCommandHelper,
+    CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{AsciiGraphDrawer, Edge};
@@ -149,7 +149,7 @@ struct InitArgs {
 #[command(visible_aliases = &["co", "update", "up"])]
 struct CheckoutArgs {
     /// The revision to update to
-    revision: String,
+    revision: RevisionArg,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -171,7 +171,7 @@ struct UntrackArgs {
 struct FilesArgs {
     /// The revision to list files in
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Only list files matching these prefixes (instead of all files)
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -182,7 +182,7 @@ struct FilesArgs {
 struct PrintArgs {
     /// The revision to get the file contents from
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// The file to print
     #[arg(value_hint = clap::ValueHint::FilePath)]
     path: String,
@@ -217,13 +217,13 @@ struct DiffFormatArgs {
 struct DiffArgs {
     /// Show changes in this revision, compared to its parent(s)
     #[arg(long, short)]
-    revision: Option<String>,
+    revision: Option<RevisionArg>,
     /// Show changes from this revision
     #[arg(long, conflicts_with = "revision")]
-    from: Option<String>,
+    from: Option<RevisionArg>,
     /// Show changes to this revision
     #[arg(long, conflicts_with = "revision")]
-    to: Option<String>,
+    to: Option<RevisionArg>,
     /// Restrict the diff to these paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -236,7 +236,7 @@ struct DiffArgs {
 struct ShowArgs {
     /// Show changes in this revision, compared to its parent(s)
     #[arg(default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -263,7 +263,7 @@ struct LogArgs {
     /// or `@ | (remote_branches() | tags()).. | ((remote_branches() |
     /// tags())..)-` if it is not set.
     #[arg(long, short)]
-    revisions: Option<String>,
+    revisions: Option<RevisionArg>,
     /// Show commits modifying the given paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -290,7 +290,7 @@ struct LogArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct ObslogArgs {
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Don't show the graph, show a flat list of revisions
     #[arg(long)]
     no_graph: bool,
@@ -319,10 +319,10 @@ struct ObslogArgs {
 struct InterdiffArgs {
     /// Show changes from this revision
     #[arg(long)]
-    from: Option<String>,
+    from: Option<RevisionArg>,
     /// Show changes to this revision
     #[arg(long)]
-    to: Option<String>,
+    to: Option<RevisionArg>,
     /// Restrict the diff to these paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -338,7 +338,7 @@ struct InterdiffArgs {
 struct DescribeArgs {
     /// The revision whose description to edit
     #[arg(default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -364,7 +364,7 @@ struct CommitArgs {
 struct DuplicateArgs {
     /// The revision to duplicate
     #[arg(default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -380,7 +380,7 @@ struct DuplicateArgs {
 struct AbandonArgs {
     /// The revision(s) to abandon
     #[arg(default_value = "@")]
-    revisions: Vec<String>,
+    revisions: Vec<RevisionArg>,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -393,7 +393,7 @@ struct AbandonArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct EditArgs {
     /// The commit to edit
-    revision: String,
+    revision: RevisionArg,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -411,7 +411,7 @@ struct EditArgs {
 struct NewArgs {
     /// Parent(s) of the new change
     #[arg(default_value = "@")]
-    revisions: Vec<String>,
+    revisions: Vec<RevisionArg>,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -437,10 +437,10 @@ struct NewArgs {
 struct MoveArgs {
     /// Move part of this change into the destination
     #[arg(long)]
-    from: Option<String>,
+    from: Option<RevisionArg>,
     /// Move part of the source into this change
     #[arg(long)]
-    to: Option<String>,
+    to: Option<RevisionArg>,
     /// Interactively choose which parts to move
     #[arg(long, short)]
     interactive: bool,
@@ -463,7 +463,7 @@ struct MoveArgs {
 #[command(visible_alias = "amend")]
 struct SquashArgs {
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Interactively choose which parts to squash
     #[arg(long, short)]
     interactive: bool,
@@ -486,7 +486,7 @@ struct SquashArgs {
 #[command(visible_alias = "unamend")]
 struct UnsquashArgs {
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Interactively choose which parts to unsquash
     // TODO: It doesn't make much sense to run this without -i. We should make that
     // the default.
@@ -507,10 +507,10 @@ struct UnsquashArgs {
 struct RestoreArgs {
     /// Revision to restore from (source)
     #[arg(long)]
-    from: Option<String>,
+    from: Option<RevisionArg>,
     /// Revision to restore into (destination)
     #[arg(long)]
-    to: Option<String>,
+    to: Option<RevisionArg>,
     /// Interactively choose which parts to restore
     #[arg(long, short)]
     interactive: bool,
@@ -531,7 +531,7 @@ struct RestoreArgs {
 struct TouchupArgs {
     /// The revision to touch up
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
 }
 
 /// Split a revision in two
@@ -545,7 +545,7 @@ struct TouchupArgs {
 struct SplitArgs {
     /// The revision to split
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Put these paths in the first commit and don't run the diff editor
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -617,17 +617,17 @@ struct SplitArgs {
 struct RebaseArgs {
     /// Rebase the whole branch (relative to destination's ancestors)
     #[arg(long, short)]
-    branch: Option<String>,
+    branch: Option<RevisionArg>,
     /// Rebase this revision and its descendants
     #[arg(long, short)]
-    source: Option<String>,
+    source: Option<RevisionArg>,
     /// Rebase only this revision, rebasing descendants onto this revision's
     /// parent(s)
     #[arg(long, short)]
-    revision: Option<String>,
+    revision: Option<RevisionArg>,
     /// The revision(s) to rebase onto
     #[arg(long, short, required = true)]
-    destination: Vec<String>,
+    destination: Vec<RevisionArg>,
 }
 
 /// Apply the reverse of a revision on top of another revision
@@ -635,12 +635,12 @@ struct RebaseArgs {
 struct BackoutArgs {
     /// The revision to apply the reverse of
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// The revision to apply the reverse changes on top of
     // TODO: It seems better to default this to `@-`. Maybe the working
     // copy should be rebased on top?
     #[arg(long, short, default_value = "@")]
-    destination: Vec<String>,
+    destination: Vec<RevisionArg>,
 }
 
 /// Manage branches.
@@ -654,7 +654,7 @@ enum BranchSubcommand {
     Create {
         /// The branch's target revision.
         #[arg(long, short)]
-        revision: Option<String>,
+        revision: Option<RevisionArg>,
 
         /// The branches to create.
         #[arg(required = true, value_parser=NonEmptyStringValueParser::new())]
@@ -697,7 +697,7 @@ enum BranchSubcommand {
     Set {
         /// The branch's target revision.
         #[arg(long, short)]
-        revision: Option<String>,
+        revision: Option<RevisionArg>,
 
         /// Allow moving the branch backwards or sideways.
         #[arg(long, short = 'B')]
@@ -891,7 +891,7 @@ struct GitPushArgs {
     all: bool,
     /// Push this commit by creating a branch based on its change ID
     #[arg(long)]
-    change: Option<String>,
+    change: Option<RevisionArg>,
     /// Only display what will change on the remote
     #[arg(long)]
     dry_run: bool,
@@ -2035,7 +2035,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 
     let default_revset = ui.settings().default_revset();
     let revset_expression =
-        workspace_command.parse_revset(args.revisions.as_ref().unwrap_or(&default_revset))?;
+        workspace_command.parse_revset(args.revisions.as_deref().unwrap_or(&default_revset))?;
     let repo = workspace_command.repo();
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = repo.view().get_wc_commit_id(&workspace_id);
@@ -4294,7 +4294,8 @@ fn cmd_git_push(
             writeln!(
                 ui,
                 "Creating branch {} for revision {}",
-                branch_name, change_str
+                branch_name,
+                change_str.deref()
             )?;
         }
         tx = workspace_command.start_transaction(&format!(
