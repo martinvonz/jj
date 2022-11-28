@@ -51,7 +51,7 @@ pest = "2.5.0"
 pest_derive = "2.5"
 rand = "0.8.5"
 regex = "1.7.0"
-rpassword = "7.1.0"
+rpassword = "7.2.0"
 serde = { version = "1.0", features = ["derive"] }
 slab = "0.4.7"
 tempfile = "3.3.0"
