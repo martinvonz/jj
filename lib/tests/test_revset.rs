@@ -106,7 +106,7 @@ fn test_resolve_symbol_commit_id() {
     // Test empty commit id
     assert_eq!(
         resolve_symbol(repo_ref, "", None),
-        Err(RevsetError::AmbiguousCommitIdPrefix("".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix("".to_string()))
     );
 
     // Test commit id prefix
@@ -116,11 +116,11 @@ fn test_resolve_symbol_commit_id() {
     );
     assert_eq!(
         resolve_symbol(repo_ref, "04", None),
-        Err(RevsetError::AmbiguousCommitIdPrefix("04".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix("04".to_string()))
     );
     assert_eq!(
         resolve_symbol(repo_ref, "", None),
-        Err(RevsetError::AmbiguousCommitIdPrefix("".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix("".to_string()))
     );
     assert_eq!(
         resolve_symbol(repo_ref, "040", None),
@@ -139,7 +139,7 @@ fn test_resolve_symbol_commit_id() {
         optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap())
             .evaluate(repo_ref, None)
             .map(|_| ()),
-        Err(RevsetError::AmbiguousCommitIdPrefix("04".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix("04".to_string()))
     );
     assert_eq!(
         resolve_commit_ids(repo_ref, "present(046)"),
@@ -247,12 +247,11 @@ fn test_resolve_symbol_change_id() {
     );
     assert_eq!(
         resolve_symbol(repo_ref, "04e1", None),
-        Err(RevsetError::AmbiguousChangeIdPrefix("04e1".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix("04e1".to_string()))
     );
     assert_eq!(
         resolve_symbol(repo_ref, "", None),
-        // Commit id is checked first, so this is considered an ambiguous commit id
-        Err(RevsetError::AmbiguousCommitIdPrefix("".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix("".to_string()))
     );
     assert_eq!(
         resolve_symbol(repo_ref, "04e13", None),
@@ -268,7 +267,7 @@ fn test_resolve_symbol_change_id() {
     );
     assert_eq!(
         resolve_symbol(repo_ref, "040", None),
-        Err(RevsetError::AmbiguousCommitIdPrefix("040".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix("040".to_string()))
     );
 
     // Test non-hex string

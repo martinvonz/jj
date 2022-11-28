@@ -45,10 +45,8 @@ use crate::store::Store;
 pub enum RevsetError {
     #[error("Revision \"{0}\" doesn't exist")]
     NoSuchRevision(String),
-    #[error("Commit id prefix \"{0}\" is ambiguous")]
-    AmbiguousCommitIdPrefix(String),
-    #[error("Change id prefix \"{0}\" is ambiguous")]
-    AmbiguousChangeIdPrefix(String),
+    #[error("Commit or change id prefix \"{0}\" is ambiguous")]
+    AmbiguousIdPrefix(String),
     #[error("Unexpected error from store: {0}")]
     StoreError(#[from] BackendError),
 }
@@ -107,7 +105,7 @@ fn resolve_short_commit_id(
         match repo.index().resolve_prefix(&prefix) {
             PrefixResolution::NoMatch => Ok(None),
             PrefixResolution::AmbiguousMatch => {
-                Err(RevsetError::AmbiguousCommitIdPrefix(symbol.to_owned()))
+                Err(RevsetError::AmbiguousIdPrefix(symbol.to_owned()))
             }
             PrefixResolution::SingleMatch(commit_id) => Ok(Some(vec![commit_id])),
         }
@@ -129,9 +127,7 @@ fn resolve_change_id(
             if change_id.hex().starts_with(hex_prefix.hex()) {
                 if let Some(previous_change_id) = found_change_id.replace(change_id.clone()) {
                     if previous_change_id != change_id {
-                        return Err(RevsetError::AmbiguousChangeIdPrefix(
-                            change_id_prefix.to_owned(),
-                        ));
+                        return Err(RevsetError::AmbiguousIdPrefix(change_id_prefix.to_owned()));
                     }
                 }
                 commit_ids.push(index_entry.commit_id());
@@ -197,8 +193,7 @@ pub fn resolve_symbol(
         ) {
             // Likely a root_commit_id, but not limited to it.
             (Some(ids1), Some(ids2)) if ids1 == ids2 => Ok(ids1),
-            // TODO: maybe unify Ambiguous*IdPrefix error variants?
-            (Some(_), Some(_)) => Err(RevsetError::AmbiguousCommitIdPrefix(symbol.to_owned())),
+            (Some(_), Some(_)) => Err(RevsetError::AmbiguousIdPrefix(symbol.to_owned())),
             (Some(ids), None) | (None, Some(ids)) => Ok(ids),
             (None, None) => Err(RevsetError::NoSuchRevision(symbol.to_owned())),
         }
@@ -1718,11 +1713,7 @@ pub fn evaluate_expression<'repo>(
         RevsetExpression::Present(candidates) => match candidates.evaluate(repo, workspace_ctx) {
             Ok(set) => Ok(set),
             Err(RevsetError::NoSuchRevision(_)) => Ok(Box::new(EagerRevset::empty())),
-            r @ Err(
-                RevsetError::AmbiguousCommitIdPrefix(_)
-                | RevsetError::AmbiguousChangeIdPrefix(_)
-                | RevsetError::StoreError(_),
-            ) => r,
+            r @ Err(RevsetError::AmbiguousIdPrefix(_) | RevsetError::StoreError(_)) => r,
         },
         RevsetExpression::Union(expression1, expression2) => {
             let set1 = expression1.evaluate(repo, workspace_ctx)?;
