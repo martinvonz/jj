@@ -1378,21 +1378,7 @@ struct RevWalkRevset<'repo> {
 
 impl<'repo> Revset<'repo> for RevWalkRevset<'repo> {
     fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
-        RevsetIterator::new(Box::new(RevWalkRevsetIterator {
-            walk: self.walk.clone(),
-        }))
-    }
-}
-
-struct RevWalkRevsetIterator<'repo> {
-    walk: RevWalk<'repo>,
-}
-
-impl<'repo> Iterator for RevWalkRevsetIterator<'repo> {
-    type Item = IndexEntry<'repo>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.walk.next()
+        RevsetIterator::new(Box::new(self.walk.clone()))
     }
 }
 
