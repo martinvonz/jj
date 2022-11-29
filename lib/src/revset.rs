@@ -1433,23 +1433,7 @@ struct FilterRevset<'revset, 'repo: 'revset> {
 
 impl<'repo> Revset<'repo> for FilterRevset<'_, 'repo> {
     fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
-        RevsetIterator::new(Box::new(FilterRevsetIterator {
-            iter: self.candidates.iter(),
-            predicate: self.predicate.as_ref(),
-        }))
-    }
-}
-
-struct FilterRevsetIterator<'revset, 'repo> {
-    iter: RevsetIterator<'revset, 'repo>,
-    predicate: &'revset dyn Fn(&IndexEntry<'repo>) -> bool,
-}
-
-impl<'revset, 'repo> Iterator for FilterRevsetIterator<'revset, 'repo> {
-    type Item = IndexEntry<'repo>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.find(self.predicate)
+        RevsetIterator::new(Box::new(self.candidates.iter().filter(&self.predicate)))
     }
 }
 
