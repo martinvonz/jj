@@ -32,7 +32,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, CommitId};
 use crate::commit::Commit;
-use crate::index::{HexPrefix, IndexEntry, IndexPosition, PrefixResolution, RevWalk};
+use crate::index::{HexPrefix, IndexEntry, PrefixResolution, RevWalk};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use crate::op_store::WorkspaceId;
 use crate::repo::RepoRef;
@@ -1391,38 +1391,20 @@ struct ChildrenRevset<'revset, 'repo: 'revset> {
 
 impl<'repo> Revset<'repo> for ChildrenRevset<'_, 'repo> {
     fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
-        let roots = self
+        let roots: HashSet<_> = self
             .root_set
             .iter()
             .map(|parent| parent.position())
             .collect();
 
-        RevsetIterator::new(Box::new(ChildrenRevsetIterator {
-            candidate_iter: self.candidate_set.iter(),
-            roots,
-        }))
-    }
-}
-
-struct ChildrenRevsetIterator<'revset, 'repo> {
-    candidate_iter: RevsetIterator<'revset, 'repo>,
-    roots: HashSet<IndexPosition>,
-}
-
-impl<'repo> Iterator for ChildrenRevsetIterator<'_, 'repo> {
-    type Item = IndexEntry<'repo>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let candidate = self.candidate_iter.next()?;
-            if candidate
-                .parent_positions()
-                .iter()
-                .any(|parent_pos| self.roots.contains(parent_pos))
-            {
-                return Some(candidate);
-            }
-        }
+        RevsetIterator::new(Box::new(self.candidate_set.iter().filter(
+            move |candidate| {
+                candidate
+                    .parent_positions()
+                    .iter()
+                    .any(|parent_pos| roots.contains(parent_pos))
+            },
+        )))
     }
 }
 
