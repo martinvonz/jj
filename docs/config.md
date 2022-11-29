@@ -85,9 +85,9 @@ Obviously, you would only set one line, don't copy them all in!
 
 ## Diffing
 
-This setting affects the tool used for editing diffs 
-(e.g. `jj split`, `jj amend -i`). 
-The default is `meld`.
+This setting affects the tool used for editing diffs (e.g. `jj split`,
+`jj amend -i`).  The default is `meld`. The left and right directories
+to diff are passed as the first and second argument respectively.
 
 For example:
 
@@ -97,7 +97,8 @@ When kdiff3 is set via:
 
     diff-editor = "kdiff3"
 
-further settings are passed on via the following:
+Custom arguments can be added, and will be inserted before the paths
+to diff:
 
     merge-tools.kdiff3.program = "kdiff3"
     merge-tools.kdiff3.edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
