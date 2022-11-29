@@ -164,7 +164,7 @@ fn test_alias() {
     1 | whatever &
       |           ^---
       |
-      = expected dag_range_pre_op, range_pre_op, or primary
+      = expected dag_range_pre_op, range_pre_op, negate_op, or primary
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "identity()"]);
