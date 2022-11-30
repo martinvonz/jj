@@ -1539,6 +1539,14 @@ fn test_evaluate_expression_author(use_git: bool) {
         resolve_commit_ids(mut_repo.as_repo_ref(), "heads() & author(\"name2\")"),
         vec![]
     );
+    // Filter by union of pure predicate and set
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("root.. & (author(name1) | {})", commit3.id().hex())
+        ),
+        vec![commit3.id().clone(), commit1.id().clone()]
+    );
 }
 
 #[test_case(false ; "local backend")]

@@ -363,6 +363,8 @@ pub enum RevsetExpression {
     GitRefs,
     GitHead,
     Filter(RevsetFilterPredicate),
+    /// Marker for subtree that should be intersected as filter.
+    AsFilter(Rc<RevsetExpression>),
     Present(Rc<RevsetExpression>),
     NotIn(Rc<RevsetExpression>),
     Union(Rc<RevsetExpression>, Rc<RevsetExpression>),
@@ -1096,6 +1098,9 @@ fn transform_expression_bottom_up(
             RevsetExpression::GitRefs => None,
             RevsetExpression::GitHead => None,
             RevsetExpression::Filter(_) => None,
+            RevsetExpression::AsFilter(candidates) => {
+                transform_rec(candidates, f).map(RevsetExpression::AsFilter)
+            }
             RevsetExpression::Present(candidates) => {
                 transform_rec(candidates, f).map(RevsetExpression::Present)
             }
@@ -1160,20 +1165,28 @@ fn transform_expression_bottom_up(
 ///    minimize the filter inputs.
 /// b. TODO: Rewrites set operations to and/or/not of predicates, to
 ///    help further optimization (e.g. combine `file(_)` matchers.)
-/// c. TODO: Wraps union of filter and set (e.g. `author(_) | heads()`), to
+/// c. Wraps union of filter and set (e.g. `author(_) | heads()`), to
 ///    ensure inner filter wouldn't need to evaluate all the input sets.
 ///
 /// The resulting tree may contain redundant intersections like `all() & e`.
 fn internalize_filter(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
+    fn is_filter(expression: &RevsetExpression) -> bool {
+        matches!(
+            expression,
+            RevsetExpression::Filter(_) | RevsetExpression::AsFilter(_)
+        )
+    }
+
+    fn is_filter_tree(expression: &RevsetExpression) -> bool {
+        is_filter(expression) || as_filter_intersection(expression).is_some()
+    }
+
     // Extracts 'c & f' from intersect_down()-ed node.
     fn as_filter_intersection(
         expression: &RevsetExpression,
     ) -> Option<(&Rc<RevsetExpression>, &Rc<RevsetExpression>)> {
         if let RevsetExpression::Intersection(expression1, expression2) = expression {
-            match expression2.as_ref() {
-                RevsetExpression::Filter(_) => Some((expression1, expression2)),
-                _ => None,
-            }
+            is_filter(expression2).then(|| (expression1, expression2))
         } else {
             None
         }
@@ -1190,9 +1203,9 @@ fn internalize_filter(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpr
         let recurse = |e1, e2| intersect_down(e1, e2).unwrap_or_else(|| e1.intersection(e2));
         match (expression1.as_ref(), expression2.as_ref()) {
             // Don't reorder 'f1 & f2'
-            (_, RevsetExpression::Filter(_)) => None,
+            (_, e2) if is_filter(e2) => None,
             // f1 & e2 -> e2 & f1
-            (RevsetExpression::Filter(_), _) => Some(expression2.intersection(expression1)),
+            (e1, _) if is_filter(e1) => Some(expression2.intersection(expression1)),
             (e1, e2) => match (as_filter_intersection(e1), as_filter_intersection(e2)) {
                 // e1 & (c2 & f2) -> (e1 & c2) & f2
                 // (c1 & f1) & (c2 & f2) -> ((c1 & f1) & c2) & f2 -> ((c1 & c2) & f1) & f2
@@ -1211,9 +1224,18 @@ fn internalize_filter(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpr
     // intersection node 'c & e' can also be a rewrite target if 'e' contains
     // a filter node. That's why intersect_down() is also recursive.
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
+        RevsetExpression::Present(e) => {
+            is_filter_tree(e).then(|| Rc::new(RevsetExpression::AsFilter(expression.clone())))
+        }
+        RevsetExpression::NotIn(e) => {
+            is_filter_tree(e).then(|| Rc::new(RevsetExpression::AsFilter(expression.clone())))
+        }
+        RevsetExpression::Union(e1, e2) => (is_filter_tree(e1) || is_filter_tree(e2))
+            .then(|| Rc::new(RevsetExpression::AsFilter(expression.clone()))),
         RevsetExpression::Intersection(expression1, expression2) => {
             intersect_down(expression1, expression2)
         }
+        // Difference(e1, e2) should have been unfolded to Intersection(e1, NotIn(e2)).
         _ => None,
     })
 }
@@ -1801,6 +1823,7 @@ pub fn evaluate_expression<'repo>(
             candidates: RevsetExpression::All.evaluate(repo, workspace_ctx)?,
             predicate: build_predicate_fn(repo, predicate),
         })),
+        RevsetExpression::AsFilter(candidates) => candidates.evaluate(repo, workspace_ctx),
         RevsetExpression::Present(candidates) => match candidates.evaluate(repo, workspace_ctx) {
             Ok(set) => Ok(set),
             Err(RevsetError::NoSuchRevision(_)) => Ok(Box::new(EagerRevset::empty())),
@@ -1821,6 +1844,10 @@ pub fn evaluate_expression<'repo>(
                 RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
                     candidates: expression1.evaluate(repo, workspace_ctx)?,
                     predicate: build_predicate_fn(repo, predicate),
+                })),
+                RevsetExpression::AsFilter(expression2) => Ok(Box::new(FilterRevset {
+                    candidates: expression1.evaluate(repo, workspace_ctx)?,
+                    predicate: expression2.evaluate(repo, workspace_ctx)?,
                 })),
                 _ => {
                     // TODO: 'set2' can be turned into a predicate, and use FilterRevset
@@ -2432,6 +2459,14 @@ mod tests {
         );
 
         assert_eq!(
+            optimize(parse("present(author(foo) & all())").unwrap()),
+            Rc::new(RevsetExpression::AsFilter(Rc::new(
+                RevsetExpression::Present(RevsetExpression::filter(RevsetFilterPredicate::Author(
+                    "foo".to_owned()
+                )))
+            )))
+        );
+        assert_eq!(
             optimize(parse("present(branches() & all())").unwrap()),
             Rc::new(RevsetExpression::Present(RevsetExpression::branches()))
         );
@@ -2958,6 +2993,154 @@ mod tests {
             Filter(
                 Author(
                     "baz",
+                ),
+            ),
+        )
+        "###);
+    }
+
+    #[test]
+    fn test_optimize_filter_subtree() {
+        insta::assert_debug_snapshot!(
+            optimize(parse("(author(foo) | bar) & baz").unwrap()), @r###"
+        Intersection(
+            Symbol(
+                "baz",
+            ),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            "foo",
+                        ),
+                    ),
+                    Symbol(
+                        "bar",
+                    ),
+                ),
+            ),
+        )
+        "###);
+
+        insta::assert_debug_snapshot!(
+            optimize(parse("(foo | committer(bar)) & description(baz) & qux").unwrap()), @r###"
+        Intersection(
+            Intersection(
+                Symbol(
+                    "qux",
+                ),
+                AsFilter(
+                    Union(
+                        Symbol(
+                            "foo",
+                        ),
+                        Filter(
+                            Committer(
+                                "bar",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            Filter(
+                Description(
+                    "baz",
+                ),
+            ),
+        )
+        "###);
+
+        insta::assert_debug_snapshot!(
+            optimize(parse("(~present(author(foo) & bar) | baz) & qux").unwrap()), @r###"
+        Intersection(
+            Symbol(
+                "qux",
+            ),
+            AsFilter(
+                Union(
+                    AsFilter(
+                        NotIn(
+                            AsFilter(
+                                Present(
+                                    Intersection(
+                                        Symbol(
+                                            "bar",
+                                        ),
+                                        Filter(
+                                            Author(
+                                                "foo",
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    Symbol(
+                        "baz",
+                    ),
+                ),
+            ),
+        )
+        "###);
+
+        // Symbols have to be pushed down to the innermost filter node.
+        insta::assert_debug_snapshot!(
+            optimize(parse(
+                "(a & (author(A) | 0)) & (b & (author(B) | 1)) & (c & (author(C) | 2))").unwrap()),
+            @r###"
+        Intersection(
+            Intersection(
+                Intersection(
+                    Intersection(
+                        Intersection(
+                            Symbol(
+                                "a",
+                            ),
+                            Symbol(
+                                "b",
+                            ),
+                        ),
+                        Symbol(
+                            "c",
+                        ),
+                    ),
+                    AsFilter(
+                        Union(
+                            Filter(
+                                Author(
+                                    "A",
+                                ),
+                            ),
+                            Symbol(
+                                "0",
+                            ),
+                        ),
+                    ),
+                ),
+                AsFilter(
+                    Union(
+                        Filter(
+                            Author(
+                                "B",
+                            ),
+                        ),
+                        Symbol(
+                            "1",
+                        ),
+                    ),
+                ),
+            ),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            "C",
+                        ),
+                    ),
+                    Symbol(
+                        "2",
+                    ),
                 ),
             ),
         )
