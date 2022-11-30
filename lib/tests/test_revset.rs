@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2021 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,8 @@ use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{
-    self, optimize, parse, resolve_symbol, RevsetError, RevsetExpression, RevsetWorkspaceContext,
+    self, optimize, parse, resolve_symbol, RevsetAliasesMap, RevsetError, RevsetExpression,
+    RevsetWorkspaceContext,
 };
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
@@ -105,7 +106,7 @@ fn test_resolve_symbol_commit_id() {
     // Test empty commit id
     assert_eq!(
         resolve_symbol(repo_ref, "", None),
-        Err(RevsetError::AmbiguousCommitIdPrefix("".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix("".to_string()))
     );
 
     // Test commit id prefix
@@ -115,11 +116,11 @@ fn test_resolve_symbol_commit_id() {
     );
     assert_eq!(
         resolve_symbol(repo_ref, "04", None),
-        Err(RevsetError::AmbiguousCommitIdPrefix("04".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix("04".to_string()))
     );
     assert_eq!(
         resolve_symbol(repo_ref, "", None),
-        Err(RevsetError::AmbiguousCommitIdPrefix("".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix("".to_string()))
     );
     assert_eq!(
         resolve_symbol(repo_ref, "040", None),
@@ -135,10 +136,10 @@ fn test_resolve_symbol_commit_id() {
     // Test present() suppresses only NoSuchRevision error
     assert_eq!(resolve_commit_ids(repo_ref, "present(foo)"), []);
     assert_eq!(
-        optimize(parse("present(04)", None).unwrap())
+        optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap())
             .evaluate(repo_ref, None)
             .map(|_| ()),
-        Err(RevsetError::AmbiguousCommitIdPrefix("04".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix("04".to_string()))
     );
     assert_eq!(
         resolve_commit_ids(repo_ref, "present(046)"),
@@ -170,7 +171,7 @@ fn test_resolve_symbol_change_id() {
     .unwrap();
     let git_tree = git_repo.find_tree(empty_tree_id).unwrap();
     let mut git_commit_ids = vec![];
-    for i in &[133, 664, 840] {
+    for i in &[133, 664, 840, 5085] {
         let git_commit_id = git_repo
             .commit(
                 Some(&format!("refs/heads/branch{}", i)),
@@ -203,6 +204,11 @@ fn test_resolve_symbol_change_id() {
         hex::encode(git_commit_ids[2]),
         // "04e1c7082e4e34f3f371d8a1a46770b861b9b547" reversed
         "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
+    );
+    assert_eq!(
+        hex::encode(git_commit_ids[3]),
+        // "911d7e52fd5ba04b8f289e14c3d30b52d38c0020" reversed
+        "040031cb4ad0cbc3287914f1d205dabf4a7eb889"
     );
 
     // Test lookup by full change id
@@ -241,16 +247,27 @@ fn test_resolve_symbol_change_id() {
     );
     assert_eq!(
         resolve_symbol(repo_ref, "04e1", None),
-        Err(RevsetError::AmbiguousChangeIdPrefix("04e1".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix("04e1".to_string()))
     );
     assert_eq!(
         resolve_symbol(repo_ref, "", None),
-        // Commit id is checked first, so this is considered an ambiguous commit id
-        Err(RevsetError::AmbiguousCommitIdPrefix("".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix("".to_string()))
     );
     assert_eq!(
         resolve_symbol(repo_ref, "04e13", None),
         Err(RevsetError::NoSuchRevision("04e13".to_string()))
+    );
+
+    // Test commit/changed id conflicts.
+    assert_eq!(
+        resolve_symbol(repo_ref, "040b", None),
+        Ok(vec![CommitId::from_hex(
+            "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
+        )])
+    );
+    assert_eq!(
+        resolve_symbol(repo_ref, "040", None),
+        Err(RevsetError::AmbiguousIdPrefix("040".to_string()))
     );
 
     // Test non-hex string
@@ -443,7 +460,7 @@ fn test_resolve_symbol_git_refs() {
 }
 
 fn resolve_commit_ids(repo: RepoRef, revset_str: &str) -> Vec<CommitId> {
-    let expression = optimize(parse(revset_str, None).unwrap());
+    let expression = optimize(parse(revset_str, &RevsetAliasesMap::new(), None).unwrap());
     expression
         .evaluate(repo, None)
         .unwrap()
@@ -463,7 +480,8 @@ fn resolve_commit_ids_in_workspace(
         workspace_id: workspace.workspace_id(),
         workspace_root: workspace.workspace_root(),
     };
-    let expression = optimize(parse(revset_str, Some(&workspace_ctx)).unwrap());
+    let expression =
+        optimize(parse(revset_str, &RevsetAliasesMap::new(), Some(&workspace_ctx)).unwrap());
     expression
         .evaluate(repo, Some(&workspace_ctx))
         .unwrap()
@@ -1716,6 +1734,12 @@ fn test_evaluate_expression_difference(use_git: bool) {
     let commit4 = graph_builder.commit_with_parents(&[&commit3]);
     let commit5 = graph_builder.commit_with_parents(&[&commit2]);
 
+    // Difference from all
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), &format!("~:{}", commit5.id().hex())),
+        vec![commit4.id().clone(), commit3.id().clone()]
+    );
+
     // Difference between ancestors
     assert_eq!(
         resolve_commit_ids(
@@ -1728,6 +1752,13 @@ fn test_evaluate_expression_difference(use_git: bool) {
         resolve_commit_ids(
             mut_repo.as_repo_ref(),
             &format!(":{} ~ :{}", commit5.id().hex(), commit4.id().hex())
+        ),
+        vec![commit5.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("~:{} & :{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![commit5.id().clone()]
     );

@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* Commands with long output are paginated.
+
 * The new `jj git remote rename` command allows git remotes to be renamed
   in-place.
 
@@ -44,6 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   paths specified by the `pattern..`.
 
 * The new revset function `empty()` finds commits modifying no files.
+
+* Added support for revset aliases. New symbols and functions can be configured
+  by `revset-aliases.<name> = <expression>`.
 
 * It is now possible to specify configuration options on the command line
   with the new `--config-toml` global option.
@@ -67,6 +72,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj log` will warn if it appears that the provided path was meant to be a
   revset.
 
+* The new global flag `-v/--verbose` will turn on debug logging to give
+  some additional insight into what is happening behind the scenes. 
+  Note: This is not comprehensively supported by all operations yet.
+
+* (#493) When exporting branches to Git, we used to fail if some branches could
+  not be exported (e.g. because Git doesn't allow a branch called `main` and
+  another branch called `main/sub`). We now print a warning about these branches
+  instead.
+
+* `jj log`, `jj show`, and `jj obslog` now all support showing relative
+  timestamps by setting `ui.relative-timestamps = true` in the config file.
+
 ### Fixed bugs
 
 * (#463) A bug in the export of branches to Git caused spurious conflicted
@@ -79,6 +96,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to it were removed. We now keep it if a detached HEAD refers to it.
 
 * `jj git import` no longer crashes when all Git refs are removed.
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+ * Martin von Zweigbergk (@martinvonz)
+ * Benjamin Saunders (@Ralith)
+ * Yuya Nishihara (@yuja)
+ * Glen Choo (@chooglen)
+ * Ilya Grigoriev (@ilyagr)
+ * Ruben Slabbert (@rslabbert)
+ * Waleed Khan (@arxanas)
+
 
 ## [0.5.1] - 2022-10-17
 

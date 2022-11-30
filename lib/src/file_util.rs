@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2021 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -112,7 +112,7 @@ mod tests {
         let target = temp_dir.path().join("file");
         let mut temp_file = NamedTempFile::new_in(&temp_dir).unwrap();
         temp_file.write_all(b"contents").unwrap();
-        assert!(persist_content_addressed_temp_file(temp_file, &target).is_ok());
+        assert!(persist_content_addressed_temp_file(temp_file, target).is_ok());
     }
 
     #[test_case(false ; "existing file open")]

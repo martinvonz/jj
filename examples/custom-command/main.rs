@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2022 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,5 +63,6 @@ fn main() {
     let (mut ui, result) = create_ui();
     let result = result.and_then(|()| run(&mut ui));
     let exit_code = handle_command_result(&mut ui, result);
+    ui.finalize_writes();
     std::process::exit(exit_code);
 }

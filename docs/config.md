@@ -2,7 +2,8 @@
 
 These are the config settings available to jj/Jujutsu.
 
-The config settings are located at `~/.jjconfig.toml`. Less common ways to specify `jj` config settings are discussed in a later section.
+The config settings are located at `~/.jjconfig.toml`. Less common ways
+to specify `jj` config settings are discussed in a later section.
 
 See the [TOML site](https://toml.io/en/) for more on syntax.
 One thing to remember is that anything under a heading can be dotted
@@ -17,10 +18,10 @@ easier to write down in an unconfusing way. If you are confident with
 TOML then use whichever suits you in your config. If you mix the styles,
 put the dotted keys before the first heading.
 
-The other thing to remember is that the value of a setting (the part to the 
-right of the `=` sign) should be surrounded in quotes if it's a string. 
-That's probably enough TOML to keep you out of trouble but the syntax guide is 
-very short if you ever need to check.
+The other thing to remember is that the value of a setting (the part
+to the right of the `=` sign) should be surrounded in quotes if it's
+a string.  That's probably enough TOML to keep you out of trouble but
+the syntax guide is very short if you ever need to check.
 
 
 ## User settings
@@ -42,17 +43,35 @@ This setting overrides the `NO_COLOR` environment variable (if set).
 
     ui.color = "never" # Turn off color
 
+### Relative timestamps
 
-### Editor
+    ui.relative-timestamps = true
 
-The default editor is set via `ui.editor`,
-though there are several places to set it. 
+False by default, but setting to true will change timestamps to be rendered
+as `x days/hours/seconds ago` instead of being rendered as a full timestamp.
+
+
+## Pager
+
+The default pager is can be set via `ui.pager` or the `PAGER` environment
+variable.
 The priority is as follows (environment variables are marked with a `$`):
+
+`ui.pager` > `$PAGER`
+
+`less` is the default pager in the absence of any other setting.
+
+
+## Editor
+
+The default editor is set via `ui.editor`, though there are several
+places to set it.  The priority is as follows (environment variables
+are marked with a `$`):
 
 `$JJ_EDITOR` > `ui.editor` > `$VISUAL` > `$EDITOR`
 
-Pico is the default editor in the absence of any other setting but you could 
-set it explicitly too.
+Pico is the default editor in the absence of any other setting but you
+could set it explicitly too.
 
     ui.editor = "pico"
 
@@ -72,24 +91,26 @@ For GUI editors you possibly need to use a `-w` or `--wait`. Some examples:
 Obviously, you would only set one line, don't copy them all in!
 
 
-## Diffing
+## Editing diffs
 
-This setting affects the tool used for editing diffs 
-(e.g. `jj split`, `jj amend -i`). 
-The default is `meld`.
+The `ui.diff-editor` setting affects the tool used for editing diffs (e.g.
+`jj split`, `jj amend -i`).  The default is `meld`. The left and right
+directories to diff are passed as the first and second argument respectively.
 
 For example:
 
-    diff-editor = "vimdiff"
+    ui.diff-editor = "vimdiff"
 
 When kdiff3 is set via:
 
-    diff-editor = "kdiff3"
+    ui.diff-editor = "kdiff3"
 
-further settings are passed on via the following:
+Custom arguments can be added, and will be inserted before the paths
+to diff:
 
-    merge-tools.kdiff3.program = "kdiff3"
+    # merge-tools.kdiff3.program = "kdiff3"      # Defaults to the name of the tool if not specified
     merge-tools.kdiff3.edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
+
 
 # Alternative ways to specify configuration settings
 
@@ -99,10 +120,10 @@ It is an error for both of these files to exist.
 
 [XDG specification]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
 
-The location of the `jj` config file can also be overriden with the `JJ_CONFIG`
-environment variable. If it is not empty, it should contain the path to
-a TOML file that will be used instead of any configuration file in the
-default locations. For example,
+The location of the `jj` config file can also be overriden with the
+`JJ_CONFIG` environment variable. If it is not empty, it should contain
+the path to a TOML file that will be used instead of any configuration
+file in the default locations. For example,
 
     env JJ_CONFIG=/dev/null jj log       # Ignores any settings specified in the config file.
 

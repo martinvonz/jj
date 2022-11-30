@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -177,41 +177,30 @@ pub enum GitExportError {
 
 /// Reflect changes between two Jujutsu repo views in the underlying Git repo.
 /// Returns a stripped-down repo view of the state we just exported, to be used
-/// as `old_view` next time.
+/// as `old_view` next time. Also returns a list of names of branches that
+/// failed to export.
 fn export_changes(
     mut_repo: &mut MutableRepo,
     old_view: &View,
     git_repo: &git2::Repository,
-) -> Result<crate::op_store::View, GitExportError> {
+) -> Result<(op_store::View, Vec<String>), GitExportError> {
     let new_view = mut_repo.view();
     let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
     let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
-    let mut exported_view = old_view.store_view().clone();
-    // First find the changes we want need to make and then make them all at once to
-    // reduce the risk of making some changes before we fail.
-    let mut refs_to_update = BTreeMap::new();
-    let mut refs_to_delete = BTreeSet::new();
+    let mut branches_to_update = BTreeMap::new();
+    let mut branches_to_delete = BTreeSet::new();
+    // First find the changes we want need to make without modifying mut_repo
     for branch_name in old_branches.union(&new_branches) {
         let old_branch = old_view.get_local_branch(branch_name);
         let new_branch = new_view.get_local_branch(branch_name);
         if new_branch == old_branch {
             continue;
         }
-        let git_ref_name = format!("refs/heads/{}", branch_name);
         if let Some(new_branch) = new_branch {
             match new_branch {
                 RefTarget::Normal(id) => {
-                    exported_view.branches.insert(
-                        branch_name.clone(),
-                        BranchTarget {
-                            local_target: Some(RefTarget::Normal(id.clone())),
-                            remote_targets: Default::default(),
-                        },
-                    );
-                    refs_to_update.insert(
-                        git_ref_name.clone(),
-                        Oid::from_bytes(id.as_bytes()).unwrap(),
-                    );
+                    branches_to_update
+                        .insert(branch_name.clone(), Oid::from_bytes(id.as_bytes()).unwrap());
                 }
                 RefTarget::Conflict { .. } => {
                     // Skip conflicts and leave the old value in `exported_view`
@@ -219,48 +208,73 @@ fn export_changes(
                 }
             }
         } else {
-            exported_view.branches.remove(branch_name);
-            refs_to_delete.insert(git_ref_name.clone());
+            branches_to_delete.insert(branch_name.clone());
         }
     }
     // TODO: Also check other worktrees' HEAD.
     if let Ok(head_ref) = git_repo.find_reference("HEAD") {
-        if let (Some(head_target), Ok(current_git_commit)) =
+        if let (Some(head_git_ref), Ok(current_git_commit)) =
             (head_ref.symbolic_target(), head_ref.peel_to_commit())
         {
-            let detach_head = if let Some(new_target) = refs_to_update.get(head_target) {
-                *new_target != current_git_commit.id()
-            } else {
-                refs_to_delete.contains(head_target)
-            };
-            if detach_head {
-                git_repo.set_head_detached(current_git_commit.id())?;
+            if let Some(branch_name) = head_git_ref.strip_prefix("refs/heads/") {
+                let detach_head = if let Some(new_target) = branches_to_update.get(branch_name) {
+                    *new_target != current_git_commit.id()
+                } else {
+                    branches_to_delete.contains(branch_name)
+                };
+                if detach_head {
+                    git_repo.set_head_detached(current_git_commit.id())?;
+                }
             }
         }
     }
-    for (git_ref_name, new_target) in refs_to_update {
-        git_repo.reference(&git_ref_name, new_target, true, "export from jj")?;
+    let mut exported_view = old_view.store_view().clone();
+    let mut failed_branches = vec![];
+    for branch_name in branches_to_delete {
+        let git_ref_name = format!("refs/heads/{}", branch_name);
+        if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
+            if git_ref.delete().is_err() {
+                failed_branches.push(branch_name);
+                continue;
+            }
+        }
+        exported_view.branches.remove(&branch_name);
+        mut_repo.remove_git_ref(&git_ref_name);
+    }
+    for (branch_name, new_target) in branches_to_update {
+        let git_ref_name = format!("refs/heads/{}", branch_name);
+        if git_repo
+            .reference(&git_ref_name, new_target, true, "export from jj")
+            .is_err()
+        {
+            failed_branches.push(branch_name);
+            continue;
+        }
+        exported_view.branches.insert(
+            branch_name.clone(),
+            BranchTarget {
+                local_target: Some(RefTarget::Normal(CommitId::from_bytes(
+                    new_target.as_bytes(),
+                ))),
+                remote_targets: Default::default(),
+            },
+        );
         mut_repo.set_git_ref(
             git_ref_name,
             RefTarget::Normal(CommitId::from_bytes(new_target.as_bytes())),
         );
     }
-    for git_ref_name in refs_to_delete {
-        if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
-            git_ref.delete()?;
-        }
-        mut_repo.remove_git_ref(&git_ref_name);
-    }
-    Ok(exported_view)
+    Ok((exported_view, failed_branches))
 }
 
 /// Reflect changes made in the Jujutsu repo since last export in the underlying
-/// Git repo. If this is the first export, nothing will be exported. The
-/// exported view is recorded in the repo (`.jj/repo/git_export_view`).
+/// Git repo. The exported view is recorded in the repo
+/// (`.jj/repo/git_export_view`). Returns the names of any branches that failed
+/// to export.
 pub fn export_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
-) -> Result<(), GitExportError> {
+) -> Result<Vec<String>, GitExportError> {
     upgrade_old_export_state(mut_repo.base_repo());
 
     let last_export_path = mut_repo.base_repo().repo_path().join("git_export_view");
@@ -273,7 +287,8 @@ pub fn export_refs(
             op_store::View::default()
         };
     let last_export_view = View::new(last_export_store_view);
-    let new_export_store_view = export_changes(mut_repo, &last_export_view, git_repo)?;
+    let (new_export_store_view, failed_branches) =
+        export_changes(mut_repo, &last_export_view, git_repo)?;
     if let Ok(mut last_export_file) = OpenOptions::new()
         .write(true)
         .create(true)
@@ -283,7 +298,7 @@ pub fn export_refs(
         simple_op_store::write_thrift(&thrift_view, &mut last_export_file)
             .map_err(|err| GitExportError::WriteStateError(err.to_string()))?;
     }
-    Ok(())
+    Ok(failed_branches)
 }
 
 fn upgrade_old_export_state(repo: &Arc<ReadonlyRepo>) {
@@ -303,7 +318,7 @@ fn upgrade_old_export_state(repo: &Arc<ReadonlyRepo>) {
         if let Ok(mut last_export_file) = OpenOptions::new()
             .write(true)
             .create(true)
-            .open(&repo.repo_path().join("git_export_view"))
+            .open(repo.repo_path().join("git_export_view"))
         {
             let thrift_view = simple_op_store_model::View::from(&last_export_store_view);
             simple_op_store::write_thrift(&thrift_view, &mut last_export_file)
@@ -323,6 +338,7 @@ pub enum GitFetchError {
     InternalGitError(#[from] git2::Error),
 }
 
+#[tracing::instrument(skip(mut_repo, git_repo, callbacks))]
 pub fn fetch(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
@@ -348,8 +364,11 @@ pub fn fetch(
     let callbacks = callbacks.into_git();
     fetch_options.remote_callbacks(callbacks);
     let refspec: &[&str] = &[];
+    tracing::debug!("remote.download");
     remote.download(refspec, Some(&mut fetch_options))?;
+    tracing::debug!("remote.update_tips");
     remote.update_tips(None, false, git2::AutotagOption::Unspecified, None)?;
+    tracing::debug!("remote.prune");
     remote.prune(None)?;
     // TODO: We could make it optional to get the default branch since we only care
     // about it on clone.
@@ -359,11 +378,14 @@ pub fn fetch(
             // LocalBranch here is the local branch on the remote, so it's really the remote
             // branch
             if let Some(RefName::LocalBranch(branch_name)) = parse_git_ref(default_ref) {
+                tracing::debug!(default_branch = branch_name);
                 default_branch = Some(branch_name);
             }
         }
     }
+    tracing::debug!("remote.disconnect");
     remote.disconnect()?;
+    tracing::debug!("import_refs");
     import_refs(mut_repo, git_repo).map_err(|err| match err {
         GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
     })?;
@@ -553,38 +575,64 @@ impl<'a> RemoteCallbacks<'a> {
         // TODO: We should expose the callbacks to the caller instead -- the library
         // crate shouldn't read environment variables.
         callbacks.credentials(move |url, username_from_url, allowed_types| {
+            let span = tracing::debug_span!("RemoteCallbacks.credentials");
+            let _ = span.enter();
+
             let git_config = git2::Config::open_default();
             let credential_helper = git_config
                 .and_then(|conf| git2::Cred::credential_helper(&conf, url, username_from_url));
             if let Ok(creds) = credential_helper {
+                tracing::debug!("using credential_helper");
                 return Ok(creds);
             } else if let Some(username) = username_from_url {
                 if allowed_types.contains(git2::CredentialType::SSH_KEY) {
                     if std::env::var("SSH_AUTH_SOCK").is_ok()
                         || std::env::var("SSH_AGENT_PID").is_ok()
                     {
-                        return git2::Cred::ssh_key_from_agent(username);
+                        tracing::debug!(username, "using ssh_key_from_agent");
+                        return git2::Cred::ssh_key_from_agent(username).map_err(|err| {
+                            tracing::error!(err = %err);
+                            err
+                        });
                     }
                     if let Some(ref mut cb) = self.get_ssh_key {
                         if let Some(path) = cb(username) {
-                            return git2::Cred::ssh_key(username, None, &path, None);
+                            tracing::debug!(username, path = ?path, "using ssh_key");
+                            return git2::Cred::ssh_key(username, None, &path, None).map_err(
+                                |err| {
+                                    tracing::error!(err = %err);
+                                    err
+                                },
+                            );
                         }
                     }
                 }
                 if allowed_types.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
                     if let Some(ref mut cb) = self.get_password {
                         if let Some(pw) = cb(url, username) {
-                            return git2::Cred::userpass_plaintext(username, &pw);
+                            tracing::debug!(
+                                username,
+                                "using userpass_plaintext with username from url"
+                            );
+                            return git2::Cred::userpass_plaintext(username, &pw).map_err(|err| {
+                                tracing::error!(err = %err);
+                                err
+                            });
                         }
                     }
                 }
             } else if allowed_types.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
                 if let Some(ref mut cb) = self.get_username_password {
                     if let Some((username, pw)) = cb(url) {
-                        return git2::Cred::userpass_plaintext(&username, &pw);
+                        tracing::debug!(username, "using userpass_plaintext");
+                        return git2::Cred::userpass_plaintext(&username, &pw).map_err(|err| {
+                            tracing::error!(err = %err);
+                            err
+                        });
                     }
                 }
             }
+            tracing::debug!("using default");
             git2::Cred::default()
         });
         callbacks

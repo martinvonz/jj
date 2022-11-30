@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use chrono::{FixedOffset, LocalResult, TimeZone, Utc};
-use jujutsu_lib::backend::{CommitId, Signature};
+use chrono::{DateTime, FixedOffset, LocalResult, TimeZone, Utc};
+use jujutsu_lib::backend::{CommitId, Signature, Timestamp};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
@@ -26,8 +26,9 @@ use crate::templater::{
     AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdKeyword, CommitterProperty,
     ConditionalTemplate, ConflictProperty, ConstantTemplateProperty, DescriptionProperty,
     DivergentProperty, DynamicLabelTemplate, GitRefsProperty, IsGitHeadProperty,
-    IsWorkingCopyProperty, LabelTemplate, ListTemplate, LiteralTemplate, StringPropertyTemplate,
-    TagProperty, Template, TemplateFunction, TemplateProperty, WorkingCopiesProperty,
+    IsWorkingCopyProperty, LabelTemplate, ListTemplate, LiteralTemplate, SignatureTimestamp,
+    StringPropertyTemplate, TagProperty, Template, TemplateFunction, TemplateProperty,
+    WorkingCopiesProperty,
 };
 
 #[derive(Parser)]
@@ -94,25 +95,41 @@ impl TemplateProperty<Signature, String> for SignatureEmail {
     }
 }
 
-struct SignatureTimestamp;
+fn datetime_from_timestamp(context: &Timestamp) -> Option<DateTime<FixedOffset>> {
+    let utc = match Utc.timestamp_opt(
+        context.timestamp.0.div_euclid(1000),
+        (context.timestamp.0.rem_euclid(1000)) as u32 * 1000000,
+    ) {
+        LocalResult::None => {
+            return None;
+        }
+        LocalResult::Single(x) => x,
+        LocalResult::Ambiguous(y, _z) => y,
+    };
 
-impl TemplateProperty<Signature, String> for SignatureTimestamp {
-    fn extract(&self, context: &Signature) -> String {
-        let utc = match Utc.timestamp_opt(
-            context.timestamp.timestamp.0.div_euclid(1000),
-            (context.timestamp.timestamp.0.rem_euclid(1000)) as u32 * 1000000,
-        ) {
-            LocalResult::None => {
-                return "<out-of-range date>".to_string();
-            }
-            LocalResult::Single(x) => x,
-            LocalResult::Ambiguous(y, _z) => y,
-        };
-        let datetime = utc.with_timezone(
-            &FixedOffset::east_opt(context.timestamp.tz_offset * 60)
+    Some(
+        utc.with_timezone(
+            &FixedOffset::east_opt(context.tz_offset * 60)
                 .unwrap_or_else(|| FixedOffset::east_opt(0).unwrap()),
-        );
-        datetime.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string()
+        ),
+    )
+}
+
+struct RelativeTimestampString;
+
+impl TemplateProperty<Timestamp, String> for RelativeTimestampString {
+    fn extract(&self, context: &Timestamp) -> String {
+        datetime_from_timestamp(context)
+            .and_then(|datetime| {
+                let now = chrono::Local::now();
+
+                now.signed_duration_since(datetime).to_std().ok()
+            })
+            .map(|duration| {
+                let f = timeago::Formatter::new();
+                f.convert(duration)
+            })
+            .unwrap_or_else(|| "<out-of-range date>".to_string())
     }
 }
 
@@ -140,6 +157,10 @@ fn parse_method_chain<'a, I: 'a>(
             }
             Property::Signature(property) => {
                 let next_method = parse_signature_method(method);
+                next_method.after(property)
+            }
+            Property::Timestamp(property) => {
+                let next_method = parse_timestamp_method(method);
                 next_method.after(property)
             }
         }
@@ -200,8 +221,22 @@ fn parse_signature_method<'a>(method: Pair<Rule>) -> Property<'a, Signature> {
         //       `author % (name "<" email ">")`)?
         "name" => Property::String(Box::new(SignatureName)),
         "email" => Property::String(Box::new(SignatureEmail)),
-        "timestamp" => Property::String(Box::new(SignatureTimestamp)),
+        "timestamp" => Property::Timestamp(Box::new(SignatureTimestamp)),
         name => panic!("no such commit ID method: {}", name),
+    };
+    let chain_method = inner.last().unwrap();
+    parse_method_chain(chain_method, this_function)
+}
+
+fn parse_timestamp_method<'a>(method: Pair<Rule>) -> Property<'a, Timestamp> {
+    assert_eq!(method.as_rule(), Rule::method);
+    let mut inner = method.into_inner();
+    let name = inner.next().unwrap();
+    // TODO: validate arguments
+
+    let this_function = match name.as_str() {
+        "ago" => Property::String(Box::new(RelativeTimestampString)),
+        name => panic!("no such timestamp method: {}", name),
     };
     let chain_method = inner.last().unwrap();
     parse_method_chain(chain_method, this_function)
@@ -212,6 +247,7 @@ enum Property<'a, I> {
     Boolean(Box<dyn TemplateProperty<I, bool> + 'a>),
     CommitId(Box<dyn TemplateProperty<I, CommitId> + 'a>),
     Signature(Box<dyn TemplateProperty<I, Signature> + 'a>),
+    Timestamp(Box<dyn TemplateProperty<I, Timestamp> + 'a>),
 }
 
 impl<'a, I: 'a> Property<'a, I> {
@@ -230,6 +266,10 @@ impl<'a, I: 'a> Property<'a, I> {
                 Box::new(move |value| property.extract(&value)),
             ))),
             Property::Signature(property) => Property::Signature(Box::new(TemplateFunction::new(
+                first,
+                Box::new(move |value| property.extract(&value)),
+            ))),
+            Property::Timestamp(property) => Property::Timestamp(Box::new(TemplateFunction::new(
                 first,
                 Box::new(move |value| property.extract(&value)),
             ))),
@@ -281,6 +321,13 @@ fn coerce_to_string<'a, I: 'a>(
         Property::Signature(property) => Box::new(TemplateFunction::new(
             property,
             Box::new(|signature| signature.name),
+        )),
+        Property::Timestamp(property) => Box::new(TemplateFunction::new(
+            property,
+            Box::new(|timestamp| match datetime_from_timestamp(&timestamp) {
+                Some(datetime) => datetime.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string(),
+                None => "<out-of-range date>".to_string(),
+            }),
         )),
     }
 }

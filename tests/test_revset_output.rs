@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2022 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common::TestEnvironment;
+use common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
 pub mod common;
 
@@ -29,7 +29,7 @@ fn test_syntax_error() {
     1 | x &
       |    ^---
       |
-      = expected range_expression
+      = expected dag_range_pre_op, range_pre_op, negate_op, or primary
     "###);
 }
 
@@ -117,5 +117,147 @@ fn test_bad_function_call() {
       |      ^------^
       |
       = Revset function "whatever" doesn't exist
+    "###);
+}
+
+#[test]
+fn test_alias() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(
+        br###"
+    [revset-aliases]
+    'my-root' = 'root'
+    'syntax-error' = 'whatever &'
+    'recurse' = 'recurse1'
+    'recurse1' = 'recurse2()'
+    'recurse2()' = 'recurse'
+    'identity(x)' = 'x'
+    'my_author(x)' = 'author(x)'
+    "###,
+    );
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "my-root"]);
+    insta::assert_snapshot!(stdout, @r###"
+    o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
+      (no description set)
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "identity(my-root)"]);
+    insta::assert_snapshot!(stdout, @r###"
+    o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
+      (no description set)
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root & syntax-error"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:8
+      |
+    1 | root & syntax-error
+      |        ^----------^
+      |
+      = Alias "syntax-error" cannot be expanded
+     --> 1:11
+      |
+    1 | whatever &
+      |           ^---
+      |
+      = expected dag_range_pre_op, range_pre_op, negate_op, or primary
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "identity()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:10
+      |
+    1 | identity()
+      |          ^
+      |
+      = Invalid arguments to revset function "identity": Expected 1 arguments
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "my_author(none())"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:1
+      |
+    1 | my_author(none())
+      | ^---------------^
+      |
+      = Alias "my_author()" cannot be expanded
+     --> 1:8
+      |
+    1 | author(x)
+      |        ^
+      |
+      = Invalid arguments to revset function "author": Expected function argument of type string
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root & recurse"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:8
+      |
+    1 | root & recurse
+      |        ^-----^
+      |
+      = Alias "recurse" cannot be expanded
+     --> 1:1
+      |
+    1 | recurse1
+      | ^------^
+      |
+      = Alias "recurse1" cannot be expanded
+     --> 1:1
+      |
+    1 | recurse2()
+      | ^--------^
+      |
+      = Alias "recurse2()" cannot be expanded
+     --> 1:1
+      |
+    1 | recurse
+      | ^-----^
+      |
+      = Alias "recurse" expanded recursively
+    "###);
+}
+
+#[test]
+fn test_bad_alias_decl() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(
+        br###"
+    [revset-aliases]
+    'my-root' = 'root'
+    '"bad"' = 'root'
+    'badfn(a, a)' = 'root'
+    "###,
+    );
+
+    // Invalid declaration should be warned and ignored.
+    let assert = test_env
+        .jj_cmd(&repo_path, &["log", "-r", "my-root"])
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
+    o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
+      (no description set)
+    "###);
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Failed to load "revset-aliases."bad"":  --> 1:1
+      |
+    1 | "bad"
+      | ^---
+      |
+      = expected identifier or function_name
+    Failed to load "revset-aliases.badfn(a, a)":  --> 1:7
+      |
+    1 | badfn(a, a)
+      |       ^--^
+      |
+      = Redefinition of function parameter
     "###);
 }

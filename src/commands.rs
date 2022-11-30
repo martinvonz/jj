@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ use std::collections::{HashSet, VecDeque};
 use std::fmt::Debug;
 use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::ops::Range;
+use std::ops::{Deref, Range};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -24,6 +24,7 @@ use std::time::Instant;
 use std::{fs, io};
 
 use chrono::{FixedOffset, LocalResult, TimeZone, Utc};
+use clap::builder::NonEmptyStringValueParser;
 use clap::{ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeValue};
@@ -40,7 +41,7 @@ use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
 use jujutsu_lib::repo::{ReadonlyRepo, RepoRef};
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::revset::RevsetExpression;
+use jujutsu_lib::revset::{RevsetAliasesMap, RevsetExpression};
 use jujutsu_lib::revset_graph_iterator::{RevsetGraphEdge, RevsetGraphEdgeType};
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
@@ -53,9 +54,9 @@ use maplit::{hashmap, hashset};
 use pest::Parser;
 
 use crate::cli_util::{
-    print_checkout_stats, resolve_base_revs, short_commit_description, short_commit_hash,
-    user_error, user_error_with_hint, write_commit_summary, Args, CommandError, CommandHelper,
-    WorkspaceCommandHelper,
+    print_checkout_stats, print_failed_git_export, resolve_base_revs, short_commit_description,
+    short_commit_hash, user_error, user_error_with_hint, write_commit_summary, Args, CommandError,
+    CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{AsciiGraphDrawer, Edge};
@@ -148,7 +149,7 @@ struct InitArgs {
 #[command(visible_aliases = &["co", "update", "up"])]
 struct CheckoutArgs {
     /// The revision to update to
-    revision: String,
+    revision: RevisionArg,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -170,7 +171,7 @@ struct UntrackArgs {
 struct FilesArgs {
     /// The revision to list files in
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Only list files matching these prefixes (instead of all files)
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -181,7 +182,7 @@ struct FilesArgs {
 struct PrintArgs {
     /// The revision to get the file contents from
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// The file to print
     #[arg(value_hint = clap::ValueHint::FilePath)]
     path: String,
@@ -216,13 +217,13 @@ struct DiffFormatArgs {
 struct DiffArgs {
     /// Show changes in this revision, compared to its parent(s)
     #[arg(long, short)]
-    revision: Option<String>,
+    revision: Option<RevisionArg>,
     /// Show changes from this revision
     #[arg(long, conflicts_with = "revision")]
-    from: Option<String>,
+    from: Option<RevisionArg>,
     /// Show changes to this revision
     #[arg(long, conflicts_with = "revision")]
-    to: Option<String>,
+    to: Option<RevisionArg>,
     /// Restrict the diff to these paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -235,7 +236,7 @@ struct DiffArgs {
 struct ShowArgs {
     /// Show changes in this revision, compared to its parent(s)
     #[arg(default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -262,7 +263,7 @@ struct LogArgs {
     /// or `@ | (remote_branches() | tags()).. | ((remote_branches() |
     /// tags())..)-` if it is not set.
     #[arg(long, short)]
-    revisions: Option<String>,
+    revisions: Option<RevisionArg>,
     /// Show commits modifying the given paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -289,7 +290,7 @@ struct LogArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct ObslogArgs {
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Don't show the graph, show a flat list of revisions
     #[arg(long)]
     no_graph: bool,
@@ -318,10 +319,10 @@ struct ObslogArgs {
 struct InterdiffArgs {
     /// Show changes from this revision
     #[arg(long)]
-    from: Option<String>,
+    from: Option<RevisionArg>,
     /// Show changes to this revision
     #[arg(long)]
-    to: Option<String>,
+    to: Option<RevisionArg>,
     /// Restrict the diff to these paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -337,7 +338,7 @@ struct InterdiffArgs {
 struct DescribeArgs {
     /// The revision whose description to edit
     #[arg(default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -363,7 +364,7 @@ struct CommitArgs {
 struct DuplicateArgs {
     /// The revision to duplicate
     #[arg(default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -379,7 +380,7 @@ struct DuplicateArgs {
 struct AbandonArgs {
     /// The revision(s) to abandon
     #[arg(default_value = "@")]
-    revisions: Vec<String>,
+    revisions: Vec<RevisionArg>,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -392,7 +393,7 @@ struct AbandonArgs {
 #[derive(clap::Args, Clone, Debug)]
 struct EditArgs {
     /// The commit to edit
-    revision: String,
+    revision: RevisionArg,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -410,7 +411,7 @@ struct EditArgs {
 struct NewArgs {
     /// Parent(s) of the new change
     #[arg(default_value = "@")]
-    revisions: Vec<String>,
+    revisions: Vec<RevisionArg>,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -436,10 +437,10 @@ struct NewArgs {
 struct MoveArgs {
     /// Move part of this change into the destination
     #[arg(long)]
-    from: Option<String>,
+    from: Option<RevisionArg>,
     /// Move part of the source into this change
     #[arg(long)]
-    to: Option<String>,
+    to: Option<RevisionArg>,
     /// Interactively choose which parts to move
     #[arg(long, short)]
     interactive: bool,
@@ -462,7 +463,7 @@ struct MoveArgs {
 #[command(visible_alias = "amend")]
 struct SquashArgs {
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Interactively choose which parts to squash
     #[arg(long, short)]
     interactive: bool,
@@ -485,7 +486,7 @@ struct SquashArgs {
 #[command(visible_alias = "unamend")]
 struct UnsquashArgs {
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Interactively choose which parts to unsquash
     // TODO: It doesn't make much sense to run this without -i. We should make that
     // the default.
@@ -506,10 +507,10 @@ struct UnsquashArgs {
 struct RestoreArgs {
     /// Revision to restore from (source)
     #[arg(long)]
-    from: Option<String>,
+    from: Option<RevisionArg>,
     /// Revision to restore into (destination)
     #[arg(long)]
-    to: Option<String>,
+    to: Option<RevisionArg>,
     /// Interactively choose which parts to restore
     #[arg(long, short)]
     interactive: bool,
@@ -530,7 +531,7 @@ struct RestoreArgs {
 struct TouchupArgs {
     /// The revision to touch up
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
 }
 
 /// Split a revision in two
@@ -544,7 +545,7 @@ struct TouchupArgs {
 struct SplitArgs {
     /// The revision to split
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Put these paths in the first commit and don't run the diff editor
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -616,17 +617,17 @@ struct SplitArgs {
 struct RebaseArgs {
     /// Rebase the whole branch (relative to destination's ancestors)
     #[arg(long, short)]
-    branch: Option<String>,
+    branch: Option<RevisionArg>,
     /// Rebase this revision and its descendants
     #[arg(long, short)]
-    source: Option<String>,
+    source: Option<RevisionArg>,
     /// Rebase only this revision, rebasing descendants onto this revision's
     /// parent(s)
     #[arg(long, short)]
-    revision: Option<String>,
+    revision: Option<RevisionArg>,
     /// The revision(s) to rebase onto
     #[arg(long, short, required = true)]
-    destination: Vec<String>,
+    destination: Vec<RevisionArg>,
 }
 
 /// Apply the reverse of a revision on top of another revision
@@ -634,12 +635,12 @@ struct RebaseArgs {
 struct BackoutArgs {
     /// The revision to apply the reverse of
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// The revision to apply the reverse changes on top of
     // TODO: It seems better to default this to `@-`. Maybe the working
     // copy should be rebased on top?
     #[arg(long, short, default_value = "@")]
-    destination: Vec<String>,
+    destination: Vec<RevisionArg>,
 }
 
 /// Manage branches.
@@ -653,10 +654,10 @@ enum BranchSubcommand {
     Create {
         /// The branch's target revision.
         #[arg(long, short)]
-        revision: Option<String>,
+        revision: Option<RevisionArg>,
 
         /// The branches to create.
-        #[arg(required = true)]
+        #[arg(required = true, value_parser=NonEmptyStringValueParser::new())]
         names: Vec<String>,
     },
 
@@ -696,7 +697,7 @@ enum BranchSubcommand {
     Set {
         /// The branch's target revision.
         #[arg(long, short)]
-        revision: Option<String>,
+        revision: Option<RevisionArg>,
 
         /// Allow moving the branch backwards or sideways.
         #[arg(long, short = 'B')]
@@ -890,7 +891,7 @@ struct GitPushArgs {
     all: bool,
     /// Push this commit by creating a branch based on its change ID
     #[arg(long)]
-    change: Option<String>,
+    change: Option<RevisionArg>,
     /// Only display what will change on the remote
     #[arg(long)]
     dry_run: bool,
@@ -1331,6 +1332,7 @@ fn show_color_words_diff_line(
 }
 
 fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(), CommandError> {
+    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
     let from_tree;
     let to_tree;
@@ -1358,6 +1360,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
 }
 
 fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(), CommandError> {
+    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let parents = commit.parents();
@@ -1366,18 +1369,26 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
     let diff_iterator = from_tree.diff(&to_tree, &EverythingMatcher);
     // TODO: Add branches, tags, etc
     // TODO: Indent the description like Git does
-    let template_string = r#"
+    let (author_timestamp_template, committer_timestamp_template) =
+        if ui.settings().relative_timestamps() {
+            ("author.timestamp().ago()", "committer.timestamp().ago()")
+        } else {
+            ("author.timestamp()", "committer.timestamp()")
+        };
+    let template_string = format!(
+        r#"
             "Commit ID: " commit_id "\n"
             "Change ID: " change_id "\n"
-            "Author: " author " <" author.email() "> (" author.timestamp() ")\n"
-            "Committer: " committer " <" committer.email() "> (" committer.timestamp() ")\n"
+            "Author: " author " <" author.email() "> (" {author_timestamp_template} ")\n"
+            "Committer: " committer " <" committer.email() "> (" {committer_timestamp_template} ")\n"
             "\n"
             description
-            "\n""#;
+            "\n""#,
+    );
     let template = crate::template_parser::parse_commit_template(
         workspace_command.repo().as_repo_ref(),
         &workspace_command.workspace_id(),
-        template_string,
+        &template_string,
     );
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
@@ -1993,10 +2004,17 @@ fn cmd_status(
 fn log_template(settings: &UserSettings) -> String {
     // TODO: define a method on boolean values, so we can get auto-coloring
     //       with e.g. `conflict.then("conflict")`
-    let default_template = r#"
+
+    let author_timestamp = if settings.relative_timestamps() {
+        "author.timestamp().ago()"
+    } else {
+        "author.timestamp()"
+    };
+    let default_template = format!(
+        r#"
             change_id.short()
             " " author.email()
-            " " label("timestamp", author.timestamp())
+            " " label("timestamp", {author_timestamp})
             if(branches, " " branches)
             if(tags, " " tags)
             if(working_copies, " " working_copies)
@@ -2006,19 +2024,21 @@ fn log_template(settings: &UserSettings) -> String {
             if(conflict, label("conflict", " conflict"))
             "\n"
             description.first_line()
-            "\n""#;
+            "\n""#,
+    );
     settings
         .config()
         .get_string("template.log.graph")
-        .unwrap_or_else(|_| default_template.to_string())
+        .unwrap_or(default_template)
 }
 
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {
+    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
 
     let default_revset = ui.settings().default_revset();
     let revset_expression =
-        workspace_command.parse_revset(args.revisions.as_ref().unwrap_or(&default_revset))?;
+        workspace_command.parse_revset(args.revisions.as_deref().unwrap_or(&default_revset))?;
     let repo = workspace_command.repo();
     let workspace_id = workspace_command.workspace_id();
     let checkout_id = repo.view().get_wc_commit_id(&workspace_id);
@@ -2148,7 +2168,9 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                  often not useful because all non-empty commits touch '.'.  If you meant to show \
                  the working copy commit, pass -r '@' instead.\n"
             ))?;
-        } else if revset.is_empty() && revset::parse(only_path, None).is_ok() {
+        } else if revset.is_empty()
+            && revset::parse(only_path, &RevsetAliasesMap::new(), None).is_ok()
+        {
             ui.write_warn(&format!(
                 "warning: The argument {only_path:?} is being interpreted as a path. To specify a \
                  revset, pass -r {only_path:?} instead.\n"
@@ -2174,6 +2196,7 @@ fn show_patch(
 }
 
 fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result<(), CommandError> {
+    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
 
     let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
@@ -2269,6 +2292,7 @@ fn cmd_interdiff(
     command: &CommandHelper,
     args: &InterdiffArgs,
 ) -> Result<(), CommandError> {
+    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
     let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
     let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
@@ -3585,6 +3609,7 @@ fn cmd_op_log(
     command: &CommandHelper,
     _args: &OperationLogArgs,
 ) -> Result<(), CommandError> {
+    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let head_op = repo.operation().clone();
@@ -3991,6 +4016,7 @@ fn cmd_git_remote_list(
     Ok(())
 }
 
+#[tracing::instrument(skip(ui, command))]
 fn cmd_git_fetch(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -4218,12 +4244,15 @@ fn decode_assuan_data(encoded: &str) -> Option<String> {
     String::from_utf8(decoded).ok()
 }
 
+#[tracing::instrument]
 fn get_ssh_key(_username: &str) -> Option<PathBuf> {
     let home_dir = std::env::var("HOME").ok()?;
     let key_path = std::path::Path::new(&home_dir).join(".ssh").join("id_rsa");
     if key_path.is_file() {
+        tracing::debug!(path = ?key_path, "found ssh key");
         Some(key_path)
     } else {
+        tracing::debug!(path = ?key_path, "no ssh key found");
         None
     }
 }
@@ -4271,7 +4300,8 @@ fn cmd_git_push(
             writeln!(
                 ui,
                 "Creating branch {} for revision {}",
-                branch_name, change_str
+                branch_name,
+                change_str.deref()
             )?;
         }
         tx = workspace_command.start_transaction(&format!(
@@ -4538,8 +4568,9 @@ fn cmd_git_export(
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction("export git refs");
-    git::export_refs(tx.mut_repo(), &git_repo)?;
+    let failed_branches = git::export_refs(tx.mut_repo(), &git_repo)?;
     workspace_command.finish_transaction(ui, tx)?;
+    print_failed_git_export(ui, &failed_branches)?;
     Ok(())
 }
 

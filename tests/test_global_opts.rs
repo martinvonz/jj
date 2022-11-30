@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2022 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -253,6 +253,32 @@ fn test_help() {
           --no-commit-working-copy       Don't commit the working copy
           --at-operation <AT_OPERATION>  Operation to load the repo at [default: @] [aliases: at-op]
           --color <WHEN>                 When to colorize output (always, never, auto)
+          --no-pager                     Disable the pager
           --config-toml <TOML>           Additional configuration options
+      -v, --verbose                      Enable verbose logging
     "###);
+}
+
+#[test]
+fn test_verbose_logging_enabled() {
+    // Test that the verbose flag enabled verbose logging
+    let test_env = TestEnvironment::default();
+
+    let assert = test_env
+        .jj_cmd(test_env.env_root(), &["version", "-v"])
+        .assert()
+        .success();
+
+    let stderr = get_stderr_string(&assert);
+    // Split the first log line into a timestamp and the rest.
+    // The timestamp is constant sized so this is a robust operation.
+    // Example timestamp: 2022-11-20T06:24:05.477703Z
+    let (_timestamp, log_line) = stderr
+        .lines()
+        .next()
+        .expect("verbose logging on first line")
+        .split_at(36);
+    // The log format is currently Pretty so we include the terminal markup.
+    // Luckily, insta will print this in colour when reviewing.
+    insta::assert_snapshot!(log_line, @"\u{1b}[34mDEBUG\u{1b}[0m \u{1b}[2mjj\u{1b}[0m\u{1b}[2m:\u{1b}[0m verbose logging enabled");
 }

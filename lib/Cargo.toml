@@ -30,23 +30,24 @@ hex = "0.4.3"
 itertools = "0.10.5"
 maplit = "1.0.2"
 once_cell = "1.16.0"
-pest = "2.4.1"
-pest_derive = "2.4.1"
+pest = "2.5.0"
+pest_derive = "2.5.0"
 protobuf = { version = "3.0.1", features = ["with-bytes"] }
 rand = "0.8.5"
 regex = "1.7.0"
-serde_json = "1.0.88"
+serde_json = "1.0.89"
 tempfile = "3.3.0"
 thiserror = "1.0.37"
 # thrift v0.17.0 (specified by hash for security reasons)
 thrift = { git = "https://github.com/apache/thrift", rev = "4d493e867b349f3475203ef9848353b315203c51",  default-features = false }
 uuid = { version = "1.2.2", features = ["v4"] }
 whoami = "1.2.3"
-zstd = "0.11.2"
+zstd = "0.12.0"
+tracing = "0.1.37"
 
 [dev-dependencies]
 assert_matches = "1.5.0"
-insta = "1.21.1"
+insta = "1.21.2"
 num_cpus = "1.14.0"
 test-case = "2.2.2"
 testutils = { path = "testutils" }

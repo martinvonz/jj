@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2022 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,8 +30,16 @@ struct Args {
 fn main() {
     let args: Args = Args::parse();
     let edit_script_path = PathBuf::from(std::env::var_os("EDIT_SCRIPT").unwrap());
-    let edit_script = String::from_utf8(std::fs::read(edit_script_path).unwrap()).unwrap();
-    for instruction in edit_script.split('\0') {
+    let edit_script = String::from_utf8(std::fs::read(edit_script_path.clone()).unwrap()).unwrap();
+
+    let mut instructions = edit_script.split('\0').collect_vec();
+    if let Some(pos) = instructions.iter().position(|&i| i == "next invocation\n") {
+        // Overwrite the edit script. The next time `fake-editor` is called, it will
+        // only see the part after the `next invocation` command.
+        std::fs::write(edit_script_path, instructions[pos + 1..].join("\0")).unwrap();
+        instructions.truncate(pos);
+    }
+    for instruction in instructions {
         let (command, payload) = instruction.split_once('\n').unwrap_or((instruction, ""));
         let parts = command.split(' ').collect_vec();
         match parts.as_slice() {
@@ -40,7 +48,8 @@ fn main() {
             ["expect"] => {
                 let actual = String::from_utf8(std::fs::read(&args.file).unwrap()).unwrap();
                 if actual != payload {
-                    eprintln!("unexpected content: {}", actual);
+                    eprintln!("fake-editor: Unexpected content.\n");
+                    eprintln!("EXPECTED: {payload}\nRECEIVED: {actual}");
                     exit(1)
                 }
             }
@@ -48,7 +57,7 @@ fn main() {
                 std::fs::write(&args.file, payload).unwrap();
             }
             _ => {
-                eprintln!("unexpected command: {}", command);
+                eprintln!("fake-editor: unexpected command: {}", command);
                 exit(1)
             }
         }

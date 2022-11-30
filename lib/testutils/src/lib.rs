@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,6 +64,10 @@ pub fn user_settings() -> UserSettings {
         .set_override("user.name", "Test User")
         .unwrap()
         .set_override("user.email", "test.user@example.com")
+        .unwrap()
+        .set_override("operation.hostname", "host.example.com")
+        .unwrap()
+        .set_override("operation.username", "test-username")
         .unwrap()
         .build()
         .unwrap();

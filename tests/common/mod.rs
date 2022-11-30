@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -72,6 +72,9 @@ impl TestEnvironment {
         cmd.env("JJ_TIMESTAMP", timestamp.to_rfc3339());
         cmd.env("JJ_USER", "Test User");
         cmd.env("JJ_EMAIL", "test.user@example.com");
+        cmd.env("JJ_OP_TIMESTAMP", timestamp.to_rfc3339());
+        cmd.env("JJ_OP_HOSTNAME", "host.example.com");
+        cmd.env("JJ_OP_USERNAME", "test-username");
         cmd
     }
 

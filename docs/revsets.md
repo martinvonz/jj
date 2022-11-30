@@ -46,8 +46,7 @@ Jujutsu attempts to resolve a symbol in the following order:
 3. Tag name
 4. Branch name
 5. Git ref
-6. Commit ID
-7. Change ID
+6. Commit ID or change ID
 
 
 ## Operators
@@ -58,6 +57,7 @@ only symbols.
 * `x & y`: Revisions that are in both `x` and `y`.
 * `x | y`: Revisions that are in either `x` or `y` (or both).
 * `x ~ y`: Revisions that are in `x` but not in `y`.
+* `~x`: Revisions that are not in `x`.
 * `x-`: Parents of `x`.
 * `x+`: Children of `x`.
 * `:x`: Ancestors of `x`, including the commits in `x` itself.
@@ -113,6 +113,19 @@ revsets (expressions) as arguments.
 * `file(pattern..)`: Commits modifying the paths specified by the `pattern..`.
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
   in `x` doesn't exist (e.g. is an unknown branch name.)
+
+
+## Aliases
+
+New symbols and functions can be defined in the config file, by using any
+combination of the predefined symbols/functions and other aliases.
+
+For example:
+```toml
+[revset-aliases]
+'mine' = 'author(martinvonz)'
+'user(x)' = 'author(x) | committer(x)'
+```
 
 
 ## Examples

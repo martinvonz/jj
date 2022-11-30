@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2022 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -58,6 +58,9 @@ fn env_base() -> config::Config {
         // should override $NO_COLOR." https://no-color.org/
         builder = builder.set_override("ui.color", "never").unwrap();
     }
+    if let Ok(value) = env::var("PAGER") {
+        builder = builder.set_override("ui.pager", value).unwrap();
+    }
     if let Ok(value) = env::var("VISUAL") {
         builder = builder.set_override("ui.editor", value).unwrap();
     } else if let Ok(value) = env::var("EDITOR") {
@@ -77,6 +80,15 @@ fn env_overrides() -> config::Config {
     }
     if let Ok(value) = env::var("JJ_TIMESTAMP") {
         builder = builder.set_override("user.timestamp", value).unwrap();
+    }
+    if let Ok(value) = env::var("JJ_OP_TIMESTAMP") {
+        builder = builder.set_override("operation.timestamp", value).unwrap();
+    }
+    if let Ok(value) = env::var("JJ_OP_HOSTNAME") {
+        builder = builder.set_override("operation.hostname", value).unwrap();
+    }
+    if let Ok(value) = env::var("JJ_OP_USERNAME") {
+        builder = builder.set_override("operation.username", value).unwrap();
     }
     if let Ok(value) = env::var("JJ_EDITOR") {
         builder = builder.set_override("ui.editor", value).unwrap();

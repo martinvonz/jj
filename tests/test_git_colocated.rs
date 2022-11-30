@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2022 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ use std::path::Path;
 
 use git2::Oid;
 
-use crate::common::TestEnvironment;
+use crate::common::{get_stderr_string, TestEnvironment};
 
 pub mod common;
 
@@ -175,6 +175,27 @@ fn test_git_colocated_branches() {
     |/  
     o 230dd059e1b059aefc0da06a2e5a7dbf22362f22 
     o 0000000000000000000000000000000000000000 
+    "###);
+}
+
+#[test]
+fn test_git_colocated_conflicting_git_refs() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    git2::Repository::init(&workspace_root).unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "main"]);
+    let assert = test_env
+        .jj_cmd(&workspace_root, &["branch", "create", "main/sub"])
+        .assert()
+        .success()
+        .stdout("");
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Failed to export some branches:
+      main/sub
+    Hint: Git doesn't allow a branch name that looks like a parent directory of
+    another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
+    export or their "parent" branches.
     "###);
 }
 

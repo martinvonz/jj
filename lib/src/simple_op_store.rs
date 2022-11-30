@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -122,7 +122,7 @@ fn upgrade_to_thrift(store_path: PathBuf) -> std::io::Result<()> {
 
     fs::write(tmp_store_path.join("thrift_store"), "")?;
     let backup_store_path = store_path.parent().unwrap().join("op_store_old");
-    fs::rename(&store_path, &backup_store_path)?;
+    fs::rename(&store_path, backup_store_path)?;
     fs::rename(&tmp_store_path, &store_path)?;
 
     // Update the pointers to the head(s) of the operation log
@@ -157,7 +157,7 @@ fn upgrade_to_thrift(store_path: PathBuf) -> std::io::Result<()> {
     // Update the pointer to the last operation exported to Git
     let git_export_path = store_path.parent().unwrap().join("git_export_operation_id");
     if let Ok(op_id_string) = fs::read_to_string(&git_export_path) {
-        if let Ok(op_id_bytes) = hex::decode(&op_id_string) {
+        if let Ok(op_id_bytes) = hex::decode(op_id_string) {
             let old_op_id = OperationId::new(op_id_bytes);
             let new_op_id = converted.get(&old_op_id).unwrap();
             fs::write(&git_export_path, new_op_id.hex())?;

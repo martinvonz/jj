@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2022 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ use crate::common::TestEnvironment;
 pub mod common;
 
 #[test]
-fn test_split() {
+fn test_split_by_paths() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -33,7 +33,27 @@ fn test_split() {
     "###);
 
     let edit_script = test_env.set_up_fake_editor();
-    std::fs::write(edit_script, "").unwrap();
+    std::fs::write(
+        edit_script,
+        "expect
+JJ: Enter commit description for the first part (parent).
+
+JJ: This part contains the following changes:
+JJ:     A file2
+
+JJ: Lines starting with \"JJ: \" (like this one) will be removed.
+\0next invocation
+\0expect
+JJ: Enter commit description for the second part (child).
+
+JJ: This part contains the following changes:
+JJ:     A file1
+JJ:     A file3
+
+JJ: Lines starting with \"JJ: \" (like this one) will be removed.
+",
+    )
+    .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["split", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
     First part: 5eebce1de3b0 (no description set)

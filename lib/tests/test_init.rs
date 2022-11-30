@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ fn test_init_external_git() {
     let (canonical, uncanonical) = canonicalize(temp_dir.path());
     let git_repo_path = uncanonical.join("git");
     git2::Repository::init(&git_repo_path).unwrap();
-    std::fs::create_dir(&uncanonical.join("jj")).unwrap();
+    std::fs::create_dir(uncanonical.join("jj")).unwrap();
     let (workspace, repo) =
         Workspace::init_external_git(&settings, &uncanonical.join("jj"), &git_repo_path).unwrap();
     assert!(repo.store().git_repo().is_some());

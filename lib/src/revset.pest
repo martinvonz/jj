@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2021 The Jujutsu Authors
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,8 +28,16 @@ parents_op = { "-" }
 children_op = { "+" }
 
 dag_range_op = { ":" }
+dag_range_pre_op = { ":" }
+dag_range_post_op = { ":" }
 range_op = { ".." }
+range_pre_op = { ".." }
+range_post_op = { ".." }
+range_ops = _{ dag_range_op | range_op }
+range_pre_ops = _{ dag_range_pre_op | range_pre_op }
+range_post_ops = _{ dag_range_post_op | range_post_op }
 
+negate_op = { "~" }
 union_op = { "|" }
 intersection_op = { "&" }
 difference_op = { "~" }
@@ -40,6 +48,10 @@ function_arguments = {
   (whitespace* ~ expression ~ whitespace* ~ ",")* ~ whitespace* ~ expression ~ whitespace*
   | whitespace*
 }
+formal_parameters = {
+  (whitespace* ~ identifier ~ whitespace* ~ ",")* ~ whitespace* ~ identifier ~ whitespace*
+  | whitespace*
+}
 
 primary = {
   function_name ~ "(" ~ function_arguments ~ ")"
@@ -47,24 +59,26 @@ primary = {
   | symbol
 }
 
-neighbors_expression = { primary ~ (parents_op | children_op)* }
+neighbors_expression = _{ primary ~ (parents_op | children_op)* }
 
-range_expression = {
-  neighbors_expression ~ dag_range_op ~ neighbors_expression
-  | neighbors_expression ~ range_op ~ neighbors_expression
-  | neighbors_expression ~ range_op
-  | dag_range_op ~ neighbors_expression
-  | range_op ~ neighbors_expression
-  | neighbors_expression ~ dag_range_op
+range_expression = _{
+  neighbors_expression ~ range_ops ~ neighbors_expression
+  | neighbors_expression ~ range_post_ops
+  | range_pre_ops ~ neighbors_expression
   | neighbors_expression
 }
 
-infix_expression = {
-  whitespace* ~ range_expression ~ whitespace* ~ (infix_op ~ whitespace* ~ range_expression ~ whitespace*)*
-}
-
 expression = {
-  whitespace* ~ infix_expression ~ whitespace*
+  whitespace* ~ (negate_op ~ whitespace*)* ~ range_expression ~ whitespace*
+  ~ (infix_op ~ whitespace* ~ (negate_op ~ whitespace*)* ~ range_expression ~ whitespace*)*
 }
 
 program = _{ SOI ~ expression ~ EOI }
+
+alias_declaration_part = _{
+  function_name ~ "(" ~ formal_parameters ~ ")"
+  | identifier
+}
+alias_declaration = _{
+  SOI ~ alias_declaration_part ~ EOI
+}

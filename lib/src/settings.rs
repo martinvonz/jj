@@ -1,4 +1,4 @@
-// Copyright 2020 Google LLC
+// Copyright 2020 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,15 +29,19 @@ pub struct RepoSettings {
     _config: config::Config,
 }
 
+fn get_timestamp_config(config: &config::Config, key: &str) -> Option<Timestamp> {
+    match config.get_string(key) {
+        Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
+            Ok(datetime) => Some(Timestamp::from_datetime(datetime)),
+            Err(_) => None,
+        },
+        Err(_) => None,
+    }
+}
+
 impl UserSettings {
     pub fn from_config(config: config::Config) -> Self {
-        let timestamp = match config.get_string("user.timestamp") {
-            Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
-                Ok(datetime) => Some(Timestamp::from_datetime(datetime)),
-                Err(_) => None,
-            },
-            Err(_) => None,
-        };
+        let timestamp = get_timestamp_config(&config, "user.timestamp");
         UserSettings { config, timestamp }
     }
 
@@ -88,6 +92,10 @@ impl UserSettings {
         "(no email configured)"
     }
 
+    pub fn operation_timestamp(&self) -> Option<Timestamp> {
+        get_timestamp_config(&self.config, "operation.timestamp")
+    }
+
     pub fn operation_hostname(&self) -> String {
         self.config
             .get_string("operation.hostname")
@@ -129,10 +137,10 @@ impl UserSettings {
             .unwrap_or(false)
     }
 
-    pub fn use_progress_indicator(&self) -> bool {
+    pub fn relative_timestamps(&self) -> bool {
         self.config
-            .get_bool("ui.progress-indicator")
-            .unwrap_or(true)
+            .get_bool("ui.relative-timestamps")
+            .unwrap_or(false)
     }
 
     pub fn config(&self) -> &config::Config {

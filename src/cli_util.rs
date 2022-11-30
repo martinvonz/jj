@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2022 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,17 @@
 
 use std::collections::{HashSet, VecDeque};
 use std::env::ArgsOs;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
+use std::iter;
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use clap;
-use clap::{ArgMatches, FromArgMatches};
+use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
+use clap::{Arg, ArgMatches, Command, Error, FromArgMatches};
 use git2::{Oid, Repository};
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, CommitId, TreeId};
@@ -36,7 +39,8 @@ use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::{BackendFactories, MutableRepo, ReadonlyRepo, RepoRef, RewriteRootCommit};
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
 use jujutsu_lib::revset::{
-    Revset, RevsetError, RevsetExpression, RevsetParseError, RevsetWorkspaceContext,
+    Revset, RevsetAliasesMap, RevsetError, RevsetExpression, RevsetParseError,
+    RevsetWorkspaceContext,
 };
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::transaction::Transaction;
@@ -174,7 +178,8 @@ impl From<GitExportError> for CommandError {
 
 impl From<RevsetParseError> for CommandError {
     fn from(err: RevsetParseError) -> Self {
-        user_error(format!("Failed to parse revset: {err}"))
+        let message = iter::successors(Some(&err), |e| e.origin()).join("\n");
+        user_error(format!("Failed to parse revset: {message}"))
     }
 }
 
@@ -304,7 +309,7 @@ jj init --git-repo=.",
 
     pub fn for_loaded_repo(
         &self,
-        ui: &Ui,
+        ui: &mut Ui,
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
@@ -327,13 +332,14 @@ pub struct WorkspaceCommandHelper {
     settings: UserSettings,
     workspace: Workspace,
     repo: Arc<ReadonlyRepo>,
+    revset_aliases_map: RevsetAliasesMap,
     may_update_working_copy: bool,
     working_copy_shared_with_git: bool,
 }
 
 impl WorkspaceCommandHelper {
     pub fn new(
-        ui: &Ui,
+        ui: &mut Ui,
         workspace: Workspace,
         string_args: Vec<String>,
         global_args: &GlobalArgs,
@@ -357,6 +363,7 @@ impl WorkspaceCommandHelper {
             settings: ui.settings().clone(),
             workspace,
             repo,
+            revset_aliases_map: load_revset_aliases(ui)?,
             may_update_working_copy,
             working_copy_shared_with_git,
         })
@@ -606,7 +613,11 @@ impl WorkspaceCommandHelper {
         &self,
         revision_str: &str,
     ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-        let expression = revset::parse(revision_str, Some(&self.revset_context()))?;
+        let expression = revset::parse(
+            revision_str,
+            &self.revset_aliases_map,
+            Some(&self.revset_context()),
+        )?;
         Ok(revset::optimize(expression))
     }
 
@@ -752,14 +763,7 @@ impl WorkspaceCommandHelper {
         right_tree: &Tree,
         instructions: &str,
     ) -> Result<TreeId, DiffEditError> {
-        crate::diff_edit::edit_diff(
-            ui,
-            &self.settings,
-            left_tree,
-            right_tree,
-            instructions,
-            self.base_ignores(),
-        )
+        crate::diff_edit::edit_diff(ui, left_tree, right_tree, instructions, self.base_ignores())
     }
 
     pub fn select_diff(
@@ -774,7 +778,6 @@ impl WorkspaceCommandHelper {
         if interactive {
             Ok(crate::diff_edit::edit_diff(
                 ui,
-                &self.settings,
                 left_tree,
                 right_tree,
                 instructions,
@@ -823,7 +826,8 @@ impl WorkspaceCommandHelper {
                 format!("'{}'", arg.replace('\'', "\\'"))
             }
         };
-        let quoted_strings = self.string_args.iter().map(shell_escape).collect_vec();
+        let mut quoted_strings = vec!["jj".to_string()];
+        quoted_strings.extend(self.string_args.iter().skip(1).map(shell_escape));
         tx.set_tag("args".to_string(), quoted_strings.join(" "));
         tx
     }
@@ -846,7 +850,8 @@ impl WorkspaceCommandHelper {
         if self.working_copy_shared_with_git {
             self.export_head_to_git(mut_repo)?;
             let git_repo = self.repo.store().git_repo().unwrap();
-            git::export_refs(mut_repo, &git_repo)?;
+            let failed_branches = git::export_refs(mut_repo, &git_repo)?;
+            print_failed_git_export(ui, &failed_branches)?;
         }
         let maybe_old_commit = tx
             .base_repo()
@@ -885,6 +890,29 @@ pub fn print_checkout_stats(ui: &mut Ui, stats: CheckoutStats) -> Result<(), std
             ui,
             "Added {} files, modified {} files, removed {} files",
             stats.added_files, stats.updated_files, stats.removed_files
+        )?;
+    }
+    Ok(())
+}
+
+pub fn print_failed_git_export(
+    ui: &mut Ui,
+    failed_branches: &[String],
+) -> Result<(), std::io::Error> {
+    if !failed_branches.is_empty() {
+        ui.write_warn("Failed to export some branches:\n")?;
+        let mut formatter = ui.stderr_formatter();
+        for branch_name in failed_branches {
+            formatter.write_str("  ")?;
+            formatter.with_label("branch", |formatter| formatter.write_str(branch_name))?;
+            formatter.write_str("\n")?;
+        }
+        drop(formatter);
+        ui.write_hint(
+            r#"Hint: Git doesn't allow a branch name that looks like a parent directory of
+another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
+export or their "parent" branches.
+"#,
         )?;
     }
     Ok(())
@@ -1010,9 +1038,26 @@ fn resolve_single_op_from_store(
     }
 }
 
+fn load_revset_aliases(ui: &mut Ui) -> Result<RevsetAliasesMap, CommandError> {
+    const TABLE_KEY: &str = "revset-aliases";
+    let mut aliases_map = RevsetAliasesMap::new();
+    if let Ok(table) = ui.settings().config().get_table(TABLE_KEY) {
+        for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
+            let r = value
+                .into_string()
+                .map_err(|e| e.to_string())
+                .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
+            if let Err(s) = r {
+                ui.write_warn(format!("Failed to load \"{TABLE_KEY}.{decl}\": {s}\n"))?;
+            }
+        }
+    }
+    Ok(aliases_map)
+}
+
 pub fn resolve_base_revs(
     workspace_command: &WorkspaceCommandHelper,
-    revisions: &[String],
+    revisions: &[RevisionArg],
 ) -> Result<Vec<Commit>, CommandError> {
     let mut commits = vec![];
     for revision_str in revisions {
@@ -1020,8 +1065,8 @@ pub fn resolve_base_revs(
         if let Some(i) = commits.iter().position(|c| c == &commit) {
             return Err(user_error(format!(
                 r#"Revset "{}" and "{}" resolved to the same revision {}"#,
-                revisions[i],
-                revision_str,
+                &revisions[i].0,
+                &revision_str.0,
                 short_commit_hash(commit.id()),
             )));
         }
@@ -1192,6 +1237,14 @@ pub struct GlobalArgs {
         help_heading = "Global Options"
     )]
     pub color: Option<ColorChoice>,
+    /// Disable the pager
+    #[arg(
+        long,
+        value_name = "WHEN",
+        global = true,
+        help_heading = "Global Options"
+    )]
+    pub no_pager: bool,
     /// Additional configuration options
     //  TODO: Introduce a `--config` option with simpler syntax for simple
     //  cases, designed so that `--config ui.color=auto` works
@@ -1202,6 +1255,45 @@ pub struct GlobalArgs {
         help_heading = "Global Options"
     )]
     pub config_toml: Vec<String>,
+    /// Enable verbose logging
+    #[arg(long, short = 'v', global = true, help_heading = "Global Options")]
+    pub verbose: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct RevisionArg(String);
+
+impl Deref for RevisionArg {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_str()
+    }
+}
+
+#[derive(Clone)]
+pub struct RevisionArgValueParser;
+
+impl TypedValueParser for RevisionArgValueParser {
+    type Value = RevisionArg;
+
+    fn parse_ref(
+        &self,
+        cmd: &Command,
+        arg: Option<&Arg>,
+        value: &OsStr,
+    ) -> Result<Self::Value, Error> {
+        let string = NonEmptyStringValueParser::new().parse(cmd, arg, value.to_os_string())?;
+        Ok(RevisionArg(string))
+    }
+}
+
+impl ValueParserFactory for RevisionArg {
+    type Parser = RevisionArgValueParser;
+
+    fn value_parser() -> RevisionArgValueParser {
+        RevisionArgValueParser
+    }
 }
 
 pub fn create_ui() -> (Ui, Result<(), CommandError>) {
@@ -1243,7 +1335,7 @@ fn string_list_from_config(value: config::Value) -> Option<Vec<String>> {
 }
 
 fn resolve_aliases(
-    ui: &mut Ui,
+    user_settings: &UserSettings,
     app: &clap::Command,
     string_args: &[String],
 ) -> Result<Vec<String>, CommandError> {
@@ -1272,8 +1364,7 @@ fn resolve_aliases(
                         r#"Recursive alias definition involving "{alias_name}""#
                     )));
                 }
-                match ui
-                    .settings()
+                match user_settings
                     .config()
                     .get::<config::Value>(&format!("alias.{}", alias_name))
                 {
@@ -1319,7 +1410,7 @@ pub fn parse_args(
         }
     }
 
-    let string_args = resolve_aliases(ui, &app, &string_args)?;
+    let string_args = resolve_aliases(ui.settings(), &app, &string_args)?;
     let matches = app.clone().try_get_matches_from(&string_args)?;
 
     let mut args: Args = Args::from_arg_matches(&matches).unwrap();
@@ -1327,6 +1418,9 @@ pub fn parse_args(
         args.global_args
             .config_toml
             .push(format!("ui.color=\"{}\"", choice.to_string()));
+    }
+    if args.global_args.no_pager {
+        ui.set_pagination(crate::ui::PaginationChoice::No);
     }
     if !args.global_args.config_toml.is_empty() {
         ui.extra_toml_settings(&args.global_args.config_toml)?;

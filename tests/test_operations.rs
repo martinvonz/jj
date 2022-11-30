@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2022 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,10 +25,10 @@ fn test_op_log() {
     let repo_path = test_env.env_root().join("repo");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
-    insta::assert_snapshot!(redact_op_log(&stdout), @r###"
-    @ 
+    insta::assert_snapshot!(&stdout, @r###"
+    @ a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     | add workspace 'default'
-    o 
+    o 56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
       initialize repo
     "###);
     let add_workspace_id = stdout[2..14].to_string();
@@ -97,7 +97,12 @@ fn test_op_log_configurable() {
         operation.username = "my-username"
         "#,
     );
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env
+        .jj_cmd(test_env.env_root(), &["init", "repo", "--git"])
+        .env_remove("JJ_OP_HOSTNAME")
+        .env_remove("JJ_OP_USERNAME")
+        .assert()
+        .success();
     let repo_path = test_env.env_root().join("repo");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
@@ -109,17 +114,4 @@ fn get_log_output(test_env: &TestEnvironment, repo_path: &Path, op_id: &str) -> 
         repo_path,
         &["log", "-T", "commit_id", "--at-op", op_id, "-r", "all()"],
     )
-}
-
-fn redact_op_log(stdout: &str) -> String {
-    let mut lines = vec![];
-    for line in stdout.lines() {
-        if line.starts_with("@ ") || line.starts_with("o ") {
-            // Redact everything -- operation ID, user, host, timestamps
-            lines.push(line[..2].to_string());
-        } else {
-            lines.push(line.to_string());
-        }
-    }
-    lines.join("\n")
 }

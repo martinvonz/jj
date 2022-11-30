@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2022 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,6 +42,20 @@ fn test_branch_multiple_names() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  230dd059e1b0
     o  000000000000
+    "###);
+}
+
+#[test]
+fn test_branch_empty_name() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["branch", "create", ""]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The argument '<NAMES>...' requires a value but none was supplied
+
+    For more information try '--help'
     "###);
 }
 
