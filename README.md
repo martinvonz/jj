@@ -1,5 +1,9 @@
 # Jujutsu VCS
 
+![](https://img.shields.io/github/license/martinvonz/jj) ![](https://img.shields.io/github/v/release/martinvonz/jj) ![](https://img.shields.io/github/release-date/martinvonz/jj) ![](https://img.shields.io/crates/v/jujutsu)
+<br/>
+![](https://github.com/martinvonz/jj/workflows/build/badge.svg) ![](https://img.shields.io/codefactor/grade/github/martinvonz/jj/main) ![](https://img.shields.io/librariesio/github/martinvonz/jj)
+
 - [Disclaimer](#disclaimer)
 - [Introduction](#introduction)
 - [Status](#status)
