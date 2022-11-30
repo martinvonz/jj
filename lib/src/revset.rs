@@ -1262,12 +1262,29 @@ pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
     fold_difference(&expression).unwrap_or(expression)
 }
 
-pub trait Revset<'repo> {
+pub trait Revset<'repo>: ToPredicateFn<'repo> {
     // All revsets currently iterate in order of descending index position
     fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo>;
 
     fn is_empty(&self) -> bool {
         self.iter().next().is_none()
+    }
+}
+
+// This trait is implementation detail, which can be hidden in private module.
+pub trait ToPredicateFn<'repo> {
+    /// Creates function that tests if the given entry is included in the set.
+    ///
+    /// The predicate function is evaluated in order of `RevsetIterator`.
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_>;
+}
+
+impl<'repo, T> ToPredicateFn<'repo> for Box<T>
+where
+    T: ToPredicateFn<'repo> + ?Sized,
+{
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+        <T as ToPredicateFn<'repo>>::to_predicate_fn(self)
     }
 }
 
@@ -1299,6 +1316,16 @@ impl<'revset, 'repo> RevsetIterator<'revset, 'repo> {
 
     pub fn graph(self) -> RevsetGraphIterator<'revset, 'repo> {
         RevsetGraphIterator::new(self)
+    }
+
+    fn into_predicate_fn(self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + 'revset> {
+        let mut iter = self.fuse().peekable();
+        Box::new(move |entry| {
+            while iter.next_if(|e| e.position() > entry.position()).is_some() {
+                continue;
+            }
+            iter.next_if(|e| e.position() == entry.position()).is_some()
+        })
     }
 }
 
@@ -1367,6 +1394,12 @@ impl<'repo> Revset<'repo> for EagerRevset<'repo> {
     }
 }
 
+impl<'repo> ToPredicateFn<'repo> for EagerRevset<'repo> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+        self.iter().into_predicate_fn()
+    }
+}
+
 struct RevWalkRevset<'repo> {
     walk: RevWalk<'repo>,
 }
@@ -1374,6 +1407,12 @@ struct RevWalkRevset<'repo> {
 impl<'repo> Revset<'repo> for RevWalkRevset<'repo> {
     fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
         RevsetIterator::new(Box::new(self.walk.clone()))
+    }
+}
+
+impl<'repo> ToPredicateFn<'repo> for RevWalkRevset<'repo> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+        self.iter().into_predicate_fn()
     }
 }
 
@@ -1403,14 +1442,37 @@ impl<'repo> Revset<'repo> for ChildrenRevset<'_, 'repo> {
     }
 }
 
-struct FilterRevset<'revset, 'repo: 'revset> {
-    candidates: Box<dyn Revset<'repo> + 'revset>,
-    predicate: Box<dyn Fn(&IndexEntry<'repo>) -> bool + 'repo>,
+impl<'repo> ToPredicateFn<'repo> for ChildrenRevset<'_, 'repo> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+        // TODO: can be optimized if candidate_set contains all heads
+        self.iter().into_predicate_fn()
+    }
 }
 
-impl<'repo> Revset<'repo> for FilterRevset<'_, 'repo> {
+struct FilterRevset<'revset, 'repo: 'revset, P> {
+    candidates: Box<dyn Revset<'repo> + 'revset>,
+    predicate: P,
+}
+
+impl<'repo, P> Revset<'repo> for FilterRevset<'_, 'repo, P>
+where
+    P: ToPredicateFn<'repo>,
+{
     fn iter<'revset>(&'revset self) -> RevsetIterator<'revset, 'repo> {
-        RevsetIterator::new(Box::new(self.candidates.iter().filter(&self.predicate)))
+        let p = self.predicate.to_predicate_fn();
+        RevsetIterator::new(Box::new(self.candidates.iter().filter(p)))
+    }
+}
+
+impl<'repo, P> ToPredicateFn<'repo> for FilterRevset<'_, 'repo, P>
+where
+    P: ToPredicateFn<'repo>,
+{
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+        // TODO: optimize 'p1' out if candidates = All
+        let mut p1 = self.candidates.to_predicate_fn();
+        let mut p2 = self.predicate.to_predicate_fn();
+        Box::new(move |entry| p1(entry) && p2(entry))
     }
 }
 
@@ -1425,6 +1487,14 @@ impl<'repo> Revset<'repo> for UnionRevset<'_, 'repo> {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
         }))
+    }
+}
+
+impl<'repo> ToPredicateFn<'repo> for UnionRevset<'_, 'repo> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+        let mut p1 = self.set1.to_predicate_fn();
+        let mut p2 = self.set2.to_predicate_fn();
+        Box::new(move |entry| p1(entry) || p2(entry))
     }
 }
 
@@ -1463,6 +1533,14 @@ impl<'repo> Revset<'repo> for IntersectionRevset<'_, 'repo> {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
         }))
+    }
+}
+
+impl<'repo> ToPredicateFn<'repo> for IntersectionRevset<'_, 'repo> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+        let mut p1 = self.set1.to_predicate_fn();
+        let mut p2 = self.set2.to_predicate_fn();
+        Box::new(move |entry| p1(entry) && p2(entry))
     }
 }
 
@@ -1513,6 +1591,15 @@ impl<'repo> Revset<'repo> for DifferenceRevset<'_, 'repo> {
             iter1: self.set1.iter().peekable(),
             iter2: self.set2.iter().peekable(),
         }))
+    }
+}
+
+impl<'repo> ToPredicateFn<'repo> for DifferenceRevset<'_, 'repo> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+        // TODO: optimize 'p1' out for unary negate?
+        let mut p1 = self.set1.to_predicate_fn();
+        let mut p2 = self.set2.to_predicate_fn();
+        Box::new(move |entry| p1(entry) && !p2(entry))
     }
 }
 
@@ -1779,10 +1866,18 @@ pub fn revset_for_commits<'revset, 'repo: 'revset>(
     Box::new(EagerRevset { index_entries })
 }
 
+type PurePredicateFn<'repo> = Box<dyn Fn(&IndexEntry<'repo>) -> bool + 'repo>;
+
+impl<'repo> ToPredicateFn<'repo> for PurePredicateFn<'repo> {
+    fn to_predicate_fn(&self) -> Box<dyn FnMut(&IndexEntry<'repo>) -> bool + '_> {
+        Box::new(self)
+    }
+}
+
 fn build_predicate_fn<'repo>(
     repo: RepoRef<'repo>,
     predicate: &RevsetFilterPredicate,
-) -> Box<dyn Fn(&IndexEntry<'repo>) -> bool + 'repo> {
+) -> PurePredicateFn<'repo> {
     match predicate {
         RevsetFilterPredicate::ParentCount(parent_count_range) => {
             let parent_count_range = parent_count_range.clone();
@@ -1833,7 +1928,7 @@ pub fn filter_by_diff<'revset, 'repo: 'revset>(
     matcher: impl Borrow<dyn Matcher + 'repo> + 'repo,
     candidates: Box<dyn Revset<'repo> + 'revset>,
 ) -> Box<dyn Revset<'repo> + 'revset> {
-    Box::new(FilterRevset {
+    Box::new(FilterRevset::<PurePredicateFn> {
         candidates,
         predicate: Box::new(move |entry| has_diff_from_parent(repo, entry, matcher.borrow())),
     })
@@ -2885,16 +2980,48 @@ mod tests {
 
         let get_entry = |id: &CommitId| index.entry_by_id(id).unwrap();
         let make_entries = |ids: &[&CommitId]| ids.iter().map(|id| get_entry(id)).collect_vec();
-        let make_set = |ids: &[&CommitId]| -> Box<dyn Revset<'_>> {
+        let make_set = |ids: &[&CommitId]| -> Box<dyn Revset<'_> + '_> {
             let index_entries = make_entries(ids);
             Box::new(EagerRevset { index_entries })
         };
 
-        let set = FilterRevset {
+        let set = make_set(&[&id_4, &id_3, &id_2, &id_0]);
+        let mut p = set.to_predicate_fn();
+        assert!(p(&get_entry(&id_4)));
+        assert!(p(&get_entry(&id_3)));
+        assert!(p(&get_entry(&id_2)));
+        assert!(!p(&get_entry(&id_1)));
+        assert!(p(&get_entry(&id_0)));
+        // Uninteresting entries can be skipped
+        let mut p = set.to_predicate_fn();
+        assert!(p(&get_entry(&id_3)));
+        assert!(!p(&get_entry(&id_1)));
+        assert!(p(&get_entry(&id_0)));
+
+        let set = FilterRevset::<PurePredicateFn> {
             candidates: make_set(&[&id_4, &id_2, &id_0]),
             predicate: Box::new(|entry| entry.commit_id() != id_4),
         };
         assert_eq!(set.iter().collect_vec(), make_entries(&[&id_2, &id_0]));
+        let mut p = set.to_predicate_fn();
+        assert!(!p(&get_entry(&id_4)));
+        assert!(!p(&get_entry(&id_3)));
+        assert!(p(&get_entry(&id_2)));
+        assert!(!p(&get_entry(&id_1)));
+        assert!(p(&get_entry(&id_0)));
+
+        // Intersection by FilterRevset
+        let set = FilterRevset {
+            candidates: make_set(&[&id_4, &id_2, &id_0]),
+            predicate: make_set(&[&id_3, &id_2, &id_1]),
+        };
+        assert_eq!(set.iter().collect_vec(), make_entries(&[&id_2]));
+        let mut p = set.to_predicate_fn();
+        assert!(!p(&get_entry(&id_4)));
+        assert!(!p(&get_entry(&id_3)));
+        assert!(p(&get_entry(&id_2)));
+        assert!(!p(&get_entry(&id_1)));
+        assert!(!p(&get_entry(&id_0)));
 
         let set = UnionRevset {
             set1: make_set(&[&id_4, &id_2]),
@@ -2904,17 +3031,35 @@ mod tests {
             set.iter().collect_vec(),
             make_entries(&[&id_4, &id_3, &id_2, &id_1])
         );
+        let mut p = set.to_predicate_fn();
+        assert!(p(&get_entry(&id_4)));
+        assert!(p(&get_entry(&id_3)));
+        assert!(p(&get_entry(&id_2)));
+        assert!(p(&get_entry(&id_1)));
+        assert!(!p(&get_entry(&id_0)));
 
         let set = IntersectionRevset {
             set1: make_set(&[&id_4, &id_2, &id_0]),
             set2: make_set(&[&id_3, &id_2, &id_1]),
         };
         assert_eq!(set.iter().collect_vec(), make_entries(&[&id_2]));
+        let mut p = set.to_predicate_fn();
+        assert!(!p(&get_entry(&id_4)));
+        assert!(!p(&get_entry(&id_3)));
+        assert!(p(&get_entry(&id_2)));
+        assert!(!p(&get_entry(&id_1)));
+        assert!(!p(&get_entry(&id_0)));
 
         let set = DifferenceRevset {
             set1: make_set(&[&id_4, &id_2, &id_0]),
             set2: make_set(&[&id_3, &id_2, &id_1]),
         };
         assert_eq!(set.iter().collect_vec(), make_entries(&[&id_4, &id_0]));
+        let mut p = set.to_predicate_fn();
+        assert!(p(&get_entry(&id_4)));
+        assert!(!p(&get_entry(&id_3)));
+        assert!(!p(&get_entry(&id_2)));
+        assert!(!p(&get_entry(&id_1)));
+        assert!(p(&get_entry(&id_0)));
     }
 }
