@@ -867,8 +867,16 @@ impl TreeState {
 
             // TODO: Check that the file has not changed before overwriting/removing it.
             match diff {
+                Diff::Removed(TreeValue::GitSubmodule(_old_id)) => {
+                    println!("warning: git submodule not removed at {:?}", path);
+                    self.file_states.remove(&path);
+                    stats.removed_files += 1;
+                }
                 Diff::Removed(_before) => {
-                    fs::remove_file(&disk_path).ok();
+                    fs::remove_file(&disk_path).map_err(|err| CheckoutError::IoError {
+                        message: format!("Failed to remove file {}", disk_path.display()),
+                        err,
+                    })?;
                     let mut parent_dir = disk_path.parent().unwrap();
                     loop {
                         if fs::remove_dir(parent_dir).is_err() {
@@ -911,8 +919,33 @@ impl TreeState {
                     file_state.mark_executable(executable);
                     stats.updated_files += 1;
                 }
+                Diff::Modified(TreeValue::GitSubmodule(_old_id), after) => {
+                    let file_state = FileState {
+                        file_type: match after {
+                            TreeValue::File { id: _, executable } => {
+                                FileType::Normal { executable }
+                            }
+                            TreeValue::Symlink(_id) => FileType::Symlink,
+                            TreeValue::Conflict(id) => FileType::Conflict { id },
+                            TreeValue::GitSubmodule(_id) => {
+                                println!("ignoring git submodule at {:?}", path);
+                                FileType::GitSubmodule
+                            }
+                            TreeValue::Tree(_id) => {
+                                panic!("unexpected tree entry in diff at {:?}", path);
+                            }
+                        },
+                        mtime: MillisSinceEpoch(0),
+                        size: 0,
+                    };
+                    self.file_states.insert(path, file_state);
+                    stats.updated_files += 1;
+                }
                 Diff::Modified(before, after) => {
-                    fs::remove_file(&disk_path).ok();
+                    fs::remove_file(&disk_path).map_err(|err| CheckoutError::IoError {
+                        message: format!("Failed to remove file {}", disk_path.display()),
+                        err,
+                    })?;
                     let file_state = match (before, after) {
                         (_, TreeValue::File { id, executable }) => {
                             self.write_file(&disk_path, &path, &id, executable)?
