@@ -77,6 +77,11 @@ pub enum DiffEditError {
 pub enum ConflictResolveError {
     #[error("{0}")]
     ExternalToolError(#[from] ExternalToolError),
+    #[error(
+        "To use `{tool_name}` as a merge tool, the config `merge-tools.{tool_name}.merge-args` \
+         must be defined (see docs for details)"
+    )]
+    MergeArgsNotConfigured { tool_name: String },
     #[error("Couldn't find the path {0:?} in this revision")]
     PathNotFoundError(RepoPath),
     #[error("Couldn't find any conflicts at {0:?} in this revision")]
@@ -215,7 +220,6 @@ pub fn run_mergetool(
     let paths = paths?;
 
     let editor = get_merge_tool_from_settings(ui)?;
-    // TODO: Error if `editor.merge_args` is empty
     let args = interpolate_mergetool_filename_patterns(&editor.merge_args, &paths);
     let args_str = args
         .iter()
@@ -414,34 +418,43 @@ fn get_tool_config(settings: &UserSettings, name: &str) -> Result<MergeTool, Con
 }
 
 fn get_diff_editor_from_settings(ui: &mut Ui) -> Result<MergeTool, ExternalToolError> {
-    _get_editor_from_settings_helper(ui, "diff")
+    let editor_name = editor_name_from_settings(ui, "diff")?;
+    Ok(get_tool_config(ui.settings(), &editor_name)?)
 }
 
-fn get_merge_tool_from_settings(ui: &mut Ui) -> Result<MergeTool, ExternalToolError> {
-    _get_editor_from_settings_helper(ui, "merge")
+fn get_merge_tool_from_settings(ui: &mut Ui) -> Result<MergeTool, ConflictResolveError> {
+    let editor_name = editor_name_from_settings(ui, "merge")?;
+    let editor =
+        get_tool_config(ui.settings(), &editor_name).map_err(ExternalToolError::ConfigError)?;
+    if editor.merge_args.is_empty() {
+        Err(ConflictResolveError::MergeArgsNotConfigured {
+            tool_name: editor_name,
+        })
+    } else {
+        Ok(editor)
+    }
 }
 
 /// Finds the appropriate tool for diff editing or merges
-fn _get_editor_from_settings_helper(
+fn editor_name_from_settings(
     ui: &mut Ui,
     diff_or_merge: &str,
-) -> Result<MergeTool, ExternalToolError> {
+) -> Result<String, ExternalToolError> {
     // TODO: Make this configuration have a table of possible editors and detect the
     // best one here.
-    let editor_name = match ui
+    match ui
         .settings()
         .config()
         .get_string(&format!("ui.{diff_or_merge}-editor"))
     {
-        Ok(editor_binary) => editor_binary,
+        Ok(editor_binary) => Ok(editor_binary),
         Err(_) => {
             let default_editor = "meld".to_string();
             ui.write_hint(format!(
                 "Using default editor '{default_editor}'; you can change this by setting \
                  ui.{diff_or_merge}-editor\n"
             ))?;
-            default_editor
+            Ok(default_editor)
         }
-    };
-    Ok(get_tool_config(ui.settings(), &editor_name)?)
+    }
 }
