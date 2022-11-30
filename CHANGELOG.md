@@ -108,6 +108,7 @@ Thanks to the people who made this release happen!
  * Ilya Grigoriev (@ilyagr)
  * Ruben Slabbert (@rslabbert)
  * Waleed Khan (@arxanas)
+ * Sean E. Russell (@xxxserxxx)
 
 
 ## [0.5.1] - 2022-10-17
