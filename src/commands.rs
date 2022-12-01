@@ -58,6 +58,7 @@ use crate::cli_util::{
     short_commit_hash, user_error, user_error_with_hint, write_commit_summary, Args, CommandError,
     CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
+use crate::config::FullCommandArgs;
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::progress::Progress;
@@ -2369,15 +2370,14 @@ fn edit_description(
             .unwrap();
     }
 
-    let editor = ui
+    let editor: FullCommandArgs = ui
         .settings()
         .config()
-        .get_string("ui.editor")
-        .unwrap_or_else(|_| "pico".to_string());
-    // Handle things like `EDITOR=emacs -nw`
-    let args = editor.split(' ').collect_vec();
+        .get("ui.editor")
+        .unwrap_or_else(|_| "pico".into());
+    let args = editor.args();
     let editor_args = if args.len() > 1 { &args[1..] } else { &[] };
-    let exit_status = std::process::Command::new(args[0])
+    let exit_status = std::process::Command::new(&args[0])
         .args(editor_args)
         .arg(&description_file_path)
         .status()
