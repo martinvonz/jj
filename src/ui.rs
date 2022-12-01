@@ -14,13 +14,14 @@
 
 use std::io::{Stderr, Stdout, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, ChildStdin, Command, Stdio};
+use std::process::{Child, ChildStdin, Stdio};
 use std::str::FromStr;
 use std::{fmt, io, mem};
 
 use crossterm::tty::IsTty;
 use jujutsu_lib::settings::UserSettings;
 
+use crate::config::FullCommandArgs;
 use crate::formatter::{Formatter, FormatterFactory};
 
 pub struct Ui {
@@ -106,11 +107,11 @@ impl Default for PaginationChoice {
     }
 }
 
-fn pager_setting(settings: &UserSettings) -> String {
+fn pager_setting(settings: &UserSettings) -> FullCommandArgs {
     settings
         .config()
-        .get_string("ui.pager")
-        .unwrap_or_else(|_| "less".to_string())
+        .get("ui.pager")
+        .unwrap_or_else(|_| "less".into())
 }
 
 impl Ui {
@@ -350,7 +351,7 @@ impl UiOutput {
 
     fn new_paged(settings: &UserSettings) -> io::Result<UiOutput> {
         let pager_cmd = pager_setting(settings);
-        let mut child = Command::new(pager_cmd).stdin(Stdio::piped()).spawn()?;
+        let mut child = pager_cmd.to_command().stdin(Stdio::piped()).spawn()?;
         let child_stdin = child.stdin.take().unwrap();
         Ok(UiOutput::Paged { child, child_stdin })
     }
