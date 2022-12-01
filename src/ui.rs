@@ -274,7 +274,7 @@ impl Ui {
                 // It's possible (though unlikely) that this write fails, but
                 // this function gets called so late that there's not much we
                 // can do about it.
-                self.write_error(&format!("Failed to wait on pager {}", e))
+                self.write_error(&format!("Failed to wait on pager: {}\n", e))
                     .ok();
             }
         }
@@ -352,7 +352,7 @@ impl UiOutput {
             }
             Err(e) => {
                 io::stderr()
-                    .write_fmt(format_args!("Failed to spawn pager: {}", e))
+                    .write_fmt(format_args!("Failed to spawn pager: {}\n", e))
                     .ok();
                 UiOutput::new_terminal()
             }
