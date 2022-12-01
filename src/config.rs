@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::env;
 use std::path::PathBuf;
+use std::{env, fmt};
 
 use jujutsu_lib::settings::UserSettings;
 use thiserror::Error;
@@ -127,4 +127,38 @@ pub fn read_config() -> Result<UserSettings, ConfigError> {
 
     let config = config_builder.add_source(env_overrides()).build()?;
     Ok(UserSettings::from_config(config))
+}
+
+/// Command name and arguments specified by config.
+#[derive(Clone, Debug, Eq, Hash, PartialEq, serde::Deserialize)]
+#[serde(untagged)]
+pub enum FullCommandArgs {
+    String(String),
+    // TODO: Vec<String>
+}
+
+impl FullCommandArgs {
+    /// Returns arguments including the command name.
+    ///
+    /// The list is not empty, but each element may be an empty string.
+    pub fn args(&self) -> Vec<String> {
+        match self {
+            // Handle things like `EDITOR=emacs -nw` (TODO: parse shell escapes)
+            FullCommandArgs::String(s) => s.split(' ').map(|s| s.to_owned()).collect(),
+        }
+    }
+}
+
+impl<T: AsRef<str> + ?Sized> From<&T> for FullCommandArgs {
+    fn from(s: &T) -> Self {
+        FullCommandArgs::String(s.as_ref().to_owned())
+    }
+}
+
+impl fmt::Display for FullCommandArgs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FullCommandArgs::String(s) => write!(f, "{s}"),
+        }
+    }
 }
