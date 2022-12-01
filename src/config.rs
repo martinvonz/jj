@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Cow;
 use std::path::PathBuf;
 use std::process::Command;
 use std::{env, fmt};
@@ -135,17 +136,18 @@ pub fn read_config() -> Result<UserSettings, ConfigError> {
 #[serde(untagged)]
 pub enum FullCommandArgs {
     String(String),
-    // TODO: Vec<String>
+    Vec(NonEmptyCommandArgsVec),
 }
 
 impl FullCommandArgs {
     /// Returns arguments including the command name.
     ///
     /// The list is not empty, but each element may be an empty string.
-    pub fn args(&self) -> Vec<String> {
+    pub fn args(&self) -> Cow<[String]> {
         match self {
             // Handle things like `EDITOR=emacs -nw` (TODO: parse shell escapes)
             FullCommandArgs::String(s) => s.split(' ').map(|s| s.to_owned()).collect(),
+            FullCommandArgs::Vec(a) => Cow::Borrowed(&a.0),
         }
     }
 
@@ -168,6 +170,65 @@ impl fmt::Display for FullCommandArgs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FullCommandArgs::String(s) => write!(f, "{s}"),
+            // TODO: format with shell escapes
+            FullCommandArgs::Vec(a) => write!(f, "{}", a.0.join(" ")),
         }
+    }
+}
+
+/// Wrapper to reject an array without command name.
+// Based on https://github.com/serde-rs/serde/issues/939
+#[derive(Clone, Debug, Eq, Hash, PartialEq, serde::Deserialize)]
+#[serde(try_from = "Vec<String>")]
+pub struct NonEmptyCommandArgsVec(Vec<String>);
+
+impl TryFrom<Vec<String>> for NonEmptyCommandArgsVec {
+    type Error = &'static str;
+
+    fn try_from(args: Vec<String>) -> Result<Self, Self::Error> {
+        if args.is_empty() {
+            Err("command arguments should not be empty")
+        } else {
+            Ok(NonEmptyCommandArgsVec(args))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_command_args() {
+        let config = config::Config::builder()
+            .set_override("empty_array", Vec::<String>::new())
+            .unwrap()
+            .set_override("empty_string", "")
+            .unwrap()
+            .set_override("array", vec!["emacs", "-nw"])
+            .unwrap()
+            .set_override("string", "emacs -nw")
+            .unwrap()
+            .build()
+            .unwrap();
+
+        assert!(config.get::<FullCommandArgs>("empty_array").is_err());
+
+        let args: FullCommandArgs = config.get("empty_string").unwrap();
+        assert_eq!(args, FullCommandArgs::String("".to_owned()));
+        assert_eq!(args.args(), [""].as_ref());
+
+        let args: FullCommandArgs = config.get("array").unwrap();
+        assert_eq!(
+            args,
+            FullCommandArgs::Vec(NonEmptyCommandArgsVec(
+                ["emacs", "-nw",].map(|s| s.to_owned()).to_vec()
+            ))
+        );
+        assert_eq!(args.args(), ["emacs", "-nw"].as_ref());
+
+        let args: FullCommandArgs = config.get("string").unwrap();
+        assert_eq!(args, FullCommandArgs::String("emacs -nw".to_owned()));
+        assert_eq!(args.args(), ["emacs", "-nw"].as_ref());
     }
 }

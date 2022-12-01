@@ -85,7 +85,8 @@ For GUI editors you possibly need to use a `-w` or `--wait`. Some examples:
     ui.editor = "bbedit -w"     # BBEdit
     ui.editor = "subl -n -w"    # Sublime Text
     ui.editor = "mate -w"       # TextMate
-    ui.editor = "'C:/Program Files/Notepad++/notepad++.exe' -multiInst -notabbar -nosession -noPlugin" # Notepad++
+    ui.editor = ["C:/Program Files/Notepad++/notepad++.exe",
+                 "-multiInst", "-notabbar", "-nosession", "-noPlugin"] # Notepad++
     ui.editor = "idea --temp-project --wait"   #IntelliJ
 
 Obviously, you would only set one line, don't copy them all in!
