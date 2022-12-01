@@ -150,12 +150,18 @@ impl Ui {
         }
 
         match self.output {
-            UiOutput::Paged { .. } => {}
-            UiOutput::Terminal { .. } => {
-                if io::stdout().is_tty() {
-                    self.output = UiOutput::new_paged_else_terminal(&self.settings);
+            UiOutput::Terminal { .. } if io::stdout().is_tty() => {
+                match UiOutput::new_paged(&self.settings) {
+                    Ok(new_output) => {
+                        self.output = new_output;
+                    }
+                    Err(e) => {
+                        self.write_warn(&format!("Failed to spawn pager: {}\n", e))
+                            .ok();
+                    }
                 }
             }
+            UiOutput::Terminal { .. } | UiOutput::Paged { .. } => {}
         }
     }
 
@@ -342,21 +348,11 @@ impl UiOutput {
         }
     }
 
-    fn new_paged_else_terminal(settings: &UserSettings) -> UiOutput {
+    fn new_paged(settings: &UserSettings) -> io::Result<UiOutput> {
         let pager_cmd = pager_setting(settings);
-        let child_result = Command::new(pager_cmd).stdin(Stdio::piped()).spawn();
-        match child_result {
-            Ok(mut child) => {
-                let child_stdin = child.stdin.take().unwrap();
-                UiOutput::Paged { child, child_stdin }
-            }
-            Err(e) => {
-                io::stderr()
-                    .write_fmt(format_args!("Failed to spawn pager: {}\n", e))
-                    .ok();
-                UiOutput::new_terminal()
-            }
-        }
+        let mut child = Command::new(pager_cmd).stdin(Stdio::piped()).spawn()?;
+        let child_stdin = child.stdin.take().unwrap();
+        Ok(UiOutput::Paged { child, child_stdin })
     }
 }
 
