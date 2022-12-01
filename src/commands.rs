@@ -2375,10 +2375,8 @@ fn edit_description(
         .config()
         .get("ui.editor")
         .unwrap_or_else(|_| "pico".into());
-    let args = editor.args();
-    let editor_args = if args.len() > 1 { &args[1..] } else { &[] };
-    let exit_status = std::process::Command::new(&args[0])
-        .args(editor_args)
+    let exit_status = editor
+        .to_command()
         .arg(&description_file_path)
         .status()
         .map_err(|_| user_error(format!("Failed to run editor '{editor}'")))?;

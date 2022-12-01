@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::path::PathBuf;
+use std::process::Command;
 use std::{env, fmt};
 
 use jujutsu_lib::settings::UserSettings;
@@ -146,6 +147,14 @@ impl FullCommandArgs {
             // Handle things like `EDITOR=emacs -nw` (TODO: parse shell escapes)
             FullCommandArgs::String(s) => s.split(' ').map(|s| s.to_owned()).collect(),
         }
+    }
+
+    /// Returns process builder configured with this.
+    pub fn to_command(&self) -> Command {
+        let full_args = self.args();
+        let mut cmd = Command::new(&full_args[0]);
+        cmd.args(&full_args[1..]);
+        cmd
     }
 }
 
