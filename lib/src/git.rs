@@ -14,10 +14,7 @@
 
 use std::collections::{BTreeMap, HashSet};
 use std::default::Default;
-use std::fs::OpenOptions;
-use std::io::Read;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use git2::Oid;
 use itertools::Itertools;
@@ -25,10 +22,10 @@ use thiserror::Error;
 
 use crate::backend::CommitId;
 use crate::commit::Commit;
-use crate::op_store::{BranchTarget, OperationId, RefTarget};
-use crate::repo::{MutableRepo, ReadonlyRepo};
+use crate::op_store;
+use crate::op_store::RefTarget;
+use crate::repo::MutableRepo;
 use crate::view::{RefName, View};
-use crate::{op_store, simple_op_store, simple_op_store_model};
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GitImportError {
@@ -176,15 +173,13 @@ pub enum GitExportError {
 }
 
 /// Reflect changes between two Jujutsu repo views in the underlying Git repo.
-/// Returns a stripped-down repo view of the state we just exported, to be used
-/// as `old_view` next time. Also returns a list of names of branches that
-/// failed to export.
+/// Returns a list of names of branches that failed to export.
 // TODO: Also indicate why we failed to export these branches
 fn export_changes(
     mut_repo: &mut MutableRepo,
     old_view: &View,
     git_repo: &git2::Repository,
-) -> Result<(op_store::View, Vec<String>), GitExportError> {
+) -> Result<Vec<String>, GitExportError> {
     let new_view = mut_repo.view();
     let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
     let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
@@ -215,7 +210,7 @@ fn export_changes(
                     branches_to_update.insert(branch_name.clone(), (old_oid, new_oid.unwrap()));
                 }
                 RefTarget::Conflict { .. } => {
-                    // Skip conflicts and leave the old value in `exported_view`
+                    // Skip conflicts and leave the old value in git_refs
                     continue;
                 }
             }
@@ -241,7 +236,6 @@ fn export_changes(
             }
         }
     }
-    let mut exported_view = old_view.store_view().clone();
     for (branch_name, old_oid) in branches_to_delete {
         let git_ref_name = format!("refs/heads/{}", branch_name);
         let success = if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
@@ -257,7 +251,6 @@ fn export_changes(
             true
         };
         if success {
-            exported_view.branches.remove(&branch_name);
             mut_repo.remove_git_ref(&git_ref_name);
         } else {
             failed_branches.push(branch_name);
@@ -300,13 +293,6 @@ fn export_changes(
             }
         };
         if success {
-            exported_view.branches.insert(
-                branch_name.clone(),
-                BranchTarget {
-                    local_target: Some(RefTarget::Normal(CommitId::from_bytes(new_oid.as_bytes()))),
-                    remote_targets: Default::default(),
-                },
-            );
             mut_repo.set_git_ref(
                 git_ref_name,
                 RefTarget::Normal(CommitId::from_bytes(new_oid.as_bytes())),
@@ -315,69 +301,22 @@ fn export_changes(
             failed_branches.push(branch_name);
         }
     }
-    Ok((exported_view, failed_branches))
+    Ok(failed_branches)
 }
 
-/// Reflect changes made in the Jujutsu repo since last export in the underlying
-/// Git repo. The exported view is recorded in the repo
-/// (`.jj/repo/git_export_view`). Returns the names of any branches that failed
-/// to export.
+/// Reflect changes made in the Jujutsu repo compared to our current view of the
+/// Git repo in `mut_repo.view().git_refs()`.
 pub fn export_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
 ) -> Result<Vec<String>, GitExportError> {
-    upgrade_old_export_state(mut_repo.base_repo());
-
-    let last_export_path = mut_repo.base_repo().repo_path().join("git_export_view");
-    let last_export_store_view =
-        if let Ok(mut last_export_file) = OpenOptions::new().read(true).open(&last_export_path) {
-            let thrift_view = simple_op_store::read_thrift(&mut last_export_file)
-                .map_err(|err| GitExportError::ReadStateError(err.to_string()))?;
-            op_store::View::from(&thrift_view)
-        } else {
-            op_store::View::default()
-        };
-    let last_export_view = View::new(last_export_store_view);
-    let (new_export_store_view, failed_branches) =
-        export_changes(mut_repo, &last_export_view, git_repo)?;
-    if let Ok(mut last_export_file) = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(&last_export_path)
-    {
-        let thrift_view = simple_op_store_model::View::from(&new_export_store_view);
-        simple_op_store::write_thrift(&thrift_view, &mut last_export_file)
-            .map_err(|err| GitExportError::WriteStateError(err.to_string()))?;
-    }
-    Ok(failed_branches)
-}
-
-fn upgrade_old_export_state(repo: &Arc<ReadonlyRepo>) {
-    // Migrate repos that use the old git_export_operation_id file
-    let last_operation_export_path = repo.repo_path().join("git_export_operation_id");
-    if let Ok(mut last_operation_export_file) = OpenOptions::new()
-        .read(true)
-        .open(&last_operation_export_path)
-    {
-        let mut buf = vec![];
-        last_operation_export_file.read_to_end(&mut buf).unwrap();
-        let last_export_op_id = OperationId::from_hex(String::from_utf8(buf).unwrap().as_str());
-        let loader = repo.loader();
-        let op_store = loader.op_store();
-        let last_export_store_op = op_store.read_operation(&last_export_op_id).unwrap();
-        let last_export_store_view = op_store.read_view(&last_export_store_op.view_id).unwrap();
-        if let Ok(mut last_export_file) = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(repo.repo_path().join("git_export_view"))
-        {
-            let thrift_view = simple_op_store_model::View::from(&last_export_store_view);
-            simple_op_store::write_thrift(&thrift_view, &mut last_export_file)
-                .map_err(|err| GitExportError::WriteStateError(err.to_string()))
-                .unwrap();
+    let mut last_export_view = View::new(op_store::View::default());
+    for (git_ref, git_ref_target) in mut_repo.view().git_refs() {
+        if let Some(branch_name) = git_ref.strip_prefix("refs/heads/") {
+            last_export_view.set_local_branch(branch_name.to_string(), git_ref_target.clone());
         }
-        std::fs::remove_file(last_operation_export_path).unwrap();
     }
+    export_changes(mut_repo, &last_export_view, git_repo)
 }
 
 #[derive(Error, Debug, PartialEq)]

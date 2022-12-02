@@ -586,9 +586,6 @@ fn test_export_import_sequence() {
         Some(RefTarget::Normal(commit_a.id().clone()))
     );
 
-    // TODO: This export shouldn't be necessary for the next one to succeed
-    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
-
     // Modify the branch in jj to point to B
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
 
