@@ -1,3 +1,4 @@
+use blake2::Blake2b512;
 use itertools::Itertools as _;
 
 /// Portable, stable hashing suitable for identifying values
@@ -9,6 +10,13 @@ use itertools::Itertools as _;
 /// variant, then the variant's fields in lexical order.
 pub trait ContentHash {
     fn hash(&self, state: &mut impl digest::Update);
+}
+
+pub fn blake2b_hash(x: &(impl ContentHash + ?Sized)) -> digest::Output<Blake2b512> {
+    use digest::Digest;
+    let mut hasher = Blake2b512::default();
+    x.hash(&mut hasher);
+    hasher.finalize()
 }
 
 impl ContentHash for () {
@@ -146,7 +154,7 @@ macro_rules! content_hash {
 mod tests {
     use std::collections::{BTreeMap, HashMap};
 
-    use blake2::{Blake2b512, Digest};
+    use blake2::Blake2b512;
 
     use super::*;
 
@@ -220,8 +228,6 @@ mod tests {
     }
 
     fn hash(x: &(impl ContentHash + ?Sized)) -> digest::Output<Blake2b512> {
-        let mut hasher = Blake2b512::default();
-        x.hash(&mut hasher);
-        hasher.finalize()
+        blake2b_hash(x)
     }
 }

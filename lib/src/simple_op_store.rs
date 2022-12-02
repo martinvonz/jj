@@ -19,13 +19,12 @@ use std::fs::File;
 use std::io::{ErrorKind, Read, Write};
 use std::path::PathBuf;
 
-use blake2::Blake2b512;
 use itertools::Itertools;
 use tempfile::{NamedTempFile, PersistError};
 use thrift::protocol::{TCompactInputProtocol, TCompactOutputProtocol, TSerializable};
 
 use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
-use crate::content_hash::ContentHash;
+use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
     BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
@@ -243,7 +242,7 @@ impl OpStore for ThriftOpStore {
     }
 
     fn write_view(&self, view: &View) -> OpStoreResult<ViewId> {
-        let id = ViewId::new(hash(view).to_vec());
+        let id = ViewId::new(blake2b_hash(view).to_vec());
         let temp_file = NamedTempFile::new_in(&self.path)?;
         let thrift_view = simple_op_store_model::View::from(view);
         write_thrift(&thrift_view, &mut temp_file.as_file())?;
@@ -259,20 +258,13 @@ impl OpStore for ThriftOpStore {
     }
 
     fn write_operation(&self, operation: &Operation) -> OpStoreResult<OperationId> {
-        let id = OperationId::new(hash(operation).to_vec());
+        let id = OperationId::new(blake2b_hash(operation).to_vec());
         let temp_file = NamedTempFile::new_in(&self.path)?;
         let thrift_operation = simple_op_store_model::Operation::from(operation);
         write_thrift(&thrift_operation, &mut temp_file.as_file())?;
         persist_content_addressed_temp_file(temp_file, self.operation_path(&id))?;
         Ok(id)
     }
-}
-
-fn hash(x: &impl ContentHash) -> digest::Output<Blake2b512> {
-    use digest::Digest;
-    let mut hasher = Blake2b512::default();
-    x.hash(&mut hasher);
-    hasher.finalize()
 }
 
 pub fn read_thrift<T: TSerializable>(input: &mut impl Read) -> OpStoreResult<T> {
@@ -628,7 +620,7 @@ mod tests {
     fn test_hash_view() {
         // Test exact output so we detect regressions in compatibility
         assert_snapshot!(
-            ViewId::new(hash(&create_view()).to_vec()).hex(),
+            ViewId::new(blake2b_hash(&create_view()).to_vec()).hex(),
             @"2a026b6a091219a3d8ca43d822984cf9be0c53438225d76a5ba5e6d3724fab15104579fb08fa949977c4357b1806d240bef28d958cbcd7d786962ac88c15df31"
         );
     }
@@ -637,7 +629,7 @@ mod tests {
     fn test_hash_operation() {
         // Test exact output so we detect regressions in compatibility
         assert_snapshot!(
-            OperationId::new(hash(&create_operation()).to_vec()).hex(),
+            OperationId::new(blake2b_hash(&create_operation()).to_vec()).hex(),
             @"3ec986c29ff8eb808ea8f6325d6307cea75ef02987536c8e4645406aba51afc8e229957a6e855170d77a66098c58912309323f5e0b32760caa2b59dc84d45fcf"
         );
     }
