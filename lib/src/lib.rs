@@ -30,6 +30,7 @@ pub mod git_backend;
 pub mod gitignore;
 pub mod index;
 pub mod index_store;
+mod legacy_thrift_op_store;
 pub mod local_backend;
 pub mod lock;
 pub mod matchers;
