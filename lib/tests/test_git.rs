@@ -16,6 +16,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use git2::Oid;
+use itertools::Itertools;
 use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git;
@@ -585,6 +586,9 @@ fn test_export_import_sequence() {
         Some(RefTarget::Normal(commit_a.id().clone()))
     );
 
+    // TODO: This export shouldn't be necessary for the next one to succeed
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
+
     // Modify the branch in jj to point to B
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit_b.id().clone()));
 
@@ -797,9 +801,14 @@ fn test_export_reexport_transitions() {
     // TODO: The branches that we made conflicting changes to should have failed to
     // export. They should have been unchanged in git and in
     // mut_repo.view().git_refs().
-    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
-    // TODO: AXB should have remained at B from git
-    for branch in ["AAX", "AXA", "AXB", "AXX"] {
+    assert_eq!(
+        git::export_refs(mut_repo, &git_repo),
+        Ok(["AXB", "ABC", "ABX", "XAB"]
+            .into_iter()
+            .map(String::from)
+            .collect_vec())
+    );
+    for branch in ["AAX", "ABX", "AXA", "AXX"] {
         assert!(
             git_repo
                 .find_reference(&format!("refs/heads/{branch}"))
@@ -807,8 +816,7 @@ fn test_export_reexport_transitions() {
             "{branch} should not exist"
         );
     }
-    // TODO: XAB should have remained at B from git
-    for branch in ["XAA", "XAB", "XAX", "XXA"] {
+    for branch in ["XAA", "XAX", "XXA"] {
         assert_eq!(
             git_repo
                 .find_reference(&format!("refs/heads/{branch}"))
@@ -818,8 +826,7 @@ fn test_export_reexport_transitions() {
             "{branch} should point to commit A"
         );
     }
-    // TODO: ABX should have remained deleted from git
-    for branch in ["AAB", "ABA", "AAB", "ABB", "ABX"] {
+    for branch in ["AAB", "ABA", "AAB", "ABB", "AXB", "XAB"] {
         assert_eq!(
             git_repo
                 .find_reference(&format!("refs/heads/{branch}"))
@@ -829,18 +836,15 @@ fn test_export_reexport_transitions() {
             "{branch} should point to commit B"
         );
     }
-    // TODO: ABC should have remained at C from git
     let branch = "ABC";
     assert_eq!(
         git_repo
             .find_reference(&format!("refs/heads/{branch}"))
             .unwrap()
             .target(),
-        Some(git_id(&commit_b)),
-        "{branch} should point to commit B",
+        Some(git_id(&commit_c)),
+        "{branch} should point to commit C"
     );
-    // TODO: ABC should remain at A, ABX should remain at A, AXB should remain at A,
-    // XAB should remain missing.
     assert_eq!(
         *mut_repo.view().git_refs(),
         btreemap! {
@@ -848,10 +852,10 @@ fn test_export_reexport_transitions() {
             "refs/heads/AAB".to_string() => RefTarget::Normal(commit_a.id().clone()),
             "refs/heads/ABA".to_string() => RefTarget::Normal(commit_b.id().clone()),
             "refs/heads/ABB".to_string() => RefTarget::Normal(commit_b.id().clone()),
-            "refs/heads/ABC".to_string() => RefTarget::Normal(commit_b.id().clone()),
-            "refs/heads/ABX".to_string() => RefTarget::Normal(commit_b.id().clone()),
+            "refs/heads/ABC".to_string() => RefTarget::Normal(commit_a.id().clone()),
+            "refs/heads/ABX".to_string() => RefTarget::Normal(commit_a.id().clone()),
+            "refs/heads/AXB".to_string() => RefTarget::Normal(commit_a.id().clone()),
             "refs/heads/XAA".to_string() => RefTarget::Normal(commit_a.id().clone()),
-            "refs/heads/XAB".to_string() => RefTarget::Normal(commit_a.id().clone()),
             "refs/heads/XAX".to_string() => RefTarget::Normal(commit_a.id().clone()),
         }
     );
