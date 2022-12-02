@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::default::Default;
 use std::fs::OpenOptions;
 use std::io::Read;
@@ -179,6 +179,7 @@ pub enum GitExportError {
 /// Returns a stripped-down repo view of the state we just exported, to be used
 /// as `old_view` next time. Also returns a list of names of branches that
 /// failed to export.
+// TODO: Also indicate why we failed to export these branches
 fn export_changes(
     mut_repo: &mut MutableRepo,
     old_view: &View,
@@ -188,19 +189,30 @@ fn export_changes(
     let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
     let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
     let mut branches_to_update = BTreeMap::new();
-    let mut branches_to_delete = BTreeSet::new();
+    let mut branches_to_delete = BTreeMap::new();
     // First find the changes we want need to make without modifying mut_repo
+    let mut failed_branches = vec![];
     for branch_name in old_branches.union(&new_branches) {
         let old_branch = old_view.get_local_branch(branch_name);
         let new_branch = new_view.get_local_branch(branch_name);
         if new_branch == old_branch {
             continue;
         }
+        let old_oid = match old_branch {
+            None => None,
+            Some(RefTarget::Normal(id)) => Some(Oid::from_bytes(id.as_bytes()).unwrap()),
+            Some(RefTarget::Conflict { .. }) => {
+                // The old git ref should only be a conflict if there were concurrent import
+                // operations while the value changed. Don't overwrite these values.
+                failed_branches.push(branch_name.clone());
+                continue;
+            }
+        };
         if let Some(new_branch) = new_branch {
             match new_branch {
                 RefTarget::Normal(id) => {
-                    branches_to_update
-                        .insert(branch_name.clone(), Oid::from_bytes(id.as_bytes()).unwrap());
+                    let new_oid = Oid::from_bytes(id.as_bytes());
+                    branches_to_update.insert(branch_name.clone(), (old_oid, new_oid.unwrap()));
                 }
                 RefTarget::Conflict { .. } => {
                     // Skip conflicts and leave the old value in `exported_view`
@@ -208,7 +220,7 @@ fn export_changes(
                 }
             }
         } else {
-            branches_to_delete.insert(branch_name.clone());
+            branches_to_delete.insert(branch_name.clone(), old_oid.unwrap());
         }
     }
     // TODO: Also check other worktrees' HEAD.
@@ -217,11 +229,12 @@ fn export_changes(
             (head_ref.symbolic_target(), head_ref.peel_to_commit())
         {
             if let Some(branch_name) = head_git_ref.strip_prefix("refs/heads/") {
-                let detach_head = if let Some(new_target) = branches_to_update.get(branch_name) {
-                    *new_target != current_git_commit.id()
-                } else {
-                    branches_to_delete.contains(branch_name)
-                };
+                let detach_head =
+                    if let Some((_old_oid, new_oid)) = branches_to_update.get(branch_name) {
+                        *new_oid != current_git_commit.id()
+                    } else {
+                        branches_to_delete.contains_key(branch_name)
+                    };
                 if detach_head {
                     git_repo.set_head_detached(current_git_commit.id())?;
                 }
@@ -229,40 +242,78 @@ fn export_changes(
         }
     }
     let mut exported_view = old_view.store_view().clone();
-    let mut failed_branches = vec![];
-    for branch_name in branches_to_delete {
+    for (branch_name, old_oid) in branches_to_delete {
         let git_ref_name = format!("refs/heads/{}", branch_name);
-        if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
-            if git_ref.delete().is_err() {
-                failed_branches.push(branch_name);
-                continue;
+        let success = if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
+            if git_ref.target() == Some(old_oid) {
+                // The branch has not been updated by git, so go ahead and delete it
+                git_ref.delete().is_ok()
+            } else {
+                // The branch was updated by git
+                false
             }
-        }
-        exported_view.branches.remove(&branch_name);
-        mut_repo.remove_git_ref(&git_ref_name);
-    }
-    for (branch_name, new_target) in branches_to_update {
-        let git_ref_name = format!("refs/heads/{}", branch_name);
-        if git_repo
-            .reference(&git_ref_name, new_target, true, "export from jj")
-            .is_err()
-        {
+        } else {
+            // The branch is already deleted
+            true
+        };
+        if success {
+            exported_view.branches.remove(&branch_name);
+            mut_repo.remove_git_ref(&git_ref_name);
+        } else {
             failed_branches.push(branch_name);
-            continue;
         }
-        exported_view.branches.insert(
-            branch_name.clone(),
-            BranchTarget {
-                local_target: Some(RefTarget::Normal(CommitId::from_bytes(
-                    new_target.as_bytes(),
-                ))),
-                remote_targets: Default::default(),
-            },
-        );
-        mut_repo.set_git_ref(
-            git_ref_name,
-            RefTarget::Normal(CommitId::from_bytes(new_target.as_bytes())),
-        );
+    }
+    for (branch_name, (old_oid, new_oid)) in branches_to_update {
+        let git_ref_name = format!("refs/heads/{}", branch_name);
+        let success = match old_oid {
+            None => {
+                if let Ok(git_ref) = git_repo.find_reference(&git_ref_name) {
+                    // The branch was added in jj and in git. Iff git already pointed it to our
+                    // desired target, we're good
+                    git_ref.target() == Some(new_oid)
+                } else {
+                    // The branch was added in jj but still doesn't exist in git, so add it
+                    git_repo
+                        .reference(&git_ref_name, new_oid, true, "export from jj")
+                        .is_ok()
+                }
+            }
+            Some(old_oid) => {
+                // The branch was modified in jj. We can use libgit2's API for updating under a
+                // lock.
+                if git_repo
+                    .reference_matching(&git_ref_name, new_oid, true, old_oid, "export from jj")
+                    .is_ok()
+                {
+                    // Successfully updated from old_oid to new_oid (unchanged in git)
+                    true
+                } else {
+                    // The reference was probably updated in git
+                    if let Ok(git_ref) = git_repo.find_reference(&git_ref_name) {
+                        // Iff it was updated to our desired target, we still consider it a success
+                        git_ref.target() == Some(new_oid)
+                    } else {
+                        // The reference was deleted in git
+                        false
+                    }
+                }
+            }
+        };
+        if success {
+            exported_view.branches.insert(
+                branch_name.clone(),
+                BranchTarget {
+                    local_target: Some(RefTarget::Normal(CommitId::from_bytes(new_oid.as_bytes()))),
+                    remote_targets: Default::default(),
+                },
+            );
+            mut_repo.set_git_ref(
+                git_ref_name,
+                RefTarget::Normal(CommitId::from_bytes(new_oid.as_bytes())),
+            );
+        } else {
+            failed_branches.push(branch_name);
+        }
     }
     Ok((exported_view, failed_branches))
 }
