@@ -45,7 +45,7 @@ pub struct SimpleOpStore {
 
 fn upgrade_to_thrift(store_path: PathBuf) -> std::io::Result<()> {
     println!("Upgrading operation log to Thrift format...");
-    let proto_store = ProtoOpStore::load(store_path.clone());
+    let old_store = ProtoOpStore::load(store_path.clone());
     let tmp_store_dir = tempfile::Builder::new()
         .prefix("jj-op-store-upgrade-")
         .tempdir_in(store_path.parent().unwrap())
@@ -66,12 +66,12 @@ fn upgrade_to_thrift(store_path: PathBuf) -> std::io::Result<()> {
     }
 
     // Do a DFS to rewrite the operations
-    let thrift_store = ThriftOpStore::init(tmp_store_path.clone());
+    let new_store = ThriftOpStore::init(tmp_store_path.clone());
     let mut converted: HashMap<OperationId, OperationId> = HashMap::new();
     // The DFS stack
     let mut to_convert = old_op_heads
         .iter()
-        .map(|op_id| (op_id.clone(), proto_store.read_operation(op_id).unwrap()))
+        .map(|op_id| (op_id.clone(), old_store.read_operation(op_id).unwrap()))
         .collect_vec();
     while !to_convert.is_empty() {
         let (_, op) = to_convert.last().unwrap();
@@ -83,20 +83,20 @@ fn upgrade_to_thrift(store_path: PathBuf) -> std::io::Result<()> {
             if let Some(new_parent_id) = converted.get(parent_id) {
                 new_parent_ids.push(new_parent_id.clone());
             } else {
-                let parent_op = proto_store.read_operation(parent_id).unwrap();
+                let parent_op = old_store.read_operation(parent_id).unwrap();
                 new_to_convert.push((parent_id.clone(), parent_op));
             }
         }
         if new_to_convert.is_empty() {
             // If all parents have already been converted, remove this operation from the
             // stack and convert it
-            let (op_id, mut op) = to_convert.pop().unwrap();
-            op.parents = new_parent_ids;
-            let view = proto_store.read_view(&op.view_id).unwrap();
-            let thrift_view_id = thrift_store.write_view(&view).unwrap();
-            op.view_id = thrift_view_id;
-            let thrift_op_id = thrift_store.write_operation(&op).unwrap();
-            converted.insert(op_id, thrift_op_id);
+            let (old_op_id, mut old_op) = to_convert.pop().unwrap();
+            old_op.parents = new_parent_ids;
+            let old_view = old_store.read_view(&old_op.view_id).unwrap();
+            let new_view_id = new_store.write_view(&old_view).unwrap();
+            old_op.view_id = new_view_id;
+            let new_op_id = new_store.write_operation(&old_op).unwrap();
+            converted.insert(old_op_id, new_op_id);
         } else {
             to_convert.extend(new_to_convert);
         }
