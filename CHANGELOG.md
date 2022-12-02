@@ -29,9 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   automatically upgraded the first time you run a command in an existing repo.
   The operation IDs will change in that process.
 
-* The storage format for the native backend has changed. Unlike the operation
+* The hashing scheme for the native backend has changed. Unlike the operation
   log, it will *not* be automatically upgraded. We consider the native backend
-  a proof-of-concept that users should not use.
+  a proof-of-concept that users should not use. However, existing repos should
+  still be usable.
 
 ### New features
 

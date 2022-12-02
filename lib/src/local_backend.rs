@@ -19,8 +19,8 @@ use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 
 use blake2::{Blake2b512, Digest};
+use protobuf::{Message, MessageField};
 use tempfile::{NamedTempFile, PersistError};
-use thrift::protocol::{TCompactInputProtocol, TCompactOutputProtocol, TSerializable};
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
@@ -29,7 +29,6 @@ use crate::backend::{
 };
 use crate::content_hash::ContentHash;
 use crate::file_util::persist_content_addressed_temp_file;
-use crate::local_backend_model;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
 impl From<std::io::Error> for BackendError {
@@ -44,8 +43,8 @@ impl From<PersistError> for BackendError {
     }
 }
 
-impl From<thrift::Error> for BackendError {
-    fn from(err: thrift::Error) -> Self {
+impl From<protobuf::Error> for BackendError {
+    fn from(err: protobuf::Error) -> Self {
         BackendError::Other(err.to_string())
     }
 }
@@ -185,17 +184,19 @@ impl Backend for LocalBackend {
     fn read_tree(&self, _path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
         let path = self.tree_path(id);
         let mut file = File::open(path).map_err(not_found_to_backend_error)?;
-        let thrift_tree = read_thrift(&mut file).unwrap();
-        Ok(tree_from_thrift(&thrift_tree))
+
+        let proto: crate::protos::store::Tree = Message::parse_from_reader(&mut file)?;
+        Ok(tree_from_proto(&proto))
     }
 
     fn write_tree(&self, _path: &RepoPath, tree: &Tree) -> BackendResult<TreeId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
-        let thrift_tree = tree_to_thrift(tree);
-        write_thrift(&thrift_tree, &mut temp_file.as_file())?;
+        let proto = tree_to_proto(tree);
+        proto.write_to_writer(&mut temp_file.as_file())?;
 
         let id = TreeId::new(hash(tree).to_vec());
+
         persist_content_addressed_temp_file(temp_file, self.tree_path(&id))?;
         Ok(id)
     }
@@ -203,17 +204,19 @@ impl Backend for LocalBackend {
     fn read_conflict(&self, _path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
         let path = self.conflict_path(id);
         let mut file = File::open(path).map_err(not_found_to_backend_error)?;
-        let thrift_conflict = read_thrift(&mut file)?;
-        Ok(conflict_from_thrift(&thrift_conflict))
+
+        let proto: crate::protos::store::Conflict = Message::parse_from_reader(&mut file)?;
+        Ok(conflict_from_proto(&proto))
     }
 
     fn write_conflict(&self, _path: &RepoPath, conflict: &Conflict) -> BackendResult<ConflictId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
-        let thrift_conflict = conflict_to_thrift(conflict);
-        write_thrift(&thrift_conflict, &mut temp_file.as_file())?;
+        let proto = conflict_to_proto(conflict);
+        proto.write_to_writer(&mut temp_file.as_file())?;
 
         let id = ConflictId::new(hash(conflict).to_vec());
+
         persist_content_addressed_temp_file(temp_file, self.conflict_path(&id))?;
         Ok(id)
     }
@@ -225,150 +228,144 @@ impl Backend for LocalBackend {
 
         let path = self.commit_path(id);
         let mut file = File::open(path).map_err(not_found_to_backend_error)?;
-        let thrift_commit = read_thrift(&mut file).unwrap();
-        Ok(commit_from_thrift(&thrift_commit))
+
+        let proto: crate::protos::store::Commit = Message::parse_from_reader(&mut file)?;
+        Ok(commit_from_proto(&proto))
     }
 
     fn write_commit(&self, commit: &Commit) -> BackendResult<CommitId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
-        let thrift_commit = commit_to_thrift(commit);
-        write_thrift(&thrift_commit, &mut temp_file.as_file())?;
+        let proto = commit_to_proto(commit);
+        proto.write_to_writer(&mut temp_file.as_file())?;
 
         let id = CommitId::new(hash(commit).to_vec());
+
         persist_content_addressed_temp_file(temp_file, self.commit_path(&id))?;
         Ok(id)
     }
 }
 
-fn read_thrift<T: TSerializable>(input: &mut impl Read) -> BackendResult<T> {
-    let mut protocol = TCompactInputProtocol::new(input);
-    Ok(TSerializable::read_from_in_protocol(&mut protocol).unwrap())
-}
-
-fn write_thrift<T: TSerializable>(thrift_object: &T, output: &mut impl Write) -> BackendResult<()> {
-    let mut protocol = TCompactOutputProtocol::new(output);
-    thrift_object.write_to_out_protocol(&mut protocol)?;
-    Ok(())
-}
-
-fn commit_to_thrift(commit: &Commit) -> local_backend_model::Commit {
-    let mut parents = vec![];
+pub fn commit_to_proto(commit: &Commit) -> crate::protos::store::Commit {
+    let mut proto = crate::protos::store::Commit::new();
     for parent in &commit.parents {
-        parents.push(parent.to_bytes());
+        proto.parents.push(parent.to_bytes());
     }
-    let mut predecessors = vec![];
     for predecessor in &commit.predecessors {
-        predecessors.push(predecessor.to_bytes());
+        proto.predecessors.push(predecessor.to_bytes());
     }
-    let root_tree = commit.root_tree.to_bytes();
-    let change_id = commit.change_id.to_bytes();
-    let description = commit.description.clone();
-    let author = signature_to_thrift(&commit.author);
-    let committer = signature_to_thrift(&commit.committer);
-    local_backend_model::Commit::new(
-        parents,
-        predecessors,
-        root_tree,
-        change_id,
-        description,
-        author,
-        committer,
-    )
+    proto.root_tree = commit.root_tree.to_bytes();
+    proto.change_id = commit.change_id.to_bytes();
+    proto.description = commit.description.clone();
+    proto.author = MessageField::some(signature_to_proto(&commit.author));
+    proto.committer = MessageField::some(signature_to_proto(&commit.committer));
+    proto
 }
 
-fn commit_from_thrift(thrift_commit: &local_backend_model::Commit) -> Commit {
-    let commit_id_from_thrift = |parent: &Vec<u8>| CommitId::new(parent.clone());
-    let parents = thrift_commit
-        .parents
-        .iter()
-        .map(commit_id_from_thrift)
-        .collect();
-    let predecessors = thrift_commit
+fn commit_from_proto(proto: &crate::protos::store::Commit) -> Commit {
+    let commit_id_from_proto = |parent: &Vec<u8>| CommitId::new(parent.clone());
+    let parents = proto.parents.iter().map(commit_id_from_proto).collect();
+    let predecessors = proto
         .predecessors
         .iter()
-        .map(commit_id_from_thrift)
+        .map(commit_id_from_proto)
         .collect();
-    let root_tree = TreeId::new(thrift_commit.root_tree.to_vec());
-    let change_id = ChangeId::new(thrift_commit.change_id.to_vec());
+    let root_tree = TreeId::new(proto.root_tree.to_vec());
+    let change_id = ChangeId::new(proto.change_id.to_vec());
     Commit {
         parents,
         predecessors,
         root_tree,
         change_id,
-        description: thrift_commit.description.clone(),
-        author: signature_from_thrift(&thrift_commit.author),
-        committer: signature_from_thrift(&thrift_commit.committer),
+        description: proto.description.clone(),
+        author: signature_from_proto(&proto.author),
+        committer: signature_from_proto(&proto.committer),
     }
 }
 
-fn tree_to_thrift(tree: &Tree) -> local_backend_model::Tree {
-    let mut entries = vec![];
+fn tree_to_proto(tree: &Tree) -> crate::protos::store::Tree {
+    let mut proto = crate::protos::store::Tree::new();
     for entry in tree.entries() {
-        let name = entry.name().string();
-        let value = tree_value_to_thrift(entry.value());
-        let thrift_entry = local_backend_model::TreeEntry::new(name, value);
-        entries.push(thrift_entry);
+        let mut proto_entry = crate::protos::store::tree::Entry::new();
+        proto_entry.name = entry.name().string();
+        proto_entry.value = MessageField::some(tree_value_to_proto(entry.value()));
+        proto.entries.push(proto_entry);
     }
-    local_backend_model::Tree::new(entries)
+    proto
 }
 
-fn tree_from_thrift(thrift_tree: &local_backend_model::Tree) -> Tree {
+fn tree_from_proto(proto: &crate::protos::store::Tree) -> Tree {
     let mut tree = Tree::default();
-    for thrift_tree_entry in &thrift_tree.entries {
-        let value = tree_value_from_thrift(&thrift_tree_entry.value);
-        tree.set(
-            RepoPathComponent::from(thrift_tree_entry.name.as_str()),
-            value,
-        );
+    for proto_entry in &proto.entries {
+        let value = tree_value_from_proto(proto_entry.value.as_ref().unwrap());
+        tree.set(RepoPathComponent::from(proto_entry.name.as_str()), value);
     }
     tree
 }
 
-fn tree_value_to_thrift(value: &TreeValue) -> local_backend_model::TreeValue {
+fn tree_value_to_proto(value: &TreeValue) -> crate::protos::store::TreeValue {
+    let mut proto = crate::protos::store::TreeValue::new();
     match value {
         TreeValue::File { id, executable } => {
-            let file = local_backend_model::File::new(id.to_bytes(), *executable);
-            local_backend_model::TreeValue::File(file)
+            let mut file = crate::protos::store::tree_value::File::new();
+            file.id = id.to_bytes();
+            file.executable = *executable;
+            proto.set_file(file);
         }
-        TreeValue::Symlink(id) => local_backend_model::TreeValue::SymlinkId(id.to_bytes()),
+        TreeValue::Symlink(id) => {
+            proto.set_symlink_id(id.to_bytes());
+        }
         TreeValue::GitSubmodule(_id) => {
             panic!("cannot store git submodules");
         }
-        TreeValue::Tree(id) => local_backend_model::TreeValue::TreeId(id.to_bytes()),
-        TreeValue::Conflict(id) => local_backend_model::TreeValue::ConflictId(id.to_bytes()),
+        TreeValue::Tree(id) => {
+            proto.set_tree_id(id.to_bytes());
+        }
+        TreeValue::Conflict(id) => {
+            proto.set_conflict_id(id.to_bytes());
+        }
     }
+    proto
 }
 
-fn tree_value_from_thrift(thrift_tree_value: &local_backend_model::TreeValue) -> TreeValue {
-    match thrift_tree_value {
-        local_backend_model::TreeValue::File(file) => TreeValue::File {
-            id: FileId::from_bytes(&file.id),
-            executable: file.executable,
+fn tree_value_from_proto(proto: &crate::protos::store::TreeValue) -> TreeValue {
+    match proto.value.as_ref().unwrap() {
+        crate::protos::store::tree_value::Value::TreeId(id) => {
+            TreeValue::Tree(TreeId::new(id.clone()))
+        }
+        crate::protos::store::tree_value::Value::File(crate::protos::store::tree_value::File {
+            id,
+            executable,
+            ..
+        }) => TreeValue::File {
+            id: FileId::new(id.clone()),
+            executable: *executable,
         },
-        local_backend_model::TreeValue::SymlinkId(id) => {
-            TreeValue::Symlink(SymlinkId::from_bytes(id))
+        crate::protos::store::tree_value::Value::SymlinkId(id) => {
+            TreeValue::Symlink(SymlinkId::new(id.clone()))
         }
-        local_backend_model::TreeValue::TreeId(id) => TreeValue::Tree(TreeId::from_bytes(id)),
-        local_backend_model::TreeValue::ConflictId(id) => {
-            TreeValue::Conflict(ConflictId::from_bytes(id))
+        crate::protos::store::tree_value::Value::ConflictId(id) => {
+            TreeValue::Conflict(ConflictId::new(id.clone()))
         }
     }
 }
 
-fn signature_to_thrift(signature: &Signature) -> local_backend_model::Signature {
-    let timestamp = local_backend_model::Timestamp::new(
-        signature.timestamp.timestamp.0,
-        signature.timestamp.tz_offset,
-    );
-    local_backend_model::Signature::new(signature.name.clone(), signature.email.clone(), timestamp)
+fn signature_to_proto(signature: &Signature) -> crate::protos::store::commit::Signature {
+    let mut proto = crate::protos::store::commit::Signature::new();
+    proto.name = signature.name.clone();
+    proto.email = signature.email.clone();
+    let mut timestamp_proto = crate::protos::store::commit::Timestamp::new();
+    timestamp_proto.millis_since_epoch = signature.timestamp.timestamp.0;
+    timestamp_proto.tz_offset = signature.timestamp.tz_offset;
+    proto.timestamp = MessageField::some(timestamp_proto);
+    proto
 }
 
-fn signature_from_thrift(thrift: &local_backend_model::Signature) -> Signature {
-    let timestamp = &thrift.timestamp;
+fn signature_from_proto(proto: &crate::protos::store::commit::Signature) -> Signature {
+    let timestamp = &proto.timestamp;
     Signature {
-        name: thrift.name.clone(),
-        email: thrift.email.clone(),
+        name: proto.name.clone(),
+        email: proto.email.clone(),
         timestamp: Timestamp {
             timestamp: MillisSinceEpoch(timestamp.millis_since_epoch),
             tz_offset: timestamp.tz_offset,
@@ -376,37 +373,38 @@ fn signature_from_thrift(thrift: &local_backend_model::Signature) -> Signature {
     }
 }
 
-fn conflict_to_thrift(conflict: &Conflict) -> local_backend_model::Conflict {
-    let mut removes = vec![];
-    for part in &conflict.removes {
-        removes.push(conflict_part_to_thrift(part));
-    }
-    let mut adds = vec![];
+fn conflict_to_proto(conflict: &Conflict) -> crate::protos::store::Conflict {
+    let mut proto = crate::protos::store::Conflict::new();
     for part in &conflict.adds {
-        adds.push(conflict_part_to_thrift(part));
+        proto.adds.push(conflict_part_to_proto(part));
     }
-    local_backend_model::Conflict::new(removes, adds)
+    for part in &conflict.removes {
+        proto.removes.push(conflict_part_to_proto(part));
+    }
+    proto
 }
 
-fn conflict_from_thrift(thrift: &local_backend_model::Conflict) -> Conflict {
+fn conflict_from_proto(proto: &crate::protos::store::Conflict) -> Conflict {
     let mut conflict = Conflict::default();
-    for part in &thrift.removes {
-        conflict.removes.push(conflict_part_from_thrift(part))
+    for part in &proto.removes {
+        conflict.removes.push(conflict_part_from_proto(part))
     }
-    for part in &thrift.adds {
-        conflict.adds.push(conflict_part_from_thrift(part))
+    for part in &proto.adds {
+        conflict.adds.push(conflict_part_from_proto(part))
     }
     conflict
 }
 
-fn conflict_part_from_thrift(thrift: &local_backend_model::ConflictPart) -> ConflictPart {
+fn conflict_part_from_proto(proto: &crate::protos::store::conflict::Part) -> ConflictPart {
     ConflictPart {
-        value: tree_value_from_thrift(&thrift.content),
+        value: tree_value_from_proto(proto.content.as_ref().unwrap()),
     }
 }
 
-fn conflict_part_to_thrift(part: &ConflictPart) -> local_backend_model::ConflictPart {
-    local_backend_model::ConflictPart::new(tree_value_to_thrift(&part.value))
+fn conflict_part_to_proto(part: &ConflictPart) -> crate::protos::store::conflict::Part {
+    let mut proto = crate::protos::store::conflict::Part::new();
+    proto.content = MessageField::some(tree_value_to_proto(&part.value));
+    proto
 }
 
 fn hash(x: &impl ContentHash) -> digest::Output<Blake2b512> {
