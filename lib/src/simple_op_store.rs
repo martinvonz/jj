@@ -36,25 +36,23 @@ impl From<PersistError> for OpStoreError {
     }
 }
 
-// TODO: In version 0.7.0 or so, inline ThriftOpStore into this type and drop
-// support for upgrading from the proto format
+// TODO: In version 0.7.0 or so, inline ProtoOpStore into this type and drop
+// support for upgrading from the thrift format
 #[derive(Debug)]
 pub struct SimpleOpStore {
-    delegate: ThriftOpStore,
+    delegate: ProtoOpStore,
 }
 
-fn upgrade_to_thrift(store_path: PathBuf) -> std::io::Result<()> {
-    println!("Upgrading operation log to Thrift format...");
-    let old_store = ProtoOpStore::load(store_path.clone());
+fn upgrade_from_thrift(store_path: PathBuf) -> std::io::Result<()> {
+    println!("Upgrading operation log to Protobuf format...");
+    let old_store = ThriftOpStore::load(store_path.clone());
     let tmp_store_dir = tempfile::Builder::new()
         .prefix("jj-op-store-upgrade-")
         .tempdir_in(store_path.parent().unwrap())
         .unwrap();
     let tmp_store_path = tmp_store_dir.path().to_path_buf();
 
-    // Find the current operation head(s) of the operation log. Because the hash is
-    // based on the serialized format, it will be different after conversion, so
-    // we need to rewrite these later.
+    // Find the current operation head(s) of the operation log
     let op_heads_store_path = store_path.parent().unwrap().join("op_heads");
     let mut old_op_heads = HashSet::new();
     for entry in fs::read_dir(&op_heads_store_path)? {
@@ -66,7 +64,7 @@ fn upgrade_to_thrift(store_path: PathBuf) -> std::io::Result<()> {
     }
 
     // Do a DFS to rewrite the operations
-    let new_store = ThriftOpStore::init(tmp_store_path.clone());
+    let new_store = ProtoOpStore::init(tmp_store_path.clone());
     let mut converted: HashMap<OperationId, OperationId> = HashMap::new();
     // The DFS stack
     let mut to_convert = old_op_heads
@@ -102,49 +100,11 @@ fn upgrade_to_thrift(store_path: PathBuf) -> std::io::Result<()> {
         }
     }
 
-    fs::write(tmp_store_path.join("thrift_store"), "")?;
     let backup_store_path = store_path.parent().unwrap().join("op_store_old");
+    // Delete existing backup (probably from an earlier upgrade to Thrift)
+    fs::remove_dir_all(&backup_store_path).ok();
     fs::rename(&store_path, backup_store_path)?;
     fs::rename(&tmp_store_path, &store_path)?;
-
-    // Update the pointers to the head(s) of the operation log
-    for old_op_head in old_op_heads {
-        let new_op_head = converted.get(&old_op_head).unwrap().clone();
-        fs::write(op_heads_store_path.join(new_op_head.hex()), "")?;
-        fs::remove_file(op_heads_store_path.join(old_op_head.hex()))?;
-    }
-
-    // Update the pointers from operations to index files
-    let index_operations_path = store_path
-        .parent()
-        .unwrap()
-        .join("index")
-        .join("operations");
-    for entry in fs::read_dir(&index_operations_path)? {
-        let basename = entry?.file_name();
-        let op_id_str = basename.to_str().unwrap();
-        if let Ok(op_id_bytes) = hex::decode(op_id_str) {
-            let old_op_id = OperationId::new(op_id_bytes);
-            // This should always succeed, but just skip it if it doesn't. We'll index
-            // the commits on demand if we don't have an pointer to an index file.
-            if let Some(new_op_id) = converted.get(&old_op_id) {
-                fs::rename(
-                    index_operations_path.join(basename),
-                    index_operations_path.join(new_op_id.hex()),
-                )?;
-            }
-        }
-    }
-
-    // Update the pointer to the last operation exported to Git
-    let git_export_path = store_path.parent().unwrap().join("git_export_operation_id");
-    if let Ok(op_id_string) = fs::read_to_string(&git_export_path) {
-        if let Ok(op_id_bytes) = hex::decode(op_id_string) {
-            let old_op_id = OperationId::new(op_id_bytes);
-            let new_op_id = converted.get(&old_op_id).unwrap();
-            fs::write(&git_export_path, new_op_id.hex())?;
-        }
-    }
 
     println!("Upgrade complete");
     Ok(())
@@ -152,17 +112,16 @@ fn upgrade_to_thrift(store_path: PathBuf) -> std::io::Result<()> {
 
 impl SimpleOpStore {
     pub fn init(store_path: PathBuf) -> Self {
-        fs::write(store_path.join("thrift_store"), "").unwrap();
-        let delegate = ThriftOpStore::init(store_path);
+        let delegate = ProtoOpStore::init(store_path);
         SimpleOpStore { delegate }
     }
 
     pub fn load(store_path: PathBuf) -> Self {
-        if !store_path.join("thrift_store").exists() {
-            upgrade_to_thrift(store_path.clone())
-                .expect("Failed to upgrade operation log to Thrift format");
+        if store_path.join("thrift_store").exists() {
+            upgrade_from_thrift(store_path.clone())
+                .expect("Failed to upgrade operation log to Protobuf format");
         }
-        let delegate = ThriftOpStore::load(store_path);
+        let delegate = ProtoOpStore::load(store_path);
         SimpleOpStore { delegate }
     }
 }
