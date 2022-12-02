@@ -12,15 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
-use std::fs;
 use std::path::PathBuf;
 
-use itertools::Itertools;
 use tempfile::PersistError;
 
-use crate::legacy_thrift_op_store::ThriftOpStore;
 use crate::op_store::{OpStore, OpStoreError, OpStoreResult, Operation, OperationId, View, ViewId};
 use crate::proto_op_store::ProtoOpStore;
 
@@ -43,7 +39,15 @@ pub struct SimpleOpStore {
     delegate: ProtoOpStore,
 }
 
+#[cfg(feature = "legacy-thrift")]
 fn upgrade_from_thrift(store_path: PathBuf) -> std::io::Result<()> {
+    use std::collections::{HashMap, HashSet};
+    use std::fs;
+
+    use itertools::Itertools;
+
+    use crate::legacy_thrift_op_store::ThriftOpStore;
+
     println!("Upgrading operation log to Protobuf format...");
     let old_store = ThriftOpStore::load(store_path.clone());
     let tmp_store_dir = tempfile::Builder::new()
@@ -117,6 +121,7 @@ impl SimpleOpStore {
     }
 
     pub fn load(store_path: PathBuf) -> Self {
+        #[cfg(feature = "legacy-thrift")]
         if store_path.join("thrift_store").exists() {
             upgrade_from_thrift(store_path.clone())
                 .expect("Failed to upgrade operation log to Protobuf format");

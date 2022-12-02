@@ -44,7 +44,7 @@ dirs = "4.0.0"
 git2 = "0.15.0"
 hex = "0.4.3"
 itertools = "0.10.5"
-jujutsu-lib = { version = "=0.5.1", path = "lib"}
+jujutsu-lib = { version = "=0.5.1", path = "lib", default-features = false }
 once_cell = "1.15.0"
 maplit = "1.0.2"
 pest = "2.5.0"
@@ -75,5 +75,5 @@ test-case = "2.2.2"
 testutils = { path = "lib/testutils" }
 
 [features]
-default = ["vendored-openssl"]
+default = ["vendored-openssl", "jujutsu-lib/legacy-thrift"]
 vendored-openssl = ["git2/vendored-openssl", "jujutsu-lib/vendored-openssl"]
