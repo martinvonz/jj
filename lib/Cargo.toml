@@ -53,8 +53,4 @@ test-case = "2.2.2"
 testutils = { path = "testutils" }
 
 [features]
-default = ["legacy_protobuf"]
 vendored-openssl = ["git2/vendored-openssl"]
-# Enable upgrade of repositories created with storage backends based on
-# Protobuf format (from before we switched to Thrift)
-legacy_protobuf = []

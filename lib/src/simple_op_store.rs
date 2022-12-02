@@ -31,7 +31,6 @@ use crate::op_store::{
     BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
     RefTarget, View, ViewId, WorkspaceId,
 };
-#[cfg(feature = "legacy_protobuf")]
 use crate::proto_op_store::ProtoOpStore;
 use crate::simple_op_store_model;
 
@@ -60,7 +59,6 @@ pub struct SimpleOpStore {
     delegate: ThriftOpStore,
 }
 
-#[cfg(feature = "legacy_protobuf")]
 fn upgrade_to_thrift(store_path: PathBuf) -> std::io::Result<()> {
     println!("Upgrading operation log to Thrift format...");
     let proto_store = ProtoOpStore::load(store_path.clone());
@@ -170,24 +168,16 @@ fn upgrade_to_thrift(store_path: PathBuf) -> std::io::Result<()> {
 
 impl SimpleOpStore {
     pub fn init(store_path: PathBuf) -> Self {
-        #[cfg(feature = "legacy_protobuf")]
         fs::write(store_path.join("thrift_store"), "").unwrap();
         let delegate = ThriftOpStore::init(store_path);
         SimpleOpStore { delegate }
     }
 
-    #[cfg(feature = "legacy_protobuf")]
     pub fn load(store_path: PathBuf) -> Self {
         if !store_path.join("thrift_store").exists() {
             upgrade_to_thrift(store_path.clone())
                 .expect("Failed to upgrade operation log to Thrift format");
         }
-        let delegate = ThriftOpStore::load(store_path);
-        SimpleOpStore { delegate }
-    }
-
-    #[cfg(not(feature = "legacy_protobuf"))]
-    pub fn load(store_path: PathBuf) -> Self {
         let delegate = ThriftOpStore::load(store_path);
         SimpleOpStore { delegate }
     }
