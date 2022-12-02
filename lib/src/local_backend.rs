@@ -27,7 +27,7 @@ use crate::backend::{
     ConflictId, ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree,
     TreeId, TreeValue,
 };
-use crate::content_hash::ContentHash;
+use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
@@ -195,7 +195,7 @@ impl Backend for LocalBackend {
         let proto = tree_to_proto(tree);
         proto.write_to_writer(&mut temp_file.as_file())?;
 
-        let id = TreeId::new(hash(tree).to_vec());
+        let id = TreeId::new(blake2b_hash(tree).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.tree_path(&id))?;
         Ok(id)
@@ -215,7 +215,7 @@ impl Backend for LocalBackend {
         let proto = conflict_to_proto(conflict);
         proto.write_to_writer(&mut temp_file.as_file())?;
 
-        let id = ConflictId::new(hash(conflict).to_vec());
+        let id = ConflictId::new(blake2b_hash(conflict).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.conflict_path(&id))?;
         Ok(id)
@@ -239,7 +239,7 @@ impl Backend for LocalBackend {
         let proto = commit_to_proto(commit);
         proto.write_to_writer(&mut temp_file.as_file())?;
 
-        let id = CommitId::new(hash(commit).to_vec());
+        let id = CommitId::new(blake2b_hash(commit).to_vec());
 
         persist_content_addressed_temp_file(temp_file, self.commit_path(&id))?;
         Ok(id)
@@ -405,10 +405,4 @@ fn conflict_part_to_proto(part: &ConflictPart) -> crate::protos::store::conflict
     let mut proto = crate::protos::store::conflict::Part::new();
     proto.content = MessageField::some(tree_value_to_proto(&part.value));
     proto
-}
-
-fn hash(x: &impl ContentHash) -> digest::Output<Blake2b512> {
-    let mut hasher = Blake2b512::default();
-    x.hash(&mut hasher);
-    hasher.finalize()
 }
