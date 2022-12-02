@@ -2764,6 +2764,43 @@ mod tests {
             ),
         }
         "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("(a & author(A)) & ((b & author(B)) & (c & author(C))) & d").unwrap()),
+            @r###"
+        Filter {
+            candidates: Filter {
+                candidates: Filter {
+                    candidates: Intersection(
+                        Intersection(
+                            Symbol(
+                                "a",
+                            ),
+                            Intersection(
+                                Symbol(
+                                    "b",
+                                ),
+                                Symbol(
+                                    "c",
+                                ),
+                            ),
+                        ),
+                        Symbol(
+                            "d",
+                        ),
+                    ),
+                    predicate: Author(
+                        "A",
+                    ),
+                },
+                predicate: Author(
+                    "B",
+                ),
+            },
+            predicate: Author(
+                "C",
+            ),
+        }
+        "###);
 
         // 'all()' moves in to 'filter()' first, so 'A & filter()' can be found.
         insta::assert_debug_snapshot!(
