@@ -14,7 +14,6 @@
 
 use std::collections::BTreeMap;
 use std::fmt::Debug;
-use std::fs;
 use std::fs::File;
 use std::io::{ErrorKind, Read, Write};
 use std::path::PathBuf;
@@ -52,12 +51,6 @@ pub struct ThriftOpStore {
 }
 
 impl ThriftOpStore {
-    pub fn init(store_path: PathBuf) -> Self {
-        fs::create_dir(store_path.join("views")).unwrap();
-        fs::create_dir(store_path.join("operations")).unwrap();
-        Self::load(store_path)
-    }
-
     pub fn load(store_path: PathBuf) -> Self {
         ThriftOpStore { path: store_path }
     }

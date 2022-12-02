@@ -14,6 +14,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt::Debug;
+use std::fs;
 use std::fs::File;
 use std::io::ErrorKind;
 use std::path::PathBuf;
@@ -42,6 +43,12 @@ pub struct ProtoOpStore {
 }
 
 impl ProtoOpStore {
+    pub fn init(store_path: PathBuf) -> Self {
+        fs::create_dir(store_path.join("views")).unwrap();
+        fs::create_dir(store_path.join("operations")).unwrap();
+        ProtoOpStore { path: store_path }
+    }
+
     pub fn load(store_path: PathBuf) -> Self {
         ProtoOpStore { path: store_path }
     }
