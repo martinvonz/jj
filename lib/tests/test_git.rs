@@ -435,36 +435,6 @@ fn test_export_refs_no_detach() {
 }
 
 #[test]
-fn test_export_refs_no_op() {
-    // Nothing changes on the git side if nothing changed on the jj side
-    let test_data = GitRepoData::create();
-    let git_repo = test_data.git_repo;
-    let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
-    git_repo.set_head("refs/heads/main").unwrap();
-
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
-    let mut_repo = tx.mut_repo();
-    git::import_refs(mut_repo, &git_repo).unwrap();
-    mut_repo.rebase_descendants(&test_data.settings).unwrap();
-
-    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
-    // The export should be a no-op since nothing changed on the jj side since last
-    // export
-    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
-    assert_eq!(
-        mut_repo.get_git_ref("refs/heads/main"),
-        Some(RefTarget::Normal(jj_id(&commit1)))
-    );
-    assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/main"));
-    assert_eq!(
-        git_repo.find_reference("refs/heads/main").unwrap().target(),
-        Some(commit1.id())
-    );
-}
-
-#[test]
 fn test_export_refs_branch_changed() {
     // We can export a change to a branch
     let test_data = GitRepoData::create();
@@ -472,9 +442,6 @@ fn test_export_refs_branch_changed() {
     let commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     git_repo
         .reference("refs/heads/feature", commit.id(), false, "test")
-        .unwrap();
-    git_repo
-        .reference("refs/heads/delete-me", commit.id(), false, "test")
         .unwrap();
     git_repo.set_head("refs/heads/feature").unwrap();
 
@@ -493,13 +460,11 @@ fn test_export_refs_branch_changed() {
         "main".to_string(),
         RefTarget::Normal(new_commit.id().clone()),
     );
-    mut_repo.remove_local_branch("delete-me");
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
         Some(RefTarget::Normal(new_commit.id().clone()))
     );
-    assert_eq!(mut_repo.get_git_ref("refs/heads/delete-me"), None);
     assert_eq!(
         git_repo
             .find_reference("refs/heads/main")
@@ -509,7 +474,6 @@ fn test_export_refs_branch_changed() {
             .id(),
         git_id(&new_commit)
     );
-    assert!(git_repo.find_reference("refs/heads/delete-me").is_err());
     // HEAD should be unchanged since its target branch didn't change
     assert_eq!(git_repo.head().unwrap().name(), Some("refs/heads/feature"));
 }
@@ -750,6 +714,146 @@ fn test_export_partial_failure() {
             .target()
             .unwrap(),
         git_id(&commit_a)
+    );
+}
+
+#[test]
+fn test_export_reexport_transitions() {
+    // Test exporting after making changes on the jj side, or the git side, or both
+    let test_data = GitRepoData::create();
+    let git_repo = test_data.git_repo;
+    let mut tx = test_data
+        .repo
+        .start_transaction(&test_data.settings, "test");
+    let mut_repo = tx.mut_repo();
+    let commit_a =
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
+    let commit_b =
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
+    let commit_c =
+        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
+    // Create a few branches whose names indicate how they change in jj in git. The
+    // first letter represents the branch's target in the last export. The second
+    // letter represents the branch's target in jj. The third letter represents the
+    // branch's target in git. "X" means that the branch doesn't exist. "A", "B", or
+    // "C" means that the branch points to that commit.
+    //
+    // AAB: Branch modified in git
+    // AAX: Branch deleted in git
+    // ABA: Branch modified in jj
+    // ABB: Branch modified in both jj and git, pointing to same target
+    // ABC: Branch modified in both jj and git, pointing to different targets
+    // ABX: Branch modified in jj, deleted in git
+    // AXA: Branch deleted in jj
+    // AXB: Branch deleted in jj, modified in git
+    // AXX: Branch deleted in both jj and git
+    // XAA: Branch added in both jj and git, pointing to same target
+    // XAB: Branch added in both jj and git, pointing to different targets
+    // XAX: Branch added in jj
+    // XXA: Branch added in git
+
+    // Create initial state and export it
+    for branch in [
+        "AAB", "AAX", "ABA", "ABB", "ABC", "ABX", "AXA", "AXB", "AXX",
+    ] {
+        mut_repo.set_local_branch(branch.to_string(), RefTarget::Normal(commit_a.id().clone()));
+    }
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
+
+    // Make changes on the jj side
+    for branch in ["AXA", "AXB", "AXX"] {
+        mut_repo.remove_local_branch(branch);
+    }
+    for branch in ["XAA", "XAB", "XAX"] {
+        mut_repo.set_local_branch(branch.to_string(), RefTarget::Normal(commit_a.id().clone()));
+    }
+    for branch in ["ABA", "ABB", "ABC", "ABX"] {
+        mut_repo.set_local_branch(branch.to_string(), RefTarget::Normal(commit_b.id().clone()));
+    }
+
+    // Make changes on the git side
+    for branch in ["AAX", "ABX", "AXX"] {
+        git_repo
+            .find_reference(&format!("refs/heads/{branch}"))
+            .unwrap()
+            .delete()
+            .unwrap();
+    }
+    for branch in ["XAA", "XXA"] {
+        git_repo
+            .reference(&format!("refs/heads/{branch}"), git_id(&commit_a), true, "")
+            .unwrap();
+    }
+    for branch in ["AAB", "ABB", "AXB", "XAB"] {
+        git_repo
+            .reference(&format!("refs/heads/{branch}"), git_id(&commit_b), true, "")
+            .unwrap();
+    }
+    let branch = "ABC";
+    git_repo
+        .reference(&format!("refs/heads/{branch}"), git_id(&commit_c), true, "")
+        .unwrap();
+
+    // TODO: The branches that we made conflicting changes to should have failed to
+    // export. They should have been unchanged in git and in
+    // mut_repo.view().git_refs().
+    assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
+    // TODO: AXB should have remained at B from git
+    for branch in ["AAX", "AXA", "AXB", "AXX"] {
+        assert!(
+            git_repo
+                .find_reference(&format!("refs/heads/{branch}"))
+                .is_err(),
+            "{branch} should not exist"
+        );
+    }
+    // TODO: XAB should have remained at B from git
+    for branch in ["XAA", "XAB", "XAX", "XXA"] {
+        assert_eq!(
+            git_repo
+                .find_reference(&format!("refs/heads/{branch}"))
+                .unwrap()
+                .target(),
+            Some(git_id(&commit_a)),
+            "{branch} should point to commit A"
+        );
+    }
+    // TODO: ABX should have remained deleted from git
+    for branch in ["AAB", "ABA", "AAB", "ABB", "ABX"] {
+        assert_eq!(
+            git_repo
+                .find_reference(&format!("refs/heads/{branch}"))
+                .unwrap()
+                .target(),
+            Some(git_id(&commit_b)),
+            "{branch} should point to commit B"
+        );
+    }
+    // TODO: ABC should have remained at C from git
+    let branch = "ABC";
+    assert_eq!(
+        git_repo
+            .find_reference(&format!("refs/heads/{branch}"))
+            .unwrap()
+            .target(),
+        Some(git_id(&commit_b)),
+        "{branch} should point to commit B",
+    );
+    // TODO: ABC should remain at A, ABX should remain at A, AXB should remain at A,
+    // XAB should remain missing.
+    assert_eq!(
+        *mut_repo.view().git_refs(),
+        btreemap! {
+            "refs/heads/AAX".to_string() => RefTarget::Normal(commit_a.id().clone()),
+            "refs/heads/AAB".to_string() => RefTarget::Normal(commit_a.id().clone()),
+            "refs/heads/ABA".to_string() => RefTarget::Normal(commit_b.id().clone()),
+            "refs/heads/ABB".to_string() => RefTarget::Normal(commit_b.id().clone()),
+            "refs/heads/ABC".to_string() => RefTarget::Normal(commit_b.id().clone()),
+            "refs/heads/ABX".to_string() => RefTarget::Normal(commit_b.id().clone()),
+            "refs/heads/XAA".to_string() => RefTarget::Normal(commit_a.id().clone()),
+            "refs/heads/XAB".to_string() => RefTarget::Normal(commit_a.id().clone()),
+            "refs/heads/XAX".to_string() => RefTarget::Normal(commit_a.id().clone()),
+        }
     );
 }
 
