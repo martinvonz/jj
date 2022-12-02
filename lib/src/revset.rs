@@ -362,10 +362,7 @@ pub enum RevsetExpression {
     Tags,
     GitRefs,
     GitHead,
-    Filter {
-        candidates: Rc<RevsetExpression>,
-        predicate: RevsetFilterPredicate,
-    },
+    Filter(RevsetFilterPredicate),
     Present(Rc<RevsetExpression>),
     NotIn(Rc<RevsetExpression>),
     Union(Rc<RevsetExpression>, Rc<RevsetExpression>),
@@ -423,10 +420,7 @@ impl RevsetExpression {
     }
 
     pub fn filter(predicate: RevsetFilterPredicate) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Filter {
-            candidates: RevsetExpression::all(),
-            predicate,
-        })
+        Rc::new(RevsetExpression::Filter(predicate))
     }
 
     /// Commits in `self` that don't have descendants in `self`.
@@ -1101,13 +1095,7 @@ fn transform_expression_bottom_up(
             RevsetExpression::Tags => None,
             RevsetExpression::GitRefs => None,
             RevsetExpression::GitHead => None,
-            RevsetExpression::Filter {
-                candidates,
-                predicate,
-            } => transform_rec(candidates, f).map(|candidates| RevsetExpression::Filter {
-                candidates,
-                predicate: predicate.clone(),
-            }),
+            RevsetExpression::Filter(_) => None,
             RevsetExpression::Present(candidates) => {
                 transform_rec(candidates, f).map(RevsetExpression::Present)
             }
@@ -1168,8 +1156,8 @@ fn transform_expression_bottom_up(
 
 /// Transforms filter expressions, by applying the following rules.
 ///
-/// a. Moves as many sets to filter candidates as possible, to minimize the
-///    filter inputs.
+/// a. Moves as many sets to left of filter intersection as possible, to
+///    minimize the filter inputs.
 /// b. TODO: Rewrites set operations to and/or/not of predicates, to
 ///    help further optimization (e.g. combine `file(_)` matchers.)
 /// c. TODO: Wraps union of filter and set (e.g. `author(_) | heads()`), to
@@ -1177,52 +1165,54 @@ fn transform_expression_bottom_up(
 ///
 /// The resulting tree may contain redundant intersections like `all() & e`.
 fn internalize_filter(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
-    // Since both sides must have already been "internalize"d, we don't need to
-    // apply the whole bottom-up pass to new intersection node. Instead, just push
-    // new 'c & g(d)' down to 'g(c & d)' while either side is a filter node.
-    fn intersect_down(
-        expression1: &Rc<RevsetExpression>,
-        expression2: &Rc<RevsetExpression>,
-    ) -> Rc<RevsetExpression> {
-        if let RevsetExpression::Filter {
-            candidates,
-            predicate,
-        } = expression2.as_ref()
-        {
-            // e1 & f2(c2) -> f2(e1 & c2)
-            // f1(c1) & f2(c2) -> f2(f1(c1) & c2) -> f2(f1(c1 & c2))
-            Rc::new(RevsetExpression::Filter {
-                candidates: intersect_down(expression1, candidates),
-                predicate: predicate.clone(),
-            })
-        } else if let RevsetExpression::Filter {
-            candidates,
-            predicate,
-        } = expression1.as_ref()
-        {
-            // f1(c1) & e2 -> f1(c1 & e2)
-            // g1(f1(c1)) & e2 -> g1(f1(c1) & e2) -> g1(f1(c1 & e2))
-            Rc::new(RevsetExpression::Filter {
-                candidates: intersect_down(candidates, expression2),
-                predicate: predicate.clone(),
-            })
+    // Extracts 'c & f' from intersect_down()-ed node.
+    fn as_filter_intersection(
+        expression: &RevsetExpression,
+    ) -> Option<(&Rc<RevsetExpression>, &Rc<RevsetExpression>)> {
+        if let RevsetExpression::Intersection(expression1, expression2) = expression {
+            match expression2.as_ref() {
+                RevsetExpression::Filter(_) => Some((expression1, expression2)),
+                _ => None,
+            }
         } else {
-            expression1.intersection(expression2)
+            None
         }
     }
 
-    // Bottom-up pass pulls up filter node from leaf 'f(c) & e' -> 'f(c & e)',
-    // so that a filter node can be found as a direct child of an intersection node.
-    // However, the rewritten intersection node 'c & e' can also be a rewrite target
-    // if 'e' is a filter node. That's why intersect_down() is also recursive.
+    // Since both sides must have already been intersect_down()-ed, we don't need to
+    // apply the whole bottom-up pass to new intersection node. Instead, just push
+    // new 'c & (d & g)' down-left to '(c & d) & g' while either side is
+    // an intersection of filter node.
+    fn intersect_down(
+        expression1: &Rc<RevsetExpression>,
+        expression2: &Rc<RevsetExpression>,
+    ) -> Option<Rc<RevsetExpression>> {
+        let recurse = |e1, e2| intersect_down(e1, e2).unwrap_or_else(|| e1.intersection(e2));
+        match (expression1.as_ref(), expression2.as_ref()) {
+            // Don't reorder 'f1 & f2'
+            (_, RevsetExpression::Filter(_)) => None,
+            // f1 & e2 -> e2 & f1
+            (RevsetExpression::Filter(_), _) => Some(expression2.intersection(expression1)),
+            (e1, e2) => match (as_filter_intersection(e1), as_filter_intersection(e2)) {
+                // e1 & (c2 & f2) -> (e1 & c2) & f2
+                // (c1 & f1) & (c2 & f2) -> ((c1 & f1) & c2) & f2 -> ((c1 & c2) & f1) & f2
+                (_, Some((c2, f2))) => Some(recurse(expression1, c2).intersection(f2)),
+                // (c1 & f1) & e2 -> (c1 & e2) & f1
+                // ((c1 & f1) & g1) & e2 -> ((c1 & f1) & e2) & g1 -> ((c1 & e2) & f1) & g1
+                (Some((c1, f1)), _) => Some(recurse(c1, expression2).intersection(f1)),
+                (None, None) => None,
+            },
+        }
+    }
+
+    // Bottom-up pass pulls up-right filter node from leaf '(c & f) & e' ->
+    // '(c & e) & f', so that an intersection of filter node can be found as
+    // a direct child of another intersection node. However, the rewritten
+    // intersection node 'c & e' can also be a rewrite target if 'e' contains
+    // a filter node. That's why intersect_down() is also recursive.
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
         RevsetExpression::Intersection(expression1, expression2) => {
-            match (expression1.as_ref(), expression2.as_ref()) {
-                (_, RevsetExpression::Filter { .. }) | (RevsetExpression::Filter { .. }, _) => {
-                    Some(intersect_down(expression1, expression2))
-                }
-                _ => None, // don't recreate identical node
-            }
+            intersect_down(expression1, expression2)
         }
         _ => None,
     })
@@ -1720,11 +1710,8 @@ pub fn evaluate_expression<'repo>(
             let commit_ids = repo.view().git_head().into_iter().collect_vec();
             Ok(revset_for_commit_ids(repo, &commit_ids))
         }
-        RevsetExpression::Filter {
-            candidates,
-            predicate,
-        } => Ok(Box::new(FilterRevset {
-            candidates: candidates.evaluate(repo, workspace_ctx)?,
+        RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
+            candidates: RevsetExpression::All.evaluate(repo, workspace_ctx)?,
             predicate: build_predicate_fn(repo, predicate),
         })),
         RevsetExpression::Present(candidates) => match candidates.evaluate(repo, workspace_ctx) {
@@ -1743,9 +1730,19 @@ pub fn evaluate_expression<'repo>(
             Ok(Box::new(UnionRevset { set1, set2 }))
         }
         RevsetExpression::Intersection(expression1, expression2) => {
-            let set1 = expression1.evaluate(repo, workspace_ctx)?;
-            let set2 = expression2.evaluate(repo, workspace_ctx)?;
-            Ok(Box::new(IntersectionRevset { set1, set2 }))
+            match expression2.as_ref() {
+                RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {
+                    candidates: expression1.evaluate(repo, workspace_ctx)?,
+                    predicate: build_predicate_fn(repo, predicate),
+                })),
+                _ => {
+                    // TODO: 'set2' can be turned into a predicate, and use FilterRevset
+                    // if a predicate function can terminate the 'set1' iterator early.
+                    let set1 = expression1.evaluate(repo, workspace_ctx)?;
+                    let set2 = expression2.evaluate(repo, workspace_ctx)?;
+                    Ok(Box::new(IntersectionRevset { set1, set2 }))
+                }
+            }
         }
         RevsetExpression::Difference(expression1, expression2) => {
             let set1 = expression1.evaluate(repo, workspace_ctx)?;
@@ -2510,8 +2507,8 @@ mod tests {
         // '& baz' can be moved into the filter node, and form a difference node.
         insta::assert_debug_snapshot!(
             optimize(parse("(author(foo) & ~bar) & baz").unwrap()), @r###"
-        Filter {
-            candidates: Difference(
+        Intersection(
+            Difference(
                 Symbol(
                     "baz",
                 ),
@@ -2519,133 +2516,154 @@ mod tests {
                     "bar",
                 ),
             ),
-            predicate: Author(
-                "foo",
+            Filter(
+                Author(
+                    "foo",
+                ),
             ),
-        }
+        )
         "###)
     }
 
     #[test]
     fn test_optimize_filter_intersection() {
         insta::assert_debug_snapshot!(optimize(parse("author(foo)").unwrap()), @r###"
-        Filter {
-            candidates: All,
-            predicate: Author(
+        Filter(
+            Author(
                 "foo",
             ),
-        }
+        )
         "###);
 
         insta::assert_debug_snapshot!(optimize(parse("foo & description(bar)").unwrap()), @r###"
-        Filter {
-            candidates: Symbol(
+        Intersection(
+            Symbol(
                 "foo",
             ),
-            predicate: Description(
-                "bar",
+            Filter(
+                Description(
+                    "bar",
+                ),
             ),
-        }
+        )
         "###);
         insta::assert_debug_snapshot!(optimize(parse("author(foo) & bar").unwrap()), @r###"
-        Filter {
-            candidates: Symbol(
+        Intersection(
+            Symbol(
                 "bar",
             ),
-            predicate: Author(
-                "foo",
+            Filter(
+                Author(
+                    "foo",
+                ),
             ),
-        }
+        )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("author(foo) & committer(bar)").unwrap()), @r###"
-        Filter {
-            candidates: Filter {
-                candidates: All,
-                predicate: Author(
+        Intersection(
+            Filter(
+                Author(
                     "foo",
                 ),
-            },
-            predicate: Committer(
-                "bar",
             ),
-        }
+            Filter(
+                Committer(
+                    "bar",
+                ),
+            ),
+        )
         "###);
 
         insta::assert_debug_snapshot!(
             optimize(parse("foo & description(bar) & author(baz)").unwrap()), @r###"
-        Filter {
-            candidates: Filter {
-                candidates: Symbol(
+        Intersection(
+            Intersection(
+                Symbol(
                     "foo",
                 ),
-                predicate: Description(
-                    "bar",
+                Filter(
+                    Description(
+                        "bar",
+                    ),
                 ),
-            },
-            predicate: Author(
-                "baz",
             ),
-        }
+            Filter(
+                Author(
+                    "baz",
+                ),
+            ),
+        )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("committer(foo) & bar & author(baz)").unwrap()), @r###"
-        Filter {
-            candidates: Filter {
-                candidates: Symbol(
+        Intersection(
+            Intersection(
+                Symbol(
                     "bar",
                 ),
-                predicate: Committer(
-                    "foo",
+                Filter(
+                    Committer(
+                        "foo",
+                    ),
                 ),
-            },
-            predicate: Author(
-                "baz",
             ),
-        }
+            Filter(
+                Author(
+                    "baz",
+                ),
+            ),
+        )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("committer(foo) & file(bar) & baz").unwrap()), @r###"
-        Filter {
-            candidates: Filter {
-                candidates: Symbol(
+        Intersection(
+            Intersection(
+                Symbol(
                     "baz",
                 ),
-                predicate: Committer(
-                    "foo",
-                ),
-            },
-            predicate: File(
-                [
-                    "bar",
-                ],
-            ),
-        }
-        "###);
-        insta::assert_debug_snapshot!(
-            optimize(parse("committer(foo) & file(bar) & author(baz)").unwrap()), @r###"
-        Filter {
-            candidates: Filter {
-                candidates: Filter {
-                    candidates: All,
-                    predicate: Committer(
+                Filter(
+                    Committer(
                         "foo",
                     ),
-                },
-                predicate: File(
+                ),
+            ),
+            Filter(
+                File(
                     [
                         "bar",
                     ],
                 ),
-            },
-            predicate: Author(
-                "baz",
             ),
-        }
+        )
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("committer(foo) & file(bar) & author(baz)").unwrap()), @r###"
+        Intersection(
+            Intersection(
+                Filter(
+                    Committer(
+                        "foo",
+                    ),
+                ),
+                Filter(
+                    File(
+                        [
+                            "bar",
+                        ],
+                    ),
+                ),
+            ),
+            Filter(
+                Author(
+                    "baz",
+                ),
+            ),
+        )
         "###);
         insta::assert_debug_snapshot!(optimize(parse("foo & file(bar) & baz").unwrap()), @r###"
-        Filter {
-            candidates: Intersection(
+        Intersection(
+            Intersection(
                 Symbol(
                     "foo",
                 ),
@@ -2653,19 +2671,21 @@ mod tests {
                     "baz",
                 ),
             ),
-            predicate: File(
-                [
-                    "bar",
-                ],
+            Filter(
+                File(
+                    [
+                        "bar",
+                    ],
+                ),
             ),
-        }
+        )
         "###);
 
         insta::assert_debug_snapshot!(
             optimize(parse("foo & description(bar) & author(baz) & qux").unwrap()), @r###"
-        Filter {
-            candidates: Filter {
-                candidates: Intersection(
+        Intersection(
+            Intersection(
+                Intersection(
                     Symbol(
                         "foo",
                     ),
@@ -2673,72 +2693,81 @@ mod tests {
                         "qux",
                     ),
                 ),
-                predicate: Description(
-                    "bar",
+                Filter(
+                    Description(
+                        "bar",
+                    ),
                 ),
-            },
-            predicate: Author(
-                "baz",
             ),
-        }
+            Filter(
+                Author(
+                    "baz",
+                ),
+            ),
+        )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("foo & description(bar) & parents(author(baz)) & qux").unwrap()), @r###"
-        Filter {
-            candidates: Intersection(
+        Intersection(
+            Intersection(
                 Intersection(
                     Symbol(
                         "foo",
                     ),
                     Parents(
-                        Filter {
-                            candidates: All,
-                            predicate: Author(
+                        Filter(
+                            Author(
                                 "baz",
                             ),
-                        },
+                        ),
                     ),
                 ),
                 Symbol(
                     "qux",
                 ),
             ),
-            predicate: Description(
-                "bar",
+            Filter(
+                Description(
+                    "bar",
+                ),
             ),
-        }
+        )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("foo & description(bar) & parents(author(baz) & qux)").unwrap()), @r###"
-        Filter {
-            candidates: Intersection(
+        Intersection(
+            Intersection(
                 Symbol(
                     "foo",
                 ),
                 Parents(
-                    Filter {
-                        candidates: Symbol(
+                    Intersection(
+                        Symbol(
                             "qux",
                         ),
-                        predicate: Author(
-                            "baz",
+                        Filter(
+                            Author(
+                                "baz",
+                            ),
                         ),
-                    },
+                    ),
                 ),
             ),
-            predicate: Description(
-                "bar",
+            Filter(
+                Description(
+                    "bar",
+                ),
             ),
-        }
+        )
         "###);
 
         // Symbols have to be pushed down to the innermost filter node.
         insta::assert_debug_snapshot!(
             optimize(parse("(a & author(A)) & (b & author(B)) & (c & author(C))").unwrap()), @r###"
-        Filter {
-            candidates: Filter {
-                candidates: Filter {
-                    candidates: Intersection(
+        Intersection(
+            Intersection(
+                Intersection(
+                    Intersection(
                         Intersection(
                             Symbol(
                                 "a",
@@ -2751,26 +2780,32 @@ mod tests {
                             "c",
                         ),
                     ),
-                    predicate: Author(
-                        "A",
+                    Filter(
+                        Author(
+                            "A",
+                        ),
                     ),
-                },
-                predicate: Author(
-                    "B",
                 ),
-            },
-            predicate: Author(
-                "C",
+                Filter(
+                    Author(
+                        "B",
+                    ),
+                ),
             ),
-        }
+            Filter(
+                Author(
+                    "C",
+                ),
+            ),
+        )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("(a & author(A)) & ((b & author(B)) & (c & author(C))) & d").unwrap()),
             @r###"
-        Filter {
-            candidates: Filter {
-                candidates: Filter {
-                    candidates: Intersection(
+        Intersection(
+            Intersection(
+                Intersection(
+                    Intersection(
                         Intersection(
                             Symbol(
                                 "a",
@@ -2788,37 +2823,47 @@ mod tests {
                             "d",
                         ),
                     ),
-                    predicate: Author(
-                        "A",
+                    Filter(
+                        Author(
+                            "A",
+                        ),
                     ),
-                },
-                predicate: Author(
-                    "B",
                 ),
-            },
-            predicate: Author(
-                "C",
+                Filter(
+                    Author(
+                        "B",
+                    ),
+                ),
             ),
-        }
+            Filter(
+                Author(
+                    "C",
+                ),
+            ),
+        )
         "###);
 
         // 'all()' moves in to 'filter()' first, so 'A & filter()' can be found.
         insta::assert_debug_snapshot!(
             optimize(parse("foo & (all() & description(bar)) & (author(baz) & all())").unwrap()),
             @r###"
-        Filter {
-            candidates: Filter {
-                candidates: Symbol(
+        Intersection(
+            Intersection(
+                Symbol(
                     "foo",
                 ),
-                predicate: Description(
-                    "bar",
+                Filter(
+                    Description(
+                        "bar",
+                    ),
                 ),
-            },
-            predicate: Author(
-                "baz",
             ),
-        }
+            Filter(
+                Author(
+                    "baz",
+                ),
+            ),
+        )
         "###);
     }
 }
