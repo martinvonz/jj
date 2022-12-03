@@ -49,11 +49,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * It is now possible to specify configuration options on the command line
   with the new `--config-toml` global option.
 
-* (#469) `jj git` subcommands will prompt for credentials when
-  required for HTTPS remotes rather than failing.
+* `jj git` subcommands will prompt for credentials when required for HTTPS
+  remotes rather than failing.
+  [#469](https://github.com/martinvonz/jj/issues/469)
 
-* (#254) Branches that have a different target on some remote than they do
-  locally are now indicated by an asterisk suffix (e.g. `main*`) in `jj log`.
+* Branches that have a different target on some remote than they do locally are
+  now indicated by an asterisk suffix (e.g. `main*`) in `jj log`.
+  [#254](https://github.com/martinvonz/jj/issues/254)
 
 * The commit ID was moved from first on the line in `jj log` output to close to
   the end. The goal is to encourage users to use the change ID instead, since
@@ -77,14 +79,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
-* (#463) A bug in the export of branches to Git caused spurious conflicted
-  branches. This typically occurred when running in a working copy colocated
-  with Git (created by running `jj init --git-dir=.`).
+* A bug in the export of branches to Git caused spurious conflicted branches.
+  This typically occurred when running in a working copy colocated with Git
+  (created by running `jj init --git-dir=.`).
+  [#463](https://github.com/martinvonz/jj/issues/463)
   
-* (#493) When exporting branches to Git, we used to fail if some branches could
-  not be exported (e.g. because Git doesn't allow a branch called `main` and
-  another branch called `main/sub`). We now print a warning about these branches
+* When exporting branches to Git, we used to fail if some branches could not be
+  exported (e.g. because Git doesn't allow a branch called `main` and another
+  branch called `main/sub`). We now print a warning about these branches
   instead.
+  [#493](https://github.com/martinvonz/jj/issues/493)
 
 * If you had modified branches in jj and also modified branches in conflicting
   ways in Git, `jj git export` used to overwrite the changes you made in Git.
@@ -138,11 +142,12 @@ No changes (just trying to get automated GitHub release to work).
 * An alias that is not configured as a string list (e.g. `my-status = "status"`
   instead of `my-status = ["status"]`) is now an error instead of a warning.
 
-* (#250) `jj log` now defaults to showing only commits that are not on any
-  remote branches (plus their closest commit on the remote branch for context).
-  This set of commits can be overridden by setting `ui.default-revset`.
-  Use `jj log -r 'all()'` for the old behavior. Read more about revsets
+* `jj log` now defaults to showing only commits that are not on any remote
+  branches (plus their closest commit on the remote branch for context). This
+  set of commits can be overridden by setting `ui.default-revset`. Use
+  `jj log -r 'all()'` for the old behavior. Read more about revsets
   [here](https://github.com/martinvonz/jj/blob/main/docs/revsets.md).
+  [#250](https://github.com/martinvonz/jj/issues/250)
 
 * `jj new` now always checks out the new commit (used to be only if the parent
   was `@`).
@@ -154,8 +159,9 @@ No changes (just trying to get automated GitHub release to work).
   commit is open, a new working-copy commit will be created on top (the open
   parent commit used to get checked out).
 
-* (#330) `jj branch` now uses subcommands like `jj branch create` and
+* `jj branch` now uses subcommands like `jj branch create` and
   `jj branch forget` instead of options like `jj branch --forget`.
+  [#330](https://github.com/martinvonz/jj/issues/330)
 
 * The [`$NO_COLOR` environment variable](https://no-color.org/) no longer
   overrides the `ui.color` configuration if explicitly set.
@@ -185,8 +191,9 @@ No changes (just trying to get automated GitHub release to work).
 
 * The new `jj print` command prints the contents of a file in a revision.
 
-* (#243) The new `jj git remotes list` command lists the configured remotes and
-  their URLs.
+* The new `jj git remotes list` command lists the configured remotes and their
+  URLs.
+  [#243](https://github.com/martinvonz/jj/issues/243)
 
 * `jj move` and `jj squash` now lets you limit the set of changes to move by
   specifying paths on the command line (in addition to the `--interactive`
@@ -346,14 +353,15 @@ No changes (just trying to get automated GitHub release to work).
   abandoned if it's empty and has descendants, it only gets abandoned if it's
   empty and does not have descendants.
 
-* (#111) When undoing an earlier operation, any new commits on top of commits
-  from the undone operation will be rebased away. For example, let's say you
-  rebase commit A so it becomes a new commit A', and then you create commit B
-  on top of A'. If you now undo the rebase operation, commit B will be rebased
-  to be on top of A instead. The same logic is used if the repo was modified
-  by concurrent operations (so if one operation added B on top of A, and one
+* When undoing an earlier operation, any new commits on top of commits from the
+  undone operation will be rebased away. For example, let's say you rebase
+  commit A so it becomes a new commit A', and then you create commit B on top of
+  A'. If you now undo the rebase operation, commit B will be rebased to be on
+  top of A instead. The same logic is used if the repo was modified by
+  concurrent operations (so if one operation added B on top of A, and one
   operation rebased A as A', then B would be automatically rebased on top of
   A'). See #111 for more examples.
+  [#111](https://github.com/martinvonz/jj/issues/111)
 
 * `jj log` now accepts `-p`/`--patch` option.
 
@@ -376,8 +384,9 @@ No changes, only trying to get the automated build to work.
 
 ### Fixed bugs
 
- - (#131) Fixed crash when `core.excludesFile` pointed to nonexistent file, and
-   made leading `~/` in that config expand to `$HOME/`
+ - Fixed crash when `core.excludesFile` pointed to nonexistent file, and made
+   leading `~/` in that config expand to `$HOME/`
+   [#131](https://github.com/martinvonz/jj/issues/131)
 
 ## [0.3.0] - 2022-03-12
 
