@@ -105,6 +105,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   later removed if you checked out another commit. You can now use `git` to
   populate the submodule directory and `jj` will leave it alone.
 
+* Git's GC could remove commits that were referenced from jj in some cases. We
+  are now better at adding Git refs to prevent that.
+  [#815](https://github.com/martinvonz/jj/issues/815)
+
 ### Contributors
 
 Thanks to the people who made this release happen!
