@@ -33,7 +33,7 @@ use crate::stacked_table::{TableSegment, TableStore};
 
 const HASH_LENGTH: usize = 20;
 /// Ref namespace used only for preventing GC.
-const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
+pub const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
 const CONFLICT_SUFFIX: &str = ".jjconflict";
 
 impl From<git2::Error> for BackendError {
