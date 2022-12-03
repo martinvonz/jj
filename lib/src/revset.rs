@@ -1166,11 +1166,17 @@ fn transform_expression_bottom_up(
     transform_rec(expression, &mut f)
 }
 
-/// Transforms intersection of filter expressions. The resulting tree may
-/// contain redundant intersections like `all() & e`.
-fn internalize_filter_intersection(
-    expression: &Rc<RevsetExpression>,
-) -> Option<Rc<RevsetExpression>> {
+/// Transforms filter expressions, by applying the following rules.
+///
+/// a. Moves as many sets to filter candidates as possible, to minimize the
+///    filter inputs.
+/// b. TODO: Rewrites set operations to and/or/not of predicates, to
+///    help further optimization (e.g. combine `file(_)` matchers.)
+/// c. TODO: Wraps union of filter and set (e.g. `author(_) | heads()`), to
+///    ensure inner filter wouldn't need to evaluate all the input sets.
+///
+/// The resulting tree may contain redundant intersections like `all() & e`.
+fn internalize_filter(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
     // Since both sides must have already been "internalize"d, we don't need to
     // apply the whole bottom-up pass to new intersection node. Instead, just push
     // new 'c & g(d)' down to 'g(c & d)' while either side is a filter node.
@@ -1209,17 +1215,16 @@ fn internalize_filter_intersection(
     // so that a filter node can be found as a direct child of an intersection node.
     // However, the rewritten intersection node 'c & e' can also be a rewrite target
     // if 'e' is a filter node. That's why intersect_down() is also recursive.
-    transform_expression_bottom_up(expression, |expression| {
-        if let RevsetExpression::Intersection(expression1, expression2) = expression.as_ref() {
+    transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
+        RevsetExpression::Intersection(expression1, expression2) => {
             match (expression1.as_ref(), expression2.as_ref()) {
                 (_, RevsetExpression::Filter { .. }) | (RevsetExpression::Filter { .. }, _) => {
                     Some(intersect_down(expression1, expression2))
                 }
                 _ => None, // don't recreate identical node
             }
-        } else {
-            None
         }
+        _ => None,
     })
 }
 
@@ -1262,7 +1267,7 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpress
 /// Rewrites the given `expression` tree to reduce evaluation cost. Returns new
 /// tree.
 pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-    let expression = internalize_filter_intersection(&expression).unwrap_or(expression);
+    let expression = internalize_filter(&expression).unwrap_or(expression);
     let expression = fold_redundant_expression(&expression).unwrap_or(expression);
     fold_difference(&expression).unwrap_or(expression)
 }
