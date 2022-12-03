@@ -109,10 +109,10 @@ pub fn import_refs(
         new_git_heads.insert(id.clone());
         // TODO: Make it configurable which remotes are publishing and update public
         // heads here.
-        mut_repo.set_git_ref(full_name.clone(), RefTarget::Normal(id.clone()));
         let old_target = existing_git_refs.remove(&full_name);
         let new_target = Some(RefTarget::Normal(id.clone()));
         if new_target != old_target {
+            mut_repo.set_git_ref(full_name.clone(), RefTarget::Normal(id.clone()));
             let commit = store.get_commit(&id).unwrap();
             mut_repo.add_head(&commit);
             changed_git_refs.insert(full_name, (old_target, new_target));
