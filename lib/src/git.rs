@@ -172,14 +172,20 @@ pub enum GitExportError {
     InternalGitError(#[from] git2::Error),
 }
 
-/// Reflect changes between two Jujutsu repo views in the underlying Git repo.
-/// Returns a list of names of branches that failed to export.
+/// Reflect changes made in the Jujutsu repo compared to our current view of the
+/// Git repo in `mut_repo.view().git_refs()`. Returns a list of names of
+/// branches that failed to export.
 // TODO: Also indicate why we failed to export these branches
-fn export_changes(
+pub fn export_refs(
     mut_repo: &mut MutableRepo,
-    old_view: &View,
     git_repo: &git2::Repository,
 ) -> Result<Vec<String>, GitExportError> {
+    let mut old_view = View::new(op_store::View::default());
+    for (git_ref, git_ref_target) in mut_repo.view().git_refs() {
+        if let Some(branch_name) = git_ref.strip_prefix("refs/heads/") {
+            old_view.set_local_branch(branch_name.to_string(), git_ref_target.clone());
+        }
+    }
     let new_view = mut_repo.view();
     let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
     let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
@@ -302,21 +308,6 @@ fn export_changes(
         }
     }
     Ok(failed_branches)
-}
-
-/// Reflect changes made in the Jujutsu repo compared to our current view of the
-/// Git repo in `mut_repo.view().git_refs()`.
-pub fn export_refs(
-    mut_repo: &mut MutableRepo,
-    git_repo: &git2::Repository,
-) -> Result<Vec<String>, GitExportError> {
-    let mut last_export_view = View::new(op_store::View::default());
-    for (git_ref, git_ref_target) in mut_repo.view().git_refs() {
-        if let Some(branch_name) = git_ref.strip_prefix("refs/heads/") {
-            last_export_view.set_local_branch(branch_name.to_string(), git_ref_target.clone());
-        }
-    }
-    export_changes(mut_repo, &last_export_view, git_repo)
 }
 
 #[derive(Error, Debug, PartialEq)]
