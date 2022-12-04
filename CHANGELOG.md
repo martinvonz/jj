@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New features
 
 * Commands with long output are paginated.
+  [#9](https://github.com/martinvonz/jj/issues/9)
 
 * The new `jj git remote rename` command allows git remotes to be renamed
   in-place.

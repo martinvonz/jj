@@ -59,7 +59,7 @@ The priority is as follows (environment variables are marked with a `$`):
 
 `ui.pager` > `$PAGER`
 
-`less` is the default pager in the absence of any other setting.
+`less -FRX` is the default pager in the absence of any other setting.
 
 
 ## Editor
