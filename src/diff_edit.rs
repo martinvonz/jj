@@ -89,7 +89,7 @@ pub enum ConflictResolveError {
     NotAConflictError(RepoPath),
     #[error(
         "Only conflicts that involve normal files (not symlinks, not executable, etc.) are \
-         supported. Conflict summary:\n {1}"
+         supported. Conflict summary for {0:?}:\n{1}"
     )]
     NotNormalFilesError(RepoPath, String),
     #[error(
