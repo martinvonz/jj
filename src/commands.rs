@@ -508,9 +508,6 @@ struct UnsquashArgs {
 //   - `jj resolve --list` to list conflicts
 //   - `jj resolve --editor` to resolve a conflict in the default text editor. Should work for
 //     conflicts with 3+ adds. Useful to resolve conflicts in a commit other than the current one.
-//   - Make the `path` argument optional and/or repeatable. If a specific file is not specified,
-//     either pick an arbitrary file with a conflict (e.g. first one `jj resolve --list` shows),
-//     offer a UI, and/or loop over all the conflicted files.
 //   - A way to help split commits with conflicts that are too complicated (more than two sides)
 //     into commits with simpler conflicts. In case of a tree with many merges, we could for example
 //     point to existing commits with simpler conflicts where resolving those conflicts would help
@@ -519,10 +516,12 @@ struct UnsquashArgs {
 struct ResolveArgs {
     #[arg(long, short, default_value = "@")]
     revision: String,
-    /// The path to a file with conflicts. You can use `jj status` to find such
-    /// files
+    /// Restrict to these paths when searching for a conflict to resolve. We
+    /// will attempt to resolve the first conflict we can find. You can use  `jj
+    /// status` to find such files
+    // TODO: Find the conflict we can resolve even if it's not the first one.
     #[arg(value_hint = clap::ValueHint::AnyPath)]
-    path: String,
+    paths: Vec<String>,
 }
 
 /// Restore paths from another revision
@@ -2864,13 +2863,27 @@ fn cmd_resolve(
     args: &ResolveArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let tree = commit.tree();
+    let conflicts = tree.conflicts_matching(matcher.as_ref());
+    if conflicts.is_empty() {
+        return Err(CommandError::CliError(
+            "No conflicts found ".to_string()
+                + (if args.paths.is_empty() {
+                    "at this revision"
+                } else {
+                    "at the given path(s)"
+                }),
+        ));
+    }
+    let (repo_path, _) = conflicts.get(0).unwrap();
     workspace_command.check_rewriteable(&commit)?;
     let mut tx = workspace_command.start_transaction(&format!(
         "Resolve conflicts in commit {}",
         commit.id().hex()
     ));
-    let new_tree_id = workspace_command.run_mergetool(ui, &commit.tree(), &args.path)?;
+    let new_tree_id = workspace_command.run_mergetool(ui, &commit.tree(), repo_path)?;
     CommitBuilder::for_rewrite_from(ui.settings(), &commit)
         .set_tree(new_tree_id)
         .write_to_repo(tx.mut_repo());
