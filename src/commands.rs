@@ -1946,6 +1946,7 @@ fn cmd_status(
     let maybe_checkout = maybe_checkout_id
         .map(|id| repo.store().get_commit(id))
         .transpose()?;
+    ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
     if let Some(wc_commit) = &maybe_checkout {
