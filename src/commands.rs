@@ -1263,12 +1263,14 @@ fn cmd_print(ui: &mut Ui, command: &CommandHelper, args: &PrintArgs) -> Result<(
         }
         Some(TreeValue::File { id, .. }) => {
             let mut contents = repo.store().read_file(&path, &id)?;
+            ui.request_pager();
             std::io::copy(&mut contents, &mut ui.stdout_formatter().as_mut())?;
         }
         Some(TreeValue::Conflict(id)) => {
             let conflict = repo.store().read_conflict(&path, &id)?;
             let mut contents = vec![];
             conflicts::materialize_conflict(repo.store(), &path, &conflict, &mut contents).unwrap();
+            ui.request_pager();
             ui.stdout_formatter().write_all(&contents)?;
         }
         _ => {
