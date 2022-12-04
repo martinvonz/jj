@@ -766,13 +766,9 @@ impl WorkspaceCommandHelper {
         &self,
         ui: &mut Ui,
         tree: &Tree,
-        path: &str,
+        repo_path: &RepoPath,
     ) -> Result<TreeId, CommandError> {
-        Ok(crate::diff_edit::run_mergetool(
-            ui,
-            tree,
-            &self.parse_file_path(path)?,
-        )?)
+        Ok(crate::diff_edit::run_mergetool(ui, tree, repo_path)?)
     }
 
     pub fn edit_diff(
