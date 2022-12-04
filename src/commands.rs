@@ -1245,6 +1245,7 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    ui.request_pager();
     for (name, _value) in commit.tree().entries_matching(matcher.as_ref()) {
         writeln!(ui, "{}", &workspace_command.format_file_path(&name))?;
     }
