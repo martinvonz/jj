@@ -62,6 +62,10 @@ fn test_resolution() {
         o base
         o 
         "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
+    @r###"
+    file
+    "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
@@ -89,13 +93,9 @@ fn test_resolution() {
        6     : b
        7     : >>>>>>>
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve", "--list"]), 
     @r###"
-    Parent commit: 77c5ed9eda54 a
-    Parent commit: 7c4a3488ba53 b
-    Working copy : 665f83829a6a conflict
-    Working copy changes:
-    M file
+    Error: No conflicts found at this revision
     "###);
 
     // Check that the output file starts with conflict markers if
@@ -184,14 +184,8 @@ conflict
        6    6: bconflict
        7    7: >>>>>>>
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    Parent commit: 77c5ed9eda54 a
-    Parent commit: 7c4a3488ba53 b
-    Working copy : cbd3d65d2612 conflict
-    Working copy changes:
-    M file
-    There are unresolved conflicts at these paths:
     file
     "###);
 
@@ -228,14 +222,9 @@ conflict
        6    6: bconflict
        7    7: >>>>>>>
     "###);
-    // No "there are unresolved conflicts..." message below
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve", "--list"]), 
     @r###"
-    Parent commit: 77c5ed9eda54 a
-    Parent commit: 7c4a3488ba53 b
-    Working copy : d5b735448648 conflict
-    Working copy changes:
-    M file
+    Error: No conflicts found at this revision
     "###);
 
     // TODO: Check that running `jj new` and then `jj resolve -r conflict` works
@@ -281,6 +270,10 @@ fn test_normal_conflict_input_files() {
         o base
         o 
         "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
+    @r###"
+    file
+    "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
@@ -318,6 +311,10 @@ fn test_baseless_conflict_input_files() {
         o base
         o 
         "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
+    @r###"
+    file
+    "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
@@ -345,6 +342,10 @@ fn test_too_many_parents() {
     create_commit(&test_env, &repo_path, "b", &["base"], &[("file", "b\n")]);
     create_commit(&test_env, &repo_path, "c", &["base"], &[("file", "c\n")]);
     create_commit(&test_env, &repo_path, "conflict", &["a", "b", "c"], &[]);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
+    @r###"
+    file
+    "###);
 
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
@@ -374,6 +375,10 @@ fn test_edit_delete_conflict_input_files() {
         o base
         o 
         "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
+    @r###"
+    file
+    "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
@@ -406,6 +411,10 @@ fn test_file_vs_dir() {
     std::fs::write(repo_path.join("file").join("placeholder"), "").unwrap();
     create_commit(&test_env, &repo_path, "conflict", &["a", "b"], &[]);
 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
+    @r###"
+    file
+    "###);
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
     Error: Failed to use external tool to resolve: Only conflicts that involve normal files (not symlinks, not executable, etc.) are supported. Conflict summary for "file":
@@ -477,6 +486,11 @@ fn test_multiple_conflicts() {
     second b
     >>>>>>>
     "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
+    @r###"
+    file1
+    file2
+    "###);
 
     let editor_script = test_env.set_up_fake_editor();
 
@@ -494,14 +508,8 @@ fn test_multiple_conflicts() {
        6     : second b
        7     : >>>>>>>
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    Parent commit: 9a25592b7aee a
-    Working copy : 00dac0bec4b1 conflict
-    Working copy changes:
-    M file1
-    M file2
-    There are unresolved conflicts at these paths:
     file1
     "###);
 
@@ -527,14 +535,8 @@ fn test_multiple_conflicts() {
        6    1: firstfor bauto-chosen file
        7     : >>>>>>>
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    Parent commit: 9a25592b7aee a
-    Working copy : f06196060882 conflict
-    Working copy changes:
-    M file1
-    M file2
-    There are unresolved conflicts at these paths:
     file2
     "###);
     std::fs::write(
@@ -563,15 +565,11 @@ fn test_multiple_conflicts() {
        6    1: secondfor bauto-chosen file
        7     : >>>>>>>
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]), 
-    @r###"
-    Parent commit: 9a25592b7aee a
-    Working copy : 0fafecce390d conflict
-    Working copy changes:
-    M file1
-    M file2
-    "###);
 
+    insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve", "--list"]), 
+    @r###"
+    Error: No conflicts found at this revision
+    "###);
     insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve"]), 
     @r###"
     Error: No conflicts found at this revision
