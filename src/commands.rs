@@ -505,7 +505,6 @@ struct UnsquashArgs {
 /// edit the conflict markers in the conflicted file directly with a text
 /// editor.
 //  TODOs:
-//   - `jj resolve --list` to list conflicts
 //   - `jj resolve --editor` to resolve a conflict in the default text editor. Should work for
 //     conflicts with 3+ adds. Useful to resolve conflicts in a commit other than the current one.
 //   - A way to help split commits with conflicts that are too complicated (more than two sides)
@@ -516,9 +515,14 @@ struct UnsquashArgs {
 struct ResolveArgs {
     #[arg(long, short, default_value = "@")]
     revision: String,
+    /// Instead of resolving one conflict, list all the conflicts
+    // TODO: Also have a `--summary` option. `--list` currently acts like
+    // `diff --summary`, but should be more verbose.
+    #[arg(long, short)]
+    list: bool,
     /// Restrict to these paths when searching for a conflict to resolve. We
-    /// will attempt to resolve the first conflict we can find. You can use  `jj
-    /// status` to find such files
+    /// will attempt to resolve the first conflict we can find. You can use
+    /// the `--list` argument to find paths to use here.
     // TODO: Find the conflict we can resolve even if it's not the first one.
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -2883,6 +2887,26 @@ fn cmd_resolve(
                 }),
         ));
     }
+    if args.list {
+        let mut formatter = ui.stdout_formatter();
+        let formatter = formatter.as_mut();
+        for (repo_path, _conflict_id) in conflicts {
+            // TODO: Similar to `jj diff --summary`, insert a few letters
+            // before the filename to indicate the kind of conflict.
+            // E.g. we could have a letter per add : `FF` is a usual conflict
+            // between two versions of a file, `FD` is a file vs directory,
+            // `FFF` for a merge of three conflicting versions. Additionally,
+            // if (# removes) + 1 > (# adds), this indicates the file was deleted
+            // in some versions of the conflict. Perhaps that should be `R` for removed.
+            writeln!(
+                formatter,
+                "{}",
+                &workspace_command.format_file_path(&repo_path)
+            )?;
+        }
+        return Ok(());
+    };
+
     let (repo_path, _) = conflicts.get(0).unwrap();
     workspace_command.check_rewriteable(&commit)?;
     let mut tx = workspace_command.start_transaction(&format!(
