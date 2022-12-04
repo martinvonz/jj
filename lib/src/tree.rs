@@ -210,18 +210,22 @@ impl Tree {
         }
     }
 
-    pub fn has_conflict(&self) -> bool {
-        !self.conflicts().is_empty()
-    }
-
-    pub fn conflicts(&self) -> Vec<(RepoPath, ConflictId)> {
+    pub fn conflicts_matching(&self, matcher: &dyn Matcher) -> Vec<(RepoPath, ConflictId)> {
         let mut conflicts = vec![];
-        for (name, value) in self.entries() {
+        for (name, value) in self.entries_matching(matcher) {
             if let TreeValue::Conflict(id) = value {
                 conflicts.push((name.clone(), id.clone()));
             }
         }
         conflicts
+    }
+
+    pub fn conflicts(&self) -> Vec<(RepoPath, ConflictId)> {
+        self.conflicts_matching(&EverythingMatcher)
+    }
+
+    pub fn has_conflict(&self) -> bool {
+        !self.conflicts().is_empty()
     }
 }
 
