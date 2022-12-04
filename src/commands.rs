@@ -1377,7 +1377,6 @@ fn show_color_words_diff_line(
 }
 
 fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(), CommandError> {
-    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
     let from_tree;
     let to_tree;
@@ -1395,6 +1394,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
     }
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_iterator = from_tree.diff(&to_tree, matcher.as_ref());
+    ui.request_pager();
     show_diff(
         ui.stdout_formatter().as_mut(),
         &workspace_command,
@@ -1405,7 +1405,6 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
 }
 
 fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(), CommandError> {
-    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let parents = commit.parents();
@@ -1435,6 +1434,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
         &workspace_command.workspace_id(),
         &template_string,
     );
+    ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
     template.format(&commit, formatter)?;
@@ -2078,7 +2078,6 @@ fn log_template(settings: &UserSettings) -> String {
 }
 
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {
-    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
 
     let default_revset = ui.settings().default_revset();
@@ -2110,6 +2109,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     );
 
     {
+        ui.request_pager();
         let mut formatter = ui.stdout_formatter();
         let mut formatter = formatter.as_mut();
         formatter.add_label("log")?;
@@ -2241,7 +2241,6 @@ fn show_patch(
 }
 
 fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result<(), CommandError> {
-    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
 
     let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
@@ -2264,6 +2263,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
         &template_string,
     );
 
+    ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let mut formatter = formatter.as_mut();
     formatter.add_label("log")?;
@@ -2337,7 +2337,6 @@ fn cmd_interdiff(
     command: &CommandHelper,
     args: &InterdiffArgs,
 ) -> Result<(), CommandError> {
-    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
     let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
     let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
@@ -2345,6 +2344,7 @@ fn cmd_interdiff(
     let from_tree = rebase_to_dest_parent(&workspace_command, &from, &to)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_iterator = from_tree.diff(&to.tree(), matcher.as_ref());
+    ui.request_pager();
     show_diff(
         ui.stdout_formatter().as_mut(),
         &workspace_command,
@@ -3670,11 +3670,11 @@ fn cmd_op_log(
     command: &CommandHelper,
     _args: &OperationLogArgs,
 ) -> Result<(), CommandError> {
-    ui.request_pager();
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let head_op = repo.operation().clone();
     let head_op_id = head_op.id().clone();
+    ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let mut formatter = formatter.as_mut();
     struct OpTemplate;
