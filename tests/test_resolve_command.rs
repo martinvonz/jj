@@ -406,8 +406,8 @@ fn test_file_vs_dir() {
 
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve", "file"]);
     insta::assert_snapshot!(error, @r###"
-    Error: Failed to use external tool to resolve: Only conflicts that involve normal files (not symlinks, not executable, etc.) are supported. Conflict summary:
-     Conflict:
+    Error: Failed to use external tool to resolve: Only conflicts that involve normal files (not symlinks, not executable, etc.) are supported. Conflict summary for "file":
+    Conflict:
       Removing file with id df967b96a579e45a18b8251732d16804b2e56a55
       Adding file with id 78981922613b2afb6025042ff6bd878ac1994e85
       Adding tree with id 133bb38fc4e4bf6b551f1f04db7e48f04cac2877
