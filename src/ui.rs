@@ -111,7 +111,7 @@ fn pager_setting(settings: &UserSettings) -> FullCommandArgs {
     settings
         .config()
         .get("ui.pager")
-        .unwrap_or_else(|_| "less".into())
+        .unwrap_or_else(|_| "less -FRX".into())
 }
 
 impl Ui {
