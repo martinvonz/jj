@@ -123,6 +123,7 @@ Thanks to the people who made this release happen!
  * Waleed Khan (@arxanas)
  * Sean E. Russell (@xxxserxxx)
  * Pranay Sashank (@pranaysashank)
+ * Luke Granger-Brown (@lukegb)
 
 
 ## [0.5.1] - 2022-10-17
