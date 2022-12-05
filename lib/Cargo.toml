@@ -47,7 +47,7 @@ tracing = "0.1.37"
 
 [dev-dependencies]
 assert_matches = "1.5.0"
-insta = "1.21.2"
+insta = "1.22.0"
 num_cpus = "1.14.0"
 test-case = "2.2.2"
 testutils = { path = "testutils" }
