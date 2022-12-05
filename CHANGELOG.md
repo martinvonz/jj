@@ -110,6 +110,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are now better at adding Git refs to prevent that.
   [#815](https://github.com/martinvonz/jj/issues/815)
 
+* When the working-copy commit was a merge, `jj status` would list only the
+  first parent, and the diff summary would be against that parent. The output
+  now lists all parents and the diff summary is against the auto-merged parents.
+
 ### Contributors
 
 Thanks to the people who made this release happen!

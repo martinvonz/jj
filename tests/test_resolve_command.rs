@@ -92,6 +92,7 @@ fn test_resolution() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]), 
     @r###"
     Parent commit: 77c5ed9eda54 a
+    Parent commit: 7c4a3488ba53 b
     Working copy : 665f83829a6a conflict
     Working copy changes:
     M file
@@ -188,6 +189,7 @@ conflict
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]), 
     @r###"
     Parent commit: 77c5ed9eda54 a
+    Parent commit: 7c4a3488ba53 b
     Working copy : cbd3d65d2612 conflict
     Working copy changes:
     M file
@@ -232,6 +234,7 @@ conflict
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]), 
     @r###"
     Parent commit: 77c5ed9eda54 a
+    Parent commit: 7c4a3488ba53 b
     Working copy : d5b735448648 conflict
     Working copy changes:
     M file

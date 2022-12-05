@@ -1953,16 +1953,18 @@ fn cmd_status(
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
     if let Some(wc_commit) = &maybe_checkout {
-        formatter.write_str("Parent commit: ")?;
         let workspace_id = workspace_command.workspace_id();
-        write_commit_summary(
-            formatter,
-            repo.as_repo_ref(),
-            &workspace_id,
-            &wc_commit.parents()[0],
-            ui.settings(),
-        )?;
-        formatter.write_str("\n")?;
+        for parent in wc_commit.parents() {
+            formatter.write_str("Parent commit: ")?;
+            write_commit_summary(
+                formatter,
+                repo.as_repo_ref(),
+                &workspace_id,
+                &parent,
+                ui.settings(),
+            )?;
+            formatter.write_str("\n")?;
+        }
         formatter.write_str("Working copy : ")?;
         write_commit_summary(
             formatter,
@@ -2023,7 +2025,7 @@ fn cmd_status(
     }
 
     if let Some(wc_commit) = &maybe_checkout {
-        let parent_tree = wc_commit.parents()[0].tree();
+        let parent_tree = merge_commit_trees(repo.as_repo_ref(), &wc_commit.parents());
         let tree = wc_commit.tree();
         if tree.id() == parent_tree.id() {
             formatter.write_str("The working copy is clean\n")?;
