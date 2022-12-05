@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+### New features
+
+### Fixed bugs
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+## [0.6.0] - 2022-12-05
+
+### Breaking changes
+
 * Dropped candidates set argument from `description(needle)`, `author(needle)`,
   `committer(needle)`, `merges()` revsets. Use `x & description(needle)`
   instead.
