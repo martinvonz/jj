@@ -903,7 +903,8 @@ impl WorkspaceCommandHelper {
         {
             ui.write_warn(r#"Name and email not configured. Add something like the following to $HOME/.jjconfig.toml:
   user.name = "Some One"
-  user.email = "someone@example.com""#)?;
+  user.email = "someone@example.com"
+"#)?;
         }
         Ok(())
     }
