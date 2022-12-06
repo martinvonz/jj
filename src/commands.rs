@@ -1296,6 +1296,7 @@ fn show_color_words_diff_hunks(
     right: &[u8],
     formatter: &mut dyn Formatter,
 ) -> io::Result<()> {
+    const SKIPPED_CONTEXT_LINE: &[u8] = b"    ...\n";
     let num_context_lines = 3;
     let mut context = VecDeque::new();
     // Have we printed "..." for any skipped context?
@@ -1305,23 +1306,24 @@ fn show_color_words_diff_hunks(
     for diff_line in files::diff(left, right) {
         if diff_line.is_unmodified() {
             context.push_back(diff_line.clone());
-            if context.len() > num_context_lines {
-                if context_before {
+            let mut start_skipping_context = false;
+            if context_before {
+                if skipped_context && context.len() > num_context_lines {
                     context.pop_front();
-                } else {
-                    context.pop_back();
+                } else if !skipped_context && context.len() > num_context_lines + 1 {
+                    start_skipping_context = true;
                 }
-                if !context_before {
-                    for line in &context {
-                        show_color_words_diff_line(formatter, line)?;
-                    }
-                    context.clear();
-                    context_before = true;
+            } else if context.len() > num_context_lines * 2 + 1 {
+                for line in context.drain(..num_context_lines) {
+                    show_color_words_diff_line(formatter, &line)?;
                 }
-                if !skipped_context {
-                    formatter.write_bytes(b"    ...\n")?;
-                    skipped_context = true;
-                }
+                start_skipping_context = true;
+            }
+            if start_skipping_context {
+                context.drain(..2);
+                formatter.write_bytes(SKIPPED_CONTEXT_LINE)?;
+                skipped_context = true;
+                context_before = true;
             }
         } else {
             for line in &context {
@@ -1334,8 +1336,16 @@ fn show_color_words_diff_hunks(
         }
     }
     if !context_before {
+        if context.len() > num_context_lines + 1 {
+            context.truncate(num_context_lines);
+            skipped_context = true;
+            context_before = true;
+        }
         for line in &context {
             show_color_words_diff_line(formatter, line)?;
+        }
+        if context_before {
+            formatter.write_bytes(SKIPPED_CONTEXT_LINE)?;
         }
     }
 
