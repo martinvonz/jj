@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Thanks to the people who made this release happen!
 
  * Martin von Zweigbergk (@martinvonz)
-
+ * Danny Hooper (hooper@google.com)
 
 ## [0.6.1] - 2022-12-05
 
