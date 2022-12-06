@@ -245,9 +245,14 @@ fn check_resolve_produces_input_file(
         test_env.jj_cmd_failure(repo_path, &["resolve", "--config-toml", &merge_arg_config]);
     // This error means that fake-editor exited successfully but did not modify the
     // output file.
-    insta::assert_snapshot!(error, @r###"
-        Error: Failed to use external tool to resolve: The output file is either unchanged or empty after the editor quit.
-        "###);
+    // We cannot use `insta::assert_snapshot!` here after insta 1.22 due to
+    // https://github.com/mitsuhiko/insta/commit/745b45b. Hopefully, this will again become possible
+    // in the future. See also https://github.com/mitsuhiko/insta/issues/313.
+    assert_eq!(
+        error,
+        "Error: Failed to use external tool to resolve: The output file is either unchanged or \
+         empty after the editor quit.\n"
+    );
 }
 
 #[test]
