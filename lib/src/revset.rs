@@ -1850,6 +1850,8 @@ fn has_diff_from_parent(repo: RepoRef<'_>, entry: &IndexEntry<'_>, matcher: &dyn
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commit_builder::new_change_id;
+    use crate::index::MutableIndex;
 
     fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
         parse_with_aliases(revset_str, [] as [(&str, &str); 0])
@@ -2865,5 +2867,54 @@ mod tests {
             ),
         )
         "###);
+    }
+
+    #[test]
+    fn test_revset_combinator() {
+        let mut index = MutableIndex::full(3);
+        let id_0 = CommitId::from_hex("000000");
+        let id_1 = CommitId::from_hex("111111");
+        let id_2 = CommitId::from_hex("222222");
+        let id_3 = CommitId::from_hex("333333");
+        let id_4 = CommitId::from_hex("444444");
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_2.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_3.clone()]);
+
+        let get_entry = |id: &CommitId| index.entry_by_id(id).unwrap();
+        let make_entries = |ids: &[&CommitId]| ids.iter().map(|id| get_entry(id)).collect_vec();
+        let make_set = |ids: &[&CommitId]| -> Box<dyn Revset<'_>> {
+            let index_entries = make_entries(ids);
+            Box::new(EagerRevset { index_entries })
+        };
+
+        let set = FilterRevset {
+            candidates: make_set(&[&id_4, &id_2, &id_0]),
+            predicate: Box::new(|entry| entry.commit_id() != id_4),
+        };
+        assert_eq!(set.iter().collect_vec(), make_entries(&[&id_2, &id_0]));
+
+        let set = UnionRevset {
+            set1: make_set(&[&id_4, &id_2]),
+            set2: make_set(&[&id_3, &id_2, &id_1]),
+        };
+        assert_eq!(
+            set.iter().collect_vec(),
+            make_entries(&[&id_4, &id_3, &id_2, &id_1])
+        );
+
+        let set = IntersectionRevset {
+            set1: make_set(&[&id_4, &id_2, &id_0]),
+            set2: make_set(&[&id_3, &id_2, &id_1]),
+        };
+        assert_eq!(set.iter().collect_vec(), make_entries(&[&id_2]));
+
+        let set = DifferenceRevset {
+            set1: make_set(&[&id_4, &id_2, &id_0]),
+            set2: make_set(&[&id_3, &id_2, &id_1]),
+        };
+        assert_eq!(set.iter().collect_vec(), make_entries(&[&id_4, &id_0]));
     }
 }

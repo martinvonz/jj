@@ -366,7 +366,7 @@ impl MutableIndex {
         );
     }
 
-    fn add_commit_data(
+    pub(crate) fn add_commit_data(
         &mut self,
         commit_id: CommitId,
         change_id: ChangeId,
