@@ -36,6 +36,22 @@ fn test_alias_basic() {
 }
 
 #[test]
+fn test_alias_bad_name() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["foo."]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The subcommand 'foo.' wasn't recognized
+
+    Usage: jj [OPTIONS] <COMMAND>
+
+    For more information try '--help'
+    "###);
+}
+
+#[test]
 fn test_alias_calls_unknown_command() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
