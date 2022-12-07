@@ -180,7 +180,7 @@ fn test_alias_invalid_definition() {
     test_env.add_config(
         br#"[alias]
     non-list = 5
-    non-string-list = [7]
+    non-string-list = [[]]
     "#,
     );
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["non-list"]);
