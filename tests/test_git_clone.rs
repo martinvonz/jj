@@ -50,6 +50,8 @@ fn test_git_clone() {
         )
         .unwrap();
     git_repo.set_head("refs/heads/main").unwrap();
+
+    // Clone with relative source path
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["git", "clone", "source", "clone"]);
     insta::assert_snapshot!(stdout, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
@@ -57,6 +59,12 @@ fn test_git_clone() {
     Added 1 files, modified 0 files, removed 0 files
     "###);
     assert!(test_env.env_root().join("clone").join("file").exists());
+
+    // Subsequent fetch should just work even if the source path was relative
+    let stdout = test_env.jj_cmd_success(&test_env.env_root().join("clone"), &["git", "fetch"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
 
     // Try cloning into an existing workspace
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["git", "clone", "source", "clone"]);

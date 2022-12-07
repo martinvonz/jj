@@ -4193,6 +4193,23 @@ fn cmd_git_fetch(
     Ok(())
 }
 
+fn absolute_git_source(cwd: &Path, source: &str) -> String {
+    // Git appears to turn URL-like source to absolute path if local git directory
+    // exits, and fails because '$PWD/https' is unsupported protocol. Since it would
+    // be tedious to copy the exact git (or libgit2) behavior, we simply assume a
+    // source containing ':' is a URL, SSH remote, or absolute path with Windows
+    // drive letter.
+    if !source.contains(':') && Path::new(source).exists() {
+        // It's less likely that cwd isn't utf-8, so just fall back to original source.
+        cwd.join(source)
+            .into_os_string()
+            .into_string()
+            .unwrap_or_else(|_| source.to_owned())
+    } else {
+        source.to_owned()
+    }
+}
+
 fn clone_destination_for_source(source: &str) -> Option<&str> {
     let destination = source.strip_suffix(".git").unwrap_or(source);
     let destination = destination.strip_suffix('/').unwrap_or(destination);
@@ -4217,11 +4234,11 @@ fn cmd_git_clone(
     if command.global_args().repository.is_some() {
         return Err(user_error("'--repository' cannot be used with 'git clone'"));
     }
-    let source = &args.source;
+    let source = absolute_git_source(ui.cwd(), &args.source);
     let wc_path_str = args
         .destination
         .as_deref()
-        .or_else(|| clone_destination_for_source(source))
+        .or_else(|| clone_destination_for_source(&source))
         .ok_or_else(|| user_error("No destination specified and wasn't able to guess it"))?;
     let wc_path = ui.cwd().join(wc_path_str);
     let wc_path_existed = wc_path.exists();
@@ -4235,7 +4252,7 @@ fn cmd_git_clone(
         fs::create_dir(&wc_path).unwrap();
     }
 
-    let clone_result = do_git_clone(ui, command, source, &wc_path);
+    let clone_result = do_git_clone(ui, command, &source, &wc_path);
     if clone_result.is_err() {
         // Canonicalize because fs::remove_dir_all() doesn't seem to like e.g.
         // `/some/path/.`
