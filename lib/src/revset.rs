@@ -1276,9 +1276,23 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpress
     })
 }
 
+/// Transforms binary difference to more primitive negative intersection.
+///
+/// For example, `all() ~ e` will become `all() & ~e`, which can be simplified
+/// further by `fold_redundant_expression()`.
+fn unfold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
+    transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
+        RevsetExpression::Difference(expression1, expression2) => {
+            Some(expression1.intersection(&expression2.negated()))
+        }
+        _ => None,
+    })
+}
+
 /// Rewrites the given `expression` tree to reduce evaluation cost. Returns new
 /// tree.
 pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+    let expression = unfold_difference(&expression).unwrap_or(expression);
     let expression = internalize_filter(&expression).unwrap_or(expression);
     let expression = fold_redundant_expression(&expression).unwrap_or(expression);
     fold_difference(&expression).unwrap_or(expression)
@@ -2513,10 +2527,6 @@ mod tests {
         let optimized = optimize(parsed.clone());
         assert!(Rc::ptr_eq(&parsed, &optimized));
 
-        let parsed = parse("branches() ~ tags()").unwrap();
-        let optimized = optimize(parsed.clone());
-        assert!(Rc::ptr_eq(&parsed, &optimized));
-
         // Only left subtree should be rewritten.
         let parsed = parse("(branches() & all()) | tags()").unwrap();
         let optimized = optimize(parsed.clone());
@@ -2577,6 +2587,28 @@ mod tests {
         )
         "###);
         insta::assert_debug_snapshot!(optimize(parse("(all() & ~foo) & bar").unwrap()), @r###"
+        Difference(
+            Symbol(
+                "bar",
+            ),
+            Symbol(
+                "foo",
+            ),
+        )
+        "###);
+
+        // Binary difference operation should go through the same optimization passes.
+        insta::assert_debug_snapshot!(optimize(parse("foo ~ bar").unwrap()), @r###"
+        Difference(
+            Symbol(
+                "foo",
+            ),
+            Symbol(
+                "bar",
+            ),
+        )
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("(all() ~ foo) & bar").unwrap()), @r###"
         Difference(
             Symbol(
                 "bar",
