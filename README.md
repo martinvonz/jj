@@ -201,6 +201,15 @@ If you use Homebrew, you can run:
 brew install jj
 ```
 
+#### MacPorts
+
+You can also install `jj` via [MacPorts](https://www.macports.org) (as the `jujutsu` port):
+
+```shell script
+sudo port install jujutsu
+```
+
+([port page](https://ports.macports.org/port/jujutsu/))
 
 #### From Source
 
