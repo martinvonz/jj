@@ -1371,32 +1371,6 @@ pub fn create_ui() -> (Ui, Result<(), CommandError>) {
     }
 }
 
-fn string_list_from_config(value: config::Value) -> Option<Vec<String>> {
-    match value {
-        config::Value {
-            kind: config::ValueKind::Array(elements),
-            ..
-        } => {
-            let mut strings = vec![];
-            for arg in elements {
-                match arg {
-                    config::Value {
-                        kind: config::ValueKind::String(string_value),
-                        ..
-                    } => {
-                        strings.push(string_value);
-                    }
-                    _ => {
-                        return None;
-                    }
-                }
-            }
-            Some(strings)
-        }
-        _ => None,
-    }
-}
-
 fn resolve_aliases(
     user_settings: &UserSettings,
     app: &clap::Command,
@@ -1432,7 +1406,7 @@ fn resolve_aliases(
                     )));
                 }
                 if let Some(value) = aliases_map.remove(&alias_name) {
-                    if let Some(alias_definition) = string_list_from_config(value) {
+                    if let Ok(alias_definition) = value.try_deserialize::<Vec<String>>() {
                         assert!(string_args.ends_with(&alias_args));
                         string_args.truncate(string_args.len() - 1 - alias_args.len());
                         string_args.extend(alias_definition);
