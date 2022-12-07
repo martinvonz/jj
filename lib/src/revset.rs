@@ -1167,8 +1167,6 @@ fn transform_expression_bottom_up(
 ///    help further optimization (e.g. combine `file(_)` matchers.)
 /// c. Wraps union of filter and set (e.g. `author(_) | heads()`), to
 ///    ensure inner filter wouldn't need to evaluate all the input sets.
-///
-/// The resulting tree may contain redundant intersections like `all() & e`.
 fn internalize_filter(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
     fn is_filter(expression: &RevsetExpression) -> bool {
         matches!(
