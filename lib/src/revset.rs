@@ -1291,8 +1291,8 @@ fn unfold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpre
 /// tree.
 pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
     let expression = unfold_difference(&expression).unwrap_or(expression);
-    let expression = internalize_filter(&expression).unwrap_or(expression);
     let expression = fold_redundant_expression(&expression).unwrap_or(expression);
+    let expression = internalize_filter(&expression).unwrap_or(expression);
     fold_difference(&expression).unwrap_or(expression)
 }
 
@@ -2471,11 +2471,12 @@ mod tests {
         );
 
         assert_eq!(
-            optimize(parse("present(author(foo) & all())").unwrap()),
+            optimize(parse("present(author(foo) ~ bar)").unwrap()),
             Rc::new(RevsetExpression::AsFilter(Rc::new(
-                RevsetExpression::Present(RevsetExpression::filter(RevsetFilterPredicate::Author(
-                    "foo".to_owned()
-                )))
+                RevsetExpression::Present(
+                    RevsetExpression::filter(RevsetFilterPredicate::Author("foo".to_owned()))
+                        .minus(&RevsetExpression::symbol("bar".to_owned()))
+                )
             )))
         );
         assert_eq!(
@@ -2596,6 +2597,13 @@ mod tests {
         "###);
 
         // Binary difference operation should go through the same optimization passes.
+        insta::assert_debug_snapshot!(optimize(parse("all() ~ foo").unwrap()), @r###"
+        NotIn(
+            Symbol(
+                "foo",
+            ),
+        )
+        "###);
         insta::assert_debug_snapshot!(optimize(parse("foo ~ bar").unwrap()), @r###"
         Difference(
             Symbol(
