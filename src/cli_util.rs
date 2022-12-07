@@ -1402,6 +1402,10 @@ fn resolve_aliases(
     app: &clap::Command,
     string_args: &[String],
 ) -> Result<Vec<String>, CommandError> {
+    let mut aliases_map = user_settings
+        .config()
+        .get_table("alias")
+        .unwrap_or_default();
     let mut resolved_aliases = HashSet::new();
     let mut string_args = string_args.to_vec();
     let mut real_commands = HashSet::new();
@@ -1427,31 +1431,22 @@ fn resolve_aliases(
                         r#"Recursive alias definition involving "{alias_name}""#
                     )));
                 }
-                match user_settings
-                    .config()
-                    .get::<config::Value>(&format!("alias.{}", alias_name))
-                {
-                    Ok(value) => {
-                        if let Some(alias_definition) = string_list_from_config(value) {
-                            assert!(string_args.ends_with(&alias_args));
-                            string_args.truncate(string_args.len() - 1 - alias_args.len());
-                            string_args.extend(alias_definition);
-                            string_args.extend_from_slice(&alias_args);
-                            resolved_aliases.insert(alias_name.clone());
-                            continue;
-                        } else {
-                            return Err(user_error(format!(
-                                r#"Alias definition for "{alias_name}" must be a string list"#
-                            )));
-                        }
+                if let Some(value) = aliases_map.remove(&alias_name) {
+                    if let Some(alias_definition) = string_list_from_config(value) {
+                        assert!(string_args.ends_with(&alias_args));
+                        string_args.truncate(string_args.len() - 1 - alias_args.len());
+                        string_args.extend(alias_definition);
+                        string_args.extend_from_slice(&alias_args);
+                        resolved_aliases.insert(alias_name.clone());
+                        continue;
+                    } else {
+                        return Err(user_error(format!(
+                            r#"Alias definition for "{alias_name}" must be a string list"#
+                        )));
                     }
-                    Err(config::ConfigError::NotFound(_)) => {
-                        // Not a real command and not an alias, so return what we've resolved so far
-                        return Ok(string_args);
-                    }
-                    Err(err) => {
-                        return Err(CommandError::from(err));
-                    }
+                } else {
+                    // Not a real command and not an alias, so return what we've resolved so far
+                    return Ok(string_args);
                 }
             }
         }
