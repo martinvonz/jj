@@ -328,10 +328,8 @@ pub enum RevsetFilterPredicate {
     Author(String),
     /// Commits with committer's name or email containing the needle.
     Committer(String),
-    /// Commits modifying no files. Equivalent to `Not(File(["."]))`.
-    Empty,
     /// Commits modifying the paths specified by the pattern.
-    File(Vec<RepoPath>),
+    File(Option<Vec<RepoPath>>), // TODO: embed matcher expression?
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -917,7 +915,7 @@ fn parse_builtin_function(
         }
         "empty" => {
             expect_no_arguments(name, arguments_pair)?;
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::Empty))
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(None)).negated())
         }
         "file" => {
             if let Some(ctx) = state.workspace_ctx {
@@ -946,7 +944,9 @@ fn parse_builtin_function(
                         arguments_span,
                     ))
                 } else {
-                    Ok(RevsetExpression::filter(RevsetFilterPredicate::File(paths)))
+                    Ok(RevsetExpression::filter(RevsetFilterPredicate::File(Some(
+                        paths,
+                    ))))
                 }
             } else {
                 Err(RevsetParseError::new(
@@ -1951,12 +1951,13 @@ fn build_predicate_fn<'repo>(
                     || commit.committer().email.contains(needle.as_str())
             })
         }
-        RevsetFilterPredicate::Empty => {
-            Box::new(move |entry| !has_diff_from_parent(repo, entry, &EverythingMatcher))
-        }
         RevsetFilterPredicate::File(paths) => {
             // TODO: Add support for globs and other formats
-            let matcher: Box<dyn Matcher> = Box::new(PrefixMatcher::new(paths));
+            let matcher: Box<dyn Matcher> = if let Some(paths) = paths {
+                Box::new(PrefixMatcher::new(paths))
+            } else {
+                Box::new(EverythingMatcher)
+            };
             Box::new(move |entry| has_diff_from_parent(repo, entry, matcher.as_ref()))
         }
     }
@@ -2161,10 +2162,10 @@ mod tests {
             Ok(
                 RevsetExpression::filter(RevsetFilterPredicate::Description("arg1".to_string()))
                     .minus(&RevsetExpression::filter(RevsetFilterPredicate::File(
-                        vec![
+                        Some(vec![
                             RepoPath::from_internal_string("arg1"),
                             RepoPath::from_internal_string("arg2"),
-                        ]
+                        ])
                     )))
                     .minus(&RevsetExpression::visible_heads())
             )
@@ -2264,23 +2265,25 @@ mod tests {
         );
         assert_eq!(
             parse("empty()"),
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::Empty))
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(None)).negated())
         );
         assert!(parse("empty(foo)").is_err());
         assert!(parse("file()").is_err());
         assert_eq!(
             parse("file(foo)"),
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(vec![
-                RepoPath::from_internal_string("foo")
-            ])))
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(Some(
+                vec![RepoPath::from_internal_string("foo")]
+            ))))
         );
         assert_eq!(
             parse("file(foo, bar, baz)"),
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(vec![
-                RepoPath::from_internal_string("foo"),
-                RepoPath::from_internal_string("bar"),
-                RepoPath::from_internal_string("baz"),
-            ])))
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(Some(
+                vec![
+                    RepoPath::from_internal_string("foo"),
+                    RepoPath::from_internal_string("bar"),
+                    RepoPath::from_internal_string("baz"),
+                ]
+            ))))
         );
     }
 
@@ -2674,6 +2677,15 @@ mod tests {
 
     #[test]
     fn test_optimize_filter_difference() {
+        // '~empty()' -> '~~file(*)' -> 'file(*)'
+        insta::assert_debug_snapshot!(optimize(parse("~empty()").unwrap()), @r###"
+        Filter(
+            File(
+                None,
+            ),
+        )
+        "###);
+
         // '& baz' can be moved into the filter node, and form a difference node.
         insta::assert_debug_snapshot!(
             optimize(parse("(author(foo) & ~bar) & baz").unwrap()), @r###"
@@ -2800,9 +2812,11 @@ mod tests {
             ),
             Filter(
                 File(
-                    [
-                        "bar",
-                    ],
+                    Some(
+                        [
+                            "bar",
+                        ],
+                    ),
                 ),
             ),
         )
@@ -2818,9 +2832,11 @@ mod tests {
                 ),
                 Filter(
                     File(
-                        [
-                            "bar",
-                        ],
+                        Some(
+                            [
+                                "bar",
+                            ],
+                        ),
                     ),
                 ),
             ),
@@ -2843,9 +2859,11 @@ mod tests {
             ),
             Filter(
                 File(
-                    [
-                        "bar",
-                    ],
+                    Some(
+                        [
+                            "bar",
+                        ],
+                    ),
                 ),
             ),
         )
