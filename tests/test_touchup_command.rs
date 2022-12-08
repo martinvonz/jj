@@ -25,6 +25,7 @@ fn test_touchup() {
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new"]);
     std::fs::write(repo_path.join("file2"), "a\n").unwrap();
     std::fs::write(repo_path.join("file3"), "a\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["new"]);
@@ -66,8 +67,8 @@ fn test_touchup() {
     std::fs::write(&edit_script, "reset file2").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["touchup"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 8c79910b5033 (no description set)
-    Working copy now at: 8c79910b5033 (no description set)
+    Created 1930da4a57e9 (no description set)
+    Working copy now at: 1930da4a57e9 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -80,14 +81,33 @@ fn test_touchup() {
     std::fs::write(&edit_script, "write file3\nmodified\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["touchup", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created 472de2debaff (no description set)
+    Created c03ae96780b6 (no description set)
     Rebased 1 descendant commits
-    Working copy now at: 6d19dc1ea106 (no description set)
+    Working copy now at: 2a4dc204a6ab (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let contents = String::from_utf8(std::fs::read(repo_path.join("file3")).unwrap()).unwrap();
     insta::assert_snapshot!(contents, @r###"
     modified
+    "###);
+
+    // Test touchup --from @--
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    std::fs::write(
+        &edit_script,
+        "files-before file1\0files-after JJ-INSTRUCTIONS file2 file3\0reset file2",
+    )
+    .unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["touchup", "--from", "@--"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Created 15f2c966d508 (no description set)
+    Working copy now at: 15f2c966d508 (no description set)
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
+    R file1
+    R file2
     "###);
 }
 

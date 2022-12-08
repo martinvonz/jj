@@ -263,12 +263,14 @@ fn test_help() {
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["touchup", "-h"]);
     insta::assert_snapshot!(stdout, @r###"
-    Touch up the content changes in a revision
+    Touch up the content changes in a revision with a diff editor
 
     Usage: jj touchup [OPTIONS]
 
     Options:
-      -r, --revision <REVISION>  The revision to touch up [default: @]
+      -r, --revision <REVISION>  The revision to touch up. Defaults to @ if --to/--from are not specified
+          --from <FROM>          Show changes from this revision. Defaults to @ if --to is specified
+          --to <TO>              Edit changes in this revision. Defaults to @ if --from is specified
       -h, --help                 Print help information (use `--help` for more detail)
 
     Global Options:
