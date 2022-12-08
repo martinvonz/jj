@@ -538,19 +538,34 @@ struct RestoreArgs {
     paths: Vec<String>,
 }
 
-/// Touch up the content changes in a revision
+/// Touch up the content changes in a revision with a diff editor
 ///
-/// Starts a diff editor (`meld` by default) on the changes in the revision.
+/// With the `-r` option, which is the default, starts a diff editor (`meld` by
+/// default) on the changes in the revision.
+///
+/// With the `--from` and/or `--to` options, starts a diff editor comparing the
+/// "from" revision to the "to" revision.
+///
 /// Edit the right side of the diff until it looks the way you want. Once you
-/// close the editor, the revision will be updated. Descendants will be rebased
-/// on top as usual, which may result in conflicts. See `jj squash -i` or `jj
-/// unsquash -i` if you instead want to move changes into or out of the parent
-/// revision.
+/// close the editor, the revision specified with `-r` or `--to` will be
+/// updated. Descendants will be rebased on top as usual, which may result in
+/// conflicts.
+///
+/// See `jj restore` if you want to move entire files from one revision to
+/// another. See `jj squash -i` or `jj unsquash -i` if you instead want to move
+/// changes into or out of the parent revision.
 #[derive(clap::Args, Clone, Debug)]
 struct TouchupArgs {
-    /// The revision to touch up
-    #[arg(long, short, default_value = "@")]
-    revision: RevisionArg,
+    /// The revision to touch up. Defaults to @ if --to/--from are not
+    /// specified.
+    #[arg(long, short)]
+    revision: Option<RevisionArg>,
+    /// Show changes from this revision. Defaults to @ if --to is specified.
+    #[arg(long, conflicts_with = "revision")]
+    from: Option<RevisionArg>,
+    /// Edit changes in this revision. Defaults to @ if --from is specified.
+    #[arg(long, conflicts_with = "revision")]
+    to: Option<RevisionArg>,
 }
 
 /// Split a revision in two
@@ -2417,27 +2432,47 @@ fn cmd_touchup(
     args: &TouchupArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_rewriteable(&commit)?;
-    let base_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commit.parents());
+
+    let (target_commit, base_commits, diff_description);
+    if args.from.is_some() || args.to.is_some() {
+        target_commit = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
+        base_commits =
+            vec![workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?];
+        diff_description = format!(
+            "The diff initially shows the commit's changes relative to:\n{}",
+            short_commit_description(&base_commits[0])
+        );
+    } else {
+        target_commit =
+            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+        base_commits = target_commit.parents();
+        diff_description = "The diff initially shows the commit's changes.".to_string();
+    };
+    workspace_command.check_rewriteable(&target_commit)?;
+
     let instructions = format!(
         "\
 You are editing changes in: {}
 
-The diff initially shows the commit's changes.
+{diff_description}
 
 Adjust the right side until it shows the contents you want. If you
 don't make any changes, then the operation will be aborted.",
-        short_commit_description(&commit)
+        short_commit_description(&target_commit),
     );
-    let tree_id = workspace_command.edit_diff(ui, &base_tree, &commit.tree(), &instructions)?;
-    if &tree_id == commit.tree_id() {
+    let base_tree = merge_commit_trees(
+        workspace_command.repo().as_repo_ref(),
+        base_commits.as_slice(),
+    );
+    let tree_id =
+        workspace_command.edit_diff(ui, &base_tree, &target_commit.tree(), &instructions)?;
+    if &tree_id == target_commit.tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
-        let mut tx =
-            workspace_command.start_transaction(&format!("edit commit {}", commit.id().hex()));
+        let mut tx = workspace_command
+            .start_transaction(&format!("edit commit {}", target_commit.id().hex()));
         let mut_repo = tx.mut_repo();
-        let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &commit)
+        let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &target_commit)
             .set_tree(tree_id)
             .write_to_repo(mut_repo);
         ui.write("Created ")?;
