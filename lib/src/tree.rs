@@ -230,8 +230,9 @@ impl Tree {
 }
 
 pub struct TreeEntriesIterator<'matcher> {
-    tree: Pin<Box<Tree>>,
     entry_iterator: TreeEntriesNonRecursiveIterator<'static>,
+    // On drop, tree must outlive entry_iterator
+    tree: Pin<Box<Tree>>,
     subdir_iterator: Option<Box<TreeEntriesIterator<'matcher>>>,
     matcher: &'matcher dyn Matcher,
 }
@@ -244,8 +245,8 @@ impl<'matcher> TreeEntriesIterator<'matcher> {
         let entry_iterator: TreeEntriesNonRecursiveIterator<'static> =
             unsafe { std::mem::transmute(entry_iterator) };
         Self {
-            tree,
             entry_iterator,
+            tree,
             subdir_iterator: None,
             matcher,
         }
@@ -402,11 +403,12 @@ pub fn recursive_tree_diff(root1: Tree, root2: Tree, matcher: &dyn Matcher) -> T
 
 pub struct TreeDiffIterator<'matcher> {
     dir: RepoPath,
-    tree1: Pin<Box<Tree>>,
-    tree2: Pin<Box<Tree>>,
     matcher: &'matcher dyn Matcher,
     // Iterator over the diffs between tree1 and tree2
     entry_iterator: TreeEntryDiffIterator<'static, 'matcher>,
+    // On drop, tree1 and tree2 must outlive entry_iterator
+    tree1: Pin<Box<Tree>>,
+    tree2: Pin<Box<Tree>>,
     // This is used for making sure that when a directory gets replaced by a file, we
     // yield the value for the addition of the file after we yield the values
     // for removing files in the directory.
@@ -429,10 +431,10 @@ impl<'matcher> TreeDiffIterator<'matcher> {
             unsafe { std::mem::transmute(root_entry_iterator) };
         Self {
             dir,
-            tree1,
-            tree2,
             matcher,
             entry_iterator: root_entry_iterator,
+            tree1,
+            tree2,
             added_file: None,
             subdir_iterator: None,
         }
