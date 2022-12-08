@@ -8,12 +8,12 @@ You can see the log with `jj op log`. Each operation object contains a snapshot
 of how the repo looked at the end of the operation. We call this snapshot a
 "view" object. The view contains information about where each branch, tag, and
 Git ref (in Git-backed repos) pointed, as well as the set of heads in the repo,
-and the current working-copy commit. The operation object also (in addition to
-the view) contains pointers to the operation(s) immediately before it, as well
-as metadata about the operation, such as timestamps, username, hostname,
-description.
+and the current working-copy commit in each workspace. The operation object also
+(in addition to the view) contains pointers to the operation(s) immediately
+before it, as well as metadata about the operation, such as timestamps,
+username, hostname, description.
 
-The operation log allows you to undo an operation (`jj op undo`), which doesn't
+The operation log allows you to undo an operation (`jj [op] undo`), which doesn't
 need to be the most recent one. It also lets you restore the entire repo to the
 way it looked at an earlier point (`jj op restore`).
 

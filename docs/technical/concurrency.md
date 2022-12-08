@@ -30,7 +30,7 @@ beginning. However, that means that operations that wouldn't actually conflict
 would still have to wait for each other. The user experience can be improved by
 using finer-grained locks and/or taking the locks later. The drawback of that is
 complexity. For example, you need to verify that any assumptions you made before
-locking are still valid.
+locking are still valid after you take the lock.
 
 To avoid depending on lock files, Jujutsu takes a different approach by
 accepting that concurrent changes can always happen. It instead exposes any
@@ -52,15 +52,16 @@ what allows us to detect and merge concurrent operations.
 
 ## Operation log
 
-The operation log is similar to a commit DAG (such as in Git), but each commit
-object is instead an "operation" and each tree object is instead a "view". The
-view object contains the set of visible head commits, branches, tags, and the
-working-copy commit. The operation object contains a pointer to the view object
-(like how commit objects point to tree objects), pointers to parent operation(s)
-(like how commit objects point to parent commit(s)), and metadata about the
-operation. These types are defined [here](../../lib/protos/op_store.proto). The
-operation log is normally linear. It becomes non-linear if there are concurrent
-operations.
+The operation log is similar to a commit DAG (such as in
+[Git's object model](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects)),
+but each commit object is instead an "operation" and each tree object is instead
+a "view". The view object contains the set of visible head commits, branches,
+tags, and the working-copy commit in each workspace. The operation object
+contains a pointer to the view object (like how commit objects point to tree
+objects), pointers to parent operation(s) (like how commit objects point to
+parent commit(s)), and metadata about the operation. These types are defined
+[here](../../lib/protos/op_store.proto). The operation log is normally linear.
+It becomes non-linear if there are concurrent operations.
 
 When a command starts, it loads the repo at the latest operation. Because the
 associated view object completely defines the repo state, the running command
@@ -70,8 +71,8 @@ cannot fail to commit (except for disk failures and such). It is left for the
 next command to notice if there were concurrent operations. It will have to be
 able to do that anyway since the concurrent operation could have arrived via a
 distributed file system. This model -- where each operation sees a consistent
-view of the repo and are guaranteed to be able to commit their changes --
-greatly simplifies the implementation of commands.
+view of the repo and is guaranteed to be able to commit their changes -- greatly
+simplifies the implementation of commands.
 
 It is possible to load the repo at a particular operation with
 `jj --at-operation=<operation ID> <command>`. If the command is mutational, that
