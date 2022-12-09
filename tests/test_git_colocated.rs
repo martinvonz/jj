@@ -96,6 +96,40 @@ fn test_git_colocated() {
 }
 
 #[test]
+fn test_git_colocated_export_branches_on_snapshot() {
+    // Checks that we export branches that were changed only because the working
+    // copy was snapshotted
+
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&workspace_root).unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+
+    // Create branch pointing to the initial commit
+    std::fs::write(workspace_root.join("file"), "initial").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["branch", "create", "foo"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @ 438471f3fbf1004298d8fb01eeb13663a051a643 foo
+    o 0000000000000000000000000000000000000000 
+    "###);
+
+    // The branch gets updated when we modify the working copy, and it should get
+    // exported to Git without requiring any other changes
+    std::fs::write(workspace_root.join("file"), "modified").unwrap();
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @ fab22d1acf5bb9c5aa48cb2c3dd2132072a359ca foo
+    o 0000000000000000000000000000000000000000 
+    "###);
+    // TODO: The branch should point to the modified commit
+    insta::assert_snapshot!(git_repo
+        .find_reference("refs/heads/foo")
+        .unwrap()
+        .target()
+        .unwrap()
+        .to_string(), @"438471f3fbf1004298d8fb01eeb13663a051a643");
+}
+
+#[test]
 fn test_git_colocated_rebase_on_import() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
