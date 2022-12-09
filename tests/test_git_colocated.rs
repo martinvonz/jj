@@ -120,13 +120,12 @@ fn test_git_colocated_export_branches_on_snapshot() {
     @ fab22d1acf5bb9c5aa48cb2c3dd2132072a359ca foo
     o 0000000000000000000000000000000000000000 
     "###);
-    // TODO: The branch should point to the modified commit
     insta::assert_snapshot!(git_repo
         .find_reference("refs/heads/foo")
         .unwrap()
         .target()
         .unwrap()
-        .to_string(), @"438471f3fbf1004298d8fb01eeb13663a051a643");
+        .to_string(), @"fab22d1acf5bb9c5aa48cb2c3dd2132072a359ca");
 }
 
 #[test]

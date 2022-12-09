@@ -743,6 +743,12 @@ impl WorkspaceCommandHelper {
                 )?;
             }
 
+            if self.working_copy_shared_with_git {
+                let git_repo = self.repo.store().git_repo().unwrap();
+                let failed_branches = git::export_refs(mut_repo, &git_repo)?;
+                print_failed_git_export(ui, &failed_branches)?;
+            }
+
             self.repo = tx.commit();
         }
         locked_wc.finish(self.repo.op_id().clone());
