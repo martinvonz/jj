@@ -318,6 +318,9 @@ impl error::Error for RevsetParseError {
     }
 }
 
+// assumes index has less than u32::MAX entries.
+const GENERATION_RANGE_FULL: Range<u32> = 0..u32::MAX;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RevsetFilterPredicate {
     /// Commits with number of parents in the range.
@@ -340,11 +343,15 @@ pub enum RevsetExpression {
     Symbol(String),
     Parents(Rc<RevsetExpression>),
     Children(Rc<RevsetExpression>),
-    Ancestors(Rc<RevsetExpression>),
+    Ancestors {
+        heads: Rc<RevsetExpression>,
+        generation: Range<u32>,
+    },
     // Commits that are ancestors of "heads" but not ancestors of "roots"
     Range {
         roots: Rc<RevsetExpression>,
         heads: Rc<RevsetExpression>,
+        generation: Range<u32>,
     },
     // Commits that are descendants of "roots" and ancestors of "heads"
     DagRange {
@@ -440,7 +447,10 @@ impl RevsetExpression {
 
     /// Ancestors of `self`, including `self`.
     pub fn ancestors(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Ancestors(self.clone()))
+        Rc::new(RevsetExpression::Ancestors {
+            heads: self.clone(),
+            generation: GENERATION_RANGE_FULL,
+        })
     }
 
     /// Children of `self`.
@@ -479,6 +489,7 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Range {
             roots: self.clone(),
             heads: heads.clone(),
+            generation: GENERATION_RANGE_FULL,
         })
     }
 
@@ -1077,11 +1088,23 @@ fn transform_expression_bottom_up(
             RevsetExpression::Children(roots) => {
                 transform_rec(roots, f).map(RevsetExpression::Children)
             }
-            RevsetExpression::Ancestors(base) => {
-                transform_rec(base, f).map(RevsetExpression::Ancestors)
+            RevsetExpression::Ancestors { heads, generation } => {
+                transform_rec(heads, f).map(|heads| RevsetExpression::Ancestors {
+                    heads,
+                    generation: generation.clone(),
+                })
             }
-            RevsetExpression::Range { roots, heads } => transform_rec_pair((roots, heads), f)
-                .map(|(roots, heads)| RevsetExpression::Range { roots, heads }),
+            RevsetExpression::Range {
+                roots,
+                heads,
+                generation,
+            } => transform_rec_pair((roots, heads), f).map(|(roots, heads)| {
+                RevsetExpression::Range {
+                    roots,
+                    heads,
+                    generation: generation.clone(),
+                }
+            }),
             RevsetExpression::DagRange { roots, heads } => transform_rec_pair((roots, heads), f)
                 .map(|(roots, heads)| RevsetExpression::DagRange { roots, heads }),
             RevsetExpression::VisibleHeads => None,
@@ -1268,12 +1291,17 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpress
     ) -> Rc<RevsetExpression> {
         match (expression.as_ref(), complement.as_ref()) {
             // :heads & ~(:roots) -> roots..heads
-            (RevsetExpression::Ancestors(heads), RevsetExpression::Ancestors(roots)) => {
-                Rc::new(RevsetExpression::Range {
-                    roots: roots.clone(),
-                    heads: heads.clone(),
-                })
-            }
+            (
+                RevsetExpression::Ancestors { heads, generation },
+                RevsetExpression::Ancestors {
+                    heads: roots,
+                    generation: GENERATION_RANGE_FULL,
+                },
+            ) => Rc::new(RevsetExpression::Range {
+                roots: roots.clone(),
+                heads: heads.clone(),
+                generation: generation.clone(),
+            }),
             _ => expression.minus(complement),
         }
     }
@@ -1301,8 +1329,16 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpress
 fn unfold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
         // roots..heads -> :heads & ~(:roots)
-        RevsetExpression::Range { roots, heads } => {
-            Some(heads.ancestors().intersection(&roots.ancestors().negated()))
+        RevsetExpression::Range {
+            roots,
+            heads,
+            generation,
+        } => {
+            let heads_ancestors = Rc::new(RevsetExpression::Ancestors {
+                heads: heads.clone(),
+                generation: generation.clone(),
+            });
+            Some(heads_ancestors.intersection(&roots.ancestors().negated()))
         }
         RevsetExpression::Difference(expression1, expression2) => {
             Some(expression1.intersection(&expression2.negated()))
@@ -1762,16 +1798,30 @@ pub fn evaluate_expression<'repo>(
                 candidate_set,
             }))
         }
-        RevsetExpression::Ancestors(base_expression) => RevsetExpression::none()
-            .range(base_expression)
-            .evaluate(repo, workspace_ctx),
-        RevsetExpression::Range { roots, heads } => {
+        RevsetExpression::Ancestors { heads, generation } => {
+            let range_expression = RevsetExpression::Range {
+                roots: RevsetExpression::none(),
+                heads: heads.clone(),
+                generation: generation.clone(),
+            };
+            range_expression.evaluate(repo, workspace_ctx)
+        }
+        RevsetExpression::Range {
+            roots,
+            heads,
+            generation,
+        } => {
             let root_set = roots.evaluate(repo, workspace_ctx)?;
             let root_ids = root_set.iter().commit_ids().collect_vec();
             let head_set = heads.evaluate(repo, workspace_ctx)?;
             let head_ids = head_set.iter().commit_ids().collect_vec();
             let walk = repo.index().walk_revs(&head_ids, &root_ids);
-            Ok(Box::new(RevWalkRevset { walk }))
+            if generation == &GENERATION_RANGE_FULL {
+                Ok(Box::new(RevWalkRevset { walk }))
+            } else {
+                let walk = walk.filter_by_generation(generation.clone());
+                Ok(Box::new(RevWalkRevset { walk }))
+            }
         }
         // Clippy doesn't seem to understand that we collect the iterator in order to iterate in
         // reverse
@@ -2067,7 +2117,10 @@ mod tests {
         );
         assert_eq!(
             wc_symbol.ancestors(),
-            Rc::new(RevsetExpression::Ancestors(wc_symbol.clone()))
+            Rc::new(RevsetExpression::Ancestors {
+                heads: wc_symbol.clone(),
+                generation: GENERATION_RANGE_FULL,
+            })
         );
         assert_eq!(
             foo_symbol.children(),
@@ -2098,7 +2151,8 @@ mod tests {
             foo_symbol.range(&wc_symbol),
             Rc::new(RevsetExpression::Range {
                 roots: foo_symbol.clone(),
-                heads: wc_symbol.clone()
+                heads: wc_symbol.clone(),
+                generation: GENERATION_RANGE_FULL,
             })
         );
         assert_eq!(
@@ -2672,6 +2726,7 @@ mod tests {
             heads: Symbol(
                 "foo",
             ),
+            generation: 0..4294967295,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("~:foo & :bar").unwrap()), @r###"
@@ -2682,6 +2737,7 @@ mod tests {
             heads: Symbol(
                 "bar",
             ),
+            generation: 0..4294967295,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("foo..").unwrap()), @r###"
@@ -2690,6 +2746,7 @@ mod tests {
                 "foo",
             ),
             heads: VisibleHeads,
+            generation: 0..4294967295,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("foo..bar").unwrap()), @r###"
@@ -2700,6 +2757,7 @@ mod tests {
             heads: Symbol(
                 "bar",
             ),
+            generation: 0..4294967295,
         }
         "###);
 
