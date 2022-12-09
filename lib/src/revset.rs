@@ -320,6 +320,7 @@ impl error::Error for RevsetParseError {
 
 // assumes index has less than u32::MAX entries.
 const GENERATION_RANGE_FULL: Range<u32> = 0..u32::MAX;
+const GENERATION_RANGE_EMPTY: Range<u32> = 0..0;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RevsetFilterPredicate {
@@ -1346,11 +1347,48 @@ fn unfold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpre
     })
 }
 
+/// Transforms nested `ancestors()`/`parents()` like `h---`.
+fn fold_ancestors(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
+    transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
+        RevsetExpression::Ancestors {
+            heads,
+            generation: generation1,
+        } => {
+            match heads.as_ref() {
+                // (h-)- -> ancestors(ancestors(h, 1), 1) -> ancestors(h, 2)
+                // :(h-) -> ancestors(ancestors(h, 1), ..) -> ancestors(h, 1..)
+                // (:h)- -> ancestors(ancestors(h, ..), 1) -> ancestors(h, 1..)
+                RevsetExpression::Ancestors {
+                    heads,
+                    generation: generation2,
+                } => {
+                    // For any (g1, g2) in (generation1, generation2), g1 + g2.
+                    let generation = if generation1.is_empty() || generation2.is_empty() {
+                        GENERATION_RANGE_EMPTY
+                    } else {
+                        let start = u32::saturating_add(generation1.start, generation2.start);
+                        let end = u32::saturating_add(generation1.end, generation2.end - 1);
+                        start..end
+                    };
+                    Some(Rc::new(RevsetExpression::Ancestors {
+                        heads: heads.clone(),
+                        generation,
+                    }))
+                }
+                _ => None,
+            }
+        }
+        // Range should have been unfolded to intersection of Ancestors.
+        _ => None,
+    })
+}
+
 /// Rewrites the given `expression` tree to reduce evaluation cost. Returns new
 /// tree.
 pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
     let expression = unfold_difference(&expression).unwrap_or(expression);
     let expression = fold_redundant_expression(&expression).unwrap_or(expression);
+    let expression = fold_ancestors(&expression).unwrap_or(expression);
     let expression = internalize_filter(&expression).unwrap_or(expression);
     fold_difference(&expression).unwrap_or(expression)
 }
@@ -3325,6 +3363,148 @@ mod tests {
             ),
         )
         "###);
+    }
+
+    #[test]
+    fn test_optimize_ancestors() {
+        // Typical scenario: fold nested parents()
+        insta::assert_debug_snapshot!(optimize(parse("foo--").unwrap()), @r###"
+        Ancestors {
+            heads: Symbol(
+                "foo",
+            ),
+            generation: 2..3,
+        }
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse(":(foo---)").unwrap()), @r###"
+        Ancestors {
+            heads: Symbol(
+                "foo",
+            ),
+            generation: 3..4294967295,
+        }
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("(:foo)---").unwrap()), @r###"
+        Ancestors {
+            heads: Symbol(
+                "foo",
+            ),
+            generation: 3..4294967295,
+        }
+        "###);
+
+        // 'foo-+' is not 'foo'.
+        insta::assert_debug_snapshot!(optimize(parse("foo---+").unwrap()), @r###"
+        Children(
+            Ancestors {
+                heads: Symbol(
+                    "foo",
+                ),
+                generation: 3..4,
+            },
+        )
+        "###);
+
+        // For 'roots..heads', heads can be folded.
+        insta::assert_debug_snapshot!(optimize(parse("foo..(bar--)").unwrap()), @r###"
+        Range {
+            roots: Symbol(
+                "foo",
+            ),
+            heads: Symbol(
+                "bar",
+            ),
+            generation: 2..4294967295,
+        }
+        "###);
+        // roots can also be folded, but range expression cannot be reconstructed.
+        // No idea if this is better than the original range expression.
+        insta::assert_debug_snapshot!(optimize(parse("(foo--)..(bar---)").unwrap()), @r###"
+        Difference(
+            Ancestors {
+                heads: Symbol(
+                    "bar",
+                ),
+                generation: 3..4294967295,
+            },
+            Ancestors {
+                heads: Symbol(
+                    "foo",
+                ),
+                generation: 2..4294967295,
+            },
+        )
+        "###);
+
+        // If inner range is bounded by roots, it cannot be merged.
+        // e.g. '..(foo..foo)' is equivalent to '..none()', not to '..foo'
+        insta::assert_debug_snapshot!(optimize(parse("(foo..bar)--").unwrap()), @r###"
+        Ancestors {
+            heads: Range {
+                roots: Symbol(
+                    "foo",
+                ),
+                heads: Symbol(
+                    "bar",
+                ),
+                generation: 0..4294967295,
+            },
+            generation: 2..3,
+        }
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("foo..(bar..baz)").unwrap()), @r###"
+        Range {
+            roots: Symbol(
+                "foo",
+            ),
+            heads: Range {
+                roots: Symbol(
+                    "bar",
+                ),
+                heads: Symbol(
+                    "baz",
+                ),
+                generation: 0..4294967295,
+            },
+            generation: 0..4294967295,
+        }
+        "###);
+
+        // Ancestors of empty generation range should be empty.
+        // TODO: rewrite these tests if we added syntax for arbitrary generation
+        // ancestors
+        let empty_generation_ancestors = |heads| {
+            Rc::new(RevsetExpression::Ancestors {
+                heads,
+                generation: GENERATION_RANGE_EMPTY,
+            })
+        };
+        insta::assert_debug_snapshot!(
+            optimize(empty_generation_ancestors(
+                RevsetExpression::symbol("foo".to_owned()).ancestors()
+            )),
+            @r###"
+        Ancestors {
+            heads: Symbol(
+                "foo",
+            ),
+            generation: 0..0,
+        }
+        "###
+        );
+        insta::assert_debug_snapshot!(
+            optimize(
+                empty_generation_ancestors(RevsetExpression::symbol("foo".to_owned())).ancestors()
+            ),
+            @r###"
+        Ancestors {
+            heads: Symbol(
+                "foo",
+            ),
+            generation: 0..0,
+        }
+        "###
+        );
     }
 
     #[test]
