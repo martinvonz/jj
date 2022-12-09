@@ -714,6 +714,26 @@ fn test_evaluate_expression_parents(use_git: bool) {
         ),
         vec![commit3.id().clone(), commit2.id().clone()]
     );
+
+    // Can find parents of parents, which may be optimized to single query
+    assert_eq!(
+        resolve_commit_ids(mut_repo.as_repo_ref(), &format!("{}--", commit4.id().hex())),
+        vec![commit1.id().clone(), root_commit.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("({} | {})--", commit4.id().hex(), commit5.id().hex())
+        ),
+        vec![commit1.id().clone(), root_commit.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("({} | {})--", commit4.id().hex(), commit2.id().hex())
+        ),
+        vec![commit1.id().clone(), root_commit.id().clone()]
+    );
 }
 
 #[test_case(false ; "local backend")]
@@ -799,6 +819,43 @@ fn test_evaluate_expression_ancestors(use_git: bool) {
         vec![
             commit4.id().clone(),
             commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+            root_commit.id().clone(),
+        ]
+    );
+
+    // Can find ancestors of parents or parents of ancestors, which may be optimized
+    // to single query
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!(":({}-)", commit4.id().hex()),
+        ),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+            root_commit.id().clone(),
+        ]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!("(:({}|{}))-", commit3.id().hex(), commit2.id().hex()),
+        ),
+        vec![
+            commit2.id().clone(),
+            commit1.id().clone(),
+            root_commit.id().clone(),
+        ]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo.as_repo_ref(),
+            &format!(":(({}|{})-)", commit3.id().hex(), commit2.id().hex()),
+        ),
+        vec![
             commit2.id().clone(),
             commit1.id().clone(),
             root_commit.id().clone(),
