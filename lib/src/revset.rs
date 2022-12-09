@@ -341,7 +341,6 @@ pub enum RevsetExpression {
     All,
     Commits(Vec<CommitId>),
     Symbol(String),
-    Parents(Rc<RevsetExpression>),
     Children(Rc<RevsetExpression>),
     Ancestors {
         heads: Rc<RevsetExpression>,
@@ -442,7 +441,10 @@ impl RevsetExpression {
 
     /// Parents of `self`.
     pub fn parents(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Parents(self.clone()))
+        Rc::new(RevsetExpression::Ancestors {
+            heads: self.clone(),
+            generation: 1..2,
+        })
     }
 
     /// Ancestors of `self`, including `self`.
@@ -1082,9 +1084,6 @@ fn transform_expression_bottom_up(
             RevsetExpression::All => None,
             RevsetExpression::Commits(_) => None,
             RevsetExpression::Symbol(_) => None,
-            RevsetExpression::Parents(base) => {
-                transform_rec(base, f).map(RevsetExpression::Parents)
-            }
             RevsetExpression::Children(roots) => {
                 transform_rec(roots, f).map(RevsetExpression::Children)
             }
@@ -1776,19 +1775,6 @@ pub fn evaluate_expression<'repo>(
             let commit_ids = resolve_symbol(repo, symbol, workspace_ctx.map(|c| c.workspace_id))?;
             evaluate_expression(repo, &RevsetExpression::Commits(commit_ids), workspace_ctx)
         }
-        RevsetExpression::Parents(base_expression) => {
-            // TODO: Make this lazy
-            let base_set = base_expression.evaluate(repo, workspace_ctx)?;
-            let mut parent_entries = base_set
-                .iter()
-                .flat_map(|entry| entry.parents())
-                .collect_vec();
-            parent_entries.sort_by_key(|b| Reverse(b.position()));
-            parent_entries.dedup();
-            Ok(Box::new(EagerRevset {
-                index_entries: parent_entries,
-            }))
-        }
         RevsetExpression::Children(roots) => {
             let root_set = roots.evaluate(repo, workspace_ctx)?;
             let candidates_expression = roots.descendants();
@@ -2113,7 +2099,10 @@ mod tests {
         );
         assert_eq!(
             wc_symbol.parents(),
-            Rc::new(RevsetExpression::Parents(wc_symbol.clone()))
+            Rc::new(RevsetExpression::Ancestors {
+                heads: wc_symbol.clone(),
+                generation: 1..2,
+            })
         );
         assert_eq!(
             wc_symbol.ancestors(),
@@ -3035,13 +3024,14 @@ mod tests {
                     Symbol(
                         "foo",
                     ),
-                    Parents(
-                        Filter(
+                    Ancestors {
+                        heads: Filter(
                             Author(
                                 "baz",
                             ),
                         ),
-                    ),
+                        generation: 1..2,
+                    },
                 ),
                 Symbol(
                     "qux",
@@ -3061,8 +3051,8 @@ mod tests {
                 Symbol(
                     "foo",
                 ),
-                Parents(
-                    Intersection(
+                Ancestors {
+                    heads: Intersection(
                         Symbol(
                             "qux",
                         ),
@@ -3072,7 +3062,8 @@ mod tests {
                             ),
                         ),
                     ),
-                ),
+                    generation: 1..2,
+                },
             ),
             Filter(
                 Description(
