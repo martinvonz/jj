@@ -43,7 +43,7 @@ The working copy is clean
 ```
 
 You might have noticed that even though we asked to check out some commit
-(`080a9b37ff7e`), our working-copy commit ended being another commit
+(`080a9b37ff7e`), our working-copy commit ended up being another commit
 (`608c179a60df`). That is because `jj co` (short for `jj checkout`) creates a
 new commit on top of the commit you asked it to check out. The new commit is for
 the working-copy changes.
@@ -94,7 +94,7 @@ index aa9b9e31a8...c30897997c 100644
 ```
 Jujutsu's diff format currently defaults to inline coloring of the diff (like
 `git diff --color-words`), so we used `--git` above to make the diff visible in
-this doc.
+this tutorial.
 
 As you may have noticed, the working-copy commit's ID changed both when we
 edited the description and when we edited the README. However, the parent commit
@@ -119,7 +119,12 @@ The working copy is clean
 If we later realize that we want to make further changes, we can make them
 in the working copy and then run `jj squash`. That command squashes the changes
 from a given commit into its parent commit. Like most commands, it acts on the
-working-copy commit by default.
+working-copy commit by default. Alternatively, we can use `jj edit <commit>` to
+resume editing a commit in the working copy. Any further changes in the working
+copy will then amend the commit. Whether you choose to checkout-and-squash or to
+edit typically depends on how done you are with the change; if the change is
+almost done, it makes sense to use `jj checkout` so you can easily review your
+adjustments with `jj diff` before running `jj squash`. 
 
 ## The log command, "revsets", and aliases
 
@@ -142,14 +147,15 @@ rewrite the commit. You can give either hash to commands that take revisions as
 arguments. We will generally prefer change IDs because they stay the same when
 the commit is rewritten.
 
-By default, `jj log` list your local commits, with some remote commits added for
-context.  The `~` indicates that the commit has parents that are not included
-in the graph. We can use the `-r` flag to select a different set of revisions we
-want to list. The flag accepts a ["revset"](revsets.md), which is an expression
-in a simple language for specifying revisions. For example, `@` refers to the
-working-copy commit, `root` refers to the root commit, `branches()` refers to
-all commits pointed to by branches. We can combine expressions with `|` for
-union, `&` for intersection and `~` for difference. For example:
+By default, `jj log` lists your local commits, with some remote commits added
+for context.  The `~` indicates that the commit has parents that are not
+included in the graph. We can use the `-r` flag to select a different set of
+revisions to list. The flag accepts a ["revset"](revsets.md), which is an
+expression in a simple language for specifying revisions. For example, `@`
+refers to the working-copy commit, `root` refers to the root commit,
+`branches()` refers to all commits pointed to by branches. We can combine
+expressions with `|` for union, `&` for intersection and `~` for difference. For
+example:
 ```shell script
 $ jj log -r '@ | root | branches()'
 @ f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00 192b456b024b
@@ -160,8 +166,8 @@ o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
   (no description set)
 ```
 
-(The `000000000000` commit is a virtual commit that's called the "root commit".
-It's the root commit of every repo. The `root` symbol in the revset matches it.)
+The `000000000000` commit is a virtual commit that's called the "root commit".
+It's the root commit of every repo. The `root` symbol in the revset matches it.
 
 There are also operators for getting the parents (`foo-`), children (`foo+`),
 ancestors (`:foo`), descendants (`foo:`), DAG range (`foo:bar`, like
