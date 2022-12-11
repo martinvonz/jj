@@ -16,7 +16,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::fs::File;
 use std::io::{Cursor, Read, Write};
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use git2::Oid;
 use itertools::Itertools;
@@ -29,7 +29,7 @@ use crate::backend::{
     TreeId, TreeValue,
 };
 use crate::repo_path::{RepoPath, RepoPathComponent};
-use crate::stacked_table::{TableSegment, TableStore};
+use crate::stacked_table::{ReadonlyTable, TableSegment, TableStore};
 
 const HASH_LENGTH: usize = 20;
 /// Ref namespace used only for preventing GC.
@@ -50,6 +50,7 @@ pub struct GitBackend {
     root_commit_id: CommitId,
     empty_tree_id: TreeId,
     extra_metadata_store: TableStore,
+    cached_extra_metadata: Mutex<Option<Arc<ReadonlyTable>>>,
 }
 
 impl GitBackend {
@@ -61,6 +62,7 @@ impl GitBackend {
             root_commit_id,
             empty_tree_id,
             extra_metadata_store,
+            cached_extra_metadata: Mutex::new(None),
         }
     }
 
@@ -390,9 +392,17 @@ impl Backend for GitBackend {
             committer,
         };
 
-        let table = self.extra_metadata_store.get_head().map_err(|err| {
-            BackendError::Other(format!("Failed to read non-git metadata: {err}"))
-        })?;
+        let table = {
+            let mut locked_head = self.cached_extra_metadata.lock().unwrap();
+            match locked_head.as_ref() {
+                Some(head) => Ok(head.clone()),
+                None => self.extra_metadata_store.get_head().map(|x| {
+                    *locked_head = Some(x.clone());
+                    x
+                }),
+            }
+        }
+        .map_err(|err| BackendError::Other(format!("Failed to read non-git metadata: {err}")))?;
         let maybe_extras = table.get_value(git_commit_id.as_bytes());
         if let Some(extras) = maybe_extras {
             deserialize_extras(&mut commit, extras);
@@ -452,6 +462,7 @@ impl Backend for GitBackend {
             .map_err(|err| {
                 BackendError::Other(format!("Failed to write non-git metadata: {err}"))
             })?;
+        *self.cached_extra_metadata.lock().unwrap() = None;
         Ok(id)
     }
 }
