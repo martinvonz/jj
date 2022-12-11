@@ -1262,11 +1262,31 @@ fn fold_redundant_expression(expression: &Rc<RevsetExpression>) -> Option<Rc<Rev
 /// Transforms negative intersection to difference. Redundant intersections like
 /// `all() & e` should have been removed.
 fn fold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
+    fn to_difference(
+        expression: &Rc<RevsetExpression>,
+        complement: &Rc<RevsetExpression>,
+    ) -> Rc<RevsetExpression> {
+        match (expression.as_ref(), complement.as_ref()) {
+            // :heads & ~(:roots) -> roots..heads
+            (RevsetExpression::Ancestors(heads), RevsetExpression::Ancestors(roots)) => {
+                Rc::new(RevsetExpression::Range {
+                    roots: roots.clone(),
+                    heads: heads.clone(),
+                })
+            }
+            _ => expression.minus(complement),
+        }
+    }
+
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
         RevsetExpression::Intersection(expression1, expression2) => {
             match (expression1.as_ref(), expression2.as_ref()) {
-                (_, RevsetExpression::NotIn(complement)) => Some(expression1.minus(complement)),
-                (RevsetExpression::NotIn(complement), _) => Some(expression2.minus(complement)),
+                (_, RevsetExpression::NotIn(complement)) => {
+                    Some(to_difference(expression1, complement))
+                }
+                (RevsetExpression::NotIn(complement), _) => {
+                    Some(to_difference(expression2, complement))
+                }
                 _ => None,
             }
         }
@@ -1280,6 +1300,10 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpress
 /// further by `fold_redundant_expression()`.
 fn unfold_difference(expression: &Rc<RevsetExpression>) -> Option<Rc<RevsetExpression>> {
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
+        // roots..heads -> :heads & ~(:roots)
+        RevsetExpression::Range { roots, heads } => {
+            Some(heads.ancestors().intersection(&roots.ancestors().negated()))
+        }
         RevsetExpression::Difference(expression1, expression2) => {
             Some(expression1.intersection(&expression2.negated()))
         }
@@ -2637,6 +2661,46 @@ mod tests {
                 "foo",
             ),
         )
+        "###);
+
+        // Range expression.
+        insta::assert_debug_snapshot!(optimize(parse(":foo & ~:bar").unwrap()), @r###"
+        Range {
+            roots: Symbol(
+                "bar",
+            ),
+            heads: Symbol(
+                "foo",
+            ),
+        }
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("~:foo & :bar").unwrap()), @r###"
+        Range {
+            roots: Symbol(
+                "foo",
+            ),
+            heads: Symbol(
+                "bar",
+            ),
+        }
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("foo..").unwrap()), @r###"
+        Range {
+            roots: Symbol(
+                "foo",
+            ),
+            heads: VisibleHeads,
+        }
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("foo..bar").unwrap()), @r###"
+        Range {
+            roots: Symbol(
+                "foo",
+            ),
+            heads: Symbol(
+                "bar",
+            ),
+        }
         "###);
 
         // Double/triple negates.
