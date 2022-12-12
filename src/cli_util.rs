@@ -602,7 +602,7 @@ impl WorkspaceCommandHelper {
         resolve_single_op(
             self.repo.op_store(),
             self.repo.op_heads_store(),
-            self.repo.operation(),
+            || Ok(self.repo.operation().clone()),
             op_str,
         )
     }
@@ -1010,18 +1010,14 @@ fn resolve_op_for_load(
 ) -> Result<OpHeads, CommandError> {
     if op_str == "@" {
         Ok(op_heads_store.get_heads(op_store)?)
-    } else if op_str == "@-" {
-        match op_heads_store.get_heads(op_store)? {
-            OpHeads::Single(current_op) => {
-                let resolved_op = resolve_single_op(op_store, op_heads_store, &current_op, op_str)?;
-                Ok(OpHeads::Single(resolved_op))
-            }
+    } else {
+        let get_current_op = || match op_heads_store.get_heads(op_store)? {
+            OpHeads::Single(current_op) => Ok(current_op),
             OpHeads::Unresolved { .. } => Err(user_error(format!(
                 r#"The "{op_str}" expression resolved to more than one operation"#
             ))),
-        }
-    } else {
-        let operation = resolve_single_op_from_store(op_store, op_heads_store, op_str)?;
+        };
+        let operation = resolve_single_op(op_store, op_heads_store, get_current_op, op_str)?;
         Ok(OpHeads::Single(operation))
     }
 }
@@ -1029,13 +1025,13 @@ fn resolve_op_for_load(
 fn resolve_single_op(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &Arc<OpHeadsStore>,
-    current_op: &Operation,
+    get_current_op: impl FnOnce() -> Result<Operation, CommandError>,
     op_str: &str,
 ) -> Result<Operation, CommandError> {
     if op_str == "@" {
-        Ok(current_op.clone())
+        get_current_op()
     } else if op_str == "@-" {
-        let parent_ops = current_op.parents();
+        let parent_ops = get_current_op()?.parents();
         if parent_ops.len() != 1 {
             return Err(user_error(format!(
                 r#"The "{op_str}" expression resolved to more than one operation"#
