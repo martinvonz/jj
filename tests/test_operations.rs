@@ -23,32 +23,37 @@ fn test_op_log() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 0"]);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(&stdout, @r###"
-    @ a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    @ 29c6436f392b test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    | describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    | args: jj describe -m 'description 0'
+    o a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     | add workspace 'default'
     o 56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
       initialize repo
     "###);
-    let add_workspace_id = stdout[2..14].to_string();
-    let initialize_repo_id = stdout.lines().nth(2).unwrap()[2..14].to_string();
+    let add_workspace_id = "a99a3fd5c51e";
+    let initialize_repo_id = "56b94dfc38e7";
 
     // Can load the repo at a specific operation ID
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path, &initialize_repo_id), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path, initialize_repo_id), @r###"
     o 0000000000000000000000000000000000000000
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path, &add_workspace_id), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path, add_workspace_id), @r###"
     @ 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     o 0000000000000000000000000000000000000000
     "###);
     // "@" resolves to the head operation
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path, "@"), @r###"
-    @ 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    @ 335e69215d687b88eb3e4a83d51dcba183c43e24
     o 0000000000000000000000000000000000000000
     "###);
     // "@-" resolves to the parent of the head operation
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path, "@-"), @r###"
+    @ 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     o 0000000000000000000000000000000000000000
     "###);
 
@@ -77,7 +82,7 @@ fn test_op_log() {
             "-m",
             "description 2",
             "--at-op",
-            &add_workspace_id,
+            add_workspace_id,
         ],
     );
     insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "@-"]), @r###"
