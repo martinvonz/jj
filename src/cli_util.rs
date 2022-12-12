@@ -1028,19 +1028,24 @@ fn resolve_single_op(
     get_current_op: impl FnOnce() -> Result<Operation, CommandError>,
     op_str: &str,
 ) -> Result<Operation, CommandError> {
-    if op_str == "@" {
-        get_current_op()
-    } else if op_str == "@-" {
-        let parent_ops = get_current_op()?.parents();
-        if parent_ops.len() != 1 {
-            return Err(user_error(format!(
+    let op_symbol = op_str.trim_end_matches('-');
+    let op_postfix = &op_str[op_symbol.len()..];
+    let mut operation = match op_symbol {
+        "@" => get_current_op(),
+        s => resolve_single_op_from_store(op_store, op_heads_store, s),
+    }?;
+    for _ in op_postfix.chars() {
+        operation = match operation.parents().as_slice() {
+            [op] => Ok(op.clone()),
+            [] => Err(user_error(format!(
+                r#"The "{op_str}" expression resolved to no operations"#
+            ))),
+            [_, _, ..] => Err(user_error(format!(
                 r#"The "{op_str}" expression resolved to more than one operation"#
-            )));
-        }
-        Ok(parent_ops[0].clone())
-    } else {
-        resolve_single_op_from_store(op_store, op_heads_store, op_str)
+            ))),
+        }?;
     }
+    Ok(operation)
 }
 
 fn find_all_operations(

@@ -56,6 +56,18 @@ fn test_op_log() {
     @ 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     o 0000000000000000000000000000000000000000
     "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path, "@--"), @r###"
+    o 0000000000000000000000000000000000000000
+    "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "@---"]), @r###"
+    Error: The "@---" expression resolved to no operations
+    "###);
+    // "ID-" also resolves to the parent.
+    insta::assert_snapshot!(
+        get_log_output(&test_env, &repo_path, &format!("{add_workspace_id}-")), @r###"
+    o 0000000000000000000000000000000000000000
+    "###);
 
     // We get a reasonable message if an invalid operation ID is specified
     insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "foo"]), @r###"
