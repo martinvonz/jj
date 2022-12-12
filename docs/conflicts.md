@@ -59,19 +59,19 @@ conflict). Here's an example of how Git can render a conflict using [its "diff3"
 style](https://git-scm.com/docs/git-merge#_how_conflicts_are_presented):
 
 ```
-<<<<<<< left
-apple
-grapefruit
-orange
-======= base
-apple
-grape
-orange
-||||||| right
-APPLE
-GRAPE
-ORANGE
->>>>>>>
+  <<<<<<< left
+  apple
+  grapefruit
+  orange
+  ======= base
+  apple
+  grape
+  orange
+  ||||||| right
+  APPLE
+  GRAPE
+  ORANGE
+  >>>>>>>
 ```
 
 In this example, the left side changed "grape" to "grapefruit", and the right
@@ -86,17 +86,17 @@ you, making it easier to spot the differences to apply to the other side. Here's
 how that would look for the same example as above:
 
 ```
-<<<<<<<
-%%%%%%%
- apple
--grape
-+grapefruit
- orange
-+++++++
-APPLE
-GRAPE
-ORANGE
->>>>>>>
+  <<<<<<<
+  %%%%%%%
+   apple
+  -grape
+  +grapefruit
+   orange
+  +++++++
+  APPLE
+  GRAPE
+  ORANGE
+  >>>>>>>
 ```
 
 As in Git, the `<<<<<<<` and `>>>>>>>` lines mark the start and end of the
