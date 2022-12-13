@@ -62,6 +62,7 @@ fn test_git_import_remote_only_branch() {
         &["git", "remote", "add", "origin", "../git-repo"],
     );
 
+    // Import using default config
     git_repo
         .commit(
             Some("refs/heads/feature1"),
@@ -75,6 +76,25 @@ fn test_git_import_remote_only_branch() {
     test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: 9f01a0e04879 message
+    "###);
+
+    // Import using git.auto_local_branch = false
+    git_repo
+        .commit(
+            Some("refs/heads/feature2"),
+            &signature,
+            &signature,
+            "message",
+            &tree,
+            &[],
+        )
+        .unwrap();
+    test_env.add_config("git.auto-local-branch = false");
+    test_env.jj_cmd_success(&repo_path, &["git", "fetch", "--remote=origin"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    feature1: 9f01a0e04879 message
+    feature2 (deleted)
+      @origin: 9f01a0e04879 message
     "###);
 }
 

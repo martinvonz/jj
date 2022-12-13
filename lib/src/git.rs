@@ -25,6 +25,7 @@ use crate::commit::Commit;
 use crate::git_backend::NO_GC_REF_NAMESPACE;
 use crate::op_store::RefTarget;
 use crate::repo::MutableRepo;
+use crate::settings::GitSettings;
 use crate::view::RefName;
 
 #[derive(Error, Debug, PartialEq)]
@@ -65,6 +66,7 @@ fn prevent_gc(git_repo: &git2::Repository, id: &CommitId) {
 pub fn import_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
+    git_settings: &GitSettings,
 ) -> Result<(), GitImportError> {
     let store = mut_repo.store().clone();
     let mut existing_git_refs = mut_repo.view().git_refs().clone();
@@ -141,6 +143,9 @@ pub fn import_refs(
             mut_repo.merge_single_ref(&ref_name, old_git_target.as_ref(), new_git_target.as_ref());
             // If a git remote-tracking branch changed, apply the change to the local branch
             // as well
+            if !git_settings.auto_local_branch {
+                continue;
+            }
             if let RefName::RemoteBranch { branch, remote: _ } = ref_name {
                 mut_repo.merge_single_ref(
                     &RefName::LocalBranch(branch),
@@ -336,6 +341,7 @@ pub fn fetch(
     git_repo: &git2::Repository,
     remote_name: &str,
     callbacks: RemoteCallbacks<'_>,
+    git_settings: &GitSettings,
 ) -> Result<Option<String>, GitFetchError> {
     let mut remote =
         git_repo
@@ -378,7 +384,7 @@ pub fn fetch(
     tracing::debug!("remote.disconnect");
     remote.disconnect()?;
     tracing::debug!("import_refs");
-    import_refs(mut_repo, git_repo).map_err(|err| match err {
+    import_refs(mut_repo, git_repo, git_settings).map_err(|err| match err {
         GitImportError::InternalGitError(source) => GitFetchError::InternalGitError(source),
     })?;
     Ok(default_branch)

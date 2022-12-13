@@ -246,8 +246,16 @@ fn cmd_git_fetch(
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction(&format!("fetch from git remote {}", &remote));
-    with_remote_callbacks(ui, |cb| git::fetch(tx.mut_repo(), &git_repo, &remote, cb))
-        .map_err(|err| user_error(err.to_string()))?;
+    with_remote_callbacks(ui, |cb| {
+        git::fetch(
+            tx.mut_repo(),
+            &git_repo,
+            &remote,
+            cb,
+            &command.settings().git_settings(),
+        )
+    })
+    .map_err(|err| user_error(err.to_string()))?;
     tx.finish(ui)?;
     Ok(())
 }
@@ -365,7 +373,13 @@ fn do_git_clone(
     let mut fetch_tx = workspace_command.start_transaction("fetch from git remote into empty repo");
 
     let maybe_default_branch = with_remote_callbacks(ui, |cb| {
-        git::fetch(fetch_tx.mut_repo(), &git_repo, remote_name, cb)
+        git::fetch(
+            fetch_tx.mut_repo(),
+            &git_repo,
+            remote_name,
+            cb,
+            &command.settings().git_settings(),
+        )
     })
     .map_err(|err| match err {
         GitFetchError::NoSuchRemote(_) => {
@@ -792,7 +806,7 @@ fn cmd_git_push(
         git::push_updates(&git_repo, &remote, &ref_updates, cb)
     })
     .map_err(|err| user_error(err.to_string()))?;
-    git::import_refs(tx.mut_repo(), &git_repo)?;
+    git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
     tx.finish(ui)?;
     Ok(())
 }
@@ -828,7 +842,7 @@ fn cmd_git_import(
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction("import git refs");
-    git::import_refs(tx.mut_repo(), &git_repo)?;
+    git::import_refs(tx.mut_repo(), &git_repo, &command.settings().git_settings())?;
     tx.finish(ui)?;
     Ok(())
 }

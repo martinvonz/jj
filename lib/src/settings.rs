@@ -33,6 +33,27 @@ pub struct RepoSettings {
     _config: config::Config,
 }
 
+#[derive(Debug, Clone)]
+pub struct GitSettings {
+    pub auto_local_branch: bool,
+}
+
+impl GitSettings {
+    pub fn from_config(config: &config::Config) -> Self {
+        GitSettings {
+            auto_local_branch: config.get_bool("git.auto-local-branch").unwrap_or(true),
+        }
+    }
+}
+
+impl Default for GitSettings {
+    fn default() -> Self {
+        GitSettings {
+            auto_local_branch: true,
+        }
+    }
+}
+
 fn get_timestamp_config(config: &config::Config, key: &str) -> Option<Timestamp> {
     match config.get_string(key) {
         Ok(timestamp_str) => match DateTime::parse_from_rfc3339(&timestamp_str) {
@@ -151,6 +172,10 @@ impl UserSettings {
 
     pub fn config(&self) -> &config::Config {
         &self.config
+    }
+
+    pub fn git_settings(&self) -> GitSettings {
+        GitSettings::from_config(&self.config)
     }
 
     pub fn graph_style(&self) -> String {

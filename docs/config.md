@@ -268,6 +268,29 @@ the conflict is done, `jj` assumes that the conflict was only partially resolved
 and parses the conflict markers to get the new state of the conflict. The
 conflict is considered fully resolved when there are no conflict markers left.
 
+## Git settings
+
+### Automatic local branch creation
+
+By default, when `jj` imports a remote-tracking branch from Git, it also
+creates a local branch with the same name. In some repositories, this
+may be undesirable, e.g.:
+
+- There is a remote with a lot of historical branches that you don't
+  want to be exported to the co-located Git repo.
+- There are multiple remotes with conflicting views of that branch,
+  resulting in an unhelpful conflicted state.
+
+You can disable this behavior by setting `git.auto-local-branch` like
+so,
+
+    git.auto-local-branch = false
+
+Note that this setting may make it easier to accidentally delete remote
+branches. Since the local branch isn't created, the remote branch will be
+deleted if you push the branch with `jj git push --branch` or `jj git push
+--all`.
+
 # Alternative ways to specify configuration settings
 
 Instead of `~/.jjconfig.toml`, the config settings can be located at

@@ -505,7 +505,7 @@ impl WorkspaceCommandHelper {
         git_repo: &Repository,
     ) -> Result<(), CommandError> {
         let mut tx = self.start_transaction("import git refs").into_inner();
-        git::import_refs(tx.mut_repo(), git_repo)?;
+        git::import_refs(tx.mut_repo(), git_repo, &self.settings.git_settings())?;
         if tx.mut_repo().has_changes() {
             let old_git_head = self.repo.view().git_head();
             let new_git_head = tx.mut_repo().view().git_head();
