@@ -62,12 +62,16 @@ pub fn diff_format_for(ui: &Ui, args: &DiffFormatArgs) -> DiffFormat {
     } else if args.color_words {
         DiffFormat::ColorWords
     } else {
-        match ui.settings().config().get_string("diff.format").as_deref() {
-            Ok("summary") => DiffFormat::Summary,
-            Ok("git") => DiffFormat::Git,
-            Ok("color-words") => DiffFormat::ColorWords,
-            _ => DiffFormat::ColorWords,
-        }
+        default_diff_format(ui)
+    }
+}
+
+fn default_diff_format(ui: &Ui) -> DiffFormat {
+    match ui.settings().config().get_string("diff.format").as_deref() {
+        Ok("summary") => DiffFormat::Summary,
+        Ok("git") => DiffFormat::Git,
+        Ok("color-words") => DiffFormat::ColorWords,
+        _ => DiffFormat::ColorWords,
     }
 }
 
