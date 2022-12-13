@@ -71,6 +71,7 @@ fn test_import_refs() {
     let commit3 = empty_git_commit(&git_repo, "refs/heads/feature1", &[&commit2]);
     let commit4 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
     let commit5 = empty_git_commit(&git_repo, "refs/tags/v1.0", &[&commit1]);
+    let commit6 = empty_git_commit(&git_repo, "refs/remotes/origin/feature3", &[&commit1]);
     // Should not be imported
     empty_git_commit(&git_repo, "refs/notes/x", &[&commit2]);
     empty_git_commit(&git_repo, "refs/remotes/origin/HEAD", &[&commit2]);
@@ -87,7 +88,8 @@ fn test_import_refs() {
     let expected_heads = hashset! {
         jj_id(&commit3),
         jj_id(&commit4),
-        jj_id(&commit5)
+        jj_id(&commit5),
+        jj_id(&commit6)
     };
     assert_eq!(*view.heads(), expected_heads);
 
@@ -117,13 +119,23 @@ fn test_import_refs() {
         view.branches().get("feature2"),
         Some(expected_feature2_branch).as_ref()
     );
+    let expected_feature3_branch = BranchTarget {
+        local_target: Some(RefTarget::Normal(jj_id(&commit6))),
+        remote_targets: btreemap! {
+          "origin".to_string() => RefTarget::Normal(jj_id(&commit6)),
+        },
+    };
+    assert_eq!(
+        view.branches().get("feature3"),
+        Some(expected_feature3_branch).as_ref()
+    );
 
     assert_eq!(
         view.tags().get("v1.0"),
         Some(RefTarget::Normal(jj_id(&commit5))).as_ref()
     );
 
-    assert_eq!(view.git_refs().len(), 5);
+    assert_eq!(view.git_refs().len(), 6);
     assert_eq!(
         view.git_refs().get("refs/heads/main"),
         Some(RefTarget::Normal(jj_id(&commit2))).as_ref()
@@ -139,6 +151,10 @@ fn test_import_refs() {
     assert_eq!(
         view.git_refs().get("refs/remotes/origin/main"),
         Some(RefTarget::Normal(jj_id(&commit1))).as_ref()
+    );
+    assert_eq!(
+        view.git_refs().get("refs/remotes/origin/feature3"),
+        Some(RefTarget::Normal(jj_id(&commit6))).as_ref()
     );
     assert_eq!(
         view.git_refs().get("refs/tags/v1.0"),
