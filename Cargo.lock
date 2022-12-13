@@ -1785,9 +1785,9 @@ dependencies = [
 
 [[package]]
 name = "timeago"
-version = "0.3.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ec32dde57efb15c035ac074118d7f32820451395f28cb0524a01d4e94983b26"
+checksum = "71bd60ed74255d99458a01fae2df715562d4806ceabfedd8130a82ae6b834993"
 
 [[package]]
 name = "tinytemplate"
