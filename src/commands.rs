@@ -1304,7 +1304,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
         &from_tree,
         &to_tree,
         matcher.as_ref(),
-        diff_util::diff_format_for(ui, &args.format),
+        &diff_util::diff_formats_for(ui, &args.format),
     )?;
     Ok(())
 }
@@ -1344,7 +1344,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
         &workspace_command,
         &commit,
         &EverythingMatcher,
-        diff_util::diff_format_for(ui, &args.format),
+        &diff_util::diff_formats_for(ui, &args.format),
     )?;
     Ok(())
 }
@@ -1514,7 +1514,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     };
 
     let store = repo.store();
-    let diff_format = diff_util::diff_format_for_log(ui, &args.diff_format, args.patch);
+    let diff_formats = diff_util::diff_formats_for_log(ui, &args.diff_format, args.patch);
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),
@@ -1581,14 +1581,14 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 if !buffer.ends_with(b"\n") {
                     buffer.push(b'\n');
                 }
-                if let Some(diff_format) = diff_format {
+                if !diff_formats.is_empty() {
                     let mut formatter = ui.new_formatter(&mut buffer);
                     diff_util::show_patch(
                         formatter.as_mut(),
                         &workspace_command,
                         &commit,
                         matcher.as_ref(),
-                        diff_format,
+                        &diff_formats,
                     )?;
                 }
                 let node_symbol = if is_checkout { b"@" } else { b"o" };
@@ -1608,13 +1608,13 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             for index_entry in iter {
                 let commit = store.get_commit(&index_entry.commit_id())?;
                 template.format(&commit, formatter)?;
-                if let Some(diff_format) = diff_format {
+                if !diff_formats.is_empty() {
                     diff_util::show_patch(
                         formatter,
                         &workspace_command,
                         &commit,
                         matcher.as_ref(),
-                        diff_format,
+                        &diff_formats,
                     )?;
                 }
             }
@@ -1654,7 +1654,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
         .view()
         .get_wc_commit_id(&workspace_id);
 
-    let diff_format = diff_util::diff_format_for_log(ui, &args.diff_format, args.patch);
+    let diff_formats = diff_util::diff_formats_for_log(ui, &args.diff_format, args.patch);
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),
@@ -1691,13 +1691,13 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            if let Some(diff_format) = diff_format {
+            if !diff_formats.is_empty() {
                 let mut formatter = ui.new_formatter(&mut buffer);
                 show_predecessor_patch(
                     formatter.as_mut(),
                     &workspace_command,
                     &commit,
-                    diff_format,
+                    &diff_formats,
                 )?;
             }
             let node_symbol = if Some(commit.id()) == wc_commit_id {
@@ -1710,8 +1710,8 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
     } else {
         for commit in commits {
             template.format(&commit, formatter)?;
-            if let Some(diff_format) = diff_format {
-                show_predecessor_patch(formatter, &workspace_command, &commit, diff_format)?;
+            if !diff_formats.is_empty() {
+                show_predecessor_patch(formatter, &workspace_command, &commit, &diff_formats)?;
             }
         }
     }
@@ -1723,7 +1723,7 @@ fn show_predecessor_patch(
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
-    diff_format: DiffFormat,
+    diff_formats: &[DiffFormat],
 ) -> Result<(), CommandError> {
     let predecessors = commit.predecessors();
     let predecessor = match predecessors.first() {
@@ -1737,7 +1737,7 @@ fn show_predecessor_patch(
         &predecessor_tree,
         &commit.tree(),
         &EverythingMatcher,
-        diff_format,
+        diff_formats,
     )
 }
 
@@ -1759,7 +1759,7 @@ fn cmd_interdiff(
         &from_tree,
         &to.tree(),
         matcher.as_ref(),
-        diff_util::diff_format_for(ui, &args.format),
+        &diff_util::diff_formats_for(ui, &args.format),
     )
 }
 
@@ -2457,7 +2457,7 @@ fn description_template_for_cmd_split(
         from_tree,
         to_tree,
         &EverythingMatcher,
-        DiffFormat::Summary,
+        &[DiffFormat::Summary],
     )?;
     let diff_summary = std::str::from_utf8(&diff_summary_bytes).expect(
         "Summary diffs and repo paths must always be valid UTF8.",

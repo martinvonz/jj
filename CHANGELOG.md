@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The default log format now uses the committer timestamp instead of the author
   timestamp.
 
+* `jj log --summary --patch` now shows both summary and diff outputs.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export

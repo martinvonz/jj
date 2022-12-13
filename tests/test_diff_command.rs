@@ -71,6 +71,34 @@ fn test_diff_basic() {
     @@ -1,0 +1,1 @@
     +foo
     "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "--git"]);
+    insta::assert_snapshot!(stdout, @r###"
+    R file1
+    M file2
+    A file3
+    diff --git a/file1 b/file1
+    deleted file mode 100644
+    index 257cc5642c..0000000000
+    --- a/file1
+    +++ /dev/null
+    @@ -1,1 +1,0 @@
+    -foo
+    diff --git a/file2 b/file2
+    index 257cc5642c...3bd1f0e297 100644
+    --- a/file2
+    +++ b/file2
+    @@ -1,1 +1,2 @@
+     foo
+    +bar
+    diff --git a/file3 b/file3
+    new file mode 100644
+    index 0000000000..257cc5642c
+    --- /dev/null
+    +++ b/file3
+    @@ -1,0 +1,1 @@
+    +foo
+    "###);
 }
 
 #[test]

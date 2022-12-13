@@ -68,6 +68,82 @@ fn test_log_with_or_without_diff() {
     (no description set)
     "###);
 
+    // `-p` for default diff output, `-s` for summary
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "-p", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ a new commit
+    | M file1
+    | Modified regular file file1:
+    |    1    1: foo
+    |         2: bar
+    o add a file
+    | A file1
+    | Added regular file file1:
+    |         1: foo
+    o (no description set)
+    "###);
+
+    // `-s` for summary, `--git` for git diff (which implies `-p`)
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "-s", "--git"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ a new commit
+    | M file1
+    | diff --git a/file1 b/file1
+    | index 257cc5642c...3bd1f0e297 100644
+    | --- a/file1
+    | +++ b/file1
+    | @@ -1,1 +1,2 @@
+    |  foo
+    | +bar
+    o add a file
+    | A file1
+    | diff --git a/file1 b/file1
+    | new file mode 100644
+    | index 0000000000..257cc5642c
+    | --- /dev/null
+    | +++ b/file1
+    | @@ -1,0 +1,1 @@
+    | +foo
+    o (no description set)
+    "###);
+
+    // `-p` enables default "summary" output, so `-s` is noop
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-T",
+            "description",
+            "-p",
+            "-s",
+            "--config-toml=diff.format='summary'",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @ a new commit
+    | M file1
+    o add a file
+    | A file1
+    o (no description set)
+    "###);
+
+    // `-p` enables default "color-words" diff output, so `--color-words` is noop
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "description", "-p", "--color-words"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @ a new commit
+    | Modified regular file file1:
+    |    1    1: foo
+    |         2: bar
+    o add a file
+    | Added regular file file1:
+    |         1: foo
+    o (no description set)
+    "###);
+
+    // `--git` enables git diff, so `-p` is noop
     let stdout = test_env.jj_cmd_success(
         &repo_path,
         &["log", "-T", "description", "--no-graph", "-p", "--git"],
@@ -92,7 +168,45 @@ fn test_log_with_or_without_diff() {
     (no description set)
     "###);
 
-    // `-s` implies `-p`, with or without graph
+    // Both formats enabled if `--git` and `--color-words` are explicitly specified
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-T",
+            "description",
+            "--no-graph",
+            "-p",
+            "--git",
+            "--color-words",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    a new commit
+    diff --git a/file1 b/file1
+    index 257cc5642c...3bd1f0e297 100644
+    --- a/file1
+    +++ b/file1
+    @@ -1,1 +1,2 @@
+     foo
+    +bar
+    Modified regular file file1:
+       1    1: foo
+            2: bar
+    add a file
+    diff --git a/file1 b/file1
+    new file mode 100644
+    index 0000000000..257cc5642c
+    --- /dev/null
+    +++ b/file1
+    @@ -1,0 +1,1 @@
+    +foo
+    Added regular file file1:
+            1: foo
+    (no description set)
+    "###);
+
+    // `-s` with or without graph
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     @ a new commit
