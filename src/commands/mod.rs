@@ -980,7 +980,11 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
             add_to_git_exclude(ui, &git_repo)?;
         } else {
             let mut tx = workspace_command.start_transaction("import git refs");
-            jujutsu_lib::git::import_refs(tx.mut_repo(), &git_repo)?;
+            jujutsu_lib::git::import_refs(
+                tx.mut_repo(),
+                &git_repo,
+                &command.settings().git_settings(),
+            )?;
             if let Some(git_head_id) = tx.mut_repo().view().git_head() {
                 let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
                 tx.check_out(&git_head_commit)?;

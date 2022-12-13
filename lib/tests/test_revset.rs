@@ -25,6 +25,7 @@ use jujutsu_lib::revset::{
     self, optimize, parse, resolve_symbol, RevsetAliasesMap, RevsetError, RevsetExpression,
     RevsetWorkspaceContext,
 };
+use jujutsu_lib::settings::GitSettings;
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
 use testutils::{
@@ -160,6 +161,7 @@ fn test_resolve_symbol_commit_id() {
 #[test_case(true ; "readonly")]
 fn test_resolve_symbol_change_id(readonly: bool) {
     let settings = testutils::user_settings();
+    let git_settings = GitSettings::default();
     // Test only with git so we can get predictable change ids
     let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
@@ -196,7 +198,7 @@ fn test_resolve_symbol_change_id(readonly: bool) {
     }
 
     let mut tx = repo.start_transaction(&settings, "test");
-    git::import_refs(tx.mut_repo(), &git_repo).unwrap();
+    git::import_refs(tx.mut_repo(), &git_repo, &git_settings).unwrap();
 
     // Test the test setup
     assert_eq!(
