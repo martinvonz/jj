@@ -1513,8 +1513,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     };
 
     let store = repo.store();
-    let diff_format = (args.patch || args.diff_format.git || args.diff_format.summary)
-        .then(|| diff_util::diff_format_for(ui, &args.diff_format));
+    let diff_format = diff_util::diff_format_for_log(ui, &args.diff_format, args.patch);
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),
@@ -1654,8 +1653,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
         .view()
         .get_wc_commit_id(&workspace_id);
 
-    let diff_format = (args.patch || args.diff_format.git || args.diff_format.summary)
-        .then(|| diff_util::diff_format_for(ui, &args.diff_format));
+    let diff_format = diff_util::diff_format_for_log(ui, &args.diff_format, args.patch);
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),

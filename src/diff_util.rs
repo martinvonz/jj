@@ -66,6 +66,10 @@ pub fn diff_format_for(ui: &Ui, args: &DiffFormatArgs) -> DiffFormat {
     }
 }
 
+pub fn diff_format_for_log(ui: &Ui, args: &DiffFormatArgs, patch: bool) -> Option<DiffFormat> {
+    (patch || args.git || args.summary).then(|| diff_format_for(ui, args))
+}
+
 fn default_diff_format(ui: &Ui) -> DiffFormat {
     match ui.settings().config().get_string("diff.format").as_deref() {
         Ok("summary") => DiffFormat::Summary,
