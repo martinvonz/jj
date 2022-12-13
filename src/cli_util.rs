@@ -1234,6 +1234,49 @@ pub fn write_commit_summary(
     Ok(())
 }
 
+pub fn write_config_entry(
+    ui: &mut Ui,
+    path: &str,
+    value: config::Value,
+) -> Result<(), CommandError> {
+    match value.kind {
+        // Handle table values specially to render each child nicely on its own line.
+        config::ValueKind::Table(table) => {
+            // TODO: Remove sorting when config crate maintains deterministic ordering.
+            for (key, table_val) in table.into_iter().sorted_by_key(|(k, _)| k.to_owned()) {
+                let key_path = match path {
+                    "" => key,
+                    _ => format!("{path}.{key}"),
+                };
+                write_config_entry(ui, key_path.as_str(), table_val)?;
+            }
+        }
+        _ => writeln!(ui, "{path}={}", serialize_config_value(value))?,
+    };
+    Ok(())
+}
+
+// TODO: Use a proper TOML library to serialize instead.
+fn serialize_config_value(value: config::Value) -> String {
+    match value.kind {
+        config::ValueKind::Table(table) => format!(
+            "{{{}}}",
+            // TODO: Remove sorting when config crate maintains deterministic ordering.
+            table
+                .into_iter()
+                .sorted_by_key(|(k, _)| k.to_owned())
+                .map(|(k, v)| format!("{k}={}", serialize_config_value(v)))
+                .join(", ")
+        ),
+        config::ValueKind::Array(vals) => format!(
+            "[{}]",
+            vals.into_iter().map(serialize_config_value).join(", ")
+        ),
+        config::ValueKind::String(val) => format!("{val:?}"),
+        _ => value.to_string(),
+    }
+}
+
 pub fn short_commit_description(commit: &Commit) -> String {
     let first_line = commit.description().split('\n').next().unwrap();
     format!("{} ({})", short_commit_hash(commit.id()), first_line)

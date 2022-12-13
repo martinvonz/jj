@@ -25,6 +25,7 @@ use std::{fs, io};
 use chrono::{FixedOffset, LocalResult, TimeZone, Utc};
 use clap::builder::NonEmptyStringValueParser;
 use clap::{ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
+use config::Source;
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, Timestamp, TreeValue};
 use jujutsu_lib::commit::Commit;
@@ -53,8 +54,8 @@ use pest::Parser;
 use crate::cli_util::{
     self, check_stale_working_copy, print_checkout_stats, print_failed_git_export,
     resolve_base_revs, short_commit_description, short_commit_hash, user_error,
-    user_error_with_hint, write_commit_summary, Args, CommandError, CommandHelper, DescriptionArg,
-    RevisionArg, WorkspaceCommandHelper,
+    user_error_with_hint, write_commit_summary, write_config_entry, Args, CommandError,
+    CommandHelper, DescriptionArg, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::config::FullCommandArgs;
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
@@ -69,6 +70,8 @@ use crate::ui::Ui;
 enum Commands {
     Version(VersionArgs),
     Init(InitArgs),
+    #[command(subcommand)]
+    Config(ConfigSubcommand),
     Checkout(CheckoutArgs),
     Untrack(UntrackArgs),
     Files(FilesArgs),
@@ -140,6 +143,31 @@ struct InitArgs {
     /// Path to a git repo the jj repo will be backed by
     #[arg(long, value_hint = clap::ValueHint::DirPath)]
     git_repo: Option<String>,
+}
+
+/// Get config options
+///
+/// Operates on jj configuration, which comes from the config file and
+/// environment variables. Uses the config file at ~/.jjconfig.toml or
+/// $XDG_CONFIG_HOME/jj/config.toml, unless overridden with the JJ_CONFIG
+/// environment variable.
+///
+/// For supported config options and more details about jj config, see
+/// https://github.com/martinvonz/jj/blob/main/docs/config.md.
+///
+/// Note: Currently only supports getting config options, but support for
+/// setting options and editing config files is also planned (see
+/// https://github.com/martinvonz/jj/issues/531).
+#[derive(clap::Subcommand, Clone, Debug)]
+enum ConfigSubcommand {
+    /// List variables set in config file, along with their values.
+    #[command(visible_alias("l"))]
+    List {
+        /// An optional name of a specific config option to look up.
+        #[arg(value_parser=NonEmptyStringValueParser::new())]
+        name: Option<String>,
+        // TODO: Support --show-origin once mehcode/config-rs#319 is done.
+    },
 }
 
 /// Create a new, empty change and edit it in the working copy
@@ -1169,6 +1197,35 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
             relative_wc_path.display()
         ))?;
     }
+    Ok(())
+}
+
+fn cmd_config(
+    ui: &mut Ui,
+    _command: &CommandHelper,
+    subcommand: &ConfigSubcommand,
+) -> Result<(), CommandError> {
+    ui.request_pager();
+    match subcommand {
+        ConfigSubcommand::List { name } => {
+            let raw_values = match name {
+                Some(name) => {
+                    ui.settings()
+                        .config()
+                        .get::<config::Value>(name)
+                        .map_err(|e| match e {
+                            config::ConfigError::NotFound { .. } => {
+                                user_error("key not found in config")
+                            }
+                            _ => e.into(),
+                        })?
+                }
+                None => ui.settings().config().collect()?.into(),
+            };
+            write_config_entry(ui, name.as_deref().unwrap_or(""), raw_values)?;
+        }
+    }
+
     Ok(())
 }
 
@@ -4274,6 +4331,7 @@ pub fn run_command(
     match &derived_subcommands {
         Commands::Version(sub_args) => cmd_version(ui, command_helper, sub_args),
         Commands::Init(sub_args) => cmd_init(ui, command_helper, sub_args),
+        Commands::Config(sub_args) => cmd_config(ui, command_helper, sub_args),
         Commands::Checkout(sub_args) => cmd_checkout(ui, command_helper, sub_args),
         Commands::Untrack(sub_args) => cmd_untrack(ui, command_helper, sub_args),
         Commands::Files(sub_args) => cmd_files(ui, command_helper, sub_args),
