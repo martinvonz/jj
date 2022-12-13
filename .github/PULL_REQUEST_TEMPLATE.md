@@ -13,4 +13,3 @@ https://github.com/martinvonz/jj/blob/main/docs/contributing.md for details.
 If applicable:
 - [ ] I have updated `CHANGELOG.md`
 - [ ] I have updated the documentation (README.md, docs/, demos/)
-- [ ] I have added myself to the contributors in `CHANGELOG.md` (optional)
