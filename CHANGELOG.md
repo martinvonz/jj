@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj git push` now accepts multiple `--branch`/`--change` arguments
 
+* `jj config list` command prints values from config (with other subcommands
+  coming soon).
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
@@ -39,6 +42,7 @@ Thanks to the people who made this release happen!
  * Danny Hooper (hooper@google.com)
  * Yuya Nishihara (@yuja)
  * Ilya Grigoriev (@ilyagr)
+ * David Barnett (@dbarnett)
 
 ## [0.6.1] - 2022-12-05
 
