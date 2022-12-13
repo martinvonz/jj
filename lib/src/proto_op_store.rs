@@ -17,7 +17,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
 use std::io::ErrorKind;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use itertools::Itertools;
 use protobuf::{Message, MessageField};
@@ -43,14 +43,18 @@ pub struct ProtoOpStore {
 }
 
 impl ProtoOpStore {
-    pub fn init(store_path: PathBuf) -> Self {
-        fs::create_dir(store_path.join("views")).unwrap();
-        fs::create_dir(store_path.join("operations")).unwrap();
-        ProtoOpStore { path: store_path }
+    pub fn init(op_store_path: &Path) -> Self {
+        fs::create_dir(op_store_path.join("views")).unwrap();
+        fs::create_dir(op_store_path.join("operations")).unwrap();
+        ProtoOpStore {
+            path: op_store_path.to_path_buf(),
+        }
     }
 
-    pub fn load(store_path: PathBuf) -> Self {
-        ProtoOpStore { path: store_path }
+    pub fn load(op_store_path: &Path) -> Self {
+        ProtoOpStore {
+            path: op_store_path.to_path_buf(),
+        }
     }
 
     fn view_path(&self, id: &ViewId) -> PathBuf {
@@ -71,6 +75,10 @@ fn not_found_to_store_error(err: std::io::Error) -> OpStoreError {
 }
 
 impl OpStore for ProtoOpStore {
+    fn name(&self) -> &str {
+        "proto_op_store"
+    }
+
     fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {
         let path = self.view_path(id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;

@@ -14,7 +14,7 @@
 
 use assert_matches::assert_matches;
 use jujutsu_lib::op_store::WorkspaceId;
-use jujutsu_lib::repo::BackendFactories;
+use jujutsu_lib::repo::StoreFactories;
 use jujutsu_lib::workspace::{Workspace, WorkspaceLoadError};
 use test_case::test_case;
 use testutils::TestWorkspace;
@@ -25,7 +25,7 @@ fn test_load_bad_path() {
     let temp_dir = testutils::new_temp_dir();
     let workspace_root = temp_dir.path().to_owned();
     // We haven't created a repo in the workspace_root, so it should fail to load.
-    let result = Workspace::load(&settings, &workspace_root, &BackendFactories::default());
+    let result = Workspace::load(&settings, &workspace_root, &StoreFactories::default());
     assert_matches!(
         result.err(),
         Some(WorkspaceLoadError::NoWorkspaceHere(root)) if root == workspace_root
@@ -41,7 +41,7 @@ fn test_load_from_subdir(use_git: bool) {
 
     let subdir = workspace.workspace_root().join("dir").join("subdir");
     std::fs::create_dir_all(subdir.clone()).unwrap();
-    let same_workspace = Workspace::load(&settings, &subdir, &BackendFactories::default());
+    let same_workspace = Workspace::load(&settings, &subdir, &StoreFactories::default());
     assert!(same_workspace.is_ok());
     let same_workspace = same_workspace.unwrap();
     assert_eq!(same_workspace.repo_path(), workspace.repo_path());
@@ -79,7 +79,7 @@ fn test_init_additional_workspace(use_git: bool) {
         workspace.repo_path().canonicalize().unwrap()
     );
     assert_eq!(*ws2.workspace_root(), ws2_root.canonicalize().unwrap());
-    let same_workspace = Workspace::load(&settings, &ws2_root, &BackendFactories::default());
+    let same_workspace = Workspace::load(&settings, &ws2_root, &StoreFactories::default());
     assert!(same_workspace.is_ok());
     let same_workspace = same_workspace.unwrap();
     assert_eq!(same_workspace.workspace_id(), &ws2_id);

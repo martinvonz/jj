@@ -90,14 +90,20 @@ impl TestRepo {
         let repo = if use_git {
             let git_path = temp_dir.path().join("git-repo");
             git2::Repository::init(&git_path).unwrap();
-            ReadonlyRepo::init(&settings, &repo_dir, |store_path| {
-                Box::new(GitBackend::init_external(store_path, &git_path))
-            })
+            ReadonlyRepo::init(
+                &settings,
+                &repo_dir,
+                |store_path| Box::new(GitBackend::init_external(store_path, &git_path)),
+                ReadonlyRepo::default_op_store_factory(),
+            )
             .unwrap()
         } else {
-            ReadonlyRepo::init(&settings, &repo_dir, |store_path| {
-                Box::new(LocalBackend::init(store_path))
-            })
+            ReadonlyRepo::init(
+                &settings,
+                &repo_dir,
+                |store_path| Box::new(LocalBackend::init(store_path)),
+                ReadonlyRepo::default_op_store_factory(),
+            )
             .unwrap()
         };
 

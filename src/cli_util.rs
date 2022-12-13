@@ -36,7 +36,7 @@ use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jujutsu_lib::op_heads_store::{OpHeadResolutionError, OpHeads, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
 use jujutsu_lib::operation::Operation;
-use jujutsu_lib::repo::{BackendFactories, MutableRepo, ReadonlyRepo, RepoRef, RewriteRootCommit};
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoRef, RewriteRootCommit, StoreFactories};
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
 use jujutsu_lib::revset::{
     Revset, RevsetAliasesMap, RevsetError, RevsetExpression, RevsetParseError,
@@ -218,7 +218,7 @@ pub struct CommandHelper {
     app: clap::Command,
     string_args: Vec<String>,
     global_args: GlobalArgs,
-    backend_factories: BackendFactories,
+    store_factories: StoreFactories,
 }
 
 impl CommandHelper {
@@ -227,7 +227,7 @@ impl CommandHelper {
             app,
             string_args,
             global_args,
-            backend_factories: BackendFactories::default(),
+            store_factories: StoreFactories::default(),
         }
     }
 
@@ -243,8 +243,8 @@ impl CommandHelper {
         &self.global_args
     }
 
-    pub fn set_backend_factories(&mut self, backend_factories: BackendFactories) {
-        self.backend_factories = backend_factories;
+    pub fn set_store_factories(&mut self, store_factories: StoreFactories) {
+        self.store_factories = store_factories;
     }
 
     pub fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
@@ -257,7 +257,7 @@ impl CommandHelper {
     pub fn load_workspace(&self, ui: &Ui) -> Result<Workspace, CommandError> {
         let wc_path_str = self.global_args.repository.as_deref().unwrap_or(".");
         let wc_path = ui.cwd().join(wc_path_str);
-        Workspace::load(ui.settings(), &wc_path, &self.backend_factories).map_err(|err| match err {
+        Workspace::load(ui.settings(), &wc_path, &self.store_factories).map_err(|err| match err {
             WorkspaceLoadError::NoWorkspaceHere(wc_path) => {
                 let message = format!("There is no jj repo in \"{}\"", wc_path_str);
                 let git_dir = wc_path.join(".git");

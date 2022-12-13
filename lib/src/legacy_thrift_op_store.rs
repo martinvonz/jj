@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::{ErrorKind, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use itertools::Itertools;
 use thrift::protocol::{TCompactInputProtocol, TSerializable};
@@ -48,8 +48,10 @@ pub struct ThriftOpStore {
 }
 
 impl ThriftOpStore {
-    pub fn load(store_path: PathBuf) -> Self {
-        ThriftOpStore { path: store_path }
+    pub fn load(op_store_path: &Path) -> Self {
+        ThriftOpStore {
+            path: op_store_path.to_path_buf(),
+        }
     }
 
     fn view_path(&self, id: &ViewId) -> PathBuf {
@@ -62,6 +64,10 @@ impl ThriftOpStore {
 }
 
 impl OpStore for ThriftOpStore {
+    fn name(&self) -> &str {
+        "thirft_op_store"
+    }
+
     fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {
         let path = self.view_path(id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;

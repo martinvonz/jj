@@ -22,8 +22,8 @@ use thiserror::Error;
 use crate::backend::Backend;
 use crate::git_backend::GitBackend;
 use crate::local_backend::LocalBackend;
-use crate::op_store::WorkspaceId;
-use crate::repo::{BackendFactories, IoResultExt, PathError, ReadonlyRepo, RepoLoader};
+use crate::op_store::{OpStore, WorkspaceId};
+use crate::repo::{IoResultExt, PathError, ReadonlyRepo, RepoLoader, StoreFactories};
 use crate::settings::UserSettings;
 use crate::working_copy::WorkingCopy;
 
@@ -147,15 +147,16 @@ impl Workspace {
         })
     }
 
-    pub fn init_with_backend(
+    pub fn init_with_factories(
         user_settings: &UserSettings,
         workspace_root: &Path,
         backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
+        op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
         let repo_dir = jj_dir.join("repo");
         std::fs::create_dir(&repo_dir).context(&repo_dir)?;
-        let repo = ReadonlyRepo::init(user_settings, &repo_dir, backend_factory)?;
+        let repo = ReadonlyRepo::init(user_settings, &repo_dir, backend_factory, op_store_factory)?;
         let (working_copy, repo) = init_working_copy(
             user_settings,
             &repo,
@@ -166,6 +167,19 @@ impl Workspace {
         let repo_loader = repo.loader();
         let workspace = Workspace::new(workspace_root, working_copy, repo_loader)?;
         Ok((workspace, repo))
+    }
+
+    pub fn init_with_backend(
+        user_settings: &UserSettings,
+        workspace_root: &Path,
+        backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
+    ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
+        Self::init_with_factories(
+            user_settings,
+            workspace_root,
+            backend_factory,
+            ReadonlyRepo::default_op_store_factory(),
+        )
     }
 
     pub fn init_workspace_with_existing_repo(
@@ -197,7 +211,7 @@ impl Workspace {
     pub fn load(
         user_settings: &UserSettings,
         workspace_path: &Path,
-        backend_factories: &BackendFactories,
+        store_factories: &StoreFactories,
     ) -> Result<Self, WorkspaceLoadError> {
         let jj_dir = find_jj_dir(workspace_path)
             .ok_or_else(|| WorkspaceLoadError::NoWorkspaceHere(workspace_path.to_owned()))?;
@@ -222,7 +236,7 @@ impl Workspace {
                 return Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir));
             }
         }
-        let repo_loader = RepoLoader::init(user_settings, &repo_dir, backend_factories);
+        let repo_loader = RepoLoader::init(user_settings, &repo_dir, store_factories);
         let working_copy_state_path = jj_dir.join("working_copy");
         let working_copy = WorkingCopy::load(
             repo_loader.store().clone(),
