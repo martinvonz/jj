@@ -314,6 +314,31 @@ impl StoreFactories {
     pub fn add_backend(&mut self, name: &str, factory: BackendFactory) {
         self.backend_factories.insert(name.to_string(), factory);
     }
+
+    pub fn load_backend(&self, store_path: &Path) -> Box<dyn Backend> {
+        // TODO: Change the 'backend' file to 'type', for consistency with other stores
+        let backend_type = match fs::read_to_string(store_path.join("backend")) {
+            Ok(content) => content,
+            Err(err) if err.kind() == ErrorKind::NotFound => {
+                // For compatibility with existing repos. TODO: Delete in spring of 2023 or so.
+                let inferred_type = if store_path.join("git_target").is_file() {
+                    String::from("git")
+                } else {
+                    String::from("local")
+                };
+                fs::write(store_path.join("backend"), &inferred_type).unwrap();
+                inferred_type
+            }
+            Err(_) => {
+                panic!("Failed to read backend type");
+            }
+        };
+        let backend_factory = self
+            .backend_factories
+            .get(&backend_type)
+            .expect("Unexpected backend type");
+        backend_factory(store_path)
+    }
 }
 
 #[derive(Clone)]
@@ -332,28 +357,7 @@ impl RepoLoader {
         repo_path: &Path,
         store_factories: &StoreFactories,
     ) -> Self {
-        let store_path = repo_path.join("store");
-        let backend_type = match fs::read_to_string(store_path.join("backend")) {
-            Ok(content) => content,
-            Err(err) if err.kind() == ErrorKind::NotFound => {
-                // For compatibility with existing repos. TODO: Delete in spring of 2023 or so.
-                let inferred_type = if store_path.join("git_target").is_file() {
-                    String::from("git")
-                } else {
-                    String::from("local")
-                };
-                fs::write(store_path.join("backend"), &inferred_type).unwrap();
-                inferred_type
-            }
-            Err(_) => {
-                panic!("Failed to read backend type");
-            }
-        };
-        let backend_factory = store_factories
-            .backend_factories
-            .get(&backend_type)
-            .expect("Unexpected backend type");
-        let store = Store::new(backend_factory(&store_path));
+        let store = Store::new(store_factories.load_backend(&repo_path.join("store")));
         let repo_settings = user_settings.with_repo(repo_path).unwrap();
         let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(&repo_path.join("op_store")));
         let op_heads_store = Arc::new(OpHeadsStore::load(repo_path.join("op_heads")));
