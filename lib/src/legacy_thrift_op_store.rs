@@ -23,7 +23,7 @@ use thrift::protocol::{TCompactInputProtocol, TSerializable};
 
 use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
 use crate::op_store::{
-    BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
+    BranchTarget, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
     RefTarget, View, ViewId, WorkspaceId,
 };
 use crate::simple_op_store_model;
@@ -59,29 +59,19 @@ impl ThriftOpStore {
     fn operation_path(&self, id: &OperationId) -> PathBuf {
         self.path.join("operations").join(id.hex())
     }
-}
 
-impl OpStore for ThriftOpStore {
-    fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {
+    pub fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {
         let path = self.view_path(id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
         let thrift_view = read_thrift(&mut file)?;
         Ok(View::from(&thrift_view))
     }
 
-    fn write_view(&self, _view: &View) -> OpStoreResult<ViewId> {
-        panic!("ThriftOpStore is readonly");
-    }
-
-    fn read_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
+    pub fn read_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
         let path = self.operation_path(id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
         let thrift_operation = read_thrift(&mut file)?;
         Ok(Operation::from(&thrift_operation))
-    }
-
-    fn write_operation(&self, _operation: &Operation) -> OpStoreResult<OperationId> {
-        panic!("ThriftOpStore is readonly");
     }
 }
 

@@ -27,7 +27,7 @@ use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{
-    BranchTarget, OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
+    BranchTarget, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
     RefTarget, View, ViewId, WorkspaceId,
 };
 
@@ -60,18 +60,8 @@ impl ProtoOpStore {
     fn operation_path(&self, id: &OperationId) -> PathBuf {
         self.path.join("operations").join(id.hex())
     }
-}
 
-fn not_found_to_store_error(err: std::io::Error) -> OpStoreError {
-    if err.kind() == ErrorKind::NotFound {
-        OpStoreError::NotFound
-    } else {
-        OpStoreError::from(err)
-    }
-}
-
-impl OpStore for ProtoOpStore {
-    fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {
+    pub fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {
         let path = self.view_path(id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
@@ -79,7 +69,7 @@ impl OpStore for ProtoOpStore {
         Ok(view_from_proto(&proto))
     }
 
-    fn write_view(&self, view: &View) -> OpStoreResult<ViewId> {
+    pub fn write_view(&self, view: &View) -> OpStoreResult<ViewId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
         let proto = view_to_proto(view);
@@ -91,7 +81,7 @@ impl OpStore for ProtoOpStore {
         Ok(id)
     }
 
-    fn read_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
+    pub fn read_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
         let path = self.operation_path(id);
         let mut file = File::open(path).map_err(not_found_to_store_error)?;
 
@@ -99,7 +89,7 @@ impl OpStore for ProtoOpStore {
         Ok(operation_from_proto(&proto))
     }
 
-    fn write_operation(&self, operation: &Operation) -> OpStoreResult<OperationId> {
+    pub fn write_operation(&self, operation: &Operation) -> OpStoreResult<OperationId> {
         let temp_file = NamedTempFile::new_in(&self.path)?;
 
         let proto = operation_to_proto(operation);
@@ -109,6 +99,14 @@ impl OpStore for ProtoOpStore {
 
         persist_content_addressed_temp_file(temp_file, self.operation_path(&id))?;
         Ok(id)
+    }
+}
+
+fn not_found_to_store_error(err: std::io::Error) -> OpStoreError {
+    if err.kind() == ErrorKind::NotFound {
+        OpStoreError::NotFound
+    } else {
+        OpStoreError::from(err)
     }
 }
 
