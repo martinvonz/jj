@@ -1471,16 +1471,16 @@ fn log_template(settings: &UserSettings) -> String {
     // TODO: define a method on boolean values, so we can get auto-coloring
     //       with e.g. `conflict.then("conflict")`
 
-    let author_timestamp = if settings.relative_timestamps() {
-        "author.timestamp().ago()"
+    let committer_timestamp = if settings.relative_timestamps() {
+        "committer.timestamp().ago()"
     } else {
-        "author.timestamp()"
+        "committer.timestamp()"
     };
     let default_template = format!(
         r#"
             change_id.short()
             " " author.email()
-            " " label("timestamp", {author_timestamp})
+            " " label("timestamp", {committer_timestamp})
             if(branches, " " branches)
             if(tags, " " tags)
             if(working_copies, " " working_copies)
