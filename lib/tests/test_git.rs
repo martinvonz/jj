@@ -345,9 +345,12 @@ impl GitRepoData {
             git2::Repository::clone(origin_repo_dir.to_str().unwrap(), &git_repo_dir).unwrap();
         let jj_repo_dir = temp_dir.path().join("jj");
         std::fs::create_dir(&jj_repo_dir).unwrap();
-        let repo = ReadonlyRepo::init(&settings, &jj_repo_dir, |store_path| {
-            Box::new(GitBackend::init_external(store_path, &git_repo_dir))
-        })
+        let repo = ReadonlyRepo::init(
+            &settings,
+            &jj_repo_dir,
+            |store_path| Box::new(GitBackend::init_external(store_path, &git_repo_dir)),
+            ReadonlyRepo::default_op_store_factory(),
+        )
         .unwrap();
         Self {
             settings,
@@ -867,9 +870,12 @@ fn test_init() {
     let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
     let initial_git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let repo = ReadonlyRepo::init(&settings, &jj_repo_dir, |store_path| {
-        Box::new(GitBackend::init_external(store_path, &git_repo_dir))
-    })
+    let repo = ReadonlyRepo::init(
+        &settings,
+        &jj_repo_dir,
+        |store_path| Box::new(GitBackend::init_external(store_path, &git_repo_dir)),
+        ReadonlyRepo::default_op_store_factory(),
+    )
     .unwrap();
     // The refs were *not* imported -- it's the caller's responsibility to import
     // any refs they care about.
@@ -1098,9 +1104,12 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let initial_git_commit = empty_git_commit(&source_repo, "refs/heads/main", &[]);
     git2::Repository::clone(source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
-    let jj_repo = ReadonlyRepo::init(settings, &jj_repo_dir, |store_path| {
-        Box::new(GitBackend::init_external(store_path, &clone_repo_dir))
-    })
+    let jj_repo = ReadonlyRepo::init(
+        settings,
+        &jj_repo_dir,
+        |store_path| Box::new(GitBackend::init_external(store_path, &clone_repo_dir)),
+        ReadonlyRepo::default_op_store_factory(),
+    )
     .unwrap();
     let mut tx = jj_repo.start_transaction(settings, "test");
     let new_commit = create_random_commit(settings, &jj_repo)

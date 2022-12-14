@@ -110,10 +110,15 @@ impl Debug for ReadonlyRepo {
 }
 
 impl ReadonlyRepo {
+    pub fn default_op_store_factory() -> impl FnOnce(&Path) -> Box<dyn OpStore> {
+        |store_path| Box::new(SimpleOpStore::init(store_path))
+    }
+
     pub fn init(
         user_settings: &UserSettings,
         repo_path: &Path,
         backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
+        op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
     ) -> Result<Arc<ReadonlyRepo>, PathError> {
         let repo_path = repo_path.canonicalize().context(repo_path)?;
 
@@ -127,7 +132,11 @@ impl ReadonlyRepo {
 
         let op_store_path = repo_path.join("op_store");
         fs::create_dir(&op_store_path).context(&op_store_path)?;
-        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(&op_store_path));
+        let op_store = op_store_factory(&op_store_path);
+        let op_store_type_path = op_store_path.join("type");
+        fs::write(&op_store_type_path, op_store.name()).context(&op_store_type_path)?;
+        let op_store = Arc::from(op_store);
+
         let mut root_view = op_store::View::default();
         root_view.head_ids.insert(store.root_commit_id().clone());
         root_view
@@ -284,14 +293,18 @@ impl UnresolvedHeadRepo {
 }
 
 type BackendFactory = Box<dyn Fn(&Path) -> Box<dyn Backend>>;
+type OpStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpStore>>;
 
 pub struct StoreFactories {
     backend_factories: HashMap<String, BackendFactory>,
+    op_store_factories: HashMap<String, OpStoreFactory>,
 }
 
 impl Default for StoreFactories {
     fn default() -> Self {
         let mut factories = StoreFactories::empty();
+
+        // Backends
         factories.add_backend(
             "local",
             Box::new(|store_path| Box::new(LocalBackend::load(store_path))),
@@ -300,6 +313,13 @@ impl Default for StoreFactories {
             "git",
             Box::new(|store_path| Box::new(GitBackend::load(store_path))),
         );
+
+        // OpStores
+        factories.add_op_store(
+            "simple_op_store",
+            Box::new(|store_path| Box::new(SimpleOpStore::load(store_path))),
+        );
+
         factories
     }
 }
@@ -308,6 +328,7 @@ impl StoreFactories {
     pub fn empty() -> Self {
         StoreFactories {
             backend_factories: HashMap::new(),
+            op_store_factories: HashMap::new(),
         }
     }
 
@@ -339,6 +360,30 @@ impl StoreFactories {
             .expect("Unexpected backend type");
         backend_factory(store_path)
     }
+
+    pub fn add_op_store(&mut self, name: &str, factory: OpStoreFactory) {
+        self.op_store_factories.insert(name.to_string(), factory);
+    }
+
+    pub fn load_op_store(&self, store_path: &Path) -> Box<dyn OpStore> {
+        let op_store_type = match fs::read_to_string(store_path.join("type")) {
+            Ok(content) => content,
+            Err(err) if err.kind() == ErrorKind::NotFound => {
+                // For compatibility with existing repos. TODO: Delete in spring of 2024 or so.
+                let default_type = String::from("simple_op_store");
+                fs::write(store_path.join("type"), &default_type).unwrap();
+                default_type
+            }
+            Err(_) => {
+                panic!("Failed to read op_store type");
+            }
+        };
+        let op_store_factory = self
+            .op_store_factories
+            .get(&op_store_type)
+            .expect("Unexpected op_store type");
+        op_store_factory(store_path)
+    }
 }
 
 #[derive(Clone)]
@@ -359,7 +404,7 @@ impl RepoLoader {
     ) -> Self {
         let store = Store::new(store_factories.load_backend(&repo_path.join("store")));
         let repo_settings = user_settings.with_repo(repo_path).unwrap();
-        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(&repo_path.join("op_store")));
+        let op_store = Arc::from(store_factories.load_op_store(&repo_path.join("op_store")));
         let op_heads_store = Arc::new(OpHeadsStore::load(repo_path.join("op_heads")));
         let index_store = Arc::new(IndexStore::load(repo_path.join("index")));
         Self {
