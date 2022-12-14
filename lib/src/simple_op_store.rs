@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::fmt::Debug;
-use std::path::PathBuf;
+use std::path::Path;
 
 use tempfile::PersistError;
 
@@ -40,7 +40,7 @@ pub struct SimpleOpStore {
 }
 
 #[cfg(feature = "legacy-thrift")]
-fn upgrade_from_thrift(store_path: PathBuf) -> std::io::Result<()> {
+fn upgrade_from_thrift(store_path: &Path) -> std::io::Result<()> {
     use std::collections::{HashMap, HashSet};
     use std::fs;
 
@@ -49,15 +49,16 @@ fn upgrade_from_thrift(store_path: PathBuf) -> std::io::Result<()> {
     use crate::legacy_thrift_op_store::ThriftOpStore;
 
     println!("Upgrading operation log to Protobuf format...");
-    let old_store = ThriftOpStore::load(store_path.clone());
+    let repo_path = store_path.parent().unwrap();
+    let old_store = ThriftOpStore::load(store_path.to_path_buf());
     let tmp_store_dir = tempfile::Builder::new()
         .prefix("jj-op-store-upgrade-")
-        .tempdir_in(store_path.parent().unwrap())
+        .tempdir_in(repo_path)
         .unwrap();
     let tmp_store_path = tmp_store_dir.path().to_path_buf();
 
     // Find the current operation head(s) of the operation log
-    let op_heads_store_path = store_path.parent().unwrap().join("op_heads");
+    let op_heads_store_path = repo_path.join("op_heads");
     let mut old_op_heads = HashSet::new();
     for entry in fs::read_dir(&op_heads_store_path)? {
         let basename = entry?.file_name();
@@ -104,29 +105,29 @@ fn upgrade_from_thrift(store_path: PathBuf) -> std::io::Result<()> {
         }
     }
 
-    let backup_store_path = store_path.parent().unwrap().join("op_store_old");
+    let backup_store_path = repo_path.join("op_store_old");
     // Delete existing backup (probably from an earlier upgrade to Thrift)
     fs::remove_dir_all(&backup_store_path).ok();
-    fs::rename(&store_path, backup_store_path)?;
-    fs::rename(&tmp_store_path, &store_path)?;
+    fs::rename(store_path, backup_store_path)?;
+    fs::rename(&tmp_store_path, store_path)?;
 
     println!("Upgrade complete");
     Ok(())
 }
 
 impl SimpleOpStore {
-    pub fn init(store_path: PathBuf) -> Self {
-        let delegate = ProtoOpStore::init(store_path);
+    pub fn init(store_path: &Path) -> Self {
+        let delegate = ProtoOpStore::init(store_path.to_path_buf());
         SimpleOpStore { delegate }
     }
 
-    pub fn load(store_path: PathBuf) -> Self {
+    pub fn load(store_path: &Path) -> Self {
         #[cfg(feature = "legacy-thrift")]
         if store_path.join("thrift_store").exists() {
-            upgrade_from_thrift(store_path.clone())
+            upgrade_from_thrift(store_path)
                 .expect("Failed to upgrade operation log to Protobuf format");
         }
-        let delegate = ProtoOpStore::load(store_path);
+        let delegate = ProtoOpStore::load(store_path.to_path_buf());
         SimpleOpStore { delegate }
     }
 }
@@ -255,7 +256,7 @@ mod tests {
     #[test]
     fn test_read_write_view() {
         let temp_dir = testutils::new_temp_dir();
-        let store = SimpleOpStore::init(temp_dir.path().to_owned());
+        let store = SimpleOpStore::init(temp_dir.path());
         let view = create_view();
         let view_id = store.write_view(&view).unwrap();
         let read_view = store.read_view(&view_id).unwrap();
@@ -265,7 +266,7 @@ mod tests {
     #[test]
     fn test_read_write_operation() {
         let temp_dir = testutils::new_temp_dir();
-        let store = SimpleOpStore::init(temp_dir.path().to_owned());
+        let store = SimpleOpStore::init(temp_dir.path());
         let operation = create_operation();
         let op_id = store.write_operation(&operation).unwrap();
         let read_operation = store.read_operation(&op_id).unwrap();

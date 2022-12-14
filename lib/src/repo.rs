@@ -127,7 +127,7 @@ impl ReadonlyRepo {
 
         let op_store_path = repo_path.join("op_store");
         fs::create_dir(&op_store_path).context(&op_store_path)?;
-        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(op_store_path));
+        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::init(&op_store_path));
         let mut root_view = op_store::View::default();
         root_view.head_ids.insert(store.root_commit_id().clone());
         root_view
@@ -355,7 +355,7 @@ impl RepoLoader {
             .expect("Unexpected backend type");
         let store = Store::new(backend_factory(&store_path));
         let repo_settings = user_settings.with_repo(repo_path).unwrap();
-        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(repo_path.join("op_store")));
+        let op_store: Arc<dyn OpStore> = Arc::new(SimpleOpStore::load(&repo_path.join("op_store")));
         let op_heads_store = Arc::new(OpHeadsStore::load(repo_path.join("op_heads")));
         let index_store = Arc::new(IndexStore::load(repo_path.join("index")));
         Self {
