@@ -23,7 +23,7 @@ use crate::backend::Backend;
 use crate::git_backend::GitBackend;
 use crate::local_backend::LocalBackend;
 use crate::op_store::WorkspaceId;
-use crate::repo::{BackendFactories, IoResultExt, PathError, ReadonlyRepo, RepoLoader};
+use crate::repo::{IoResultExt, PathError, ReadonlyRepo, RepoLoader, StoreFactories};
 use crate::settings::UserSettings;
 use crate::working_copy::WorkingCopy;
 
@@ -197,7 +197,7 @@ impl Workspace {
     pub fn load(
         user_settings: &UserSettings,
         workspace_path: &Path,
-        backend_factories: &BackendFactories,
+        store_factories: &StoreFactories,
     ) -> Result<Self, WorkspaceLoadError> {
         let jj_dir = find_jj_dir(workspace_path)
             .ok_or_else(|| WorkspaceLoadError::NoWorkspaceHere(workspace_path.to_owned()))?;
@@ -222,7 +222,7 @@ impl Workspace {
                 return Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir));
             }
         }
-        let repo_loader = RepoLoader::init(user_settings, &repo_dir, backend_factories);
+        let repo_loader = RepoLoader::init(user_settings, &repo_dir, store_factories);
         let working_copy_state_path = jj_dir.join("working_copy");
         let working_copy = WorkingCopy::load(
             repo_loader.store().clone(),

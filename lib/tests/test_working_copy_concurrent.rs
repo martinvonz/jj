@@ -17,7 +17,7 @@ use std::thread;
 
 use assert_matches::assert_matches;
 use jujutsu_lib::gitignore::GitIgnoreFile;
-use jujutsu_lib::repo::BackendFactories;
+use jujutsu_lib::repo::StoreFactories;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::working_copy::CheckoutError;
 use jujutsu_lib::workspace::Workspace;
@@ -58,7 +58,7 @@ fn test_concurrent_checkout(use_git: bool) {
     // Check out tree2 from another process (simulated by another workspace
     // instance)
     let mut workspace2 =
-        Workspace::load(&settings, &workspace1_root, &BackendFactories::default()).unwrap();
+        Workspace::load(&settings, &workspace1_root, &StoreFactories::default()).unwrap();
     workspace2
         .working_copy_mut()
         .check_out(repo1.op_id().clone(), Some(&tree_id1), &tree2)
@@ -72,7 +72,7 @@ fn test_concurrent_checkout(use_git: bool) {
 
     // Check that the tree2 is still checked out on disk.
     let workspace3 =
-        Workspace::load(&settings, &workspace1_root, &BackendFactories::default()).unwrap();
+        Workspace::load(&settings, &workspace1_root, &StoreFactories::default()).unwrap();
     assert_eq!(workspace3.working_copy().current_tree_id(), &tree_id2);
 }
 
@@ -115,7 +115,7 @@ fn test_checkout_parallel(use_git: bool) {
         let workspace_root = workspace_root.clone();
         let handle = thread::spawn(move || {
             let mut workspace =
-                Workspace::load(&settings, &workspace_root, &BackendFactories::default()).unwrap();
+                Workspace::load(&settings, &workspace_root, &StoreFactories::default()).unwrap();
             let tree = workspace
                 .repo_loader()
                 .store()

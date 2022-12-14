@@ -24,7 +24,7 @@ use jujutsu_lib::backend::{
     Backend, BackendResult, Commit, CommitId, Conflict, ConflictId, FileId, SymlinkId, Tree, TreeId,
 };
 use jujutsu_lib::git_backend::GitBackend;
-use jujutsu_lib::repo::BackendFactories;
+use jujutsu_lib::repo::StoreFactories;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::workspace::Workspace;
 
@@ -37,14 +37,14 @@ enum CustomCommands {
 fn run(ui: &mut Ui) -> Result<(), CommandError> {
     let app = CustomCommands::augment_subcommands(default_app());
     let (mut command_helper, matches) = parse_args(ui, app, std::env::args_os())?;
-    let mut backend_factories = BackendFactories::default();
+    let mut store_factories = StoreFactories::default();
     // Register the backend so it can be loaded when the repo is loaded. The name
     // must match `Backend::name()`.
-    backend_factories.add_backend(
+    store_factories.add_backend(
         "jit",
         Box::new(|store_path| Box::new(JitBackend::load(store_path))),
     );
-    command_helper.set_backend_factories(backend_factories);
+    command_helper.set_store_factories(store_factories);
     match CustomCommands::from_arg_matches(&matches) {
         // Handle our custom command
         Ok(CustomCommands::InitJit) => {
