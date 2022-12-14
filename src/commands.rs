@@ -44,7 +44,7 @@ use jujutsu_lib::revset_graph_iterator::{RevsetGraphEdge, RevsetGraphEdgeType};
 use jujutsu_lib::rewrite::{back_out_commit, merge_commit_trees, rebase_commit, DescendantRebaser};
 use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
-use jujutsu_lib::tree::{merge_trees, Tree, TreeDiffIterator};
+use jujutsu_lib::tree::{merge_trees, Tree};
 use jujutsu_lib::view::View;
 use jujutsu_lib::workspace::Workspace;
 use jujutsu_lib::{conflicts, file_util, git, revset};
@@ -1297,12 +1297,13 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
         to_tree = commit.tree()
     }
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let diff_iterator = from_tree.diff(&to_tree, matcher.as_ref());
     ui.request_pager();
     diff_util::show_diff(
         ui.stdout_formatter().as_mut(),
         &workspace_command,
-        diff_iterator,
+        &from_tree,
+        &to_tree,
+        matcher.as_ref(),
         diff_util::diff_format_for(ui, &args.format),
     )?;
     Ok(())
@@ -1730,8 +1731,14 @@ fn show_predecessor_patch(
         None => return Ok(()),
     };
     let predecessor_tree = rebase_to_dest_parent(workspace_command, predecessor, commit)?;
-    let diff_iterator = predecessor_tree.diff(&commit.tree(), &EverythingMatcher);
-    diff_util::show_diff(formatter, workspace_command, diff_iterator, diff_format)
+    diff_util::show_diff(
+        formatter,
+        workspace_command,
+        &predecessor_tree,
+        &commit.tree(),
+        &EverythingMatcher,
+        diff_format,
+    )
 }
 
 fn cmd_interdiff(
@@ -1745,12 +1752,13 @@ fn cmd_interdiff(
 
     let from_tree = rebase_to_dest_parent(&workspace_command, &from, &to)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let diff_iterator = from_tree.diff(&to.tree(), matcher.as_ref());
     ui.request_pager();
     diff_util::show_diff(
         ui.stdout_formatter().as_mut(),
         &workspace_command,
-        diff_iterator,
+        &from_tree,
+        &to.tree(),
+        matcher.as_ref(),
         diff_util::diff_format_for(ui, &args.format),
     )
 }
@@ -2441,10 +2449,16 @@ fn description_template_for_cmd_split(
     workspace_command: &WorkspaceCommandHelper,
     intro: &str,
     overall_commit_description: &str,
-    diff_iter: TreeDiffIterator,
+    from_tree: &Tree,
+    to_tree: &Tree,
 ) -> Result<String, CommandError> {
-    let diff_summary_bytes =
-        diff_util::diff_as_bytes(workspace_command, diff_iter, DiffFormat::Summary)?;
+    let diff_summary_bytes = diff_util::diff_as_bytes(
+        workspace_command,
+        from_tree,
+        to_tree,
+        &EverythingMatcher,
+        DiffFormat::Summary,
+    )?;
     let diff_summary = std::str::from_utf8(&diff_summary_bytes).expect(
         "Summary diffs and repo paths must always be valid UTF8.",
         // Double-check this assumption for diffs that include file content.
@@ -2494,7 +2508,8 @@ don't make any changes, then the operation will be aborted.
             &workspace_command,
             "Enter commit description for the first part (parent).",
             commit.description(),
-            base_tree.diff(&middle_tree, &EverythingMatcher),
+            &base_tree,
+            &middle_tree,
         )?;
         let first_description = edit_description(ui, tx.base_repo(), &first_template)?;
         let first_commit = CommitBuilder::for_rewrite_from(ui.settings(), &commit)
@@ -2505,7 +2520,8 @@ don't make any changes, then the operation will be aborted.
             &workspace_command,
             "Enter commit description for the second part (child).",
             commit.description(),
-            middle_tree.diff(&commit.tree(), &EverythingMatcher),
+            &middle_tree,
+            &commit.tree(),
         )?;
         let second_description = edit_description(ui, tx.base_repo(), &second_template)?;
         let second_commit = CommitBuilder::for_rewrite_from(ui.settings(), &commit)
