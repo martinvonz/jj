@@ -1311,10 +1311,6 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
 fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    let parents = commit.parents();
-    let from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
-    let to_tree = commit.tree();
-    let diff_iterator = from_tree.diff(&to_tree, &EverythingMatcher);
     // TODO: Add branches, tags, etc
     // TODO: Indent the description like Git does
     let (author_timestamp_template, committer_timestamp_template) =
@@ -1342,10 +1338,11 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
     template.format(&commit, formatter)?;
-    diff_util::show_diff(
+    diff_util::show_patch(
         formatter,
         &workspace_command,
-        diff_iterator,
+        &commit,
+        &EverythingMatcher,
         diff_util::diff_format_for(ui, &args.format),
     )?;
     Ok(())
