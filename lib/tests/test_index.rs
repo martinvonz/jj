@@ -18,7 +18,7 @@ use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::index::IndexRef;
-use jujutsu_lib::repo::{BackendFactories, ReadonlyRepo};
+use jujutsu_lib::repo::{ReadonlyRepo, StoreFactories};
 use jujutsu_lib::settings::UserSettings;
 use test_case::test_case;
 use testutils::{create_random_commit, CommitGraphBuilder, TestRepo};
@@ -293,9 +293,8 @@ fn test_index_commits_previous_operations(use_git: bool) {
     std::fs::remove_dir_all(&index_operations_dir).unwrap();
     std::fs::create_dir(&index_operations_dir).unwrap();
 
-    let repo =
-        ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &BackendFactories::default())
-            .unwrap();
+    let repo = ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &StoreFactories::default())
+        .unwrap();
     let index = repo.index();
     // There should be the root commit, plus 3 more
     assert_eq!(index.num_commits(), 1 + 3);
@@ -340,9 +339,8 @@ fn test_index_commits_incremental(use_git: bool) {
     let commit_c = child_commit(&settings, &repo, &commit_b).write_to_repo(tx.mut_repo());
     tx.commit();
 
-    let repo =
-        ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &BackendFactories::default())
-            .unwrap();
+    let repo = ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &StoreFactories::default())
+        .unwrap();
     let index = repo.index();
     // There should be the root commit, plus 3 more
     assert_eq!(index.num_commits(), 1 + 3);
@@ -385,9 +383,8 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
 
     repo.start_transaction(&settings, "test").commit();
 
-    let repo =
-        ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &BackendFactories::default())
-            .unwrap();
+    let repo = ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &StoreFactories::default())
+        .unwrap();
     let index = repo.index();
     // There should be the root commit, plus 1 more
     assert_eq!(index.num_commits(), 1 + 1);

@@ -163,9 +163,9 @@ impl ReadonlyRepo {
     pub fn load_at_head(
         user_settings: &UserSettings,
         repo_path: &Path,
-        backend_factories: &BackendFactories,
+        store_factories: &StoreFactories,
     ) -> Result<Arc<ReadonlyRepo>, BackendError> {
-        RepoLoader::init(user_settings, repo_path, backend_factories)
+        RepoLoader::init(user_settings, repo_path, store_factories)
             .load_at_head()
             .resolve(user_settings)
     }
@@ -285,13 +285,13 @@ impl UnresolvedHeadRepo {
 
 type BackendFactory = Box<dyn Fn(&Path) -> Box<dyn Backend>>;
 
-pub struct BackendFactories {
-    factories: HashMap<String, BackendFactory>,
+pub struct StoreFactories {
+    backend_factories: HashMap<String, BackendFactory>,
 }
 
-impl Default for BackendFactories {
+impl Default for StoreFactories {
     fn default() -> Self {
-        let mut factories = BackendFactories::empty();
+        let mut factories = StoreFactories::empty();
         factories.add_backend(
             "local",
             Box::new(|store_path| Box::new(LocalBackend::load(store_path))),
@@ -304,15 +304,15 @@ impl Default for BackendFactories {
     }
 }
 
-impl BackendFactories {
+impl StoreFactories {
     pub fn empty() -> Self {
-        BackendFactories {
-            factories: HashMap::new(),
+        StoreFactories {
+            backend_factories: HashMap::new(),
         }
     }
 
     pub fn add_backend(&mut self, name: &str, factory: BackendFactory) {
-        self.factories.insert(name.to_string(), factory);
+        self.backend_factories.insert(name.to_string(), factory);
     }
 }
 
@@ -330,7 +330,7 @@ impl RepoLoader {
     pub fn init(
         user_settings: &UserSettings,
         repo_path: &Path,
-        backend_factories: &BackendFactories,
+        store_factories: &StoreFactories,
     ) -> Self {
         let store_path = repo_path.join("store");
         let backend_type = match fs::read_to_string(store_path.join("backend")) {
@@ -349,8 +349,8 @@ impl RepoLoader {
                 panic!("Failed to read backend type");
             }
         };
-        let backend_factory = backend_factories
-            .factories
+        let backend_factory = store_factories
+            .backend_factories
             .get(&backend_type)
             .expect("Unexpected backend type");
         let store = Store::new(backend_factory(&store_path));

@@ -14,7 +14,7 @@
 
 use std::path::Path;
 
-use jujutsu_lib::repo::{BackendFactories, ReadonlyRepo};
+use jujutsu_lib::repo::{ReadonlyRepo, StoreFactories};
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
 use testutils::{create_random_commit, TestWorkspace};
@@ -107,12 +107,8 @@ fn test_bad_locking_children(use_git: bool) {
     // Simulate a write of a commit that happens on one machine
     let machine1_root = testutils::new_temp_dir();
     copy_directory(workspace_root, machine1_root.path());
-    let machine1_workspace = Workspace::load(
-        &settings,
-        machine1_root.path(),
-        &BackendFactories::default(),
-    )
-    .unwrap();
+    let machine1_workspace =
+        Workspace::load(&settings, machine1_root.path(), &StoreFactories::default()).unwrap();
     let machine1_repo = machine1_workspace
         .repo_loader()
         .load_at_head()
@@ -127,12 +123,8 @@ fn test_bad_locking_children(use_git: bool) {
     // Simulate a write of a commit that happens on another machine
     let machine2_root = testutils::new_temp_dir();
     copy_directory(workspace_root, machine2_root.path());
-    let machine2_workspace = Workspace::load(
-        &settings,
-        machine2_root.path(),
-        &BackendFactories::default(),
-    )
-    .unwrap();
+    let machine2_workspace =
+        Workspace::load(&settings, machine2_root.path(), &StoreFactories::default()).unwrap();
     let machine2_repo = machine2_workspace
         .repo_loader()
         .load_at_head()
@@ -154,7 +146,7 @@ fn test_bad_locking_children(use_git: bool) {
         merged_path.path(),
     );
     let merged_workspace =
-        Workspace::load(&settings, merged_path.path(), &BackendFactories::default()).unwrap();
+        Workspace::load(&settings, merged_path.path(), &StoreFactories::default()).unwrap();
     let merged_repo = merged_workspace
         .repo_loader()
         .load_at_head()
@@ -199,13 +191,13 @@ fn test_bad_locking_interrupted(use_git: bool) {
     copy_directory(backup_path.path(), &op_heads_dir);
     // Reload the repo and check that only the new head is present.
     let reloaded_repo =
-        ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &BackendFactories::default())
+        ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &StoreFactories::default())
             .unwrap();
     assert_eq!(reloaded_repo.op_id(), &op_id);
     // Reload once more to make sure that the .jj/op_heads/ directory was updated
     // correctly.
     let reloaded_repo =
-        ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &BackendFactories::default())
+        ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &StoreFactories::default())
             .unwrap();
     assert_eq!(reloaded_repo.op_id(), &op_id);
 }
