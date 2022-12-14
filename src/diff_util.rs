@@ -26,7 +26,7 @@ use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::matchers::Matcher;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::tree::TreeDiffIterator;
+use jujutsu_lib::tree::{Tree, TreeDiffIterator};
 use jujutsu_lib::{conflicts, diff, files, rewrite, tree};
 
 use crate::cli_util::{CommandError, WorkspaceCommandHelper};
@@ -82,9 +82,12 @@ fn default_diff_format(ui: &Ui) -> DiffFormat {
 pub fn show_diff(
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
-    tree_diff: TreeDiffIterator,
+    from_tree: &Tree,
+    to_tree: &Tree,
+    matcher: &dyn Matcher,
     format: DiffFormat,
 ) -> Result<(), CommandError> {
+    let tree_diff = from_tree.diff(to_tree, matcher);
     match format {
         DiffFormat::Summary => {
             show_diff_summary(formatter, workspace_command, tree_diff)?;
@@ -109,18 +112,33 @@ pub fn show_patch(
     let parents = commit.parents();
     let from_tree = rewrite::merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
     let to_tree = commit.tree();
-    let diff_iterator = from_tree.diff(&to_tree, matcher);
-    show_diff(formatter, workspace_command, diff_iterator, format)
+    show_diff(
+        formatter,
+        workspace_command,
+        &from_tree,
+        &to_tree,
+        matcher,
+        format,
+    )
 }
 
 pub fn diff_as_bytes(
     workspace_command: &WorkspaceCommandHelper,
-    tree_diff: TreeDiffIterator,
+    from_tree: &Tree,
+    to_tree: &Tree,
+    matcher: &dyn Matcher,
     format: DiffFormat,
 ) -> Result<Vec<u8>, CommandError> {
     let mut diff_bytes: Vec<u8> = vec![];
     let mut formatter = PlainTextFormatter::new(&mut diff_bytes);
-    show_diff(&mut formatter, workspace_command, tree_diff, format)?;
+    show_diff(
+        &mut formatter,
+        workspace_command,
+        from_tree,
+        to_tree,
+        matcher,
+        format,
+    )?;
     Ok(diff_bytes)
 }
 
