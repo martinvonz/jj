@@ -207,14 +207,14 @@ fn test_alias_global_args_in_definition() {
     let repo_path = test_env.env_root().join("repo");
     test_env.add_config(
         br#"[alias]
-    l = ["log", "-T", "commit_id", "--at-op", "@-", "-r", "all()"]
+    l = ["log", "-T", "commit_id", "--at-op", "@-", "-r", "all()", "--color=always"]
     "#,
     );
 
     // The global argument in the alias is respected
     let stdout = test_env.jj_cmd_success(&repo_path, &["l"]);
     insta::assert_snapshot!(stdout, @r###"
-    o 0000000000000000000000000000000000000000
+    o [34m0000000000000000000000000000000000000000[0m
     "###);
 }
 
