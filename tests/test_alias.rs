@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools as _;
+
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -69,6 +71,49 @@ fn test_alias_calls_unknown_command() {
     Usage: jj [OPTIONS] <COMMAND>
 
     For more information try '--help'
+    "###);
+}
+
+#[test]
+fn test_alias_calls_command_with_invalid_option() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(
+        br#"[alias]
+    foo = ["log", "--nonexistent"]
+    "#,
+    );
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: Found argument '--nonexistent' which wasn't expected, or isn't valid in this context
+
+      If you tried to supply '--nonexistent' as a value rather than a flag, use '-- --nonexistent'
+
+    Usage: jj log [OPTIONS] [PATHS]...
+
+    For more information try '--help'
+    "###);
+}
+
+#[test]
+fn test_alias_calls_help() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.add_config(
+        br#"[alias]
+    h = ["--help"]
+    "#,
+    );
+    let stdout = test_env.jj_cmd_success(&repo_path, &["h"]);
+    insta::assert_snapshot!(stdout.lines().take(5).join("\n"), @r###"
+    Jujutsu (An experimental VCS)
+
+    To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.
+
+    Usage: jj [OPTIONS] <COMMAND>
     "###);
 }
 
