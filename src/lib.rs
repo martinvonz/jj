@@ -19,6 +19,7 @@ pub mod cli_util;
 pub mod commands;
 pub mod config;
 pub mod diff_edit;
+pub mod diff_util;
 pub mod formatter;
 pub mod graphlog;
 mod progress;
