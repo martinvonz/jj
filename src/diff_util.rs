@@ -60,10 +60,10 @@ pub fn diff_format_for(ui: &Ui, args: &DiffFormatArgs) -> DiffFormat {
     } else if args.color_words {
         DiffFormat::ColorWords
     } else {
-        match ui.settings().config().get_string("diff.format") {
-            Ok(value) if &value == "summary" => DiffFormat::Summary,
-            Ok(value) if &value == "git" => DiffFormat::Git,
-            Ok(value) if &value == "color-words" => DiffFormat::ColorWords,
+        match ui.settings().config().get_string("diff.format").as_deref() {
+            Ok("summary") => DiffFormat::Summary,
+            Ok("git") => DiffFormat::Git,
+            Ok("color-words") => DiffFormat::ColorWords,
             _ => DiffFormat::ColorWords,
         }
     }
