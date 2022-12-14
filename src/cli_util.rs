@@ -1414,8 +1414,8 @@ fn resolve_aliases(
     }
     loop {
         let app_clone = app.clone().allow_external_subcommands(true);
-        let matches = app_clone.try_get_matches_from(&string_args)?;
-        if let Some((command_name, submatches)) = matches.subcommand() {
+        let matches = app_clone.try_get_matches_from(&string_args).ok();
+        if let Some((command_name, submatches)) = matches.as_ref().and_then(|m| m.subcommand()) {
             if !real_commands.contains(command_name) {
                 let alias_name = command_name.to_string();
                 let alias_args = submatches
@@ -1447,6 +1447,7 @@ fn resolve_aliases(
                 }
             }
         }
+        // No more alias commands, or hit unknown option
         return Ok(string_args);
     }
 }
