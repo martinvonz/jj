@@ -67,7 +67,7 @@ pub fn diff_format_for(ui: &Ui, args: &DiffFormatArgs) -> DiffFormat {
 }
 
 pub fn diff_format_for_log(ui: &Ui, args: &DiffFormatArgs, patch: bool) -> Option<DiffFormat> {
-    (patch || args.git || args.summary).then(|| diff_format_for(ui, args))
+    (patch || args.git || args.color_words || args.summary).then(|| diff_format_for(ui, args))
 }
 
 fn default_diff_format(ui: &Ui) -> DiffFormat {
