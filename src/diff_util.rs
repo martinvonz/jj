@@ -20,12 +20,14 @@ use std::sync::Arc;
 use clap::ArgGroup;
 use itertools::Itertools;
 use jujutsu_lib::backend::TreeValue;
+use jujutsu_lib::commit::Commit;
 use jujutsu_lib::diff::{Diff, DiffHunk};
 use jujutsu_lib::files::DiffLine;
+use jujutsu_lib::matchers::Matcher;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::tree::TreeDiffIterator;
-use jujutsu_lib::{conflicts, diff, files, tree};
+use jujutsu_lib::{conflicts, diff, files, rewrite, tree};
 
 use crate::cli_util::{CommandError, WorkspaceCommandHelper};
 use crate::formatter::{Formatter, PlainTextFormatter};
@@ -87,6 +89,20 @@ pub fn show_diff(
         }
     }
     Ok(())
+}
+
+pub fn show_patch(
+    formatter: &mut dyn Formatter,
+    workspace_command: &WorkspaceCommandHelper,
+    commit: &Commit,
+    matcher: &dyn Matcher,
+    format: DiffFormat,
+) -> Result<(), CommandError> {
+    let parents = commit.parents();
+    let from_tree = rewrite::merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
+    let to_tree = commit.tree();
+    let diff_iterator = from_tree.diff(&to_tree, matcher);
+    show_diff(formatter, workspace_command, diff_iterator, format)
 }
 
 pub fn diff_as_bytes(

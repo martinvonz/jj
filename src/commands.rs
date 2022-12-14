@@ -33,7 +33,7 @@ use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::git::{GitFetchError, GitRefUpdate};
 use jujutsu_lib::index::IndexEntry;
-use jujutsu_lib::matchers::{EverythingMatcher, Matcher};
+use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
@@ -1586,7 +1586,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 }
                 if let Some(diff_format) = diff_format {
                     let mut formatter = ui.new_formatter(&mut buffer);
-                    show_patch(
+                    diff_util::show_patch(
                         formatter.as_mut(),
                         &workspace_command,
                         &commit,
@@ -1612,7 +1612,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 let commit = store.get_commit(&index_entry.commit_id())?;
                 template.format(&commit, formatter)?;
                 if let Some(diff_format) = diff_format {
-                    show_patch(
+                    diff_util::show_patch(
                         formatter,
                         &workspace_command,
                         &commit,
@@ -1645,20 +1645,6 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     }
 
     Ok(())
-}
-
-fn show_patch(
-    formatter: &mut dyn Formatter,
-    workspace_command: &WorkspaceCommandHelper,
-    commit: &Commit,
-    matcher: &dyn Matcher,
-    format: DiffFormat,
-) -> Result<(), CommandError> {
-    let parents = commit.parents();
-    let from_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &parents);
-    let to_tree = commit.tree();
-    let diff_iterator = from_tree.diff(&to_tree, matcher);
-    diff_util::show_diff(formatter, workspace_command, diff_iterator, format)
 }
 
 fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result<(), CommandError> {
