@@ -255,6 +255,8 @@ pub enum OpStoreError {
 pub type OpStoreResult<T> = Result<T, OpStoreError>;
 
 pub trait OpStore: Send + Sync + Debug {
+    fn name(&self) -> &str;
+
     fn read_view(&self, id: &ViewId) -> OpStoreResult<View>;
 
     fn write_view(&self, contents: &View) -> OpStoreResult<ViewId>;

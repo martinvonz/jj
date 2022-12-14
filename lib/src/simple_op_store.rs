@@ -133,6 +133,10 @@ impl SimpleOpStore {
 }
 
 impl OpStore for SimpleOpStore {
+    fn name(&self) -> &str {
+        "simple_op_store"
+    }
+
     fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {
         self.delegate.read_view(id)
     }
