@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* The default log format now uses the committer timestamp instead of the author
+  timestamp.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
