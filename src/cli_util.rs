@@ -1453,9 +1453,13 @@ fn resolve_aliases(
 }
 
 /// Parse args that must be interpreted early, e.g. before printing help.
-fn handle_early_args(ui: &mut Ui, app: &clap::Command) -> Result<(), CommandError> {
+fn handle_early_args(
+    ui: &mut Ui,
+    app: &clap::Command,
+    args: &[String],
+) -> Result<(), CommandError> {
     // ignore_errors() bypasses errors like "--help" or missing subcommand
-    let early_matches = app.clone().ignore_errors(true).get_matches();
+    let early_matches = app.clone().ignore_errors(true).get_matches_from(args);
     let mut args: EarlyArgs = EarlyArgs::from_arg_matches(&early_matches).unwrap();
 
     if let Some(choice) = args.color {
@@ -1484,9 +1488,9 @@ pub fn parse_args(
             return Err(CommandError::CliError("Non-utf8 argument".to_string()));
         }
     }
-    handle_early_args(ui, &app)?;
 
     let string_args = resolve_aliases(ui.settings(), &app, &string_args)?;
+    handle_early_args(ui, &app, &string_args)?;
     let matches = app.clone().try_get_matches_from(&string_args)?;
 
     let args: Args = Args::from_arg_matches(&matches).unwrap();
