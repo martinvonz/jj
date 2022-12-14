@@ -142,6 +142,36 @@ fn test_log_with_or_without_diff() {
      foo
     +bar
     "###);
+
+    // `--color-words` implies `-p`, with or without graph
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "description", "-r", "@", "--color-words"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @ a new commit
+    ~ Modified regular file file1:
+         1    1: foo
+              2: bar
+    "###);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-T",
+            "description",
+            "-r",
+            "@",
+            "--no-graph",
+            "--color-words",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    a new commit
+    Modified regular file file1:
+       1    1: foo
+            2: bar
+    "###);
 }
 
 #[test]
