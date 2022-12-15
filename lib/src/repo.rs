@@ -691,8 +691,9 @@ pub struct MutableRepo {
     base_repo: Arc<ReadonlyRepo>,
     index: Box<dyn MutableIndex>,
     view: DirtyCell<View>,
-    rewritten_commits: HashMap<CommitId, HashSet<CommitId>>,
-    abandoned_commits: HashSet<CommitId>,
+    // TODO: make not pub
+    pub rewritten_commits: HashMap<CommitId, HashSet<CommitId>>,
+    pub abandoned_commits: HashSet<CommitId>,
 }
 
 impl MutableRepo {
