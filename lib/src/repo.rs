@@ -33,7 +33,9 @@ use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{LockedOpHeads, OpHeads, OpHeadsStore};
-use crate::op_store::{BranchTarget, OpStore, OperationId, RefTarget, WorkspaceId};
+use crate::op_store::{
+    BranchTarget, OpStore, OperationId, OperationMetadata, RefTarget, WorkspaceId,
+};
 use crate::operation::Operation;
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
@@ -115,11 +117,30 @@ impl ReadonlyRepo {
         |store_path| Box::new(SimpleOpStore::init(store_path))
     }
 
+    pub fn default_op_heads_store_factory() -> impl FnOnce(
+        &Path,
+        &Arc<dyn OpStore>,
+        &op_store::View,
+        OperationMetadata,
+    ) -> (Box<dyn OpHeadsStore>, Operation) {
+        |store_path, op_store, view, operation_metadata| {
+            let (store, op) =
+                SimpleOpHeadsStore::init(store_path, op_store, view, operation_metadata);
+            (Box::new(store), op)
+        }
+    }
+
     pub fn init(
         user_settings: &UserSettings,
         repo_path: &Path,
         backend_factory: impl FnOnce(&Path) -> Box<dyn Backend>,
         op_store_factory: impl FnOnce(&Path) -> Box<dyn OpStore>,
+        op_heads_store_factory: impl FnOnce(
+            &Path,
+            &Arc<dyn OpStore>,
+            &op_store::View,
+            OperationMetadata,
+        ) -> (Box<dyn OpHeadsStore>, Operation),
     ) -> Result<Arc<ReadonlyRepo>, PathError> {
         let repo_path = repo_path.canonicalize().context(repo_path)?;
 
@@ -149,8 +170,10 @@ impl ReadonlyRepo {
         let operation_metadata =
             crate::transaction::create_op_metadata(user_settings, "initialize repo".to_string());
         let (op_heads_store, init_op) =
-            SimpleOpHeadsStore::init(&op_heads_path, &op_store, &root_view, operation_metadata);
-        let op_heads_store = Arc::new(op_heads_store);
+            op_heads_store_factory(&op_heads_path, &op_store, &root_view, operation_metadata);
+        let op_heads_type_path = op_heads_path.join("type");
+        fs::write(&op_heads_type_path, op_heads_store.name()).context(&op_heads_type_path)?;
+        let op_heads_store = Arc::from(op_heads_store);
 
         let index_path = repo_path.join("index");
         fs::create_dir(&index_path).context(&index_path)?;
@@ -295,10 +318,12 @@ impl UnresolvedHeadRepo {
 
 type BackendFactory = Box<dyn Fn(&Path) -> Box<dyn Backend>>;
 type OpStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpStore>>;
+type OpHeadsStoreFactory = Box<dyn Fn(&Path) -> Box<dyn OpHeadsStore>>;
 
 pub struct StoreFactories {
     backend_factories: HashMap<String, BackendFactory>,
     op_store_factories: HashMap<String, OpStoreFactory>,
+    op_heads_store_factories: HashMap<String, OpHeadsStoreFactory>,
 }
 
 impl Default for StoreFactories {
@@ -321,6 +346,12 @@ impl Default for StoreFactories {
             Box::new(|store_path| Box::new(SimpleOpStore::load(store_path))),
         );
 
+        // OpHeadsStores
+        factories.add_op_heads_store(
+            "simple_op_heads_store",
+            Box::new(|store_path| Box::new(SimpleOpHeadsStore::load(store_path))),
+        );
+
         factories
     }
 }
@@ -330,6 +361,7 @@ impl StoreFactories {
         StoreFactories {
             backend_factories: HashMap::new(),
             op_store_factories: HashMap::new(),
+            op_heads_store_factories: HashMap::new(),
         }
     }
 
@@ -370,7 +402,7 @@ impl StoreFactories {
         let op_store_type = match fs::read_to_string(store_path.join("type")) {
             Ok(content) => content,
             Err(err) if err.kind() == ErrorKind::NotFound => {
-                // For compatibility with existing repos. TODO: Delete in spring of 2024 or so.
+                // For compatibility with existing repos. TODO: Delete in 0.8+
                 let default_type = String::from("simple_op_store");
                 fs::write(store_path.join("type"), &default_type).unwrap();
                 default_type
@@ -384,6 +416,31 @@ impl StoreFactories {
             .get(&op_store_type)
             .expect("Unexpected op_store type");
         op_store_factory(store_path)
+    }
+
+    pub fn add_op_heads_store(&mut self, name: &str, factory: OpHeadsStoreFactory) {
+        self.op_heads_store_factories
+            .insert(name.to_string(), factory);
+    }
+
+    pub fn load_op_heads_store(&self, store_path: &Path) -> Box<dyn OpHeadsStore> {
+        let op_heads_store_type = match fs::read_to_string(store_path.join("type")) {
+            Ok(content) => content,
+            Err(err) if err.kind() == ErrorKind::NotFound => {
+                // For compatibility with existing repos. TODO: Delete in 0.8+
+                let default_type = String::from("simple_op_heads_store");
+                fs::write(store_path.join("type"), &default_type).unwrap();
+                default_type
+            }
+            Err(_) => {
+                panic!("Failed to read op_heads_store type");
+            }
+        };
+        let op_heads_store_factory = self
+            .op_heads_store_factories
+            .get(&op_heads_store_type)
+            .expect("Unexpected op_heads_store type");
+        op_heads_store_factory(store_path)
     }
 }
 

@@ -63,6 +63,8 @@ impl LockedOpHeads {
 /// makes it possible for a Trait method to reference &Arc<Self>, this can be
 /// simplified.
 pub trait OpHeadsStore: Send + Sync + Debug {
+    fn name(&self) -> &str;
+
     fn add_op_head(&self, id: &OperationId);
 
     fn remove_op_head(&self, id: &OperationId);

@@ -95,6 +95,7 @@ impl TestRepo {
                 &repo_dir,
                 |store_path| Box::new(GitBackend::init_external(store_path, &git_path)),
                 ReadonlyRepo::default_op_store_factory(),
+                ReadonlyRepo::default_op_heads_store_factory(),
             )
             .unwrap()
         } else {
@@ -103,6 +104,7 @@ impl TestRepo {
                 &repo_dir,
                 |store_path| Box::new(LocalBackend::init(store_path)),
                 ReadonlyRepo::default_op_store_factory(),
+                ReadonlyRepo::default_op_heads_store_factory(),
             )
             .unwrap()
         };
