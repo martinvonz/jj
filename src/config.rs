@@ -73,6 +73,8 @@ fn env_base() -> config::Config {
 }
 
 fn default_mergetool_config() -> config::Config {
+    // Syntax error in default config isn't a user error. That's why defaults are
+    // loaded by separate builder.
     config::Config::builder()
         .add_source(config::File::from_str(
             include_str!("merge-tools.toml"),
