@@ -48,6 +48,7 @@ pub mod revset;
 pub mod revset_graph_iterator;
 pub mod rewrite;
 pub mod settings;
+pub mod simple_op_heads_store;
 pub mod simple_op_store;
 #[cfg(feature = "legacy-thrift")]
 mod simple_op_store_model;
