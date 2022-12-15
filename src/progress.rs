@@ -59,7 +59,7 @@ impl Progress {
         write!(self.buffer, "{: >3.0}% ", 100.0 * progress.overall).unwrap();
         if let Some(estimate) = rate {
             let (scaled, prefix) = binary_prefix(estimate);
-            write!(self.buffer, " at {: >5.1} {}B/s ", scaled, prefix).unwrap();
+            write!(self.buffer, " at {scaled: >5.1} {prefix}B/s ").unwrap();
         }
 
         let bar_width = ui

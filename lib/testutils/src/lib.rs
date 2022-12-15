@@ -201,7 +201,7 @@ pub fn create_random_tree(repo: &ReadonlyRepo) -> TreeId {
         .store()
         .tree_builder(repo.store().empty_tree_id().clone());
     let number = rand::random::<u32>();
-    let path = RepoPath::from_internal_string(format!("file{}", number).as_str());
+    let path = RepoPath::from_internal_string(format!("file{number}").as_str());
     write_normal_file(&mut tree_builder, &path, "contents");
     tree_builder.write_tree()
 }
@@ -215,7 +215,7 @@ pub fn create_random_commit(settings: &UserSettings, repo: &ReadonlyRepo) -> Com
         vec![repo.store().root_commit_id().clone()],
         tree_id,
     )
-    .set_description(format!("random commit {}", number))
+    .set_description(format!("random commit {number}"))
 }
 
 pub fn write_working_copy_file(workspace_root: &Path, path: &RepoPath, contents: &str) {
@@ -278,6 +278,6 @@ pub fn assert_rebased(
         );
         new_commit
     } else {
-        panic!("expected rebased commit: {:?}", rebased);
+        panic!("expected rebased commit: {rebased:?}");
     }
 }

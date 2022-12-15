@@ -568,7 +568,7 @@ impl MutableIndex {
         ReadonlyIndex::load_from(&mut cursor, dir, index_file_id_hex, hash_length).map_err(|err| {
             match err {
                 IndexLoadError::IndexCorrupt(err) => {
-                    panic!("Just-created index file is corrupt: {}", err)
+                    panic!("Just-created index file is corrupt: {err}")
                 }
                 IndexLoadError::IoError(err) => err,
             }

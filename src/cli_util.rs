@@ -259,7 +259,7 @@ impl CommandHelper {
         let wc_path = ui.cwd().join(wc_path_str);
         Workspace::load(ui.settings(), &wc_path, &self.store_factories).map_err(|err| match err {
             WorkspaceLoadError::NoWorkspaceHere(wc_path) => {
-                let message = format!("There is no jj repo in \"{}\"", wc_path_str);
+                let message = format!("There is no jj repo in \"{wc_path_str}\"");
                 let git_dir = wc_path.join(".git");
                 if git_dir.is_dir() {
                     user_error_with_hint(
@@ -315,9 +315,8 @@ jj init --git-repo=.",
                     if num_rebased > 0 {
                         writeln!(
                             ui,
-                            "Rebased {} descendant commits onto commits rewritten by other \
-                             operation",
-                            num_rebased
+                            "Rebased {num_rebased} descendant commits onto commits rewritten by \
+                             other operation"
                         )?;
                     }
                 }
@@ -458,8 +457,8 @@ impl WorkspaceCommandHelper {
                 if num_rebased > 0 {
                     writeln!(
                         ui,
-                        "Rebased {} descendant commits off of commits rewritten from git",
-                        num_rebased
+                        "Rebased {num_rebased} descendant commits off of commits rewritten from \
+                         git"
                     )?;
                 }
                 self.finish_transaction(ui, tx)?;
@@ -613,14 +612,12 @@ impl WorkspaceCommandHelper {
         let mut iter = revset.iter().commits(self.repo.store());
         match iter.next() {
             None => Err(user_error(format!(
-                "Revset \"{}\" didn't resolve to any revisions",
-                revision_str
+                "Revset \"{revision_str}\" didn't resolve to any revisions"
             ))),
             Some(commit) => {
                 if iter.next().is_some() {
                     Err(user_error(format!(
-                        "Revset \"{}\" resolved to more than one revision",
-                        revision_str
+                        "Revset \"{revision_str}\" resolved to more than one revision"
                     )))
                 } else {
                     Ok(commit?)
@@ -744,8 +741,7 @@ impl WorkspaceCommandHelper {
             if num_rebased > 0 {
                 writeln!(
                     ui,
-                    "Rebased {} descendant commits onto updated working copy",
-                    num_rebased
+                    "Rebased {num_rebased} descendant commits onto updated working copy"
                 )?;
             }
 
@@ -865,7 +861,7 @@ impl WorkspaceCommandHelper {
         }
         let num_rebased = mut_repo.rebase_descendants(ui.settings())?;
         if num_rebased > 0 {
-            writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
+            writeln!(ui, "Rebased {num_rebased} descendant commits")?;
         }
         if self.working_copy_shared_with_git {
             self.export_head_to_git(mut_repo)?;
@@ -1073,8 +1069,7 @@ fn resolve_single_op_from_store(
 ) -> Result<Operation, CommandError> {
     if op_str.is_empty() || !op_str.as_bytes().iter().all(|b| b.is_ascii_hexdigit()) {
         return Err(user_error(format!(
-            "Operation ID \"{}\" is not a valid hexadecimal prefix",
-            op_str
+            "Operation ID \"{op_str}\" is not a valid hexadecimal prefix"
         )));
     }
     if let Ok(binary_op_id) = hex::decode(op_str) {
@@ -1100,16 +1095,12 @@ fn resolve_single_op_from_store(
         }
     }
     if matches.is_empty() {
-        Err(user_error(format!(
-            "No operation ID matching \"{}\"",
-            op_str
-        )))
+        Err(user_error(format!("No operation ID matching \"{op_str}\"")))
     } else if matches.len() == 1 {
         Ok(matches.pop().unwrap())
     } else {
         Err(user_error(format!(
-            "Operation ID prefix \"{}\" is ambiguous",
-            op_str
+            "Operation ID prefix \"{op_str}\" is ambiguous"
         )))
     }
 }
@@ -1504,19 +1495,19 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
     match result {
         Ok(()) => 0,
         Err(CommandError::UserError { message, hint }) => {
-            ui.write_error(&format!("Error: {}\n", message)).unwrap();
+            ui.write_error(&format!("Error: {message}\n")).unwrap();
             if let Some(hint) = hint {
-                ui.write_hint(&format!("Hint: {}\n", hint)).unwrap();
+                ui.write_hint(&format!("Hint: {hint}\n")).unwrap();
             }
             1
         }
         Err(CommandError::ConfigError(message)) => {
-            ui.write_error(&format!("Config error: {}\n", message))
+            ui.write_error(&format!("Config error: {message}\n"))
                 .unwrap();
             1
         }
         Err(CommandError::CliError(message)) => {
-            ui.write_error(&format!("Error: {}\n", message)).unwrap();
+            ui.write_error(&format!("Error: {message}\n")).unwrap();
             2
         }
         Err(CommandError::ClapCliError(inner)) => {
@@ -1548,7 +1539,7 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
         }
         Err(CommandError::BrokenPipe) => 3,
         Err(CommandError::InternalError(message)) => {
-            ui.write_error(&format!("Internal error: {}\n", message))
+            ui.write_error(&format!("Internal error: {message}\n"))
                 .unwrap();
             255
         }

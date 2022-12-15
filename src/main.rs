@@ -34,7 +34,7 @@ fn run(
                     .from_env_lossy()
             })
             .map_err(|err| {
-                CommandError::InternalError(format!("failed to enable verbose logging: {:?}", err))
+                CommandError::InternalError(format!("failed to enable verbose logging: {err:?}"))
             })?;
         tracing::debug!("verbose logging enabled");
     }

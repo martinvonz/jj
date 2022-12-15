@@ -94,7 +94,7 @@ fn main() {
                 std::fs::write(args.after.join(file), payload).unwrap();
             }
             _ => {
-                eprintln!("fake-diff-editor: unexpected command: {}", command);
+                eprintln!("fake-diff-editor: unexpected command: {command}");
                 exit(1)
             }
         }

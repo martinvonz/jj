@@ -257,7 +257,7 @@ pub fn export_refs(
         }
     }
     for (branch_name, old_oid) in branches_to_delete {
-        let git_ref_name = format!("refs/heads/{}", branch_name);
+        let git_ref_name = format!("refs/heads/{branch_name}");
         let success = if let Ok(mut git_ref) = git_repo.find_reference(&git_ref_name) {
             if git_ref.target() == Some(old_oid) {
                 // The branch has not been updated by git, so go ahead and delete it
@@ -277,7 +277,7 @@ pub fn export_refs(
         }
     }
     for (branch_name, (old_oid, new_oid)) in branches_to_update {
-        let git_ref_name = format!("refs/heads/{}", branch_name);
+        let git_ref_name = format!("refs/heads/{branch_name}");
         let success = match old_oid {
             None => {
                 if let Ok(git_ref) = git_repo.find_reference(&git_ref_name) {
@@ -416,7 +416,7 @@ pub fn push_commit(
         git_repo,
         remote_name,
         &[GitRefUpdate {
-            qualified_name: format!("refs/heads/{}", remote_branch),
+            qualified_name: format!("refs/heads/{remote_branch}"),
             force,
             new_target: Some(target.id().clone()),
         }],

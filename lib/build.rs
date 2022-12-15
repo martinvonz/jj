@@ -36,7 +36,7 @@ fn main() {
         .run_from_script();
     println!("cargo:rerun-if-changed=build.rs");
     for file in input {
-        println!("cargo:rerun-if-changed={}", file);
+        println!("cargo:rerun-if-changed={file}");
     }
 
     if let Some(true) = version_check::supports_feature("map_first_last") {

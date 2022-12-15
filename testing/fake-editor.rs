@@ -57,7 +57,7 @@ fn main() {
                 std::fs::write(&args.file, payload).unwrap();
             }
             _ => {
-                eprintln!("fake-editor: unexpected command: {}", command);
+                eprintln!("fake-editor: unexpected command: {command}");
                 exit(1)
             }
         }

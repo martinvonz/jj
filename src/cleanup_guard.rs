@@ -16,7 +16,7 @@ pub fn init() {
     static CALLED: Once = Once::new();
     CALLED.call_once(|| {
         if let Err(ref e) = unsafe { platform::init() } {
-            eprintln!("couldn't register signal handler: {}", e);
+            eprintln!("couldn't register signal handler: {e}");
         }
     });
 }
@@ -78,7 +78,7 @@ mod platform {
             let guards = &mut *LIVE_GUARDS.lock().unwrap();
             if let Err(e) = std::panic::catch_unwind(AssertUnwindSafe(|| on_signal(guards))) {
                 match e.downcast::<String>() {
-                    Ok(s) => eprintln!("signal handler panicked: {}", s),
+                    Ok(s) => eprintln!("signal handler panicked: {s}"),
                     Err(_) => eprintln!("signal handler panicked"),
                 }
             }

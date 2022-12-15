@@ -887,11 +887,11 @@ impl TreeState {
                         TreeValue::Symlink(id) => self.write_symlink(&disk_path, &path, &id)?,
                         TreeValue::Conflict(id) => self.write_conflict(&disk_path, &path, &id)?,
                         TreeValue::GitSubmodule(_id) => {
-                            println!("ignoring git submodule at {:?}", path);
+                            println!("ignoring git submodule at {path:?}");
                             FileState::for_gitsubmodule()
                         }
                         TreeValue::Tree(_id) => {
-                            panic!("unexpected tree entry in diff at {:?}", path);
+                            panic!("unexpected tree entry in diff at {path:?}");
                         }
                     };
                     self.file_states.insert(path, file_state);
@@ -924,11 +924,11 @@ impl TreeState {
                             self.write_conflict(&disk_path, &path, &id)?
                         }
                         (_, TreeValue::GitSubmodule(_id)) => {
-                            println!("ignoring git submodule at {:?}", path);
+                            println!("ignoring git submodule at {path:?}");
                             FileState::for_gitsubmodule()
                         }
                         (_, TreeValue::Tree(_id)) => {
-                            panic!("unexpected tree entry in diff at {:?}", path);
+                            panic!("unexpected tree entry in diff at {path:?}");
                         }
                     };
 
@@ -965,11 +965,11 @@ impl TreeState {
                         TreeValue::Symlink(_id) => FileType::Symlink,
                         TreeValue::Conflict(id) => FileType::Conflict { id },
                         TreeValue::GitSubmodule(_id) => {
-                            println!("ignoring git submodule at {:?}", path);
+                            println!("ignoring git submodule at {path:?}");
                             FileType::GitSubmodule
                         }
                         TreeValue::Tree(_id) => {
-                            panic!("unexpected tree entry in diff at {:?}", path);
+                            panic!("unexpected tree entry in diff at {path:?}");
                         }
                     };
                     let file_state = FileState {

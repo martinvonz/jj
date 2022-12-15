@@ -66,7 +66,7 @@ fn test_resolve_symbol_commit_id() {
             vec![repo.store().root_commit_id().clone()],
             repo.store().empty_tree_id().clone(),
         )
-        .set_description(format!("test {}", i))
+        .set_description(format!("test {i}"))
         .set_author(signature.clone())
         .set_committer(signature.clone())
         .write_to_repo(mut_repo);
@@ -174,10 +174,10 @@ fn test_resolve_symbol_change_id() {
     for i in &[133, 664, 840, 5085] {
         let git_commit_id = git_repo
             .commit(
-                Some(&format!("refs/heads/branch{}", i)),
+                Some(&format!("refs/heads/branch{i}")),
                 &git_author,
                 &git_committer,
-                &format!("test {}", i),
+                &format!("test {i}"),
                 &git_tree,
                 &[],
             )

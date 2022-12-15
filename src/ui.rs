@@ -157,7 +157,7 @@ impl Ui {
                         self.output = new_output;
                     }
                     Err(e) => {
-                        self.write_warn(&format!("Failed to spawn pager: {}\n", e))
+                        self.write_warn(&format!("Failed to spawn pager: {e}\n"))
                             .ok();
                     }
                 }
@@ -281,7 +281,7 @@ impl Ui {
                 // It's possible (though unlikely) that this write fails, but
                 // this function gets called so late that there's not much we
                 // can do about it.
-                self.write_error(&format!("Failed to wait on pager: {}\n", e))
+                self.write_error(&format!("Failed to wait on pager: {e}\n"))
                     .ok();
             }
         }
@@ -294,7 +294,7 @@ impl Ui {
                 "Cannot prompt for input since the output is not connected to a terminal",
             ));
         }
-        write!(self, "{}: ", prompt)?;
+        write!(self, "{prompt}: ")?;
         self.flush()?;
         let mut buf = String::new();
         io::stdin().read_line(&mut buf)?;

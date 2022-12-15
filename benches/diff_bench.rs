@@ -5,7 +5,7 @@ use jujutsu_lib::diff;
 fn unchanged_lines(count: usize) -> (String, String) {
     let mut lines = vec![];
     for i in 0..count {
-        lines.push(format!("left line {}\n", i));
+        lines.push(format!("left line {i}\n"));
     }
     (lines.join(""), lines.join(""))
 }
@@ -14,8 +14,8 @@ fn modified_lines(count: usize) -> (String, String) {
     let mut left_lines = vec![];
     let mut right_lines = vec![];
     for i in 0..count {
-        left_lines.push(format!("left line {}\n", i));
-        right_lines.push(format!("right line {}\n", i));
+        left_lines.push(format!("left line {i}\n"));
+        right_lines.push(format!("right line {i}\n"));
     }
     (left_lines.join(""), right_lines.join(""))
 }
@@ -23,7 +23,7 @@ fn modified_lines(count: usize) -> (String, String) {
 fn reversed_lines(count: usize) -> (String, String) {
     let mut left_lines = vec![];
     for i in 0..count {
-        left_lines.push(format!("left line {}\n", i));
+        left_lines.push(format!("left line {i}\n"));
     }
     let mut right_lines = left_lines.clone();
     right_lines.reverse();

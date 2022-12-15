@@ -47,9 +47,9 @@ fn parse_string_literal(pair: Pair<Rule>) -> String {
                 '"' => result.push('"'),
                 '\\' => result.push('\\'),
                 'n' => result.push('\n'),
-                char => panic!("invalid escape: \\{:?}", char),
+                char => panic!("invalid escape: \\{char:?}"),
             },
-            _ => panic!("unexpected part of string: {:?}", part),
+            _ => panic!("unexpected part of string: {part:?}"),
         }
     }
     result
@@ -176,7 +176,7 @@ fn parse_string_method<'a>(method: Pair<Rule>) -> Property<'a, String> {
     let this_function = match name.as_str() {
         "short" => Property::String(Box::new(StringShort)),
         "first_line" => Property::String(Box::new(StringFirstLine)),
-        name => panic!("no such string method: {}", name),
+        name => panic!("no such string method: {name}"),
     };
     let chain_method = inner.last().unwrap();
     parse_method_chain(chain_method, this_function)
@@ -201,7 +201,7 @@ fn parse_commit_id_method<'a>(method: Pair<Rule>) -> Property<'a, CommitId> {
 
     let this_function = match name.as_str() {
         "short" => Property::String(Box::new(CommitIdShortest)),
-        name => panic!("no such commit ID method: {}", name),
+        name => panic!("no such commit ID method: {name}"),
     };
     let chain_method = inner.last().unwrap();
     parse_method_chain(chain_method, this_function)
@@ -222,7 +222,7 @@ fn parse_signature_method<'a>(method: Pair<Rule>) -> Property<'a, Signature> {
         "name" => Property::String(Box::new(SignatureName)),
         "email" => Property::String(Box::new(SignatureEmail)),
         "timestamp" => Property::Timestamp(Box::new(SignatureTimestamp)),
-        name => panic!("no such commit ID method: {}", name),
+        name => panic!("no such commit ID method: {name}"),
     };
     let chain_method = inner.last().unwrap();
     parse_method_chain(chain_method, this_function)
@@ -236,7 +236,7 @@ fn parse_timestamp_method<'a>(method: Pair<Rule>) -> Property<'a, Timestamp> {
 
     let this_function = match name.as_str() {
         "ago" => Property::String(Box::new(RelativeTimestampString)),
-        name => panic!("no such timestamp method: {}", name),
+        name => panic!("no such timestamp method: {name}"),
     };
     let chain_method = inner.last().unwrap();
     parse_method_chain(chain_method, this_function)
@@ -300,7 +300,7 @@ fn parse_commit_keyword<'a>(
         "is_git_head" => Property::Boolean(Box::new(IsGitHeadProperty::new(repo))),
         "divergent" => Property::Boolean(Box::new(DivergentProperty::new(repo))),
         "conflict" => Property::Boolean(Box::new(ConflictProperty)),
-        name => panic!("unexpected identifier: {}", name),
+        name => panic!("unexpected identifier: {name}"),
     };
     (property, pair.as_str().to_string())
 }
@@ -348,9 +348,9 @@ fn parse_boolean_commit_property<'a>(
                 property,
                 Box::new(|string| !string.is_empty()),
             )),
-            _ => panic!("cannot yet use this as boolean: {:?}", pair),
+            _ => panic!("cannot yet use this as boolean: {pair:?}"),
         },
-        _ => panic!("cannot yet use this as boolean: {:?}", pair),
+        _ => panic!("cannot yet use this as boolean: {pair:?}"),
     }
 }
 
@@ -443,10 +443,10 @@ fn parse_commit_term<'a>(
                             false_template,
                         ))
                     }
-                    name => panic!("function {} not implemented", name),
+                    name => panic!("function {name} not implemented"),
                 }
             }
-            other => panic!("unexpected term: {:?}", other),
+            other => panic!("unexpected term: {other:?}"),
         }
     }
 }

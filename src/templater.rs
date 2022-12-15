@@ -239,13 +239,13 @@ impl TemplateProperty<Commit, String> for BranchProperty<'_> {
             if let Some(local_target) = local_target {
                 if local_target.has_add(context.id()) {
                     if local_target.is_conflict() {
-                        names.push(format!("{}?", branch_name));
+                        names.push(format!("{branch_name}?"));
                     } else if branch_target
                         .remote_targets
                         .values()
                         .any(|remote_target| remote_target != local_target)
                     {
-                        names.push(format!("{}*", branch_name));
+                        names.push(format!("{branch_name}*"));
                     } else {
                         names.push(branch_name.clone());
                     }
@@ -254,9 +254,9 @@ impl TemplateProperty<Commit, String> for BranchProperty<'_> {
             for (remote_name, remote_target) in &branch_target.remote_targets {
                 if Some(remote_target) != local_target && remote_target.has_add(context.id()) {
                     if remote_target.is_conflict() {
-                        names.push(format!("{}@{}?", branch_name, remote_name));
+                        names.push(format!("{branch_name}@{remote_name}?"));
                     } else {
-                        names.push(format!("{}@{}", branch_name, remote_name));
+                        names.push(format!("{branch_name}@{remote_name}"));
                     }
                 }
             }
@@ -275,7 +275,7 @@ impl TemplateProperty<Commit, String> for TagProperty<'_> {
         for (tag_name, target) in self.repo.view().tags() {
             if target.has_add(context.id()) {
                 if target.is_conflict() {
-                    names.push(format!("{}?", tag_name));
+                    names.push(format!("{tag_name}?"));
                 } else {
                     names.push(tag_name.clone());
                 }
@@ -297,7 +297,7 @@ impl TemplateProperty<Commit, String> for GitRefsProperty<'_> {
         for (name, target) in self.repo.view().git_refs() {
             if target.has_add(context.id()) {
                 if target.is_conflict() {
-                    names.push(format!("{}?", name));
+                    names.push(format!("{name}?"));
                 } else {
                     names.push(name.clone());
                 }
