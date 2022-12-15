@@ -14,7 +14,7 @@
 
 use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -62,7 +62,7 @@ impl LockedOpHeadsResolver for SimpleOpHeadsStoreLockResolver {
 
 impl InnerSimpleOpHeadsStore {
     pub fn init(
-        dir: PathBuf,
+        dir: &Path,
         op_store: &Arc<dyn OpStore>,
         root_view: &op_store::View,
         operation_metadata: OperationMetadata,
@@ -76,7 +76,9 @@ impl InnerSimpleOpHeadsStore {
         let init_operation_id = op_store.write_operation(&init_operation).unwrap();
         let init_operation = Operation::new(op_store.clone(), init_operation_id, init_operation);
 
-        let op_heads_store = InnerSimpleOpHeadsStore { dir };
+        let op_heads_store = InnerSimpleOpHeadsStore {
+            dir: dir.to_path_buf(),
+        };
         op_heads_store.add_op_head(init_operation.id());
         (op_heads_store, init_operation)
     }
@@ -125,7 +127,7 @@ impl InnerSimpleOpHeadsStore {
 
 impl SimpleOpHeadsStore {
     pub fn init(
-        dir: PathBuf,
+        dir: &Path,
         op_store: &Arc<dyn OpStore>,
         root_view: &op_store::View,
         operation_metadata: OperationMetadata,
@@ -140,9 +142,11 @@ impl SimpleOpHeadsStore {
         )
     }
 
-    pub fn load(dir: PathBuf) -> Self {
+    pub fn load(dir: &Path) -> Self {
         SimpleOpHeadsStore {
-            store: Arc::new(InnerSimpleOpHeadsStore { dir }),
+            store: Arc::new(InnerSimpleOpHeadsStore {
+                dir: dir.to_path_buf(),
+            }),
         }
     }
 }
