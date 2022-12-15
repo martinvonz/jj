@@ -170,6 +170,10 @@ impl SimpleOpHeadsStore {
 }
 
 impl OpHeadsStore for SimpleOpHeadsStore {
+    fn name(&self) -> &str {
+        "simple_op_heads_store"
+    }
+
     fn add_op_head(&self, id: &OperationId) {
         self.store.add_op_head(id);
     }
