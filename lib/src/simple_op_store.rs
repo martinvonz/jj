@@ -60,7 +60,7 @@ fn upgrade_from_thrift(store_path: &Path) -> std::io::Result<()> {
     // Find the current operation head(s) of the operation log
     let op_heads_store_path = repo_path.join("op_heads");
     let mut old_op_heads = HashSet::new();
-    for entry in fs::read_dir(&op_heads_store_path)? {
+    for entry in fs::read_dir(op_heads_store_path)? {
         let basename = entry?.file_name();
         let op_id_str = basename.to_str().unwrap();
         if let Ok(op_id_bytes) = hex::decode(op_id_str) {

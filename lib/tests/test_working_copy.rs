@@ -401,6 +401,8 @@ fn test_snapshot_racy_timestamps(use_git: bool) {
     let wc = test_workspace.workspace.working_copy_mut();
     for i in 0..100 {
         {
+            // https://github.com/rust-lang/rust-clippy/issues/9778
+            #[allow(clippy::needless_borrow)]
             let mut file = OpenOptions::new()
                 .create(true)
                 .write(true)
