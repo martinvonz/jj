@@ -223,7 +223,7 @@ fn test_subtrees(use_git: bool) {
             testutils::write_normal_file(
                 &mut tree_builder,
                 &RepoPath::from_internal_string(path),
-                &format!("contents of {:?}", path),
+                &format!("contents of {path:?}"),
             );
         }
         let tree_id = tree_builder.write_tree();
@@ -279,7 +279,7 @@ fn test_subtree_becomes_empty(use_git: bool) {
             testutils::write_normal_file(
                 &mut tree_builder,
                 &RepoPath::from_internal_string(path),
-                &format!("contents of {:?}", path),
+                &format!("contents of {path:?}"),
             );
         }
         let tree_id = tree_builder.write_tree();
@@ -310,7 +310,7 @@ fn test_subtree_one_missing(use_git: bool) {
             testutils::write_normal_file(
                 &mut tree_builder,
                 &RepoPath::from_internal_string(path),
-                &format!("contents of {:?}", path),
+                &format!("contents of {path:?}"),
             );
         }
         let tree_id = tree_builder.write_tree();
@@ -627,7 +627,7 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
             );
         }
         other => {
-            panic!("unexpected value: {:#?}", other);
+            panic!("unexpected value: {other:#?}");
         }
     }
 }

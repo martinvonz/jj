@@ -306,7 +306,7 @@ impl Dirs {
     fn add_file(&mut self, file: &RepoPath) {
         let (dir, basename) = file
             .split()
-            .unwrap_or_else(|| panic!("got empty filename: {:?}", file));
+            .unwrap_or_else(|| panic!("got empty filename: {file:?}"));
         self.add_dir(&dir);
         self.files.entry(dir).or_default().insert(basename.clone());
     }

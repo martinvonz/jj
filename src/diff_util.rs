@@ -289,7 +289,7 @@ pub fn show_color_words_diff(
                 let right_content = diff_content(repo, &path, &right_value)?;
                 let description = basic_diff_file_type(&right_value);
                 formatter.with_label("header", |formatter| {
-                    formatter.write_str(&format!("Added {} {}:\n", description, ui_path))
+                    formatter.write_str(&format!("Added {description} {ui_path}:\n"))
                 })?;
                 show_color_words_diff_hunks(&[], &right_content, formatter)?;
             }
@@ -338,7 +338,7 @@ pub fn show_color_words_diff(
                     }
                 };
                 formatter.with_label("header", |formatter| {
-                    formatter.write_str(&format!("{} {}:\n", description, ui_path))
+                    formatter.write_str(&format!("{description} {ui_path}:\n"))
                 })?;
                 show_color_words_diff_hunks(&left_content, &right_content, formatter)?;
             }
@@ -346,7 +346,7 @@ pub fn show_color_words_diff(
                 let left_content = diff_content(repo, &path, &left_value)?;
                 let description = basic_diff_file_type(&left_value);
                 formatter.with_label("header", |formatter| {
-                    formatter.write_str(&format!("Removed {} {}:\n", description, ui_path))
+                    formatter.write_str(&format!("Removed {description} {ui_path}:\n"))
                 })?;
                 show_color_words_diff_hunks(&left_content, &[], formatter)?;
             }
@@ -564,11 +564,11 @@ pub fn show_git_diff(
             tree::Diff::Added(right_value) => {
                 let right_part = git_diff_part(repo, &path, &right_value)?;
                 formatter.with_label("file_header", |formatter| {
-                    writeln!(formatter, "diff --git a/{} b/{}", path_string, path_string)?;
+                    writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
                     writeln!(formatter, "new file mode {}", &right_part.mode)?;
                     writeln!(formatter, "index 0000000000..{}", &right_part.hash)?;
                     writeln!(formatter, "--- /dev/null")?;
-                    writeln!(formatter, "+++ b/{}", path_string)
+                    writeln!(formatter, "+++ b/{path_string}")
                 })?;
                 show_unified_diff_hunks(formatter, &[], &right_part.content)?;
             }
@@ -576,7 +576,7 @@ pub fn show_git_diff(
                 let left_part = git_diff_part(repo, &path, &left_value)?;
                 let right_part = git_diff_part(repo, &path, &right_value)?;
                 formatter.with_label("file_header", |formatter| {
-                    writeln!(formatter, "diff --git a/{} b/{}", path_string, path_string)?;
+                    writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
                     if left_part.mode != right_part.mode {
                         writeln!(formatter, "old mode {}", &left_part.mode)?;
                         writeln!(formatter, "new mode {}", &right_part.mode)?;
@@ -591,8 +591,8 @@ pub fn show_git_diff(
                         )?;
                     }
                     if left_part.content != right_part.content {
-                        writeln!(formatter, "--- a/{}", path_string)?;
-                        writeln!(formatter, "+++ b/{}", path_string)?;
+                        writeln!(formatter, "--- a/{path_string}")?;
+                        writeln!(formatter, "+++ b/{path_string}")?;
                     }
                     Ok(())
                 })?;
@@ -601,10 +601,10 @@ pub fn show_git_diff(
             tree::Diff::Removed(left_value) => {
                 let left_part = git_diff_part(repo, &path, &left_value)?;
                 formatter.with_label("file_header", |formatter| {
-                    writeln!(formatter, "diff --git a/{} b/{}", path_string, path_string)?;
+                    writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
                     writeln!(formatter, "deleted file mode {}", &left_part.mode)?;
                     writeln!(formatter, "index {}..0000000000", &left_part.hash)?;
-                    writeln!(formatter, "--- a/{}", path_string)?;
+                    writeln!(formatter, "--- a/{path_string}")?;
                     writeln!(formatter, "+++ /dev/null")
                 })?;
                 show_unified_diff_hunks(formatter, &left_part.content, &[])?;

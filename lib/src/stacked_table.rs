@@ -588,8 +588,8 @@ mod tests {
         for round in 0..10 {
             for i in 0..10 {
                 mut_table.add_entry(
-                    format!("x{}{}", i, round).into_bytes(),
-                    format!("value {}{}", i, round).into_bytes(),
+                    format!("x{i}{round}").into_bytes(),
+                    format!("value {i}{round}").into_bytes(),
                 );
             }
             let saved_table = store.save_table(mut_table).unwrap();

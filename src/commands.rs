@@ -1216,7 +1216,7 @@ fn cmd_untrack(
                     added_back.len() - 1
                 )
             } else {
-                format!("'{}' is not ignored.", ui_path)
+                format!("'{ui_path}' is not ignored.")
             };
             return Err(user_error_with_hint(
                 message,
@@ -1234,7 +1234,7 @@ Make sure they're ignored, then try again.",
         .write_to_repo(tx.mut_repo());
     let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
     if num_rebased > 0 {
-        writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
+        writeln!(ui, "Rebased {num_rebased} descendant commits")?;
     }
     let repo = tx.commit();
     locked_working_copy.finish(repo.op_id().clone());
@@ -1413,7 +1413,7 @@ fn cmd_status(
         })?;
         for branch_name in conflicted_local_branches {
             write!(formatter, "  ")?;
-            formatter.with_label("branch", |formatter| write!(formatter, "{}", branch_name))?;
+            formatter.with_label("branch", |formatter| write!(formatter, "{branch_name}"))?;
             writeln!(formatter)?;
         }
         writeln!(
@@ -1429,7 +1429,7 @@ fn cmd_status(
         for (branch_name, remote_name) in conflicted_remote_branches {
             write!(formatter, "  ")?;
             formatter.with_label("branch", |formatter| {
-                write!(formatter, "{}@{}", branch_name, remote_name)
+                write!(formatter, "{branch_name}@{remote_name}")
             })?;
             writeln!(formatter)?;
         }
@@ -1793,7 +1793,7 @@ fn edit_description(
     description: &str,
 ) -> Result<String, CommandError> {
     let random: u32 = rand::random();
-    let description_file_path = repo.repo_path().join(format!("description-{}.txt", random));
+    let description_file_path = repo.repo_path().join(format!("description-{random}.txt"));
     {
         let mut description_file = OpenOptions::new()
             .write(true)
@@ -1984,8 +1984,7 @@ fn cmd_abandon(
     if num_rebased > 0 {
         writeln!(
             ui,
-            "Rebased {} descendant commits onto parents of abandoned commits",
-            num_rebased
+            "Rebased {num_rebased} descendant commits onto parents of abandoned commits"
         )?;
     }
     workspace_command.finish_transaction(ui, tx)?;
@@ -2538,7 +2537,7 @@ don't make any changes, then the operation will be aborted.
         rebaser.rebase_all()?;
         let num_rebased = rebaser.rebased().len();
         if num_rebased > 0 {
-            writeln!(ui, "Rebased {} descendant commits", num_rebased)?;
+            writeln!(ui, "Rebased {num_rebased} descendant commits")?;
         }
         ui.write("First part: ")?;
         write_commit_summary(
@@ -2617,7 +2616,7 @@ fn rebase_branch(
         num_rebased += 1;
     }
     num_rebased += tx.mut_repo().rebase_descendants(ui.settings())?;
-    writeln!(ui, "Rebased {} commits", num_rebased)?;
+    writeln!(ui, "Rebased {num_rebased} commits")?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -2637,7 +2636,7 @@ fn rebase_descendants(
     ));
     rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, new_parents);
     let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())? + 1;
-    writeln!(ui, "Rebased {} commits", num_rebased)?;
+    writeln!(ui, "Rebased {num_rebased} commits")?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -2711,8 +2710,8 @@ fn rebase_revision(
     if num_rebased_descendants > 0 {
         writeln!(
             ui,
-            "Also rebased {} descendant commits onto parent of rebased commit",
-            num_rebased_descendants
+            "Also rebased {num_rebased_descendants} descendant commits onto parent of rebased \
+             commit"
         )?;
     }
     workspace_command.finish_transaction(ui, tx)?;
@@ -2786,7 +2785,7 @@ fn cmd_branch(
     ) -> Result<(), CommandError> {
         for branch_name in names {
             if view.get_local_branch(branch_name).is_none() {
-                return Err(user_error(format!("No such branch: {}", branch_name)));
+                return Err(user_error(format!("No such branch: {branch_name}")));
             }
         }
         Ok(())
@@ -2825,7 +2824,7 @@ fn cmd_branch(
                 .iter()
                 .map(|branch_name| match view.get_local_branch(branch_name) {
                     Some(_) => Err(user_error_with_hint(
-                        format!("Branch already exists: {}", branch_name),
+                        format!("Branch already exists: {branch_name}"),
                         "Use `jj branch set` to update it.",
                     )),
                     None => Ok(branch_name.as_str()),
@@ -2912,7 +2911,7 @@ fn cmd_branch(
             let globbed_names = find_globs(view, glob)?;
             let names: BTreeSet<String> = names.iter().cloned().chain(globbed_names).collect();
             let branch_term = make_branch_term(names.iter().collect_vec().as_slice());
-            let mut tx = workspace_command.start_transaction(&format!("forget {}", branch_term));
+            let mut tx = workspace_command.start_transaction(&format!("forget {branch_term}"));
             for branch_name in names {
                 tx.mut_repo().remove_branch(&branch_name);
             }
@@ -2990,7 +2989,7 @@ fn list_branches(
     let formatter = formatter.as_mut();
     let index = repo.index();
     for (name, branch_target) in repo.view().branches() {
-        formatter.with_label("branch", |formatter| write!(formatter, "{}", name))?;
+        formatter.with_label("branch", |formatter| write!(formatter, "{name}"))?;
         print_branch_target(formatter, branch_target.local_target.as_ref())?;
 
         for (remote, remote_target) in branch_target
@@ -3002,7 +3001,7 @@ fn list_branches(
                 continue;
             }
             write!(formatter, "  ")?;
-            formatter.with_label("branch", |formatter| write!(formatter, "@{}", remote))?;
+            formatter.with_label("branch", |formatter| write!(formatter, "@{remote}"))?;
             if let Some(local_target) = branch_target.local_target.as_ref() {
                 let remote_ahead_count = index
                     .walk_revs(&remote_target.adds(), &local_target.adds())
@@ -3011,14 +3010,14 @@ fn list_branches(
                     .walk_revs(&local_target.adds(), &remote_target.adds())
                     .count();
                 if remote_ahead_count != 0 && local_ahead_count == 0 {
-                    write!(formatter, " (ahead by {} commits)", remote_ahead_count)?;
+                    write!(formatter, " (ahead by {remote_ahead_count} commits)")?;
                 } else if remote_ahead_count == 0 && local_ahead_count != 0 {
-                    write!(formatter, " (behind by {} commits)", local_ahead_count)?;
+                    write!(formatter, " (behind by {local_ahead_count} commits)")?;
                 } else if remote_ahead_count != 0 && local_ahead_count != 0 {
                     write!(
                         formatter,
-                        " (ahead by {} commits, behind by {} commits)",
-                        remote_ahead_count, local_ahead_count
+                        " (ahead by {remote_ahead_count} commits, behind by {local_ahead_count} \
+                         commits)"
                     )?;
                 }
             }
@@ -3077,7 +3076,7 @@ fn cmd_debug(
                 crate::template_parser::Rule::template,
                 &template_matches.template,
             );
-            writeln!(ui, "{:?}", parse)?;
+            writeln!(ui, "{parse:?}")?;
         }
         DebugCommands::Index(_index_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
@@ -3089,7 +3088,7 @@ fn cmd_debug(
             writeln!(ui, "Number of changes: {}", stats.num_changes)?;
             writeln!(ui, "Stats per level:")?;
             for (i, level) in stats.levels.iter().enumerate() {
-                writeln!(ui, "  Level {}:", i)?;
+                writeln!(ui, "  Level {i}:")?;
                 writeln!(ui, "    Number of commits: {}", level.num_commits)?;
                 writeln!(ui, "    Name: {}", level.name.as_ref().unwrap())?;
             }
@@ -3170,7 +3169,7 @@ fn cmd_op_log(
             })?;
             for (key, value) in &metadata.tags {
                 formatter.with_label("tags", |formatter| {
-                    formatter.write_str(&format!("\n{}: {}", key, value))
+                    formatter.write_str(&format!("\n{key}: {value}"))
                 })?;
             }
             Ok(())
@@ -3308,8 +3307,7 @@ fn cmd_workspace_add(
     let repo = old_workspace_command.repo();
     if repo.view().get_wc_commit_id(&workspace_id).is_some() {
         return Err(user_error(format!(
-            "Workspace named '{}' already exists",
-            name
+            "Workspace named '{name}' already exists"
         )));
     }
     let (new_workspace, repo) = Workspace::init_workspace_with_existing_repo(
@@ -3459,7 +3457,7 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
         let workspace_command = command.workspace_helper(ui)?;
         for path in workspace_command.working_copy().sparse_patterns() {
             let ui_path = workspace_command.format_file_path(path);
-            writeln!(ui, "{}", ui_path)?;
+            writeln!(ui, "{ui_path}")?;
         }
     } else {
         let mut workspace_command = command.workspace_helper(ui)?;
@@ -3770,12 +3768,11 @@ fn with_remote_callbacks<T>(ui: &mut Ui, f: impl FnOnce(git::RemoteCallbacks<'_>
 }
 
 fn terminal_get_username(ui: &mut Ui, url: &str) -> Option<String> {
-    ui.prompt(&format!("Username for {}", url)).ok()
+    ui.prompt(&format!("Username for {url}")).ok()
 }
 
 fn terminal_get_pw(ui: &mut Ui, url: &str) -> Option<String> {
-    ui.prompt_password(&format!("Passphrase for {}: ", url))
-        .ok()
+    ui.prompt_password(&format!("Passphrase for {url}: ")).ok()
 }
 
 fn pinentry_get_pw(url: &str) -> Option<String> {
@@ -4000,7 +3997,7 @@ fn cmd_git_push(
     let mut new_heads = vec![];
     let mut force_pushed_branches = hashset! {};
     for (branch_name, update) in &branch_updates {
-        let qualified_name = format!("refs/heads/{}", branch_name);
+        let qualified_name = format!("refs/heads/{branch_name}");
         if let Some(new_target) = &update.new_target {
             new_heads.push(new_target.clone());
             let force = match &update.old_target {
@@ -4122,17 +4119,16 @@ fn branch_updates_for_push(
 ) -> Result<Option<BranchPushUpdate>, CommandError> {
     let maybe_branch_target = repo.view().get_branch(branch_name);
     let branch_target = maybe_branch_target
-        .ok_or_else(|| user_error(format!("Branch {} doesn't exist", branch_name)))?;
+        .ok_or_else(|| user_error(format!("Branch {branch_name} doesn't exist")))?;
     let push_action = classify_branch_push_action(branch_target, remote_name);
 
     match push_action {
         BranchPushAction::AlreadyMatches => Ok(None),
         BranchPushAction::LocalConflicted => {
-            Err(user_error(format!("Branch {} is conflicted", branch_name)))
+            Err(user_error(format!("Branch {branch_name} is conflicted")))
         }
         BranchPushAction::RemoteConflicted => Err(user_error(format!(
-            "Branch {}@{} is conflicted",
-            branch_name, remote_name
+            "Branch {branch_name}@{remote_name} is conflicted"
         ))),
         BranchPushAction::Update(update) => Ok(Some(update)),
     }

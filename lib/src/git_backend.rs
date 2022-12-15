@@ -273,13 +273,13 @@ impl Backend for GitBackend {
                         let id = SymlinkId::from_bytes(entry.id().as_bytes());
                         (name, TreeValue::Symlink(id))
                     }
-                    mode => panic!("unexpected file mode {:?}", mode),
+                    mode => panic!("unexpected file mode {mode:?}"),
                 },
                 git2::ObjectType::Commit => {
                     let id = CommitId::from_bytes(entry.id().as_bytes());
                     (name, TreeValue::GitSubmodule(id))
                 }
-                kind => panic!("unexpected object type {:?}", kind),
+                kind => panic!("unexpected object type {kind:?}"),
             };
             tree.set(RepoPathComponent::from(name), value);
         }
@@ -519,7 +519,7 @@ fn tree_value_from_json(json: &serde_json::Value) -> TreeValue {
     } else if let Some(json_id) = json.get("conflict_id") {
         TreeValue::Conflict(ConflictId::new(bytes_vec_from_json(json_id)))
     } else {
-        panic!("unexpected json value in conflict: {:#?}", json);
+        panic!("unexpected json value in conflict: {json:#?}");
     }
 }
 
@@ -708,7 +708,7 @@ mod tests {
                 panic!("expectedly successfully wrote two commits with the same git commit object")
             }
             Err(BackendError::Other(message)) if message.contains(&expected_error_message) => {}
-            Err(err) => panic!("unexpected error: {:?}", err),
+            Err(err) => panic!("unexpected error: {err:?}"),
         };
     }
 }

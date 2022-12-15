@@ -165,9 +165,8 @@ impl TestEnvironment {
             format!(
                 r###"
                     [ui]
-                    diff-editor = "{}"
-                "###,
-                escaped_diff_editor_path
+                    diff-editor = "{escaped_diff_editor_path}"
+                "###
             )
             .as_bytes(),
         );
