@@ -1,4 +1,6 @@
 [merge-tools.kdiff3]
+# --merge to open output pane, CreateBakFiles=0 to not include backup files in commit
+edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
 merge-args = ["$base", "$left", "$right", "-o", "$output", "--auto"]
 
 [merge-tools.meld]
