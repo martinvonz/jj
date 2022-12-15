@@ -1007,7 +1007,7 @@ fn expand_git_path(path_str: String) -> PathBuf {
 
 fn resolve_op_for_load(
     op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<OpHeadsStore>,
+    op_heads_store: &Arc<dyn OpHeadsStore>,
     op_str: &str,
 ) -> Result<OpHeads, CommandError> {
     if op_str == "@" {
@@ -1026,7 +1026,7 @@ fn resolve_op_for_load(
 
 fn resolve_single_op(
     op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<OpHeadsStore>,
+    op_heads_store: &Arc<dyn OpHeadsStore>,
     get_current_op: impl FnOnce() -> Result<Operation, CommandError>,
     op_str: &str,
 ) -> Result<Operation, CommandError> {
@@ -1052,7 +1052,7 @@ fn resolve_single_op(
 
 fn find_all_operations(
     op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<OpHeadsStore>,
+    op_heads_store: &Arc<dyn OpHeadsStore>,
 ) -> Vec<Operation> {
     let mut visited = HashSet::new();
     let mut work: VecDeque<_> = op_heads_store.get_op_heads().into_iter().collect();
@@ -1070,7 +1070,7 @@ fn find_all_operations(
 
 fn resolve_single_op_from_store(
     op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<OpHeadsStore>,
+    op_heads_store: &Arc<dyn OpHeadsStore>,
     op_str: &str,
 ) -> Result<Operation, CommandError> {
     if op_str.is_empty() || !op_str.as_bytes().iter().all(|b| b.is_ascii_hexdigit()) {
