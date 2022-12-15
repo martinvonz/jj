@@ -23,12 +23,14 @@ use std::sync::Arc;
 use itertools::Itertools;
 use jujutsu_lib::backend::{Conflict, ConflictPart, TreeValue};
 use jujutsu_lib::gitignore::GitIgnoreFile;
+use jujutsu_lib::matchers;
 #[cfg(unix)]
 use jujutsu_lib::op_store::OperationId;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent, RepoPathJoin};
 use jujutsu_lib::settings::UserSettings;
+use jujutsu_lib::tree::DiffSummary;
 use jujutsu_lib::tree_builder::TreeBuilder;
 use jujutsu_lib::working_copy::WorkingCopy;
 use test_case::test_case;
@@ -210,73 +212,120 @@ fn test_checkout_file_transitions(use_git: bool) {
     wc.check_out(repo.op_id().clone(), None, &right_tree)
         .unwrap();
 
-    // Check that the working copy is clean.
+    // Check that the working copy is clean other than the submodules
+    // that are modified to a different type.
     let mut locked_wc = wc.start_mutation();
     let new_tree_id = locked_wc.snapshot(GitIgnoreFile::empty()).unwrap();
     locked_wc.discard();
-    assert_eq!(new_tree_id, right_tree_id);
 
-    for (_left_kind, right_kind, path) in &files {
+    if use_git {
+        let new_tree = repo
+            .store()
+            .get_tree(&RepoPath::root(), &new_tree_id)
+            .unwrap();
+        let diff_snapshot = new_tree.diff_summary(
+            &repo
+                .store()
+                .get_tree(&RepoPath::root(), &right_tree_id)
+                .unwrap(),
+            &matchers::EverythingMatcher,
+        );
+        assert_eq!(
+            diff_snapshot,
+            DiffSummary {
+                added: vec![
+                    "GitSubmodule_Conflict",
+                    "GitSubmodule_Executable",
+                    "GitSubmodule_ExecutableNormalContent",
+                    "GitSubmodule_Normal",
+                    "GitSubmodule_Symlink",
+                ]
+                .iter()
+                .map(|str| RepoPath::from_internal_string(str))
+                .collect_vec(),
+                modified: vec![],
+                removed: vec![],
+            }
+        );
+    } else {
+        assert_eq!(new_tree_id, right_tree_id);
+    }
+
+    for (left_kind, right_kind, path) in &files {
         let wc_path = workspace_root.join(path.to_internal_file_string());
         let maybe_metadata = wc_path.symlink_metadata();
-        match right_kind {
-            Kind::Missing => {
-                assert!(maybe_metadata.is_err(), "{:?} should not exist", path);
-            }
-            Kind::Normal => {
-                assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
-                let metadata = maybe_metadata.unwrap();
-                assert!(metadata.is_file(), "{:?} should be a file", path);
-                #[cfg(unix)]
-                assert_eq!(
-                    metadata.permissions().mode() & 0o111,
-                    0,
-                    "{:?} should not be executable",
-                    path
-                );
-            }
-            Kind::Executable | Kind::ExecutableNormalContent => {
-                assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
-                let metadata = maybe_metadata.unwrap();
-                assert!(metadata.is_file(), "{:?} should be a file", path);
-                #[cfg(unix)]
-                assert_ne!(
-                    metadata.permissions().mode() & 0o111,
-                    0,
-                    "{:?} should be executable",
-                    path
-                );
-            }
-            Kind::Conflict => {
-                assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
-                let metadata = maybe_metadata.unwrap();
-                assert!(metadata.is_file(), "{:?} should be a file", path);
-                #[cfg(unix)]
-                assert_eq!(
-                    metadata.permissions().mode() & 0o111,
-                    0,
-                    "{:?} should not be executable",
-                    path
-                );
-            }
-            Kind::Symlink => {
-                assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
-                let metadata = maybe_metadata.unwrap();
-                assert!(
-                    metadata.file_type().is_symlink(),
-                    "{:?} should be a symlink",
-                    path
-                );
-            }
-            Kind::Tree => {
+        match (left_kind, right_kind) {
+            (Kind::GitSubmodule, Kind::Tree) => {
                 assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
                 let metadata = maybe_metadata.unwrap();
                 assert!(metadata.is_dir(), "{:?} should be a directory", path);
             }
-            Kind::GitSubmodule => {
+            (Kind::GitSubmodule, Kind::GitSubmodule) => {
                 // Not supported for now
                 assert!(maybe_metadata.is_err(), "{:?} should not exist", path);
             }
+            (Kind::GitSubmodule, _) => {
+                assert!(maybe_metadata.is_err(), "{:?} should not exist", path);
+            }
+            (_, right_kind) => match right_kind {
+                Kind::Missing => {
+                    assert!(maybe_metadata.is_err(), "{:?} should not exist", path);
+                }
+                Kind::Normal => {
+                    assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
+                    let metadata = maybe_metadata.unwrap();
+                    assert!(metadata.is_file(), "{:?} should be a file", path);
+                    #[cfg(unix)]
+                    assert_eq!(
+                        metadata.permissions().mode() & 0o111,
+                        0,
+                        "{:?} should not be executable",
+                        path
+                    );
+                }
+                Kind::Executable | Kind::ExecutableNormalContent => {
+                    assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
+                    let metadata = maybe_metadata.unwrap();
+                    assert!(metadata.is_file(), "{:?} should be a file", path);
+                    #[cfg(unix)]
+                    assert_ne!(
+                        metadata.permissions().mode() & 0o111,
+                        0,
+                        "{:?} should be executable",
+                        path
+                    );
+                }
+                Kind::Conflict => {
+                    assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
+                    let metadata = maybe_metadata.unwrap();
+                    assert!(metadata.is_file(), "{:?} should be a file", path);
+                    #[cfg(unix)]
+                    assert_eq!(
+                        metadata.permissions().mode() & 0o111,
+                        0,
+                        "{:?} should not be executable",
+                        path
+                    );
+                }
+                Kind::Symlink => {
+                    assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
+                    let metadata = maybe_metadata.unwrap();
+                    assert!(
+                        metadata.file_type().is_symlink(),
+                        "{:?} should be a symlink",
+                        path
+                    );
+                }
+                Kind::Tree => {
+                    assert!(maybe_metadata.is_ok(), "{:?} should exist", path);
+                    let metadata = maybe_metadata.unwrap();
+                    assert!(metadata.is_dir(), "{:?} should be a directory", path);
+                }
+                Kind::GitSubmodule => {
+                    // Not supported for now
+                    assert!(maybe_metadata.is_err(), "{:?} should not exist", path);
+                }
+            },
         };
     }
 }
