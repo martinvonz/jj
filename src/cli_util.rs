@@ -609,20 +609,15 @@ impl WorkspaceCommandHelper {
     pub fn resolve_single_rev(&self, revision_str: &str) -> Result<Commit, CommandError> {
         let revset_expression = self.parse_revset(revision_str)?;
         let revset = self.evaluate_revset(&revset_expression)?;
-        let mut iter = revset.iter().commits(self.repo.store());
-        match iter.next() {
-            None => Err(user_error(format!(
+        let mut iter = revset.iter().commits(self.repo.store()).fuse();
+        match (iter.next(), iter.next()) {
+            (Some(commit), None) => Ok(commit?),
+            (None, _) => Err(user_error(format!(
                 "Revset \"{revision_str}\" didn't resolve to any revisions"
             ))),
-            Some(commit) => {
-                if iter.next().is_some() {
-                    Err(user_error(format!(
-                        "Revset \"{revision_str}\" resolved to more than one revision"
-                    )))
-                } else {
-                    Ok(commit?)
-                }
-            }
+            (Some(_), Some(_)) => Err(user_error(format!(
+                "Revset \"{revision_str}\" resolved to more than one revision"
+            ))),
         }
     }
 
