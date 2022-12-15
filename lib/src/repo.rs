@@ -149,7 +149,7 @@ impl ReadonlyRepo {
         let operation_metadata =
             crate::transaction::create_op_metadata(user_settings, "initialize repo".to_string());
         let (op_heads_store, init_op) =
-            SimpleOpHeadsStore::init(op_heads_path, &op_store, &root_view, operation_metadata);
+            SimpleOpHeadsStore::init(&op_heads_path, &op_store, &root_view, operation_metadata);
         let op_heads_store = Arc::new(op_heads_store);
 
         let index_path = repo_path.join("index");
@@ -406,7 +406,7 @@ impl RepoLoader {
         let store = Store::new(store_factories.load_backend(&repo_path.join("store")));
         let repo_settings = user_settings.with_repo(repo_path).unwrap();
         let op_store = Arc::from(store_factories.load_op_store(&repo_path.join("op_store")));
-        let op_heads_store = Arc::new(SimpleOpHeadsStore::load(repo_path.join("op_heads")));
+        let op_heads_store = Arc::new(SimpleOpHeadsStore::load(&repo_path.join("op_heads")));
         let index_store = Arc::new(IndexStore::load(repo_path.join("index")));
         Self {
             repo_path: repo_path.to_path_buf(),
