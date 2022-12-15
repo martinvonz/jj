@@ -50,6 +50,55 @@ fn test_checkout() {
     "###);
 }
 
+#[test]
+fn test_checkout_not_single_rev() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "fourth"]);
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "fifth"]);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "root..@"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "root..@" resolved to more than one revision
+    Hint: The revset resolved to these revisions:
+    eb01ec3263be ()
+    17b6965c1349 (fifth)
+    f8381c76d1d3 (fourth)
+    ca3820f77363 (third)
+    91043abe9d03 (second)
+    ...
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "root..@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "root..@-" resolved to more than one revision
+    Hint: The revset resolved to these revisions:
+    17b6965c1349 (fifth)
+    f8381c76d1d3 (fourth)
+    ca3820f77363 (third)
+    91043abe9d03 (second)
+    85a1e2839620 (first)
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "@-|@--"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "@-|@--" resolved to more than one revision
+    Hint: The revset resolved to these revisions:
+    17b6965c1349 (fifth)
+    f8381c76d1d3 (fourth)
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "none()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "none()" didn't resolve to any revisions
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     test_env.jj_cmd_success(cwd, &["log", "-T", r#"commit_id " " description"#])
 }
