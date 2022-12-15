@@ -615,9 +615,20 @@ impl WorkspaceCommandHelper {
             (None, _) => Err(user_error(format!(
                 "Revset \"{revision_str}\" didn't resolve to any revisions"
             ))),
-            (Some(_), Some(_)) => Err(user_error(format!(
-                "Revset \"{revision_str}\" resolved to more than one revision"
-            ))),
+            (Some(commit0), Some(commit1)) => {
+                let mut iter = [commit0, commit1].into_iter().chain(iter);
+                let commits = iter.by_ref().take(5).collect::<Result<Vec<_>, _>>()?;
+                let elided = iter.next().is_some();
+                let hint = format!(
+                    "The revset resolved to these revisions:\n{commits}{ellipsis}",
+                    commits = commits.iter().map(short_commit_description).join("\n"),
+                    ellipsis = elided.then(|| "\n...").unwrap_or_default()
+                );
+                Err(user_error_with_hint(
+                    format!("Revset \"{revision_str}\" resolved to more than one revision"),
+                    hint,
+                ))
+            }
         }
     }
 
