@@ -1800,7 +1800,12 @@ fn edit_description(
             .create_new(true)
             .truncate(true)
             .open(&description_file_path)
-            .unwrap_or_else(|_| panic!("failed to open {:?} for write", &description_file_path));
+            .unwrap_or_else(|_| {
+                panic!(
+                    "failed to open {} for write",
+                    description_file_path.display()
+                )
+            });
         description_file.write_all(description.as_bytes()).unwrap();
         description_file
             .write_all(b"\nJJ: Lines starting with \"JJ: \" (like this one) will be removed.\n")
@@ -1826,7 +1831,12 @@ fn edit_description(
     let mut description_file = OpenOptions::new()
         .read(true)
         .open(&description_file_path)
-        .unwrap_or_else(|_| panic!("failed to open {:?} for read", &description_file_path));
+        .unwrap_or_else(|_| {
+            panic!(
+                "failed to open {} for read",
+                description_file_path.display()
+            )
+        });
     let mut buf = vec![];
     description_file.read_to_end(&mut buf).unwrap();
     let description = String::from_utf8(buf).unwrap();
