@@ -12,16 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::Path;
-
 fn main() {
-    let out_dir = format!("{}/protos", std::env::var("OUT_DIR").unwrap());
-
-    if Path::new(&out_dir).exists() {
-        std::fs::remove_dir_all(&out_dir).unwrap();
-    }
-    std::fs::create_dir(&out_dir).unwrap();
-
     let input = &[
         "src/protos/op_store.proto",
         "src/protos/store.proto",
@@ -29,7 +20,6 @@ fn main() {
     ];
     protobuf_codegen::Codegen::new()
         .pure()
-        .out_dir(out_dir)
         .inputs(input)
         .include("src/protos")
         .cargo_out_dir("protos")
