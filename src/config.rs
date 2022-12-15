@@ -75,19 +75,7 @@ fn env_base() -> config::Config {
 fn default_mergetool_config() -> config::Config {
     config::Config::builder()
         .add_source(config::File::from_str(
-            r#"
-                [merge-tools]
-                meld.merge-args    = ["$left", "$base", "$right",
-                                      "-o", "$output", "--auto-merge"]
-                kdiff3.merge-args  = ["$base", "$left", "$right",
-                                      "-o", "$output", "--auto"]
-                vimdiff.program = "vim"
-                vimdiff.merge-args = ["-f", "-d", "$output", "-M",
-                                      "$left", "$base", "$right",
-                                      "-c", "wincmd J", "-c", "set modifiable",
-                                      "-c", "set write"]
-                vimdiff.merge-tool-edits-conflict-markers=true
-            "#,
+            include_str!("merge-tools.toml"),
             config::FileFormat::Toml,
         ))
         .build()
