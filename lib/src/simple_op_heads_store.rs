@@ -14,6 +14,7 @@
 
 use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -76,9 +77,9 @@ impl InnerSimpleOpHeadsStore {
         let init_operation_id = op_store.write_operation(&init_operation).unwrap();
         let init_operation = Operation::new(op_store.clone(), init_operation_id, init_operation);
 
-        let op_heads_store = InnerSimpleOpHeadsStore {
-            dir: dir.to_path_buf(),
-        };
+        let op_heads_dir = dir.join("simple_op_heads");
+        fs::create_dir(&op_heads_dir).unwrap();
+        let op_heads_store = InnerSimpleOpHeadsStore { dir: op_heads_dir };
         op_heads_store.add_op_head(init_operation.id());
         (op_heads_store, init_operation)
     }
@@ -143,10 +144,27 @@ impl SimpleOpHeadsStore {
     }
 
     pub fn load(dir: &Path) -> Self {
-        SimpleOpHeadsStore {
-            store: Arc::new(InnerSimpleOpHeadsStore {
+        let op_heads_dir = dir.join("simple_op_heads");
+
+        // TODO: Delete this migration code at 0.8+ or so
+        if !op_heads_dir.exists() {
+            let old_store = InnerSimpleOpHeadsStore {
                 dir: dir.to_path_buf(),
-            }),
+            };
+            fs::create_dir(&op_heads_dir).unwrap();
+            let new_store = InnerSimpleOpHeadsStore { dir: op_heads_dir };
+
+            for id in old_store.get_op_heads() {
+                old_store.remove_op_head(&id);
+                new_store.add_op_head(&id);
+            }
+            return SimpleOpHeadsStore {
+                store: Arc::new(new_store),
+            };
+        }
+
+        SimpleOpHeadsStore {
+            store: Arc::new(InnerSimpleOpHeadsStore { dir: op_heads_dir }),
         }
     }
 }
@@ -234,5 +252,66 @@ impl OpHeadsStore for SimpleOpHeadsStore {
             locked_op_heads,
             op_heads,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+    use std::fs;
+    use std::path::Path;
+
+    use itertools::Itertools;
+
+    use super::InnerSimpleOpHeadsStore;
+    use crate::op_heads_store::OpHeadsStore;
+    use crate::op_store::OperationId;
+    use crate::simple_op_heads_store::SimpleOpHeadsStore;
+
+    fn read_dir(dir: &Path) -> Vec<String> {
+        fs::read_dir(dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_str().unwrap().to_string())
+            .sorted()
+            .collect()
+    }
+
+    #[test]
+    fn test_simple_op_heads_store_migration() {
+        let test_dir = testutils::new_temp_dir();
+        let store_path = test_dir.path().join("op_heads");
+        fs::create_dir(&store_path).unwrap();
+
+        let op1 = OperationId::from_hex("012345");
+        let op2 = OperationId::from_hex("abcdef");
+        let mut ops = HashSet::new();
+        ops.insert(op1.clone());
+        ops.insert(op2.clone());
+
+        let old_store = InnerSimpleOpHeadsStore {
+            dir: store_path.clone(),
+        };
+        old_store.add_op_head(&op1);
+        old_store.add_op_head(&op2);
+
+        assert_eq!(vec!["012345", "abcdef"], read_dir(&store_path));
+        drop(old_store);
+
+        let new_store = SimpleOpHeadsStore::load(&store_path);
+        assert_eq!(&ops, &new_store.get_op_heads().into_iter().collect());
+        assert_eq!(vec!["simple_op_heads"], read_dir(&store_path));
+        assert_eq!(
+            vec!["012345", "abcdef"],
+            read_dir(&store_path.join("simple_op_heads"))
+        );
+
+        // Migration is idempotent
+        let new_store = SimpleOpHeadsStore::load(&store_path);
+        assert_eq!(&ops, &new_store.get_op_heads().into_iter().collect());
+        assert_eq!(vec!["simple_op_heads"], read_dir(&store_path));
+        assert_eq!(
+            vec!["012345", "abcdef"],
+            read_dir(&store_path.join("simple_op_heads"))
+        );
     }
 }

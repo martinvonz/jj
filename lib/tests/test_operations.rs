@@ -35,7 +35,7 @@ fn test_unpublished_operation(use_git: bool) {
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
-    let op_heads_dir = repo.repo_path().join("op_heads");
+    let op_heads_dir = repo.repo_path().join("op_heads").join("simple_op_heads");
     let op_id0 = repo.op_id().clone();
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
@@ -58,7 +58,7 @@ fn test_consecutive_operations(use_git: bool) {
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
-    let op_heads_dir = repo.repo_path().join("op_heads");
+    let op_heads_dir = repo.repo_path().join("op_heads").join("simple_op_heads");
     let op_id0 = repo.op_id().clone();
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
@@ -91,7 +91,7 @@ fn test_concurrent_operations(use_git: bool) {
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
-    let op_heads_dir = repo.repo_path().join("op_heads");
+    let op_heads_dir = repo.repo_path().join("op_heads").join("simple_op_heads");
     let op_id0 = repo.op_id().clone();
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
