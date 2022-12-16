@@ -800,10 +800,10 @@ fn parse_function_expression(
         // Resolve arguments in the current scope, and pass them in to the alias
         // expansion scope.
         let arguments_span = arguments_pair.as_span();
-        let args = arguments_pair
+        let args: Vec<_> = arguments_pair
             .into_inner()
             .map(|arg| parse_expression_rule(arg.into_inner(), state))
-            .collect::<Result<Vec<_>, RevsetParseError>>()?;
+            .try_collect()?;
         if params.len() == args.len() {
             let locals = params.iter().map(|s| s.as_str()).zip(args).collect();
             state.with_alias_expanding(id, &locals, primary_span, |state| {
@@ -934,9 +934,9 @@ fn parse_builtin_function(
         "file" => {
             if let Some(ctx) = state.workspace_ctx {
                 let arguments_span = arguments_pair.as_span();
-                let paths = arguments_pair
+                let paths: Vec<_> = arguments_pair
                     .into_inner()
-                    .map(|arg| {
+                    .map(|arg| -> Result<_, RevsetParseError> {
                         let span = arg.as_span();
                         let needle = parse_function_argument_to_string(name, arg, state)?;
                         let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, &needle)
@@ -948,7 +948,7 @@ fn parse_builtin_function(
                             })?;
                         Ok(path)
                     })
-                    .collect::<Result<Vec<_>, RevsetParseError>>()?;
+                    .try_collect()?;
                 if paths.is_empty() {
                     Err(RevsetParseError::with_span(
                         RevsetParseErrorKind::InvalidFunctionArguments {

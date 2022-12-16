@@ -212,9 +212,9 @@ pub fn run_mergetool(
         // The default case below should never actually trigger, but we support it just in case
         // resolving the root path ever makes sense.
         .unwrap_or_default();
-    let paths: Result<HashMap<&str, _>, ConflictResolveError> = files
+    let paths: HashMap<&str, _> = files
         .iter()
-        .map(|(role, contents)| {
+        .map(|(role, contents)| -> Result<_, ConflictResolveError> {
             let path = temp_dir.path().join(format!("{role}{suffix}"));
             std::fs::write(&path, contents).map_err(ExternalToolError::SetUpDirError)?;
             if *role != "output" {
@@ -223,8 +223,7 @@ pub fn run_mergetool(
             }
             Ok((*role, path))
         })
-        .collect();
-    let paths = paths?;
+        .try_collect()?;
 
     let args = interpolate_mergetool_filename_patterns(&editor.merge_args, &paths);
     let args_str = args

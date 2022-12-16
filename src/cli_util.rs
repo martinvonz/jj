@@ -563,10 +563,10 @@ impl WorkspaceCommandHelper {
             Ok(Box::new(EverythingMatcher))
         } else {
             // TODO: Add support for globs and other formats
-            let paths = values
+            let paths: Vec<_> = values
                 .iter()
                 .map(|v| self.parse_file_path(v))
-                .collect::<Result<Vec<_>, _>>()?;
+                .try_collect()?;
             Ok(Box::new(PrefixMatcher::new(&paths)))
         }
     }
@@ -617,7 +617,7 @@ impl WorkspaceCommandHelper {
             ))),
             (Some(commit0), Some(commit1)) => {
                 let mut iter = [commit0, commit1].into_iter().chain(iter);
-                let commits = iter.by_ref().take(5).collect::<Result<Vec<_>, _>>()?;
+                let commits: Vec<_> = iter.by_ref().take(5).try_collect()?;
                 let elided = iter.next().is_some();
                 let hint = format!(
                     "The revset resolved to these revisions:\n{commits}{ellipsis}",
