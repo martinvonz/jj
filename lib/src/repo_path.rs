@@ -98,7 +98,7 @@ impl RepoPath {
                 Component::Normal(a) => Ok(RepoPathComponent::from(a.to_str().unwrap())),
                 _ => Err(FsPathParseError::InputNotInRepo(input.to_string())),
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .try_collect()?;
         Ok(RepoPath::from_components(components))
     }
 

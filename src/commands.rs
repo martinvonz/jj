@@ -27,7 +27,7 @@ use chrono::{FixedOffset, LocalResult, TimeZone, Utc};
 use clap::builder::NonEmptyStringValueParser;
 use clap::{ArgAction, ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
 use itertools::Itertools;
-use jujutsu_lib::backend::{BackendError, CommitId, Timestamp, TreeValue};
+use jujutsu_lib::backend::{CommitId, Timestamp, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::dag_walk::topo_order_reverse;
@@ -2702,18 +2702,18 @@ fn rebase_revision(
                 .parents()
                 .ancestors(),
         );
-        let new_child_parents: Result<Vec<Commit>, BackendError> = workspace_command
+        let new_child_parents: Vec<Commit> = workspace_command
             .evaluate_revset(&new_child_parents_expression)
             .unwrap()
             .iter()
             .commits(store)
-            .collect();
+            .try_collect()?;
 
         rebase_commit(
             ui.settings(),
             tx.mut_repo(),
             &child_commit,
-            &new_child_parents?,
+            &new_child_parents,
         );
         num_rebased_descendants += 1;
     }
@@ -3472,16 +3472,16 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
         }
     } else {
         let mut workspace_command = command.workspace_helper(ui)?;
-        let paths_to_add = args
+        let paths_to_add: Vec<_> = args
             .add
             .iter()
             .map(|v| workspace_command.parse_file_path(v))
-            .collect::<Result<Vec<_>, _>>()?;
-        let paths_to_remove = args
+            .try_collect()?;
+        let paths_to_remove: Vec<_> = args
             .remove
             .iter()
             .map(|v| workspace_command.parse_file_path(v))
-            .collect::<Result<Vec<_>, _>>()?;
+            .try_collect()?;
         let (mut locked_wc, _wc_commit) = workspace_command.start_working_copy_mutation()?;
         let mut new_patterns = HashSet::new();
         if args.reset {
