@@ -635,11 +635,7 @@ impl WorkspaceCommandHelper {
     pub fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
         let revset_expression = self.parse_revset(revision_str)?;
         let revset = self.evaluate_revset(&revset_expression)?;
-        Ok(revset
-            .iter()
-            .commits(self.repo.store())
-            .map(Result::unwrap)
-            .collect())
+        Ok(revset.iter().commits(self.repo.store()).try_collect()?)
     }
 
     pub fn parse_revset(
