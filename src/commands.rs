@@ -25,7 +25,7 @@ use std::{fs, io};
 
 use chrono::{FixedOffset, LocalResult, TimeZone, Utc};
 use clap::builder::NonEmptyStringValueParser;
-use clap::{ArgAction, ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
+use clap::{ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, Timestamp, TreeValue};
 use jujutsu_lib::commit::Commit;
@@ -715,7 +715,7 @@ enum BranchSubcommand {
         names: Vec<String>,
 
         /// A glob pattern indicating branches to forget.
-        #[arg(action(ArgAction::Append), long = "glob")]
+        #[arg(long)]
         glob: Vec<String>,
     },
 
