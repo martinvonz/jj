@@ -362,10 +362,15 @@ impl TemplateProperty<Commit> for GitHeadProperty<'_> {
     type Output = String;
 
     fn extract(&self, context: &Commit) -> String {
-        if self.repo.view().git_head().as_ref() == Some(context.id()) {
-            "HEAD@git".to_string()
-        } else {
-            "".to_string()
+        match self.repo.view().git_head() {
+            Some(ref_target) if ref_target.has_add(context.id()) => {
+                if ref_target.is_conflict() {
+                    "HEAD@git?".to_string()
+                } else {
+                    "HEAD@git".to_string()
+                }
+            }
+            _ => "".to_string(),
         }
     }
 }

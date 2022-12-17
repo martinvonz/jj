@@ -75,7 +75,7 @@ pub fn import_refs(
         .flat_map(|old_target| old_target.adds())
         .collect_vec();
     if let Some(old_git_head) = mut_repo.view().git_head() {
-        old_git_heads.push(old_git_head);
+        old_git_heads.extend(old_git_head.adds());
     }
 
     let mut new_git_heads = HashSet::new();
@@ -90,7 +90,7 @@ pub fn import_refs(
         new_git_heads.insert(head_commit_id.clone());
         prevent_gc(git_repo, &head_commit_id);
         mut_repo.add_head(&head_commit);
-        mut_repo.set_git_head(head_commit_id);
+        mut_repo.set_git_head(RefTarget::Normal(head_commit_id));
     } else {
         mut_repo.clear_git_head();
     }

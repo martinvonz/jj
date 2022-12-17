@@ -224,7 +224,7 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
     }
 
     if let Some(git_head) = &view.git_head {
-        proto.git_head = git_head.to_bytes();
+        proto.git_head = Some(ref_target_to_proto(git_head));
     }
 
     proto
@@ -290,8 +290,11 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
         }
     }
 
-    if !proto.git_head.is_empty() {
-        view.git_head = Some(CommitId::new(proto.git_head));
+    #[allow(deprecated)]
+    if let Some(git_head) = proto.git_head.as_ref() {
+        view.git_head = Some(ref_target_from_proto(git_head.clone()));
+    } else if !proto.git_head_legacy.is_empty() {
+        view.git_head = Some(RefTarget::Normal(CommitId::new(proto.git_head_legacy)));
     }
 
     view

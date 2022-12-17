@@ -2039,7 +2039,10 @@ pub fn evaluate_expression<'repo>(
             Ok(revset_for_commit_ids(repo, &commit_ids))
         }
         RevsetExpression::GitHead => {
-            let commit_ids = repo.view().git_head().into_iter().collect_vec();
+            let mut commit_ids = vec![];
+            if let Some(ref_target) = repo.view().git_head() {
+                commit_ids.extend(ref_target.adds());
+            }
             Ok(revset_for_commit_ids(repo, &commit_ids))
         }
         RevsetExpression::Filter(predicate) => Ok(Box::new(FilterRevset {

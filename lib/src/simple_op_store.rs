@@ -204,7 +204,7 @@ mod tests {
                 "refs/heads/main".to_string() => git_refs_main_target,
                 "refs/heads/feature".to_string() => git_refs_feature_target
             },
-            git_head: Some(CommitId::from_hex("fff111")),
+            git_head: Some(RefTarget::Normal(CommitId::from_hex("fff111"))),
             wc_commit_ids: hashmap! {
                 WorkspaceId::default() => default_wc_commit_id,
                 WorkspaceId::new("test".to_string()) => test_wc_commit_id,
@@ -244,7 +244,7 @@ mod tests {
         // Test exact output so we detect regressions in compatibility
         assert_snapshot!(
             ViewId::new(blake2b_hash(&create_view()).to_vec()).hex(),
-            @"2a026b6a091219a3d8ca43d822984cf9be0c53438225d76a5ba5e6d3724fab15104579fb08fa949977c4357b1806d240bef28d958cbcd7d786962ac88c15df31"
+            @"7f47fa81494d7189cb1827b83b3f834662f0f61b4c4090298067e85cdc60f773bf639c4e6a3554a4e401650218ca240291ce591f45a1c501ade1d2b9f97e1a37"
         );
     }
 

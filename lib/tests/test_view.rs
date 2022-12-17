@@ -431,6 +431,41 @@ fn test_merge_views_git_refs() {
     );
 }
 
+#[test]
+fn test_merge_views_git_heads() {
+    // Tests merging of git heads (by performing concurrent operations). See
+    // test_refs.rs for tests of merging of individual ref targets.
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init(false);
+    let repo = &test_repo.repo;
+
+    let mut tx0 = repo.start_transaction(&settings, "test");
+    let tx0_head = write_random_commit(tx0.mut_repo(), &settings);
+    tx0.mut_repo()
+        .set_git_head(RefTarget::Normal(tx0_head.id().clone()));
+    let repo = tx0.commit();
+
+    let mut tx1 = repo.start_transaction(&settings, "test");
+    let tx1_head = write_random_commit(tx1.mut_repo(), &settings);
+    tx1.mut_repo()
+        .set_git_head(RefTarget::Normal(tx1_head.id().clone()));
+    tx1.commit();
+
+    let mut tx2 = repo.start_transaction(&settings, "test");
+    let tx2_head = write_random_commit(tx2.mut_repo(), &settings);
+    tx2.mut_repo()
+        .set_git_head(RefTarget::Normal(tx2_head.id().clone()));
+    tx2.commit();
+
+    let repo = repo.reload_at_head(&settings).unwrap();
+    let expected_git_head = RefTarget::Conflict {
+        removes: vec![tx0_head.id().clone()],
+        adds: vec![tx1_head.id().clone(), tx2_head.id().clone()],
+    };
+    // TODO: Should be equal
+    assert_ne!(repo.view().git_head(), Some(&expected_git_head));
+}
+
 fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<ReadonlyRepo> {
     let repo_loader = txs[0].base_repo().loader();
     let mut op_ids = vec![];

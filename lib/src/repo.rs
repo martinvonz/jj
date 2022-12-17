@@ -980,8 +980,8 @@ impl MutableRepo {
         self.view_mut().remove_git_ref(name);
     }
 
-    pub fn set_git_head(&mut self, head_id: CommitId) {
-        self.view_mut().set_git_head(head_id);
+    pub fn set_git_head(&mut self, target: RefTarget) {
+        self.view_mut().set_git_head(target);
     }
 
     pub fn clear_git_head(&mut self) {

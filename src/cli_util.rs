@@ -33,7 +33,7 @@ use jujutsu_lib::git::{GitExportError, GitImportError};
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use jujutsu_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
-use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
+use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::{
     CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, RepoLoader, RepoRef,
@@ -507,40 +507,42 @@ impl WorkspaceCommandHelper {
         let mut tx = self.start_transaction("import git refs").into_inner();
         git::import_refs(tx.mut_repo(), git_repo, &self.settings.git_settings())?;
         if tx.mut_repo().has_changes() {
-            let old_git_head = self.repo.view().git_head();
-            let new_git_head = tx.mut_repo().view().git_head();
+            let old_git_head = self.repo.view().git_head().cloned();
+            let new_git_head = tx.mut_repo().view().git_head().cloned();
             // If the Git HEAD has changed, abandon our old checkout and check out the new
             // Git HEAD.
-            if new_git_head != old_git_head && new_git_head.is_some() {
-                let workspace_id = self.workspace_id().to_owned();
-                let mut locked_working_copy = self.workspace.working_copy_mut().start_mutation();
-                if let Some(old_wc_commit_id) = self.repo.view().get_wc_commit_id(&workspace_id) {
+            match new_git_head {
+                Some(RefTarget::Normal(new_git_head_id)) if new_git_head != old_git_head => {
+                    let workspace_id = self.workspace_id().to_owned();
+                    let mut locked_working_copy =
+                        self.workspace.working_copy_mut().start_mutation();
+                    if let Some(old_wc_commit_id) = self.repo.view().get_wc_commit_id(&workspace_id)
+                    {
+                        tx.mut_repo()
+                            .record_abandoned_commit(old_wc_commit_id.clone());
+                    }
+                    let new_git_head_commit = tx.mut_repo().store().get_commit(&new_git_head_id)?;
                     tx.mut_repo()
-                        .record_abandoned_commit(old_wc_commit_id.clone());
+                        .check_out(workspace_id, &self.settings, &new_git_head_commit)?;
+                    // The working copy was presumably updated by the git command that updated
+                    // HEAD, so we just need to reset our working copy
+                    // state to it without updating working copy files.
+                    locked_working_copy.reset(&new_git_head_commit.tree())?;
+                    tx.mut_repo().rebase_descendants(&self.settings)?;
+                    self.repo = tx.commit();
+                    locked_working_copy.finish(self.repo.op_id().clone());
                 }
-                let new_checkout = self
-                    .repo
-                    .store()
-                    .get_commit(new_git_head.as_ref().unwrap())?;
-                tx.mut_repo()
-                    .check_out(workspace_id, &self.settings, &new_checkout)?;
-                // The working copy was presumably updated by the git command that updated HEAD,
-                // so we just need to reset our working copy state to it without updating
-                // working copy files.
-                locked_working_copy.reset(&new_checkout.tree())?;
-                tx.mut_repo().rebase_descendants(&self.settings)?;
-                self.repo = tx.commit();
-                locked_working_copy.finish(self.repo.op_id().clone());
-            } else {
-                let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
-                if num_rebased > 0 {
-                    writeln!(
-                        ui,
-                        "Rebased {num_rebased} descendant commits off of commits rewritten from \
-                         git"
-                    )?;
+                _ => {
+                    let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
+                    if num_rebased > 0 {
+                        writeln!(
+                            ui,
+                            "Rebased {num_rebased} descendant commits off of commits rewritten \
+                             from git"
+                        )?;
+                    }
+                    self.finish_transaction(ui, tx)?;
                 }
-                self.finish_transaction(ui, tx)?;
             }
         }
         Ok(())
@@ -567,7 +569,7 @@ impl WorkspaceCommandHelper {
                 let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
                 let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
                 git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
-                mut_repo.set_git_head(first_parent_id);
+                mut_repo.set_git_head(RefTarget::Normal(first_parent_id));
             }
         } else {
             // The workspace was removed (maybe the user undid the

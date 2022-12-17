@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `author`/`committer` templates now display both name and email. Use
   `author.name()`/`committer.name()` to extract the name.
 
+* Storage of the "HEAD@git" reference changed and can now have conflicts.
+  Operations written by a new `jj` binary will have a "HEAD@git" reference that
+  is not visible to older binaries.
+
 ### New features
 
 * The default log format now uses the committer timestamp instead of the author

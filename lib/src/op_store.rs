@@ -199,7 +199,7 @@ content_hash! {
         /// The commit the Git HEAD points to.
         // TODO: Support multiple Git worktrees?
         // TODO: Do we want to store the current branch name too?
-        pub git_head: Option<CommitId>,
+        pub git_head: Option<RefTarget>,
         // The commit that *should be* checked out in the workspace. Note that the working copy
         // (.jj/working_copy/) has the source of truth about which commit *is* checked out (to be
         // precise: the commit to which we most recently completed an update to).

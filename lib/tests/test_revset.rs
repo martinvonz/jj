@@ -1324,7 +1324,7 @@ fn test_evaluate_expression_git_head(use_git: bool) {
         resolve_commit_ids(mut_repo.as_repo_ref(), "git_head()"),
         vec![]
     );
-    mut_repo.set_git_head(commit1.id().clone());
+    mut_repo.set_git_head(RefTarget::Normal(commit1.id().clone()));
     assert_eq!(
         resolve_commit_ids(mut_repo.as_repo_ref(), "git_head()"),
         vec![commit1.id().clone()]
