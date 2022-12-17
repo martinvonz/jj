@@ -39,6 +39,7 @@ use crate::op_store::{
     BranchTarget, OpStore, OperationId, OperationMetadata, RefTarget, WorkspaceId,
 };
 use crate::operation::Operation;
+use crate::refs::merge_ref_targets;
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
@@ -1107,6 +1108,17 @@ impl MutableRepo {
                 base_target.as_ref(),
                 other_target.as_ref(),
             );
+        }
+
+        if let Some(new_git_head) = merge_ref_targets(
+            self.index.as_index_ref(),
+            self.view().git_head(),
+            base.git_head(),
+            other.git_head(),
+        ) {
+            self.set_git_head(new_git_head);
+        } else {
+            self.clear_git_head();
         }
     }
 
