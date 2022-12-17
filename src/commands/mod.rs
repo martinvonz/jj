@@ -1391,7 +1391,7 @@ fn log_template(settings: &UserSettings) -> String {
             if(branches, " " branches)
             if(tags, " " tags)
             if(working_copies, " " working_copies)
-            if(is_git_head, label("git_head", " HEAD@git"))
+            if(git_head, " " git_head)
             " " commit_id.{prefix_format}
             if(conflict, label("conflict", " conflict"))
             "\n"

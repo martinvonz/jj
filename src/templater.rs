@@ -348,21 +348,25 @@ impl TemplateProperty<Commit> for GitRefsProperty<'_> {
     }
 }
 
-pub struct IsGitHeadProperty<'a> {
+pub struct GitHeadProperty<'a> {
     repo: RepoRef<'a>,
 }
 
-impl<'a> IsGitHeadProperty<'a> {
+impl<'a> GitHeadProperty<'a> {
     pub fn new(repo: RepoRef<'a>) -> Self {
         Self { repo }
     }
 }
 
-impl TemplateProperty<Commit> for IsGitHeadProperty<'_> {
-    type Output = bool;
+impl TemplateProperty<Commit> for GitHeadProperty<'_> {
+    type Output = String;
 
-    fn extract(&self, context: &Commit) -> Self::Output {
-        self.repo.view().git_head().as_ref() == Some(context.id())
+    fn extract(&self, context: &Commit) -> String {
+        if self.repo.view().git_head().as_ref() == Some(context.id()) {
+            "HEAD@git".to_string()
+        } else {
+            "".to_string()
+        }
     }
 }
 
