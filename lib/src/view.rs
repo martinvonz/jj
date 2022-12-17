@@ -84,8 +84,8 @@ impl View {
         &self.data.git_refs
     }
 
-    pub fn git_head(&self) -> Option<CommitId> {
-        self.data.git_head.clone()
+    pub fn git_head(&self) -> Option<&RefTarget> {
+        self.data.git_head.as_ref()
     }
 
     pub fn set_wc_commit(&mut self, workspace_id: WorkspaceId, commit_id: CommitId) {
@@ -244,8 +244,8 @@ impl View {
         self.data.git_refs.remove(name);
     }
 
-    pub fn set_git_head(&mut self, head_id: CommitId) {
-        self.data.git_head = Some(head_id);
+    pub fn set_git_head(&mut self, target: RefTarget) {
+        self.data.git_head = Some(target);
     }
 
     pub fn clear_git_head(&mut self) {

@@ -180,7 +180,7 @@ impl From<&simple_op_store_model::View> for View {
         view.git_head = thrift_view
             .git_head
             .as_ref()
-            .map(|head| CommitId::new(head.clone()));
+            .map(|head| RefTarget::Normal(CommitId::new(head.clone())));
 
         view
     }

@@ -89,8 +89,14 @@ pub struct View {
     /// Only a subset of the refs. For example, does not include refs/notes/.
     #[prost(message, repeated, tag = "3")]
     pub git_refs: ::prost::alloc::vec::Vec<GitRef>,
+    /// This field is just for historical reasons (before we had the RefTarget
+    /// type). New Views have (only) the target field.
+    /// TODO: Delete support for the old format.
+    #[deprecated]
     #[prost(bytes = "vec", tag = "7")]
-    pub git_head: ::prost::alloc::vec::Vec<u8>,
+    pub git_head_legacy: ::prost::alloc::vec::Vec<u8>,
+    #[prost(message, optional, tag = "9")]
+    pub git_head: ::core::option::Option<RefTarget>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

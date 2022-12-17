@@ -32,7 +32,7 @@ use jujutsu_lib::commit::Commit;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::index::IndexEntry;
 use jujutsu_lib::matchers::EverythingMatcher;
-use jujutsu_lib::op_store::WorkspaceId;
+use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::revset::{RevsetAliasesMap, RevsetExpression};
@@ -985,7 +985,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
                 &git_repo,
                 &command.settings().git_settings(),
             )?;
-            if let Some(git_head_id) = tx.mut_repo().view().git_head() {
+            if let Some(RefTarget::Normal(git_head_id)) = tx.mut_repo().view().git_head().cloned() {
                 let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
                 tx.check_out(&git_head_commit)?;
             }

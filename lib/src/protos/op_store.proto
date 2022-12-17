@@ -67,7 +67,11 @@ message View {
   repeated Tag tags = 6;
   // Only a subset of the refs. For example, does not include refs/notes/.
   repeated GitRef git_refs = 3;
-  bytes git_head = 7;
+  // This field is just for historical reasons (before we had the RefTarget
+  // type). New Views have (only) the target field.
+  // TODO: Delete support for the old format.
+  bytes git_head_legacy = 7 [deprecated = true];
+  RefTarget git_head = 9;
 }
 
 message Operation {

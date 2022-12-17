@@ -161,7 +161,7 @@ fn test_import_refs() {
         view.git_refs().get("refs/tags/v1.0"),
         Some(RefTarget::Normal(jj_id(&commit5))).as_ref()
     );
-    assert_eq!(view.git_head(), Some(jj_id(&commit2)));
+    assert_eq!(view.git_head(), Some(&RefTarget::Normal(jj_id(&commit2))));
 }
 
 #[test]
@@ -432,7 +432,10 @@ fn test_import_refs_detached_head() {
     let expected_heads = hashset! { jj_id(&commit1) };
     assert_eq!(*repo.view().heads(), expected_heads);
     assert_eq!(repo.view().git_refs().len(), 0);
-    assert_eq!(repo.view().git_head(), Some(jj_id(&commit1)));
+    assert_eq!(
+        repo.view().git_head(),
+        Some(&RefTarget::Normal(jj_id(&commit1)))
+    );
 }
 
 #[test]
