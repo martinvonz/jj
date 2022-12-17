@@ -462,8 +462,7 @@ fn test_merge_views_git_heads() {
         removes: vec![tx0_head.id().clone()],
         adds: vec![tx1_head.id().clone(), tx2_head.id().clone()],
     };
-    // TODO: Should be equal
-    assert_ne!(repo.view().git_head(), Some(&expected_git_head));
+    assert_eq!(repo.view().git_head(), Some(&expected_git_head));
 }
 
 fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<ReadonlyRepo> {
