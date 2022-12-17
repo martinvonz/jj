@@ -172,6 +172,28 @@ fn test_git_push_all() {
 }
 
 #[test]
+fn test_git_push_changes() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    test_env.jj_cmd_success(&workspace_root, &["new", "-m", "bar"]);
+    std::fs::write(workspace_root.join("file"), "modified").unwrap();
+
+    fn replace_changeid(s: &str) -> String {
+        regex::Regex::new(r"[0-9a-f]{32}")
+            .unwrap()
+            .replace_all(s, "<CHANGE_ID>")
+            .to_string()
+    }
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--change", "@"]);
+    insta::assert_snapshot!(replace_changeid(&stdout), @r###"
+    Creating branch push-<CHANGE_ID> for revision @
+    Branch changes to push to origin:
+      Add branch push-<CHANGE_ID> to ccebc2439094
+    "###);
+}
+
+#[test]
 fn test_git_push_unsnapshotted_change() {
     let (test_env, workspace_root) = set_up();
     test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "foo"]);
