@@ -919,24 +919,25 @@ struct GitCloneArgs {
 /// Push to a Git remote
 ///
 /// By default, pushes any branches pointing to `@`, or `@-` if no branches
-/// point to `@`. Use `--branch` to push a specific branch. Use `--all` to push
-/// all branches. Use `--change` to generate a branch name based on a specific
-/// commit's change ID.
+/// point to `@`. Use `--branch` to push specific branches. Use `--all` to push
+/// all branches. Use `--change` to generate branch names based on the change
+/// IDs of specific commits.
 #[derive(clap::Args, Clone, Debug)]
 #[command(group(ArgGroup::new("what").args(&["branch", "all", "change"])))]
 struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
     #[arg(long, default_value = "origin")]
     remote: String,
-    /// Push only this branch
-    #[arg(long)]
-    branch: Option<String>,
+    /// Push only this branch (can be repeated)
+    #[arg(long, short)]
+    branch: Vec<String>,
     /// Push all branches
     #[arg(long)]
     all: bool,
-    /// Push this commit by creating a branch based on its change ID
+    /// Push this commit by creating a branch based on its change ID (can be
+    /// repeated)
     #[arg(long)]
-    change: Option<RevisionArg>,
+    change: Vec<RevisionArg>,
     /// Only display what will change on the remote
     #[arg(long)]
     dry_run: bool,
@@ -2783,6 +2784,18 @@ fn is_fast_forward(repo: RepoRef, branch_name: &str, new_target_id: &CommitId) -
     }
 }
 
+fn make_branch_term(branch_names: &[impl AsRef<str>]) -> String {
+    match branch_names {
+        [branch_name] => format!("branch {}", branch_name.as_ref()),
+        branch_names => {
+            format!(
+                "branches {}",
+                branch_names.iter().map(AsRef::as_ref).join(", ")
+            )
+        }
+    }
+}
+
 fn cmd_branch(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -2815,18 +2828,6 @@ fn cmd_branch(
             .cloned()
             .collect();
         Ok(matching_branches)
-    }
-
-    fn make_branch_term(branch_names: &[impl AsRef<str>]) -> String {
-        match branch_names {
-            [branch_name] => format!("branch {}", branch_name.as_ref()),
-            branch_names => {
-                format!(
-                    "branches {}",
-                    branch_names.iter().map(AsRef::as_ref).join(", ")
-                )
-            }
-        }
     }
 
     match subcommand {
@@ -3867,61 +3868,76 @@ fn cmd_git_push(
 
     let mut tx;
     let mut branch_updates = vec![];
-    if let Some(branch_name) = &args.branch {
-        if let Some(update) = branch_updates_for_push(
-            workspace_command.repo().as_repo_ref(),
-            &args.remote,
-            branch_name,
-        )? {
-            branch_updates.push((branch_name.clone(), update));
-        } else {
-            writeln!(
-                ui,
-                "Branch {}@{} already matches {}",
-                branch_name, &args.remote, branch_name
-            )?;
-        }
-        tx = workspace_command.start_transaction(&format!(
-            "push branch {branch_name} to git remote {}",
-            &args.remote
-        ));
-    } else if let Some(change_str) = &args.change {
-        let commit = workspace_command.resolve_single_rev(change_str)?;
-        let branch_name = format!(
-            "{}{}",
-            ui.settings().push_branch_prefix(),
-            commit.change_id().hex()
-        );
-        if workspace_command
-            .repo()
-            .view()
-            .get_local_branch(&branch_name)
-            .is_none()
-        {
-            writeln!(
-                ui,
-                "Creating branch {} for revision {}",
+    if !args.branch.is_empty() {
+        for branch_name in &args.branch {
+            if let Some(update) = branch_updates_for_push(
+                workspace_command.repo().as_repo_ref(),
+                &args.remote,
                 branch_name,
-                change_str.deref()
-            )?;
+            )? {
+                branch_updates.push((branch_name.clone(), update));
+            } else {
+                writeln!(
+                    ui,
+                    "Branch {}@{} already matches {}",
+                    branch_name, &args.remote, branch_name
+                )?;
+            }
         }
         tx = workspace_command.start_transaction(&format!(
-            "push change {} to git remote {}",
-            commit.change_id().hex(),
+            "push {} to git remote {}",
+            make_branch_term(&args.branch),
             &args.remote
         ));
-        tx.mut_repo()
-            .set_local_branch(branch_name.clone(), RefTarget::Normal(commit.id().clone()));
-        if let Some(update) =
-            branch_updates_for_push(tx.mut_repo().as_repo_ref(), &args.remote, &branch_name)?
-        {
-            branch_updates.push((branch_name.clone(), update));
-        } else {
-            writeln!(
-                ui,
-                "Branch {}@{} already matches {}",
-                branch_name, &args.remote, branch_name
-            )?;
+    } else if !args.change.is_empty() {
+        // TODO: Allow specifying --branch and --change at the same time
+        let commits: Vec<_> = args
+            .change
+            .iter()
+            .map(|change_str| workspace_command.resolve_single_rev(change_str))
+            .try_collect()?;
+        tx = workspace_command.start_transaction(&format!(
+            "push {} {} to git remote {}",
+            if commits.len() > 1 {
+                "changes"
+            } else {
+                "change"
+            },
+            commits.iter().map(|c| c.change_id().hex()).join(", "),
+            &args.remote
+        ));
+        for (change_str, commit) in std::iter::zip(args.change.iter(), commits) {
+            let branch_name = format!(
+                "{}{}",
+                ui.settings().push_branch_prefix(),
+                commit.change_id().hex()
+            );
+            if workspace_command
+                .repo()
+                .view()
+                .get_local_branch(&branch_name)
+                .is_none()
+            {
+                writeln!(
+                    ui,
+                    "Creating branch {} for revision {}",
+                    branch_name,
+                    change_str.deref()
+                )?;
+            }
+            tx.mut_repo()
+                .set_local_branch(branch_name.clone(), RefTarget::Normal(commit.id().clone()));
+            if let Some(update) =
+                branch_updates_for_push(tx.mut_repo().as_repo_ref(), &args.remote, &branch_name)?
+            {
+                branch_updates.push((branch_name.clone(), update));
+            } else {
+                writeln!(
+                    ui,
+                    "Branch {}@{} already matches {}",
+                    branch_name, &args.remote, branch_name
+                )?;
+            }
         }
     } else if args.all {
         // TODO: Is it useful to warn about conflicted branches?
