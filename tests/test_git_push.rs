@@ -130,7 +130,7 @@ fn test_git_push_no_current_branch() {
 }
 
 #[test]
-fn test_git_push_all() {
+fn test_git_push_multiple() {
     let (test_env, workspace_root) = set_up();
     test_env.jj_cmd_success(&workspace_root, &["branch", "delete", "branch1"]);
     test_env.jj_cmd_success(
@@ -154,6 +154,17 @@ fn test_git_push_all() {
     Branch changes to push to origin:
       Delete branch branch1 from 828a683493c6
       Force branch branch2 from 752dad8b1718 to afc3e612e744
+      Add branch my-branch to afc3e612e744
+    Dry-run requested, not pushing.
+    "###);
+    // Dry run requesting two specific branches
+    let stdout = test_env.jj_cmd_success(
+        &workspace_root,
+        &["git", "push", "-b=branch1", "-b=my-branch", "--dry-run"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Delete branch branch1 from 828a683493c6
       Add branch my-branch to afc3e612e744
     Dry-run requested, not pushing.
     "###);
@@ -190,6 +201,18 @@ fn test_git_push_changes() {
     Creating branch push-<CHANGE_ID> for revision @
     Branch changes to push to origin:
       Add branch push-<CHANGE_ID> to ccebc2439094
+    "###);
+    // test pushing two changes at once
+    std::fs::write(workspace_root.join("file"), "modified2").unwrap();
+    let stdout = test_env.jj_cmd_success(
+        &workspace_root,
+        &["git", "push", "--change", "@", "--change", "@-"],
+    );
+    insta::assert_snapshot!(replace_changeid(&stdout), @r###"
+    Creating branch push-<CHANGE_ID> for revision @-
+    Branch changes to push to origin:
+      Force branch push-<CHANGE_ID> from ccebc2439094 to 1624f122b2b1
+      Add branch push-<CHANGE_ID> to 0a736fed65c0
     "###);
 }
 

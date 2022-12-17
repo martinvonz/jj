@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj log --summary --patch` now shows both summary and diff outputs.
 
+* `jj git push` now accepts multiple `--branch`/`--change` arguments
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
@@ -28,6 +30,7 @@ Thanks to the people who made this release happen!
  * Martin von Zweigbergk (@martinvonz)
  * Danny Hooper (hooper@google.com)
  * Yuya Nishihara (@yuja)
+ * Ilya Grigoriev (@ilyagr)
 
 ## [0.6.1] - 2022-12-05
 
