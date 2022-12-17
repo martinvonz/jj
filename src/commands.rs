@@ -3869,7 +3869,25 @@ fn cmd_git_push(
     let mut tx;
     let mut branch_updates = vec![];
     let mut seen_branches = hashset! {};
-    if !args.branch.is_empty() {
+    if args.all {
+        // TODO: Is it useful to warn about conflicted branches?
+        for (branch_name, branch_target) in workspace_command.repo().view().branches() {
+            if !seen_branches.insert(branch_name.clone()) {
+                continue;
+            }
+            let push_action = classify_branch_push_action(branch_target, &args.remote);
+            match push_action {
+                BranchPushAction::AlreadyMatches => {}
+                BranchPushAction::LocalConflicted => {}
+                BranchPushAction::RemoteConflicted => {}
+                BranchPushAction::Update(update) => {
+                    branch_updates.push((branch_name.clone(), update));
+                }
+            }
+        }
+        tx = workspace_command
+            .start_transaction(&format!("push all branches to git remote {}", &args.remote));
+    } else if !args.branch.is_empty() {
         for branch_name in &args.branch {
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
@@ -3946,24 +3964,6 @@ fn cmd_git_push(
                 )?;
             }
         }
-    } else if args.all {
-        // TODO: Is it useful to warn about conflicted branches?
-        for (branch_name, branch_target) in workspace_command.repo().view().branches() {
-            if !seen_branches.insert(branch_name.clone()) {
-                continue;
-            }
-            let push_action = classify_branch_push_action(branch_target, &args.remote);
-            match push_action {
-                BranchPushAction::AlreadyMatches => {}
-                BranchPushAction::LocalConflicted => {}
-                BranchPushAction::RemoteConflicted => {}
-                BranchPushAction::Update(update) => {
-                    branch_updates.push((branch_name.clone(), update));
-                }
-            }
-        }
-        tx = workspace_command
-            .start_transaction(&format!("push all branches to git remote {}", &args.remote));
     } else {
         match workspace_command
             .repo()
