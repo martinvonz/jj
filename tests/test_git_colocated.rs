@@ -232,8 +232,45 @@ fn test_git_colocated_conflicting_git_refs() {
     "###);
 }
 
+#[test]
+fn test_git_colocated_fetch_deleted_branch() {
+    let test_env = TestEnvironment::default();
+    let origin_path = test_env.env_root().join("origin");
+    git2::Repository::init(&origin_path).unwrap();
+    test_env.jj_cmd_success(&origin_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_success(&origin_path, &["describe", "-m=A"]);
+    test_env.jj_cmd_success(&origin_path, &["branch", "create", "A"]);
+    test_env.jj_cmd_success(&origin_path, &["new", "-m=B"]);
+    test_env.jj_cmd_success(&origin_path, &["branch", "create", "B"]);
+    test_env.jj_cmd_success(&origin_path, &["new", "-m=C"]);
+
+    let clone_path = test_env.env_root().join("clone");
+    git2::Repository::clone(origin_path.to_str().unwrap(), &clone_path).unwrap();
+    test_env.jj_cmd_success(&clone_path, &["init", "--git-repo=."]);
+    insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
+    @ bc7d08e8de9b7bc248b9358a05e96f1671bbd4d9 
+    o e1f4268fabd2c84e880c5eb5bd87e076180fc8e3 B
+    o a86754f975f953fa25da4265764adc0c62e9ce6b A master
+    o 0000000000000000000000000000000000000000 
+    "###);
+
+    test_env.jj_cmd_success(&origin_path, &["branch", "delete", "B"]);
+    let stdout = test_env.jj_cmd_success(&clone_path, &["git", "fetch"]);
+    insta::assert_snapshot!(stdout, @"");
+    // TODO: e1f4 should have been abandoned (#864)
+    insta::assert_snapshot!(get_log_output(&test_env, &clone_path), @r###"
+    @ bc7d08e8de9b7bc248b9358a05e96f1671bbd4d9 
+    o e1f4268fabd2c84e880c5eb5bd87e076180fc8e3 
+    o a86754f975f953fa25da4265764adc0c62e9ce6b A master
+    o 0000000000000000000000000000000000000000 
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
-    test_env.jj_cmd_success(workspace_root, &["log", "-T", "commit_id \" \" branches"])
+    test_env.jj_cmd_success(
+        workspace_root,
+        &["log", "-T", "commit_id \" \" branches", "-r=all()"],
+    )
 }
 
 #[test]
