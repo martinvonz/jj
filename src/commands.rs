@@ -89,7 +89,7 @@ enum Commands {
     Squash(SquashArgs),
     Unsquash(UnsquashArgs),
     Restore(RestoreArgs),
-    Touchup(TouchupArgs),
+    Diffedit(DiffeditArgs),
     Resolve(ResolveArgs),
     Split(SplitArgs),
     /// Merge work from multiple branches
@@ -555,7 +555,7 @@ struct RestoreArgs {
 /// another. See `jj squash -i` or `jj unsquash -i` if you instead want to move
 /// changes into or out of the parent revision.
 #[derive(clap::Args, Clone, Debug)]
-struct TouchupArgs {
+struct DiffeditArgs {
     /// The revision to touch up. Defaults to @ if --to/--from are not
     /// specified.
     #[arg(long, short)]
@@ -2426,10 +2426,10 @@ side. If you don't make any changes, then the operation will be aborted.
     Ok(())
 }
 
-fn cmd_touchup(
+fn cmd_diffedit(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &TouchupArgs,
+    args: &DiffeditArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
 
@@ -4269,7 +4269,7 @@ pub fn run_command(
         Commands::Squash(sub_args) => cmd_squash(ui, command_helper, sub_args),
         Commands::Unsquash(sub_args) => cmd_unsquash(ui, command_helper, sub_args),
         Commands::Restore(sub_args) => cmd_restore(ui, command_helper, sub_args),
-        Commands::Touchup(sub_args) => cmd_touchup(ui, command_helper, sub_args),
+        Commands::Diffedit(sub_args) => cmd_diffedit(ui, command_helper, sub_args),
         Commands::Split(sub_args) => cmd_split(ui, command_helper, sub_args),
         Commands::Merge(sub_args) => cmd_merge(ui, command_helper, sub_args),
         Commands::Rebase(sub_args) => cmd_rebase(ui, command_helper, sub_args),

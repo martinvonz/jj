@@ -110,7 +110,7 @@ updated. So will the working copy if it points to a rebased commit.
 ### Comprehensive support for rewriting history
 
 Besides the usual rebase command, there's `jj describe` for editing the
-description (commit message) of an arbitrary commit. There's also `jj touchup`,
+description (commit message) of an arbitrary commit. There's also `jj diffedit`,
 which lets you edit the changes in a commit without checking it out. To split
 a commit into two, use `jj split`. You can even move part of the changes in a
 commit to any other commit using `jj move`.

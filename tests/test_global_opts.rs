@@ -261,11 +261,11 @@ fn test_help() {
     // Test that global options are separated out in the help output
     let test_env = TestEnvironment::default();
 
-    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["touchup", "-h"]);
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["diffedit", "-h"]);
     insta::assert_snapshot!(stdout, @r###"
     Touch up the content changes in a revision with a diff editor
 
-    Usage: jj touchup [OPTIONS]
+    Usage: jj diffedit [OPTIONS]
 
     Options:
       -r, --revision <REVISION>  The revision to touch up. Defaults to @ if --to/--from are not specified
