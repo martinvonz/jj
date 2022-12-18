@@ -100,10 +100,6 @@ directories to diff are passed as the first and second argument respectively.
 
 For example:
 
-    ui.diff-editor = "vimdiff"
-
-When kdiff3 is set via:
-
     ui.diff-editor = "kdiff3"
 
 Custom arguments can be added, and will be inserted before the paths
@@ -112,6 +108,14 @@ to diff:
     # merge-tools.kdiff3.program = "kdiff3"      # Defaults to the name of the tool if not specified
     merge-tools.kdiff3.edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
 
+### Using Vim as a diff editor
+
+Using `ui.diff-editor = "vimdiff"` is possible but not recommended.
+For a better experience, you can follow these [instructions] to
+configure the [`DirDiff` Vim plugin].
+
+[instructions]: https://gist.github.com/ilyagr/5d6339fb7dac5e7ab06fe1561ec62d45
+[`DirDiff` Vim plugin]: https://github.com/will133/vim-dirdiff
 
 ## 3-way merge tools for conflict resolution
 
