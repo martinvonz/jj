@@ -377,10 +377,10 @@ the parent change, even if they touch the same word, and it won't cause any
 conflicts.
 
 Let's try one final command for changing the contents of an exiting commit. That
-command is `jj touchup`, which lets you edit the contents of a commit without
+command is `jj diffedit`, which lets you edit the contents of a commit without
 checking it out.
 ```shell script
-$ jj touchup -r @-
+$ jj diffedit -r @-
 Created 2423c134ea70 ABC
 Rebased 1 descendant commits
 Working copy now at: d31c52e8ca41 ABCD
@@ -390,10 +390,10 @@ When Meld starts, edit the right side by e.g. adding something to the first
 line. Then close Meld. You can now inspect the rewritten commit with
 `jj diff -r @-` again and you should see your addition to the first line.
 Unlike `jj squash -i`, which left the content state of the commit unchanged,
-`jj touchup` (typically) results in a different state, which means that
+`jj diffedit` (typically) results in a different state, which means that
 descendant commits may have conflicts.
 
 Other commands for rewriting contents of existing commits are `jj restore -i`,
 `jj split`, `jj unsquash -i`. Now that you've seen how `jj squash -i` and
-`jj touchup` work, you can hopefully figure out how those work (with the help of
+`jj diffedit` work, you can hopefully figure out how those work (with the help of
 the instructions in the diff).

@@ -245,7 +245,7 @@ parent.
     </tr>
     <tr>
       <td>Interactively edit the diff in a given change</td>
-      <td><code>jj touchup -r &lt;revision&gt;</code></td>
+      <td><code>jj diffedit -r &lt;revision&gt;</code></td>
       <td>Not supported (can be emulated with the "edit" action in
           <code>git rebase -i</code>)</td>
     </tr>

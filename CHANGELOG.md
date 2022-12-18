@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+* The `jj touchup` command was renamed to `jj diffedit`.
+
 ### New features
 
 * The default log format now uses the committer timestamp instead of the author

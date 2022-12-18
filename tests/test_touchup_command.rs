@@ -19,7 +19,7 @@ use crate::common::TestEnvironment;
 pub mod common;
 
 #[test]
-fn test_touchup() {
+fn test_diffedit() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -40,7 +40,7 @@ fn test_touchup() {
         "files-before file1 file2\0files-after JJ-INSTRUCTIONS file2",
     )
     .unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["touchup"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
     "###);
@@ -52,7 +52,7 @@ fn test_touchup() {
 
     // Nothing happens if the diff-editor exits with an error
     std::fs::write(&edit_script, "rm file2\0fail").unwrap();
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["touchup"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["diffedit"]);
     insta::assert_snapshot!(Regex::new(r"Details: [^\n]+").unwrap().replace(&stderr, "Details: <OS-Dependent>"), @r###"
     Error: Failed to edit diff: Tool exited with a non-zero code.
      Details: <OS-Dependent>
@@ -65,7 +65,7 @@ fn test_touchup() {
 
     // Can edit changes to individual files
     std::fs::write(&edit_script, "reset file2").unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["touchup"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit"]);
     insta::assert_snapshot!(stdout, @r###"
     Created 1930da4a57e9 (no description set)
     Working copy now at: 1930da4a57e9 (no description set)
@@ -79,7 +79,7 @@ fn test_touchup() {
     // Changes to a commit are propagated to descendants
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     std::fs::write(&edit_script, "write file3\nmodified\n").unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["touchup", "-r", "@-"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     Created c03ae96780b6 (no description set)
     Rebased 1 descendant commits
@@ -91,14 +91,14 @@ fn test_touchup() {
     modified
     "###);
 
-    // Test touchup --from @--
+    // Test diffedit --from @--
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     std::fs::write(
         &edit_script,
         "files-before file1\0files-after JJ-INSTRUCTIONS file2 file3\0reset file2",
     )
     .unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["touchup", "--from", "@--"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "--from", "@--"]);
     insta::assert_snapshot!(stdout, @r###"
     Created 15f2c966d508 (no description set)
     Working copy now at: 15f2c966d508 (no description set)
@@ -112,7 +112,7 @@ fn test_touchup() {
 }
 
 #[test]
-fn test_touchup_merge() {
+fn test_diffedit_merge() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -147,7 +147,7 @@ fn test_touchup_merge() {
         "files-before file1\0files-after JJ-INSTRUCTIONS file1 file3\0rm file1",
     )
     .unwrap();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["touchup", "-r", "@-"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     Created cb2b3b755c0a merge
     Rebased 1 descendant commits
