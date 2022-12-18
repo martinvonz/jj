@@ -53,8 +53,8 @@ use jujutsu_lib::{dag_walk, file_util, git, revset};
 use thiserror::Error;
 
 use crate::config::read_config;
-use crate::diff_edit::{ConflictResolveError, DiffEditError};
 use crate::formatter::Formatter;
+use crate::merge_tools::{ConflictResolveError, DiffEditError};
 use crate::templater::TemplateFormatter;
 use crate::ui::{ColorChoice, Ui};
 
@@ -765,7 +765,7 @@ impl WorkspaceCommandHelper {
         tree: &Tree,
         repo_path: &RepoPath,
     ) -> Result<TreeId, CommandError> {
-        Ok(crate::diff_edit::run_mergetool(ui, tree, repo_path)?)
+        Ok(crate::merge_tools::run_mergetool(ui, tree, repo_path)?)
     }
 
     pub fn edit_diff(
@@ -775,7 +775,7 @@ impl WorkspaceCommandHelper {
         right_tree: &Tree,
         instructions: &str,
     ) -> Result<TreeId, CommandError> {
-        Ok(crate::diff_edit::edit_diff(
+        Ok(crate::merge_tools::edit_diff(
             ui,
             left_tree,
             right_tree,
@@ -794,7 +794,7 @@ impl WorkspaceCommandHelper {
         matcher: &dyn Matcher,
     ) -> Result<TreeId, CommandError> {
         if interactive {
-            Ok(crate::diff_edit::edit_diff(
+            Ok(crate::merge_tools::edit_diff(
                 ui,
                 left_tree,
                 right_tree,
