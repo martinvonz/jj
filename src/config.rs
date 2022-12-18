@@ -77,7 +77,7 @@ fn default_mergetool_config() -> config::Config {
     // loaded by separate builder.
     config::Config::builder()
         .add_source(config::File::from_str(
-            include_str!("merge-tools.toml"),
+            include_str!("merge_tool_config.toml"),
             config::FileFormat::Toml,
         ))
         .build()
