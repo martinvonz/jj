@@ -108,7 +108,7 @@ fn find_pair_to_remove(
     None
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct BranchPushUpdate {
     pub old_target: Option<CommitId>,
     pub new_target: Option<CommitId>,

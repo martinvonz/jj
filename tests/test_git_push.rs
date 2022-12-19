@@ -168,6 +168,25 @@ fn test_git_push_multiple() {
       Add branch my-branch to afc3e612e744
     Dry-run requested, not pushing.
     "###);
+    // Dry run requesting two specific branches twice
+    let stdout = test_env.jj_cmd_success(
+        &workspace_root,
+        &[
+            "git",
+            "push",
+            "-b=branch1",
+            "-b=my-branch",
+            "-b=branch1",
+            "-b=my-branch",
+            "--dry-run",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Branch changes to push to origin:
+      Delete branch branch1 from 828a683493c6
+      Add branch my-branch to afc3e612e744
+    Dry-run requested, not pushing.
+    "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
@@ -213,6 +232,16 @@ fn test_git_push_changes() {
     Branch changes to push to origin:
       Force branch push-<CHANGE_ID> from ccebc2439094 to 1624f122b2b1
       Add branch push-<CHANGE_ID> to 0a736fed65c0
+    "###);
+    // specifying the same change twice doesn't break things
+    std::fs::write(workspace_root.join("file"), "modified3").unwrap();
+    let stdout = test_env.jj_cmd_success(
+        &workspace_root,
+        &["git", "push", "--change", "@", "--change", "@"],
+    );
+    insta::assert_snapshot!(replace_changeid(&stdout), @r###"
+    Branch changes to push to origin:
+      Force branch push-<CHANGE_ID> from 1624f122b2b1 to bae35833f32d
     "###);
 }
 

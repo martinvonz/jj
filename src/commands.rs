@@ -3868,8 +3868,12 @@ fn cmd_git_push(
 
     let mut tx;
     let mut branch_updates = vec![];
+    let mut seen_branches = hashset! {};
     if !args.branch.is_empty() {
         for branch_name in &args.branch {
+            if !seen_branches.insert(branch_name.clone()) {
+                continue;
+            }
             if let Some(update) = branch_updates_for_push(
                 workspace_command.repo().as_repo_ref(),
                 &args.remote,
@@ -3912,6 +3916,9 @@ fn cmd_git_push(
                 ui.settings().push_branch_prefix(),
                 commit.change_id().hex()
             );
+            if !seen_branches.insert(branch_name.clone()) {
+                continue;
+            }
             if workspace_command
                 .repo()
                 .view()
@@ -3942,6 +3949,9 @@ fn cmd_git_push(
     } else if args.all {
         // TODO: Is it useful to warn about conflicted branches?
         for (branch_name, branch_target) in workspace_command.repo().view().branches() {
+            if !seen_branches.insert(branch_name.clone()) {
+                continue;
+            }
             let push_action = classify_branch_push_action(branch_target, &args.remote);
             match push_action {
                 BranchPushAction::AlreadyMatches => {}
@@ -3992,6 +4002,9 @@ fn cmd_git_push(
                     }
                 }
                 for (branch_name, branch_target) in branches {
+                    if !seen_branches.insert(branch_name.clone()) {
+                        continue;
+                    }
                     let push_action = classify_branch_push_action(branch_target, &args.remote);
                     match push_action {
                         BranchPushAction::AlreadyMatches => {}
@@ -4012,6 +4025,7 @@ fn cmd_git_push(
             &args.remote
         ));
     }
+    drop(seen_branches);
 
     if branch_updates.is_empty() {
         writeln!(ui, "Nothing changed.")?;
