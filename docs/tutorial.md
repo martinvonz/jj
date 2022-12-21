@@ -393,7 +393,7 @@ Unlike `jj squash -i`, which left the content state of the commit unchanged,
 `jj diffedit` (typically) results in a different state, which means that
 descendant commits may have conflicts.
 
-Other commands for rewriting contents of existing commits are `jj restore -i`,
-`jj split`, `jj unsquash -i`. Now that you've seen how `jj squash -i` and
-`jj diffedit` work, you can hopefully figure out how those work (with the help of
+Other commands for rewriting contents of existing commits are `jj split`, `jj
+unsquash -i` and `jj move -i`. Now that you've seen how `jj squash -i` and `jj
+diffedit` work, you can hopefully figure out how those work (with the help of
 the instructions in the diff).
