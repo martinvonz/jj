@@ -30,22 +30,22 @@ fn test_checkout() {
     // Check out current commit
     let stdout = test_env.jj_cmd_success(&repo_path, &["checkout", "@"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 66f7f3f8235b (no description set)
+    Working copy now at: 05ce7118568d (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ 66f7f3f8235beaed90345fe93c5a86c30f4f026f (no description set)
-    o 91043abe9d0385a279102350df38807f4aa053b7 second
-    o 85a1e2839620cf0b354d1ccb970927d040c2a4a7 first
+    @ 05ce7118568d3007efc9163b055f9cb4a6becfde (no description set)
+    o 5c52832c3483e0ace06d047a806024984f28f1d7 second
+    o 69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
 
     // Can provide a description
     test_env.jj_cmd_success(&repo_path, &["checkout", "@--", "-m", "my message"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ 44f21384b2b12735d9477ec8b406bd4e48047c41 my message
-    | o 91043abe9d0385a279102350df38807f4aa053b7 second
+    @ 1191baaf276e3d0b96b1747e885b3a517be80d6f my message
+    | o 5c52832c3483e0ace06d047a806024984f28f1d7 second
     |/  
-    o 85a1e2839620cf0b354d1ccb970927d040c2a4a7 first
+    o 69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
 }
@@ -66,11 +66,11 @@ fn test_checkout_not_single_rev() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "root..@" resolved to more than one revision
     Hint: The revset resolved to these revisions:
-    eb01ec3263be ()
-    17b6965c1349 (fifth)
-    f8381c76d1d3 (fourth)
-    ca3820f77363 (third)
-    91043abe9d03 (second)
+    2f8593712db5 ()
+    5c1afd8b074f (fifth)
+    009f88bf7141 (fourth)
+    3fa8931e7b89 (third)
+    5c52832c3483 (second)
     ...
     "###);
 
@@ -78,19 +78,19 @@ fn test_checkout_not_single_rev() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "root..@-" resolved to more than one revision
     Hint: The revset resolved to these revisions:
-    17b6965c1349 (fifth)
-    f8381c76d1d3 (fourth)
-    ca3820f77363 (third)
-    91043abe9d03 (second)
-    85a1e2839620 (first)
+    5c1afd8b074f (fifth)
+    009f88bf7141 (fourth)
+    3fa8931e7b89 (third)
+    5c52832c3483 (second)
+    69542c1984c1 (first)
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "@-|@--"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "@-|@--" resolved to more than one revision
     Hint: The revset resolved to these revisions:
-    17b6965c1349 (fifth)
-    f8381c76d1d3 (fourth)
+    5c1afd8b074f (fifth)
+    009f88bf7141 (fourth)
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "none()"]);

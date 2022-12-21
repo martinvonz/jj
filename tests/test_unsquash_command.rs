@@ -86,7 +86,7 @@ fn test_unsquash() {
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "merge", "c", "d"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "e"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   7789610d8ec6 e
+    @   1f8f152ff48e e
     |\  
     o | 5658521e0f8b d
     | o 90fe0a96fc90 c
@@ -105,10 +105,10 @@ fn test_unsquash() {
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 0aabd9784f4d merge
+    Working copy now at: 3217340cb761 merge
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   0aabd9784f4d 
+    @   3217340cb761 
     |\  
     o | 5658521e0f8b d e?
     | o 90fe0a96fc90 c e?
@@ -253,8 +253,10 @@ fn test_unsquash_description() {
 JJ: Enter a description for the combined commit.
 JJ: Description from the destination commit:
 destination
+
 JJ: Description from the source commit:
 source
+
 JJ: Lines starting with "JJ: " (like this one) will be removed.
 "#,
     )
@@ -262,6 +264,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     test_env.jj_cmd_success(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@"), @r###"
     destination
+
     source
     "###);
 

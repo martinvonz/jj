@@ -287,8 +287,10 @@ fn test_squash_description() {
 JJ: Enter a description for the combined commit.
 JJ: Description from the destination commit:
 destination
+
 JJ: Description from the source commit:
 source
+
 JJ: Lines starting with "JJ: " (like this one) will be removed.
 "#,
     )
@@ -296,6 +298,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     test_env.jj_cmd_success(&repo_path, &["squash"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
     destination
+
     source
     "###);
 

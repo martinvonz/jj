@@ -27,7 +27,13 @@ fn test_describe() {
     // Set a description using `-m` flag
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description from CLI"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 7e0db3b0ad17 description from CLI
+    Working copy now at: cf3e86731c67 description from CLI
+    "###);
+
+    // Set the same description using `-m` flag, but with explicit newline
+    let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description from CLI\n"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
     "###);
 
     // Check that the text file gets initialized with the current description and
@@ -36,20 +42,21 @@ fn test_describe() {
         &edit_script,
         r#"expect
 description from CLI
+
 JJ: Lines starting with "JJ: " (like this one) will be removed.
 "#,
     )
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 45bfa10db64d description from CLI
+    Nothing changed.
     "###);
 
     // Set a description in editor
     std::fs::write(&edit_script, "write\ndescription from editor").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: f2ce8f1ad8fa description from editor
+    Working copy now at: bfdd972f9349 description from editor
     "###);
 
     // Lines in editor starting with "JJ: " are ignored
@@ -60,7 +67,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 95664f6316ae description among comment
+    Working copy now at: ccefa58bef47 description among comment
     "###);
 
     // Fails if the editor fails
