@@ -39,10 +39,14 @@ impl RepoPathComponent {
 
 impl From<&str> for RepoPathComponent {
     fn from(value: &str) -> Self {
+        RepoPathComponent::from(value.to_owned())
+    }
+}
+
+impl From<String> for RepoPathComponent {
+    fn from(value: String) -> Self {
         assert!(!value.contains('/'));
-        RepoPathComponent {
-            value: value.to_owned(),
-        }
+        RepoPathComponent { value }
     }
 }
 

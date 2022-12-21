@@ -12,24 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-fn main() {
-    let input = &[
-        "src/protos/op_store.proto",
-        "src/protos/store.proto",
-        "src/protos/working_copy.proto",
-    ];
-    protobuf_codegen::Codegen::new()
-        .pure()
-        .inputs(input)
-        .include("src/protos")
-        .cargo_out_dir("protos")
-        .run_from_script();
+fn main() -> std::io::Result<()> {
     println!("cargo:rerun-if-changed=build.rs");
-    for file in input {
-        println!("cargo:rerun-if-changed={file}");
-    }
 
     if let Some(true) = version_check::supports_feature("map_first_last") {
         println!("cargo:rustc-cfg=feature=\"map_first_last\"");
     }
+
+    Ok(())
 }

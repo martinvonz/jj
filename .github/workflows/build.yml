@@ -42,6 +42,20 @@ jobs:
       env:
         RUST_BACKTRACE: 1
 
+  check-protos:
+    name: Check protos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b
+      - uses: dtolnay/rust-toolchain@e645b0cf01249a964ec099494d38d2da0f0b349f
+        with:
+          toolchain: stable
+      - run: sudo apt update && sudo apt-get -y install protobuf-compiler
+      - name: Generate Rust code from .proto files
+        run: cargo run -p gen-protos
+      - name: Check for uncommitted changes
+        run: git diff --exit-code
+
   rustfmt:
     name: Check formatting
     runs-on: ubuntu-latest
