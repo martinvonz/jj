@@ -55,8 +55,8 @@ modified",
     .unwrap();
     test_env.jj_cmd_success(&workspace_path, &["commit"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @ 3ea3453a773f (no description set)
-    o 792a60936c42 modified
+    @ 3df78bc2b9b5 (no description set)
+    o 30a8c2b3d6eb modified
     o 000000000000 (no description set)
     "###);
 }

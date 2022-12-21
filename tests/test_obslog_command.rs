@@ -136,7 +136,7 @@ fn test_obslog_squash() {
 
     let stdout = get_log_output(&test_env, &repo_path, &["obslog", "-p", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    o    test.user@example.com 2001-02-03 04:05:10.000 +07:00 9b6d4a272a6a
+    o    test.user@example.com 2001-02-03 04:05:10.000 +07:00 27e721a5ba72
     |\  squashed
     | | Modified regular file file1:
     | |    1    1: foo
