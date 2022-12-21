@@ -464,13 +464,13 @@ fn test_merge_views_divergent() {
 
     let mut tx1 = repo.start_transaction(&settings, "test");
     let commit_a2 = CommitBuilder::for_rewrite_from(&settings, &commit_a)
-        .set_description("A2".to_string())
+        .set_description("A2")
         .write_to_repo(tx1.mut_repo());
     tx1.mut_repo().rebase_descendants(&settings).unwrap();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let commit_a3 = CommitBuilder::for_rewrite_from(&settings, &commit_a)
-        .set_description("A3".to_string())
+        .set_description("A3")
         .write_to_repo(tx2.mut_repo());
     tx2.mut_repo().rebase_descendants(&settings).unwrap();
 
@@ -502,7 +502,7 @@ fn test_merge_views_child_on_rewritten(child_first: bool) {
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let commit_a2 = CommitBuilder::for_rewrite_from(&settings, &commit_a)
-        .set_description("A2".to_string())
+        .set_description("A2")
         .write_to_repo(tx2.mut_repo());
     tx2.mut_repo().rebase_descendants(&settings).unwrap();
 
@@ -548,7 +548,7 @@ fn test_merge_views_child_on_rewritten_divergent(on_rewritten: bool, child_first
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let commit_a4 = CommitBuilder::for_rewrite_from(&settings, &commit_a2)
-        .set_description("A4".to_string())
+        .set_description("A4")
         .write_to_repo(tx2.mut_repo());
     tx2.mut_repo().rebase_descendants(&settings).unwrap();
 

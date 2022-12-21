@@ -133,7 +133,7 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
         vec![repo.store().root_commit_id().clone()],
         repo.store().empty_tree_id().clone(),
     )
-    .set_description("not empty".to_string())
+    .set_description("not empty")
     .write_to_repo(mut_repo);
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();

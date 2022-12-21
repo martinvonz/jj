@@ -1500,15 +1500,15 @@ fn test_evaluate_expression_description(use_git: bool) {
     let mut_repo = tx.mut_repo();
 
     let commit1 = create_random_commit(&settings, repo)
-        .set_description("commit 1".to_string())
+        .set_description("commit 1")
         .write_to_repo(mut_repo);
     let commit2 = create_random_commit(&settings, repo)
         .set_parents(vec![commit1.id().clone()])
-        .set_description("commit 2".to_string())
+        .set_description("commit 2")
         .write_to_repo(mut_repo);
     let commit3 = create_random_commit(&settings, repo)
         .set_parents(vec![commit2.id().clone()])
-        .set_description("commit 3".to_string())
+        .set_description("commit 3")
         .write_to_repo(mut_repo);
 
     // Can find multiple matches
