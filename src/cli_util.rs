@@ -584,6 +584,11 @@ impl WorkspaceCommandHelper {
         if let Ok(excludes_file_str) = self
             .git_config()
             .and_then(|git_config| git_config.get_string("core.excludesFile"))
+            .or_else(|_| {
+                std::env::var("XDG_CONFIG_HOME")
+                    .or_else(|_| std::env::var("HOME"))
+                    .map(|x| format!("{x}/.config/git/ignore"))
+            })
         {
             let excludes_file_path = expand_git_path(excludes_file_str);
             git_ignores = git_ignores.chain_with_file("", excludes_file_path);
