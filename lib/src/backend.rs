@@ -23,215 +23,83 @@ use thiserror::Error;
 use crate::content_hash::ContentHash;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
+macro_rules! impl_id_type {
+    ($name:ident) => {
+        impl Debug for $name {
+            fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+                f.debug_tuple(stringify!($name)).field(&self.hex()).finish()
+            }
+        }
+
+        impl $name {
+            pub fn new(value: Vec<u8>) -> Self {
+                Self(value)
+            }
+
+            pub fn from_bytes(bytes: &[u8]) -> Self {
+                Self(bytes.to_vec())
+            }
+
+            pub fn as_bytes(&self) -> &[u8] {
+                &self.0
+            }
+
+            pub fn to_bytes(&self) -> Vec<u8> {
+                self.0.clone()
+            }
+
+            pub fn from_hex(hex: &str) -> Self {
+                Self(hex::decode(hex).unwrap())
+            }
+
+            pub fn hex(&self) -> String {
+                hex::encode(&self.0)
+            }
+        }
+    };
+}
+
 content_hash! {
     #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
     pub struct CommitId(Vec<u8>);
 }
 
-impl Debug for CommitId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.debug_tuple("CommitId").field(&self.hex()).finish()
-    }
-}
-
-impl CommitId {
-    pub fn new(value: Vec<u8>) -> Self {
-        Self(value)
-    }
-
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        Self(bytes.to_vec())
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.0.clone()
-    }
-
-    pub fn from_hex(hex: &str) -> Self {
-        Self(hex::decode(hex).unwrap())
-    }
-
-    pub fn hex(&self) -> String {
-        hex::encode(&self.0)
-    }
-}
+impl_id_type!(CommitId);
 
 content_hash! {
     #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
     pub struct ChangeId(Vec<u8>);
 }
 
-impl Debug for ChangeId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.debug_tuple("ChangeId").field(&self.hex()).finish()
-    }
-}
-
-impl ChangeId {
-    pub fn new(value: Vec<u8>) -> Self {
-        Self(value)
-    }
-
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        Self(bytes.to_vec())
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.0.clone()
-    }
-
-    pub fn from_hex(hex: &str) -> Self {
-        Self(hex::decode(hex).unwrap())
-    }
-
-    pub fn hex(&self) -> String {
-        hex::encode(&self.0)
-    }
-}
+impl_id_type!(ChangeId);
 
 content_hash! {
     #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
     pub struct TreeId(Vec<u8>);
 }
 
-impl Debug for TreeId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.debug_tuple("TreeId").field(&self.hex()).finish()
-    }
-}
-
-impl TreeId {
-    pub fn new(value: Vec<u8>) -> Self {
-        Self(value)
-    }
-
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        Self(bytes.to_vec())
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.0.clone()
-    }
-
-    pub fn from_hex(hex: &str) -> Self {
-        Self(hex::decode(hex).unwrap())
-    }
-
-    pub fn hex(&self) -> String {
-        hex::encode(&self.0)
-    }
-}
+impl_id_type!(TreeId);
 
 content_hash! {
     #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
     pub struct FileId(Vec<u8>);
 }
 
-impl Debug for FileId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.debug_tuple("FileId").field(&self.hex()).finish()
-    }
-}
-
-impl FileId {
-    pub fn new(value: Vec<u8>) -> Self {
-        Self(value)
-    }
-
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        Self(bytes.to_vec())
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.0.clone()
-    }
-
-    pub fn hex(&self) -> String {
-        hex::encode(&self.0)
-    }
-}
+impl_id_type!(FileId);
 
 content_hash! {
     #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
     pub struct SymlinkId(Vec<u8>);
 }
 
-impl Debug for SymlinkId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.debug_tuple("SymlinkId").field(&self.hex()).finish()
-    }
-}
-
-impl SymlinkId {
-    pub fn new(value: Vec<u8>) -> Self {
-        Self(value)
-    }
-
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        Self(bytes.to_vec())
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.0.clone()
-    }
-
-    pub fn hex(&self) -> String {
-        hex::encode(&self.0)
-    }
-}
+impl_id_type!(SymlinkId);
 
 content_hash! {
     #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
     pub struct ConflictId(Vec<u8>);
 }
 
-impl Debug for ConflictId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.debug_tuple("ConflictId").field(&self.hex()).finish()
-    }
-}
-
-impl ConflictId {
-    pub fn new(value: Vec<u8>) -> Self {
-        Self(value)
-    }
-
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        Self(bytes.to_vec())
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
-    }
-
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.0.clone()
-    }
-
-    pub fn hex(&self) -> String {
-        hex::encode(&self.0)
-    }
-}
+impl_id_type!(ConflictId);
 
 pub enum Phase {
     Public,
