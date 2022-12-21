@@ -1796,25 +1796,22 @@ fn edit_description(
     repo: &ReadonlyRepo,
     description: &str,
 ) -> Result<String, CommandError> {
-    let random: u32 = rand::random();
-    let description_file_path = repo.repo_path().join(format!("description-{random}.txt"));
-    {
-        let mut description_file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .truncate(true)
-            .open(&description_file_path)
-            .unwrap_or_else(|_| {
-                panic!(
-                    "failed to open {} for write",
-                    description_file_path.display()
-                )
-            });
-        description_file.write_all(description.as_bytes()).unwrap();
-        description_file
-            .write_all(b"\nJJ: Lines starting with \"JJ: \" (like this one) will be removed.\n")
-            .unwrap();
-    }
+    let description_file_path = (|| -> Result<_, io::Error> {
+        let mut file = tempfile::Builder::new()
+            .prefix("description-")
+            .suffix(".txt")
+            .tempfile_in(repo.repo_path())?;
+        file.write_all(description.as_bytes())?;
+        file.write_all(b"\nJJ: Lines starting with \"JJ: \" (like this one) will be removed.\n")?;
+        let (_, path) = file.keep().map_err(|e| e.error)?;
+        Ok(path)
+    })()
+    .map_err(|e| {
+        user_error(format!(
+            r#"Failed to create description file in "{path}": {e}"#,
+            path = repo.repo_path().display()
+        ))
+    })?;
 
     let editor: FullCommandArgs = ui
         .settings()
