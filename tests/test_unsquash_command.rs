@@ -213,7 +213,7 @@ fn test_unsquash_description() {
     let repo_path = test_env.env_root().join("repo");
 
     let edit_script = test_env.set_up_fake_editor();
-    std::fs::write(&edit_script, r#""#).unwrap();
+    std::fs::write(&edit_script, r#"fail"#).unwrap();
 
     // If both descriptions are empty, the resulting description is empty
     std::fs::write(repo_path.join("file1"), "a\n").unwrap();
@@ -237,12 +237,11 @@ fn test_unsquash_description() {
 
     // If the destination description is non-empty and the source's description is
     // empty, the resulting description is from the destination
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    test_env.jj_cmd_success(&repo_path, &["op", "restore", "@--"]);
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "destination"]);
     test_env.jj_cmd_success(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@"), @r###"
     destination
-    source
     "###);
 
     // If both descriptions were non-empty, we get asked for a combined description
