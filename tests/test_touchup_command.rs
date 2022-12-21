@@ -171,3 +171,93 @@ fn test_diffedit_merge() {
     >>>>>>>
     "###);
 }
+
+#[test]
+fn test_diffedit_old_restore_interactive_tests() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "a\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "a\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["new"]);
+    std::fs::remove_file(repo_path.join("file1")).unwrap();
+    std::fs::write(repo_path.join("file2"), "b\n").unwrap();
+    std::fs::write(repo_path.join("file3"), "b\n").unwrap();
+
+    let edit_script = test_env.set_up_fake_diff_editor();
+
+    // Nothing happens if we make no changes
+    std::fs::write(&edit_script, "").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "--from", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
+    R file1
+    M file2
+    A file3
+    "###);
+
+    // Nothing happens if the diff-editor exits with an error
+    std::fs::write(&edit_script, "rm file2\0fail").unwrap();
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["diffedit", "--from", "@-"]);
+    insta::assert_snapshot!(Regex::new(r"Details: [^\n]+").unwrap().replace(&stderr, "Details: <OS-Dependent>"), @r###"
+    Error: Failed to edit diff: Tool exited with a non-zero code.
+     Details: <OS-Dependent>
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
+    R file1
+    M file2
+    A file3
+    "###);
+
+    // Can restore changes to individual files
+    std::fs::write(&edit_script, "reset file2\0reset file3").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "--from", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Created abdbf6271a1c (no description set)
+    Working copy now at: abdbf6271a1c (no description set)
+    Added 0 files, modified 1 files, removed 1 files
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
+    R file1
+    "###);
+
+    // Can make unrelated edits
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    std::fs::write(&edit_script, "write file3\nunrelated\n").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "--from", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Created e31f7f33ad07 (no description set)
+    Working copy now at: e31f7f33ad07 (no description set)
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
+    insta::assert_snapshot!(stdout, @r###"
+    diff --git a/file1 b/file1
+    deleted file mode 100644
+    index 7898192261..0000000000
+    --- a/file1
+    +++ /dev/null
+    @@ -1,1 +1,0 @@
+    -a
+    diff --git a/file2 b/file2
+    index 7898192261...6178079822 100644
+    --- a/file2
+    +++ b/file2
+    @@ -1,1 +1,1 @@
+    -a
+    +b
+    diff --git a/file3 b/file3
+    new file mode 100644
+    index 0000000000..c21c9352f7
+    --- /dev/null
+    +++ b/file3
+    @@ -1,0 +1,1 @@
+    +unrelated
+    "###);
+}

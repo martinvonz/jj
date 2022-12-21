@@ -521,6 +521,9 @@ struct ResolveArgs {
 /// When neither `--from` nor `--to` is specified, the command restores into the
 /// working copy from its parent. If one of `--from` or `--to` is specified, the
 /// other one defaults to the working copy.
+///
+/// See `jj diffedit` if you'd like to restore portions of files rather than
+/// entire files.
 #[derive(clap::Args, Clone, Debug)]
 struct RestoreArgs {
     /// Revision to restore from (source)
@@ -529,11 +532,8 @@ struct RestoreArgs {
     /// Revision to restore into (destination)
     #[arg(long)]
     to: Option<RevisionArg>,
-    /// Interactively choose which parts to restore
-    #[arg(long, short)]
-    interactive: bool,
     /// Restore only these paths (instead of all paths)
-    #[arg(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -2351,30 +2351,9 @@ fn cmd_restore(
     let from_commit = workspace_command.resolve_single_rev(from_str)?;
     let to_commit = workspace_command.resolve_single_rev(to_str)?;
     workspace_command.check_rewriteable(&to_commit)?;
-    let tree_id;
-    if args.interactive {
-        let instructions = format!(
-            "\
-You are restoring state from: {}
-into: {}
-
-The left side of the diff shows the contents of the commit you're
-restoring from. The right side initially shows the contents of the
-commit you're restoring into.
-
-Adjust the right side until it has the changes you wanted from the left
-side. If you don't make any changes, then the operation will be aborted.
-",
-            short_commit_description(&from_commit),
-            short_commit_description(&to_commit)
-        );
-        tree_id = workspace_command.edit_diff(
-            ui,
-            &from_commit.tree(),
-            &to_commit.tree(),
-            &instructions,
-        )?;
-    } else if !args.paths.is_empty() {
+    let tree_id = if args.paths.is_empty() {
+        from_commit.tree_id().clone()
+    } else {
         let matcher = workspace_command.matcher_from_values(&args.paths)?;
         let mut tree_builder = workspace_command
             .repo()
@@ -2390,10 +2369,8 @@ side. If you don't make any changes, then the operation will be aborted.
                 }
             }
         }
-        tree_id = tree_builder.write_tree();
-    } else {
-        tree_id = from_commit.tree_id().clone();
-    }
+        tree_builder.write_tree()
+    };
     if &tree_id == to_commit.tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
