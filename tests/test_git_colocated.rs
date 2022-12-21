@@ -158,8 +158,8 @@ fn test_git_colocated_rebase_on_import() {
     git_repo.branch("master", &commit1, true).unwrap();
     git_repo.set_head("refs/heads/master").unwrap();
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
-    @ 840303b127545e55dfa5858a97555acf54a80513 
-    o f0f3ab56bfa927e3a65c2ac9a513693d438e271b master
+    @ 7f96185cfbe36341d0f9a86ebfaeab67a5922c7e 
+    o 4bcbeaba9a4b309c5f45a8807fbf5499b9714315 master
     o 0000000000000000000000000000000000000000 
     "###);
 }
@@ -173,8 +173,8 @@ fn test_git_colocated_branches() {
     test_env.jj_cmd_success(&workspace_root, &["new", "-m", "foo"]);
     test_env.jj_cmd_success(&workspace_root, &["new", "@-", "-m", "bar"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
-    @ 086821b6c35f5fdf07da884b859a14dcf85b5e36 
-    | o 6c0e140886d181602ae7a8e1ac41bc3094842370 
+    @ 3560559274ab431feea00b7b7e0b9250ecce951f 
+    | o 1e6f0b403ed2ff9713b5d6b1dc601e4804250cda 
     |/  
     o 230dd059e1b059aefc0da06a2e5a7dbf22362f22 master
     o 0000000000000000000000000000000000000000 
@@ -185,7 +185,7 @@ fn test_git_colocated_branches() {
     test_env.jj_cmd_success(&workspace_root, &["branch", "set", "master"]);
     insta::assert_snapshot!(
         git_repo.find_reference("refs/heads/master").unwrap().target().unwrap().to_string(),
-        @"086821b6c35f5fdf07da884b859a14dcf85b5e36"
+        @"3560559274ab431feea00b7b7e0b9250ecce951f"
     );
     insta::assert_snapshot!(
         git_repo.head().unwrap().target().unwrap().to_string(),
@@ -196,7 +196,7 @@ fn test_git_colocated_branches() {
     git_repo
         .reference(
             "refs/heads/master",
-            Oid::from_str("6c0e140886d181602ae7a8e1ac41bc3094842370").unwrap(),
+            Oid::from_str("1e6f0b403ed2ff9713b5d6b1dc601e4804250cda").unwrap(),
             true,
             "test",
         )
@@ -204,7 +204,7 @@ fn test_git_colocated_branches() {
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     Working copy now at: eb08b363bb5e (no description set)
     @ eb08b363bb5ef8ee549314260488980d7bbe8f63 
-    | o 6c0e140886d181602ae7a8e1ac41bc3094842370 master
+    | o 1e6f0b403ed2ff9713b5d6b1dc601e4804250cda master
     |/  
     o 230dd059e1b059aefc0da06a2e5a7dbf22362f22 
     o 0000000000000000000000000000000000000000 

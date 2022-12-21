@@ -31,7 +31,7 @@ fn test_workspaces_add_second_workspace() {
 
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    default: 988d8c1dca7e (no description set)
+    default: e0e6d5672858 (no description set)
     "###);
 
     let stdout = test_env.jj_cmd_success(
@@ -40,32 +40,32 @@ fn test_workspaces_add_second_workspace() {
     );
     insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
     Created workspace in "../secondary"
-    Working copy now at: 8ac248e0c8d2 (no description set)
+    Working copy now at: 397eac932ad3 (no description set)
     Added 1 files, modified 0 files, removed 0 files
     "###);
 
     // Can see the checkout in each workspace in the log output. The "@" node in the
     // graph indicates the current workspace's checkout.
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    o 8ac248e0c8d2d1865fe3679296e329c0137b1a31 second@
-    | @ 988d8c1dca7e0944210ccc33584a6a42cd2962d4 default@
+    o 397eac932ad3c349b2659fd2eb035a4dd3da4193 second@
+    | @ e0e6d5672858dc9a57ec5b772b7c4f3270ed0223 default@
     |/  
-    o 2062e7d6f1f46b4fe1453040d691931e77a88f7c 
+    o 7d308bc9d934c53c6cc52935192e2d6ac5d78cfd 
     o 0000000000000000000000000000000000000000 
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path), @r###"
-    @ 8ac248e0c8d2d1865fe3679296e329c0137b1a31 second@
-    | o 988d8c1dca7e0944210ccc33584a6a42cd2962d4 default@
+    @ 397eac932ad3c349b2659fd2eb035a4dd3da4193 second@
+    | o e0e6d5672858dc9a57ec5b772b7c4f3270ed0223 default@
     |/  
-    o 2062e7d6f1f46b4fe1453040d691931e77a88f7c 
+    o 7d308bc9d934c53c6cc52935192e2d6ac5d78cfd 
     o 0000000000000000000000000000000000000000 
     "###);
 
     // Both workspaces show up when we list them
     let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    default: 988d8c1dca7e (no description set)
-    second: 8ac248e0c8d2 (no description set)
+    default: e0e6d5672858 (no description set)
+    second: 397eac932ad3 (no description set)
     "###);
 }
 

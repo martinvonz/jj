@@ -51,7 +51,7 @@ fn test_concurrent_operations_auto_rebase() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ 72fc1a08c327 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    @ 9e80a32ef376 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     | describe commit 123ed18e4c4c0d77428df41112bc02ffc83fb935
     | args: jj describe -m initial
     o b9a339dcd1dc test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
@@ -74,8 +74,8 @@ fn test_concurrent_operations_auto_rebase() {
     insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
     Rebased 1 descendant commits onto commits rewritten by other operation
-    o 4eeb7d76372418118a91c34f09e5e3936f0deeb5 new child
-    @ 14176aeadc0259b2150fc7374969e74b1552a498 rewritten
+    o 3f06323826b4a293a9ee6d24cc0e07ad2961b5d5 new child
+    @ d91437157468ec86bbbc9e6a14a60d3e8d1790ac rewritten
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
 }
@@ -105,10 +105,10 @@ fn test_concurrent_operations_wc_modified() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id \" \" description"]);
     insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
-    @ 304d2b4b70536e0bfd7a38394db584ee069a3b1a new child1
-    | o ac08e56f9b802269864c5061f2a7305b9258a671 new child2
+    @ 4eb0610031b7cd148ff9f729a673a3f815033170 new child1
+    | o 4b20e61d23ee7d7c4d5e61e11e97c26e716f9c30 new child2
     |/  
-    o 5af56dcc2cc27bb234e5574b5a3ebc5f22081462 initial
+    o 52c893bf3cd201e215b23e084e8a871244ca14d5 initial
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);

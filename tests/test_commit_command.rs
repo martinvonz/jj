@@ -27,8 +27,8 @@ fn test_commit_with_description_from_cli() {
     // Description applies to the current working-copy (not the new one)
     test_env.jj_cmd_success(&workspace_path, &["commit", "-m=first"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @ 69e88fe3e63b (no description set)
-    o 85a1e2839620 first
+    @ b88fb4e51bdd (no description set)
+    o 69542c1984c1 first
     o 000000000000 (no description set)
     "###);
 }
@@ -47,6 +47,7 @@ fn test_commit_with_editor() {
         edit_script,
         "expect
 initial
+
 JJ: Lines starting with \"JJ: \" (like this one) will be removed.
 \0write
 modified",

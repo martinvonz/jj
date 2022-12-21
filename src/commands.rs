@@ -53,7 +53,8 @@ use pest::Parser;
 use crate::cli_util::{
     check_stale_working_copy, print_checkout_stats, print_failed_git_export, resolve_base_revs,
     short_commit_description, short_commit_hash, user_error, user_error_with_hint,
-    write_commit_summary, Args, CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
+    write_commit_summary, Args, CommandError, CommandHelper, DescriptionArg, RevisionArg,
+    WorkspaceCommandHelper,
 };
 use crate::config::FullCommandArgs;
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
@@ -155,7 +156,7 @@ struct CheckoutArgs {
     unused_revision: bool,
     /// The change description to use
     #[arg(long, short, default_value = "")]
-    message: String,
+    message: DescriptionArg,
 }
 
 /// Stop tracking specified paths in the working copy
@@ -330,7 +331,7 @@ struct DescribeArgs {
     unused_revision: bool,
     /// The change description to use (don't open editor)
     #[arg(long, short)]
-    message: Option<String>,
+    message: Option<DescriptionArg>,
     /// Read the change description from stdin
     #[arg(long)]
     stdin: bool,
@@ -342,7 +343,7 @@ struct DescribeArgs {
 struct CommitArgs {
     /// The change description to use (don't open editor)
     #[arg(long, short)]
-    message: Option<String>,
+    message: Option<DescriptionArg>,
 }
 
 /// Create a new change with the same content as an existing one
@@ -403,7 +404,7 @@ struct NewArgs {
     unused_revision: bool,
     /// The change description to use
     #[arg(long, short, default_value = "")]
-    message: String,
+    message: DescriptionArg,
 }
 
 /// Move changes from one revision into another
@@ -1877,7 +1878,7 @@ fn cmd_describe(
         io::stdin().read_to_string(&mut buffer).unwrap();
         description = buffer;
     } else if let Some(message) = &args.message {
-        description = message.to_owned()
+        description = message.into()
     } else {
         description = edit_description(ui, workspace_command.repo(), commit.description())?;
     }
@@ -1906,7 +1907,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
 
     let mut commit_builder = CommitBuilder::for_rewrite_from(ui.settings(), &commit);
     let description = if let Some(message) = &args.message {
-        message.to_string()
+        message.into()
     } else {
         edit_description(ui, workspace_command.repo(), commit.description())?
     };

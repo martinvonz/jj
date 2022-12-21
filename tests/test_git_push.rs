@@ -73,32 +73,32 @@ fn test_git_push_current_branch() {
     // Check the setup
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    branch1: 73650434e2af modified branch1 commit
-      @origin (ahead by 1 commits, behind by 1 commits): 828a683493c6 description 1
-    branch2: a7ba797894a9 foo
-      @origin (behind by 1 commits): 752dad8b1718 description 2
-    my-branch: a7ba797894a9 foo
+    branch1: 19e00bf64429 modified branch1 commit
+      @origin (ahead by 1 commits, behind by 1 commits): 45a3aa29e907 description 1
+    branch2: 10ee3363b259 foo
+      @origin (behind by 1 commits): 8476341eb395 description 2
+    my-branch: 10ee3363b259 foo
     "###);
     // First dry-run. `branch1` should not get pushed.
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--dry-run"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Move branch branch2 from 752dad8b1718 to a7ba797894a9
-      Add branch my-branch to a7ba797894a9
+      Move branch branch2 from 8476341eb395 to 10ee3363b259
+      Add branch my-branch to 10ee3363b259
     Dry-run requested, not pushing.
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Move branch branch2 from 752dad8b1718 to a7ba797894a9
-      Add branch my-branch to a7ba797894a9
+      Move branch branch2 from 8476341eb395 to 10ee3363b259
+      Add branch my-branch to 10ee3363b259
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    branch1: 73650434e2af modified branch1 commit
-      @origin (ahead by 1 commits, behind by 1 commits): 828a683493c6 description 1
-    branch2: a7ba797894a9 foo
-    my-branch: a7ba797894a9 foo
+    branch1: 19e00bf64429 modified branch1 commit
+      @origin (ahead by 1 commits, behind by 1 commits): 45a3aa29e907 description 1
+    branch2: 10ee3363b259 foo
+    my-branch: 10ee3363b259 foo
     "###);
 }
 
@@ -114,7 +114,7 @@ fn test_git_push_parent_branch() {
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--dry-run"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Force branch branch1 from 828a683493c6 to 83da0acb6a5a
+      Force branch branch1 from 45a3aa29e907 to d47326d59ee1
     Dry-run requested, not pushing.
     "###);
 }
@@ -143,18 +143,18 @@ fn test_git_push_multiple() {
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     branch1 (deleted)
-      @origin: 828a683493c6 description 1
-    branch2: afc3e612e744 foo
-      @origin (ahead by 1 commits, behind by 1 commits): 752dad8b1718 description 2
-    my-branch: afc3e612e744 foo
+      @origin: 45a3aa29e907 description 1
+    branch2: 15dcdaa4f12f foo
+      @origin (ahead by 1 commits, behind by 1 commits): 8476341eb395 description 2
+    my-branch: 15dcdaa4f12f foo
     "###);
     // First dry-run
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all", "--dry-run"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 828a683493c6
-      Force branch branch2 from 752dad8b1718 to afc3e612e744
-      Add branch my-branch to afc3e612e744
+      Delete branch branch1 from 45a3aa29e907
+      Force branch branch2 from 8476341eb395 to 15dcdaa4f12f
+      Add branch my-branch to 15dcdaa4f12f
     Dry-run requested, not pushing.
     "###);
     // Dry run requesting two specific branches
@@ -164,8 +164,8 @@ fn test_git_push_multiple() {
     );
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 828a683493c6
-      Add branch my-branch to afc3e612e744
+      Delete branch branch1 from 45a3aa29e907
+      Add branch my-branch to 15dcdaa4f12f
     Dry-run requested, not pushing.
     "###);
     // Dry run requesting two specific branches twice
@@ -183,21 +183,21 @@ fn test_git_push_multiple() {
     );
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 828a683493c6
-      Add branch my-branch to afc3e612e744
+      Delete branch branch1 from 45a3aa29e907
+      Add branch my-branch to 15dcdaa4f12f
     Dry-run requested, not pushing.
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 828a683493c6
-      Force branch branch2 from 752dad8b1718 to afc3e612e744
-      Add branch my-branch to afc3e612e744
+      Delete branch branch1 from 45a3aa29e907
+      Force branch branch2 from 8476341eb395 to 15dcdaa4f12f
+      Add branch my-branch to 15dcdaa4f12f
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list"]);
     insta::assert_snapshot!(stdout, @r###"
-    branch2: afc3e612e744 foo
-    my-branch: afc3e612e744 foo
+    branch2: 15dcdaa4f12f foo
+    my-branch: 15dcdaa4f12f foo
     "###);
 }
 
@@ -219,7 +219,7 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(replace_changeid(&stdout), @r###"
     Creating branch push-<CHANGE_ID> for revision @
     Branch changes to push to origin:
-      Add branch push-<CHANGE_ID> to ccebc2439094
+      Add branch push-<CHANGE_ID> to 28d7620ea63a
     "###);
     // test pushing two changes at once
     std::fs::write(workspace_root.join("file"), "modified2").unwrap();
@@ -230,8 +230,8 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(replace_changeid(&stdout), @r###"
     Creating branch push-<CHANGE_ID> for revision @-
     Branch changes to push to origin:
-      Force branch push-<CHANGE_ID> from ccebc2439094 to 1624f122b2b1
-      Add branch push-<CHANGE_ID> to 0a736fed65c0
+      Force branch push-<CHANGE_ID> from 28d7620ea63a to 48d8c7948133
+      Add branch push-<CHANGE_ID> to fa16a14170fb
     "###);
     // specifying the same change twice doesn't break things
     std::fs::write(workspace_root.join("file"), "modified3").unwrap();
@@ -241,7 +241,7 @@ fn test_git_push_changes() {
     );
     insta::assert_snapshot!(replace_changeid(&stdout), @r###"
     Branch changes to push to origin:
-      Force branch push-<CHANGE_ID> from 1624f122b2b1 to bae35833f32d
+      Force branch push-<CHANGE_ID> from 48d8c7948133 to b5f030322b1d
     "###);
 }
 
@@ -268,7 +268,7 @@ fn test_git_push_conflict() {
     test_env.jj_cmd_success(&workspace_root, &["describe", "-m", "third"]);
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit 139ce31b3772 since it has conflicts
+    Error: Won't push commit 3a1497bff04c since it has conflicts
     "###);
 }
 
@@ -301,14 +301,14 @@ fn test_git_push_missing_author() {
         &["git", "push", "--branch", "missing-name"],
     );
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit 83a72618d57e since it has no author and/or committer set
+    Error: Won't push commit 574dffd73428 since it has no author and/or committer set
     "###);
     run_without_var("JJ_EMAIL", &["checkout", "root", "-m=initial"]);
     run_without_var("JJ_EMAIL", &["branch", "create", "missing-email"]);
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-email"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit 0ed7ef529ef4 since it has no author and/or committer set
+    Error: Won't push commit e6c50f13f197 since it has no author and/or committer set
     "###);
 }
 
@@ -327,7 +327,7 @@ fn test_git_push_missing_committer() {
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-name"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit 3925a63f25e3 since it has no author and/or committer set
+    Error: Won't push commit e009726caa4a since it has no author and/or committer set
     "###);
     test_env.jj_cmd_success(&workspace_root, &["checkout", "root"]);
     test_env.jj_cmd_success(&workspace_root, &["branch", "create", "missing-email"]);
@@ -335,7 +335,7 @@ fn test_git_push_missing_committer() {
     let stderr =
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-email"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit 6c08d8150d73 since it has no author and/or committer set
+    Error: Won't push commit 27ec5f0793e6 since it has no author and/or committer set
     "###);
 
     // Test message when there are multiple reasons (missing committer and

@@ -149,9 +149,9 @@ fn test_diffedit_merge() {
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created cb2b3b755c0a merge
+    Created a70eded7af9e merge
     Rebased 1 descendant commits
-    Working copy now at: 9c86af62d473 (no description set)
+    Working copy now at: a5f1ce845f74 (no description set)
     Added 0 files, modified 0 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);

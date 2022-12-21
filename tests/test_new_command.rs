@@ -28,17 +28,17 @@ fn test_new() {
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "a new commit"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ 88436dbcdbedc2b8a6ebd0687981906d09ccc68f a new commit
-    o 51e9c5819117991e4a6dc5a4a744283fc74f0746 add a file
+    @ 4f2d6e0a3482a6a34e4856a4a63869c0df109e79 a new commit
+    o 5d5c60b2aa96b8dbf55710656c50285c66cdcd74 add a file
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
 
     // Start a new change off of a specific commit (the root commit in this case).
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "off of root", "root"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @ d8c0a3e1570f1f5b08113a3427b3160900c3d48e off of root
-    | o 88436dbcdbedc2b8a6ebd0687981906d09ccc68f a new commit
-    | o 51e9c5819117991e4a6dc5a4a744283fc74f0746 add a file
+    @ 026537ddb96b801b9cb909985d5443aab44616c1 off of root
+    | o 4f2d6e0a3482a6a34e4856a4a63869c0df109e79 a new commit
+    | o 5d5c60b2aa96b8dbf55710656c50285c66cdcd74 add a file
     |/  
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
@@ -59,10 +59,10 @@ fn test_new_merge() {
     // Create a merge commit
     test_env.jj_cmd_success(&repo_path, &["new", "main", "@"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   5b37ef8ee8cd934dfe1e70adff66cd0679f5a573 (no description set)
+    @   0c4e5b9b68ae0cbe7ce3c61042619513d09005bf (no description set)
     |\  
-    o | 99814c62bec5c13d2053435b3d6bbeb1900cb57e add file2
-    | o fe37af248a068697c6dcd7ebd17f5aac2205e7cb add file1
+    o | f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
+    | o 38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
     |/  
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
@@ -75,10 +75,10 @@ fn test_new_merge() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     test_env.jj_cmd_success(&repo_path, &["merge", "main", "@"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   c34d60aa33225c2080da52faa39980efe944bddd (no description set)
+    @   200ed1a14c8acf09783dafefe5bebf2ff58f12fd (no description set)
     |\  
-    o | 99814c62bec5c13d2053435b3d6bbeb1900cb57e add file2
-    | o fe37af248a068697c6dcd7ebd17f5aac2205e7cb add file1
+    o | f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
+    | o 38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
     |/  
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
@@ -94,9 +94,9 @@ fn test_new_merge() {
     "###);
 
     // merge with non-unique revisions
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "c34d"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "200e"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Revset "@" and "c34d" resolved to the same revision c34d60aa3322
+    Error: Revset "@" and "200e" resolved to the same revision 200ed1a14c8a
     "###);
 
     // merge with root

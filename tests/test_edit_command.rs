@@ -42,12 +42,12 @@ fn test_edit() {
     // Makes the specified commit the working-copy commit
     let stdout = test_env.jj_cmd_success(&repo_path, &["edit", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: 5c9d6c787f29 first
+    Working copy now at: f41390a5efbf first
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o 37ed5225d0fd second
-    @ 5c9d6c787f29 first
+    o b2f7e9c549aa second
+    @ f41390a5efbf first
     o 000000000000 (no description set)
     "###);
     insta::assert_snapshot!(read_file(&repo_path.join("file1")), @"0");
@@ -56,8 +56,8 @@ fn test_edit() {
     std::fs::write(repo_path.join("file2"), "0").unwrap();
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     Rebased 1 descendant commits onto updated working copy
-    o 57e61f6b2ce1 second
-    @ f1b9706b17d0 first
+    o 51d937a3eeb4 second
+    @ 409306de8f44 first
     o 000000000000 (no description set)
     "###);
 }

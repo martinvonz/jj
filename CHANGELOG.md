@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * When sharing the working copy with a Git repo, we used to forget to export
   branches to Git when only the working copy had changed. That's now fixed.
 
+* Commit description set by `-m`/`--message` is now terminated with a newline
+  character, just like descriptions set by editor are.
+
 ### Contributors
 
 Thanks to the people who made this release happen!

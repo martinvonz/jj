@@ -1344,6 +1344,44 @@ pub struct EarlyArgs {
     pub config_toml: Vec<String>,
 }
 
+/// `-m/--message` argument which should be terminated with `\n`.
+///
+/// Based on the Git CLI behavior. See `opt_parse_m()` and `cleanup_mode` in
+/// `git/builtin/commit.c`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DescriptionArg(String);
+
+impl DescriptionArg {
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl From<String> for DescriptionArg {
+    fn from(mut s: String) -> Self {
+        complete_newline(&mut s);
+        DescriptionArg(s)
+    }
+}
+
+impl From<&DescriptionArg> for String {
+    fn from(arg: &DescriptionArg) -> Self {
+        arg.0.to_owned()
+    }
+}
+
+impl AsRef<str> for DescriptionArg {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+fn complete_newline(s: &mut String) {
+    if !s.is_empty() && !s.ends_with('\n') {
+        s.push('\n');
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct RevisionArg(String);
 

@@ -27,7 +27,7 @@ fn test_op_log() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(&stdout, @r###"
-    @ 29c6436f392b test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    @ 45108169c0f8 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     | describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     | args: jj describe -m 'description 0'
     o a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
@@ -48,7 +48,7 @@ fn test_op_log() {
     "###);
     // "@" resolves to the head operation
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path, "@"), @r###"
-    @ 335e69215d687b88eb3e4a83d51dcba183c43e24
+    @ bc8f18aa6f396a93572811632313cbb5625d475d
     o 0000000000000000000000000000000000000000
     "###);
     // "@-" resolves to the parent of the head operation
