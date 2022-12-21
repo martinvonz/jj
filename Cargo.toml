@@ -31,7 +31,7 @@ name = "diff_bench"
 harness = false
 
 [workspace]
-members = ["lib"]
+members = ["lib", "lib/testutils"]
 
 [dependencies]
 chrono = { version = "0.4.23", default-features = false, features = ["std", "clock"] }
