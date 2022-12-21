@@ -795,7 +795,6 @@ dependencies = [
  "pest",
  "pest_derive",
  "predicates",
- "rand",
  "regex",
  "rpassword",
  "serde",
