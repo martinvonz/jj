@@ -23,6 +23,16 @@ use thiserror::Error;
 use crate::content_hash::ContentHash;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
+macro_rules! id_type {
+    ($vis:vis $name:ident) => {
+        content_hash! {
+            #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+            $vis struct $name(Vec<u8>);
+        }
+        impl_id_type!($name);
+    };
+}
+
 macro_rules! impl_id_type {
     ($name:ident) => {
         impl Debug for $name {
@@ -59,47 +69,12 @@ macro_rules! impl_id_type {
     };
 }
 
-content_hash! {
-    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-    pub struct CommitId(Vec<u8>);
-}
-
-impl_id_type!(CommitId);
-
-content_hash! {
-    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-    pub struct ChangeId(Vec<u8>);
-}
-
-impl_id_type!(ChangeId);
-
-content_hash! {
-    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-    pub struct TreeId(Vec<u8>);
-}
-
-impl_id_type!(TreeId);
-
-content_hash! {
-    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-    pub struct FileId(Vec<u8>);
-}
-
-impl_id_type!(FileId);
-
-content_hash! {
-    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-    pub struct SymlinkId(Vec<u8>);
-}
-
-impl_id_type!(SymlinkId);
-
-content_hash! {
-    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-    pub struct ConflictId(Vec<u8>);
-}
-
-impl_id_type!(ConflictId);
+id_type!(pub CommitId);
+id_type!(pub ChangeId);
+id_type!(pub TreeId);
+id_type!(pub FileId);
+id_type!(pub SymlinkId);
+id_type!(pub ConflictId);
 
 pub enum Phase {
     Public,
