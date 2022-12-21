@@ -14,7 +14,6 @@
 
 use std::collections::{BTreeSet, HashSet};
 use std::fmt::Debug;
-use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -1829,18 +1828,12 @@ fn edit_description(
         )));
     }
 
-    let mut description_file = OpenOptions::new()
-        .read(true)
-        .open(&description_file_path)
-        .unwrap_or_else(|_| {
-            panic!(
-                "failed to open {} for read",
-                description_file_path.display()
-            )
-        });
-    let mut buf = vec![];
-    description_file.read_to_end(&mut buf).unwrap();
-    let description = String::from_utf8(buf).unwrap();
+    let description = fs::read_to_string(&description_file_path).map_err(|e| {
+        user_error(format!(
+            r#"Failed to read description file "{path}": {e}"#,
+            path = description_file_path.display()
+        ))
+    })?;
     // Delete the file only if everything went well.
     // TODO: Tell the user the name of the file we left behind.
     std::fs::remove_file(description_file_path).ok();
