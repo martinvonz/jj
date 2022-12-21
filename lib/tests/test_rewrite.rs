@@ -793,7 +793,7 @@ fn test_rebase_descendants_repeated(use_git: bool) {
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
 
     let commit_b2 = CommitBuilder::for_rewrite_from(&settings, &commit_b)
-        .set_description("b2".to_string())
+        .set_description("b2")
         .write_to_repo(tx.mut_repo());
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     let commit_c2 = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_b2]);
@@ -814,7 +814,7 @@ fn test_rebase_descendants_repeated(use_git: bool) {
 
     // Now mark B3 as rewritten from B2 and rebase descendants again.
     let commit_b3 = CommitBuilder::for_rewrite_from(&settings, &commit_b2)
-        .set_description("b3".to_string())
+        .set_description("b3")
         .write_to_repo(tx.mut_repo());
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     let commit_c3 = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c2, &[&commit_b3]);
@@ -1094,11 +1094,11 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
         CommitBuilder::for_rewrite_from(&settings, &commit_b).write_to_repo(tx.mut_repo());
     // Different description so they're not the same commit
     let commit_b3 = CommitBuilder::for_rewrite_from(&settings, &commit_b)
-        .set_description("different".to_string())
+        .set_description("different")
         .write_to_repo(tx.mut_repo());
     // Different description so they're not the same commit
     let commit_b4 = CommitBuilder::for_rewrite_from(&settings, &commit_b)
-        .set_description("more different".to_string())
+        .set_description("more different")
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
@@ -1151,13 +1151,13 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
         CommitBuilder::for_rewrite_from(&settings, &commit_a).write_to_repo(tx.mut_repo());
     // Different description so they're not the same commit
     let commit_a3 = CommitBuilder::for_rewrite_from(&settings, &commit_a)
-        .set_description("different".to_string())
+        .set_description("different")
         .write_to_repo(tx.mut_repo());
     let commit_b2 =
         CommitBuilder::for_rewrite_from(&settings, &commit_b).write_to_repo(tx.mut_repo());
     // Different description so they're not the same commit
     let commit_b3 = CommitBuilder::for_rewrite_from(&settings, &commit_b)
-        .set_description("different".to_string())
+        .set_description("different")
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
@@ -1291,7 +1291,7 @@ fn test_rebase_descendants_update_checkout(use_git: bool) {
 
     let mut tx = repo.start_transaction(&settings, "test");
     let commit_c = CommitBuilder::for_rewrite_from(&settings, &commit_b)
-        .set_description("C".to_string())
+        .set_description("C")
         .write_to_repo(tx.mut_repo());
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit();

@@ -1186,7 +1186,7 @@ fn cmd_checkout(
         vec![target.id().clone()],
         target.tree_id().clone(),
     )
-    .set_description(args.message.clone());
+    .set_description(&args.message);
     let new_commit = commit_builder.write_to_repo(tx.mut_repo());
     tx.mut_repo().edit(workspace_id, &new_commit).unwrap();
     workspace_command.finish_transaction(ui, tx)?;
@@ -2032,7 +2032,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
     let merged_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commits);
     let new_commit =
         CommitBuilder::for_new_commit(ui.settings(), parent_ids, merged_tree.id().clone())
-            .set_description(args.message.clone())
+            .set_description(&args.message)
             .write_to_repo(tx.mut_repo());
     let workspace_id = workspace_command.workspace_id();
     tx.mut_repo().edit(workspace_id, &new_commit).unwrap();

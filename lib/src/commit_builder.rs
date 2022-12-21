@@ -97,8 +97,8 @@ impl CommitBuilder {
         self
     }
 
-    pub fn set_description(mut self, description: String) -> Self {
-        self.commit.description = description;
+    pub fn set_description(mut self, description: impl Into<String>) -> Self {
+        self.commit.description = description.into();
         self
     }
 
