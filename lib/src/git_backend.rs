@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 
 use git2::Oid;
 use itertools::Itertools;
-use protobuf::Message;
+use prost::Message;
 use uuid::Uuid;
 
 use crate::backend::{
@@ -126,17 +126,18 @@ fn signature_to_git(signature: &Signature) -> git2::Signature {
 }
 
 fn serialize_extras(commit: &Commit) -> Vec<u8> {
-    let mut proto = crate::protos::store::Commit::new();
-    proto.change_id = commit.change_id.to_bytes();
+    let mut proto = crate::protos::store::Commit {
+        change_id: commit.change_id.to_bytes(),
+        ..Default::default()
+    };
     for predecessor in &commit.predecessors {
         proto.predecessors.push(predecessor.to_bytes());
     }
-    proto.write_to_bytes().unwrap()
+    proto.encode_to_vec()
 }
 
 fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
-    let mut cursor = Cursor::new(bytes);
-    let proto: crate::protos::store::Commit = Message::parse_from_reader(&mut cursor).unwrap();
+    let proto = crate::protos::store::Commit::decode(bytes).unwrap();
     commit.change_id = ChangeId::new(proto.change_id);
     for predecessor in &proto.predecessors {
         commit.predecessors.push(CommitId::from_bytes(predecessor));

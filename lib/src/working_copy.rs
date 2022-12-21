@@ -27,7 +27,7 @@ use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use once_cell::unsync::OnceCell;
-use protobuf::{EnumOrUnknown, Message, MessageField};
+use prost::Message;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
@@ -125,13 +125,13 @@ pub struct TreeState {
     own_mtime: MillisSinceEpoch,
 }
 
-fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> FileState {
-    let file_type = match proto.file_type.enum_value_or_default() {
+fn file_state_from_proto(proto: crate::protos::working_copy::FileState) -> FileState {
+    let file_type = match proto.file_type() {
         crate::protos::working_copy::FileType::Normal => FileType::Normal { executable: false },
         crate::protos::working_copy::FileType::Executable => FileType::Normal { executable: true },
         crate::protos::working_copy::FileType::Symlink => FileType::Symlink,
         crate::protos::working_copy::FileType::Conflict => {
-            let id = ConflictId::new(proto.conflict_id.to_vec());
+            let id = ConflictId::new(proto.conflict_id);
             FileType::Conflict { id }
         }
         crate::protos::working_copy::FileType::GitSubmodule => FileType::GitSubmodule,
@@ -144,7 +144,7 @@ fn file_state_from_proto(proto: &crate::protos::working_copy::FileState) -> File
 }
 
 fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::FileState {
-    let mut proto = crate::protos::working_copy::FileState::new();
+    let mut proto = crate::protos::working_copy::FileState::default();
     let file_type = match &file_state.file_type {
         FileType::Normal { executable: false } => crate::protos::working_copy::FileType::Normal,
         FileType::Normal { executable: true } => crate::protos::working_copy::FileType::Executable,
@@ -155,7 +155,7 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
         }
         FileType::GitSubmodule => crate::protos::working_copy::FileType::GitSubmodule,
     };
-    proto.file_type = EnumOrUnknown::new(file_type);
+    proto.file_type = file_type as i32;
     proto.mtime_millis_since_epoch = file_state.mtime.0;
     proto.size = file_state.size;
     proto
@@ -167,7 +167,7 @@ fn file_states_from_proto(
     let mut file_states = BTreeMap::new();
     for (path_str, proto_file_state) in &proto.file_states {
         let path = RepoPath::from_internal_string(path_str.as_str());
-        file_states.insert(path, file_state_from_proto(proto_file_state));
+        file_states.insert(path, file_state_from_proto(proto_file_state.clone()));
     }
     file_states
 }
@@ -401,32 +401,38 @@ impl TreeState {
 
     fn read(&mut self, mut file: File) {
         self.update_own_mtime();
-        let proto: crate::protos::working_copy::TreeState =
-            Message::parse_from_reader(&mut file).unwrap();
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf).unwrap();
+        let proto = crate::protos::working_copy::TreeState::decode(&*buf).unwrap();
         self.tree_id = TreeId::new(proto.tree_id.clone());
         self.file_states = file_states_from_proto(&proto);
         self.sparse_patterns = sparse_patterns_from_proto(&proto);
     }
 
     fn save(&mut self) {
-        let mut proto = crate::protos::working_copy::TreeState::new();
-        proto.tree_id = self.tree_id.to_bytes();
+        let mut proto = crate::protos::working_copy::TreeState {
+            tree_id: self.tree_id.to_bytes(),
+            ..Default::default()
+        };
         for (file, file_state) in &self.file_states {
             proto.file_states.insert(
                 file.to_internal_file_string(),
                 file_state_to_proto(file_state),
             );
         }
-        let mut sparse_patterns = crate::protos::working_copy::SparsePatterns::new();
+        let mut sparse_patterns = crate::protos::working_copy::SparsePatterns::default();
         for path in &self.sparse_patterns {
             sparse_patterns
                 .prefixes
                 .push(path.to_internal_file_string());
         }
-        proto.sparse_patterns = MessageField::some(sparse_patterns);
+        proto.sparse_patterns = Some(sparse_patterns);
 
         let mut temp_file = NamedTempFile::new_in(&self.state_path).unwrap();
-        proto.write_to_writer(temp_file.as_file_mut()).unwrap();
+        temp_file
+            .as_file_mut()
+            .write_all(&proto.encode_to_vec())
+            .unwrap();
         // update own write time while we before we rename it, so we know
         // there is no unknown data in it
         self.update_own_mtime();
@@ -1012,15 +1018,17 @@ impl WorkingCopy {
         operation_id: OperationId,
         workspace_id: WorkspaceId,
     ) -> WorkingCopy {
-        let mut proto = crate::protos::working_copy::Checkout::new();
-        proto.operation_id = operation_id.to_bytes();
-        proto.workspace_id = workspace_id.as_str().to_string();
+        let proto = crate::protos::working_copy::Checkout {
+            operation_id: operation_id.to_bytes(),
+            workspace_id: workspace_id.as_str().to_string(),
+            ..Default::default()
+        };
         let mut file = OpenOptions::new()
             .create_new(true)
             .write(true)
             .open(state_path.join("checkout"))
             .unwrap();
-        proto.write_to_writer(&mut file).unwrap();
+        file.write_all(&proto.encode_to_vec()).unwrap();
         WorkingCopy {
             store,
             working_copy_path,
@@ -1050,7 +1058,10 @@ impl WorkingCopy {
 
     fn write_proto(&self, proto: crate::protos::working_copy::Checkout) {
         let mut temp_file = NamedTempFile::new_in(&self.state_path).unwrap();
-        proto.write_to_writer(temp_file.as_file_mut()).unwrap();
+        temp_file
+            .as_file_mut()
+            .write_all(&proto.encode_to_vec())
+            .unwrap();
         // TODO: Retry if persisting fails (it will on Windows if the file happened to
         // be open for read).
         temp_file.persist(self.state_path.join("checkout")).unwrap();
@@ -1058,9 +1069,8 @@ impl WorkingCopy {
 
     fn checkout_state(&self) -> &CheckoutState {
         self.checkout_state.get_or_init(|| {
-            let mut file = File::open(self.state_path.join("checkout")).unwrap();
-            let proto: crate::protos::working_copy::Checkout =
-                Message::parse_from_reader(&mut file).unwrap();
+            let buf = fs::read(self.state_path.join("checkout")).unwrap();
+            let proto = crate::protos::working_copy::Checkout::decode(&*buf).unwrap();
             CheckoutState {
                 operation_id: OperationId::new(proto.operation_id),
                 workspace_id: if proto.workspace_id.is_empty() {
@@ -1115,10 +1125,11 @@ impl WorkingCopy {
     }
 
     fn save(&mut self) {
-        let mut proto = crate::protos::working_copy::Checkout::new();
-        proto.operation_id = self.operation_id().to_bytes();
-        proto.workspace_id = self.workspace_id().as_str().to_string();
-        self.write_proto(proto);
+        self.write_proto(crate::protos::working_copy::Checkout {
+            operation_id: self.operation_id().to_bytes(),
+            workspace_id: self.workspace_id().as_str().to_string(),
+            ..Default::default()
+        });
     }
 
     pub fn start_mutation(&mut self) -> LockedWorkingCopy {
