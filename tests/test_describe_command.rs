@@ -56,7 +56,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     std::fs::write(&edit_script, "write\ndescription from editor").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @r###"
-    Working copy now at: bfdd972f9349 description from editor
+    Working copy now at: 100943aeee3f description from editor
     "###);
 
     // Lines in editor starting with "JJ: " are ignored
@@ -68,6 +68,39 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: ccefa58bef47 description among comment
+    "###);
+
+    // Multi-line description
+    std::fs::write(&edit_script, "write\nline1\nline2\n\nline4\n\n").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: e932ba42cef0 line1
+    "###);
+    let stdout =
+        test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r@", "-Tdescription"]);
+    insta::assert_snapshot!(stdout, @r###"
+    line1
+    line2
+
+    line4
+    "###);
+
+    // Multi-line description again with CRLF, which should make no changes
+    std::fs::write(&edit_script, "write\nline1\r\nline2\r\n\r\nline4\r\n\r\n").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
+
+    // Clear description
+    let stdout = test_env.jj_cmd_success(&repo_path, &["describe", "-m", ""]);
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: d6957294acdc (no description set)
+    "###);
+    std::fs::write(&edit_script, "write\n").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
     "###);
 
     // Fails if the editor fails

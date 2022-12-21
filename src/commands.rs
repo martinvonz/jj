@@ -51,10 +51,10 @@ use maplit::{hashmap, hashset};
 use pest::Parser;
 
 use crate::cli_util::{
-    check_stale_working_copy, print_checkout_stats, print_failed_git_export, resolve_base_revs,
-    short_commit_description, short_commit_hash, user_error, user_error_with_hint,
-    write_commit_summary, Args, CommandError, CommandHelper, DescriptionArg, RevisionArg,
-    WorkspaceCommandHelper,
+    self, check_stale_working_copy, print_checkout_stats, print_failed_git_export,
+    resolve_base_revs, short_commit_description, short_commit_hash, user_error,
+    user_error_with_hint, write_commit_summary, Args, CommandError, CommandHelper, DescriptionArg,
+    RevisionArg, WorkspaceCommandHelper,
 };
 use crate::config::FullCommandArgs;
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
@@ -1853,15 +1853,14 @@ fn edit_description(
     // Delete the file only if everything went well.
     // TODO: Tell the user the name of the file we left behind.
     std::fs::remove_file(description_file_path).ok();
-    let mut lines = description
-        .split_inclusive('\n')
+    // Normalize line ending, remove trailing blank lines.
+    let mut description = description
+        .lines()
         .filter(|line| !line.starts_with("JJ: "))
-        .collect_vec();
-    // Remove trailing blank lines
-    while matches!(lines.last(), Some(&"\n") | Some(&"\r\n")) {
-        lines.pop().unwrap();
-    }
-    Ok(lines.join(""))
+        .join("\n");
+    description.truncate(description.trim_end_matches('\n').len());
+    cli_util::complete_newline(&mut description);
+    Ok(description)
 }
 
 fn cmd_describe(

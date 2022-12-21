@@ -1376,7 +1376,7 @@ impl AsRef<str> for DescriptionArg {
     }
 }
 
-fn complete_newline(s: &mut String) {
+pub fn complete_newline(s: &mut String) {
     if !s.is_empty() && !s.ends_with('\n') {
         s.push('\n');
     }
