@@ -215,6 +215,12 @@ pub struct RevsetParseError {
 pub enum RevsetParseErrorKind {
     #[error("Syntax error")]
     SyntaxError,
+    #[error("'{op}' is not a postfix operator (Did you mean '{similar_op}' for {description}?)")]
+    NotPostfixOperator {
+        op: String,
+        similar_op: String,
+        description: String,
+    },
     #[error("'{op}' is not an infix operator (Did you mean '{similar_op}' for {description}?)")]
     NotInfixOperator {
         op: String,
@@ -701,6 +707,21 @@ fn parse_expression_rule(
     pairs: Pairs<Rule>,
     state: ParseState,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    fn not_postfix_op(
+        op: &Pair<Rule>,
+        similar_op: impl Into<String>,
+        description: impl Into<String>,
+    ) -> RevsetParseError {
+        RevsetParseError::with_span(
+            RevsetParseErrorKind::NotPostfixOperator {
+                op: op.as_str().to_owned(),
+                similar_op: similar_op.into(),
+                description: description.into(),
+            },
+            op.as_span(),
+        )
+    }
+
     fn not_infix_op(
         op: &Pair<Rule>,
         similar_op: impl Into<String>,
@@ -729,7 +750,9 @@ fn parse_expression_rule(
             .op(Op::prefix(Rule::dag_range_pre_op) | Op::prefix(Rule::range_pre_op))
             .op(Op::postfix(Rule::dag_range_post_op) | Op::postfix(Rule::range_post_op))
             // Neighbors
-            .op(Op::postfix(Rule::parents_op) | Op::postfix(Rule::children_op))
+            .op(Op::postfix(Rule::parents_op)
+                | Op::postfix(Rule::children_op)
+                | Op::postfix(Rule::compat_parents_op))
     });
     PRATT
         .map_primary(|primary| parse_primary_rule(primary, state))
@@ -743,6 +766,7 @@ fn parse_expression_rule(
             Rule::range_post_op => Ok(lhs?.range(&RevsetExpression::visible_heads())),
             Rule::parents_op => Ok(lhs?.parents()),
             Rule::children_op => Ok(lhs?.children()),
+            Rule::compat_parents_op => Err(not_postfix_op(&op, "-", "parents")),
             r => panic!("unexpected postfix operator rule {r:?}"),
         })
         .map_infix(|lhs, op, rhs| match op.as_rule() {
@@ -2315,6 +2339,14 @@ mod tests {
 
     #[test]
     fn test_parse_revset_compat_operator() {
+        assert_eq!(
+            parse("foo^"),
+            Err(RevsetParseErrorKind::NotPostfixOperator {
+                op: "^".to_owned(),
+                similar_op: "-".to_owned(),
+                description: "parents".to_owned(),
+            })
+        );
         assert_eq!(
             parse("foo + bar"),
             Err(RevsetParseErrorKind::NotInfixOperator {

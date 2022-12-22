@@ -41,6 +41,16 @@ fn test_syntax_error() {
       |
       = '-' is not an infix operator (Did you mean '~' for difference?)
     "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "HEAD^"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:5
+      |
+    1 | HEAD^
+      |     ^
+      |
+      = '^' is not a postfix operator (Did you mean '-' for parents?)
+    "###);
 }
 
 #[test]

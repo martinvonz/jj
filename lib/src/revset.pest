@@ -26,6 +26,7 @@ whitespace = _{ " " }
 
 parents_op = { "-" }
 children_op = { "+" }
+compat_parents_op = { "^" }
 
 dag_range_op = { ":" }
 dag_range_pre_op = { ":" }
@@ -61,7 +62,7 @@ primary = {
   | symbol
 }
 
-neighbors_expression = _{ primary ~ (parents_op | children_op)* }
+neighbors_expression = _{ primary ~ (parents_op | children_op | compat_parents_op)* }
 
 range_expression = _{
   neighbors_expression ~ range_ops ~ neighbors_expression
