@@ -13,12 +13,12 @@
 // limitations under the License.
 
 use std::collections::{HashSet, VecDeque};
-use std::env::ArgsOs;
+use std::env::{ArgsOs, VarError};
 use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
 use std::iter;
 use std::ops::Deref;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -580,17 +580,25 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn base_ignores(&self) -> Arc<GitIgnoreFile> {
+        fn xdg_config_home() -> Result<PathBuf, VarError> {
+            if let Ok(x) = std::env::var("XDG_CONFIG_HOME") {
+                if !x.is_empty() {
+                    return Ok(PathBuf::from(x));
+                }
+            }
+            std::env::var("HOME").map(|x| Path::new(&x).join(".config"))
+        }
+
         let mut git_ignores = GitIgnoreFile::empty();
-        if let Ok(excludes_file_str) = self
+        if let Ok(excludes_file_path) = self
             .git_config()
-            .and_then(|git_config| git_config.get_string("core.excludesFile"))
-            .or_else(|_| {
-                std::env::var("XDG_CONFIG_HOME")
-                    .or_else(|_| std::env::var("HOME"))
-                    .map(|x| format!("{x}/.config/git/ignore"))
+            .and_then(|git_config| {
+                git_config
+                    .get_string("core.excludesFile")
+                    .map(expand_git_path)
             })
+            .or_else(|_| xdg_config_home().map(|x| x.join("git").join("ignore")))
         {
-            let excludes_file_path = expand_git_path(excludes_file_str);
             git_ignores = git_ignores.chain_with_file("", excludes_file_path);
         }
         if let Some(git_repo) = self.repo.store().git_repo() {
