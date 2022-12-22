@@ -58,7 +58,7 @@ use crate::cli_util::{
 };
 use crate::config::FullCommandArgs;
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
-use crate::formatter::Formatter;
+use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::progress::Progress;
 use crate::template_parser::TemplateParser;
@@ -2464,7 +2464,9 @@ fn description_template_for_cmd_split(
     from_tree: &Tree,
     to_tree: &Tree,
 ) -> Result<String, CommandError> {
-    let diff_summary_bytes = diff_util::diff_as_bytes(
+    let mut diff_summary_bytes = Vec::new();
+    diff_util::show_diff(
+        &mut PlainTextFormatter::new(&mut diff_summary_bytes),
         workspace_command,
         from_tree,
         to_tree,

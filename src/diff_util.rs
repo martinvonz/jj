@@ -29,7 +29,7 @@ use jujutsu_lib::tree::{Tree, TreeDiffIterator};
 use jujutsu_lib::{conflicts, diff, files, rewrite, tree};
 
 use crate::cli_util::{CommandError, WorkspaceCommandHelper};
-use crate::formatter::{Formatter, PlainTextFormatter};
+use crate::formatter::Formatter;
 use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
@@ -137,26 +137,6 @@ pub fn show_patch(
         matcher,
         formats,
     )
-}
-
-pub fn diff_as_bytes(
-    workspace_command: &WorkspaceCommandHelper,
-    from_tree: &Tree,
-    to_tree: &Tree,
-    matcher: &dyn Matcher,
-    formats: &[DiffFormat],
-) -> Result<Vec<u8>, CommandError> {
-    let mut diff_bytes: Vec<u8> = vec![];
-    let mut formatter = PlainTextFormatter::new(&mut diff_bytes);
-    show_diff(
-        &mut formatter,
-        workspace_command,
-        from_tree,
-        to_tree,
-        matcher,
-        formats,
-    )?;
-    Ok(diff_bytes)
 }
 
 fn show_color_words_diff_hunks(
