@@ -2478,7 +2478,7 @@ fn description_template_for_cmd_split(
         // Double-check this assumption for diffs that include file content.
     );
     Ok(format!("JJ: {intro}\n{overall_commit_description}\n")
-        + "JJ: This part contains the following changes:\n"
+        + "JJ: This commit contains the following changes:\n"
         + &textwrap::indent(diff_summary, "JJ:     "))
 }
 

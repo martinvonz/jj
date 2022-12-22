@@ -48,7 +48,7 @@ fn test_split_by_paths() {
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
     JJ: Enter commit description for the first part (parent).
 
-    JJ: This part contains the following changes:
+    JJ: This commit contains the following changes:
     JJ:     A file2
 
     JJ: Lines starting with "JJ: " (like this one) will be removed.
@@ -57,7 +57,7 @@ fn test_split_by_paths() {
         std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
     JJ: Enter commit description for the second part (child).
 
-    JJ: This part contains the following changes:
+    JJ: This commit contains the following changes:
     JJ:     A file1
     JJ:     A file3
 
