@@ -43,7 +43,7 @@ fn test_commit_with_editor() {
     // set a new one
     test_env.jj_cmd_success(&workspace_path, &["describe", "-m=initial"]);
     let edit_script = test_env.set_up_fake_editor();
-    std::fs::write(edit_script, ["dump editor0", "write\nmodified"].join("\0")).unwrap();
+    std::fs::write(&edit_script, ["dump editor0", "write\nmodified"].join("\0")).unwrap();
     test_env.jj_cmd_success(&workspace_path, &["commit"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @ 3df78bc2b9b5 (no description set)
@@ -53,6 +53,23 @@ fn test_commit_with_editor() {
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
     initial
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+
+    // Check that the editor content includes diff summary
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "foo\n").unwrap();
+    test_env.jj_cmd_success(&workspace_path, &["describe", "-m=add files"]);
+    std::fs::write(&edit_script, "dump editor1").unwrap();
+    test_env.jj_cmd_success(&workspace_path, &["commit"]);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
+    add files
+
+    JJ: This commit contains the following changes:
+    JJ:     A file1
+    JJ:     A file2
 
     JJ: Lines starting with "JJ: " (like this one) will be removed.
     "###);
