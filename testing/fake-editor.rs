@@ -14,6 +14,7 @@
 
 use std::path::PathBuf;
 use std::process::exit;
+use std::{env, fs};
 
 use clap::Parser;
 use itertools::Itertools;
@@ -29,14 +30,14 @@ struct Args {
 
 fn main() {
     let args: Args = Args::parse();
-    let edit_script_path = PathBuf::from(std::env::var_os("EDIT_SCRIPT").unwrap());
-    let edit_script = String::from_utf8(std::fs::read(edit_script_path.clone()).unwrap()).unwrap();
+    let edit_script_path = PathBuf::from(env::var_os("EDIT_SCRIPT").unwrap());
+    let edit_script = fs::read_to_string(&edit_script_path).unwrap();
 
     let mut instructions = edit_script.split('\0').collect_vec();
     if let Some(pos) = instructions.iter().position(|&i| i == "next invocation\n") {
         // Overwrite the edit script. The next time `fake-editor` is called, it will
         // only see the part after the `next invocation` command.
-        std::fs::write(edit_script_path, instructions[pos + 1..].join("\0")).unwrap();
+        fs::write(&edit_script_path, instructions[pos + 1..].join("\0")).unwrap();
         instructions.truncate(pos);
     }
     for instruction in instructions {
@@ -46,7 +47,7 @@ fn main() {
             [""] => {}
             ["fail"] => exit(1),
             ["expect"] => {
-                let actual = String::from_utf8(std::fs::read(&args.file).unwrap()).unwrap();
+                let actual = String::from_utf8(fs::read(&args.file).unwrap()).unwrap();
                 if actual != payload {
                     eprintln!("fake-editor: Unexpected content.\n");
                     eprintln!("EXPECTED: <{payload}>\nRECEIVED: <{actual}>");
@@ -54,7 +55,7 @@ fn main() {
                 }
             }
             ["write"] => {
-                std::fs::write(&args.file, payload).unwrap();
+                fs::write(&args.file, payload).unwrap();
             }
             _ => {
                 eprintln!("fake-editor: unexpected command: {command}");
