@@ -1879,7 +1879,8 @@ fn cmd_describe(
     } else if let Some(message) = &args.message {
         description = message.into()
     } else {
-        description = edit_description(ui, workspace_command.repo(), commit.description())?;
+        let template = description_template_for_commit(&workspace_command, &commit)?;
+        description = edit_description(ui, workspace_command.repo(), &template)?;
     }
     if description == *commit.description() {
         ui.write("Nothing changed.\n")?;
@@ -1908,7 +1909,8 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
     let description = if let Some(message) = &args.message {
         message.into()
     } else {
-        edit_description(ui, workspace_command.repo(), commit.description())?
+        let template = description_template_for_commit(&workspace_command, &commit)?;
+        edit_description(ui, workspace_command.repo(), &template)?
     };
     commit_builder = commit_builder.set_description(description);
     let mut tx = workspace_command.start_transaction(&format!("commit {}", commit.id().hex()));
@@ -2457,6 +2459,27 @@ don't make any changes, then the operation will be aborted.",
     Ok(())
 }
 
+fn description_template_for_commit(
+    workspace_command: &WorkspaceCommandHelper,
+    commit: &Commit,
+) -> Result<String, CommandError> {
+    let mut diff_summary_bytes = Vec::new();
+    diff_util::show_patch(
+        &mut PlainTextFormatter::new(&mut diff_summary_bytes),
+        workspace_command,
+        commit,
+        &EverythingMatcher,
+        &[DiffFormat::Summary],
+    )?;
+    if diff_summary_bytes.is_empty() {
+        Ok(commit.description().to_owned())
+    } else {
+        Ok(commit.description().to_owned()
+            + "\n"
+            + &diff_summary_to_description(&diff_summary_bytes))
+    }
+}
+
 fn description_template_for_cmd_split(
     workspace_command: &WorkspaceCommandHelper,
     intro: &str,
@@ -2473,13 +2496,17 @@ fn description_template_for_cmd_split(
         &EverythingMatcher,
         &[DiffFormat::Summary],
     )?;
-    let diff_summary = std::str::from_utf8(&diff_summary_bytes).expect(
+    Ok(format!("JJ: {intro}\n{overall_commit_description}\n")
+        + &diff_summary_to_description(&diff_summary_bytes))
+}
+
+fn diff_summary_to_description(bytes: &[u8]) -> String {
+    let text = std::str::from_utf8(bytes).expect(
         "Summary diffs and repo paths must always be valid UTF8.",
         // Double-check this assumption for diffs that include file content.
     );
-    Ok(format!("JJ: {intro}\n{overall_commit_description}\n")
-        + "JJ: This commit contains the following changes:\n"
-        + &textwrap::indent(diff_summary, "JJ:     "))
+    "JJ: This commit contains the following changes:\n".to_owned()
+        + &textwrap::indent(text, "JJ:     ")
 }
 
 fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(), CommandError> {
