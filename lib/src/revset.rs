@@ -215,6 +215,12 @@ pub struct RevsetParseError {
 pub enum RevsetParseErrorKind {
     #[error("Syntax error")]
     SyntaxError,
+    #[error("'{op}' is not an infix operator (Did you mean '{similar_op}' for {description}?)")]
+    NotInfixOperator {
+        op: String,
+        similar_op: String,
+        description: String,
+    },
     #[error("Revset function \"{0}\" doesn't exist")]
     NoSuchFunction(String),
     #[error("Invalid arguments to revset function \"{name}\": {message}")]
@@ -695,11 +701,28 @@ fn parse_expression_rule(
     pairs: Pairs<Rule>,
     state: ParseState,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    fn not_infix_op(
+        op: &Pair<Rule>,
+        similar_op: impl Into<String>,
+        description: impl Into<String>,
+    ) -> RevsetParseError {
+        RevsetParseError::with_span(
+            RevsetParseErrorKind::NotInfixOperator {
+                op: op.as_str().to_owned(),
+                similar_op: similar_op.into(),
+                description: description.into(),
+            },
+            op.as_span(),
+        )
+    }
+
     static PRATT: Lazy<PrattParser<Rule>> = Lazy::new(|| {
         PrattParser::new()
-            .op(Op::infix(Rule::union_op, Assoc::Left))
+            .op(Op::infix(Rule::union_op, Assoc::Left)
+                | Op::infix(Rule::compat_add_op, Assoc::Left))
             .op(Op::infix(Rule::intersection_op, Assoc::Left)
-                | Op::infix(Rule::difference_op, Assoc::Left))
+                | Op::infix(Rule::difference_op, Assoc::Left)
+                | Op::infix(Rule::compat_sub_op, Assoc::Left))
             .op(Op::prefix(Rule::negate_op))
             // Ranges can't be nested without parentheses. Associativity doesn't matter.
             .op(Op::infix(Rule::dag_range_op, Assoc::Left) | Op::infix(Rule::range_op, Assoc::Left))
@@ -724,8 +747,10 @@ fn parse_expression_rule(
         })
         .map_infix(|lhs, op, rhs| match op.as_rule() {
             Rule::union_op => Ok(lhs?.union(&rhs?)),
+            Rule::compat_add_op => Err(not_infix_op(&op, "|", "union")),
             Rule::intersection_op => Ok(lhs?.intersection(&rhs?)),
             Rule::difference_op => Ok(lhs?.minus(&rhs?)),
+            Rule::compat_sub_op => Err(not_infix_op(&op, "~", "difference")),
             Rule::dag_range_op => Ok(lhs?.dag_range_to(&rhs?)),
             Rule::range_op => Ok(lhs?.range(&rhs?)),
             r => panic!("unexpected infix operator rule {r:?}"),
@@ -2285,6 +2310,26 @@ mod tests {
                     )))
                     .minus(&RevsetExpression::visible_heads())
             )
+        );
+    }
+
+    #[test]
+    fn test_parse_revset_compat_operator() {
+        assert_eq!(
+            parse("foo + bar"),
+            Err(RevsetParseErrorKind::NotInfixOperator {
+                op: "+".to_owned(),
+                similar_op: "|".to_owned(),
+                description: "union".to_owned(),
+            })
+        );
+        assert_eq!(
+            parse("foo - bar"),
+            Err(RevsetParseErrorKind::NotInfixOperator {
+                op: "-".to_owned(),
+                similar_op: "~".to_owned(),
+                description: "difference".to_owned(),
+            })
         );
     }
 

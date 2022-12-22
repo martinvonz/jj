@@ -41,7 +41,9 @@ negate_op = { "~" }
 union_op = { "|" }
 intersection_op = { "&" }
 difference_op = { "~" }
-infix_op = _{ union_op | intersection_op | difference_op }
+compat_add_op = { "+" }
+compat_sub_op = { "-" }
+infix_op = _{ union_op | intersection_op | difference_op | compat_add_op | compat_sub_op }
 
 function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }
 function_arguments = {
