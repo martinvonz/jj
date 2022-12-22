@@ -38,18 +38,16 @@ fn test_describe() {
 
     // Check that the text file gets initialized with the current description and
     // make no changes
-    std::fs::write(
-        &edit_script,
-        r#"expect
-description from CLI
-
-JJ: Lines starting with "JJ: " (like this one) will be removed.
-"#,
-    )
-    .unwrap();
+    std::fs::write(&edit_script, "dump editor0").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
+    "###);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
+    description from CLI
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
     "###);
 
     // Set a description in editor

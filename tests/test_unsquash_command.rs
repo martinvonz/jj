@@ -247,25 +247,23 @@ fn test_unsquash_description() {
     // If both descriptions were non-empty, we get asked for a combined description
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     test_env.jj_cmd_success(&repo_path, &["describe", "@-", "-m", "source"]);
-    std::fs::write(
-        &edit_script,
-        r#"expect
-JJ: Enter a description for the combined commit.
-JJ: Description from the destination commit:
-destination
-
-JJ: Description from the source commit:
-source
-
-JJ: Lines starting with "JJ: " (like this one) will be removed.
-"#,
-    )
-    .unwrap();
+    std::fs::write(&edit_script, "dump editor0").unwrap();
     test_env.jj_cmd_success(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@"), @r###"
     destination
 
     source
+    "###);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
+    JJ: Enter a description for the combined commit.
+    JJ: Description from the destination commit:
+    destination
+
+    JJ: Description from the source commit:
+    source
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
     "###);
 
     // If the source's *content* doesn't become empty, then the source remains and

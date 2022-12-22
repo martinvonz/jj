@@ -80,8 +80,15 @@ fn test_resolution() {
 
     let editor_script = test_env.set_up_fake_editor();
     // Check that output file starts out empty and resolve the conflict
-    std::fs::write(&editor_script, "expect\n\0write\nresolution\n").unwrap();
+    std::fs::write(
+        &editor_script,
+        ["dump editor0", "write\nresolution\n"].join("\0"),
+    )
+    .unwrap();
     test_env.jj_cmd_success(&repo_path, &["resolve"]);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
+    "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
     Resolved conflict in file:
@@ -105,17 +112,7 @@ fn test_resolution() {
     @"");
     std::fs::write(
         &editor_script,
-        "expect
-<<<<<<<
-%%%%%%%
--base
-+a
-+++++++
-b
->>>>>>>
-\0write
-resolution
-",
+        ["dump editor1", "write\nresolution\n"].join("\0"),
     )
     .unwrap();
     test_env.jj_cmd_success(
@@ -126,6 +123,16 @@ resolution
             "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
         ],
     );
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
+    <<<<<<<
+    %%%%%%%
+    -base
+    +a
+    +++++++
+    b
+    >>>>>>>
+    "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
     Resolved conflict in file:
@@ -145,15 +152,9 @@ resolution
     @"");
     std::fs::write(
         &editor_script,
-        "expect
-<<<<<<<
-%%%%%%%
--base
-+a
-+++++++
-b
->>>>>>>
-\0write
+        [
+            "dump editor2",
+            "write
 <<<<<<<
 %%%%%%%
 -some
@@ -162,6 +163,8 @@ b
 conflict
 >>>>>>>
 ",
+        ]
+        .join("\0"),
     )
     .unwrap();
     test_env.jj_cmd_success(
@@ -172,6 +175,16 @@ conflict
             "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
         ],
     );
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(), @r###"
+    <<<<<<<
+    %%%%%%%
+    -base
+    +a
+    +++++++
+    b
+    >>>>>>>
+    "###);
     // Note the "Modified" below
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
@@ -197,8 +210,9 @@ conflict
     @"");
     std::fs::write(
         &editor_script,
-        "expect
-\0write
+        [
+            "dump editor3",
+            "write
 <<<<<<<
 %%%%%%%
 -some
@@ -207,9 +221,14 @@ conflict
 conflict
 >>>>>>>
 ",
+        ]
+        .join("\0"),
     )
     .unwrap();
     test_env.jj_cmd_success(&repo_path, &["resolve"]);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor3")).unwrap(), @r###"
+    "###);
     // Note the "Resolved" below
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"

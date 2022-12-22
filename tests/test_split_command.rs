@@ -35,23 +35,7 @@ fn test_split_by_paths() {
     let edit_script = test_env.set_up_fake_editor();
     std::fs::write(
         edit_script,
-        "expect
-JJ: Enter commit description for the first part (parent).
-
-JJ: This part contains the following changes:
-JJ:     A file2
-
-JJ: Lines starting with \"JJ: \" (like this one) will be removed.
-\0next invocation
-\0expect
-JJ: Enter commit description for the second part (child).
-
-JJ: This part contains the following changes:
-JJ:     A file1
-JJ:     A file3
-
-JJ: Lines starting with \"JJ: \" (like this one) will be removed.
-",
+        ["dump editor0", "next invocation\n", "dump editor1"].join("\0"),
     )
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["split", "file2"]);
@@ -59,6 +43,25 @@ JJ: Lines starting with \"JJ: \" (like this one) will be removed.
     First part: 5eebce1de3b0 (no description set)
     Second part: 45833353d94e (no description set)
     Working copy now at: 45833353d94e (no description set)
+    "###);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
+    JJ: Enter commit description for the first part (parent).
+
+    JJ: This part contains the following changes:
+    JJ:     A file2
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
+    JJ: Enter commit description for the second part (child).
+
+    JJ: This part contains the following changes:
+    JJ:     A file1
+    JJ:     A file3
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id.short()"]);
