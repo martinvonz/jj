@@ -1871,17 +1871,16 @@ fn cmd_describe(
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
-    let description;
-    if args.stdin {
+    let description = if args.stdin {
         let mut buffer = String::new();
         io::stdin().read_to_string(&mut buffer).unwrap();
-        description = buffer;
+        buffer
     } else if let Some(message) = &args.message {
-        description = message.into()
+        message.into()
     } else {
         let template = description_template_for_commit(&workspace_command, &commit)?;
-        description = edit_description(ui, workspace_command.repo(), &template)?;
-    }
+        edit_description(ui, workspace_command.repo(), &template)?
+    };
     if description == *commit.description() {
         ui.write("Nothing changed.\n")?;
     } else {
