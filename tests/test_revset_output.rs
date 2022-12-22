@@ -31,6 +31,16 @@ fn test_syntax_error() {
       |
       = expected dag_range_pre_op, range_pre_op, negate_op, or primary
     "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "x - y"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:3
+      |
+    1 | x - y
+      |   ^
+      |
+      = '-' is not an infix operator (Did you mean '~' for difference?)
+    "###);
 }
 
 #[test]
