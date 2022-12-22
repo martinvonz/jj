@@ -46,6 +46,10 @@ fn main() {
         match parts.as_slice() {
             [""] => {}
             ["fail"] => exit(1),
+            ["dump", dest] => {
+                let dest_path = edit_script_path.parent().unwrap().join(dest);
+                fs::copy(&args.file, dest_path).unwrap();
+            }
             ["expect"] => {
                 let actual = String::from_utf8(fs::read(&args.file).unwrap()).unwrap();
                 if actual != payload {
