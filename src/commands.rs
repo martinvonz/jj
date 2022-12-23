@@ -1477,13 +1477,13 @@ fn log_template(settings: &UserSettings) -> String {
     let default_template = format!(
         r#"
             change_id.short()
+            if(divergent, label("divergent", " divergent"))
             " " author.email()
             " " label("timestamp", {committer_timestamp})
             if(branches, " " branches)
             if(tags, " " tags)
             if(working_copies, " " working_copies)
             if(is_git_head, label("git_head", " HEAD@git"))
-            if(divergent, label("divergent", " divergent"))
             " " commit_id.short()
             if(conflict, label("conflict", " conflict"))
             "\n"
