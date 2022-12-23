@@ -161,7 +161,7 @@ sudo apt-get install libssl-dev openssl
 
 Now run:
 ```shell script
-cargo install --git https://github.com/martinvonz/jj.git --bin jj
+cargo install --git https://github.com/martinvonz/jj.git --bin jj jujutsu
 ```
 
 
