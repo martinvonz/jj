@@ -72,12 +72,12 @@ fn env_base() -> config::Config {
     builder.build().unwrap()
 }
 
-fn default_mergetool_config() -> config::Config {
+fn default_config() -> config::Config {
     // Syntax error in default config isn't a user error. That's why defaults are
     // loaded by separate builder.
     config::Config::builder()
         .add_source(config::File::from_str(
-            include_str!("merge_tool_config.toml"),
+            include_str!("config/merge_tools.toml"),
             config::FileFormat::Toml,
         ))
         .build()
@@ -113,7 +113,7 @@ fn env_overrides() -> config::Config {
 
 pub fn read_config() -> Result<UserSettings, ConfigError> {
     let mut config_builder = config::Config::builder()
-        .add_source(default_mergetool_config())
+        .add_source(default_config())
         .add_source(env_base());
 
     if let Some(config_path) = config_path()? {
