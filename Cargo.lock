@@ -230,9 +230,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.0.30"
+version = "4.0.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "656ad1e55e23d287773f7d8192c300dc715c3eeded93b3da651d11c42cfd74d2"
+checksum = "a7db700bc935f9e43e88d00b0850dae18a63773cfbec6d8e070fccf7fef89a39"
 dependencies = [
  "bitflags",
  "clap_derive",
@@ -249,7 +249,7 @@ version = "4.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7b3c9eae0de7bf8e3f904a5e40612b21fb2e2e566456d177809a48b892d24da"
 dependencies = [
- "clap 4.0.30",
+ "clap 4.0.32",
 ]
 
 [[package]]
@@ -289,7 +289,7 @@ version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904eb24d05ad587557e0f484ddce5c737c30cf81372badb16d13e41c4b8340b1"
 dependencies = [
- "clap 4.0.30",
+ "clap 4.0.32",
  "roff",
 ]
 
@@ -788,7 +788,7 @@ version = "0.6.1"
 dependencies = [
  "assert_cmd",
  "chrono",
- "clap 4.0.30",
+ "clap 4.0.32",
  "clap_complete",
  "clap_mangen",
  "config",
