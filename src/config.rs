@@ -77,6 +77,10 @@ pub fn default_config() -> config::Config {
     // loaded by separate builder.
     config::Config::builder()
         .add_source(config::File::from_str(
+            include_str!("config/colors.toml"),
+            config::FileFormat::Toml,
+        ))
+        .add_source(config::File::from_str(
             include_str!("config/merge_tools.toml"),
             config::FileFormat::Toml,
         ))
