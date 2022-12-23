@@ -269,3 +269,305 @@ impl<W: Write> Formatter for ColorFormatter<W> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use maplit::hashmap;
+
+    use super::*;
+
+    #[test]
+    fn test_plaintext_formatter() {
+        // Test that PlainTextFormatter ignores labels.
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = PlainTextFormatter::new(&mut output);
+        formatter.add_label("warning").unwrap();
+        formatter.write_str("hello").unwrap();
+        formatter.remove_label().unwrap();
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"hello");
+    }
+
+    #[test]
+    fn test_color_formatter_color_codes() {
+        // Test the color code for each color.
+        let colors = [
+            "black",
+            "red",
+            "green",
+            "yellow",
+            "blue",
+            "magenta",
+            "cyan",
+            "white",
+            "bright black",
+            "bright red",
+            "bright green",
+            "bright yellow",
+            "bright blue",
+            "bright magenta",
+            "bright cyan",
+            "bright white",
+        ];
+        let mut color_config = HashMap::new();
+        for color in &colors {
+            // Use the color name as the label.
+            color_config.insert(color.replace(' ', "-").to_string(), color.to_string());
+        }
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::new(&mut output, Arc::new(color_config));
+        for color in colors {
+            formatter.add_label(&color.replace(' ', "-")).unwrap();
+            formatter.write_str(&format!(" {color} ")).unwrap();
+            formatter.remove_label().unwrap();
+            formatter.write_str("\n").unwrap();
+        }
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @r###"
+        [30m black [0m
+        [31m red [0m
+        [32m green [0m
+        [33m yellow [0m
+        [34m blue [0m
+        [35m magenta [0m
+        [36m cyan [0m
+        [37m white [0m
+        [1;30m bright black [0m
+        [1;31m bright red [0m
+        [1;32m bright green [0m
+        [1;33m bright yellow [0m
+        [1;34m bright blue [0m
+        [1;35m bright magenta [0m
+        [1;36m bright cyan [0m
+        [1;37m bright white [0m
+        "###);
+    }
+
+    #[test]
+    fn test_color_formatter_single_label() {
+        // Test that a single label can be colored and that the color is reset
+        // afterwards.
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::new(
+            &mut output,
+            Arc::new(hashmap! {
+                "inside".to_string() => "green".to_string(),
+            }),
+        );
+        formatter.write_str(" before ").unwrap();
+        formatter.add_label("inside").unwrap();
+        formatter.write_str(" inside ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str(" after ").unwrap();
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @" before [32m inside [0m after ");
+    }
+
+    #[test]
+    fn test_color_formatter_no_space() {
+        // Test that two different colors can touch.
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::new(
+            &mut output,
+            Arc::new(hashmap! {
+                "red".to_string() => "red".to_string(),
+                "green".to_string() => "green".to_string(),
+            }),
+        );
+        formatter.write_str("before").unwrap();
+        formatter.add_label("red").unwrap();
+        formatter.write_str("first").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.add_label("green").unwrap();
+        formatter.write_str("second").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str("after").unwrap();
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"before[31mfirst[0m[32msecond[0mafter");
+    }
+
+    #[test]
+    fn test_color_formatter_ansi_codes_in_text() {
+        // Test that ANSI codes in the input text are escaped.
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::new(
+            &mut output,
+            Arc::new(hashmap! {
+                "red".to_string() => "red".to_string(),
+            }),
+        );
+        formatter.add_label("red").unwrap();
+        formatter
+            .write_str("\x1b[1mnot actually bold\x1b[0m")
+            .unwrap();
+        formatter.remove_label().unwrap();
+        // TODO: Replace the ANSI escape (\x1b) by something else (🌈?)
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[31m[1mnot actually bold[0m[0m");
+    }
+
+    #[test]
+    fn test_color_formatter_nested() {
+        // A color can be associated with a combination of labels. A more specific match
+        // overrides a less specific match. After the inner label is removed, the outer
+        // color is used again (we don't reset).
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::new(
+            &mut output,
+            Arc::new(hashmap! {
+                "outer".to_string() => "blue".to_string(),
+                "inner".to_string() => "red".to_string(),
+                "outer inner".to_string() => "green".to_string(),
+            }),
+        );
+        formatter.write_str(" before outer ").unwrap();
+        formatter.add_label("outer").unwrap();
+        formatter.write_str(" before inner ").unwrap();
+        formatter.add_label("inner").unwrap();
+        formatter.write_str(" inside inner ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str(" after inner ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str(" after outer ").unwrap();
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(),
+        @" before outer [34m before inner [32m inside inner [34m after inner [0m after outer ");
+    }
+
+    #[test]
+    fn test_color_formatter_partial_match() {
+        // A partial match doesn't count
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::new(
+            &mut output,
+            Arc::new(hashmap! {
+                "outer inner".to_string() => "green".to_string(),
+            }),
+        );
+        formatter.add_label("outer").unwrap();
+        formatter.write_str(" not colored ").unwrap();
+        formatter.add_label("inner").unwrap();
+        formatter.write_str(" colored ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str(" not colored ").unwrap();
+        formatter.remove_label().unwrap();
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(),
+        @" not colored [32m colored [0m not colored ");
+    }
+
+    #[test]
+    fn test_color_formatter_unrecognized_color() {
+        // An unrecognized color is ignored; it doesn't reset the color.
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::new(
+            &mut output,
+            Arc::new(hashmap! {
+                "outer".to_string() => "red".to_string(),
+                "outer inner".to_string() => "bloo".to_string(),
+            }),
+        );
+        formatter.add_label("outer").unwrap();
+        formatter.write_str(" red before ").unwrap();
+        formatter.add_label("inner").unwrap();
+        formatter.write_str(" still red inside ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str(" also red afterwards ").unwrap();
+        formatter.remove_label().unwrap();
+        // TODO: Make this not reset the color inside
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(),
+        @"[31m red before [0m still red inside [31m also red afterwards [0m");
+    }
+
+    #[test]
+    fn test_color_formatter_sibling() {
+        // A partial match on one rule does not eliminate other rules.
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::new(
+            &mut output,
+            Arc::new(hashmap! {
+                "outer1 inner1".to_string() => "red".to_string(),
+                "inner2".to_string() => "green".to_string(),
+            }),
+        );
+        formatter.add_label("outer1").unwrap();
+        formatter.add_label("inner2").unwrap();
+        formatter.write_str(" hello ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.remove_label().unwrap();
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(),
+        @"[32m hello [0m");
+    }
+
+    #[test]
+    fn test_color_formatter_reverse_order() {
+        // Rules don't match labels out of order
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::new(
+            &mut output,
+            Arc::new(hashmap! {
+                "inner outer".to_string() => "green".to_string(),
+            }),
+        );
+        formatter.add_label("outer").unwrap();
+        formatter.add_label("inner").unwrap();
+        formatter.write_str(" hello ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.remove_label().unwrap();
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), 
+        @" hello ");
+    }
+
+    #[test]
+    fn test_color_formatter_number_of_matches_matters() {
+        // Rules that match more labels take precedence.
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::new(
+            &mut output,
+            Arc::new(hashmap! {
+                "a b".to_string() => "red".to_string(),
+                "c".to_string() => "green".to_string(),
+                "b c d".to_string() => "blue".to_string(),
+            }),
+        );
+        formatter.add_label("a").unwrap();
+        formatter.write_str(" a1 ").unwrap();
+        formatter.add_label("b").unwrap();
+        formatter.write_str(" b1 ").unwrap();
+        formatter.add_label("c").unwrap();
+        formatter.write_str(" c1 ").unwrap();
+        formatter.add_label("d").unwrap();
+        formatter.write_str(" d ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str(" c2 ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str(" b2 ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str(" a2 ").unwrap();
+        formatter.remove_label().unwrap();
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(),
+        @" a1 [31m b1  c1 [34m d [31m c2  b2 [0m a2 ");
+    }
+
+    #[test]
+    fn test_color_formatter_innermost_wins() {
+        // When two labels match, the innermost one wins.
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::new(
+            &mut output,
+            Arc::new(hashmap! {
+                "a".to_string() => "red".to_string(),
+                "b".to_string() => "green".to_string(),
+                "a c".to_string() => "blue".to_string(),
+                "b c".to_string() => "yellow".to_string(),
+            }),
+        );
+        formatter.add_label("a").unwrap();
+        formatter.write_str(" a1 ").unwrap();
+        formatter.add_label("b").unwrap();
+        formatter.write_str(" b1 ").unwrap();
+        formatter.add_label("c").unwrap();
+        formatter.write_str(" c ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str(" b2 ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str(" a2 ").unwrap();
+        formatter.remove_label().unwrap();
+        // TODO: This is currently not deterministic.
+        // insta::assert_snapshot!(String::from_utf8(output).unwrap(),
+        // @"[31m a1 [32m b1 [33m c [32m b2 [31m a2 [0m");
+    }
+}
