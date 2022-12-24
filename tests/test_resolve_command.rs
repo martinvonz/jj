@@ -183,6 +183,8 @@ conflict
         @r###"
     Working copy now at: 0bb40c908c8b conflict
     Added 0 files, modified 1 files, removed 0 files
+    After this operation, some files at this revision still have conflicts:
+    file
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(), @r###"
@@ -537,6 +539,8 @@ fn test_multiple_conflicts() {
     test_env.jj_cmd_success(&repo_path, &["resolve", "file2"]), @r###"
     Working copy now at: 06cafc2b5489 conflict
     Added 0 files, modified 1 files, removed 0 files
+    After this operation, some files at this revision still have conflicts:
+    file1
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
@@ -552,6 +556,15 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
     file1
+    "###);
+
+    // Repeat the above with the `--quiet` option.
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    std::fs::write(&editor_script, "expect\n\0write\nresolution file2\n").unwrap();
+    insta::assert_snapshot!(
+    test_env.jj_cmd_success(&repo_path, &["resolve", "--quiet", "file2"]), @r###"
+    Working copy now at: 02326c070aa4 conflict
+    Added 0 files, modified 1 files, removed 0 files
     "###);
 
     // For the rest of the test, we call `jj resolve` several times in a row to
