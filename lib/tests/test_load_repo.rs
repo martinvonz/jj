@@ -14,7 +14,7 @@
 
 use jujutsu_lib::repo::{RepoLoader, StoreFactories};
 use test_case::test_case;
-use testutils::{create_random_commit, TestRepo};
+use testutils::{write_random_commit, TestRepo};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -24,7 +24,7 @@ fn test_load_at_operation(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "add commit");
-    let commit = create_random_commit(tx.mut_repo(), &settings).write();
+    let commit = write_random_commit(tx.mut_repo(), &settings);
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "remove commit");

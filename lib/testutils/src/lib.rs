@@ -224,6 +224,10 @@ pub fn create_random_commit<'repo>(
     .set_description(format!("random commit {number}"))
 }
 
+pub fn write_random_commit(mut_repo: &mut MutableRepo, settings: &UserSettings) -> Commit {
+    create_random_commit(mut_repo, settings).write()
+}
+
 pub fn write_working_copy_file(workspace_root: &Path, path: &RepoPath, contents: &str) {
     let mut file = OpenOptions::new()
         .write(true)
@@ -248,7 +252,7 @@ impl<'settings, 'repo> CommitGraphBuilder<'settings, 'repo> {
     }
 
     pub fn initial_commit(&mut self) -> Commit {
-        create_random_commit(self.mut_repo, self.settings).write()
+        write_random_commit(self.mut_repo, self.settings)
     }
 
     pub fn commit_with_parents(&mut self, parents: &[&Commit]) -> Commit {

@@ -18,7 +18,7 @@ use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo::RepoRef;
 use test_case::test_case;
-use testutils::{create_random_commit, TestRepo};
+use testutils::{create_random_commit, write_random_commit, TestRepo};
 
 fn list_dir(dir: &Path) -> Vec<String> {
     std::fs::read_dir(dir)
@@ -40,7 +40,7 @@ fn test_unpublished_operation(use_git: bool) {
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
     let mut tx1 = repo.start_transaction(&settings, "transaction 1");
-    create_random_commit(tx1.mut_repo(), &settings).write();
+    write_random_commit(tx1.mut_repo(), &settings);
     let unpublished_op = tx1.write();
     let op_id1 = unpublished_op.operation().id().clone();
     assert_ne!(op_id1, op_id0);
@@ -63,14 +63,14 @@ fn test_consecutive_operations(use_git: bool) {
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
     let mut tx1 = repo.start_transaction(&settings, "transaction 1");
-    create_random_commit(tx1.mut_repo(), &settings).write();
+    write_random_commit(tx1.mut_repo(), &settings);
     let op_id1 = tx1.commit().operation().id().clone();
     assert_ne!(op_id1, op_id0);
     assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
 
     let repo = repo.reload_at_head(&settings).unwrap();
     let mut tx2 = repo.start_transaction(&settings, "transaction 2");
-    create_random_commit(tx2.mut_repo(), &settings).write();
+    write_random_commit(tx2.mut_repo(), &settings);
     let op_id2 = tx2.commit().operation().id().clone();
     assert_ne!(op_id2, op_id0);
     assert_ne!(op_id2, op_id1);
@@ -96,7 +96,7 @@ fn test_concurrent_operations(use_git: bool) {
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
     let mut tx1 = repo.start_transaction(&settings, "transaction 1");
-    create_random_commit(tx1.mut_repo(), &settings).write();
+    write_random_commit(tx1.mut_repo(), &settings);
     let op_id1 = tx1.commit().operation().id().clone();
     assert_ne!(op_id1, op_id0);
     assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
@@ -104,7 +104,7 @@ fn test_concurrent_operations(use_git: bool) {
     // After both transactions have committed, we should have two op-heads on disk,
     // since they were run in parallel.
     let mut tx2 = repo.start_transaction(&settings, "transaction 2");
-    create_random_commit(tx2.mut_repo(), &settings).write();
+    write_random_commit(tx2.mut_repo(), &settings);
     let op_id2 = tx2.commit().operation().id().clone();
     assert_ne!(op_id2, op_id0);
     assert_ne!(op_id2, op_id1);
