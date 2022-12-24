@@ -18,14 +18,18 @@ use jujutsu_lib::backend::CommitId;
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::index::IndexRef;
-use jujutsu_lib::repo::{ReadonlyRepo, StoreFactories};
+use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, StoreFactories};
 use jujutsu_lib::settings::UserSettings;
 use test_case::test_case;
 use testutils::{create_random_commit, CommitGraphBuilder, TestRepo};
 
 #[must_use]
-fn child_commit(settings: &UserSettings, repo: &ReadonlyRepo, commit: &Commit) -> CommitBuilder {
-    create_random_commit(settings, repo).set_parents(vec![commit.id().clone()])
+fn child_commit<'repo>(
+    mut_repo: &'repo mut MutableRepo,
+    settings: &UserSettings,
+    commit: &Commit,
+) -> CommitBuilder<'repo> {
+    create_random_commit(mut_repo, settings).set_parents(vec![commit.id().clone()])
 }
 
 // Helper just to reduce line wrapping
@@ -327,7 +331,7 @@ fn test_index_commits_incremental(use_git: bool) {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_a = child_commit(&settings, repo, &root_commit).write_to_repo(tx.mut_repo());
+    let commit_a = child_commit(tx.mut_repo(), &settings, &root_commit).write();
     let repo = tx.commit();
 
     let index = repo.index();
@@ -335,8 +339,8 @@ fn test_index_commits_incremental(use_git: bool) {
     assert_eq!(index.num_commits(), 1 + 1);
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_b = child_commit(&settings, &repo, &commit_a).write_to_repo(tx.mut_repo());
-    let commit_c = child_commit(&settings, &repo, &commit_b).write_to_repo(tx.mut_repo());
+    let commit_b = child_commit(tx.mut_repo(), &settings, &commit_a).write();
+    let commit_c = child_commit(tx.mut_repo(), &settings, &commit_b).write();
     tx.commit();
 
     let repo = ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &StoreFactories::default())
@@ -374,7 +378,7 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_a = child_commit(&settings, repo, &root_commit).write_to_repo(tx.mut_repo());
+    let commit_a = child_commit(tx.mut_repo(), &settings, &root_commit).write();
     let repo = tx.commit();
 
     let index = repo.index();
@@ -416,7 +420,7 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_a = child_commit(&settings, repo, &root_commit).write_to_repo(tx.mut_repo());
+    let commit_a = child_commit(tx.mut_repo(), &settings, &root_commit).write();
     let repo = tx.commit();
 
     assert!(repo.index().has_id(commit_a.id()));
@@ -435,7 +439,7 @@ fn create_n_commits(
 ) -> Arc<ReadonlyRepo> {
     let mut tx = repo.start_transaction(settings, "test");
     for _ in 0..num_commits {
-        create_random_commit(settings, repo).write_to_repo(tx.mut_repo());
+        create_random_commit(tx.mut_repo(), settings).write();
     }
     tx.commit()
 }

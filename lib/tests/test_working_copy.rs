@@ -164,8 +164,8 @@ fn test_checkout_file_transitions(use_git: bool) {
             }
             Kind::GitSubmodule => {
                 let mut tx = repo.start_transaction(settings, "test");
-                let id = create_random_commit(settings, repo)
-                    .write_to_repo(tx.mut_repo())
+                let id = create_random_commit(tx.mut_repo(), settings)
+                    .write()
                     .id()
                     .clone();
                 tx.commit();
@@ -691,8 +691,8 @@ fn test_gitsubmodule() {
     );
 
     let mut tx = repo.start_transaction(&settings, "create submodule commit");
-    let submodule_id = create_random_commit(&settings, repo)
-        .write_to_repo(tx.mut_repo())
+    let submodule_id = create_random_commit(tx.mut_repo(), &settings)
+        .write()
         .id()
         .clone();
     tx.commit();

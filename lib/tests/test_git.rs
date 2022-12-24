@@ -176,9 +176,9 @@ fn test_import_refs_reimport() {
 
     // Also modify feature2 on the jj side
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit6 = create_random_commit(&settings, &repo)
+    let commit6 = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![jj_id(&commit2)])
-        .write_to_repo(tx.mut_repo());
+        .write();
     tx.mut_repo().set_local_branch(
         "feature2".to_string(),
         RefTarget::Normal(commit6.id().clone()),
@@ -458,9 +458,9 @@ fn test_export_refs_branch_changed() {
     mut_repo.rebase_descendants(&test_data.settings).unwrap();
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
 
-    let new_commit = create_random_commit(&test_data.settings, &test_data.repo)
+    let new_commit = create_random_commit(mut_repo, &test_data.settings)
         .set_parents(vec![jj_id(&commit)])
-        .write_to_repo(mut_repo);
+        .write();
     mut_repo.set_local_branch(
         "main".to_string(),
         RefTarget::Normal(new_commit.id().clone()),
@@ -498,9 +498,9 @@ fn test_export_refs_current_branch_changed() {
     mut_repo.rebase_descendants(&test_data.settings).unwrap();
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
 
-    let new_commit = create_random_commit(&test_data.settings, &test_data.repo)
+    let new_commit = create_random_commit(mut_repo, &test_data.settings)
         .set_parents(vec![jj_id(&commit1)])
-        .write_to_repo(mut_repo);
+        .write();
     mut_repo.set_local_branch(
         "main".to_string(),
         RefTarget::Normal(new_commit.id().clone()),
@@ -536,8 +536,7 @@ fn test_export_refs_unborn_git_branch() {
     mut_repo.rebase_descendants(&test_data.settings).unwrap();
     assert_eq!(git::export_refs(mut_repo, &git_repo), Ok(vec![]));
 
-    let new_commit =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
+    let new_commit = create_random_commit(mut_repo, &test_data.settings).write();
     mut_repo.set_local_branch(
         "main".to_string(),
         RefTarget::Normal(new_commit.id().clone()),
@@ -573,12 +572,9 @@ fn test_export_import_sequence() {
         .repo
         .start_transaction(&test_data.settings, "test");
     let mut_repo = tx.mut_repo();
-    let commit_a =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
-    let commit_b =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
-    let commit_c =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
+    let commit_a = create_random_commit(mut_repo, &test_data.settings).write();
+    let commit_b = create_random_commit(mut_repo, &test_data.settings).write();
+    let commit_c = create_random_commit(mut_repo, &test_data.settings).write();
 
     // Import the branch pointing to A
     git_repo
@@ -626,12 +622,9 @@ fn test_export_conflicts() {
         .repo
         .start_transaction(&test_data.settings, "test");
     let mut_repo = tx.mut_repo();
-    let commit_a =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
-    let commit_b =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
-    let commit_c =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
+    let commit_a = create_random_commit(mut_repo, &test_data.settings).write();
+    let commit_b = create_random_commit(mut_repo, &test_data.settings).write();
+    let commit_c = create_random_commit(mut_repo, &test_data.settings).write();
     mut_repo.set_local_branch("main".to_string(), RefTarget::Normal(commit_a.id().clone()));
     mut_repo.set_local_branch(
         "feature".to_string(),
@@ -677,8 +670,7 @@ fn test_export_partial_failure() {
         .repo
         .start_transaction(&test_data.settings, "test");
     let mut_repo = tx.mut_repo();
-    let commit_a =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
+    let commit_a = create_random_commit(mut_repo, &test_data.settings).write();
     let target = RefTarget::Normal(commit_a.id().clone());
     // Empty string is disallowed by Git
     mut_repo.set_local_branch("".to_string(), target.clone());
@@ -731,12 +723,9 @@ fn test_export_reexport_transitions() {
         .repo
         .start_transaction(&test_data.settings, "test");
     let mut_repo = tx.mut_repo();
-    let commit_a =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
-    let commit_b =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
-    let commit_c =
-        create_random_commit(&test_data.settings, &test_data.repo).write_to_repo(mut_repo);
+    let commit_a = create_random_commit(mut_repo, &test_data.settings).write();
+    let commit_b = create_random_commit(mut_repo, &test_data.settings).write();
+    let commit_c = create_random_commit(mut_repo, &test_data.settings).write();
     // Create a few branches whose names indicate how they change in jj in git. The
     // first letter represents the branch's target in the last export. The second
     // letter represents the branch's target in jj. The third letter represents the
@@ -1115,9 +1104,9 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     )
     .unwrap();
     let mut tx = jj_repo.start_transaction(settings, "test");
-    let new_commit = create_random_commit(settings, &jj_repo)
+    let new_commit = create_random_commit(tx.mut_repo(), settings)
         .set_parents(vec![jj_id(&initial_git_commit)])
-        .write_to_repo(tx.mut_repo());
+        .write();
     let jj_repo = tx.commit();
     PushTestSetup {
         source_repo_dir,
@@ -1240,7 +1229,7 @@ fn test_push_updates_not_fast_forward() {
     let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
     let mut tx = setup.jj_repo.start_transaction(&settings, "test");
-    let new_commit = create_random_commit(&settings, &setup.jj_repo).write_to_repo(tx.mut_repo());
+    let new_commit = create_random_commit(tx.mut_repo(), &settings).write();
     setup.jj_repo = tx.commit();
     let result = git::push_updates(
         &setup.jj_repo.store().git_repo().unwrap(),
@@ -1261,7 +1250,7 @@ fn test_push_updates_not_fast_forward_with_force() {
     let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
     let mut tx = setup.jj_repo.start_transaction(&settings, "test");
-    let new_commit = create_random_commit(&settings, &setup.jj_repo).write_to_repo(tx.mut_repo());
+    let new_commit = create_random_commit(tx.mut_repo(), &settings).write();
     setup.jj_repo = tx.commit();
     let result = git::push_updates(
         &setup.jj_repo.store().git_repo().unwrap(),

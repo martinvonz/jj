@@ -83,10 +83,10 @@ pub fn rebase_commit(
         .iter()
         .map(|commit| commit.id().clone())
         .collect();
-    CommitBuilder::for_rewrite_from(settings, old_commit)
+    CommitBuilder::for_rewrite_from(mut_repo, settings, old_commit)
         .set_parents(new_parent_ids)
         .set_tree(new_tree_id)
-        .write_to_repo(mut_repo)
+        .write()
 }
 
 pub fn back_out_commit(
@@ -104,9 +104,9 @@ pub fn back_out_commit(
         .map(|commit| commit.id().clone())
         .collect();
     // TODO: i18n the description based on repo language
-    CommitBuilder::for_new_commit(settings, new_parent_ids, new_tree_id)
+    CommitBuilder::for_new_commit(mut_repo, settings, new_parent_ids, new_tree_id)
         .set_description(format!("backout of commit {}", &old_commit.id().hex()))
-        .write_to_repo(mut_repo)
+        .write()
 }
 
 /// Rebases descendants of a commit onto a new commit (or several).
@@ -352,11 +352,12 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             new_commit
         } else {
             CommitBuilder::for_new_commit(
+                self.mut_repo,
                 self.settings,
                 vec![new_commit.id().clone()],
                 new_commit.tree_id().clone(),
             )
-            .write_to_repo(self.mut_repo)
+            .write()
         };
         for workspace_id in workspaces_to_update.into_iter() {
             self.mut_repo.edit(workspace_id, &new_wc_commit).unwrap();

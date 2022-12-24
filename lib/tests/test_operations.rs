@@ -40,7 +40,7 @@ fn test_unpublished_operation(use_git: bool) {
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
     let mut tx1 = repo.start_transaction(&settings, "transaction 1");
-    create_random_commit(&settings, repo).write_to_repo(tx1.mut_repo());
+    create_random_commit(tx1.mut_repo(), &settings).write();
     let unpublished_op = tx1.write();
     let op_id1 = unpublished_op.operation().id().clone();
     assert_ne!(op_id1, op_id0);
@@ -63,14 +63,14 @@ fn test_consecutive_operations(use_git: bool) {
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
     let mut tx1 = repo.start_transaction(&settings, "transaction 1");
-    create_random_commit(&settings, repo).write_to_repo(tx1.mut_repo());
+    create_random_commit(tx1.mut_repo(), &settings).write();
     let op_id1 = tx1.commit().operation().id().clone();
     assert_ne!(op_id1, op_id0);
     assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
 
     let repo = repo.reload_at_head(&settings).unwrap();
     let mut tx2 = repo.start_transaction(&settings, "transaction 2");
-    create_random_commit(&settings, &repo).write_to_repo(tx2.mut_repo());
+    create_random_commit(tx2.mut_repo(), &settings).write();
     let op_id2 = tx2.commit().operation().id().clone();
     assert_ne!(op_id2, op_id0);
     assert_ne!(op_id2, op_id1);
@@ -96,7 +96,7 @@ fn test_concurrent_operations(use_git: bool) {
     assert_eq!(list_dir(&op_heads_dir), vec![repo.op_id().hex()]);
 
     let mut tx1 = repo.start_transaction(&settings, "transaction 1");
-    create_random_commit(&settings, repo).write_to_repo(tx1.mut_repo());
+    create_random_commit(tx1.mut_repo(), &settings).write();
     let op_id1 = tx1.commit().operation().id().clone();
     assert_ne!(op_id1, op_id0);
     assert_eq!(list_dir(&op_heads_dir), vec![op_id1.hex()]);
@@ -104,7 +104,7 @@ fn test_concurrent_operations(use_git: bool) {
     // After both transactions have committed, we should have two op-heads on disk,
     // since they were run in parallel.
     let mut tx2 = repo.start_transaction(&settings, "transaction 2");
-    create_random_commit(&settings, repo).write_to_repo(tx2.mut_repo());
+    create_random_commit(tx2.mut_repo(), &settings).write();
     let op_id2 = tx2.commit().operation().id().clone();
     assert_ne!(op_id2, op_id0);
     assert_ne!(op_id2, op_id1);
@@ -137,9 +137,9 @@ fn test_isolation(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let initial = create_random_commit(&settings, repo)
+    let initial = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![repo.store().root_commit_id().clone()])
-        .write_to_repo(tx.mut_repo());
+        .write();
     let repo = tx.commit();
 
     let mut tx1 = repo.start_transaction(&settings, "transaction 1");
@@ -151,13 +151,13 @@ fn test_isolation(use_git: bool) {
     assert_heads(mut_repo1.as_repo_ref(), vec![initial.id()]);
     assert_heads(mut_repo2.as_repo_ref(), vec![initial.id()]);
 
-    let rewrite1 = CommitBuilder::for_rewrite_from(&settings, &initial)
+    let rewrite1 = CommitBuilder::for_rewrite_from(mut_repo1, &settings, &initial)
         .set_description("rewrite1")
-        .write_to_repo(mut_repo1);
+        .write();
     mut_repo1.rebase_descendants(&settings).unwrap();
-    let rewrite2 = CommitBuilder::for_rewrite_from(&settings, &initial)
+    let rewrite2 = CommitBuilder::for_rewrite_from(mut_repo2, &settings, &initial)
         .set_description("rewrite2")
-        .write_to_repo(mut_repo2);
+        .write();
     mut_repo2.rebase_descendants(&settings).unwrap();
 
     // Neither transaction has committed yet, so each transaction sees its own

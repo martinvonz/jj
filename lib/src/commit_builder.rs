@@ -20,8 +20,8 @@ use crate::commit::Commit;
 use crate::repo::MutableRepo;
 use crate::settings::UserSettings;
 
-#[derive(Debug)]
-pub struct CommitBuilder {
+pub struct CommitBuilder<'repo> {
+    mut_repo: &'repo mut MutableRepo,
     commit: backend::Commit,
     rewrite_source: Option<Commit>,
 }
@@ -30,12 +30,13 @@ pub fn new_change_id() -> ChangeId {
     ChangeId::from_bytes(Uuid::new_v4().as_bytes())
 }
 
-impl CommitBuilder {
-    pub fn for_new_commit(
+impl CommitBuilder<'_> {
+    pub fn for_new_commit<'repo>(
+        mut_repo: &'repo mut MutableRepo,
         settings: &UserSettings,
         parents: Vec<CommitId>,
         tree_id: TreeId,
-    ) -> CommitBuilder {
+    ) -> CommitBuilder<'repo> {
         let signature = settings.signature();
         assert!(!parents.is_empty());
         let commit = backend::Commit {
@@ -48,12 +49,17 @@ impl CommitBuilder {
             committer: signature,
         };
         CommitBuilder {
+            mut_repo,
             commit,
             rewrite_source: None,
         }
     }
 
-    pub fn for_rewrite_from(settings: &UserSettings, predecessor: &Commit) -> CommitBuilder {
+    pub fn for_rewrite_from<'repo>(
+        mut_repo: &'repo mut MutableRepo,
+        settings: &UserSettings,
+        predecessor: &Commit,
+    ) -> CommitBuilder<'repo> {
         let mut commit = predecessor.store_commit().clone();
         commit.predecessors = vec![predecessor.id().clone()];
         commit.committer = settings.signature();
@@ -66,6 +72,7 @@ impl CommitBuilder {
             commit.author.email = commit.committer.email.clone();
         }
         CommitBuilder {
+            mut_repo,
             commit,
             rewrite_source: Some(predecessor.clone()),
         }
@@ -112,16 +119,17 @@ impl CommitBuilder {
         self
     }
 
-    pub fn write_to_repo(self, repo: &mut MutableRepo) -> Commit {
+    pub fn write(self) -> Commit {
         let mut rewrite_source_id = None;
         if let Some(rewrite_source) = self.rewrite_source {
             if *rewrite_source.change_id() == self.commit.change_id {
                 rewrite_source_id.replace(rewrite_source.id().clone());
             }
         }
-        let commit = repo.write_commit(self.commit);
+        let commit = self.mut_repo.write_commit(self.commit);
         if let Some(rewrite_source_id) = rewrite_source_id {
-            repo.record_rewritten_commit(rewrite_source_id, commit.id().clone())
+            self.mut_repo
+                .record_rewritten_commit(rewrite_source_id, commit.id().clone())
         }
         commit
     }
