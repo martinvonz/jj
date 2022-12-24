@@ -23,10 +23,9 @@ use thiserror::Error;
 use crate::backend::CommitId;
 use crate::commit::Commit;
 use crate::git_backend::NO_GC_REF_NAMESPACE;
-use crate::op_store;
 use crate::op_store::RefTarget;
 use crate::repo::MutableRepo;
-use crate::view::{RefName, View};
+use crate::view::RefName;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GitImportError {
@@ -194,22 +193,20 @@ pub fn export_refs(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
 ) -> Result<Vec<String>, GitExportError> {
-    let mut old_view = View::new(op_store::View::default());
-    for (git_ref, git_ref_target) in mut_repo.view().git_refs() {
-        if let Some(branch_name) = git_ref.strip_prefix("refs/heads/") {
-            old_view.set_local_branch(branch_name.to_string(), git_ref_target.clone());
-        }
-    }
-    let new_view = mut_repo.view();
-    let old_branches: HashSet<_> = old_view.branches().keys().cloned().collect();
-    let new_branches: HashSet<_> = new_view.branches().keys().cloned().collect();
+    // First find the changes we want need to make without modifying mut_repo
     let mut branches_to_update = BTreeMap::new();
     let mut branches_to_delete = BTreeMap::new();
-    // First find the changes we want need to make without modifying mut_repo
     let mut failed_branches = vec![];
-    for branch_name in old_branches.union(&new_branches) {
-        let old_branch = old_view.get_local_branch(branch_name);
-        let new_branch = new_view.get_local_branch(branch_name);
+    let view = mut_repo.view();
+    let all_branch_names: HashSet<&str> = view
+        .git_refs()
+        .keys()
+        .filter_map(|git_ref| git_ref.strip_prefix("refs/heads/"))
+        .chain(view.branches().keys().map(AsRef::as_ref))
+        .collect();
+    for branch_name in all_branch_names {
+        let old_branch = view.get_git_ref(&format!("refs/heads/{branch_name}"));
+        let new_branch = view.get_local_branch(branch_name);
         if new_branch == old_branch {
             continue;
         }
@@ -219,7 +216,7 @@ pub fn export_refs(
             Some(RefTarget::Conflict { .. }) => {
                 // The old git ref should only be a conflict if there were concurrent import
                 // operations while the value changed. Don't overwrite these values.
-                failed_branches.push(branch_name.clone());
+                failed_branches.push(branch_name.to_owned());
                 continue;
             }
         };
@@ -227,7 +224,7 @@ pub fn export_refs(
             match new_branch {
                 RefTarget::Normal(id) => {
                     let new_oid = Oid::from_bytes(id.as_bytes());
-                    branches_to_update.insert(branch_name.clone(), (old_oid, new_oid.unwrap()));
+                    branches_to_update.insert(branch_name.to_owned(), (old_oid, new_oid.unwrap()));
                 }
                 RefTarget::Conflict { .. } => {
                     // Skip conflicts and leave the old value in git_refs
@@ -235,7 +232,7 @@ pub fn export_refs(
                 }
             }
         } else {
-            branches_to_delete.insert(branch_name.clone(), old_oid.unwrap());
+            branches_to_delete.insert(branch_name.to_owned(), old_oid.unwrap());
         }
     }
     // TODO: Also check other worktrees' HEAD.
