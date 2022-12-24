@@ -532,6 +532,10 @@ struct ResolveArgs {
     // `diff --summary`, but should be more verbose.
     #[arg(long, short)]
     list: bool,
+    /// Do not print the list of remaining conflicts (if any) after resolving a
+    /// conflict
+    #[arg(long, short, conflicts_with = "list")]
+    quiet: bool,
     /// Restrict to these paths when searching for a conflict to resolve. We
     /// will attempt to resolve the first conflict we can find. You can use
     /// the `--list` argument to find paths to use here.
@@ -2407,11 +2411,26 @@ fn cmd_resolve(
         commit.id().hex()
     ));
     let new_tree_id = workspace_command.run_mergetool(ui, &commit.tree(), repo_path)?;
-    tx.mut_repo()
+    let new_commit = tx
+        .mut_repo()
         .rewrite_commit(command.settings(), &commit)
         .set_tree(new_tree_id)
         .write()?;
-    workspace_command.finish_transaction(ui, tx)
+    workspace_command.finish_transaction(ui, tx)?;
+
+    if !args.quiet {
+        let new_tree = new_commit.tree();
+        let new_conflicts = new_tree.conflicts_matching(&EverythingMatcher);
+        if !new_conflicts.is_empty() {
+            ui.write("After this operation, some files at this revision still have conflicts:\n")?;
+            print_conflicted_files(
+                &new_conflicts,
+                ui.stdout_formatter().as_mut(),
+                &workspace_command,
+            )?;
+        }
+    };
+    Ok(())
 }
 
 fn print_conflicted_files(
