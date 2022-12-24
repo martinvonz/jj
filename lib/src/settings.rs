@@ -18,7 +18,7 @@ use chrono::DateTime;
 
 use crate::backend::{Signature, Timestamp};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct UserSettings {
     config: config::Config,
     timestamp: Option<Timestamp>,

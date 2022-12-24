@@ -72,7 +72,7 @@ fn env_base() -> config::Config {
     builder.build().unwrap()
 }
 
-fn default_config() -> config::Config {
+pub fn default_config() -> config::Config {
     // Syntax error in default config isn't a user error. That's why defaults are
     // loaded by separate builder.
     config::Config::builder()

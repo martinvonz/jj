@@ -1432,7 +1432,7 @@ pub fn create_ui() -> (Ui, Result<(), CommandError>) {
     match read_config() {
         Ok(user_settings) => (Ui::for_terminal(user_settings), Ok(())),
         Err(err) => {
-            let ui = Ui::for_terminal(UserSettings::default());
+            let ui = Ui::for_terminal(UserSettings::from_config(crate::config::default_config()));
             (ui, Err(CommandError::ConfigError(err.to_string())))
         }
     }
