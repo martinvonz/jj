@@ -15,7 +15,7 @@
 use uuid::Uuid;
 
 use crate::backend;
-use crate::backend::{ChangeId, CommitId, Signature, TreeId};
+use crate::backend::{BackendResult, ChangeId, CommitId, Signature, TreeId};
 use crate::commit::Commit;
 use crate::repo::MutableRepo;
 use crate::settings::UserSettings;
@@ -119,18 +119,18 @@ impl CommitBuilder<'_> {
         self
     }
 
-    pub fn write(self) -> Commit {
+    pub fn write(self) -> BackendResult<Commit> {
         let mut rewrite_source_id = None;
         if let Some(rewrite_source) = self.rewrite_source {
             if *rewrite_source.change_id() == self.commit.change_id {
                 rewrite_source_id.replace(rewrite_source.id().clone());
             }
         }
-        let commit = self.mut_repo.write_commit(self.commit);
+        let commit = self.mut_repo.write_commit(self.commit)?;
         if let Some(rewrite_source_id) = rewrite_source_id {
             self.mut_repo
                 .record_rewritten_commit(rewrite_source_id, commit.id().clone())
         }
-        commit
+        Ok(commit)
     }
 }

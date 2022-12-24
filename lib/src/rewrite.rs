@@ -16,7 +16,7 @@ use std::collections::{HashMap, HashSet};
 
 use itertools::{process_results, Itertools};
 
-use crate::backend::{BackendError, CommitId};
+use crate::backend::{BackendError, BackendResult, CommitId};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk;
@@ -60,7 +60,7 @@ pub fn rebase_commit(
     mut_repo: &mut MutableRepo,
     old_commit: &Commit,
     new_parents: &[Commit],
-) -> Commit {
+) -> BackendResult<Commit> {
     let old_parents = old_commit.parents();
     let old_parent_trees = old_parents
         .iter()
@@ -94,7 +94,7 @@ pub fn back_out_commit(
     mut_repo: &mut MutableRepo,
     old_commit: &Commit,
     new_parents: &[Commit],
-) -> Commit {
+) -> BackendResult<Commit> {
     let old_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), &old_commit.parents());
     let new_base_tree = merge_commit_trees(mut_repo.as_repo_ref(), new_parents);
     // TODO: pass in labels for the merge parts
@@ -357,7 +357,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 vec![new_commit.id().clone()],
                 new_commit.tree_id().clone(),
             )
-            .write()
+            .write()?
         };
         for workspace_id in workspaces_to_update.into_iter() {
             self.mut_repo.edit(workspace_id, &new_wc_commit).unwrap();
@@ -412,7 +412,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                     .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id)),
                 |iter| iter.collect_vec(),
             )?;
-            let new_commit = rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents);
+            let new_commit =
+                rebase_commit(self.settings, self.mut_repo, &old_commit, &new_parents)?;
             self.rebased
                 .insert(old_commit_id.clone(), new_commit.id().clone());
             self.update_references(old_commit_id, vec![new_commit.id().clone()], true)?;

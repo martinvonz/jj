@@ -72,7 +72,8 @@ fn test_resolve_symbol_commit_id() {
         .set_description(format!("test {i}"))
         .set_author(signature.clone())
         .set_committer(signature.clone())
-        .write();
+        .write()
+        .unwrap();
         commits.push(commit);
     }
     let repo = tx.commit();
@@ -752,16 +753,20 @@ fn test_evaluate_expression_children(use_git: bool) {
     let commit1 = write_random_commit(mut_repo, &settings);
     let commit2 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let commit3 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit2.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let commit4 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let commit5 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit3.id().clone(), commit4.id().clone()])
-        .write();
+        .write()
+        .unwrap();
 
     // Can find children of the root commit
     assert_eq!(
@@ -1093,16 +1098,20 @@ fn test_evaluate_expression_descendants(use_git: bool) {
     let commit1 = write_random_commit(mut_repo, &settings);
     let commit2 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let commit3 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit2.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let commit4 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let commit5 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit3.id().clone(), commit4.id().clone()])
-        .write();
+        .write()
+        .unwrap();
 
     // The descendants of the root commit are all the commits in the repo
     assert_eq!(
@@ -1504,15 +1513,18 @@ fn test_evaluate_expression_description(use_git: bool) {
 
     let commit1 = create_random_commit(mut_repo, &settings)
         .set_description("commit 1")
-        .write();
+        .write()
+        .unwrap();
     let commit2 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
         .set_description("commit 2")
-        .write();
+        .write()
+        .unwrap();
     let commit3 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit2.id().clone()])
         .set_description("commit 3")
-        .write();
+        .write()
+        .unwrap();
 
     // Can find multiple matches
     assert_eq!(
@@ -1558,7 +1570,8 @@ fn test_evaluate_expression_author(use_git: bool) {
             email: "email1".to_string(),
             timestamp: timestamp.clone(),
         })
-        .write();
+        .write()
+        .unwrap();
     let commit2 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
         .set_author(Signature {
@@ -1566,7 +1579,8 @@ fn test_evaluate_expression_author(use_git: bool) {
             email: "email2".to_string(),
             timestamp: timestamp.clone(),
         })
-        .write();
+        .write()
+        .unwrap();
     let commit3 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit2.id().clone()])
         .set_author(Signature {
@@ -1574,7 +1588,8 @@ fn test_evaluate_expression_author(use_git: bool) {
             email: "email3".to_string(),
             timestamp,
         })
-        .write();
+        .write()
+        .unwrap();
 
     // Can find multiple matches
     assert_eq!(
@@ -1629,7 +1644,8 @@ fn test_evaluate_expression_committer(use_git: bool) {
             email: "email1".to_string(),
             timestamp: timestamp.clone(),
         })
-        .write();
+        .write()
+        .unwrap();
     let commit2 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
         .set_committer(Signature {
@@ -1637,7 +1653,8 @@ fn test_evaluate_expression_committer(use_git: bool) {
             email: "email2".to_string(),
             timestamp: timestamp.clone(),
         })
-        .write();
+        .write()
+        .unwrap();
     let commit3 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit2.id().clone()])
         .set_committer(Signature {
@@ -1645,7 +1662,8 @@ fn test_evaluate_expression_committer(use_git: bool) {
             email: "email3".to_string(),
             timestamp,
         })
-        .write();
+        .write()
+        .unwrap();
 
     // Can find multiple matches
     assert_eq!(
@@ -1915,28 +1933,32 @@ fn test_filter_by_diff(use_git: bool) {
         vec![repo.store().root_commit_id().clone()],
         tree1.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let commit2 = CommitBuilder::for_new_commit(
         mut_repo,
         &settings,
         vec![commit1.id().clone()],
         tree2.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let commit3 = CommitBuilder::for_new_commit(
         mut_repo,
         &settings,
         vec![commit2.id().clone()],
         tree3.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let commit4 = CommitBuilder::for_new_commit(
         mut_repo,
         &settings,
         vec![commit3.id().clone()],
         tree3.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
 
     // matcher API:
     let resolve = |file_path: &RepoPath| -> Vec<CommitId> {

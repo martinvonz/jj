@@ -45,7 +45,8 @@ fn test_initial(use_git: bool) {
         vec![store.root_commit_id().clone()],
         tree.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     tx.commit();
 
     assert_eq!(commit.parents(), vec![store.root_commit()]);
@@ -93,7 +94,8 @@ fn test_rewrite(use_git: bool) {
         vec![store.root_commit_id().clone()],
         initial_tree.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let repo = tx.commit();
 
     let rewritten_tree = testutils::create_tree(
@@ -116,7 +118,8 @@ fn test_rewrite(use_git: bool) {
     let rewritten_commit =
         CommitBuilder::for_rewrite_from(tx.mut_repo(), &rewrite_settings, &initial_commit)
             .set_tree(rewritten_tree.id().clone())
-            .write();
+            .write()
+            .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     tx.commit();
     assert_eq!(rewritten_commit.parents(), vec![store.root_commit()]);
@@ -174,7 +177,8 @@ fn test_rewrite_update_missing_user(use_git: bool) {
         vec![repo.store().root_commit_id().clone()],
         repo.store().empty_tree_id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     assert_eq!(initial_commit.author().name, "(no name configured)");
     assert_eq!(initial_commit.author().email, "(no email configured)");
     assert_eq!(initial_commit.committer().name, "(no name configured)");
@@ -189,7 +193,9 @@ fn test_rewrite_update_missing_user(use_git: bool) {
         .unwrap();
     let settings = UserSettings::from_config(config);
     let rewritten_commit =
-        CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &initial_commit).write();
+        CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &initial_commit)
+            .write()
+            .unwrap();
 
     assert_eq!(rewritten_commit.author().name, "Configured User");
     assert_eq!(
@@ -226,13 +232,16 @@ fn test_commit_builder_descendants(use_git: bool) {
         vec![store.root_commit_id().clone()],
         store.empty_tree_id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     assert!(rebaser.rebase_next().unwrap().is_none());
 
     // Test with for_rewrite_from()
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit4 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit2).write();
+    let commit4 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit2)
+        .write()
+        .unwrap();
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     assert_rebased(rebaser.rebase_next().unwrap(), &commit3, &[&commit4]);
     assert!(rebaser.rebase_next().unwrap().is_none());
@@ -241,7 +250,8 @@ fn test_commit_builder_descendants(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit2)
         .generate_new_change_id()
-        .write();
+        .write()
+        .unwrap();
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     assert!(rebaser.rebase_next().unwrap().is_none());
 }

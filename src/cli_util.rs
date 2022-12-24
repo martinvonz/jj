@@ -444,7 +444,7 @@ impl WorkspaceCommandHelper {
                     .store()
                     .get_commit(new_git_head.as_ref().unwrap())?;
                 tx.mut_repo()
-                    .check_out(workspace_id, &self.settings, &new_checkout);
+                    .check_out(workspace_id, &self.settings, &new_checkout)?;
                 // The working copy was presumably updated by the git command that updated HEAD,
                 // so we just need to reset our working copy state to it without updating
                 // working copy files.
@@ -746,7 +746,7 @@ impl WorkspaceCommandHelper {
             let mut_repo = tx.mut_repo();
             let commit = CommitBuilder::for_rewrite_from(mut_repo, &self.settings, &wc_commit)
                 .set_tree(new_tree_id)
-                .write();
+                .write()?;
             mut_repo
                 .set_wc_commit(workspace_id, commit.id().clone())
                 .unwrap();

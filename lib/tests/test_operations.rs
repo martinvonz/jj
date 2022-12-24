@@ -139,7 +139,8 @@ fn test_isolation(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let initial = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![repo.store().root_commit_id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let repo = tx.commit();
 
     let mut tx1 = repo.start_transaction(&settings, "transaction 1");
@@ -153,11 +154,13 @@ fn test_isolation(use_git: bool) {
 
     let rewrite1 = CommitBuilder::for_rewrite_from(mut_repo1, &settings, &initial)
         .set_description("rewrite1")
-        .write();
+        .write()
+        .unwrap();
     mut_repo1.rebase_descendants(&settings).unwrap();
     let rewrite2 = CommitBuilder::for_rewrite_from(mut_repo2, &settings, &initial)
         .set_description("rewrite2")
-        .write();
+        .write()
+        .unwrap();
     mut_repo2.rebase_descendants(&settings).unwrap();
 
     // Neither transaction has committed yet, so each transaction sees its own

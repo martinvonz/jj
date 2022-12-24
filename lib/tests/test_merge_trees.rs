@@ -579,7 +579,8 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
         vec![repo.store().root_commit_id().clone()],
         tree_a.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let tree_b = testutils::create_tree(repo, &[(&path, "Abc\ndef\nghi\n")]);
     let commit_b = CommitBuilder::for_new_commit(
         tx.mut_repo(),
@@ -587,7 +588,8 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
         vec![commit_a.id().clone()],
         tree_b.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let tree_c = testutils::create_tree(repo, &[(&path, "Abc\ndef\nGhi\n")]);
     let commit_c = CommitBuilder::for_new_commit(
         tx.mut_repo(),
@@ -595,7 +597,8 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
         vec![commit_b.id().clone()],
         tree_c.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let tree_d = testutils::create_tree(repo, &[(&path, "abC\ndef\nghi\n")]);
     let commit_d = CommitBuilder::for_new_commit(
         tx.mut_repo(),
@@ -603,10 +606,12 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
         vec![commit_a.id().clone()],
         tree_d.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
 
-    let commit_b2 = rebase_commit(&settings, tx.mut_repo(), &commit_b, &[commit_d]);
-    let commit_c2 = rebase_commit(&settings, tx.mut_repo(), &commit_c, &[commit_b2.clone()]);
+    let commit_b2 = rebase_commit(&settings, tx.mut_repo(), &commit_b, &[commit_d]).unwrap();
+    let commit_c2 =
+        rebase_commit(&settings, tx.mut_repo(), &commit_c, &[commit_b2.clone()]).unwrap();
 
     // Test the setup: Both B and C should have conflicts.
     assert_matches!(
@@ -622,8 +627,9 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     let tree_b3 = testutils::create_tree(repo, &[(&path, "AbC\ndef\nghi\n")]);
     let commit_b3 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b2)
         .set_tree(tree_b3.id().clone())
-        .write();
-    let commit_c3 = rebase_commit(&settings, tx.mut_repo(), &commit_c2, &[commit_b3]);
+        .write()
+        .unwrap();
+    let commit_c3 = rebase_commit(&settings, tx.mut_repo(), &commit_c2, &[commit_b3]).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
 

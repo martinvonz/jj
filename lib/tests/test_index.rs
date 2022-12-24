@@ -331,7 +331,9 @@ fn test_index_commits_incremental(use_git: bool) {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_a = child_commit(tx.mut_repo(), &settings, &root_commit).write();
+    let commit_a = child_commit(tx.mut_repo(), &settings, &root_commit)
+        .write()
+        .unwrap();
     let repo = tx.commit();
 
     let index = repo.index();
@@ -339,8 +341,12 @@ fn test_index_commits_incremental(use_git: bool) {
     assert_eq!(index.num_commits(), 1 + 1);
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_b = child_commit(tx.mut_repo(), &settings, &commit_a).write();
-    let commit_c = child_commit(tx.mut_repo(), &settings, &commit_b).write();
+    let commit_b = child_commit(tx.mut_repo(), &settings, &commit_a)
+        .write()
+        .unwrap();
+    let commit_c = child_commit(tx.mut_repo(), &settings, &commit_b)
+        .write()
+        .unwrap();
     tx.commit();
 
     let repo = ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &StoreFactories::default())
@@ -378,7 +384,9 @@ fn test_index_commits_incremental_empty_transaction(use_git: bool) {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_a = child_commit(tx.mut_repo(), &settings, &root_commit).write();
+    let commit_a = child_commit(tx.mut_repo(), &settings, &root_commit)
+        .write()
+        .unwrap();
     let repo = tx.commit();
 
     let index = repo.index();
@@ -420,7 +428,9 @@ fn test_index_commits_incremental_already_indexed(use_git: bool) {
 
     let root_commit = repo.store().root_commit();
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_a = child_commit(tx.mut_repo(), &settings, &root_commit).write();
+    let commit_a = child_commit(tx.mut_repo(), &settings, &root_commit)
+        .write()
+        .unwrap();
     let repo = tx.commit();
 
     assert!(repo.index().has_id(commit_a.id()));

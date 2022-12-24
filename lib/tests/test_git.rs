@@ -178,7 +178,8 @@ fn test_import_refs_reimport() {
     let mut tx = repo.start_transaction(&settings, "test");
     let commit6 = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![jj_id(&commit2)])
-        .write();
+        .write()
+        .unwrap();
     tx.mut_repo().set_local_branch(
         "feature2".to_string(),
         RefTarget::Normal(commit6.id().clone()),
@@ -460,7 +461,8 @@ fn test_export_refs_branch_changed() {
 
     let new_commit = create_random_commit(mut_repo, &test_data.settings)
         .set_parents(vec![jj_id(&commit)])
-        .write();
+        .write()
+        .unwrap();
     mut_repo.set_local_branch(
         "main".to_string(),
         RefTarget::Normal(new_commit.id().clone()),
@@ -500,7 +502,8 @@ fn test_export_refs_current_branch_changed() {
 
     let new_commit = create_random_commit(mut_repo, &test_data.settings)
         .set_parents(vec![jj_id(&commit1)])
-        .write();
+        .write()
+        .unwrap();
     mut_repo.set_local_branch(
         "main".to_string(),
         RefTarget::Normal(new_commit.id().clone()),
@@ -1106,7 +1109,8 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let mut tx = jj_repo.start_transaction(settings, "test");
     let new_commit = create_random_commit(tx.mut_repo(), settings)
         .set_parents(vec![jj_id(&initial_git_commit)])
-        .write();
+        .write()
+        .unwrap();
     let jj_repo = tx.commit();
     PushTestSetup {
         source_repo_dir,
