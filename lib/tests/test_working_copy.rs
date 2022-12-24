@@ -32,7 +32,7 @@ use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::tree_builder::TreeBuilder;
 use jujutsu_lib::working_copy::WorkingCopy;
 use test_case::test_case;
-use testutils::{create_random_commit, TestWorkspace};
+use testutils::{write_random_commit, TestWorkspace};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -164,10 +164,7 @@ fn test_checkout_file_transitions(use_git: bool) {
             }
             Kind::GitSubmodule => {
                 let mut tx = repo.start_transaction(settings, "test");
-                let id = create_random_commit(tx.mut_repo(), settings)
-                    .write()
-                    .id()
-                    .clone();
+                let id = write_random_commit(tx.mut_repo(), settings).id().clone();
                 tx.commit();
                 TreeValue::GitSubmodule(id)
             }
@@ -691,10 +688,7 @@ fn test_gitsubmodule() {
     );
 
     let mut tx = repo.start_transaction(&settings, "create submodule commit");
-    let submodule_id = create_random_commit(tx.mut_repo(), &settings)
-        .write()
-        .id()
-        .clone();
+    let submodule_id = write_random_commit(tx.mut_repo(), &settings).id().clone();
     tx.commit();
 
     tree_builder.set(

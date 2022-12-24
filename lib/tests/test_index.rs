@@ -21,7 +21,7 @@ use jujutsu_lib::index::IndexRef;
 use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, StoreFactories};
 use jujutsu_lib::settings::UserSettings;
 use test_case::test_case;
-use testutils::{create_random_commit, CommitGraphBuilder, TestRepo};
+use testutils::{create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo};
 
 #[must_use]
 fn child_commit<'repo>(
@@ -439,7 +439,7 @@ fn create_n_commits(
 ) -> Arc<ReadonlyRepo> {
     let mut tx = repo.start_transaction(settings, "test");
     for _ in 0..num_commits {
-        create_random_commit(tx.mut_repo(), settings).write();
+        write_random_commit(tx.mut_repo(), settings);
     }
     tx.commit()
 }

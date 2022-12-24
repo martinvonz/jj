@@ -18,7 +18,9 @@ use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::rewrite::DescendantRebaser;
 use maplit::{hashmap, hashset};
 use test_case::test_case;
-use testutils::{assert_rebased, create_random_commit, CommitGraphBuilder, TestRepo};
+use testutils::{
+    assert_rebased, create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo,
+};
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
@@ -1277,7 +1279,7 @@ fn test_rebase_descendants_update_checkout(use_git: bool) {
     // |/
     // A
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_a = create_random_commit(tx.mut_repo(), &settings).write();
+    let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let commit_b = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
         .write();
@@ -1323,7 +1325,7 @@ fn test_rebase_descendants_update_checkout_abandoned(use_git: bool) {
     // |
     // A
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_a = create_random_commit(tx.mut_repo(), &settings).write();
+    let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let commit_b = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
         .write();
@@ -1376,7 +1378,7 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
     // |/
     // A
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_a = create_random_commit(tx.mut_repo(), &settings).write();
+    let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let commit_b = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
         .write();
