@@ -209,12 +209,16 @@ pub fn create_random_tree(repo: &ReadonlyRepo) -> TreeId {
 }
 
 #[must_use]
-pub fn create_random_commit(settings: &UserSettings, repo: &ReadonlyRepo) -> CommitBuilder {
-    let tree_id = create_random_tree(repo);
+pub fn create_random_commit<'repo>(
+    mut_repo: &'repo mut MutableRepo,
+    settings: &UserSettings,
+) -> CommitBuilder<'repo> {
+    let tree_id = create_random_tree(mut_repo.base_repo());
     let number = rand::random::<u32>();
     CommitBuilder::for_new_commit(
+        mut_repo,
         settings,
-        vec![repo.store().root_commit_id().clone()],
+        vec![mut_repo.store().root_commit_id().clone()],
         tree_id,
     )
     .set_description(format!("random commit {number}"))
@@ -244,8 +248,7 @@ impl<'settings, 'repo> CommitGraphBuilder<'settings, 'repo> {
     }
 
     pub fn initial_commit(&mut self) -> Commit {
-        create_random_commit(self.settings, self.mut_repo.base_repo().as_ref())
-            .write_to_repo(self.mut_repo)
+        create_random_commit(self.mut_repo, self.settings).write()
     }
 
     pub fn commit_with_parents(&mut self, parents: &[&Commit]) -> Commit {
@@ -253,9 +256,9 @@ impl<'settings, 'repo> CommitGraphBuilder<'settings, 'repo> {
             .iter()
             .map(|commit| commit.id().clone())
             .collect_vec();
-        create_random_commit(self.settings, self.mut_repo.base_repo().as_ref())
+        create_random_commit(self.mut_repo, self.settings)
             .set_parents(parent_ids)
-            .write_to_repo(self.mut_repo)
+            .write()
     }
 }
 

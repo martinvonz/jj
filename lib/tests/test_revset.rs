@@ -62,6 +62,7 @@ fn test_resolve_symbol_commit_id() {
     let mut commits = vec![];
     for i in &[1, 167, 895] {
         let commit = CommitBuilder::for_new_commit(
+            mut_repo,
             &settings,
             vec![repo.store().root_commit_id().clone()],
             repo.store().empty_tree_id().clone(),
@@ -69,7 +70,7 @@ fn test_resolve_symbol_commit_id() {
         .set_description(format!("test {i}"))
         .set_author(signature.clone())
         .set_committer(signature.clone())
-        .write_to_repo(mut_repo);
+        .write();
         commits.push(commit);
     }
     let repo = tx.commit();
@@ -287,8 +288,8 @@ fn test_resolve_symbol_checkout(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(mut_repo, &settings).write();
+    let commit2 = create_random_commit(mut_repo, &settings).write();
 
     let ws1 = WorkspaceId::new("ws1".to_string());
     let ws2 = WorkspaceId::new("ws2".to_string());
@@ -339,11 +340,11 @@ fn test_resolve_symbol_git_refs() {
     let mut_repo = tx.mut_repo();
 
     // Create some commits and refs to work with and so the repo is not empty
-    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit3 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit4 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit5 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(mut_repo, &settings).write();
+    let commit2 = create_random_commit(mut_repo, &settings).write();
+    let commit3 = create_random_commit(mut_repo, &settings).write();
+    let commit4 = create_random_commit(mut_repo, &settings).write();
+    let commit5 = create_random_commit(mut_repo, &settings).write();
     mut_repo.set_git_ref(
         "refs/heads/branch1".to_string(),
         RefTarget::Normal(commit1.id().clone()),
@@ -501,7 +502,7 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
     let mut_repo = tx.mut_repo();
 
     let root_commit = repo.store().root_commit();
-    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(mut_repo, &settings).write();
 
     // Can find the root commit
     assert_eq!(
@@ -746,19 +747,19 @@ fn test_evaluate_expression_children(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = create_random_commit(&settings, repo)
+    let commit1 = create_random_commit(mut_repo, &settings).write();
+    let commit2 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit3 = create_random_commit(&settings, repo)
+        .write();
+    let commit3 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit4 = create_random_commit(&settings, repo)
+        .write();
+    let commit4 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit5 = create_random_commit(&settings, repo)
+        .write();
+    let commit5 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit3.id().clone(), commit4.id().clone()])
-        .write_to_repo(mut_repo);
+        .write();
 
     // Can find children of the root commit
     assert_eq!(
@@ -1087,19 +1088,19 @@ fn test_evaluate_expression_descendants(use_git: bool) {
     let mut_repo = tx.mut_repo();
 
     let root_commit_id = repo.store().root_commit_id().clone();
-    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = create_random_commit(&settings, repo)
+    let commit1 = create_random_commit(mut_repo, &settings).write();
+    let commit2 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit3 = create_random_commit(&settings, repo)
+        .write();
+    let commit3 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit2.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit4 = create_random_commit(&settings, repo)
+        .write();
+    let commit4 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
-        .write_to_repo(mut_repo);
-    let commit5 = create_random_commit(&settings, repo)
+        .write();
+    let commit5 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit3.id().clone(), commit4.id().clone()])
-        .write_to_repo(mut_repo);
+        .write();
 
     // The descendants of the root commit are all the commits in the repo
     assert_eq!(
@@ -1226,10 +1227,10 @@ fn test_evaluate_expression_git_refs(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit3 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit4 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(mut_repo, &settings).write();
+    let commit2 = create_random_commit(mut_repo, &settings).write();
+    let commit3 = create_random_commit(mut_repo, &settings).write();
+    let commit4 = create_random_commit(mut_repo, &settings).write();
 
     // Can get git refs when there are none
     assert_eq!(
@@ -1295,7 +1296,7 @@ fn test_evaluate_expression_git_head(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(mut_repo, &settings).write();
 
     // Can get git head when it's not set
     assert_eq!(
@@ -1319,10 +1320,10 @@ fn test_evaluate_expression_branches(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit3 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit4 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(mut_repo, &settings).write();
+    let commit2 = create_random_commit(mut_repo, &settings).write();
+    let commit3 = create_random_commit(mut_repo, &settings).write();
+    let commit4 = create_random_commit(mut_repo, &settings).write();
 
     // Can get branches when there are none
     assert_eq!(
@@ -1388,10 +1389,10 @@ fn test_evaluate_expression_remote_branches(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit2 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit3 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
-    let commit4 = create_random_commit(&settings, repo).write_to_repo(mut_repo);
+    let commit1 = create_random_commit(mut_repo, &settings).write();
+    let commit2 = create_random_commit(mut_repo, &settings).write();
+    let commit3 = create_random_commit(mut_repo, &settings).write();
+    let commit4 = create_random_commit(mut_repo, &settings).write();
 
     // Can get branches when there are none
     assert_eq!(
@@ -1499,17 +1500,17 @@ fn test_evaluate_expression_description(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
 
-    let commit1 = create_random_commit(&settings, repo)
+    let commit1 = create_random_commit(mut_repo, &settings)
         .set_description("commit 1")
-        .write_to_repo(mut_repo);
-    let commit2 = create_random_commit(&settings, repo)
+        .write();
+    let commit2 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
         .set_description("commit 2")
-        .write_to_repo(mut_repo);
-    let commit3 = create_random_commit(&settings, repo)
+        .write();
+    let commit3 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit2.id().clone()])
         .set_description("commit 3")
-        .write_to_repo(mut_repo);
+        .write();
 
     // Can find multiple matches
     assert_eq!(
@@ -1549,29 +1550,29 @@ fn test_evaluate_expression_author(use_git: bool) {
         timestamp: MillisSinceEpoch(0),
         tz_offset: 0,
     };
-    let commit1 = create_random_commit(&settings, repo)
+    let commit1 = create_random_commit(mut_repo, &settings)
         .set_author(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
             timestamp: timestamp.clone(),
         })
-        .write_to_repo(mut_repo);
-    let commit2 = create_random_commit(&settings, repo)
+        .write();
+    let commit2 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
         .set_author(Signature {
             name: "name2".to_string(),
             email: "email2".to_string(),
             timestamp: timestamp.clone(),
         })
-        .write_to_repo(mut_repo);
-    let commit3 = create_random_commit(&settings, repo)
+        .write();
+    let commit3 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit2.id().clone()])
         .set_author(Signature {
             name: "name3".to_string(),
             email: "email3".to_string(),
             timestamp,
         })
-        .write_to_repo(mut_repo);
+        .write();
 
     // Can find multiple matches
     assert_eq!(
@@ -1620,29 +1621,29 @@ fn test_evaluate_expression_committer(use_git: bool) {
         timestamp: MillisSinceEpoch(0),
         tz_offset: 0,
     };
-    let commit1 = create_random_commit(&settings, repo)
+    let commit1 = create_random_commit(mut_repo, &settings)
         .set_committer(Signature {
             name: "name1".to_string(),
             email: "email1".to_string(),
             timestamp: timestamp.clone(),
         })
-        .write_to_repo(mut_repo);
-    let commit2 = create_random_commit(&settings, repo)
+        .write();
+    let commit2 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit1.id().clone()])
         .set_committer(Signature {
             name: "name2".to_string(),
             email: "email2".to_string(),
             timestamp: timestamp.clone(),
         })
-        .write_to_repo(mut_repo);
-    let commit3 = create_random_commit(&settings, repo)
+        .write();
+    let commit3 = create_random_commit(mut_repo, &settings)
         .set_parents(vec![commit2.id().clone()])
         .set_committer(Signature {
             name: "name3".to_string(),
             email: "email3".to_string(),
             timestamp,
         })
-        .write_to_repo(mut_repo);
+        .write();
 
     // Can find multiple matches
     assert_eq!(
@@ -1907,20 +1908,33 @@ fn test_filter_by_diff(use_git: bool) {
         ],
     );
     let commit1 = CommitBuilder::for_new_commit(
+        mut_repo,
         &settings,
         vec![repo.store().root_commit_id().clone()],
         tree1.id().clone(),
     )
-    .write_to_repo(mut_repo);
-    let commit2 =
-        CommitBuilder::for_new_commit(&settings, vec![commit1.id().clone()], tree2.id().clone())
-            .write_to_repo(mut_repo);
-    let commit3 =
-        CommitBuilder::for_new_commit(&settings, vec![commit2.id().clone()], tree3.id().clone())
-            .write_to_repo(mut_repo);
-    let commit4 =
-        CommitBuilder::for_new_commit(&settings, vec![commit3.id().clone()], tree3.id().clone())
-            .write_to_repo(mut_repo);
+    .write();
+    let commit2 = CommitBuilder::for_new_commit(
+        mut_repo,
+        &settings,
+        vec![commit1.id().clone()],
+        tree2.id().clone(),
+    )
+    .write();
+    let commit3 = CommitBuilder::for_new_commit(
+        mut_repo,
+        &settings,
+        vec![commit2.id().clone()],
+        tree3.id().clone(),
+    )
+    .write();
+    let commit4 = CommitBuilder::for_new_commit(
+        mut_repo,
+        &settings,
+        vec![commit3.id().clone()],
+        tree3.id().clone(),
+    )
+    .write();
 
     // matcher API:
     let resolve = |file_path: &RepoPath| -> Vec<CommitId> {

@@ -574,23 +574,36 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let tree_a = testutils::create_tree(repo, &[(&path, "abc\ndef\nghi\n")]);
     let commit_a = CommitBuilder::for_new_commit(
+        tx.mut_repo(),
         &settings,
         vec![repo.store().root_commit_id().clone()],
         tree_a.id().clone(),
     )
-    .write_to_repo(tx.mut_repo());
+    .write();
     let tree_b = testutils::create_tree(repo, &[(&path, "Abc\ndef\nghi\n")]);
-    let commit_b =
-        CommitBuilder::for_new_commit(&settings, vec![commit_a.id().clone()], tree_b.id().clone())
-            .write_to_repo(tx.mut_repo());
+    let commit_b = CommitBuilder::for_new_commit(
+        tx.mut_repo(),
+        &settings,
+        vec![commit_a.id().clone()],
+        tree_b.id().clone(),
+    )
+    .write();
     let tree_c = testutils::create_tree(repo, &[(&path, "Abc\ndef\nGhi\n")]);
-    let commit_c =
-        CommitBuilder::for_new_commit(&settings, vec![commit_b.id().clone()], tree_c.id().clone())
-            .write_to_repo(tx.mut_repo());
+    let commit_c = CommitBuilder::for_new_commit(
+        tx.mut_repo(),
+        &settings,
+        vec![commit_b.id().clone()],
+        tree_c.id().clone(),
+    )
+    .write();
     let tree_d = testutils::create_tree(repo, &[(&path, "abC\ndef\nghi\n")]);
-    let commit_d =
-        CommitBuilder::for_new_commit(&settings, vec![commit_a.id().clone()], tree_d.id().clone())
-            .write_to_repo(tx.mut_repo());
+    let commit_d = CommitBuilder::for_new_commit(
+        tx.mut_repo(),
+        &settings,
+        vec![commit_a.id().clone()],
+        tree_d.id().clone(),
+    )
+    .write();
 
     let commit_b2 = rebase_commit(&settings, tx.mut_repo(), &commit_b, &[commit_d]);
     let commit_c2 = rebase_commit(&settings, tx.mut_repo(), &commit_c, &[commit_b2.clone()]);
@@ -607,9 +620,9 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
 
     // Create the resolved B and rebase C on top.
     let tree_b3 = testutils::create_tree(repo, &[(&path, "AbC\ndef\nghi\n")]);
-    let commit_b3 = CommitBuilder::for_rewrite_from(&settings, &commit_b2)
+    let commit_b3 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b2)
         .set_tree(tree_b3.id().clone())
-        .write_to_repo(tx.mut_repo());
+        .write();
     let commit_c3 = rebase_commit(&settings, tx.mut_repo(), &commit_c2, &[commit_b3]);
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit();

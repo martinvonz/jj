@@ -708,11 +708,12 @@ impl MutableRepo {
     ) -> Commit {
         self.leave_commit(&workspace_id);
         let wc_commit = CommitBuilder::for_new_commit(
+            self,
             settings,
             vec![commit.id().clone()],
             commit.tree_id().clone(),
         )
-        .write_to_repo(self);
+        .write();
         self.set_wc_commit(workspace_id, wc_commit.id().clone())
             .unwrap();
         wc_commit

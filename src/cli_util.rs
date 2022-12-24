@@ -744,9 +744,9 @@ impl WorkspaceCommandHelper {
                 .repo
                 .start_transaction(&self.settings, "commit working copy");
             let mut_repo = tx.mut_repo();
-            let commit = CommitBuilder::for_rewrite_from(&self.settings, &wc_commit)
+            let commit = CommitBuilder::for_rewrite_from(mut_repo, &self.settings, &wc_commit)
                 .set_tree(new_tree_id)
-                .write_to_repo(mut_repo);
+                .write();
             mut_repo
                 .set_wc_commit(workspace_id, commit.id().clone())
                 .unwrap();

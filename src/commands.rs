@@ -1183,12 +1183,13 @@ fn cmd_checkout(
     let mut tx =
         workspace_command.start_transaction(&format!("check out commit {}", target.id().hex()));
     let commit_builder = CommitBuilder::for_new_commit(
+        tx.mut_repo(),
         ui.settings(),
         vec![target.id().clone()],
         target.tree_id().clone(),
     )
     .set_description(&args.message);
-    let new_commit = commit_builder.write_to_repo(tx.mut_repo());
+    let new_commit = commit_builder.write();
     tx.mut_repo().edit(workspace_id, &new_commit).unwrap();
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -1245,9 +1246,9 @@ Make sure they're ignored, then try again.",
             locked_working_copy.reset(&new_tree)?;
         }
     }
-    CommitBuilder::for_rewrite_from(ui.settings(), &wc_commit)
+    CommitBuilder::for_rewrite_from(tx.mut_repo(), ui.settings(), &wc_commit)
         .set_tree(new_tree_id)
-        .write_to_repo(tx.mut_repo());
+        .write();
     let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
     if num_rebased > 0 {
         writeln!(ui, "Rebased {num_rebased} descendant commits")?;
@@ -1886,9 +1887,9 @@ fn cmd_describe(
     } else {
         let mut tx =
             workspace_command.start_transaction(&format!("describe commit {}", commit.id().hex()));
-        CommitBuilder::for_rewrite_from(ui.settings(), &commit)
+        CommitBuilder::for_rewrite_from(tx.mut_repo(), ui.settings(), &commit)
             .set_description(description)
-            .write_to_repo(tx.mut_repo());
+            .write();
         workspace_command.finish_transaction(ui, tx)?;
     }
     Ok(())
@@ -1904,7 +1905,8 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
 
-    let mut commit_builder = CommitBuilder::for_rewrite_from(ui.settings(), &commit);
+    let mut tx = workspace_command.start_transaction(&format!("commit {}", commit.id().hex()));
+    let mut commit_builder = CommitBuilder::for_rewrite_from(tx.mut_repo(), ui.settings(), &commit);
     let description = if let Some(message) = &args.message {
         message.into()
     } else {
@@ -1912,19 +1914,19 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
         edit_description(ui, workspace_command.repo(), &template)?
     };
     commit_builder = commit_builder.set_description(description);
-    let mut tx = workspace_command.start_transaction(&format!("commit {}", commit.id().hex()));
-    let new_commit = commit_builder.write_to_repo(tx.mut_repo());
+    let new_commit = commit_builder.write();
     let workspace_ids = tx
         .mut_repo()
         .view()
         .workspaces_for_wc_commit_id(commit.id());
     if !workspace_ids.is_empty() {
         let new_checkout = CommitBuilder::for_new_commit(
+            tx.mut_repo(),
             ui.settings(),
             vec![new_commit.id().clone()],
             new_commit.tree_id().clone(),
         )
-        .write_to_repo(tx.mut_repo());
+        .write();
         for workspace_id in workspace_ids {
             tx.mut_repo().edit(workspace_id, &new_checkout).unwrap();
         }
@@ -1943,9 +1945,9 @@ fn cmd_duplicate(
     let mut tx = workspace_command
         .start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
     let mut_repo = tx.mut_repo();
-    let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &predecessor)
+    let new_commit = CommitBuilder::for_rewrite_from(mut_repo, ui.settings(), &predecessor)
         .generate_new_change_id()
-        .write_to_repo(mut_repo);
+        .write();
     ui.write("Created: ")?;
     write_commit_summary(
         ui.stdout_formatter().as_mut(),
@@ -2031,10 +2033,14 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
     let parent_ids = commits.iter().map(|c| c.id().clone()).collect();
     let mut tx = workspace_command.start_transaction("new empty commit");
     let merged_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commits);
-    let new_commit =
-        CommitBuilder::for_new_commit(ui.settings(), parent_ids, merged_tree.id().clone())
-            .set_description(&args.message)
-            .write_to_repo(tx.mut_repo());
+    let new_commit = CommitBuilder::for_new_commit(
+        tx.mut_repo(),
+        ui.settings(),
+        parent_ids,
+        merged_tree.id().clone(),
+    )
+    .set_description(&args.message)
+    .write();
     let workspace_id = workspace_command.workspace_id();
     tx.mut_repo().edit(workspace_id, &new_commit).unwrap();
     workspace_command.finish_transaction(ui, tx)?;
@@ -2123,9 +2129,9 @@ from the source will be moved into the destination.
     if abandon_source {
         mut_repo.record_abandoned_commit(source.id().clone());
     } else {
-        CommitBuilder::for_rewrite_from(ui.settings(), &source)
+        CommitBuilder::for_rewrite_from(mut_repo, ui.settings(), &source)
             .set_tree(new_source_tree_id)
-            .write_to_repo(mut_repo);
+            .write();
     }
     if repo.index().is_ancestor(source.id(), destination.id()) {
         // If we're moving changes to a descendant, first rebase descendants onto the
@@ -2146,10 +2152,10 @@ from the source will be moved into the destination.
         &destination,
         abandon_source,
     )?;
-    CommitBuilder::for_rewrite_from(ui.settings(), &destination)
+    CommitBuilder::for_rewrite_from(mut_repo, ui.settings(), &destination)
         .set_tree(new_destination_tree_id)
         .set_description(description)
-        .write_to_repo(mut_repo);
+        .write();
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -2200,18 +2206,18 @@ from the source will be moved into the parent.
     let mut_repo = tx.mut_repo();
     let description =
         combine_messages(ui, workspace_command.repo(), &commit, parent, abandon_child)?;
-    let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), parent)
+    let new_parent = CommitBuilder::for_rewrite_from(mut_repo, ui.settings(), parent)
         .set_tree(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
         .set_description(description)
-        .write_to_repo(mut_repo);
+        .write();
     if abandon_child {
         mut_repo.record_abandoned_commit(commit.id().clone());
     } else {
         // Commit the remainder on top of the new parent commit.
-        CommitBuilder::for_rewrite_from(ui.settings(), &commit)
+        CommitBuilder::for_rewrite_from(mut_repo, ui.settings(), &commit)
             .set_parents(vec![new_parent.id().clone()])
-            .write_to_repo(mut_repo);
+            .write();
     }
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -2266,19 +2272,19 @@ aborted.
         tx.mut_repo().record_abandoned_commit(parent.id().clone());
         let description = combine_messages(ui, workspace_command.repo(), parent, &commit, true)?;
         // Commit the new child on top of the parent's parents.
-        CommitBuilder::for_rewrite_from(ui.settings(), &commit)
+        CommitBuilder::for_rewrite_from(tx.mut_repo(), ui.settings(), &commit)
             .set_parents(parent.parent_ids().to_vec())
             .set_description(description)
-            .write_to_repo(tx.mut_repo());
+            .write();
     } else {
-        let new_parent = CommitBuilder::for_rewrite_from(ui.settings(), parent)
+        let new_parent = CommitBuilder::for_rewrite_from(tx.mut_repo(), ui.settings(), parent)
             .set_tree(new_parent_tree_id)
             .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
-            .write_to_repo(tx.mut_repo());
+            .write();
         // Commit the new child on top of the new parent.
-        CommitBuilder::for_rewrite_from(ui.settings(), &commit)
+        CommitBuilder::for_rewrite_from(tx.mut_repo(), ui.settings(), &commit)
             .set_parents(vec![new_parent.id().clone()])
-            .write_to_repo(tx.mut_repo());
+            .write();
     }
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -2331,9 +2337,9 @@ fn cmd_resolve(
         commit.id().hex()
     ));
     let new_tree_id = workspace_command.run_mergetool(ui, &commit.tree(), repo_path)?;
-    CommitBuilder::for_rewrite_from(ui.settings(), &commit)
+    CommitBuilder::for_rewrite_from(tx.mut_repo(), ui.settings(), &commit)
         .set_tree(new_tree_id)
-        .write_to_repo(tx.mut_repo());
+        .write();
     workspace_command.finish_transaction(ui, tx)
 }
 
@@ -2378,9 +2384,9 @@ fn cmd_restore(
         let mut tx = workspace_command
             .start_transaction(&format!("restore into commit {}", to_commit.id().hex()));
         let mut_repo = tx.mut_repo();
-        let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &to_commit)
+        let new_commit = CommitBuilder::for_rewrite_from(mut_repo, ui.settings(), &to_commit)
             .set_tree(tree_id)
-            .write_to_repo(mut_repo);
+            .write();
         ui.write("Created ")?;
         write_commit_summary(
             ui.stdout_formatter().as_mut(),
@@ -2441,9 +2447,9 @@ don't make any changes, then the operation will be aborted.",
         let mut tx = workspace_command
             .start_transaction(&format!("edit commit {}", target_commit.id().hex()));
         let mut_repo = tx.mut_repo();
-        let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &target_commit)
+        let new_commit = CommitBuilder::for_rewrite_from(mut_repo, ui.settings(), &target_commit)
             .set_tree(tree_id)
-            .write_to_repo(mut_repo);
+            .write();
         ui.write("Created ")?;
         write_commit_summary(
             ui.stdout_formatter().as_mut(),
@@ -2552,10 +2558,10 @@ don't make any changes, then the operation will be aborted.
             &middle_tree,
         )?;
         let first_description = edit_description(ui, tx.base_repo(), &first_template)?;
-        let first_commit = CommitBuilder::for_rewrite_from(ui.settings(), &commit)
+        let first_commit = CommitBuilder::for_rewrite_from(tx.mut_repo(), ui.settings(), &commit)
             .set_tree(tree_id)
             .set_description(first_description)
-            .write_to_repo(tx.mut_repo());
+            .write();
         let second_template = description_template_for_cmd_split(
             &workspace_command,
             "Enter commit description for the second part (child).",
@@ -2564,12 +2570,12 @@ don't make any changes, then the operation will be aborted.
             &commit.tree(),
         )?;
         let second_description = edit_description(ui, tx.base_repo(), &second_template)?;
-        let second_commit = CommitBuilder::for_rewrite_from(ui.settings(), &commit)
+        let second_commit = CommitBuilder::for_rewrite_from(tx.mut_repo(), ui.settings(), &commit)
             .set_parents(vec![first_commit.id().clone()])
             .set_tree(commit.tree_id().clone())
             .generate_new_change_id()
             .set_description(second_description)
-            .write_to_repo(tx.mut_repo());
+            .write();
         let mut rebaser = DescendantRebaser::new(
             ui.settings(),
             tx.mut_repo(),

@@ -42,9 +42,9 @@ fn run(ui: &mut Ui) -> Result<(), CommandError> {
             let mut workspace_command = command_helper.workspace_helper(ui)?;
             let commit = workspace_command.resolve_single_rev(&args.revision)?;
             let mut tx = workspace_command.start_transaction("Frobnicate");
-            let new_commit = CommitBuilder::for_rewrite_from(ui.settings(), &commit)
+            let new_commit = CommitBuilder::for_rewrite_from(tx.mut_repo(), ui.settings(), &commit)
                 .set_description("Frobnicated!")
-                .write_to_repo(tx.mut_repo());
+                .write();
             workspace_command.finish_transaction(ui, tx)?;
             writeln!(
                 ui,
