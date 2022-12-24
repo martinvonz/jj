@@ -82,16 +82,16 @@ impl Store {
         Ok(data)
     }
 
-    pub fn write_commit(self: &Arc<Self>, commit: backend::Commit) -> Commit {
+    pub fn write_commit(self: &Arc<Self>, commit: backend::Commit) -> BackendResult<Commit> {
         assert!(!commit.parents.is_empty());
-        let commit_id = self.backend.write_commit(&commit).unwrap();
+        let commit_id = self.backend.write_commit(&commit)?;
         let data = Arc::new(commit);
         {
             let mut write_locked_cache = self.commit_cache.write().unwrap();
             write_locked_cache.insert(commit_id.clone(), data.clone());
         }
 
-        Commit::new(self.clone(), commit_id, data)
+        Ok(Commit::new(self.clone(), commit_id, data))
     }
 
     pub fn get_tree(self: &Arc<Self>, dir: &RepoPath, id: &TreeId) -> BackendResult<Tree> {

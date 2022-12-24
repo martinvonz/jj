@@ -101,7 +101,8 @@ fn test_bad_locking_children(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let initial = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![repo.store().root_commit_id().clone()])
-        .write();
+        .write()
+        .unwrap();
     tx.commit();
 
     // Simulate a write of a commit that happens on one machine
@@ -117,7 +118,8 @@ fn test_bad_locking_children(use_git: bool) {
     let mut machine1_tx = machine1_repo.start_transaction(&settings, "test");
     let child1 = create_random_commit(machine1_tx.mut_repo(), &settings)
         .set_parents(vec![initial.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     machine1_tx.commit();
 
     // Simulate a write of a commit that happens on another machine
@@ -133,7 +135,8 @@ fn test_bad_locking_children(use_git: bool) {
     let mut machine2_tx = machine2_repo.start_transaction(&settings, "test");
     let child2 = create_random_commit(machine2_tx.mut_repo(), &settings)
         .set_parents(vec![initial.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     machine2_tx.commit();
 
     // Simulate that the distributed file system now has received the changes from
@@ -172,7 +175,8 @@ fn test_bad_locking_interrupted(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let initial = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![repo.store().root_commit_id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let repo = tx.commit();
 
     // Simulate a crash that resulted in the old op-head left in place. We simulate
@@ -185,7 +189,8 @@ fn test_bad_locking_interrupted(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![initial.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let op_id = tx.commit().operation().id().clone();
 
     copy_directory(backup_path.path(), &op_heads_dir);

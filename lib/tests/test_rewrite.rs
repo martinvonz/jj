@@ -796,7 +796,8 @@ fn test_rebase_descendants_repeated(use_git: bool) {
 
     let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
         .set_description("b2")
-        .write();
+        .write()
+        .unwrap();
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     let commit_c2 = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_b2]);
     assert!(rebaser.rebase_next().unwrap().is_none());
@@ -817,7 +818,8 @@ fn test_rebase_descendants_repeated(use_git: bool) {
     // Now mark B3 as rewritten from B2 and rebase descendants again.
     let commit_b3 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b2)
         .set_description("b3")
-        .write();
+        .write()
+        .unwrap();
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     let commit_c3 = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c2, &[&commit_b3]);
     assert!(rebaser.rebase_next().unwrap().is_none());
@@ -856,7 +858,8 @@ fn test_rebase_descendants_contents(use_git: bool) {
         vec![repo.store().root_commit_id().clone()],
         tree1.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let path2 = RepoPath::from_internal_string("file2");
     let tree2 = testutils::create_tree(repo, &[(&path2, "content")]);
     let commit_b = CommitBuilder::for_new_commit(
@@ -865,7 +868,8 @@ fn test_rebase_descendants_contents(use_git: bool) {
         vec![commit_a.id().clone()],
         tree2.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let path3 = RepoPath::from_internal_string("file3");
     let tree3 = testutils::create_tree(repo, &[(&path3, "content")]);
     let commit_c = CommitBuilder::for_new_commit(
@@ -874,7 +878,8 @@ fn test_rebase_descendants_contents(use_git: bool) {
         vec![commit_b.id().clone()],
         tree3.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let path4 = RepoPath::from_internal_string("file4");
     let tree4 = testutils::create_tree(repo, &[(&path4, "content")]);
     let commit_d = CommitBuilder::for_new_commit(
@@ -883,7 +888,8 @@ fn test_rebase_descendants_contents(use_git: bool) {
         vec![commit_a.id().clone()],
         tree4.id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
 
     let mut rebaser = DescendantRebaser::new(
         &settings,
@@ -936,7 +942,9 @@ fn test_rebase_descendants_basic_branch_update() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b).write();
+    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+        .write()
+        .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
@@ -975,8 +983,12 @@ fn test_rebase_descendants_branch_move_two_steps() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b).write();
-    let commit_c2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_c).write();
+    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+        .write()
+        .unwrap();
+    let commit_c2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_c)
+        .write()
+        .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let heads = tx.mut_repo().view().heads();
     assert_eq!(heads.len(), 1);
@@ -1020,7 +1032,9 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b).write();
+    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+        .write()
+        .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
@@ -1101,15 +1115,19 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b).write();
+    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+        .write()
+        .unwrap();
     // Different description so they're not the same commit
     let commit_b3 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
         .set_description("different")
-        .write();
+        .write()
+        .unwrap();
     // Different description so they're not the same commit
     let commit_b4 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
         .set_description("more different")
-        .write();
+        .write()
+        .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
@@ -1157,16 +1175,22 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_a2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_a).write();
+    let commit_a2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_a)
+        .write()
+        .unwrap();
     // Different description so they're not the same commit
     let commit_a3 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_a)
         .set_description("different")
-        .write();
-    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b).write();
+        .write()
+        .unwrap();
+    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+        .write()
+        .unwrap();
     // Different description so they're not the same commit
     let commit_b3 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
         .set_description("different")
-        .write();
+        .write()
+        .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
@@ -1222,7 +1246,8 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     let mut tx = repo.start_transaction(&settings, "test");
     let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
         .set_parents(vec![commit_c.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     assert_eq!(
         tx.mut_repo().get_local_branch("main"),
@@ -1282,7 +1307,8 @@ fn test_rebase_descendants_update_checkout(use_git: bool) {
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let commit_b = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let ws1_id = WorkspaceId::new("ws1".to_string());
     let ws2_id = WorkspaceId::new("ws2".to_string());
     let ws3_id = WorkspaceId::new("ws3".to_string());
@@ -1300,7 +1326,8 @@ fn test_rebase_descendants_update_checkout(use_git: bool) {
     let mut tx = repo.start_transaction(&settings, "test");
     let commit_c = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
         .set_description("C")
-        .write();
+        .write()
+        .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit();
 
@@ -1328,7 +1355,8 @@ fn test_rebase_descendants_update_checkout_abandoned(use_git: bool) {
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let commit_b = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let ws1_id = WorkspaceId::new("ws1".to_string());
     let ws2_id = WorkspaceId::new("ws2".to_string());
     let ws3_id = WorkspaceId::new("ws3".to_string());
@@ -1381,13 +1409,16 @@ fn test_rebase_descendants_update_checkout_abandoned_merge(use_git: bool) {
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let commit_b = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let commit_c = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let commit_d = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_b.id().clone(), commit_c.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let workspace_id = WorkspaceId::default();
     tx.mut_repo()
         .set_wc_commit(workspace_id.clone(), commit_d.id().clone())

@@ -225,7 +225,7 @@ pub fn create_random_commit<'repo>(
 }
 
 pub fn write_random_commit(mut_repo: &mut MutableRepo, settings: &UserSettings) -> Commit {
-    create_random_commit(mut_repo, settings).write()
+    create_random_commit(mut_repo, settings).write().unwrap()
 }
 
 pub fn write_working_copy_file(workspace_root: &Path, path: &RepoPath, contents: &str) {
@@ -263,6 +263,7 @@ impl<'settings, 'repo> CommitGraphBuilder<'settings, 'repo> {
         create_random_commit(self.mut_repo, self.settings)
             .set_parents(parent_ids)
             .write()
+            .unwrap()
     }
 }
 

@@ -24,7 +24,7 @@ use once_cell::sync::OnceCell;
 use thiserror::Error;
 
 use self::dirty_cell::DirtyCell;
-use crate::backend::{Backend, BackendError, ChangeId, CommitId};
+use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
@@ -617,10 +617,10 @@ impl MutableRepo {
         (self.index, self.view.into_inner())
     }
 
-    pub fn write_commit(&mut self, commit: backend::Commit) -> Commit {
-        let commit = self.store().write_commit(commit);
+    pub fn write_commit(&mut self, commit: backend::Commit) -> BackendResult<Commit> {
+        let commit = self.store().write_commit(commit)?;
         self.add_head(&commit);
-        commit
+        Ok(commit)
     }
 
     /// Record a commit as having been rewritten in this transaction. This
@@ -705,7 +705,7 @@ impl MutableRepo {
         workspace_id: WorkspaceId,
         settings: &UserSettings,
         commit: &Commit,
-    ) -> Commit {
+    ) -> BackendResult<Commit> {
         self.leave_commit(&workspace_id);
         let wc_commit = CommitBuilder::for_new_commit(
             self,
@@ -713,10 +713,10 @@ impl MutableRepo {
             vec![commit.id().clone()],
             commit.tree_id().clone(),
         )
-        .write();
+        .write()?;
         self.set_wc_commit(workspace_id, wc_commit.id().clone())
             .unwrap();
-        wc_commit
+        Ok(wc_commit)
     }
 
     pub fn edit(

@@ -463,13 +463,15 @@ fn test_merge_views_divergent() {
     let mut tx1 = repo.start_transaction(&settings, "test");
     let commit_a2 = CommitBuilder::for_rewrite_from(tx1.mut_repo(), &settings, &commit_a)
         .set_description("A2")
-        .write();
+        .write()
+        .unwrap();
     tx1.mut_repo().rebase_descendants(&settings).unwrap();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let commit_a3 = CommitBuilder::for_rewrite_from(tx2.mut_repo(), &settings, &commit_a)
         .set_description("A3")
-        .write();
+        .write()
+        .unwrap();
     tx2.mut_repo().rebase_descendants(&settings).unwrap();
 
     let repo = commit_transactions(&settings, vec![tx1, tx2]);
@@ -496,12 +498,14 @@ fn test_merge_views_child_on_rewritten(child_first: bool) {
     let mut tx1 = repo.start_transaction(&settings, "test");
     let commit_b = create_random_commit(tx1.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
-        .write();
+        .write()
+        .unwrap();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let commit_a2 = CommitBuilder::for_rewrite_from(tx2.mut_repo(), &settings, &commit_a)
         .set_description("A2")
-        .write();
+        .write()
+        .unwrap();
     tx2.mut_repo().rebase_descendants(&settings).unwrap();
 
     let repo = if child_first {
@@ -535,19 +539,22 @@ fn test_merge_views_child_on_rewritten_divergent(on_rewritten: bool, child_first
     let commit_a2 = write_random_commit(tx.mut_repo(), &settings);
     let commit_a3 = create_random_commit(tx.mut_repo(), &settings)
         .set_change_id(commit_a2.change_id().clone())
-        .write();
+        .write()
+        .unwrap();
     let repo = tx.commit();
 
     let mut tx1 = repo.start_transaction(&settings, "test");
     let parent = if on_rewritten { &commit_a2 } else { &commit_a3 };
     let commit_b = create_random_commit(tx1.mut_repo(), &settings)
         .set_parents(vec![parent.id().clone()])
-        .write();
+        .write()
+        .unwrap();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     let commit_a4 = CommitBuilder::for_rewrite_from(tx2.mut_repo(), &settings, &commit_a2)
         .set_description("A4")
-        .write();
+        .write()
+        .unwrap();
     tx2.mut_repo().rebase_descendants(&settings).unwrap();
 
     let repo = if child_first {
@@ -586,13 +593,15 @@ fn test_merge_views_child_on_abandoned(child_first: bool) {
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let commit_b = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let repo = tx.commit();
 
     let mut tx1 = repo.start_transaction(&settings, "test");
     let commit_c = create_random_commit(tx1.mut_repo(), &settings)
         .set_parents(vec![commit_b.id().clone()])
-        .write();
+        .write()
+        .unwrap();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
     tx2.mut_repo()

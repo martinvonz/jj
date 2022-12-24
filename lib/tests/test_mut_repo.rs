@@ -55,7 +55,8 @@ fn test_checkout(use_git: bool) {
     let ws_id = WorkspaceId::default();
     let actual_checkout = tx
         .mut_repo()
-        .check_out(ws_id.clone(), &settings, &requested_checkout);
+        .check_out(ws_id.clone(), &settings, &requested_checkout)
+        .unwrap();
     assert_eq!(actual_checkout.tree_id(), requested_checkout.tree_id());
     assert_eq!(actual_checkout.parents().len(), 1);
     assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
@@ -107,7 +108,8 @@ fn test_checkout_previous_empty(use_git: bool) {
         vec![repo.store().root_commit_id().clone()],
         repo.store().empty_tree_id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
     let repo = tx.commit();
@@ -138,7 +140,8 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
         repo.store().empty_tree_id().clone(),
     )
     .set_description("not empty")
-    .write();
+    .write()
+    .unwrap();
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
     let repo = tx.commit();
@@ -168,14 +171,16 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
         vec![repo.store().root_commit_id().clone()],
         repo.store().empty_tree_id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let old_child = CommitBuilder::for_new_commit(
         mut_repo,
         &settings,
         vec![old_checkout.id().clone()],
         old_checkout.tree_id().clone(),
     )
-    .write();
+    .write()
+    .unwrap();
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
     let repo = tx.commit();
@@ -298,10 +303,12 @@ fn test_add_head_not_immediate_child(use_git: bool) {
     let rewritten = create_random_commit(tx.mut_repo(), &settings)
         .set_change_id(initial.change_id().clone())
         .set_predecessors(vec![initial.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     let child = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![rewritten.id().clone()])
-        .write();
+        .write()
+        .unwrap();
     drop(tx);
 
     let index_stats = repo.index().stats();

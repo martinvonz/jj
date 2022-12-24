@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::backend::Backend;
+use crate::backend::{Backend, BackendError};
 use crate::git_backend::GitBackend;
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::OpHeadsStore;
@@ -35,6 +35,8 @@ pub enum WorkspaceInitError {
     DestinationExists(PathBuf),
     #[error("Repo path could not be interpreted as Unicode text")]
     NonUnicodePath,
+    #[error(transparent)]
+    BackendError(#[from] BackendError),
     #[error(transparent)]
     Path(#[from] PathError),
 }
@@ -90,7 +92,7 @@ fn init_working_copy(
         workspace_id.clone(),
         user_settings,
         &repo.store().root_commit(),
-    );
+    )?;
     let repo = tx.commit();
 
     let working_copy = WorkingCopy::init(
