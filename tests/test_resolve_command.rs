@@ -85,7 +85,11 @@ fn test_resolution() {
         ["dump editor0", "write\nresolution\n"].join("\0"),
     )
     .unwrap();
-    test_env.jj_cmd_success(&repo_path, &["resolve"]);
+    insta::assert_snapshot!(
+    test_env.jj_cmd_success(&repo_path, &["resolve"]), @r###"
+    Working copy now at: e069f0736a79 conflict
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
     "###);
@@ -167,14 +171,19 @@ conflict
         .join("\0"),
     )
     .unwrap();
-    test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "resolve",
-            "--config-toml",
-            "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
-        ],
-    );
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(
+            &repo_path,
+            &[
+                "resolve",
+                "--config-toml",
+                "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
+            ],
+        ),
+        @r###"
+    Working copy now at: 0bb40c908c8b conflict
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(), @r###"
     <<<<<<<
@@ -225,7 +234,11 @@ conflict
         .join("\0"),
     )
     .unwrap();
-    test_env.jj_cmd_success(&repo_path, &["resolve"]);
+    insta::assert_snapshot!(
+    test_env.jj_cmd_success(&repo_path, &["resolve"]), @r###"
+    Working copy now at: 95418cb82ab1 conflict
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor3")).unwrap(), @r###"
     "###);
@@ -520,7 +533,11 @@ fn test_multiple_conflicts() {
 
     // Check that we can manually pick which of the conflicts to resolve first
     std::fs::write(&editor_script, "expect\n\0write\nresolution file2\n").unwrap();
-    test_env.jj_cmd_success(&repo_path, &["resolve", "file2"]);
+    insta::assert_snapshot!(
+    test_env.jj_cmd_success(&repo_path, &["resolve", "file2"]), @r###"
+    Working copy now at: 06cafc2b5489 conflict
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
     Resolved conflict in file2:

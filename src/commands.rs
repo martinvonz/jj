@@ -2383,33 +2383,21 @@ fn cmd_resolve(
     let tree = commit.tree();
     let conflicts = tree.conflicts_matching(matcher.as_ref());
     if conflicts.is_empty() {
-        return Err(CommandError::CliError(
-            "No conflicts found ".to_string()
-                + (if args.paths.is_empty() {
-                    "at this revision"
-                } else {
-                    "at the given path(s)"
-                }),
-        ));
+        return Err(CommandError::CliError(format!(
+            "No conflicts found {}",
+            if args.paths.is_empty() {
+                "at this revision"
+            } else {
+                "at the given path(s)"
+            }
+        )));
     }
     if args.list {
-        let mut formatter = ui.stdout_formatter();
-        let formatter = formatter.as_mut();
-        for (repo_path, _conflict_id) in conflicts {
-            // TODO: Similar to `jj diff --summary`, insert a few letters
-            // before the filename to indicate the kind of conflict.
-            // E.g. we could have a letter per add : `FF` is a usual conflict
-            // between two versions of a file, `FD` is a file vs directory,
-            // `FFF` for a merge of three conflicting versions. Additionally,
-            // if (# removes) + 1 > (# adds), this indicates the file was deleted
-            // in some versions of the conflict. Perhaps that should be `R` for removed.
-            writeln!(
-                formatter,
-                "{}",
-                &workspace_command.format_file_path(&repo_path)
-            )?;
-        }
-        return Ok(());
+        return print_conflicted_files(
+            &conflicts,
+            ui.stdout_formatter().as_mut(),
+            &workspace_command,
+        );
     };
 
     let (repo_path, _) = conflicts.get(0).unwrap();
@@ -2424,6 +2412,28 @@ fn cmd_resolve(
         .set_tree(new_tree_id)
         .write()?;
     workspace_command.finish_transaction(ui, tx)
+}
+
+fn print_conflicted_files(
+    conflicts: &[(RepoPath, jujutsu_lib::backend::ConflictId)],
+    formatter: &mut dyn Formatter,
+    workspace_command: &WorkspaceCommandHelper,
+) -> Result<(), CommandError> {
+    for (repo_path, _conflict_id) in conflicts.iter() {
+        // TODO: Similar to `jj diff --summary`, insert a few letters
+        // before the filename to indicate the kind of conflict.
+        // E.g. we could have a letter per add : `FF` is a usual conflict
+        // between two versions of a file, `FD` is a file vs directory,
+        // `FFF` for a merge of three conflicting versions. Additionally,
+        // if (# removes) + 1 > (# adds), this indicates the file was deleted
+        // in some versions of the conflict. Perhaps that should be `R` for removed.
+        writeln!(
+            formatter,
+            "{}",
+            &workspace_command.format_file_path(repo_path)
+        )?;
+    }
+    Ok(())
 }
 
 fn cmd_restore(
