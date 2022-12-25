@@ -1182,13 +1182,14 @@ fn cmd_checkout(
     let workspace_id = workspace_command.workspace_id();
     let mut tx =
         workspace_command.start_transaction(&format!("check out commit {}", target.id().hex()));
-    let commit_builder = CommitBuilder::for_new_commit(
-        tx.mut_repo(),
-        ui.settings(),
-        vec![target.id().clone()],
-        target.tree_id().clone(),
-    )
-    .set_description(&args.message);
+    let commit_builder = tx
+        .mut_repo()
+        .new_commit(
+            ui.settings(),
+            vec![target.id().clone()],
+            target.tree_id().clone(),
+        )
+        .set_description(&args.message);
     let new_commit = commit_builder.write()?;
     tx.mut_repo().edit(workspace_id, &new_commit).unwrap();
     workspace_command.finish_transaction(ui, tx)?;
@@ -1920,13 +1921,14 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
         .view()
         .workspaces_for_wc_commit_id(commit.id());
     if !workspace_ids.is_empty() {
-        let new_checkout = CommitBuilder::for_new_commit(
-            tx.mut_repo(),
-            ui.settings(),
-            vec![new_commit.id().clone()],
-            new_commit.tree_id().clone(),
-        )
-        .write()?;
+        let new_checkout = tx
+            .mut_repo()
+            .new_commit(
+                ui.settings(),
+                vec![new_commit.id().clone()],
+                new_commit.tree_id().clone(),
+            )
+            .write()?;
         for workspace_id in workspace_ids {
             tx.mut_repo().edit(workspace_id, &new_checkout).unwrap();
         }
@@ -2033,14 +2035,11 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
     let parent_ids = commits.iter().map(|c| c.id().clone()).collect();
     let mut tx = workspace_command.start_transaction("new empty commit");
     let merged_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commits);
-    let new_commit = CommitBuilder::for_new_commit(
-        tx.mut_repo(),
-        ui.settings(),
-        parent_ids,
-        merged_tree.id().clone(),
-    )
-    .set_description(&args.message)
-    .write()?;
+    let new_commit = tx
+        .mut_repo()
+        .new_commit(ui.settings(), parent_ids, merged_tree.id().clone())
+        .set_description(&args.message)
+        .write()?;
     let workspace_id = workspace_command.workspace_id();
     tx.mut_repo().edit(workspace_id, &new_commit).unwrap();
     workspace_command.finish_transaction(ui, tx)?;

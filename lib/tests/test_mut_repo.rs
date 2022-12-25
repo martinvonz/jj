@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use maplit::hashset;
 use test_case::test_case;
@@ -102,14 +101,14 @@ fn test_checkout_previous_empty(use_git: bool) {
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
-    let old_checkout = CommitBuilder::for_new_commit(
-        mut_repo,
-        &settings,
-        vec![repo.store().root_commit_id().clone()],
-        repo.store().empty_tree_id().clone(),
-    )
-    .write()
-    .unwrap();
+    let old_checkout = mut_repo
+        .new_commit(
+            &settings,
+            vec![repo.store().root_commit_id().clone()],
+            repo.store().empty_tree_id().clone(),
+        )
+        .write()
+        .unwrap();
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
     let repo = tx.commit();
@@ -133,15 +132,15 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
-    let old_checkout = CommitBuilder::for_new_commit(
-        mut_repo,
-        &settings,
-        vec![repo.store().root_commit_id().clone()],
-        repo.store().empty_tree_id().clone(),
-    )
-    .set_description("not empty")
-    .write()
-    .unwrap();
+    let old_checkout = mut_repo
+        .new_commit(
+            &settings,
+            vec![repo.store().root_commit_id().clone()],
+            repo.store().empty_tree_id().clone(),
+        )
+        .set_description("not empty")
+        .write()
+        .unwrap();
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
     let repo = tx.commit();
@@ -165,22 +164,22 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
-    let old_checkout = CommitBuilder::for_new_commit(
-        mut_repo,
-        &settings,
-        vec![repo.store().root_commit_id().clone()],
-        repo.store().empty_tree_id().clone(),
-    )
-    .write()
-    .unwrap();
-    let old_child = CommitBuilder::for_new_commit(
-        mut_repo,
-        &settings,
-        vec![old_checkout.id().clone()],
-        old_checkout.tree_id().clone(),
-    )
-    .write()
-    .unwrap();
+    let old_checkout = mut_repo
+        .new_commit(
+            &settings,
+            vec![repo.store().root_commit_id().clone()],
+            repo.store().empty_tree_id().clone(),
+        )
+        .write()
+        .unwrap();
+    let old_child = mut_repo
+        .new_commit(
+            &settings,
+            vec![old_checkout.id().clone()],
+            old_checkout.tree_id().clone(),
+        )
+        .write()
+        .unwrap();
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
     let repo = tx.commit();

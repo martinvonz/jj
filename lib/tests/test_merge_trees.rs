@@ -573,41 +573,33 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
     let path = RepoPath::from_internal_string("dir/file");
     let mut tx = repo.start_transaction(&settings, "test");
     let tree_a = testutils::create_tree(repo, &[(&path, "abc\ndef\nghi\n")]);
-    let commit_a = CommitBuilder::for_new_commit(
-        tx.mut_repo(),
-        &settings,
-        vec![repo.store().root_commit_id().clone()],
-        tree_a.id().clone(),
-    )
-    .write()
-    .unwrap();
+    let commit_a = tx
+        .mut_repo()
+        .new_commit(
+            &settings,
+            vec![repo.store().root_commit_id().clone()],
+            tree_a.id().clone(),
+        )
+        .write()
+        .unwrap();
     let tree_b = testutils::create_tree(repo, &[(&path, "Abc\ndef\nghi\n")]);
-    let commit_b = CommitBuilder::for_new_commit(
-        tx.mut_repo(),
-        &settings,
-        vec![commit_a.id().clone()],
-        tree_b.id().clone(),
-    )
-    .write()
-    .unwrap();
+    let commit_b = tx
+        .mut_repo()
+        .new_commit(&settings, vec![commit_a.id().clone()], tree_b.id().clone())
+        .write()
+        .unwrap();
     let tree_c = testutils::create_tree(repo, &[(&path, "Abc\ndef\nGhi\n")]);
-    let commit_c = CommitBuilder::for_new_commit(
-        tx.mut_repo(),
-        &settings,
-        vec![commit_b.id().clone()],
-        tree_c.id().clone(),
-    )
-    .write()
-    .unwrap();
+    let commit_c = tx
+        .mut_repo()
+        .new_commit(&settings, vec![commit_b.id().clone()], tree_c.id().clone())
+        .write()
+        .unwrap();
     let tree_d = testutils::create_tree(repo, &[(&path, "abC\ndef\nghi\n")]);
-    let commit_d = CommitBuilder::for_new_commit(
-        tx.mut_repo(),
-        &settings,
-        vec![commit_a.id().clone()],
-        tree_d.id().clone(),
-    )
-    .write()
-    .unwrap();
+    let commit_d = tx
+        .mut_repo()
+        .new_commit(&settings, vec![commit_a.id().clone()], tree_d.id().clone())
+        .write()
+        .unwrap();
 
     let commit_b2 = rebase_commit(&settings, tx.mut_repo(), &commit_b, &[commit_d]).unwrap();
     let commit_c2 =

@@ -24,7 +24,7 @@ use once_cell::sync::OnceCell;
 use thiserror::Error;
 
 use self::dirty_cell::DirtyCell;
-use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId};
+use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId, TreeId};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
@@ -617,6 +617,15 @@ impl MutableRepo {
         (self.index, self.view.into_inner())
     }
 
+    pub fn new_commit(
+        &mut self,
+        settings: &UserSettings,
+        parents: Vec<CommitId>,
+        tree_id: TreeId,
+    ) -> CommitBuilder {
+        CommitBuilder::for_new_commit(self, settings, parents, tree_id)
+    }
+
     pub fn write_commit(&mut self, commit: backend::Commit) -> BackendResult<Commit> {
         let commit = self.store().write_commit(commit)?;
         self.add_head(&commit);
@@ -707,13 +716,13 @@ impl MutableRepo {
         commit: &Commit,
     ) -> BackendResult<Commit> {
         self.leave_commit(&workspace_id);
-        let wc_commit = CommitBuilder::for_new_commit(
-            self,
-            settings,
-            vec![commit.id().clone()],
-            commit.tree_id().clone(),
-        )
-        .write()?;
+        let wc_commit = self
+            .new_commit(
+                settings,
+                vec![commit.id().clone()],
+                commit.tree_id().clone(),
+            )
+            .write()?;
         self.set_wc_commit(workspace_id, wc_commit.id().clone())
             .unwrap();
         Ok(wc_commit)

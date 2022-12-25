@@ -15,7 +15,6 @@
 use std::path::Path;
 
 use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
-use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::git;
 use jujutsu_lib::matchers::{FilesMatcher, Matcher};
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
@@ -63,17 +62,17 @@ fn test_resolve_symbol_commit_id() {
 
     let mut commits = vec![];
     for i in &[1, 167, 895] {
-        let commit = CommitBuilder::for_new_commit(
-            mut_repo,
-            &settings,
-            vec![repo.store().root_commit_id().clone()],
-            repo.store().empty_tree_id().clone(),
-        )
-        .set_description(format!("test {i}"))
-        .set_author(signature.clone())
-        .set_committer(signature.clone())
-        .write()
-        .unwrap();
+        let commit = mut_repo
+            .new_commit(
+                &settings,
+                vec![repo.store().root_commit_id().clone()],
+                repo.store().empty_tree_id().clone(),
+            )
+            .set_description(format!("test {i}"))
+            .set_author(signature.clone())
+            .set_committer(signature.clone())
+            .write()
+            .unwrap();
         commits.push(commit);
     }
     let repo = tx.commit();
@@ -1927,38 +1926,26 @@ fn test_filter_by_diff(use_git: bool) {
             // added_modified_removed,
         ],
     );
-    let commit1 = CommitBuilder::for_new_commit(
-        mut_repo,
-        &settings,
-        vec![repo.store().root_commit_id().clone()],
-        tree1.id().clone(),
-    )
-    .write()
-    .unwrap();
-    let commit2 = CommitBuilder::for_new_commit(
-        mut_repo,
-        &settings,
-        vec![commit1.id().clone()],
-        tree2.id().clone(),
-    )
-    .write()
-    .unwrap();
-    let commit3 = CommitBuilder::for_new_commit(
-        mut_repo,
-        &settings,
-        vec![commit2.id().clone()],
-        tree3.id().clone(),
-    )
-    .write()
-    .unwrap();
-    let commit4 = CommitBuilder::for_new_commit(
-        mut_repo,
-        &settings,
-        vec![commit3.id().clone()],
-        tree3.id().clone(),
-    )
-    .write()
-    .unwrap();
+    let commit1 = mut_repo
+        .new_commit(
+            &settings,
+            vec![repo.store().root_commit_id().clone()],
+            tree1.id().clone(),
+        )
+        .write()
+        .unwrap();
+    let commit2 = mut_repo
+        .new_commit(&settings, vec![commit1.id().clone()], tree2.id().clone())
+        .write()
+        .unwrap();
+    let commit3 = mut_repo
+        .new_commit(&settings, vec![commit2.id().clone()], tree3.id().clone())
+        .write()
+        .unwrap();
+    let commit4 = mut_repo
+        .new_commit(&settings, vec![commit3.id().clone()], tree3.id().clone())
+        .write()
+        .unwrap();
 
     // matcher API:
     let resolve = |file_path: &RepoPath| -> Vec<CommitId> {

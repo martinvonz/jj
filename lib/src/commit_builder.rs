@@ -20,6 +20,7 @@ use crate::commit::Commit;
 use crate::repo::MutableRepo;
 use crate::settings::UserSettings;
 
+#[must_use]
 pub struct CommitBuilder<'repo> {
     mut_repo: &'repo mut MutableRepo,
     commit: backend::Commit,
