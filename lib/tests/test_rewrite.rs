@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::rewrite::DescendantRebaser;
@@ -794,7 +793,9 @@ fn test_rebase_descendants_repeated(use_git: bool) {
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
 
-    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+    let commit_b2 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b)
         .set_description("b2")
         .write()
         .unwrap();
@@ -816,7 +817,9 @@ fn test_rebase_descendants_repeated(use_git: bool) {
     assert_eq!(rebaser.rebased().len(), 0);
 
     // Now mark B3 as rewritten from B2 and rebase descendants again.
-    let commit_b3 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b2)
+    let commit_b3 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b2)
         .set_description("b3")
         .write()
         .unwrap();
@@ -934,7 +937,9 @@ fn test_rebase_descendants_basic_branch_update() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+    let commit_b2 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b)
         .write()
         .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
@@ -975,10 +980,14 @@ fn test_rebase_descendants_branch_move_two_steps() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+    let commit_b2 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b)
         .write()
         .unwrap();
-    let commit_c2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_c)
+    let commit_c2 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_c)
         .write()
         .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
@@ -1024,7 +1033,9 @@ fn test_rebase_descendants_basic_branch_update_with_non_local_branch() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+    let commit_b2 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b)
         .write()
         .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
@@ -1107,16 +1118,22 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+    let commit_b2 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b)
         .write()
         .unwrap();
     // Different description so they're not the same commit
-    let commit_b3 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+    let commit_b3 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b)
         .set_description("different")
         .write()
         .unwrap();
     // Different description so they're not the same commit
-    let commit_b4 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+    let commit_b4 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b)
         .set_description("more different")
         .write()
         .unwrap();
@@ -1167,19 +1184,27 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_a2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_a)
+    let commit_a2 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_a)
         .write()
         .unwrap();
     // Different description so they're not the same commit
-    let commit_a3 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_a)
+    let commit_a3 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_a)
         .set_description("different")
         .write()
         .unwrap();
-    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+    let commit_b2 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b)
         .write()
         .unwrap();
     // Different description so they're not the same commit
-    let commit_b3 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+    let commit_b3 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b)
         .set_description("different")
         .write()
         .unwrap();
@@ -1236,7 +1261,9 @@ fn test_rebase_descendants_rewrite_resolves_branch_conflict() {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_b2 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+    let commit_b2 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b)
         .set_parents(vec![commit_c.id().clone()])
         .write()
         .unwrap();
@@ -1316,7 +1343,9 @@ fn test_rebase_descendants_update_checkout(use_git: bool) {
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit_c = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b)
+    let commit_c = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b)
         .set_description("C")
         .write()
         .unwrap();

@@ -15,7 +15,6 @@
 use std::path::Path;
 
 use jujutsu_lib::backend::CommitId;
-use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo::RepoRef;
 use test_case::test_case;
 use testutils::{create_random_commit, write_random_commit, TestRepo};
@@ -152,12 +151,14 @@ fn test_isolation(use_git: bool) {
     assert_heads(mut_repo1.as_repo_ref(), vec![initial.id()]);
     assert_heads(mut_repo2.as_repo_ref(), vec![initial.id()]);
 
-    let rewrite1 = CommitBuilder::for_rewrite_from(mut_repo1, &settings, &initial)
+    let rewrite1 = mut_repo1
+        .rewrite_commit(&settings, &initial)
         .set_description("rewrite1")
         .write()
         .unwrap();
     mut_repo1.rebase_descendants(&settings).unwrap();
-    let rewrite2 = CommitBuilder::for_rewrite_from(mut_repo2, &settings, &initial)
+    let rewrite2 = mut_repo2
+        .rewrite_commit(&settings, &initial)
         .set_description("rewrite2")
         .write()
         .unwrap();

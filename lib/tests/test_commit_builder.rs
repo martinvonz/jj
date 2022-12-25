@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::settings::UserSettings;
@@ -117,11 +116,12 @@ fn test_rewrite(use_git: bool) {
         .unwrap();
     let rewrite_settings = UserSettings::from_config(config);
     let mut tx = repo.start_transaction(&settings, "test");
-    let rewritten_commit =
-        CommitBuilder::for_rewrite_from(tx.mut_repo(), &rewrite_settings, &initial_commit)
-            .set_tree(rewritten_tree.id().clone())
-            .write()
-            .unwrap();
+    let rewritten_commit = tx
+        .mut_repo()
+        .rewrite_commit(&rewrite_settings, &initial_commit)
+        .set_tree(rewritten_tree.id().clone())
+        .write()
+        .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     tx.commit();
     assert_eq!(rewritten_commit.parents(), vec![store.root_commit()]);
@@ -195,10 +195,11 @@ fn test_rewrite_update_missing_user(use_git: bool) {
         .build()
         .unwrap();
     let settings = UserSettings::from_config(config);
-    let rewritten_commit =
-        CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &initial_commit)
-            .write()
-            .unwrap();
+    let rewritten_commit = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &initial_commit)
+        .write()
+        .unwrap();
 
     assert_eq!(rewritten_commit.author().name, "Configured User");
     assert_eq!(
@@ -242,7 +243,9 @@ fn test_commit_builder_descendants(use_git: bool) {
 
     // Test with for_rewrite_from()
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit4 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit2)
+    let commit4 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit2)
         .write()
         .unwrap();
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
@@ -251,7 +254,8 @@ fn test_commit_builder_descendants(use_git: bool) {
 
     // Test with for_rewrite_from() but new change id
     let mut tx = repo.start_transaction(&settings, "test");
-    CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit2)
+    tx.mut_repo()
+        .rewrite_commit(&settings, &commit2)
         .generate_new_change_id()
         .write()
         .unwrap();

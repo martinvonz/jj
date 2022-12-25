@@ -15,7 +15,6 @@
 use assert_matches::assert_matches;
 use itertools::Itertools;
 use jujutsu_lib::backend::{ConflictPart, TreeValue};
-use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::repo_path::{RepoPath, RepoPathComponent};
 use jujutsu_lib::rewrite::rebase_commit;
 use jujutsu_lib::tree;
@@ -617,7 +616,9 @@ fn test_simplify_conflict_after_resolving_parent(use_git: bool) {
 
     // Create the resolved B and rebase C on top.
     let tree_b3 = testutils::create_tree(repo, &[(&path, "AbC\ndef\nghi\n")]);
-    let commit_b3 = CommitBuilder::for_rewrite_from(tx.mut_repo(), &settings, &commit_b2)
+    let commit_b3 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_b2)
         .set_tree(tree_b3.id().clone())
         .write()
         .unwrap();

@@ -626,6 +626,14 @@ impl MutableRepo {
         CommitBuilder::for_new_commit(self, settings, parents, tree_id)
     }
 
+    pub fn rewrite_commit(
+        &mut self,
+        settings: &UserSettings,
+        predecessor: &Commit,
+    ) -> CommitBuilder {
+        CommitBuilder::for_rewrite_from(self, settings, predecessor)
+    }
+
     pub fn write_commit(&mut self, commit: backend::Commit) -> BackendResult<Commit> {
         let commit = self.store().write_commit(commit)?;
         self.add_head(&commit);

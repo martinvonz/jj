@@ -18,7 +18,6 @@ use jujutsu::cli_util::{
 };
 use jujutsu::commands::{default_app, run_command};
 use jujutsu::ui::Ui;
-use jujutsu_lib::commit_builder::CommitBuilder;
 
 #[derive(clap::Parser, Clone, Debug)]
 enum CustomCommands {
@@ -42,7 +41,9 @@ fn run(ui: &mut Ui) -> Result<(), CommandError> {
             let mut workspace_command = command_helper.workspace_helper(ui)?;
             let commit = workspace_command.resolve_single_rev(&args.revision)?;
             let mut tx = workspace_command.start_transaction("Frobnicate");
-            let new_commit = CommitBuilder::for_rewrite_from(tx.mut_repo(), ui.settings(), &commit)
+            let new_commit = tx
+                .mut_repo()
+                .rewrite_commit(ui.settings(), &commit)
                 .set_description("Frobnicated!")
                 .write()?;
             workspace_command.finish_transaction(ui, tx)?;
