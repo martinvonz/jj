@@ -23,7 +23,6 @@ use jujutsu_lib::settings::UserSettings;
 use test_case::test_case;
 use testutils::{create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo};
 
-#[must_use]
 fn child_commit<'repo>(
     mut_repo: &'repo mut MutableRepo,
     settings: &UserSettings,

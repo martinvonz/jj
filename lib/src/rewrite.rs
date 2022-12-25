@@ -104,7 +104,8 @@ pub fn back_out_commit(
         .map(|commit| commit.id().clone())
         .collect();
     // TODO: i18n the description based on repo language
-    CommitBuilder::for_new_commit(mut_repo, settings, new_parent_ids, new_tree_id)
+    mut_repo
+        .new_commit(settings, new_parent_ids, new_tree_id)
         .set_description(format!("backout of commit {}", &old_commit.id().hex()))
         .write()
 }
@@ -351,13 +352,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let new_wc_commit = if edit {
             new_commit
         } else {
-            CommitBuilder::for_new_commit(
-                self.mut_repo,
-                self.settings,
-                vec![new_commit.id().clone()],
-                new_commit.tree_id().clone(),
-            )
-            .write()?
+            self.mut_repo
+                .new_commit(
+                    self.settings,
+                    vec![new_commit.id().clone()],
+                    new_commit.tree_id().clone(),
+                )
+                .write()?
         };
         for workspace_id in workspaces_to_update.into_iter() {
             self.mut_repo.edit(workspace_id, &new_wc_commit).unwrap();

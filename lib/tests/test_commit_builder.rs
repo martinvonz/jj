@@ -39,14 +39,15 @@ fn test_initial(use_git: bool) {
     );
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let commit = CommitBuilder::for_new_commit(
-        tx.mut_repo(),
-        &settings,
-        vec![store.root_commit_id().clone()],
-        tree.id().clone(),
-    )
-    .write()
-    .unwrap();
+    let commit = tx
+        .mut_repo()
+        .new_commit(
+            &settings,
+            vec![store.root_commit_id().clone()],
+            tree.id().clone(),
+        )
+        .write()
+        .unwrap();
     tx.commit();
 
     assert_eq!(commit.parents(), vec![store.root_commit()]);
@@ -88,14 +89,15 @@ fn test_rewrite(use_git: bool) {
     );
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let initial_commit = CommitBuilder::for_new_commit(
-        tx.mut_repo(),
-        &settings,
-        vec![store.root_commit_id().clone()],
-        initial_tree.id().clone(),
-    )
-    .write()
-    .unwrap();
+    let initial_commit = tx
+        .mut_repo()
+        .new_commit(
+            &settings,
+            vec![store.root_commit_id().clone()],
+            initial_tree.id().clone(),
+        )
+        .write()
+        .unwrap();
     let repo = tx.commit();
 
     let rewritten_tree = testutils::create_tree(
@@ -171,14 +173,15 @@ fn test_rewrite_update_missing_user(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&missing_user_settings, "test");
-    let initial_commit = CommitBuilder::for_new_commit(
-        tx.mut_repo(),
-        &missing_user_settings,
-        vec![repo.store().root_commit_id().clone()],
-        repo.store().empty_tree_id().clone(),
-    )
-    .write()
-    .unwrap();
+    let initial_commit = tx
+        .mut_repo()
+        .new_commit(
+            &missing_user_settings,
+            vec![repo.store().root_commit_id().clone()],
+            repo.store().empty_tree_id().clone(),
+        )
+        .write()
+        .unwrap();
     assert_eq!(initial_commit.author().name, "(no name configured)");
     assert_eq!(initial_commit.author().email, "(no email configured)");
     assert_eq!(initial_commit.committer().name, "(no name configured)");
@@ -226,14 +229,14 @@ fn test_commit_builder_descendants(use_git: bool) {
 
     // Test with for_new_commit()
     let mut tx = repo.start_transaction(&settings, "test");
-    CommitBuilder::for_new_commit(
-        tx.mut_repo(),
-        &settings,
-        vec![store.root_commit_id().clone()],
-        store.empty_tree_id().clone(),
-    )
-    .write()
-    .unwrap();
+    tx.mut_repo()
+        .new_commit(
+            &settings,
+            vec![store.root_commit_id().clone()],
+            store.empty_tree_id().clone(),
+        )
+        .write()
+        .unwrap();
     let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
     assert!(rebaser.rebase_next().unwrap().is_none());
 

@@ -208,20 +208,19 @@ pub fn create_random_tree(repo: &ReadonlyRepo) -> TreeId {
     tree_builder.write_tree()
 }
 
-#[must_use]
 pub fn create_random_commit<'repo>(
     mut_repo: &'repo mut MutableRepo,
     settings: &UserSettings,
 ) -> CommitBuilder<'repo> {
     let tree_id = create_random_tree(mut_repo.base_repo());
     let number = rand::random::<u32>();
-    CommitBuilder::for_new_commit(
-        mut_repo,
-        settings,
-        vec![mut_repo.store().root_commit_id().clone()],
-        tree_id,
-    )
-    .set_description(format!("random commit {number}"))
+    mut_repo
+        .new_commit(
+            settings,
+            vec![mut_repo.store().root_commit_id().clone()],
+            tree_id,
+        )
+        .set_description(format!("random commit {number}"))
 }
 
 pub fn write_random_commit(mut_repo: &mut MutableRepo, settings: &UserSettings) -> Commit {
