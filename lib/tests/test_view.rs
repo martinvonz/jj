@@ -14,7 +14,6 @@
 
 use std::sync::Arc;
 
-use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::op_store::{BranchTarget, RefTarget, WorkspaceId};
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::settings::UserSettings;
@@ -461,14 +460,18 @@ fn test_merge_views_divergent() {
     let repo = tx.commit();
 
     let mut tx1 = repo.start_transaction(&settings, "test");
-    let commit_a2 = CommitBuilder::for_rewrite_from(tx1.mut_repo(), &settings, &commit_a)
+    let commit_a2 = tx1
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_a)
         .set_description("A2")
         .write()
         .unwrap();
     tx1.mut_repo().rebase_descendants(&settings).unwrap();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
-    let commit_a3 = CommitBuilder::for_rewrite_from(tx2.mut_repo(), &settings, &commit_a)
+    let commit_a3 = tx2
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_a)
         .set_description("A3")
         .write()
         .unwrap();
@@ -502,7 +505,9 @@ fn test_merge_views_child_on_rewritten(child_first: bool) {
         .unwrap();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
-    let commit_a2 = CommitBuilder::for_rewrite_from(tx2.mut_repo(), &settings, &commit_a)
+    let commit_a2 = tx2
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_a)
         .set_description("A2")
         .write()
         .unwrap();
@@ -551,7 +556,9 @@ fn test_merge_views_child_on_rewritten_divergent(on_rewritten: bool, child_first
         .unwrap();
 
     let mut tx2 = repo.start_transaction(&settings, "test");
-    let commit_a4 = CommitBuilder::for_rewrite_from(tx2.mut_repo(), &settings, &commit_a2)
+    let commit_a4 = tx2
+        .mut_repo()
+        .rewrite_commit(&settings, &commit_a2)
         .set_description("A4")
         .write()
         .unwrap();

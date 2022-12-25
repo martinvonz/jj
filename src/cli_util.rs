@@ -29,7 +29,6 @@ use git2::{Oid, Repository};
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, CommitId, TreeId};
 use jujutsu_lib::commit::Commit;
-use jujutsu_lib::commit_builder::CommitBuilder;
 use jujutsu_lib::git::{GitExportError, GitImportError};
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
@@ -744,7 +743,8 @@ impl WorkspaceCommandHelper {
                 .repo
                 .start_transaction(&self.settings, "commit working copy");
             let mut_repo = tx.mut_repo();
-            let commit = CommitBuilder::for_rewrite_from(mut_repo, &self.settings, &wc_commit)
+            let commit = mut_repo
+                .rewrite_commit(&self.settings, &wc_commit)
                 .set_tree(new_tree_id)
                 .write()?;
             mut_repo

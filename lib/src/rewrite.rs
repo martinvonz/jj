@@ -18,7 +18,6 @@ use itertools::{process_results, Itertools};
 
 use crate::backend::{BackendError, BackendResult, CommitId};
 use crate::commit::Commit;
-use crate::commit_builder::CommitBuilder;
 use crate::dag_walk;
 use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, RepoRef};
@@ -83,7 +82,8 @@ pub fn rebase_commit(
         .iter()
         .map(|commit| commit.id().clone())
         .collect();
-    CommitBuilder::for_rewrite_from(mut_repo, settings, old_commit)
+    mut_repo
+        .rewrite_commit(settings, old_commit)
         .set_parents(new_parent_ids)
         .set_tree(new_tree_id)
         .write()
