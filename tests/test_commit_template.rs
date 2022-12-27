@@ -75,22 +75,22 @@ fn test_log_default() {
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ [1;35mffdaa62087a2[0m [1;33mtest.user@example.com[0m [1;36m2001-02-03 04:05:09.000 +07:00[0m [1;35mmy-branch[0m [1;34m9de54178d59d[0m
-    | [1;37mdescription 1[0m
-    o [35m9a45c67d3e96[0m [33mtest.user@example.com[0m [36m2001-02-03 04:05:08.000 +07:00[0m [34m4291e264ae97[0m
+    @ [1m[38;5;13mffdaa62087a2[0m[39m [1m[38;5;11mtest.user@example.com[0m[39m [1m[38;5;14m2001-02-03 04:05:09.000 +07:00[0m[39m [1m[38;5;13mmy-branch[0m[39m [1m[38;5;12m9de54178d59d[0m[39m
+    | [1m[38;5;15mdescription 1[0m[39m
+    o [38;5;5m9a45c67d3e96[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [38;5;4m4291e264ae97[39m
     | add a file
-    o [35m000000000000[0m [33m[0m [36m1970-01-01 00:00:00.000 +00:00[0m [34m000000000000[0m
+    o [38;5;5m000000000000[39m [38;5;3m[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [38;5;4m000000000000[39m
       (no description set)
     "###);
 
     // Color without graph
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
-    [1;35mffdaa62087a2[0m [1;33mtest.user@example.com[0m [1;36m2001-02-03 04:05:09.000 +07:00[0m [1;35mmy-branch[0m [1;34m9de54178d59d[0m
-    [1;37mdescription 1[0m
-    [35m9a45c67d3e96[0m [33mtest.user@example.com[0m [36m2001-02-03 04:05:08.000 +07:00[0m [34m4291e264ae97[0m
+    [1m[38;5;13mffdaa62087a2[0m[39m [1m[38;5;11mtest.user@example.com[0m[39m [1m[38;5;14m2001-02-03 04:05:09.000 +07:00[0m[39m [1m[38;5;13mmy-branch[0m[39m [1m[38;5;12m9de54178d59d[0m[39m
+    [1m[38;5;15mdescription 1[0m[39m
+    [38;5;5m9a45c67d3e96[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [38;5;4m4291e264ae97[39m
     add a file
-    [35m000000000000[0m [33m[0m [36m1970-01-01 00:00:00.000 +00:00[0m [34m000000000000[0m
+    [38;5;5m000000000000[39m [38;5;3m[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [38;5;4m000000000000[39m
     (no description set)
     "###);
 }
@@ -131,11 +131,11 @@ fn test_log_default_divergence() {
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
-    o [31m9a45c67d3e96??[0m [33mtest.user@example.com[0m [36m2001-02-03 04:05:10.000 +07:00[0m [34m8979953d4c67[0m
+    o [38;5;1m9a45c67d3e96??[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:10.000 +07:00[39m [38;5;4m8979953d4c67[39m
     | description 2
-    | @ [1;31m9a45c67d3e96??[0m [1;33mtest.user@example.com[0m [1;36m2001-02-03 04:05:08.000 +07:00[0m [1;34m7a17d52e633c[0m
-    |/  [1;37mdescription 1[0m
-    o [35m000000000000[0m [33m[0m [36m1970-01-01 00:00:00.000 +00:00[0m [34m000000000000[0m
+    | @ [1m[38;5;9m9a45c67d3e96??[0m[39m [1m[38;5;11mtest.user@example.com[0m[39m [1m[38;5;14m2001-02-03 04:05:08.000 +07:00[0m[39m [1m[38;5;12m7a17d52e633c[0m[39m
+    |/  [1m[38;5;15mdescription 1[0m[39m
+    o [38;5;5m000000000000[39m [38;5;3m[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [38;5;4m000000000000[39m
       (no description set)
     "###);
 }

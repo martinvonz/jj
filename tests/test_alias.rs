@@ -214,7 +214,7 @@ fn test_alias_global_args_in_definition() {
     // The global argument in the alias is respected
     let stdout = test_env.jj_cmd_success(&repo_path, &["l"]);
     insta::assert_snapshot!(stdout, @r###"
-    o [34m0000000000000000000000000000000000000000[0m
+    o [38;5;4m0000000000000000000000000000000000000000[39m
     "###);
 }
 

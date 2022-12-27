@@ -388,7 +388,7 @@ fn test_too_many_parents() {
     // Test warning color
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list", "--color=always"]), 
     @r###"
-    file    [33m[31m3-sided[33m conflict[0m
+    file    [38;5;3m[38;5;1m3-sided[38;5;3m conflict[39m
     "###);
 
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
@@ -520,7 +520,7 @@ fn test_description_with_dir_and_deletion() {
     // Test warning color. The deletion is fine, so it's not highlighted
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list", "--color=always"]), 
     @r###"
-    file    [33m[31m3-sided[33m conflict including 1 deletion and [31ma directory[33m[0m
+    file    [38;5;3m[38;5;1m3-sided[38;5;3m conflict including 1 deletion and [38;5;1ma directory[38;5;3m[39m
     "###);
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
@@ -620,8 +620,8 @@ fn test_multiple_conflicts() {
     // Test colors
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list", "--color=always"]), 
     @r###"
-    another_file                        [33m2-sided conflict[0m
-    this_file_has_a_very_long_name_to_test_padding [33m2-sided conflict[0m
+    another_file                        [38;5;3m2-sided conflict[39m
+    this_file_has_a_very_long_name_to_test_padding [38;5;3m2-sided conflict[39m
     "###);
 
     let editor_script = test_env.set_up_fake_editor();
