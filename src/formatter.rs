@@ -18,6 +18,9 @@ use std::io::{Error, Write};
 use std::sync::Arc;
 use std::{fmt, io};
 
+use crossterm::queue;
+use crossterm::style::{Attribute, Color, SetAttribute, SetForegroundColor};
+
 // Lets the caller label strings and translates the labels to colors
 pub trait Formatter: Write {
     fn write_bytes(&mut self, data: &[u8]) -> io::Result<()> {
@@ -150,8 +153,8 @@ pub struct ColorFormatter<W> {
     output: W,
     colors: Arc<HashMap<String, String>>,
     labels: Vec<String>,
-    cached_colors: HashMap<Vec<String>, Vec<u8>>,
-    current_color: Vec<u8>,
+    cached_colors: HashMap<Vec<String>, Color>,
+    current_color: Color,
 }
 
 fn config_colors(config: &config::Config) -> HashMap<String, String> {
@@ -171,13 +174,13 @@ impl<W: Write> ColorFormatter<W> {
             colors,
             labels: vec![],
             cached_colors: HashMap::new(),
-            current_color: b"\x1b[0m".to_vec(),
+            current_color: Color::Reset,
         }
     }
 
-    fn current_color(&mut self) -> Vec<u8> {
+    fn current_color(&mut self) -> Color {
         if let Some(cached) = self.cached_colors.get(&self.labels) {
-            cached.clone()
+            *cached
         } else {
             let mut best_match = (-1, "");
             for (key, value) in self.colors.as_ref() {
@@ -209,8 +212,7 @@ impl<W: Write> ColorFormatter<W> {
             }
 
             let color = color_for_name(best_match.1);
-            self.cached_colors
-                .insert(self.labels.clone(), color.clone());
+            self.cached_colors.insert(self.labels.clone(), color);
             color
         }
     }
@@ -218,32 +220,55 @@ impl<W: Write> ColorFormatter<W> {
     fn write_new_color(&mut self) -> io::Result<()> {
         let new_color = self.current_color();
         if new_color != self.current_color {
-            self.output.write_all(&new_color)?;
+            // For now, make bright colors imply bold font. That better matches our
+            // behavior from when we used ANSI codes 30-37 plus an optional 1 for
+            // bold/bright (we now use code 38 for setting foreground color).
+            // TODO: Make boldness configurable separately from color
+            if !is_bright(&self.current_color) && is_bright(&new_color) {
+                queue!(self.output, SetAttribute(Attribute::Bold))?;
+            } else if !is_bright(&new_color) && is_bright(&self.current_color) {
+                queue!(self.output, SetAttribute(Attribute::Reset))?;
+            }
+            queue!(self.output, SetForegroundColor(new_color))?;
             self.current_color = new_color;
         }
         Ok(())
     }
 }
 
-fn color_for_name(color_name: &str) -> Vec<u8> {
+fn is_bright(color: &Color) -> bool {
+    matches!(
+        color,
+        Color::DarkGrey
+            | Color::Red
+            | Color::Green
+            | Color::Yellow
+            | Color::Blue
+            | Color::Magenta
+            | Color::Cyan
+            | Color::White
+    )
+}
+
+fn color_for_name(color_name: &str) -> Color {
     match color_name {
-        "black" => b"\x1b[30m".to_vec(),
-        "red" => b"\x1b[31m".to_vec(),
-        "green" => b"\x1b[32m".to_vec(),
-        "yellow" => b"\x1b[33m".to_vec(),
-        "blue" => b"\x1b[34m".to_vec(),
-        "magenta" => b"\x1b[35m".to_vec(),
-        "cyan" => b"\x1b[36m".to_vec(),
-        "white" => b"\x1b[37m".to_vec(),
-        "bright black" => b"\x1b[1;30m".to_vec(),
-        "bright red" => b"\x1b[1;31m".to_vec(),
-        "bright green" => b"\x1b[1;32m".to_vec(),
-        "bright yellow" => b"\x1b[1;33m".to_vec(),
-        "bright blue" => b"\x1b[1;34m".to_vec(),
-        "bright magenta" => b"\x1b[1;35m".to_vec(),
-        "bright cyan" => b"\x1b[1;36m".to_vec(),
-        "bright white" => b"\x1b[1;37m".to_vec(),
-        _ => b"\x1b[0m".to_vec(),
+        "black" => Color::Black,
+        "red" => Color::DarkRed,
+        "green" => Color::DarkGreen,
+        "yellow" => Color::DarkYellow,
+        "blue" => Color::DarkBlue,
+        "magenta" => Color::DarkMagenta,
+        "cyan" => Color::DarkCyan,
+        "white" => Color::Grey,
+        "bright black" => Color::DarkGrey,
+        "bright red" => Color::Red,
+        "bright green" => Color::Green,
+        "bright yellow" => Color::Yellow,
+        "bright blue" => Color::Blue,
+        "bright magenta" => Color::Magenta,
+        "bright cyan" => Color::Cyan,
+        "bright white" => Color::White,
+        _ => Color::Reset,
     }
 }
 
@@ -321,22 +346,22 @@ mod tests {
             formatter.write_str("\n").unwrap();
         }
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @r###"
-        [30m black [0m
-        [31m red [0m
-        [32m green [0m
-        [33m yellow [0m
-        [34m blue [0m
-        [35m magenta [0m
-        [36m cyan [0m
-        [37m white [0m
-        [1;30m bright black [0m
-        [1;31m bright red [0m
-        [1;32m bright green [0m
-        [1;33m bright yellow [0m
-        [1;34m bright blue [0m
-        [1;35m bright magenta [0m
-        [1;36m bright cyan [0m
-        [1;37m bright white [0m
+        [38;5;0m black [39m
+        [38;5;1m red [39m
+        [38;5;2m green [39m
+        [38;5;3m yellow [39m
+        [38;5;4m blue [39m
+        [38;5;5m magenta [39m
+        [38;5;6m cyan [39m
+        [38;5;7m white [39m
+        [1m[38;5;8m bright black [0m[39m
+        [1m[38;5;9m bright red [0m[39m
+        [1m[38;5;10m bright green [0m[39m
+        [1m[38;5;11m bright yellow [0m[39m
+        [1m[38;5;12m bright blue [0m[39m
+        [1m[38;5;13m bright magenta [0m[39m
+        [1m[38;5;14m bright cyan [0m[39m
+        [1m[38;5;15m bright white [0m[39m
         "###);
     }
 
@@ -356,7 +381,7 @@ mod tests {
         formatter.write_str(" inside ").unwrap();
         formatter.remove_label().unwrap();
         formatter.write_str(" after ").unwrap();
-        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @" before [32m inside [0m after ");
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @" before [38;5;2m inside [39m after ");
     }
 
     #[test]
@@ -378,7 +403,7 @@ mod tests {
         formatter.write_str("second").unwrap();
         formatter.remove_label().unwrap();
         formatter.write_str("after").unwrap();
-        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"before[31mfirst[0m[32msecond[0mafter");
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"before[38;5;1mfirst[39m[38;5;2msecond[39mafter");
     }
 
     #[test]
@@ -397,7 +422,7 @@ mod tests {
             .unwrap();
         formatter.remove_label().unwrap();
         // TODO: Replace the ANSI escape (\x1b) by something else (🌈?)
-        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[31m[1mnot actually bold[0m[0m");
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[38;5;1m[1mnot actually bold[0m[39m");
     }
 
     #[test]
@@ -424,7 +449,7 @@ mod tests {
         formatter.remove_label().unwrap();
         formatter.write_str(" after outer ").unwrap();
         insta::assert_snapshot!(String::from_utf8(output).unwrap(),
-        @" before outer [34m before inner [32m inside inner [34m after inner [0m after outer ");
+        @" before outer [38;5;4m before inner [38;5;2m inside inner [38;5;4m after inner [39m after outer ");
     }
 
     #[test]
@@ -445,7 +470,7 @@ mod tests {
         formatter.write_str(" not colored ").unwrap();
         formatter.remove_label().unwrap();
         insta::assert_snapshot!(String::from_utf8(output).unwrap(),
-        @" not colored [32m colored [0m not colored ");
+        @" not colored [38;5;2m colored [39m not colored ");
     }
 
     #[test]
@@ -468,7 +493,7 @@ mod tests {
         formatter.remove_label().unwrap();
         // TODO: Make this not reset the color inside
         insta::assert_snapshot!(String::from_utf8(output).unwrap(),
-        @"[31m red before [0m still red inside [31m also red afterwards [0m");
+        @"[38;5;1m red before [39m still red inside [38;5;1m also red afterwards [39m");
     }
 
     #[test]
@@ -488,7 +513,7 @@ mod tests {
         formatter.remove_label().unwrap();
         formatter.remove_label().unwrap();
         insta::assert_snapshot!(String::from_utf8(output).unwrap(),
-        @"[32m hello [0m");
+        @"[38;5;2m hello [39m");
     }
 
     #[test]
@@ -506,8 +531,7 @@ mod tests {
         formatter.write_str(" hello ").unwrap();
         formatter.remove_label().unwrap();
         formatter.remove_label().unwrap();
-        insta::assert_snapshot!(String::from_utf8(output).unwrap(), 
-        @" hello ");
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @" hello ");
     }
 
     #[test]
@@ -538,7 +562,7 @@ mod tests {
         formatter.write_str(" a2 ").unwrap();
         formatter.remove_label().unwrap();
         insta::assert_snapshot!(String::from_utf8(output).unwrap(),
-        @" a1 [31m b1  c1 [34m d [31m c2  b2 [0m a2 ");
+        @" a1 [38;5;1m b1  c1 [38;5;4m d [38;5;1m c2  b2 [39m a2 ");
     }
 
     #[test]
@@ -567,6 +591,6 @@ mod tests {
         formatter.remove_label().unwrap();
         // TODO: This is currently not deterministic.
         // insta::assert_snapshot!(String::from_utf8(output).unwrap(),
-        // @"[31m a1 [32m b1 [33m c [32m b2 [31m a2 [0m");
+        // @"[38;5;1m a1 [38;5;2m b1 [38;5;3m c [38;5;2m b2 [38;5;1m a2 [39m");
     }
 }
