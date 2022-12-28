@@ -15,7 +15,6 @@
 use jujutsu_lib::matchers::{EverythingMatcher, FilesMatcher};
 use jujutsu_lib::repo_path::RepoPath;
 use jujutsu_lib::tree::DiffSummary;
-use maplit::hashset;
 use test_case::test_case;
 use testutils::TestRepo;
 
@@ -165,7 +164,7 @@ fn test_matcher_dir_file_transition(use_git: bool) {
     let tree1 = testutils::create_tree(repo, &[(&a_path, "before")]);
     let tree2 = testutils::create_tree(repo, &[(&a_a_path, "after")]);
 
-    let matcher = FilesMatcher::new(hashset! {a_path.clone()});
+    let matcher = FilesMatcher::new(&[a_path.clone()]);
     assert_eq!(
         tree1.diff_summary(&tree2, &matcher),
         DiffSummary {
@@ -183,7 +182,7 @@ fn test_matcher_dir_file_transition(use_git: bool) {
         }
     );
 
-    let matcher = FilesMatcher::new(hashset! {a_a_path.clone()});
+    let matcher = FilesMatcher::new(&[a_a_path.clone()]);
     assert_eq!(
         tree1.diff_summary(&tree2, &matcher),
         DiffSummary {
@@ -201,7 +200,7 @@ fn test_matcher_dir_file_transition(use_git: bool) {
         }
     );
 
-    let matcher = FilesMatcher::new(hashset! {a_path.clone(), a_a_path.clone()});
+    let matcher = FilesMatcher::new(&[a_path.clone(), a_a_path.clone()]);
     assert_eq!(
         tree1.diff_summary(&tree2, &matcher),
         DiffSummary {
@@ -246,7 +245,7 @@ fn test_matcher_normal_cases(use_git: bool) {
         ],
     );
 
-    let matcher = FilesMatcher::new(hashset! {a_path.clone(), z_path.clone()});
+    let matcher = FilesMatcher::new(&[a_path.clone(), z_path.clone()]);
     assert_eq!(
         tree1.diff_summary(&tree2, &matcher),
         DiffSummary {
@@ -264,7 +263,7 @@ fn test_matcher_normal_cases(use_git: bool) {
         }
     );
 
-    let matcher = FilesMatcher::new(hashset! {dir1_a_path.clone(), dir2_b_path.clone()});
+    let matcher = FilesMatcher::new(&[dir1_a_path.clone(), dir2_b_path.clone()]);
     assert_eq!(
         tree1.diff_summary(&tree2, &matcher),
         DiffSummary {
