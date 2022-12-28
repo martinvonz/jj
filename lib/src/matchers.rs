@@ -117,9 +117,7 @@ impl Matcher for FilesMatcher {
     }
 
     fn visit(&self, dir: &RepoPath) -> Visit {
-        let dirs = self.dirs.get_dirs(dir);
-        let files = self.dirs.get_files(dir);
-        Visit::sets(dirs, files)
+        self.dirs.get_visit_sets(dir)
     }
 }
 
@@ -159,9 +157,7 @@ impl Matcher for PrefixMatcher {
         if self.matches(dir) {
             Visit::AllRecursively
         } else {
-            let dirs = self.dirs.get_dirs(dir);
-            let files = self.dirs.get_files(dir);
-            Visit::sets(dirs, files)
+            self.dirs.get_visit_sets(dir)
         }
     }
 }
@@ -310,26 +306,24 @@ impl Dirs {
             .try_fold(self, |sub, name| sub.entries.get(name))
     }
 
-    fn get_dirs(&self, dir: &RepoPath) -> HashSet<RepoPathComponent> {
+    fn get_visit_sets(&self, dir: &RepoPath) -> Visit {
         self.get(dir)
-            .map(|sub| {
-                sub.entries
-                    .iter()
-                    .filter_map(|(name, sub)| sub.is_dir.then(|| name.clone()))
-                    .collect()
-            })
-            .unwrap_or_default()
+            .map(Dirs::to_visit_sets)
+            .unwrap_or(Visit::Nothing)
     }
 
-    fn get_files(&self, dir: &RepoPath) -> HashSet<RepoPathComponent> {
-        self.get(dir)
-            .map(|sub| {
-                sub.entries
-                    .iter()
-                    .filter_map(|(name, sub)| sub.is_file.then(|| name.clone()))
-                    .collect()
-            })
-            .unwrap_or_default()
+    fn to_visit_sets(&self) -> Visit {
+        let mut dirs = HashSet::new();
+        let mut files = HashSet::new();
+        for (name, sub) in &self.entries {
+            if sub.is_dir {
+                dirs.insert(name.clone());
+            }
+            if sub.is_file {
+                files.insert(name.clone());
+            }
+        }
+        Visit::sets(dirs, files)
     }
 }
 
@@ -343,14 +337,14 @@ mod tests {
     #[test]
     fn test_dirs_empty() {
         let dirs = Dirs::new();
-        assert_eq!(dirs.get_dirs(&RepoPath::root()), hashset! {});
+        assert_eq!(dirs.get_visit_sets(&RepoPath::root()), Visit::Nothing);
     }
 
     #[test]
     fn test_dirs_root() {
         let mut dirs = Dirs::new();
         dirs.add_dir(&RepoPath::root());
-        assert_eq!(dirs.get_dirs(&RepoPath::root()), hashset! {});
+        assert_eq!(dirs.get_visit_sets(&RepoPath::root()), Visit::Nothing);
     }
 
     #[test]
@@ -358,17 +352,13 @@ mod tests {
         let mut dirs = Dirs::new();
         dirs.add_dir(&RepoPath::from_internal_string("dir"));
         assert_eq!(
-            dirs.get_dirs(&RepoPath::root()),
-            hashset! {RepoPathComponent::from("dir")}
+            dirs.get_visit_sets(&RepoPath::root()),
+            Visit::sets(hashset! {RepoPathComponent::from("dir")}, hashset! {}),
         );
         dirs.add_dir(&RepoPath::from_internal_string("dir/sub"));
         assert_eq!(
-            dirs.get_dirs(&RepoPath::from_internal_string("dir")),
-            hashset! {RepoPathComponent::from("sub")}
-        );
-        assert_eq!(
-            dirs.get_files(&RepoPath::from_internal_string("dir")),
-            hashset! {}
+            dirs.get_visit_sets(&RepoPath::from_internal_string("dir")),
+            Visit::sets(hashset! {RepoPathComponent::from("sub")}, hashset! {}),
         );
     }
 
@@ -377,17 +367,12 @@ mod tests {
         let mut dirs = Dirs::new();
         dirs.add_file(&RepoPath::from_internal_string("dir/file"));
         assert_eq!(
-            dirs.get_dirs(&RepoPath::root()),
-            hashset! {RepoPathComponent::from("dir")}
-        );
-        assert_eq!(dirs.get_files(&RepoPath::root()), hashset! {});
-        assert_eq!(
-            dirs.get_files(&RepoPath::from_internal_string("dir")),
-            hashset! {RepoPathComponent::from("file")}
+            dirs.get_visit_sets(&RepoPath::root()),
+            Visit::sets(hashset! {RepoPathComponent::from("dir")}, hashset! {}),
         );
         assert_eq!(
-            dirs.get_dirs(&RepoPath::from_internal_string("dir")),
-            hashset! {}
+            dirs.get_visit_sets(&RepoPath::from_internal_string("dir")),
+            Visit::sets(hashset! {}, hashset! {RepoPathComponent::from("file")}),
         );
     }
 
