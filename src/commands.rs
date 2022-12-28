@@ -366,7 +366,7 @@ struct DescribeArgs {
 
 /// Update the description and create a new change on top.
 #[derive(clap::Args, Clone, Debug)]
-#[command(hide = true)]
+#[command(hide = true, visible_aliases=&["ci"])]
 struct CommitArgs {
     /// The change description to use (don't open editor)
     #[arg(long, short)]
