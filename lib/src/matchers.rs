@@ -14,7 +14,8 @@
 
 #![allow(dead_code)]
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
+use std::iter;
 
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
@@ -121,43 +122,38 @@ impl Matcher for FilesMatcher {
 }
 
 pub struct PrefixMatcher {
-    prefixes: BTreeSet<RepoPath>,
     dirs: Dirs,
 }
 
 impl PrefixMatcher {
     pub fn new(prefixes: &[RepoPath]) -> Self {
-        let prefixes = prefixes.iter().cloned().collect();
         let mut dirs = Dirs::new();
-        for prefix in &prefixes {
-            dirs.add_dir(prefix);
-            if !prefix.is_root() {
-                dirs.add_file(prefix);
-            }
+        for prefix in prefixes {
+            let sub = dirs.add(prefix);
+            sub.is_dir = true;
+            sub.is_file = true;
         }
-        PrefixMatcher { prefixes, dirs }
+        PrefixMatcher { dirs }
     }
 }
 
 impl Matcher for PrefixMatcher {
     fn matches(&self, file: &RepoPath) -> bool {
-        let components = file.components();
-        // TODO: Make Dirs a trie instead, so this can just walk that trie.
-        for i in 0..components.len() + 1 {
-            let prefix = RepoPath::from_components(components[0..i].to_vec());
-            if self.prefixes.contains(&prefix) {
-                return true;
-            }
-        }
-        false
+        self.dirs.walk_to(file).any(|(sub, _)| sub.is_file)
     }
 
     fn visit(&self, dir: &RepoPath) -> Visit {
-        if self.matches(dir) {
-            Visit::AllRecursively
-        } else {
-            self.dirs.get_visit_sets(dir)
+        for (sub, tail_components) in self.dirs.walk_to(dir) {
+            // 'is_file' means the current path matches prefix paths
+            if sub.is_file {
+                return Visit::AllRecursively;
+            }
+            // 'dir' found, and is an ancestor of prefix paths
+            if tail_components.is_empty() {
+                return sub.to_visit_sets();
+            }
         }
+        Visit::Nothing
     }
 }
 
@@ -309,6 +305,19 @@ impl Dirs {
         self.get(dir)
             .map(Dirs::to_visit_sets)
             .unwrap_or(Visit::Nothing)
+    }
+
+    fn walk_to<'a>(
+        &'a self,
+        dir: &'a RepoPath,
+    ) -> impl Iterator<Item = (&Dirs, &[RepoPathComponent])> + 'a {
+        iter::successors(
+            Some((self, dir.components().as_slice())),
+            |(sub, components)| {
+                let (name, tail) = components.split_first()?;
+                Some((sub.entries.get(name)?, tail))
+            },
+        )
     }
 
     fn to_visit_sets(&self) -> Visit {
