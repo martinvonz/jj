@@ -101,9 +101,9 @@ pub struct FilesMatcher {
 }
 
 impl FilesMatcher {
-    pub fn new(files: HashSet<RepoPath>) -> Self {
+    pub fn new(files: &[RepoPath]) -> Self {
         let mut dirs = Dirs::new();
-        for f in &files {
+        for f in files {
             dirs.add_file(f);
         }
         FilesMatcher { dirs }
@@ -385,7 +385,7 @@ mod tests {
 
     #[test]
     fn test_filesmatcher_empty() {
-        let m = FilesMatcher::new(hashset! {});
+        let m = FilesMatcher::new(&[]);
         assert!(!m.matches(&RepoPath::from_internal_string("file")));
         assert!(!m.matches(&RepoPath::from_internal_string("dir/file")));
         assert_eq!(m.visit(&RepoPath::root()), Visit::Nothing);
@@ -393,12 +393,12 @@ mod tests {
 
     #[test]
     fn test_filesmatcher_nonempty() {
-        let m = FilesMatcher::new(hashset! {
+        let m = FilesMatcher::new(&[
             RepoPath::from_internal_string("dir1/subdir1/file1"),
             RepoPath::from_internal_string("dir1/subdir1/file2"),
             RepoPath::from_internal_string("dir1/subdir2/file3"),
             RepoPath::from_internal_string("file4"),
-        });
+        ]);
 
         assert!(!m.matches(&RepoPath::from_internal_string("dir1")));
         assert!(!m.matches(&RepoPath::from_internal_string("dir1/subdir1")));

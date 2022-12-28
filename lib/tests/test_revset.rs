@@ -1950,7 +1950,7 @@ fn test_filter_by_diff(use_git: bool) {
     // matcher API:
     let resolve = |file_path: &RepoPath| -> Vec<CommitId> {
         let repo_ref = mut_repo.as_repo_ref();
-        let matcher = FilesMatcher::new([file_path.clone()].into());
+        let matcher = FilesMatcher::new(&[file_path.clone()]);
         let candidates = RevsetExpression::all().evaluate(repo_ref, None).unwrap();
         let commit_ids = revset::filter_by_diff(repo_ref, &matcher as &dyn Matcher, candidates)
             .iter()
