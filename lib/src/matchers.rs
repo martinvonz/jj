@@ -97,7 +97,6 @@ impl Matcher for EverythingMatcher {
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct FilesMatcher {
-    files: HashSet<RepoPath>,
     dirs: Dirs,
 }
 
@@ -107,13 +106,13 @@ impl FilesMatcher {
         for f in &files {
             dirs.add_file(f);
         }
-        FilesMatcher { files, dirs }
+        FilesMatcher { dirs }
     }
 }
 
 impl Matcher for FilesMatcher {
     fn matches(&self, file: &RepoPath) -> bool {
-        self.files.contains(file)
+        self.dirs.get(file).map(|sub| sub.is_file).unwrap_or(false)
     }
 
     fn visit(&self, dir: &RepoPath) -> Visit {
@@ -400,6 +399,12 @@ mod tests {
             RepoPath::from_internal_string("dir1/subdir2/file3"),
             RepoPath::from_internal_string("file4"),
         });
+
+        assert!(!m.matches(&RepoPath::from_internal_string("dir1")));
+        assert!(!m.matches(&RepoPath::from_internal_string("dir1/subdir1")));
+        assert!(m.matches(&RepoPath::from_internal_string("dir1/subdir1/file1")));
+        assert!(m.matches(&RepoPath::from_internal_string("dir1/subdir1/file2")));
+        assert!(!m.matches(&RepoPath::from_internal_string("dir1/subdir1/file3")));
 
         assert_eq!(
             m.visit(&RepoPath::root()),
