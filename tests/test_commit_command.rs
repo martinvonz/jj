@@ -67,6 +67,7 @@ fn test_commit_with_editor() {
         std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
     add files
 
+
     JJ: This commit contains the following changes:
     JJ:     A file1
     JJ:     A file2

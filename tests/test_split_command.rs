@@ -48,6 +48,7 @@ fn test_split_by_paths() {
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
     JJ: Enter commit description for the first part (parent).
 
+
     JJ: This commit contains the following changes:
     JJ:     A file2
 
@@ -56,6 +57,7 @@ fn test_split_by_paths() {
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
     JJ: Enter commit description for the second part (child).
+
 
     JJ: This commit contains the following changes:
     JJ:     A file1

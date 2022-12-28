@@ -2119,9 +2119,9 @@ fn combine_messages(
             source.description().to_string()
         } else {
             let combined = "JJ: Enter a description for the combined commit.\n".to_string()
-                + "JJ: Description from the destination commit:\n"
+                + "JJ: Description from the destination commit:\n\n"
                 + destination.description()
-                + "\nJJ: Description from the source commit:\n"
+                + "\n\nJJ: Description from the source commit:\n\n"
                 + source.description();
             edit_description(ui, repo, &combined)?
         }
@@ -2579,7 +2579,7 @@ fn diff_summary_to_description(bytes: &[u8]) -> String {
         "Summary diffs and repo paths must always be valid UTF8.",
         // Double-check this assumption for diffs that include file content.
     );
-    "JJ: This commit contains the following changes:\n".to_owned()
+    "\nJJ: This commit contains the following changes:\n".to_owned()
         + &textwrap::indent(text, "JJ:     ")
 }
 
