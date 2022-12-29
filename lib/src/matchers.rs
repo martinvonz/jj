@@ -98,52 +98,52 @@ impl Matcher for EverythingMatcher {
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct FilesMatcher {
-    dirs: Dirs,
+    tree: RepoPathTree,
 }
 
 impl FilesMatcher {
     pub fn new(files: &[RepoPath]) -> Self {
-        let mut dirs = Dirs::new();
+        let mut tree = RepoPathTree::new();
         for f in files {
-            dirs.add_file(f);
+            tree.add_file(f);
         }
-        FilesMatcher { dirs }
+        FilesMatcher { tree }
     }
 }
 
 impl Matcher for FilesMatcher {
     fn matches(&self, file: &RepoPath) -> bool {
-        self.dirs.get(file).map(|sub| sub.is_file).unwrap_or(false)
+        self.tree.get(file).map(|sub| sub.is_file).unwrap_or(false)
     }
 
     fn visit(&self, dir: &RepoPath) -> Visit {
-        self.dirs.get_visit_sets(dir)
+        self.tree.get_visit_sets(dir)
     }
 }
 
 pub struct PrefixMatcher {
-    dirs: Dirs,
+    tree: RepoPathTree,
 }
 
 impl PrefixMatcher {
     pub fn new(prefixes: &[RepoPath]) -> Self {
-        let mut dirs = Dirs::new();
+        let mut tree = RepoPathTree::new();
         for prefix in prefixes {
-            let sub = dirs.add(prefix);
+            let sub = tree.add(prefix);
             sub.is_dir = true;
             sub.is_file = true;
         }
-        PrefixMatcher { dirs }
+        PrefixMatcher { tree }
     }
 }
 
 impl Matcher for PrefixMatcher {
     fn matches(&self, file: &RepoPath) -> bool {
-        self.dirs.walk_to(file).any(|(sub, _)| sub.is_file)
+        self.tree.walk_to(file).any(|(sub, _)| sub.is_file)
     }
 
     fn visit(&self, dir: &RepoPath) -> Visit {
-        for (sub, tail_components) in self.dirs.walk_to(dir) {
+        for (sub, tail_components) in self.tree.walk_to(dir) {
             // 'is_file' means the current path matches prefix paths
             if sub.is_file {
                 return Visit::AllRecursively;
@@ -259,29 +259,29 @@ impl Matcher for IntersectionMatcher<'_> {
 /// Keeps track of which subdirectories and files of each directory need to be
 /// visited.
 #[derive(PartialEq, Eq, Debug)]
-struct Dirs {
-    entries: HashMap<RepoPathComponent, Dirs>,
+struct RepoPathTree {
+    entries: HashMap<RepoPathComponent, RepoPathTree>,
     // is_dir/is_file aren't exclusive, both can be set to true. If entries is not empty,
     // is_dir should be set.
     is_dir: bool,
     is_file: bool,
 }
 
-impl Dirs {
+impl RepoPathTree {
     fn new() -> Self {
-        Dirs {
+        RepoPathTree {
             entries: HashMap::new(),
             is_dir: false,
             is_file: false,
         }
     }
 
-    fn add(&mut self, dir: &RepoPath) -> &mut Dirs {
+    fn add(&mut self, dir: &RepoPath) -> &mut RepoPathTree {
         dir.components().iter().fold(self, |sub, name| {
             // Avoid name.clone() if entry already exists.
             if !sub.entries.contains_key(name) {
                 sub.is_dir = true;
-                sub.entries.insert(name.clone(), Dirs::new());
+                sub.entries.insert(name.clone(), RepoPathTree::new());
             }
             sub.entries.get_mut(name).unwrap()
         })
@@ -295,7 +295,7 @@ impl Dirs {
         self.add(file).is_file = true;
     }
 
-    fn get(&self, dir: &RepoPath) -> Option<&Dirs> {
+    fn get(&self, dir: &RepoPath) -> Option<&RepoPathTree> {
         dir.components()
             .iter()
             .try_fold(self, |sub, name| sub.entries.get(name))
@@ -303,14 +303,14 @@ impl Dirs {
 
     fn get_visit_sets(&self, dir: &RepoPath) -> Visit {
         self.get(dir)
-            .map(Dirs::to_visit_sets)
+            .map(RepoPathTree::to_visit_sets)
             .unwrap_or(Visit::Nothing)
     }
 
     fn walk_to<'a>(
         &'a self,
         dir: &'a RepoPath,
-    ) -> impl Iterator<Item = (&Dirs, &[RepoPathComponent])> + 'a {
+    ) -> impl Iterator<Item = (&RepoPathTree, &[RepoPathComponent])> + 'a {
         iter::successors(
             Some((self, dir.components().as_slice())),
             |(sub, components)| {
@@ -343,43 +343,43 @@ mod tests {
     use crate::repo_path::{RepoPath, RepoPathComponent};
 
     #[test]
-    fn test_dirs_empty() {
-        let dirs = Dirs::new();
-        assert_eq!(dirs.get_visit_sets(&RepoPath::root()), Visit::Nothing);
+    fn test_repo_path_tree_empty() {
+        let tree = RepoPathTree::new();
+        assert_eq!(tree.get_visit_sets(&RepoPath::root()), Visit::Nothing);
     }
 
     #[test]
-    fn test_dirs_root() {
-        let mut dirs = Dirs::new();
-        dirs.add_dir(&RepoPath::root());
-        assert_eq!(dirs.get_visit_sets(&RepoPath::root()), Visit::Nothing);
+    fn test_repo_path_tree_root() {
+        let mut tree = RepoPathTree::new();
+        tree.add_dir(&RepoPath::root());
+        assert_eq!(tree.get_visit_sets(&RepoPath::root()), Visit::Nothing);
     }
 
     #[test]
-    fn test_dirs_dir() {
-        let mut dirs = Dirs::new();
-        dirs.add_dir(&RepoPath::from_internal_string("dir"));
+    fn test_repo_path_tree_dir() {
+        let mut tree = RepoPathTree::new();
+        tree.add_dir(&RepoPath::from_internal_string("dir"));
         assert_eq!(
-            dirs.get_visit_sets(&RepoPath::root()),
+            tree.get_visit_sets(&RepoPath::root()),
             Visit::sets(hashset! {RepoPathComponent::from("dir")}, hashset! {}),
         );
-        dirs.add_dir(&RepoPath::from_internal_string("dir/sub"));
+        tree.add_dir(&RepoPath::from_internal_string("dir/sub"));
         assert_eq!(
-            dirs.get_visit_sets(&RepoPath::from_internal_string("dir")),
+            tree.get_visit_sets(&RepoPath::from_internal_string("dir")),
             Visit::sets(hashset! {RepoPathComponent::from("sub")}, hashset! {}),
         );
     }
 
     #[test]
-    fn test_dirs_file() {
-        let mut dirs = Dirs::new();
-        dirs.add_file(&RepoPath::from_internal_string("dir/file"));
+    fn test_repo_path_tree_file() {
+        let mut tree = RepoPathTree::new();
+        tree.add_file(&RepoPath::from_internal_string("dir/file"));
         assert_eq!(
-            dirs.get_visit_sets(&RepoPath::root()),
+            tree.get_visit_sets(&RepoPath::root()),
             Visit::sets(hashset! {RepoPathComponent::from("dir")}, hashset! {}),
         );
         assert_eq!(
-            dirs.get_visit_sets(&RepoPath::from_internal_string("dir")),
+            tree.get_visit_sets(&RepoPath::from_internal_string("dir")),
             Visit::sets(hashset! {}, hashset! {RepoPathComponent::from("file")}),
         );
     }
