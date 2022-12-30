@@ -2146,8 +2146,13 @@ fn has_diff_from_parent(repo: RepoRef<'_>, entry: &IndexEntry<'_>, matcher: &dyn
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commit_builder::new_change_id;
     use crate::index::MutableIndex;
+
+    /// Note that this function produces different ids on subsequent test runs
+    /// TODO: The dependence on the uuid crate is unnecessary.
+    pub fn new_change_id() -> crate::backend::ChangeId {
+        crate::backend::ChangeId::from_bytes(uuid::Uuid::new_v4().as_bytes())
+    }
 
     fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
         parse_with_aliases(revset_str, [] as [(&str, &str); 0])
