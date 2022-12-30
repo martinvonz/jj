@@ -12,23 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use uuid::Uuid;
+use std::sync::Arc;
 
-use crate::backend::{self, BackendResult, ChangeId, CommitId, ObjectId, Signature, TreeId};
+use crate::backend::{self, BackendResult, ChangeId, CommitId, Signature, TreeId};
 use crate::commit::Commit;
 use crate::repo::MutableRepo;
-use crate::settings::UserSettings;
+use crate::settings::{JJRng, UserSettings};
 
 #[must_use]
 pub struct CommitBuilder<'repo> {
     mut_repo: &'repo mut MutableRepo,
+    rng: Arc<JJRng>,
     commit: backend::Commit,
     rewrite_source: Option<Commit>,
-}
-
-// TODO: This function will be replaced in the next commit.
-pub fn new_change_id() -> ChangeId {
-    ChangeId::from_bytes(Uuid::new_v4().as_bytes())
 }
 
 impl CommitBuilder<'_> {
@@ -40,17 +36,19 @@ impl CommitBuilder<'_> {
     ) -> CommitBuilder<'repo> {
         let signature = settings.signature();
         assert!(!parents.is_empty());
+        let rng = settings.get_rng();
         let commit = backend::Commit {
             parents,
             predecessors: vec![],
             root_tree: tree_id,
-            change_id: new_change_id(),
+            change_id: rng.new_change_id(),
             description: String::new(),
             author: signature.clone(),
             committer: signature,
         };
         CommitBuilder {
             mut_repo,
+            rng,
             commit,
             rewrite_source: None,
         }
@@ -75,6 +73,7 @@ impl CommitBuilder<'_> {
         CommitBuilder {
             mut_repo,
             commit,
+            rng: settings.get_rng(),
             rewrite_source: Some(predecessor.clone()),
         }
     }
@@ -101,7 +100,7 @@ impl CommitBuilder<'_> {
     }
 
     pub fn generate_new_change_id(mut self) -> Self {
-        self.commit.change_id = new_change_id();
+        self.commit.change_id = self.rng.new_change_id();
         self
     }
 

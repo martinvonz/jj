@@ -61,6 +61,16 @@ fn test_log_with_or_without_diff() {
     o (no description set)
     "###);
 
+    // Test default log output format
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log"]), @r###"
+    @ ffdaa62087a2 test.user@example.com 2001-02-03 04:05:10.000 +07:00 789e536fd2e0
+    | a new commit
+    o 9a45c67d3e96 test.user@example.com 2001-02-03 04:05:08.000 +07:00 4291e264ae97
+    | add a file
+    o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
+      (no description set)
+    "###);
+
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
     a new commit
