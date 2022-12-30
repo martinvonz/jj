@@ -26,6 +26,7 @@ pub struct CommitBuilder<'repo> {
     rewrite_source: Option<Commit>,
 }
 
+// TODO: This function will be replaced in the next commit.
 pub fn new_change_id() -> ChangeId {
     ChangeId::from_bytes(Uuid::new_v4().as_bytes())
 }

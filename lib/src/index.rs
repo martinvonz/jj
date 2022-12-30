@@ -1620,7 +1620,11 @@ mod tests {
     use test_case::test_case;
 
     use super::*;
-    use crate::commit_builder::new_change_id;
+    /// Note that this function produces different ids on subsequent test runs
+    /// TODO: The dependence on the uuid crate is unnecessary.
+    pub fn new_change_id() -> ChangeId {
+        ChangeId::from_bytes(uuid::Uuid::new_v4().as_bytes())
+    }
 
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
