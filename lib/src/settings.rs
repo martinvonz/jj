@@ -13,8 +13,11 @@
 // limitations under the License.
 
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 use chrono::DateTime;
+use rand::prelude::*;
+use rand_chacha::ChaCha20Rng;
 
 use crate::backend::{Signature, Timestamp};
 
@@ -22,6 +25,7 @@ use crate::backend::{Signature, Timestamp};
 pub struct UserSettings {
     config: config::Config,
     timestamp: Option<Timestamp>,
+    rng: Arc<JJRng>,
 }
 
 #[derive(Debug, Clone)]
@@ -39,10 +43,22 @@ fn get_timestamp_config(config: &config::Config, key: &str) -> Option<Timestamp>
     }
 }
 
+fn get_rng_seed_config(config: &config::Config) -> Option<u64> {
+    config
+        .get_string("debug.randomness-seed")
+        .ok()
+        .and_then(|str| str.parse().ok())
+}
+
 impl UserSettings {
     pub fn from_config(config: config::Config) -> Self {
         let timestamp = get_timestamp_config(&config, "user.timestamp");
-        UserSettings { config, timestamp }
+        let rng_seed = get_rng_seed_config(&config);
+        UserSettings {
+            config,
+            timestamp,
+            rng: Arc::new(JJRng::new(rng_seed)),
+        }
     }
 
     pub fn incorporate_toml_strings(
@@ -54,8 +70,13 @@ impl UserSettings {
             config_builder =
                 config_builder.add_source(config::File::from_str(s, config::FileFormat::Toml));
         }
-        self.config = config_builder.build()?;
-        self.timestamp = get_timestamp_config(&self.config, "user.timestamp");
+        let new_config = config_builder.build()?;
+        let new_rng_seed = get_rng_seed_config(&new_config);
+        if new_rng_seed != get_rng_seed_config(&self.config) {
+            self.rng.reset(new_rng_seed);
+        }
+        self.timestamp = get_timestamp_config(&new_config, "user.timestamp");
+        self.config = new_config;
         Ok(())
     }
 
@@ -69,6 +90,10 @@ impl UserSettings {
             )
             .build()?;
         Ok(RepoSettings { _config: config })
+    }
+
+    pub fn get_rng(&self) -> Arc<JJRng> {
+        self.rng.clone()
     }
 
     pub fn user_name(&self) -> String {
@@ -144,5 +169,39 @@ impl UserSettings {
 
     pub fn config(&self) -> &config::Config {
         &self.config
+    }
+}
+
+/// This Rng uses interior mutability to allow generating random values using an
+/// immutable reference. It also fixes a specific seedable RNG for
+/// reproducibility.
+#[derive(Debug)]
+pub struct JJRng(Mutex<ChaCha20Rng>);
+impl JJRng {
+    /// Wraps Rng::gen but only requires an immutable reference.
+    pub fn gen<T>(&self) -> T
+    where
+        rand::distributions::Standard: rand::distributions::Distribution<T>,
+    {
+        let mut rng = self.0.lock().unwrap();
+        rng.gen()
+    }
+
+    /// Creates a new RNGs. Could be made public, but we'd like to encourage all
+    /// RNGs references to point to the same RNG.
+    fn new(seed: Option<u64>) -> Self {
+        Self(Mutex::new(JJRng::internal_rng_from_seed(seed)))
+    }
+
+    fn reset(&self, seed: Option<u64>) {
+        let mut rng = self.0.lock().unwrap();
+        *rng = JJRng::internal_rng_from_seed(seed)
+    }
+
+    fn internal_rng_from_seed(seed: Option<u64>) -> ChaCha20Rng {
+        match seed {
+            Some(seed) => ChaCha20Rng::seed_from_u64(seed),
+            None => ChaCha20Rng::from_entropy(),
+        }
     }
 }

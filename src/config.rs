@@ -100,6 +100,11 @@ fn env_overrides() -> config::Config {
     if let Ok(value) = env::var("JJ_TIMESTAMP") {
         builder = builder.set_override("user.timestamp", value).unwrap();
     }
+    if let Ok(value) = env::var("JJ_RANDOMNESS_SEED") {
+        builder = builder
+            .set_override("debug.randomness-seed", value)
+            .unwrap();
+    }
     if let Ok(value) = env::var("JJ_OP_TIMESTAMP") {
         builder = builder.set_override("operation.timestamp", value).unwrap();
     }
