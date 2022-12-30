@@ -846,6 +846,7 @@ dependencies = [
  "pest_derive",
  "prost",
  "rand",
+ "rand_chacha",
  "regex",
  "serde_json",
  "tempfile",
