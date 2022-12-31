@@ -14,6 +14,7 @@
 
 use std::path::Path;
 
+use assert_matches::assert_matches;
 use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
 use jujutsu_lib::git;
 use jujutsu_lib::matchers::{FilesMatcher, Matcher};
@@ -36,9 +37,9 @@ fn test_resolve_symbol_root(use_git: bool) {
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(repo.as_repo_ref(), "root", None),
-        Ok(vec![repo.store().root_commit_id().clone()])
+        Ok(v) if v == vec![repo.store().root_commit_id().clone()]
     );
 }
 
@@ -94,55 +95,55 @@ fn test_resolve_symbol_commit_id() {
     // Test lookup by full commit id
     let repo_ref = repo.as_repo_ref();
     assert_eq!(
-        resolve_symbol(repo_ref, "0454de3cae04c46cda37ba2e8873b4c17ff51dcb", None),
-        Ok(vec![commits[0].id().clone()])
+        resolve_symbol(repo_ref, "0454de3cae04c46cda37ba2e8873b4c17ff51dcb", None).unwrap(),
+        vec![commits[0].id().clone()]
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "045f56cd1b17e8abde86771e2705395dcde6a957", None),
-        Ok(vec![commits[1].id().clone()])
+        resolve_symbol(repo_ref, "045f56cd1b17e8abde86771e2705395dcde6a957", None).unwrap(),
+        vec![commits[1].id().clone()]
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "0468f7da8de2ce442f512aacf83411d26cd2e0cf", None),
-        Ok(vec![commits[2].id().clone()])
+        resolve_symbol(repo_ref, "0468f7da8de2ce442f512aacf83411d26cd2e0cf", None).unwrap(),
+        vec![commits[2].id().clone()]
     );
 
     // Test empty commit id
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(repo_ref, "", None),
-        Err(RevsetError::AmbiguousIdPrefix("".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix(s)) if s.is_empty()
     );
 
     // Test commit id prefix
     assert_eq!(
-        resolve_symbol(repo_ref, "046", None),
-        Ok(vec![commits[2].id().clone()])
+        resolve_symbol(repo_ref, "046", None).unwrap(),
+        vec![commits[2].id().clone()]
     );
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(repo_ref, "04", None),
-        Err(RevsetError::AmbiguousIdPrefix("04".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix(s)) if s == "04"
     );
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(repo_ref, "", None),
-        Err(RevsetError::AmbiguousIdPrefix("".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix(s)) if s.is_empty()
     );
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(repo_ref, "040", None),
-        Err(RevsetError::NoSuchRevision("040".to_string()))
+        Err(RevsetError::NoSuchRevision(s)) if s == "040"
     );
 
     // Test non-hex string
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(repo_ref, "foo", None),
-        Err(RevsetError::NoSuchRevision("foo".to_string()))
+        Err(RevsetError::NoSuchRevision(s)) if s == "foo"
     );
 
     // Test present() suppresses only NoSuchRevision error
     assert_eq!(resolve_commit_ids(repo_ref, "present(foo)"), []);
-    assert_eq!(
+    assert_matches!(
         optimize(parse("present(04)", &RevsetAliasesMap::new(), None).unwrap())
             .evaluate(repo_ref, None)
             .map(|_| ()),
-        Err(RevsetError::AmbiguousIdPrefix("04".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix(s)) if s == "04"
     );
     assert_eq!(
         resolve_commit_ids(repo_ref, "present(046)"),
@@ -217,66 +218,66 @@ fn test_resolve_symbol_change_id() {
     // Test lookup by full change id
     let repo_ref = repo.as_repo_ref();
     assert_eq!(
-        resolve_symbol(repo_ref, "04e12a5467bba790efb88a9870894ec2", None),
-        Ok(vec![CommitId::from_hex(
+        resolve_symbol(repo_ref, "04e12a5467bba790efb88a9870894ec2", None).unwrap(),
+        vec![CommitId::from_hex(
             "8fd68d104372910e19511df709e5dde62a548720"
-        )])
+        )]
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "040b3ba3a51d8edbc4c5855cbd09de71", None),
-        Ok(vec![CommitId::from_hex(
+        resolve_symbol(repo_ref, "040b3ba3a51d8edbc4c5855cbd09de71", None).unwrap(),
+        vec![CommitId::from_hex(
             "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
-        )])
+        )]
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "04e1c7082e4e34f3f371d8a1a46770b8", None),
-        Ok(vec![CommitId::from_hex(
+        resolve_symbol(repo_ref, "04e1c7082e4e34f3f371d8a1a46770b8", None).unwrap(),
+        vec![CommitId::from_hex(
             "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
-        )])
+        )]
     );
 
     // Test change id prefix
     assert_eq!(
-        resolve_symbol(repo_ref, "04e12", None),
-        Ok(vec![CommitId::from_hex(
+        resolve_symbol(repo_ref, "04e12", None).unwrap(),
+        vec![CommitId::from_hex(
             "8fd68d104372910e19511df709e5dde62a548720"
-        )])
+        )]
     );
     assert_eq!(
-        resolve_symbol(repo_ref, "04e1c", None),
-        Ok(vec![CommitId::from_hex(
+        resolve_symbol(repo_ref, "04e1c", None).unwrap(),
+        vec![CommitId::from_hex(
             "e2ad9d861d0ee625851b8ecfcf2c727410e38720"
-        )])
+        )]
     );
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(repo_ref, "04e1", None),
-        Err(RevsetError::AmbiguousIdPrefix("04e1".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix(s)) if s == "04e1"
     );
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(repo_ref, "", None),
-        Err(RevsetError::AmbiguousIdPrefix("".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix(s)) if s.is_empty()
     );
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(repo_ref, "04e13", None),
-        Err(RevsetError::NoSuchRevision("04e13".to_string()))
+        Err(RevsetError::NoSuchRevision(s)) if s == "04e13"
     );
 
     // Test commit/changed id conflicts.
     assert_eq!(
-        resolve_symbol(repo_ref, "040b", None),
-        Ok(vec![CommitId::from_hex(
+        resolve_symbol(repo_ref, "040b", None).unwrap(),
+        vec![CommitId::from_hex(
             "5339432b8e7b90bd3aa1a323db71b8a5c5dcd020"
-        )])
+        )]
     );
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(repo_ref, "040", None),
-        Err(RevsetError::AmbiguousIdPrefix("040".to_string()))
+        Err(RevsetError::AmbiguousIdPrefix(s)) if s == "040"
     );
 
     // Test non-hex string
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(repo_ref, "foo", None),
-        Err(RevsetError::NoSuchRevision("foo".to_string()))
+        Err(RevsetError::NoSuchRevision(s)) if s == "foo"
     );
 }
 
@@ -297,17 +298,17 @@ fn test_resolve_symbol_checkout(use_git: bool) {
     let ws2 = WorkspaceId::new("ws2".to_string());
 
     // With no workspaces, no variation can be resolved
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(mut_repo.as_repo_ref(), "@", None),
-        Err(RevsetError::NoSuchRevision("@".to_string()))
+        Err(RevsetError::NoSuchRevision(s)) if s == "@"
     );
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(mut_repo.as_repo_ref(), "@", Some(&ws1)),
-        Err(RevsetError::NoSuchRevision("@".to_string()))
+        Err(RevsetError::NoSuchRevision(s)) if s == "@"
     );
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(mut_repo.as_repo_ref(), "ws1@", Some(&ws1)),
-        Err(RevsetError::NoSuchRevision("ws1@".to_string()))
+        Err(RevsetError::NoSuchRevision(s)) if s == "ws1@"
     );
 
     // Add some workspaces
@@ -316,19 +317,19 @@ fn test_resolve_symbol_checkout(use_git: bool) {
         .unwrap();
     mut_repo.set_wc_commit(ws2, commit2.id().clone()).unwrap();
     // @ cannot be resolved without a default workspace ID
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(mut_repo.as_repo_ref(), "@", None),
-        Err(RevsetError::NoSuchRevision("@".to_string()))
+        Err(RevsetError::NoSuchRevision(s)) if s == "@"
     );
     // Can resolve "@" shorthand with a default workspace ID
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "@", Some(&ws1)),
-        Ok(vec![commit1.id().clone()])
+        resolve_symbol(mut_repo.as_repo_ref(), "@", Some(&ws1)).unwrap(),
+        vec![commit1.id().clone()]
     );
     // Can resolve an explicit checkout
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "ws2@", Some(&ws1)),
-        Ok(vec![commit2.id().clone()])
+        resolve_symbol(mut_repo.as_repo_ref(), "ws2@", Some(&ws1)).unwrap(),
+        vec![commit2.id().clone()]
     );
 }
 
@@ -372,9 +373,9 @@ fn test_resolve_symbol_git_refs() {
     );
 
     // Nonexistent ref
-    assert_eq!(
+    assert_matches!(
         resolve_symbol(mut_repo.as_repo_ref(), "nonexistent", None),
-        Err(RevsetError::NoSuchRevision("nonexistent".to_string()))
+        Err(RevsetError::NoSuchRevision(s)) if s == "nonexistent"
     );
 
     // Full ref
@@ -383,8 +384,8 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit4.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/branch", None),
-        Ok(vec![commit4.id().clone()])
+        resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/branch", None).unwrap(),
+        vec![commit4.id().clone()]
     );
 
     // Qualified with only heads/
@@ -397,8 +398,8 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit4.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "heads/branch", None),
-        Ok(vec![commit5.id().clone()])
+        resolve_symbol(mut_repo.as_repo_ref(), "heads/branch", None).unwrap(),
+        vec![commit5.id().clone()]
     );
 
     // Unqualified branch name
@@ -411,8 +412,8 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit4.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "branch", None),
-        Ok(vec![commit3.id().clone()])
+        resolve_symbol(mut_repo.as_repo_ref(), "branch", None).unwrap(),
+        vec![commit3.id().clone()]
     );
 
     // Unqualified tag name
@@ -421,8 +422,8 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit4.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "tag", None),
-        Ok(vec![commit4.id().clone()])
+        resolve_symbol(mut_repo.as_repo_ref(), "tag", None).unwrap(),
+        vec![commit4.id().clone()]
     );
 
     // Unqualified remote-tracking branch name
@@ -431,8 +432,8 @@ fn test_resolve_symbol_git_refs() {
         RefTarget::Normal(commit2.id().clone()),
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "origin/remote-branch", None),
-        Ok(vec![commit2.id().clone()])
+        resolve_symbol(mut_repo.as_repo_ref(), "origin/remote-branch", None).unwrap(),
+        vec![commit2.id().clone()]
     );
 
     // Cannot shadow checkout ("@") or root symbols
@@ -443,22 +444,18 @@ fn test_resolve_symbol_git_refs() {
     mut_repo.set_git_ref("@".to_string(), RefTarget::Normal(commit2.id().clone()));
     mut_repo.set_git_ref("root".to_string(), RefTarget::Normal(commit3.id().clone()));
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "@", Some(&ws_id)),
-        Ok(vec![mut_repo
-            .view()
-            .get_wc_commit_id(&ws_id)
-            .unwrap()
-            .clone()])
+        resolve_symbol(mut_repo.as_repo_ref(), "@", Some(&ws_id)).unwrap(),
+        vec![mut_repo.view().get_wc_commit_id(&ws_id).unwrap().clone()]
     );
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "root", None),
-        Ok(vec![mut_repo.store().root_commit().id().clone()])
+        resolve_symbol(mut_repo.as_repo_ref(), "root", None).unwrap(),
+        vec![mut_repo.store().root_commit().id().clone()]
     );
 
     // Conflicted ref resolves to its "adds"
     assert_eq!(
-        resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/conflicted", None),
-        Ok(vec![commit1.id().clone(), commit3.id().clone()])
+        resolve_symbol(mut_repo.as_repo_ref(), "refs/heads/conflicted", None).unwrap(),
+        vec![commit1.id().clone(), commit3.id().clone()]
     );
 }
 

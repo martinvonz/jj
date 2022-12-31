@@ -171,7 +171,7 @@ content_hash! {
     }
 }
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum BackendError {
     #[error(
         "Invalid hash for object of type {object_type}: {hash} (expected {expected} bytes, got \

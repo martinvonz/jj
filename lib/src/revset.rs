@@ -41,7 +41,7 @@ use crate::revset_graph_iterator::RevsetGraphIterator;
 use crate::rewrite;
 use crate::store::Store;
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum RevsetError {
     #[error("Revision \"{0}\" doesn't exist")]
     NoSuchRevision(String),
