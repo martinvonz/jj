@@ -329,7 +329,7 @@ fn suppress_file_exists_error(orig_err: CheckoutError) -> Result<(), CheckoutErr
     }
 }
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Error)]
 pub enum ResetError {
     // The current checkout was deleted, maybe by an overly aggressive GC that happened while
     // the current process was running.
