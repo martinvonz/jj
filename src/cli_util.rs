@@ -123,9 +123,9 @@ impl From<WorkspaceInitError> for CommandError {
 impl From<OpHeadResolutionError> for CommandError {
     fn from(err: OpHeadResolutionError) -> Self {
         match err {
-            OpHeadResolutionError::NoHeads => {
-                CommandError::InternalError("Corrupt repository: the are no operations".to_string())
-            }
+            OpHeadResolutionError::NoHeads => CommandError::InternalError(
+                "Corrupt repository: there are no operations".to_string(),
+            ),
         }
     }
 }
