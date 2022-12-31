@@ -208,33 +208,33 @@ impl<W> ColorFormatter<W> {
                 }
             }
 
-            let color = self.color_for_name(best_match.1);
+            let color = color_for_name(best_match.1);
             self.cached_colors
                 .insert(self.labels.clone(), color.clone());
             color
         }
     }
+}
 
-    fn color_for_name(&self, color_name: &str) -> Vec<u8> {
-        match color_name {
-            "black" => b"\x1b[30m".to_vec(),
-            "red" => b"\x1b[31m".to_vec(),
-            "green" => b"\x1b[32m".to_vec(),
-            "yellow" => b"\x1b[33m".to_vec(),
-            "blue" => b"\x1b[34m".to_vec(),
-            "magenta" => b"\x1b[35m".to_vec(),
-            "cyan" => b"\x1b[36m".to_vec(),
-            "white" => b"\x1b[37m".to_vec(),
-            "bright black" => b"\x1b[1;30m".to_vec(),
-            "bright red" => b"\x1b[1;31m".to_vec(),
-            "bright green" => b"\x1b[1;32m".to_vec(),
-            "bright yellow" => b"\x1b[1;33m".to_vec(),
-            "bright blue" => b"\x1b[1;34m".to_vec(),
-            "bright magenta" => b"\x1b[1;35m".to_vec(),
-            "bright cyan" => b"\x1b[1;36m".to_vec(),
-            "bright white" => b"\x1b[1;37m".to_vec(),
-            _ => b"\x1b[0m".to_vec(),
-        }
+fn color_for_name(color_name: &str) -> Vec<u8> {
+    match color_name {
+        "black" => b"\x1b[30m".to_vec(),
+        "red" => b"\x1b[31m".to_vec(),
+        "green" => b"\x1b[32m".to_vec(),
+        "yellow" => b"\x1b[33m".to_vec(),
+        "blue" => b"\x1b[34m".to_vec(),
+        "magenta" => b"\x1b[35m".to_vec(),
+        "cyan" => b"\x1b[36m".to_vec(),
+        "white" => b"\x1b[37m".to_vec(),
+        "bright black" => b"\x1b[1;30m".to_vec(),
+        "bright red" => b"\x1b[1;31m".to_vec(),
+        "bright green" => b"\x1b[1;32m".to_vec(),
+        "bright yellow" => b"\x1b[1;33m".to_vec(),
+        "bright blue" => b"\x1b[1;34m".to_vec(),
+        "bright magenta" => b"\x1b[1;35m".to_vec(),
+        "bright cyan" => b"\x1b[1;36m".to_vec(),
+        "bright white" => b"\x1b[1;37m".to_vec(),
+        _ => b"\x1b[0m".to_vec(),
     }
 }
 
