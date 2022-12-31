@@ -295,8 +295,10 @@ pub enum SnapshotError {
 pub enum CheckoutError {
     // The current checkout was deleted, maybe by an overly aggressive GC that happened while
     // the current process was running.
-    #[error("Current checkout not found")]
-    SourceNotFound,
+    #[error("Current checkout not found: {source}")]
+    SourceNotFound {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
     // Another process checked out a commit while the current process was running (after the
     // working copy was read by the current process).
     #[error("Concurrent checkout")]
@@ -333,8 +335,10 @@ fn suppress_file_exists_error(orig_err: CheckoutError) -> Result<(), CheckoutErr
 pub enum ResetError {
     // The current checkout was deleted, maybe by an overly aggressive GC that happened while
     // the current process was running.
-    #[error("Current checkout not found")]
-    SourceNotFound,
+    #[error("Current checkout not found: {source}")]
+    SourceNotFound {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
     #[error("Internal error: {0}")]
     InternalBackendError(#[from] BackendError),
 }
@@ -813,7 +817,9 @@ impl TreeState {
             .store
             .get_tree(&RepoPath::root(), &self.tree_id)
             .map_err(|err| match err {
-                BackendError::NotFound => CheckoutError::SourceNotFound,
+                err @ BackendError::NotFound => CheckoutError::SourceNotFound {
+                    source: Box::new(err),
+                },
                 other => CheckoutError::InternalBackendError(other),
             })?;
         let stats = self.update(&old_tree, new_tree, self.sparse_matcher().as_ref(), Err)?;
@@ -829,7 +835,9 @@ impl TreeState {
             .store
             .get_tree(&RepoPath::root(), &self.tree_id)
             .map_err(|err| match err {
-                BackendError::NotFound => CheckoutError::SourceNotFound,
+                err @ BackendError::NotFound => CheckoutError::SourceNotFound {
+                    source: Box::new(err),
+                },
                 other => CheckoutError::InternalBackendError(other),
             })?;
         let old_matcher = PrefixMatcher::new(&self.sparse_patterns);
@@ -956,7 +964,9 @@ impl TreeState {
             .store
             .get_tree(&RepoPath::root(), &self.tree_id)
             .map_err(|err| match err {
-                BackendError::NotFound => ResetError::SourceNotFound,
+                err @ BackendError::NotFound => ResetError::SourceNotFound {
+                    source: Box::new(err),
+                },
                 other => ResetError::InternalBackendError(other),
             })?;
 
