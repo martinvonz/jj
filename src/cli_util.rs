@@ -115,7 +115,7 @@ impl From<RewriteRootCommit> for CommandError {
 
 impl From<BackendError> for CommandError {
     fn from(err: BackendError) -> Self {
-        user_error(format!("Unexpected error from store: {err}"))
+        user_error(format!("Unexpected error from backend: {err}"))
     }
 }
 
