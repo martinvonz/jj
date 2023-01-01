@@ -64,17 +64,19 @@ impl TestEnvironment {
         }
         cmd.env("RUST_BACKTRACE", "1");
         cmd.env("HOME", self.home_dir.to_str().unwrap());
-        let timestamp = chrono::DateTime::parse_from_rfc3339("2001-02-03T04:05:06+07:00").unwrap();
-        let mut command_number = self.command_number.borrow_mut();
-        *command_number += 1;
         cmd.env("JJ_CONFIG", self.config_dir.to_str().unwrap());
-        let timestamp = timestamp + chrono::Duration::seconds(*command_number);
-        cmd.env("JJ_TIMESTAMP", timestamp.to_rfc3339());
         cmd.env("JJ_USER", "Test User");
         cmd.env("JJ_EMAIL", "test.user@example.com");
-        cmd.env("JJ_OP_TIMESTAMP", timestamp.to_rfc3339());
         cmd.env("JJ_OP_HOSTNAME", "host.example.com");
         cmd.env("JJ_OP_USERNAME", "test-username");
+
+        let mut command_number = self.command_number.borrow_mut();
+        *command_number += 1;
+        let timestamp = chrono::DateTime::parse_from_rfc3339("2001-02-03T04:05:06+07:00").unwrap();
+        let timestamp = timestamp + chrono::Duration::seconds(*command_number);
+        cmd.env("JJ_TIMESTAMP", timestamp.to_rfc3339());
+        cmd.env("JJ_OP_TIMESTAMP", timestamp.to_rfc3339());
+
         cmd
     }
 
