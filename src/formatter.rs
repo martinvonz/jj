@@ -155,13 +155,23 @@ impl<W> ColorFormatter<W> {
             let mut best_match = (-1, "");
             for (key, value) in self.colors.as_ref() {
                 let mut num_matching = 0;
+                let mut labels_iter = self.labels.iter();
                 let mut valid = true;
-                for label in key.split_whitespace() {
-                    if !self.labels.contains(&label.to_string()) {
-                        valid = false;
+                for required_label in key.split_whitespace() {
+                    loop {
+                        match labels_iter.next() {
+                            Some(label) if label == required_label => {
+                                num_matching += 1;
+                            }
+                            None => {
+                                valid = false;
+                            }
+                            Some(_) => {
+                                continue;
+                            }
+                        }
                         break;
                     }
-                    num_matching += 1;
                 }
                 if !valid {
                     continue;
