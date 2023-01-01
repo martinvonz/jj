@@ -51,7 +51,6 @@ use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
 use jujutsu_lib::{dag_walk, file_util, git, revset};
 use thiserror::Error;
 
-use crate::config::read_config;
 use crate::formatter::Formatter;
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
 use crate::templater::TemplateFormatter;
@@ -98,6 +97,12 @@ impl From<std::io::Error> for CommandError {
 
 impl From<config::ConfigError> for CommandError {
     fn from(err: config::ConfigError) -> Self {
+        CommandError::ConfigError(err.to_string())
+    }
+}
+
+impl From<crate::config::ConfigError> for CommandError {
+    fn from(err: crate::config::ConfigError) -> Self {
         CommandError::ConfigError(err.to_string())
     }
 }
@@ -1469,19 +1474,6 @@ impl ValueParserFactory for RevisionArg {
     }
 }
 
-pub fn create_ui() -> (Ui, Result<(), CommandError>) {
-    // TODO: We need to do some argument parsing here, at least for things like
-    // --config, and for reading user configs from the repo pointed to by -R.
-    let mut ui = Ui::new();
-    match read_config() {
-        Ok(user_settings) => {
-            ui.reset(user_settings);
-            (ui, Ok(()))
-        }
-        Err(err) => (ui, Err(CommandError::ConfigError(err.to_string()))),
-    }
-}
-
 fn resolve_aliases(
     user_settings: &UserSettings,
     app: &clap::Command,
@@ -1577,6 +1569,8 @@ pub fn parse_args(
             return Err(CommandError::CliError("Non-utf8 argument".to_string()));
         }
     }
+
+    // TODO: read user configs from the repo pointed to by -R.
 
     let string_args = resolve_aliases(ui.settings(), &app, &string_args)?;
     handle_early_args(ui, &app, &string_args)?;
