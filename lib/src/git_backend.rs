@@ -180,7 +180,12 @@ impl Backend for GitBackend {
 
     fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         if id.as_bytes().len() != self.hash_length() {
-            return Err(BackendError::NotFound);
+            return Err(BackendError::InvalidHashLength {
+                expected: self.hash_length(),
+                actual: id.as_bytes().len(),
+                object_type: "file",
+                hash: id.hex(),
+            });
         }
         let locked_repo = self.repo.lock().unwrap();
         let blob = locked_repo
@@ -200,7 +205,12 @@ impl Backend for GitBackend {
 
     fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
         if id.as_bytes().len() != self.hash_length() {
-            return Err(BackendError::NotFound);
+            return Err(BackendError::InvalidHashLength {
+                expected: self.hash_length(),
+                actual: id.as_bytes().len(),
+                object_type: "symlink",
+                hash: id.hex(),
+            });
         }
         let locked_repo = self.repo.lock().unwrap();
         let blob = locked_repo
@@ -229,7 +239,12 @@ impl Backend for GitBackend {
             return Ok(Tree::default());
         }
         if id.as_bytes().len() != self.hash_length() {
-            return Err(BackendError::NotFound);
+            return Err(BackendError::InvalidHashLength {
+                expected: self.hash_length(),
+                actual: id.as_bytes().len(),
+                object_type: "tree",
+                hash: id.hex(),
+            });
         }
 
         let locked_repo = self.repo.lock().unwrap();
@@ -348,7 +363,12 @@ impl Backend for GitBackend {
 
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
         if id.as_bytes().len() != self.hash_length() {
-            return Err(BackendError::NotFound);
+            return Err(BackendError::InvalidHashLength {
+                expected: self.hash_length(),
+                actual: id.as_bytes().len(),
+                object_type: "commit",
+                hash: id.hex(),
+            });
         }
 
         if *id == self.root_commit_id {
