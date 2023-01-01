@@ -14,9 +14,10 @@
 
 use clap::{FromArgMatches, Subcommand};
 use jujutsu::cli_util::{
-    create_ui, handle_command_result, parse_args, short_commit_description, CommandError,
+    handle_command_result, parse_args, short_commit_description, CommandError,
 };
 use jujutsu::commands::{default_app, run_command};
+use jujutsu::config::read_config;
 use jujutsu::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
@@ -33,6 +34,7 @@ struct FrobnicateArgs {
 }
 
 fn run(ui: &mut Ui) -> Result<(), CommandError> {
+    ui.reset(read_config()?);
     let app = CustomCommands::augment_subcommands(default_app());
     let (command_helper, matches) = parse_args(ui, app, std::env::args_os())?;
     match CustomCommands::from_arg_matches(&matches) {
@@ -61,8 +63,8 @@ fn run(ui: &mut Ui) -> Result<(), CommandError> {
 
 fn main() {
     jujutsu::cleanup_guard::init();
-    let (mut ui, result) = create_ui();
-    let result = result.and_then(|()| run(&mut ui));
+    let mut ui = Ui::new();
+    let result = run(&mut ui);
     let exit_code = handle_command_result(&mut ui, result);
     ui.finalize_writes();
     std::process::exit(exit_code);

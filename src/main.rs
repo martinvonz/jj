@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::cli_util::{create_ui, handle_command_result, parse_args, CommandError};
+use jujutsu::cli_util::{handle_command_result, parse_args, CommandError};
 use jujutsu::commands::{default_app, run_command};
+use jujutsu::config::read_config;
 use jujutsu::ui::Ui;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::prelude::*;
@@ -24,6 +25,7 @@ fn run(
     ui: &mut Ui,
     reload_log_filter: Handle<EnvFilter, impl tracing::Subscriber>,
 ) -> Result<(), CommandError> {
+    ui.reset(read_config()?);
     let app = default_app();
     let (command_helper, matches) = parse_args(ui, app, std::env::args_os())?;
     if command_helper.global_args().verbose {
@@ -56,8 +58,8 @@ fn main() {
         .init();
 
     jujutsu::cleanup_guard::init();
-    let (mut ui, result) = create_ui();
-    let result = result.and_then(|()| run(&mut ui, reload_log_filter));
+    let mut ui = Ui::new();
+    let result = run(&mut ui, reload_log_filter);
     let exit_code = handle_command_result(&mut ui, result);
     ui.finalize_writes();
     std::process::exit(exit_code);
