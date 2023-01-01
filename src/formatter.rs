@@ -89,10 +89,6 @@ impl FormatterFactory {
             }
         }
     }
-
-    pub fn is_color(&self) -> bool {
-        matches!(&self.kind, FormatterFactoryKind::Color { .. })
-    }
 }
 
 pub struct PlainTextFormatter<W> {
