@@ -1,0 +1,154 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "title": "Jujutsu config",
+    "type": "object",
+    "description": "User configuration for Jujutsu VCS. See https://github.com/martinvonz/jj/blob/main/docs/config.md for details",
+    "properties": {
+        "user": {
+            "type": "object",
+            "description": "Settings about the user",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Full name of the user, used in commits"
+                },
+                "email": {
+                    "type": "string",
+                    "description": "User's email address, used in commits",
+                    "format": "email"
+                }
+            }
+        },
+        "operation": {
+            "type": "object",
+            "description": "Metadata to be attached to jj operations (shown in jj op log)",
+            "properties": {
+                "hostname": {
+                    "type": "string",
+                    "format": "hostname"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "push": {
+            "type": "object",
+            "properties": {
+                "branch-prefix": {
+                    "type": "string",
+                    "description": "Prefix used when pushing a change ID as a new branch",
+                    "default": "push-"
+                }
+            }
+        },
+        "ui": {
+            "type": "object",
+            "description": "UI settings",
+            "properties": {
+                "allow-init-native": {
+                    "type": "boolean",
+                    "description": "Whether to allow initializing a repo with the native backend",
+                    "default": false
+                },
+                "relative-timestamps": {
+                    "type": "boolean",
+                    "description": "Whether to change timestamps to be rendered as a relative description instead of a full timestamp",
+                    "default": false
+                },
+                "default-revset": {
+                    "type": "string",
+                    "description": "Default set of revisions to show when no explicit revset is given for jj log and similar commands",
+                    "default": "@ | (remote_branches() | tags()).. | ((remote_branches() | tags())..)-"
+                },
+                "color": {
+                    "description": "Whether to colorize command output",
+                    "enum": ["always", "never", "auto"],
+                    "default": "auto"
+                },
+                "pager": {
+                    "type": "string",
+                    "description": "Pager to use for displaying command output",
+                    "default": "less -FRX"
+                },
+                "editor": {
+                    "type": "string",
+                    "description": "Editor to use for commands that involve editing text"
+                },
+                "diff-editor": {
+                    "type": "string",
+                    "description": "Editor tool to use for editing diffs",
+                    "default": "meld"
+                },
+                "merge-editor": {
+                    "type": "string",
+                    "description": "Tool to use for resolving three-way merges. Behavior for a given tool name can be configured in merge-tools.TOOL tables"
+                }
+            }
+        },
+        "colors": {
+            "type": "object",
+            "description": "Mapping from jj formatter labels to color names",
+            "additionalProperties": {
+                "enum": [
+                    "black",
+                    "red",
+                    "green",
+                    "yellow",
+                    "blue",
+                    "magenta",
+                    "cyan",
+                    "white",
+                    "bright black",
+                    "bright red",
+                    "bright green",
+                    "bright yellow",
+                    "bright blue",
+                    "bright magenta",
+                    "bright cyan",
+                    "bright white"
+                ]
+            }
+        },
+        "merge-tools": {
+            "type": "object",
+            "description": "Tables of custom options to pass to the given merge tool (selected in ui.merge-editor)",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "program": {
+                        "type": "string"
+                    },
+                    "merge-args": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "merge-tool-edits-conflict-markers": {
+                        "type": "boolean",
+                        "description": "Whether to populate the output file with conflict markers before starting the merge tool. See https://github.com/martinvonz/jj/blob/main/docs/config.md#editing-conflict-markers-with-a-tool-or-a-text-editor",
+                        "default": false
+                    }
+                }
+            }
+        },
+        "revset-aliases": {
+            "type": "object",
+            "description": "Custom symbols/function aliases that can used in revset expressions",
+            "additionalProperties": {
+                "type": "string"
+            }
+        },
+        "alias": {
+            "type": "object",
+            "description": "Custom subcommand aliases to be supported by the jj command",
+            "additionalProperties": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}
