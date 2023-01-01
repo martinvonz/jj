@@ -25,8 +25,8 @@ use uuid::Uuid;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree,
-    TreeId, TreeValue,
+    ConflictId, ConflictPart, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
+    Tree, TreeId, TreeValue,
 };
 use crate::repo_path::{RepoPath, RepoPathComponent};
 use crate::stacked_table::{ReadonlyTable, TableSegment, TableStore};

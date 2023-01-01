@@ -22,7 +22,7 @@ use itertools::Itertools;
 use prost::Message;
 use tempfile::NamedTempFile;
 
-use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
+use crate::backend::{CommitId, MillisSinceEpoch, ObjectId, Timestamp};
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::op_store::{

@@ -18,7 +18,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use jujutsu_lib::backend::TreeValue;
+use jujutsu_lib::backend::{ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::diff::{Diff, DiffHunk};
 use jujutsu_lib::files::DiffLine;

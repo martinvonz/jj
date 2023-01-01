@@ -30,7 +30,7 @@ use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
 
-use crate::backend::{BackendError, BackendResult, CommitId};
+use crate::backend::{BackendError, BackendResult, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::index::{HexPrefix, IndexEntry, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
@@ -48,7 +48,7 @@ pub enum RevsetError {
     #[error("Commit or change id prefix \"{0}\" is ambiguous")]
     AmbiguousIdPrefix(String),
     #[error("Unexpected error from store: {0}")]
-    StoreError(#[from] BackendError),
+    StoreError(#[source] BackendError),
 }
 
 fn resolve_git_ref(repo: RepoRef, symbol: &str) -> Option<Vec<CommitId>> {

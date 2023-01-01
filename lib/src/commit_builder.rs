@@ -14,8 +14,7 @@
 
 use uuid::Uuid;
 
-use crate::backend;
-use crate::backend::{BackendResult, ChangeId, CommitId, Signature, TreeId};
+use crate::backend::{self, BackendResult, ChangeId, CommitId, ObjectId, Signature, TreeId};
 use crate::commit::Commit;
 use crate::repo::MutableRepo;
 use crate::settings::UserSettings;

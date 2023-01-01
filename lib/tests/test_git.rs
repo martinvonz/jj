@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use git2::Oid;
 use itertools::Itertools;
-use jujutsu_lib::backend::CommitId;
+use jujutsu_lib::backend::{CommitId, ObjectId};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git;
 use jujutsu_lib::git::{GitFetchError, GitPushError, GitRefUpdate};

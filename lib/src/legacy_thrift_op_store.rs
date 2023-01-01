@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use itertools::Itertools;
 use thrift::protocol::{TCompactInputProtocol, TSerializable};
 
-use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
+use crate::backend::{CommitId, MillisSinceEpoch, ObjectId, Timestamp};
 use crate::op_store::{
     BranchTarget, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata,
     RefTarget, View, ViewId, WorkspaceId,

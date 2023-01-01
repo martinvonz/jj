@@ -24,8 +24,8 @@ use tempfile::{NamedTempFile, PersistError};
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, ConflictPart, FileId, MillisSinceEpoch, Signature, SymlinkId, Timestamp, Tree,
-    TreeId, TreeValue,
+    ConflictId, ConflictPart, FileId, MillisSinceEpoch, ObjectId, Signature, SymlinkId, Timestamp,
+    Tree, TreeId, TreeValue,
 };
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;

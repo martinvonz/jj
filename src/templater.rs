@@ -18,7 +18,7 @@ use std::io;
 use std::ops::{Add, AddAssign};
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{ChangeId, CommitId, Signature, Timestamp};
+use jujutsu_lib::backend::{ChangeId, CommitId, ObjectId, Signature, Timestamp};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;

@@ -161,6 +161,7 @@ mod tests {
     use maplit::btreemap;
 
     use super::*;
+    use crate::backend::ObjectId;
 
     #[test]
     fn test_classify_branch_push_action_unchanged() {
