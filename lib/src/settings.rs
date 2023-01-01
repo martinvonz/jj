@@ -54,9 +54,11 @@ impl UserSettings {
             config_builder =
                 config_builder.add_source(config::File::from_str(s, config::FileFormat::Toml));
         }
+        let new_config = config_builder.build()?;
+        let timestamp = get_timestamp_config(&new_config, "user.timestamp");
         Ok(UserSettings {
-            config: config_builder.build()?,
-            timestamp: self.timestamp.clone(),
+            config: new_config,
+            timestamp,
         })
     }
 
