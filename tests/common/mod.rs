@@ -72,6 +72,7 @@ impl TestEnvironment {
 
         let mut command_number = self.command_number.borrow_mut();
         *command_number += 1;
+        cmd.env("JJ_RANDOMNESS_SEED", command_number.to_string());
         let timestamp = chrono::DateTime::parse_from_rfc3339("2001-02-03T04:05:06+07:00").unwrap();
         let timestamp = timestamp + chrono::Duration::seconds(*command_number);
         cmd.env("JJ_TIMESTAMP", timestamp.to_rfc3339());
