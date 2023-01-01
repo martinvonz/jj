@@ -122,10 +122,7 @@ impl Default for Ui {
 
 impl Ui {
     pub fn new() -> Ui {
-        Self::for_terminal(UserSettings::from_config(crate::config::default_config()))
-    }
-
-    pub fn for_terminal(settings: UserSettings) -> Ui {
+        let settings = UserSettings::from_config(crate::config::default_config());
         let cwd = std::env::current_dir().unwrap();
         let color = use_color(color_setting(&settings));
         let progress_indicator = progress_indicator_setting(&settings);
@@ -139,6 +136,14 @@ impl Ui {
             output: UiOutput::new_terminal(),
             settings,
         }
+    }
+
+    pub fn reset(&mut self, settings: UserSettings) {
+        // TODO: maybe Ui shouldn't take ownership of UserSettings
+        self.color = use_color(color_setting(&settings));
+        self.progress_indicator = progress_indicator_setting(&settings);
+        self.formatter_factory = FormatterFactory::prepare(&settings, self.color);
+        self.settings = settings;
     }
 
     /// Reconfigures the underlying outputs with the new color choice.

@@ -1472,12 +1472,13 @@ impl ValueParserFactory for RevisionArg {
 pub fn create_ui() -> (Ui, Result<(), CommandError>) {
     // TODO: We need to do some argument parsing here, at least for things like
     // --config, and for reading user configs from the repo pointed to by -R.
+    let mut ui = Ui::new();
     match read_config() {
-        Ok(user_settings) => (Ui::for_terminal(user_settings), Ok(())),
-        Err(err) => {
-            let ui = Ui::new();
-            (ui, Err(CommandError::ConfigError(err.to_string())))
+        Ok(user_settings) => {
+            ui.reset(user_settings);
+            (ui, Ok(()))
         }
+        Err(err) => (ui, Err(CommandError::ConfigError(err.to_string()))),
     }
 }
 
