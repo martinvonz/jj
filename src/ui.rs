@@ -114,7 +114,17 @@ fn pager_setting(settings: &UserSettings) -> FullCommandArgs {
         .unwrap_or_else(|_| "less -FRX".into())
 }
 
+impl Default for Ui {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Ui {
+    pub fn new() -> Ui {
+        Self::for_terminal(UserSettings::from_config(crate::config::default_config()))
+    }
+
     pub fn for_terminal(settings: UserSettings) -> Ui {
         let cwd = std::env::current_dir().unwrap();
         let color = use_color(color_setting(&settings));
