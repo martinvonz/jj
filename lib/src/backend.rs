@@ -173,6 +173,16 @@ content_hash! {
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum BackendError {
+    #[error(
+        "Invalid hash for object of type {object_type}: {hash} (expected {expected} bytes, got \
+         {actual} bytes)"
+    )]
+    InvalidHashLength {
+        expected: usize,
+        actual: usize,
+        object_type: &'static str,
+        hash: String,
+    },
     #[error("Object not found")]
     NotFound,
     #[error("Error: {0}")]
