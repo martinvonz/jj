@@ -1558,7 +1558,8 @@ fn handle_early_args(
         ui.set_pagination(crate::ui::PaginationChoice::No);
     }
     if !args.config_toml.is_empty() {
-        ui.extra_toml_settings(&args.config_toml)?;
+        let settings = ui.settings().with_toml_strings(&args.config_toml)?;
+        ui.reset(settings);
     }
     Ok(())
 }

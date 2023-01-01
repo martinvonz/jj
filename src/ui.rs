@@ -146,14 +146,6 @@ impl Ui {
         self.settings = settings;
     }
 
-    /// Reconfigures the underlying outputs with the new color choice.
-    pub fn reset_color(&mut self, choice: ColorChoice) {
-        self.color = use_color(choice);
-        if self.formatter_factory.is_color() != self.color {
-            self.formatter_factory = FormatterFactory::prepare(&self.settings, self.color);
-        }
-    }
-
     /// Sets the pagination value.
     pub fn set_pagination(&mut self, choice: PaginationChoice) {
         self.paginate = choice;
@@ -191,12 +183,6 @@ impl Ui {
 
     pub fn settings(&self) -> &UserSettings {
         &self.settings
-    }
-
-    pub fn extra_toml_settings(&mut self, toml_strs: &[String]) -> Result<(), config::ConfigError> {
-        self.settings = self.settings.with_toml_strings(toml_strs)?;
-        self.reset_color(color_setting(&self.settings));
-        Ok(())
     }
 
     pub fn new_formatter<'output, W: Write + 'output>(
