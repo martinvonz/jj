@@ -23,6 +23,16 @@ use thiserror::Error;
 use crate::content_hash::ContentHash;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
+pub trait ObjectId {
+    fn new(value: Vec<u8>) -> Self;
+    fn object_type(&self) -> String;
+    fn from_bytes(bytes: &[u8]) -> Self;
+    fn as_bytes(&self) -> &[u8];
+    fn to_bytes(&self) -> Vec<u8>;
+    fn from_hex(hex: &str) -> Self;
+    fn hex(&self) -> String;
+}
+
 macro_rules! id_type {
     ($vis:vis $name:ident) => {
         content_hash! {
@@ -41,28 +51,36 @@ macro_rules! impl_id_type {
             }
         }
 
-        impl $name {
-            pub fn new(value: Vec<u8>) -> Self {
+        impl crate::backend::ObjectId for $name {
+            fn new(value: Vec<u8>) -> Self {
                 Self(value)
             }
 
-            pub fn from_bytes(bytes: &[u8]) -> Self {
+            fn object_type(&self) -> String {
+                stringify!($name)
+                    .strip_suffix("Id")
+                    .unwrap()
+                    .to_ascii_lowercase()
+                    .to_string()
+            }
+
+            fn from_bytes(bytes: &[u8]) -> Self {
                 Self(bytes.to_vec())
             }
 
-            pub fn as_bytes(&self) -> &[u8] {
+            fn as_bytes(&self) -> &[u8] {
                 &self.0
             }
 
-            pub fn to_bytes(&self) -> Vec<u8> {
+            fn to_bytes(&self) -> Vec<u8> {
                 self.0.clone()
             }
 
-            pub fn from_hex(hex: &str) -> Self {
+            fn from_hex(hex: &str) -> Self {
                 Self(hex::decode(hex).unwrap())
             }
 
-            pub fn hex(&self) -> String {
+            fn hex(&self) -> String {
                 hex::encode(&self.0)
             }
         }

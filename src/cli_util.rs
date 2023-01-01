@@ -27,7 +27,7 @@ use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFact
 use clap::{Arg, ArgAction, ArgMatches, Command, Error, FromArgMatches};
 use git2::{Oid, Repository};
 use itertools::Itertools;
-use jujutsu_lib::backend::{BackendError, CommitId, TreeId};
+use jujutsu_lib::backend::{BackendError, CommitId, ObjectId, TreeId};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git::{GitExportError, GitImportError};
 use jujutsu_lib::gitignore::GitIgnoreFile;

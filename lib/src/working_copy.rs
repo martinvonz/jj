@@ -32,7 +32,7 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::backend::{
-    BackendError, ConflictId, FileId, MillisSinceEpoch, SymlinkId, TreeId, TreeValue,
+    BackendError, ConflictId, FileId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
 };
 use crate::conflicts::{materialize_conflict, update_conflict_from_content};
 use crate::gitignore::GitIgnoreFile;

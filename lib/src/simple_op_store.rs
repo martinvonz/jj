@@ -160,7 +160,7 @@ mod tests {
     use maplit::{btreemap, hashmap, hashset};
 
     use super::*;
-    use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
+    use crate::backend::{CommitId, MillisSinceEpoch, ObjectId, Timestamp};
     use crate::content_hash::blake2b_hash;
     use crate::op_store::{BranchTarget, OperationMetadata, RefTarget, WorkspaceId};
 

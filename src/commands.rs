@@ -27,7 +27,7 @@ use clap::builder::NonEmptyStringValueParser;
 use clap::{ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
 use config::Source;
 use itertools::Itertools;
-use jujutsu_lib::backend::{CommitId, Timestamp, TreeValue};
+use jujutsu_lib::backend::{CommitId, ObjectId, Timestamp, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::git::{GitFetchError, GitRefUpdate};

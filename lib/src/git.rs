@@ -20,7 +20,7 @@ use git2::Oid;
 use itertools::Itertools;
 use thiserror::Error;
 
-use crate::backend::CommitId;
+use crate::backend::{CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::git_backend::NO_GC_REF_NAMESPACE;
 use crate::op_store::RefTarget;

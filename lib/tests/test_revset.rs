@@ -14,7 +14,7 @@
 
 use std::path::Path;
 
-use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
+use jujutsu_lib::backend::{CommitId, MillisSinceEpoch, ObjectId, Signature, Timestamp};
 use jujutsu_lib::git;
 use jujutsu_lib::matchers::{FilesMatcher, Matcher};
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};

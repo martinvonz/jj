@@ -23,8 +23,8 @@ use itertools::Itertools;
 use thiserror::Error;
 
 use crate::backend::{
-    BackendError, Conflict, ConflictId, ConflictPart, FileId, TreeEntriesNonRecursiveIterator,
-    TreeEntry, TreeId, TreeValue,
+    BackendError, Conflict, ConflictId, ConflictPart, FileId, ObjectId,
+    TreeEntriesNonRecursiveIterator, TreeEntry, TreeId, TreeValue,
 };
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};

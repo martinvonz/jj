@@ -16,7 +16,7 @@ use std::collections::{HashMap, HashSet};
 
 use itertools::{process_results, Itertools};
 
-use crate::backend::{BackendError, BackendResult, CommitId};
+use crate::backend::{BackendError, BackendResult, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::op_store::RefTarget;

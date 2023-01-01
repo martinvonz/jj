@@ -16,7 +16,7 @@ use std::io::{Cursor, Write};
 
 use itertools::Itertools;
 
-use crate::backend::{BackendResult, Conflict, ConflictId, ConflictPart, TreeValue};
+use crate::backend::{BackendResult, Conflict, ConflictId, ConflictPart, ObjectId, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files;
 use crate::files::{ConflictHunk, MergeHunk, MergeResult};
