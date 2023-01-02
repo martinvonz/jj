@@ -817,7 +817,7 @@ impl TreeState {
             .store
             .get_tree(&RepoPath::root(), &self.tree_id)
             .map_err(|err| match err {
-                err @ BackendError::NotFound => CheckoutError::SourceNotFound {
+                err @ BackendError::ObjectNotFound { .. } => CheckoutError::SourceNotFound {
                     source: Box::new(err),
                 },
                 other => CheckoutError::InternalBackendError(other),
@@ -835,7 +835,7 @@ impl TreeState {
             .store
             .get_tree(&RepoPath::root(), &self.tree_id)
             .map_err(|err| match err {
-                err @ BackendError::NotFound => CheckoutError::SourceNotFound {
+                err @ BackendError::ObjectNotFound { .. } => CheckoutError::SourceNotFound {
                     source: Box::new(err),
                 },
                 other => CheckoutError::InternalBackendError(other),
@@ -964,7 +964,7 @@ impl TreeState {
             .store
             .get_tree(&RepoPath::root(), &self.tree_id)
             .map_err(|err| match err {
-                err @ BackendError::NotFound => ResetError::SourceNotFound {
+                err @ BackendError::ObjectNotFound { .. } => ResetError::SourceNotFound {
                     source: Box::new(err),
                 },
                 other => ResetError::InternalBackendError(other),

@@ -92,7 +92,7 @@ fn resolve_full_commit_id(
         let commit_id = CommitId::new(binary_commit_id);
         match repo.store().get_commit(&commit_id) {
             Ok(_) => Ok(Some(vec![commit_id])),
-            Err(BackendError::NotFound) => Ok(None),
+            Err(BackendError::ObjectNotFound { .. }) => Ok(None),
             Err(err) => Err(RevsetError::StoreError(err)),
         }
     } else {

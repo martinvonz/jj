@@ -15,7 +15,7 @@
 use std::fmt::Debug;
 use std::fs;
 use std::fs::File;
-use std::io::{ErrorKind, Read, Write};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 use blake2::{Blake2b512, Digest};
@@ -46,6 +46,22 @@ impl From<PersistError> for BackendError {
 impl From<prost::DecodeError> for BackendError {
     fn from(err: prost::DecodeError) -> Self {
         BackendError::Other(err.to_string())
+    }
+}
+
+fn map_not_found_err(err: std::io::Error, id: &impl ObjectId) -> BackendError {
+    if err.kind() == std::io::ErrorKind::NotFound {
+        BackendError::ObjectNotFound {
+            object_type: id.object_type(),
+            hash: id.hex(),
+            source: Box::new(err),
+        }
+    } else {
+        BackendError::ReadObject {
+            object_type: id.object_type(),
+            hash: id.hex(),
+            source: Box::new(err),
+        }
     }
 }
 
@@ -102,14 +118,6 @@ impl LocalBackend {
     }
 }
 
-fn not_found_to_backend_error(err: std::io::Error) -> BackendError {
-    if err.kind() == ErrorKind::NotFound {
-        BackendError::NotFound
-    } else {
-        BackendError::from(err)
-    }
-}
-
 impl Backend for LocalBackend {
     fn name(&self) -> &str {
         "local"
@@ -125,7 +133,7 @@ impl Backend for LocalBackend {
 
     fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
         let path = self.file_path(id);
-        let file = File::open(path).map_err(not_found_to_backend_error)?;
+        let file = File::open(path).map_err(|err| map_not_found_err(err, id))?;
         Ok(Box::new(zstd::Decoder::new(file)?))
     }
 
@@ -156,7 +164,7 @@ impl Backend for LocalBackend {
 
     fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
         let path = self.symlink_path(id);
-        let mut file = File::open(path).map_err(not_found_to_backend_error)?;
+        let mut file = File::open(path).map_err(|err| map_not_found_err(err, id))?;
         let mut target = String::new();
         file.read_to_string(&mut target).unwrap();
         Ok(target)
@@ -183,7 +191,7 @@ impl Backend for LocalBackend {
 
     fn read_tree(&self, _path: &RepoPath, id: &TreeId) -> BackendResult<Tree> {
         let path = self.tree_path(id);
-        let buf = fs::read(path).map_err(not_found_to_backend_error)?;
+        let buf = fs::read(path).map_err(|err| map_not_found_err(err, id))?;
 
         let proto = crate::protos::store::Tree::decode(&*buf)?;
         Ok(tree_from_proto(proto))
@@ -203,7 +211,7 @@ impl Backend for LocalBackend {
 
     fn read_conflict(&self, _path: &RepoPath, id: &ConflictId) -> BackendResult<Conflict> {
         let path = self.conflict_path(id);
-        let buf = fs::read(path).map_err(not_found_to_backend_error)?;
+        let buf = fs::read(path).map_err(|err| map_not_found_err(err, id))?;
 
         let proto = crate::protos::store::Conflict::decode(&*buf)?;
         Ok(conflict_from_proto(proto))
@@ -227,7 +235,7 @@ impl Backend for LocalBackend {
         }
 
         let path = self.commit_path(id);
-        let buf = fs::read(path).map_err(not_found_to_backend_error)?;
+        let buf = fs::read(path).map_err(|err| map_not_found_err(err, id))?;
 
         let proto = crate::protos::store::Commit::decode(&*buf)?;
         Ok(commit_from_proto(proto))

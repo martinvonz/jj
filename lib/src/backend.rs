@@ -174,17 +174,44 @@ content_hash! {
 #[derive(Debug, Error)]
 pub enum BackendError {
     #[error(
-        "Invalid hash for object of type {object_type}: {hash} (expected {expected} bytes, got \
-         {actual} bytes)"
+        "Invalid hash length for object of type {object_type} (expected {expected} bytes, got \
+         {actual} bytes): {hash}"
     )]
     InvalidHashLength {
         expected: usize,
         actual: usize,
-        object_type: &'static str,
+        object_type: String,
         hash: String,
     },
-    #[error("Object not found")]
-    NotFound,
+    #[error("Invalid hash for object of type {object_type} with hash {hash}: {source}")]
+    InvalidHash {
+        object_type: String,
+        hash: String,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    #[error("Invalid UTF-8 for object {hash} of type {object_type}: {source}")]
+    InvalidUtf8 {
+        object_type: String,
+        hash: String,
+        source: std::string::FromUtf8Error,
+    },
+    #[error("Object {hash} of type {object_type} not found: {source}")]
+    ObjectNotFound {
+        object_type: String,
+        hash: String,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    #[error("Error when reading object {hash} of type {object_type}: {source}")]
+    ReadObject {
+        object_type: String,
+        hash: String,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    #[error("Could not write object of type {object_type}: {source}")]
+    WriteObject {
+        object_type: &'static str,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
     #[error("Error: {0}")]
     Other(String),
 }
