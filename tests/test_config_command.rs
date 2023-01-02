@@ -119,7 +119,7 @@ fn test_config_list_all() {
 }
 
 fn find_stdout_lines(keyname_pattern: &str, stdout: &str) -> String {
-    let key_line_re = Regex::new(&format!(r"(?m)^{}=.*$", keyname_pattern)).unwrap();
+    let key_line_re = Regex::new(&format!(r"(?m)^{keyname_pattern}=.*$")).unwrap();
     key_line_re
         .find_iter(stdout)
         .map(|m| m.as_str())
