@@ -155,14 +155,6 @@ impl<'a, C> Template<C> for StringPropertyTemplate<'a, C> {
     }
 }
 
-pub struct ChangeIdProperty;
-
-impl TemplateProperty<Commit, String> for ChangeIdProperty {
-    fn extract(&self, context: &Commit) -> String {
-        context.change_id().hex()
-    }
-}
-
 pub struct DescriptionProperty;
 
 impl TemplateProperty<Commit, String> for DescriptionProperty {
@@ -415,22 +407,59 @@ impl<'a, C, I, O> TemplateProperty<C, O> for TemplateFunction<'a, C, I, O> {
     }
 }
 
-pub struct CommitIdKeyword;
+#[derive(Debug, Clone)]
+pub enum CommitOrChangeId {
+    CommitId(CommitId),
+    ChangeId(ChangeId),
+}
 
-impl CommitIdKeyword {
-    pub fn default_format(commit_id: CommitId) -> String {
-        commit_id.hex()
-    }
-
-    pub fn shortest_format(commit_id: CommitId) -> String {
-        // TODO: make this actually be the shortest unambiguous prefix
-        commit_id.hex()[..12].to_string()
+impl CommitOrChangeId {
+    pub fn hex(&self) -> String {
+        match self {
+            CommitOrChangeId::CommitId(id) => id.hex(),
+            CommitOrChangeId::ChangeId(id) => id.hex(),
+        }
     }
 }
 
-impl TemplateProperty<Commit, CommitId> for CommitIdKeyword {
-    fn extract(&self, context: &Commit) -> CommitId {
-        context.id().clone()
+#[derive(Debug, Clone)]
+enum CommitOrChange {
+    Commit,
+    Change,
+}
+
+pub struct CommitOrChangeIdKeyword(CommitOrChange);
+
+impl CommitOrChangeIdKeyword {
+    pub fn commit() -> Self {
+        Self(CommitOrChange::Commit)
+    }
+    pub fn change() -> Self {
+        Self(CommitOrChange::Change)
+    }
+    pub fn default_format(commit_or_change_id: CommitOrChangeId) -> String {
+        commit_or_change_id.hex()
+    }
+
+    pub fn shortest_format(commit_or_change_id: CommitOrChangeId) -> String {
+        commit_or_change_id.hex()[..12].to_string()
+    }
+}
+
+pub struct CommitOrChangeIdShortest;
+
+impl TemplateProperty<CommitOrChangeId, String> for CommitOrChangeIdShortest {
+    fn extract(&self, context: &CommitOrChangeId) -> String {
+        CommitOrChangeIdKeyword::shortest_format(context.clone())
+    }
+}
+
+impl TemplateProperty<Commit, CommitOrChangeId> for CommitOrChangeIdKeyword {
+    fn extract(&self, context: &Commit) -> CommitOrChangeId {
+        match &self.0 {
+            CommitOrChange::Commit => CommitOrChangeId::CommitId(context.id().clone()),
+            CommitOrChange::Change => CommitOrChangeId::ChangeId(context.change_id().clone()),
+        }
     }
 }
 
