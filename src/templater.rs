@@ -446,9 +446,11 @@ impl CommitOrChangeIdKeyword {
     }
 }
 
-pub struct CommitOrChangeIdShort;
+pub struct CommitOrChangeIdShort<'a> {
+    pub repo: RepoRef<'a>,
+}
 
-impl TemplateProperty<CommitOrChangeId, String> for CommitOrChangeIdShort {
+impl TemplateProperty<CommitOrChangeId, String> for CommitOrChangeIdShort<'_> {
     fn extract(&self, context: &CommitOrChangeId) -> String {
         CommitOrChangeIdKeyword::short_format(context.clone())
     }
