@@ -525,6 +525,33 @@ fn test_default_revset() {
 }
 
 #[test]
+fn test_default_revset_per_repo() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "add a file"]);
+
+    // Set configuration to only show the root commit.
+    std::fs::write(
+        repo_path.join(".jj/repo/config.toml"),
+        r#"ui.default-revset = "root""#,
+    )
+    .unwrap();
+
+    // Log should only contain one line (for the root commit), and not show the
+    // commit created above.
+    assert_eq!(
+        1,
+        test_env
+            .jj_cmd_success(&repo_path, &["log", "-T", "commit_id"])
+            .lines()
+            .count()
+    );
+}
+
+#[test]
 fn test_log_author_timestamp() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);

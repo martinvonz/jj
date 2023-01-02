@@ -2,8 +2,11 @@
 
 These are the config settings available to jj/Jujutsu.
 
-The config settings are located at `~/.jjconfig.toml`. Less common ways
+The config settings are loaded from the following locations. Less common ways
 to specify `jj` config settings are discussed in a later section.
+
+* `~/.jjconfig.toml` (global)
+* `.jj/repo/config.toml` (per-repository)
 
 See the [TOML site](https://toml.io/en/) for more on syntax.
 One thing to remember is that anything under a heading can be dotted

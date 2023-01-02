@@ -138,6 +138,17 @@ fn test_config_layer_override_default() {
     merge-tools.vimdiff.program="user"
     "###);
 
+    // Repo
+    std::fs::write(
+        repo_path.join(".jj/repo/config.toml"),
+        format!("{config_key} = {value:?}\n", value = "repo"),
+    )
+    .unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
+    insta::assert_snapshot!(stdout, @r###"
+    merge-tools.vimdiff.program="repo"
+    "###);
+
     // Command argument
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -175,6 +186,17 @@ fn test_config_layer_override_env() {
     ui.editor="user"
     "###);
 
+    // Repo
+    std::fs::write(
+        repo_path.join(".jj/repo/config.toml"),
+        format!("{config_key} = {value:?}\n", value = "repo"),
+    )
+    .unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
+    insta::assert_snapshot!(stdout, @r###"
+    ui.editor="repo"
+    "###);
+
     // Environment override
     test_env.add_env_var("JJ_EDITOR", "env-override");
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
@@ -195,6 +217,37 @@ fn test_config_layer_override_env() {
     );
     insta::assert_snapshot!(stdout, @r###"
     ui.editor="command-arg"
+    "###);
+}
+
+#[test]
+fn test_config_layer_workspace() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    let main_path = test_env.env_root().join("main");
+    let secondary_path = test_env.env_root().join("secondary");
+    let config_key = "ui.editor";
+
+    std::fs::write(main_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_success(&main_path, &["new"]);
+    test_env.jj_cmd_success(
+        &main_path,
+        &["workspace", "add", "--name", "second", "../secondary"],
+    );
+
+    // Repo
+    std::fs::write(
+        main_path.join(".jj/repo/config.toml"),
+        format!("{config_key} = {value:?}\n", value = "main-repo"),
+    )
+    .unwrap();
+    let stdout = test_env.jj_cmd_success(&main_path, &["config", "list", config_key]);
+    insta::assert_snapshot!(stdout, @r###"
+    ui.editor="main-repo"
+    "###);
+    let stdout = test_env.jj_cmd_success(&secondary_path, &["config", "list", config_key]);
+    insta::assert_snapshot!(stdout, @r###"
+    ui.editor="main-repo"
     "###);
 }
 

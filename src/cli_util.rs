@@ -47,7 +47,7 @@ use jujutsu_lib::tree::{Tree, TreeMergeError};
 use jujutsu_lib::working_copy::{
     CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, WorkingCopy,
 };
-use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
+use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader};
 use jujutsu_lib::{dag_walk, file_util, git, revset};
 use thiserror::Error;
 use tracing_subscriber::prelude::*;
@@ -1650,8 +1650,6 @@ pub fn parse_args(
     string_args: &[String],
     layered_configs: &mut LayeredConfigs,
 ) -> Result<(ArgMatches, Args), CommandError> {
-    // TODO: read user configs from the repo pointed to by -R.
-
     handle_early_args(ui, app, string_args, layered_configs)?;
     let matches = app.clone().try_get_matches_from(string_args)?;
 
@@ -1793,7 +1791,15 @@ impl CliRunner {
             &mut layered_configs,
         )?;
 
+        let workspace_path = cwd.join(args.global_args.repository.as_deref().unwrap_or("."));
+        // TODO: reuse loader to load workspace, but we can't report error here, and the
+        // error isn't clonable.
+        if let Ok(loader) = WorkspaceLoader::init(&workspace_path) {
+            // TODO: maybe show error/warning if repo config contained command alias
+            layered_configs.read_repo_config(loader.repo_path())?;
+        }
         let config = layered_configs.merge();
+        ui.reset(&config);
         let settings = UserSettings::from_config(config);
         let command_helper = CommandHelper::new(
             self.app,
