@@ -289,6 +289,50 @@ fn test_log_with_or_without_diff() {
 }
 
 #[test]
+fn test_log_divergence() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file"), "foo\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 1"]);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-T",
+            r#"description.first_line() if(divergent, " !divergence!")"#,
+        ],
+    );
+    // No divergence
+    insta::assert_snapshot!(stdout, @r###"
+    @ description 1
+    o (no description set)
+    "###);
+
+    // Create divergence
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["describe", "-m", "description 2", "--at-operation", "@-"],
+    );
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-T",
+            r#"description.first_line() if(divergent, " !divergence!")"#,
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Concurrent modification detected, resolving automatically.
+    o description 2 !divergence!
+    | @ description 1 !divergence!
+    |/  
+    o (no description set)
+    "###);
+}
+
+#[test]
 fn test_log_reversed() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
