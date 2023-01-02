@@ -36,15 +36,6 @@ const HASH_LENGTH: usize = 20;
 pub const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
 const CONFLICT_SUFFIX: &str = ".jjconflict";
 
-impl From<git2::Error> for BackendError {
-    fn from(err: git2::Error) -> Self {
-        match err.code() {
-            git2::ErrorCode::NotFound => BackendError::NotFound,
-            _other => BackendError::Other(err.to_string()),
-        }
-    }
-}
-
 pub struct GitBackend {
     repo: Mutex<git2::Repository>,
     root_commit_id: CommitId,
@@ -156,6 +147,39 @@ fn create_no_gc_ref() -> String {
     no_gc_ref
 }
 
+fn validate_git_object_id(id: &impl ObjectId) -> Result<git2::Oid, BackendError> {
+    if id.as_bytes().len() != HASH_LENGTH {
+        return Err(BackendError::InvalidHashLength {
+            expected: HASH_LENGTH,
+            actual: id.as_bytes().len(),
+            object_type: id.object_type(),
+            hash: id.hex(),
+        });
+    }
+    let oid = git2::Oid::from_bytes(id.as_bytes()).map_err(|err| BackendError::InvalidHash {
+        object_type: id.object_type(),
+        hash: id.hex(),
+        source: Box::new(err),
+    })?;
+    Ok(oid)
+}
+
+fn map_not_found_err(err: git2::Error, id: &impl ObjectId) -> BackendError {
+    if err.code() == git2::ErrorCode::NotFound {
+        BackendError::ObjectNotFound {
+            object_type: id.object_type(),
+            hash: id.hex(),
+            source: Box::new(err),
+        }
+    } else {
+        BackendError::ReadObject {
+            object_type: id.object_type(),
+            hash: id.hex(),
+            source: Box::new(err),
+        }
+    }
+}
+
 impl Debug for GitBackend {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
         f.debug_struct("GitStore")
@@ -179,18 +203,11 @@ impl Backend for GitBackend {
     }
 
     fn read_file(&self, _path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {
-        if id.as_bytes().len() != self.hash_length() {
-            return Err(BackendError::InvalidHashLength {
-                expected: self.hash_length(),
-                actual: id.as_bytes().len(),
-                object_type: "file",
-                hash: id.hex(),
-            });
-        }
+        let git_blob_id = validate_git_object_id(id)?;
         let locked_repo = self.repo.lock().unwrap();
         let blob = locked_repo
-            .find_blob(Oid::from_bytes(id.as_bytes()).unwrap())
-            .unwrap();
+            .find_blob(git_blob_id)
+            .map_err(|err| map_not_found_err(err, id))?;
         let content = blob.content().to_owned();
         Ok(Box::new(Cursor::new(content)))
     }
@@ -199,30 +216,39 @@ impl Backend for GitBackend {
         let mut bytes = Vec::new();
         contents.read_to_end(&mut bytes).unwrap();
         let locked_repo = self.repo.lock().unwrap();
-        let oid = locked_repo.blob(&bytes).unwrap();
+        let oid = locked_repo
+            .blob(&bytes)
+            .map_err(|err| BackendError::WriteObject {
+                object_type: "file",
+                source: Box::new(err),
+            })?;
         Ok(FileId::new(oid.as_bytes().to_vec()))
     }
 
     fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
-        if id.as_bytes().len() != self.hash_length() {
-            return Err(BackendError::InvalidHashLength {
-                expected: self.hash_length(),
-                actual: id.as_bytes().len(),
-                object_type: "symlink",
-                hash: id.hex(),
-            });
-        }
+        let git_blob_id = validate_git_object_id(id)?;
         let locked_repo = self.repo.lock().unwrap();
         let blob = locked_repo
-            .find_blob(Oid::from_bytes(id.as_bytes()).unwrap())
-            .unwrap();
-        let target = String::from_utf8(blob.content().to_owned()).unwrap();
+            .find_blob(git_blob_id)
+            .map_err(|err| map_not_found_err(err, id))?;
+        let target = String::from_utf8(blob.content().to_owned()).map_err(|err| {
+            BackendError::InvalidUtf8 {
+                object_type: id.object_type(),
+                hash: id.hex(),
+                source: err,
+            }
+        })?;
         Ok(target)
     }
 
     fn write_symlink(&self, _path: &RepoPath, target: &str) -> Result<SymlinkId, BackendError> {
         let locked_repo = self.repo.lock().unwrap();
-        let oid = locked_repo.blob(target.as_bytes()).unwrap();
+        let oid = locked_repo
+            .blob(target.as_bytes())
+            .map_err(|err| BackendError::WriteObject {
+                object_type: "symlink",
+                source: Box::new(err),
+            })?;
         Ok(SymlinkId::new(oid.as_bytes().to_vec()))
     }
 
@@ -238,19 +264,10 @@ impl Backend for GitBackend {
         if id == &self.empty_tree_id {
             return Ok(Tree::default());
         }
-        if id.as_bytes().len() != self.hash_length() {
-            return Err(BackendError::InvalidHashLength {
-                expected: self.hash_length(),
-                actual: id.as_bytes().len(),
-                object_type: "tree",
-                hash: id.hex(),
-            });
-        }
+        let git_tree_id = validate_git_object_id(id)?;
 
         let locked_repo = self.repo.lock().unwrap();
-        let git_tree = locked_repo
-            .find_tree(Oid::from_bytes(id.as_bytes()).unwrap())
-            .unwrap();
+        let git_tree = locked_repo.find_tree(git_tree_id).unwrap();
         let mut tree = Tree::default();
         for entry in git_tree.iter() {
             let name = entry.name().unwrap();
@@ -331,7 +348,10 @@ impl Backend for GitBackend {
                 .insert(name, Oid::from_bytes(id).unwrap(), filemode)
                 .unwrap();
         }
-        let oid = builder.write().unwrap();
+        let oid = builder.write().map_err(|err| BackendError::WriteObject {
+            object_type: "tree",
+            source: Box::new(err),
+        })?;
         Ok(TreeId::from_bytes(oid.as_bytes()))
     }
 
@@ -357,27 +377,25 @@ impl Backend for GitBackend {
         let json_string = json.to_string();
         let bytes = json_string.as_bytes();
         let locked_repo = self.repo.lock().unwrap();
-        let oid = locked_repo.blob(bytes).unwrap();
+        let oid = locked_repo
+            .blob(bytes)
+            .map_err(|err| BackendError::WriteObject {
+                object_type: "conflict",
+                source: Box::new(err),
+            })?;
         Ok(ConflictId::from_bytes(oid.as_bytes()))
     }
 
     fn read_commit(&self, id: &CommitId) -> BackendResult<Commit> {
-        if id.as_bytes().len() != self.hash_length() {
-            return Err(BackendError::InvalidHashLength {
-                expected: self.hash_length(),
-                actual: id.as_bytes().len(),
-                object_type: "commit",
-                hash: id.hex(),
-            });
-        }
-
         if *id == self.root_commit_id {
             return Ok(make_root_commit(self.empty_tree_id.clone()));
         }
+        let git_commit_id = validate_git_object_id(id)?;
 
         let locked_repo = self.repo.lock().unwrap();
-        let git_commit_id = Oid::from_bytes(id.as_bytes())?;
-        let commit = locked_repo.find_commit(git_commit_id)?;
+        let commit = locked_repo
+            .find_commit(git_commit_id)
+            .map_err(|err| map_not_found_err(err, id))?;
         // We reverse the bits of the commit id to create the change id. We don't want
         // to use the first bytes unmodified because then it would be ambiguous
         // if a given hash prefix refers to the commit id or the change id. It
@@ -434,7 +452,10 @@ impl Backend for GitBackend {
 
     fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId> {
         let locked_repo = self.repo.lock().unwrap();
-        let git_tree = locked_repo.find_tree(Oid::from_bytes(contents.root_tree.as_bytes())?)?;
+        let git_tree_id = validate_git_object_id(&contents.root_tree)?;
+        let git_tree = locked_repo
+            .find_tree(git_tree_id)
+            .map_err(|err| map_not_found_err(err, &contents.root_tree))?;
         let author = signature_to_git(&contents.author);
         let committer = signature_to_git(&contents.committer);
         let message = &contents.description;
@@ -448,20 +469,27 @@ impl Backend for GitBackend {
                 // commit and another commit.
                 assert_eq!(contents.parents.len(), 1);
             } else {
-                let parent_git_commit =
-                    locked_repo.find_commit(Oid::from_bytes(parent_id.as_bytes())?)?;
+                let git_commit_id = validate_git_object_id(parent_id)?;
+                let parent_git_commit = locked_repo
+                    .find_commit(git_commit_id)
+                    .map_err(|err| map_not_found_err(err, parent_id))?;
                 parents.push(parent_git_commit);
             }
         }
         let parent_refs = parents.iter().collect_vec();
-        let git_id = locked_repo.commit(
-            Some(&create_no_gc_ref()),
-            &author,
-            &committer,
-            message,
-            &git_tree,
-            &parent_refs,
-        )?;
+        let git_id = locked_repo
+            .commit(
+                Some(&create_no_gc_ref()),
+                &author,
+                &committer,
+                message,
+                &git_tree,
+                &parent_refs,
+            )
+            .map_err(|err| BackendError::WriteObject {
+                object_type: "commit",
+                source: Box::new(err),
+            })?;
         let id = CommitId::from_bytes(git_id.as_bytes());
         let extras = serialize_extras(contents);
         let mut mut_table = self
