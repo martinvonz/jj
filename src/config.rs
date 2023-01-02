@@ -98,7 +98,9 @@ fn env_overrides() -> config::Config {
         builder = builder.set_override("user.email", value).unwrap();
     }
     if let Ok(value) = env::var("JJ_TIMESTAMP") {
-        builder = builder.set_override("user.timestamp", value).unwrap();
+        builder = builder
+            .set_override("debug.commit-timestamp", value)
+            .unwrap();
     }
     if let Ok(value) = env::var("JJ_RANDOMNESS_SEED") {
         builder = builder
@@ -106,7 +108,9 @@ fn env_overrides() -> config::Config {
             .unwrap();
     }
     if let Ok(value) = env::var("JJ_OP_TIMESTAMP") {
-        builder = builder.set_override("operation.timestamp", value).unwrap();
+        builder = builder
+            .set_override("debug.operation-timestamp", value)
+            .unwrap();
     }
     if let Ok(value) = env::var("JJ_OP_HOSTNAME") {
         builder = builder.set_override("operation.hostname", value).unwrap();

@@ -52,7 +52,7 @@ fn get_rng_seed_config(config: &config::Config) -> Option<u64> {
 
 impl UserSettings {
     pub fn from_config(config: config::Config) -> Self {
-        let timestamp = get_timestamp_config(&config, "user.timestamp");
+        let timestamp = get_timestamp_config(&config, "debug.commit-timestamp");
         let rng_seed = get_rng_seed_config(&config);
         UserSettings {
             config,
@@ -75,7 +75,7 @@ impl UserSettings {
         if new_rng_seed != get_rng_seed_config(&self.config) {
             self.rng.reset(new_rng_seed);
         }
-        self.timestamp = get_timestamp_config(&new_config, "user.timestamp");
+        self.timestamp = get_timestamp_config(&new_config, "debug.commit-timestamp");
         self.config = new_config;
         Ok(())
     }
@@ -117,7 +117,7 @@ impl UserSettings {
     }
 
     pub fn operation_timestamp(&self) -> Option<Timestamp> {
-        get_timestamp_config(&self.config, "operation.timestamp")
+        get_timestamp_config(&self.config, "debug.operation-timestamp")
     }
 
     pub fn operation_hostname(&self) -> String {
