@@ -230,37 +230,8 @@ impl Workspace {
         workspace_path: &Path,
         store_factories: &StoreFactories,
     ) -> Result<Self, WorkspaceLoadError> {
-        let jj_dir = find_jj_dir(workspace_path)
-            .ok_or_else(|| WorkspaceLoadError::NoWorkspaceHere(workspace_path.to_owned()))?;
-        let workspace_root = jj_dir
-            .parent()
-            .ok_or(WorkspaceLoadError::NonUnicodePath)?
-            .to_owned();
-        let mut repo_dir = jj_dir.join("repo");
-        // If .jj/repo is a file, then we interpret its contents as a relative path to
-        // the actual repo directory (typically in another workspace).
-        if repo_dir.is_file() {
-            let mut repo_file = File::open(&repo_dir).context(&repo_dir)?;
-            let mut buf = Vec::new();
-            repo_file.read_to_end(&mut buf).context(&repo_dir)?;
-            let repo_path_str =
-                String::from_utf8(buf).map_err(|_| WorkspaceLoadError::NonUnicodePath)?;
-            repo_dir = jj_dir
-                .join(&repo_path_str)
-                .canonicalize()
-                .context(&repo_path_str)?;
-            if !repo_dir.is_dir() {
-                return Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir));
-            }
-        }
-        let repo_loader = RepoLoader::init(user_settings, &repo_dir, store_factories);
-        let working_copy_state_path = jj_dir.join("working_copy");
-        let working_copy = WorkingCopy::load(
-            repo_loader.store().clone(),
-            workspace_root.clone(),
-            working_copy_state_path,
-        );
-        Ok(Workspace::new(&workspace_root, working_copy, repo_loader)?)
+        let loader = WorkspaceLoader::init(workspace_path)?;
+        Ok(loader.load(user_settings, store_factories)?)
     }
 
     pub fn workspace_root(&self) -> &PathBuf {
@@ -285,6 +256,69 @@ impl Workspace {
 
     pub fn working_copy_mut(&mut self) -> &mut WorkingCopy {
         &mut self.working_copy
+    }
+}
+
+#[derive(Clone)]
+pub struct WorkspaceLoader {
+    workspace_root: PathBuf,
+    repo_dir: PathBuf,
+    working_copy_state_path: PathBuf,
+}
+
+impl WorkspaceLoader {
+    pub fn init(workspace_path: &Path) -> Result<Self, WorkspaceLoadError> {
+        let jj_dir = find_jj_dir(workspace_path)
+            .ok_or_else(|| WorkspaceLoadError::NoWorkspaceHere(workspace_path.to_owned()))?;
+        let workspace_root = jj_dir
+            .parent()
+            .ok_or(WorkspaceLoadError::NonUnicodePath)?
+            .to_owned();
+        let mut repo_dir = jj_dir.join("repo");
+        // If .jj/repo is a file, then we interpret its contents as a relative path to
+        // the actual repo directory (typically in another workspace).
+        if repo_dir.is_file() {
+            let mut repo_file = File::open(&repo_dir).context(&repo_dir)?;
+            let mut buf = Vec::new();
+            repo_file.read_to_end(&mut buf).context(&repo_dir)?;
+            let repo_path_str =
+                String::from_utf8(buf).map_err(|_| WorkspaceLoadError::NonUnicodePath)?;
+            repo_dir = jj_dir
+                .join(&repo_path_str)
+                .canonicalize()
+                .context(&repo_path_str)?;
+            if !repo_dir.is_dir() {
+                return Err(WorkspaceLoadError::RepoDoesNotExist(repo_dir));
+            }
+        }
+        let working_copy_state_path = jj_dir.join("working_copy");
+        Ok(WorkspaceLoader {
+            workspace_root,
+            repo_dir,
+            working_copy_state_path,
+        })
+    }
+
+    pub fn workspace_root(&self) -> &Path {
+        &self.workspace_root
+    }
+
+    pub fn repo_path(&self) -> &Path {
+        &self.repo_dir
+    }
+
+    pub fn load(
+        &self,
+        user_settings: &UserSettings,
+        store_factories: &StoreFactories,
+    ) -> Result<Workspace, PathError> {
+        let repo_loader = RepoLoader::init(user_settings, &self.repo_dir, store_factories);
+        let working_copy = WorkingCopy::load(
+            repo_loader.store().clone(),
+            self.workspace_root.clone(),
+            self.working_copy_state_path.clone(),
+        );
+        Workspace::new(&self.workspace_root, working_copy, repo_loader)
     }
 }
 
