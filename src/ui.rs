@@ -67,14 +67,14 @@ impl FromStr for ColorChoice {
     }
 }
 
-impl ToString for ColorChoice {
-    fn to_string(&self) -> String {
-        match self {
+impl fmt::Display for ColorChoice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
             ColorChoice::Always => "always",
             ColorChoice::Never => "never",
             ColorChoice::Auto => "auto",
-        }
-        .to_string()
+        };
+        write!(f, "{s}")
     }
 }
 
