@@ -1583,8 +1583,7 @@ fn handle_early_args(
     let mut args: EarlyArgs = EarlyArgs::from_arg_matches(&early_matches).unwrap();
 
     if let Some(choice) = args.color {
-        args.config_toml
-            .push(format!("ui.color=\"{}\"", choice.to_string()));
+        args.config_toml.push(format!(r#"ui.color="{choice}""#));
     }
     if args.no_pager.unwrap_or_default() {
         ui.set_pagination(crate::ui::PaginationChoice::No);
