@@ -98,7 +98,10 @@ impl TemplateProperty<Timestamp, String> for RelativeTimestampString {
 enum Property<'a, I> {
     String(Box<dyn TemplateProperty<I, String> + 'a>),
     Boolean(Box<dyn TemplateProperty<I, bool> + 'a>),
-    CommitOrChangeId(Box<dyn TemplateProperty<I, CommitOrChangeId> + 'a>),
+    CommitOrChangeId(
+        Box<dyn TemplateProperty<I, CommitOrChangeId> + 'a>,
+        RepoRef<'a>,
+    ),
     Signature(Box<dyn TemplateProperty<I, Signature> + 'a>),
     Timestamp(Box<dyn TemplateProperty<I, Timestamp> + 'a>),
 }
@@ -114,9 +117,13 @@ impl<'a, I: 'a> Property<'a, I> {
                 first,
                 Box::new(move |value| property.extract(&value)),
             ))),
-            Property::CommitOrChangeId(property) => Property::CommitOrChangeId(Box::new(
-                TemplateFunction::new(first, Box::new(move |value| property.extract(&value))),
-            )),
+            Property::CommitOrChangeId(property, repo) => Property::CommitOrChangeId(
+                Box::new(TemplateFunction::new(
+                    first,
+                    Box::new(move |value| property.extract(&value)),
+                )),
+                repo,
+            ),
             Property::Signature(property) => Property::Signature(Box::new(TemplateFunction::new(
                 first,
                 Box::new(move |value| property.extract(&value)),
@@ -154,9 +161,9 @@ fn parse_method_chain<'a, I: 'a>(
                 let PropertyAndLabels(next_method, labels) = parse_boolean_method(method);
                 (next_method.after(property), labels)
             }
-            Property::CommitOrChangeId(property) => {
+            Property::CommitOrChangeId(property, repo) => {
                 let PropertyAndLabels(next_method, labels) =
-                    parse_commit_or_chain_id_method(method);
+                    parse_commit_or_chain_id_method(method, repo);
                 (next_method.after(property), labels)
             }
             Property::Signature(property) => {
@@ -197,10 +204,9 @@ fn parse_boolean_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, bool> {
     panic!("no such boolean method: {}", name.as_str());
 }
 
-// TODO: pass a context to the returned function (we need the repo to find the
-//       shortest unambiguous prefix)
 fn parse_commit_or_chain_id_method<'a>(
     method: Pair<Rule>,
+    repo: RepoRef<'a>,
 ) -> PropertyAndLabels<'a, CommitOrChangeId> {
     assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
@@ -208,7 +214,7 @@ fn parse_commit_or_chain_id_method<'a>(
     // TODO: validate arguments
 
     let this_function = match name.as_str() {
-        "short" => Property::String(Box::new(CommitOrChangeIdShort)),
+        "short" => Property::String(Box::new(CommitOrChangeIdShort { repo })),
         name => panic!("no such commit ID method: {name}"),
     };
     let chain_method = inner.last().unwrap();
@@ -255,8 +261,12 @@ fn parse_commit_keyword<'a>(
     assert_eq!(pair.as_rule(), Rule::identifier);
     let property = match pair.as_str() {
         "description" => Property::String(Box::new(DescriptionProperty)),
-        "change_id" => Property::CommitOrChangeId(Box::new(CommitOrChangeIdKeyword::change())),
-        "commit_id" => Property::CommitOrChangeId(Box::new(CommitOrChangeIdKeyword::commit())),
+        "change_id" => {
+            Property::CommitOrChangeId(Box::new(CommitOrChangeIdKeyword::change()), repo)
+        }
+        "commit_id" => {
+            Property::CommitOrChangeId(Box::new(CommitOrChangeIdKeyword::commit()), repo)
+        }
         "author" => Property::Signature(Box::new(AuthorProperty)),
         "committer" => Property::Signature(Box::new(CommitterProperty)),
         "working_copies" => Property::String(Box::new(WorkingCopiesProperty { repo })),
@@ -285,7 +295,7 @@ fn coerce_to_string<'a, I: 'a>(
             property,
             Box::new(|value| String::from(if value { "true" } else { "false" })),
         )),
-        Property::CommitOrChangeId(property) => Box::new(TemplateFunction::new(
+        Property::CommitOrChangeId(property, _) => Box::new(TemplateFunction::new(
             property,
             Box::new(CommitOrChangeIdKeyword::default_format),
         )),
