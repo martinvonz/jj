@@ -190,6 +190,18 @@ color="always""#,
     @ [1;34m230dd059e1b059aefc0da06a2e5a7dbf22362f22[0m
     o [34m0000000000000000000000000000000000000000[0m
     "###);
+
+    // Test that per-repo config overrides the user config.
+    std::fs::write(
+        repo_path.join(".jj/repo/config.toml"),
+        r#"ui.color = "never""#,
+    )
+    .unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    o 0000000000000000000000000000000000000000
+    "###);
 }
 
 #[test]

@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj resolve` now notifies the user of remaining conflicts, if any, on success.
   This can be prevented by the new `--quiet` option.
 
+* Per-repository configuration is now read from `.jj/repo/config.toml`.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export

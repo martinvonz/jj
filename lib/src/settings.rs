@@ -61,15 +61,10 @@ impl UserSettings {
         }
     }
 
-    pub fn with_repo(&self, repo_path: &Path) -> Result<RepoSettings, config::ConfigError> {
-        let config = config::Config::builder()
-            .add_source(self.config.clone())
-            .add_source(
-                config::File::from(repo_path.join("config"))
-                    .required(false)
-                    .format(config::FileFormat::Toml),
-            )
-            .build()?;
+    // TODO: Reconsider UserSettings/RepoSettings abstraction. See
+    // https://github.com/martinvonz/jj/issues/616#issuecomment-1345170699
+    pub fn with_repo(&self, _repo_path: &Path) -> Result<RepoSettings, config::ConfigError> {
+        let config = self.config.clone();
         Ok(RepoSettings { _config: config })
     }
 

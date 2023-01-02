@@ -33,7 +33,7 @@ pub enum ConfigError {
 /// 1. Default
 /// 2. Base environment variables
 /// 3. User config `~/.jjconfig.toml` or `$JJ_CONFIG`
-/// 4. TODO: Repo config `.jj/repo/config.toml`
+/// 4. Repo config `.jj/repo/config.toml`
 /// 5. TODO: Workspace config `.jj/config.toml`
 /// 6. Override environment variables
 /// 7. Command-line arguments `--config-toml`
@@ -42,6 +42,7 @@ pub struct LayeredConfigs {
     default: config::Config,
     env_base: config::Config,
     user: Option<config::Config>,
+    repo: Option<config::Config>,
     env_overrides: config::Config,
     arg_overrides: Option<config::Config>,
 }
@@ -53,6 +54,7 @@ impl LayeredConfigs {
             default: default_config(),
             env_base: env_base(),
             user: None,
+            repo: None,
             env_overrides: env_overrides(),
             arg_overrides: None,
         }
@@ -62,6 +64,11 @@ impl LayeredConfigs {
         self.user = config_path()?
             .map(|path| read_config_path(&path))
             .transpose()?;
+        Ok(())
+    }
+
+    pub fn read_repo_config(&mut self, repo_path: &Path) -> Result<(), ConfigError> {
+        self.repo = Some(read_config_file(&repo_path.join("config.toml"))?);
         Ok(())
     }
 
@@ -82,6 +89,7 @@ impl LayeredConfigs {
             Some(&self.default),
             Some(&self.env_base),
             self.user.as_ref(),
+            self.repo.as_ref(),
             Some(&self.env_overrides),
             self.arg_overrides.as_ref(),
         ];
@@ -190,6 +198,16 @@ fn env_overrides() -> config::Config {
         builder = builder.set_override("ui.editor", value).unwrap();
     }
     builder.build().unwrap()
+}
+
+fn read_config_file(path: &Path) -> Result<config::Config, config::ConfigError> {
+    config::Config::builder()
+        .add_source(
+            config::File::from(path)
+                .required(false)
+                .format(config::FileFormat::Toml),
+        )
+        .build()
 }
 
 fn read_config_path(config_path: &Path) -> Result<config::Config, config::ConfigError> {
