@@ -149,12 +149,25 @@ impl<W: Write> Formatter for PlainTextFormatter<W> {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Style {
+    fg_color: Color,
+}
+
+impl Default for Style {
+    fn default() -> Self {
+        Self {
+            fg_color: Color::Reset,
+        }
+    }
+}
+
 pub struct ColorFormatter<W> {
     output: W,
     colors: Arc<HashMap<String, String>>,
     labels: Vec<String>,
-    cached_colors: HashMap<Vec<String>, Color>,
-    current_color: Color,
+    cached_styles: HashMap<Vec<String>, Style>,
+    current_style: Style,
 }
 
 fn config_colors(config: &config::Config) -> HashMap<String, String> {
@@ -173,14 +186,14 @@ impl<W: Write> ColorFormatter<W> {
             output,
             colors,
             labels: vec![],
-            cached_colors: HashMap::new(),
-            current_color: Color::Reset,
+            cached_styles: HashMap::new(),
+            current_style: Style::default(),
         }
     }
 
-    fn current_color(&mut self) -> Color {
-        if let Some(cached) = self.cached_colors.get(&self.labels) {
-            *cached
+    fn current_style(&mut self) -> Style {
+        if let Some(cached) = self.cached_styles.get(&self.labels) {
+            cached.clone()
         } else {
             let mut best_match = (-1, "");
             for (key, value) in self.colors.as_ref() {
@@ -211,26 +224,28 @@ impl<W: Write> ColorFormatter<W> {
                 }
             }
 
-            let color = color_for_name(best_match.1);
-            self.cached_colors.insert(self.labels.clone(), color);
-            color
+            let fg_color = color_for_name(best_match.1);
+            let style = Style { fg_color };
+            self.cached_styles
+                .insert(self.labels.clone(), style.clone());
+            style
         }
     }
 
-    fn write_new_color(&mut self) -> io::Result<()> {
-        let new_color = self.current_color();
-        if new_color != self.current_color {
+    fn write_new_style(&mut self) -> io::Result<()> {
+        let new_style = self.current_style();
+        if new_style != self.current_style {
             // For now, make bright colors imply bold font. That better matches our
             // behavior from when we used ANSI codes 30-37 plus an optional 1 for
             // bold/bright (we now use code 38 for setting foreground color).
             // TODO: Make boldness configurable separately from color
-            if !is_bright(&self.current_color) && is_bright(&new_color) {
+            if !is_bright(&self.current_style.fg_color) && is_bright(&new_style.fg_color) {
                 queue!(self.output, SetAttribute(Attribute::Bold))?;
-            } else if !is_bright(&new_color) && is_bright(&self.current_color) {
+            } else if !is_bright(&new_style.fg_color) && is_bright(&self.current_style.fg_color) {
                 queue!(self.output, SetAttribute(Attribute::Reset))?;
             }
-            queue!(self.output, SetForegroundColor(new_color))?;
-            self.current_color = new_color;
+            queue!(self.output, SetForegroundColor(new_style.fg_color))?;
+            self.current_style = new_style;
         }
         Ok(())
     }
@@ -285,12 +300,12 @@ impl<W: Write> Write for ColorFormatter<W> {
 impl<W: Write> Formatter for ColorFormatter<W> {
     fn add_label(&mut self, label: &str) -> io::Result<()> {
         self.labels.push(label.to_owned());
-        self.write_new_color()
+        self.write_new_style()
     }
 
     fn remove_label(&mut self) -> io::Result<()> {
         self.labels.pop();
-        self.write_new_color()
+        self.write_new_style()
     }
 }
 
