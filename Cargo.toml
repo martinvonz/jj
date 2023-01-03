@@ -30,6 +30,10 @@ path = "testing/fake-diff-editor.rs"
 name = "diff_bench"
 harness = false
 
+[[bench]]
+name = "trie"
+harness = false
+
 [workspace]
 members = ["lib", "lib/testutils", "lib/gen-protos"]
 
@@ -75,6 +79,7 @@ predicates = "2.1.5"
 regex = "1.7.1"
 test-case = "2.2.2"
 testutils = { path = "lib/testutils" }
+uuid = "1.2.2"
 
 [features]
 sapling = ["dag"]
