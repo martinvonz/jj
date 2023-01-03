@@ -47,7 +47,7 @@ fn create_store_factories() -> StoreFactories {
 
 fn run(
     ui: &mut Ui,
-    command_helper: CommandHelper,
+    command_helper: &CommandHelper,
     matches: &ArgMatches,
 ) -> Result<(), CommandError> {
     match CustomCommands::from_arg_matches(matches) {
@@ -61,7 +61,7 @@ fn run(
             Ok(())
         }
         // Handle default commands
-        Err(_) => run_command(ui, &command_helper, matches),
+        Err(_) => run_command(ui, command_helper, matches),
     }
 }
 

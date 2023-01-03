@@ -17,6 +17,6 @@ use jujutsu::commands::run_command;
 
 fn main() {
     CliRunner::init()
-        .set_dispatch_fn(|ui, command_helper, matches| run_command(ui, &command_helper, matches))
+        .set_dispatch_fn(run_command)
         .run_and_exit();
 }
