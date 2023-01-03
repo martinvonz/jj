@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clap::{ArgMatches, FromArgMatches};
 use jujutsu::cli_util::{short_commit_description, CliRunner, CommandError, CommandHelper};
-use jujutsu::commands::run_command;
 use jujutsu::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
@@ -30,14 +28,13 @@ struct FrobnicateArgs {
     revision: String,
 }
 
-fn run(
+fn run_custom_command(
     ui: &mut Ui,
     command_helper: &CommandHelper,
-    matches: &ArgMatches,
+    command: CustomCommands,
 ) -> Result<(), CommandError> {
-    match CustomCommands::from_arg_matches(matches) {
-        // Handle our custom command
-        Ok(CustomCommands::Frobnicate(args)) => {
+    match command {
+        CustomCommands::Frobnicate(args) => {
             let mut workspace_command = command_helper.workspace_helper(ui)?;
             let commit = workspace_command.resolve_single_rev(&args.revision)?;
             let mut tx = workspace_command.start_transaction("Frobnicate");
@@ -54,14 +51,11 @@ fn run(
             )?;
             Ok(())
         }
-        // Handle default commands
-        Err(_) => run_command(ui, command_helper, matches),
     }
 }
 
 fn main() {
     CliRunner::init()
-        .add_subcommand::<CustomCommands>()
-        .set_dispatch_fn(run)
+        .add_subcommand(run_custom_command)
         .run_and_exit();
 }

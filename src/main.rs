@@ -13,10 +13,7 @@
 // limitations under the License.
 
 use jujutsu::cli_util::CliRunner;
-use jujutsu::commands::run_command;
 
 fn main() {
-    CliRunner::init()
-        .set_dispatch_fn(run_command)
-        .run_and_exit();
+    CliRunner::init().run_and_exit();
 }
