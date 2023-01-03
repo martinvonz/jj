@@ -1733,7 +1733,7 @@ impl CliRunner<()> {
     // TODO: use crate::commands::run_command() by default
     pub fn set_dispatch_fn<F>(self, dispatch_fn: F) -> CliRunner<F>
     where
-        F: FnOnce(&mut Ui, CommandHelper, &ArgMatches) -> Result<(), CommandError>,
+        F: FnOnce(&mut Ui, &CommandHelper, &ArgMatches) -> Result<(), CommandError>,
     {
         CliRunner {
             tracing_subscription: self.tracing_subscription,
@@ -1746,7 +1746,7 @@ impl CliRunner<()> {
 
 impl<F> CliRunner<F>
 where
-    F: FnOnce(&mut Ui, CommandHelper, &ArgMatches) -> Result<(), CommandError>,
+    F: FnOnce(&mut Ui, &CommandHelper, &ArgMatches) -> Result<(), CommandError>,
 {
     pub fn run(self, ui: &mut Ui) -> Result<(), CommandError> {
         ui.reset(crate::config::read_config()?);
@@ -1759,8 +1759,7 @@ where
         if let Some(store_factories) = self.store_factories {
             command_helper.set_store_factories(store_factories);
         }
-        // TODO: pass CommandHelper by reference
-        (self.dispatch_fn)(ui, command_helper, &matches)
+        (self.dispatch_fn)(ui, &command_helper, &matches)
     }
 
     pub fn run_and_exit(self) -> ! {
