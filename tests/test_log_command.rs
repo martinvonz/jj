@@ -288,6 +288,113 @@ fn test_log_with_or_without_diff() {
 }
 
 #[test]
+fn test_log_prefix_highlight() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let prefix_format = r#"
+      "Change " change_id.short_prefix_and_brackets() " " description.first_line()
+      " " commit_id.short_prefix_and_brackets() " " branches
+    "#;
+
+    std::fs::write(repo_path.join("file"), "original file\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "c", "original"]);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-r", "original", "-T", prefix_format]),
+        @r###"
+    @ Change 9[a45c67d3e9] initial b[a1a30916d2] original
+    ~ 
+    "###
+    );
+    for i in 1..50 {
+        test_env.jj_cmd_success(&repo_path, &["new", "-m", &format!("commit{i}")]);
+        std::fs::write(repo_path.join("file"), format!("file {i}\n")).unwrap();
+    }
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-r", "original", "-T", prefix_format]),
+        @r###"
+    o Change 9a4[5c67d3e9] initial ba1[a30916d2] original
+    ~ 
+    "###
+    );
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-----------..@", "-T", prefix_format]),
+        @r###"
+    @ Change 4c9[32da8013] commit49 d8[3437a2cef] 
+    o Change 0d[58f15eaba] commit48 f3[abb4ea0ac] 
+    o Change fc[e6c2c5912] commit47 38e[891bea27] 
+    o Change d5[1defcac30] commit46 1c[04d947707] 
+    o Change 4f[13b1391d6] commit45 747[24ae22b1] 
+    o Change 6a[de2950a04] commit44 c7a[a67cf7bb] 
+    o Change 06c[482e452d] commit43 8e[c99dfcb6c] 
+    o Change 392[beeb018e] commit42 8f0[e60411b7] 
+    o Change a1[b73d3ff91] commit41 71[d6937a66c] 
+    o Change 708[8f461291] commit40 db[572049026] 
+    o Change c49[f7f006c7] commit39 d94[54fec8a6] 
+    ~ 
+    "###
+    );
+}
+
+#[test]
+fn test_log_prefix_highlight_counts_hidden_commits() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let prefix_format = r#"
+      "Change " change_id.short_prefix_and_brackets() " " description.first_line()
+      " " commit_id.short_prefix_and_brackets() " " branches
+    "#;
+
+    std::fs::write(repo_path.join("file"), "original file\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "initial"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "c", "original"]);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-r", "all()", "-T", prefix_format]),
+        @r###"
+    @ Change 9[a45c67d3e9] initial b[a1a30916d2] original
+    o Change 000000000000 (no description set) 000000000000 
+    "###
+    );
+    for i in 1..100 {
+        test_env.jj_cmd_success(&repo_path, &["describe", "-m", &format!("commit{i}")]);
+        std::fs::write(repo_path.join("file"), format!("file {i}\n")).unwrap();
+    }
+    // The first commit still exists. Its unique prefix became longer.
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-r", "ba1", "-T", prefix_format]),
+        @r###"
+    o Change 9a4[5c67d3e9] initial ba1[a30916d2] 
+    ~ 
+    "###
+    );
+    // The first commit is no longer visible
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-r", "all()", "-T", prefix_format]),
+        @r###"
+    @ Change 9a4[5c67d3e9] commit99 de[3177d2acf] original
+    o Change 000000000000 (no description set) 000000000000 
+    "###
+    );
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(&repo_path, &["log", "-r", "d", "-T", prefix_format]),
+        @r###"
+    Error: Commit or change id prefix "d" is ambiguous
+    "###
+    );
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-r", "de", "-T", prefix_format]),
+        @r###"
+    @ Change 9a4[5c67d3e9] commit99 de[3177d2acf] original
+    ~ 
+    "###
+    );
+}
+
+#[test]
 fn test_log_divergence() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
