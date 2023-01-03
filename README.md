@@ -231,7 +231,7 @@ cargo install --git https://github.com/martinvonz/jj.git --bin jj jujutsu
 
 Run:
 ```shell script
-cargo install --git https://github.com/martinvonz/jj.git --bin jj jujutsu
+cargo install --git https://github.com/martinvonz/jj.git --bin jj jujutsu --features vendored-openssl
 ```
 
 
