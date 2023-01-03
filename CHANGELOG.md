@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj config list` command prints values from config (with other subcommands
   coming soon).
 
+* `jj debug config-schema` command prints out JSON schema for the jj TOML config
+  file format.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export

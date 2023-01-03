@@ -999,6 +999,7 @@ struct GitExportArgs {}
 enum DebugCommands {
     Completion(DebugCompletionArgs),
     Mangen(DebugMangenArgs),
+    ConfigSchema(DebugConfigSchemaArgs),
     #[command(name = "resolverev")]
     ResolveRev(DebugResolveRevArgs),
     #[command(name = "workingcopy")]
@@ -1042,6 +1043,10 @@ struct DebugCompletionArgs {
 /// Print a ROFF (manpage)
 #[derive(clap::Args, Clone, Debug)]
 struct DebugMangenArgs {}
+
+/// Print the JSON schema for the jj TOML config format.
+#[derive(clap::Args, Clone, Debug)]
+struct DebugConfigSchemaArgs {}
 
 /// Resolve a revision identifier to its full ID
 #[derive(clap::Args, Clone, Debug)]
@@ -3173,6 +3178,11 @@ fn cmd_debug(
             let man = clap_mangen::Man::new(command.app().clone());
             man.render(&mut buf)?;
             ui.stdout_formatter().write_all(&buf)?;
+        }
+        DebugCommands::ConfigSchema(_config_schema_matches) => {
+            // TODO(#879): Consider generating entire schema dynamically vs. static file.
+            let buf = include_bytes!("config-schema.json");
+            ui.stdout_formatter().write_all(buf)?;
         }
         DebugCommands::ResolveRev(resolve_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
