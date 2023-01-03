@@ -223,7 +223,7 @@ export PKG_CONFIG_PATH="$(brew --prefix)/opt/openssl@3/lib/pkgconfig"
 
 Now run:
 ```shell script
-cargo install --git https://github.com/martinvonz/jj.git --bin jj
+cargo install --git https://github.com/martinvonz/jj.git --bin jj jujutsu
 ```
 
 
@@ -231,7 +231,7 @@ cargo install --git https://github.com/martinvonz/jj.git --bin jj
 
 Run:
 ```shell script
-cargo install --git https://github.com/martinvonz/jj.git --bin jj
+cargo install --git https://github.com/martinvonz/jj.git --bin jj jujutsu
 ```
 
 
