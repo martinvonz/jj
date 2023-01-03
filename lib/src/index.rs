@@ -127,6 +127,10 @@ impl<'a> IndexRef<'a> {
         }
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = IndexEntry<'a>> + '_ {
+        (0..self.num_commits()).map(|pos| self.entry_by_pos(IndexPosition(pos)))
+    }
+
     pub fn walk_revs(&self, wanted: &[CommitId], unwanted: &[CommitId]) -> RevWalk<'a> {
         match self {
             IndexRef::Readonly(index) => index.walk_revs(wanted, unwanted),
@@ -1652,6 +1656,7 @@ mod tests {
         assert!(index.entry_by_id(&CommitId::from_hex("000000")).is_none());
         assert!(index.entry_by_id(&CommitId::from_hex("aaa111")).is_none());
         assert!(index.entry_by_id(&CommitId::from_hex("ffffff")).is_none());
+        assert_eq!(index.iter().collect_vec(), vec![]);
     }
 
     #[test_case(false; "memory")]
@@ -1768,6 +1773,17 @@ mod tests {
         let entry_3 = index.entry_by_id(&id_3).unwrap();
         let entry_4 = index.entry_by_id(&id_4).unwrap();
         let entry_5 = index.entry_by_id(&id_5).unwrap();
+        assert_eq!(
+            index.iter().collect_vec(),
+            vec![
+                entry_0.clone(),
+                entry_1.clone(),
+                entry_2.clone(),
+                entry_3.clone(),
+                entry_4.clone(),
+                entry_5.clone(),
+            ]
+        );
         // Check properties of some entries
         assert_eq!(entry_0.pos, IndexPosition(0));
         assert_eq!(entry_0.commit_id(), id_0);
@@ -1847,6 +1863,7 @@ mod tests {
         // Stats are as expected
         let stats = index.stats();
         assert_eq!(stats.num_commits, 7);
+        assert_eq!(index.iter().collect_vec().len(), 7);
         assert_eq!(stats.num_heads, 1);
         assert_eq!(stats.max_generation_number, 2);
         assert_eq!(stats.num_merges, 1);
