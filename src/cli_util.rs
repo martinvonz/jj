@@ -50,6 +50,7 @@ use jujutsu_lib::working_copy::{
 use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError};
 use jujutsu_lib::{dag_walk, file_util, git, revset};
 use thiserror::Error;
+use tracing_subscriber::prelude::*;
 
 use crate::formatter::Formatter;
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
@@ -215,6 +216,45 @@ impl From<glob::PatternError> for CommandError {
 impl From<clap::Error> for CommandError {
     fn from(err: clap::Error) -> Self {
         CommandError::ClapCliError(err)
+    }
+}
+
+/// Handle to initialize or change tracing subscription.
+#[derive(Clone, Debug)]
+pub struct TracingSubscription {
+    reload_log_filter: tracing_subscriber::reload::Handle<
+        tracing_subscriber::EnvFilter,
+        tracing_subscriber::Registry,
+    >,
+}
+
+impl TracingSubscription {
+    /// Initializes tracing with the default configuration. This should be
+    /// called as early as possible.
+    pub fn init() -> Self {
+        let filter = tracing_subscriber::EnvFilter::builder()
+            .with_default_directive(tracing::metadata::LevelFilter::INFO.into())
+            .from_env_lossy();
+        let (filter, reload_log_filter) = tracing_subscriber::reload::Layer::new(filter);
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(tracing_subscriber::fmt::Layer::default().with_writer(std::io::stderr))
+            .init();
+        TracingSubscription { reload_log_filter }
+    }
+
+    pub fn enable_verbose_logging(&self) -> Result<(), CommandError> {
+        self.reload_log_filter
+            .modify(|filter| {
+                *filter = tracing_subscriber::EnvFilter::builder()
+                    .with_default_directive(tracing::metadata::LevelFilter::DEBUG.into())
+                    .from_env_lossy()
+            })
+            .map_err(|err| {
+                CommandError::InternalError(format!("failed to enable verbose logging: {err:?}"))
+            })?;
+        tracing::debug!("verbose logging enabled");
+        Ok(())
     }
 }
 
