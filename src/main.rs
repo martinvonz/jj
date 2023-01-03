@@ -20,18 +20,11 @@ use jujutsu::ui::Ui;
 fn run(ui: &mut Ui, tracing_subscription: &TracingSubscription) -> Result<(), CommandError> {
     ui.reset(read_config()?);
     let app = default_app();
-    let (command_helper, matches) = parse_args(ui, app, std::env::args_os())?;
-    if command_helper.global_args().verbose {
-        tracing_subscription.enable_verbose_logging()?;
-    }
+    let (command_helper, matches) = parse_args(ui, app, tracing_subscription, std::env::args_os())?;
     run_command(ui, &command_helper, &matches)
 }
 
 fn main() {
-    // TODO(@rslabbert): restructure logging filter setup to better handle
-    // having verbose logging set up as early as possible, and to support
-    // custom commands. See discussion on:
-    // https://github.com/martinvonz/jj/pull/771
     let tracing_subscription = TracingSubscription::init();
     jujutsu::cleanup_guard::init();
     let mut ui = Ui::new();
