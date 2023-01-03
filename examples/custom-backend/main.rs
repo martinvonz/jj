@@ -15,11 +15,10 @@
 use std::io::Read;
 use std::path::Path;
 
-use clap::{FromArgMatches, Subcommand};
+use clap::{ArgMatches, FromArgMatches};
 use git2::Repository;
-use jujutsu::cli_util::{parse_args, CliRunner, CommandError, TracingSubscription};
-use jujutsu::commands::{default_app, run_command};
-use jujutsu::config::read_config;
+use jujutsu::cli_util::{CliRunner, CommandError, CommandHelper};
+use jujutsu::commands::run_command;
 use jujutsu::ui::Ui;
 use jujutsu_lib::backend::{
     Backend, BackendResult, Commit, CommitId, Conflict, ConflictId, FileId, SymlinkId, Tree, TreeId,
@@ -35,11 +34,11 @@ enum CustomCommands {
     InitJit,
 }
 
-fn run(ui: &mut Ui, tracing_subscription: &TracingSubscription) -> Result<(), CommandError> {
-    ui.reset(read_config()?);
-    let app = CustomCommands::augment_subcommands(default_app());
-    let (mut command_helper, matches) =
-        parse_args(ui, app, tracing_subscription, std::env::args_os())?;
+fn run(
+    ui: &mut Ui,
+    mut command_helper: CommandHelper,
+    matches: &ArgMatches,
+) -> Result<(), CommandError> {
     let mut store_factories = StoreFactories::default();
     // Register the backend so it can be loaded when the repo is loaded. The name
     // must match `Backend::name()`.
@@ -48,7 +47,7 @@ fn run(ui: &mut Ui, tracing_subscription: &TracingSubscription) -> Result<(), Co
         Box::new(|store_path| Box::new(JitBackend::load(store_path))),
     );
     command_helper.set_store_factories(store_factories);
-    match CustomCommands::from_arg_matches(&matches) {
+    match CustomCommands::from_arg_matches(matches) {
         // Handle our custom command
         Ok(CustomCommands::InitJit) => {
             let wc_path = ui.cwd();
@@ -59,12 +58,15 @@ fn run(ui: &mut Ui, tracing_subscription: &TracingSubscription) -> Result<(), Co
             Ok(())
         }
         // Handle default commands
-        Err(_) => run_command(ui, &command_helper, &matches),
+        Err(_) => run_command(ui, &command_helper, matches),
     }
 }
 
 fn main() {
-    CliRunner::init().set_dispatch_fn(run).run_and_exit();
+    CliRunner::init()
+        .add_subcommand::<CustomCommands>()
+        .set_dispatch_fn(run)
+        .run_and_exit();
 }
 
 /// A commit backend that's extremely similar to the Git backend

@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clap::{FromArgMatches, Subcommand};
-use jujutsu::cli_util::{
-    parse_args, short_commit_description, CliRunner, CommandError, TracingSubscription,
-};
-use jujutsu::commands::{default_app, run_command};
-use jujutsu::config::read_config;
+use clap::{ArgMatches, FromArgMatches};
+use jujutsu::cli_util::{short_commit_description, CliRunner, CommandError, CommandHelper};
+use jujutsu::commands::run_command;
 use jujutsu::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
@@ -33,11 +30,12 @@ struct FrobnicateArgs {
     revision: String,
 }
 
-fn run(ui: &mut Ui, tracing_subscription: &TracingSubscription) -> Result<(), CommandError> {
-    ui.reset(read_config()?);
-    let app = CustomCommands::augment_subcommands(default_app());
-    let (command_helper, matches) = parse_args(ui, app, tracing_subscription, std::env::args_os())?;
-    match CustomCommands::from_arg_matches(&matches) {
+fn run(
+    ui: &mut Ui,
+    command_helper: CommandHelper,
+    matches: &ArgMatches,
+) -> Result<(), CommandError> {
+    match CustomCommands::from_arg_matches(matches) {
         // Handle our custom command
         Ok(CustomCommands::Frobnicate(args)) => {
             let mut workspace_command = command_helper.workspace_helper(ui)?;
@@ -57,10 +55,13 @@ fn run(ui: &mut Ui, tracing_subscription: &TracingSubscription) -> Result<(), Co
             Ok(())
         }
         // Handle default commands
-        Err(_) => run_command(ui, &command_helper, &matches),
+        Err(_) => run_command(ui, &command_helper, matches),
     }
 }
 
 fn main() {
-    CliRunner::init().set_dispatch_fn(run).run_and_exit();
+    CliRunner::init()
+        .add_subcommand::<CustomCommands>()
+        .set_dispatch_fn(run)
+        .run_and_exit();
 }

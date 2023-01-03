@@ -1687,6 +1687,7 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
 #[must_use]
 pub struct CliRunner<F> {
     tracing_subscription: TracingSubscription,
+    app: clap::Command,
     dispatch_fn: F,
 }
 
@@ -1698,17 +1699,32 @@ impl CliRunner<()> {
         crate::cleanup_guard::init();
         CliRunner {
             tracing_subscription,
+            app: crate::commands::default_app(),
             dispatch_fn: (),
+        }
+    }
+
+    /// Registers new subcommands in addition to the default ones.
+    // TODO: maybe take dispatch_fn for the subcommands?
+    pub fn add_subcommand<C>(self) -> Self
+    where
+        C: clap::Subcommand,
+    {
+        CliRunner {
+            tracing_subscription: self.tracing_subscription,
+            app: C::augment_subcommands(self.app),
+            dispatch_fn: self.dispatch_fn,
         }
     }
 
     // TODO: use crate::commands::run_command() by default
     pub fn set_dispatch_fn<F>(self, dispatch_fn: F) -> CliRunner<F>
     where
-        F: FnOnce(&mut Ui, &TracingSubscription) -> Result<(), CommandError>,
+        F: FnOnce(&mut Ui, CommandHelper, &ArgMatches) -> Result<(), CommandError>,
     {
         CliRunner {
             tracing_subscription: self.tracing_subscription,
+            app: self.app,
             dispatch_fn,
         }
     }
@@ -1716,10 +1732,18 @@ impl CliRunner<()> {
 
 impl<F> CliRunner<F>
 where
-    F: FnOnce(&mut Ui, &TracingSubscription) -> Result<(), CommandError>,
+    F: FnOnce(&mut Ui, CommandHelper, &ArgMatches) -> Result<(), CommandError>,
 {
     pub fn run(self, ui: &mut Ui) -> Result<(), CommandError> {
-        (self.dispatch_fn)(ui, &self.tracing_subscription)
+        ui.reset(crate::config::read_config()?);
+        let (command_helper, matches) = parse_args(
+            ui,
+            self.app,
+            &self.tracing_subscription,
+            std::env::args_os(),
+        )?;
+        // TODO: pass CommandHelper by reference
+        (self.dispatch_fn)(ui, command_helper, &matches)
     }
 
     pub fn run_and_exit(self) -> ! {

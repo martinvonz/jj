@@ -12,18 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::cli_util::{parse_args, CliRunner, CommandError, TracingSubscription};
-use jujutsu::commands::{default_app, run_command};
-use jujutsu::config::read_config;
-use jujutsu::ui::Ui;
-
-fn run(ui: &mut Ui, tracing_subscription: &TracingSubscription) -> Result<(), CommandError> {
-    ui.reset(read_config()?);
-    let app = default_app();
-    let (command_helper, matches) = parse_args(ui, app, tracing_subscription, std::env::args_os())?;
-    run_command(ui, &command_helper, &matches)
-}
+use jujutsu::cli_util::CliRunner;
+use jujutsu::commands::run_command;
 
 fn main() {
-    CliRunner::init().set_dispatch_fn(run).run_and_exit();
+    CliRunner::init()
+        .set_dispatch_fn(|ui, command_helper, matches| run_command(ui, &command_helper, matches))
+        .run_and_exit();
 }
