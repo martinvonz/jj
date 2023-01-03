@@ -1688,6 +1688,7 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
 pub struct CliRunner<F> {
     tracing_subscription: TracingSubscription,
     app: clap::Command,
+    store_factories: Option<StoreFactories>,
     dispatch_fn: F,
 }
 
@@ -1700,7 +1701,18 @@ impl CliRunner<()> {
         CliRunner {
             tracing_subscription,
             app: crate::commands::default_app(),
+            store_factories: None,
             dispatch_fn: (),
+        }
+    }
+
+    /// Replaces `StoreFactories` to be used.
+    pub fn set_store_factories(self, store_factories: StoreFactories) -> Self {
+        CliRunner {
+            tracing_subscription: self.tracing_subscription,
+            app: self.app,
+            store_factories: Some(store_factories),
+            dispatch_fn: self.dispatch_fn,
         }
     }
 
@@ -1713,6 +1725,7 @@ impl CliRunner<()> {
         CliRunner {
             tracing_subscription: self.tracing_subscription,
             app: C::augment_subcommands(self.app),
+            store_factories: self.store_factories,
             dispatch_fn: self.dispatch_fn,
         }
     }
@@ -1725,6 +1738,7 @@ impl CliRunner<()> {
         CliRunner {
             tracing_subscription: self.tracing_subscription,
             app: self.app,
+            store_factories: self.store_factories,
             dispatch_fn,
         }
     }
@@ -1736,12 +1750,15 @@ where
 {
     pub fn run(self, ui: &mut Ui) -> Result<(), CommandError> {
         ui.reset(crate::config::read_config()?);
-        let (command_helper, matches) = parse_args(
+        let (mut command_helper, matches) = parse_args(
             ui,
             self.app,
             &self.tracing_subscription,
             std::env::args_os(),
         )?;
+        if let Some(store_factories) = self.store_factories {
+            command_helper.set_store_factories(store_factories);
+        }
         // TODO: pass CommandHelper by reference
         (self.dispatch_fn)(ui, command_helper, &matches)
     }

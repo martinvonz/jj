@@ -34,11 +34,7 @@ enum CustomCommands {
     InitJit,
 }
 
-fn run(
-    ui: &mut Ui,
-    mut command_helper: CommandHelper,
-    matches: &ArgMatches,
-) -> Result<(), CommandError> {
+fn create_store_factories() -> StoreFactories {
     let mut store_factories = StoreFactories::default();
     // Register the backend so it can be loaded when the repo is loaded. The name
     // must match `Backend::name()`.
@@ -46,7 +42,14 @@ fn run(
         "jit",
         Box::new(|store_path| Box::new(JitBackend::load(store_path))),
     );
-    command_helper.set_store_factories(store_factories);
+    store_factories
+}
+
+fn run(
+    ui: &mut Ui,
+    command_helper: CommandHelper,
+    matches: &ArgMatches,
+) -> Result<(), CommandError> {
     match CustomCommands::from_arg_matches(matches) {
         // Handle our custom command
         Ok(CustomCommands::InitJit) => {
@@ -64,6 +67,7 @@ fn run(
 
 fn main() {
     CliRunner::init()
+        .set_store_factories(create_store_factories())
         .add_subcommand::<CustomCommands>()
         .set_dispatch_fn(run)
         .run_and_exit();
