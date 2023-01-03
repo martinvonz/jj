@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
 use std::io::ErrorKind;
@@ -1197,7 +1197,7 @@ mod dirty_cell {
 /// Conceptually like `HashMap<Vec<I>, V>`, but supports lookup by prefixes
 /// of keys.
 #[derive(Debug, Clone)]
-pub struct Trie<I: Eq + Hash + Clone, V> {
+pub enum Trie<I: Eq + Hash + Clone, V> {
     // TODO: The trie currently uses more memory (~4x by one measurement) than
     // a simple HashSet of commit & change ids would. This could be addressed by:
     //
@@ -1211,9 +1211,19 @@ pub struct Trie<I: Eq + Hash + Clone, V> {
     // complete keys.
     //
     // It's unclear if either of these is worth the complexity.
-    value: Option<V>,
-    next_level: HashMap<I, Box<Trie<I, V>>>,
+    // TODO: Redo the above comment
+    Empty, // Distinguishing this from Node siplifies the insert function
+    Leaf {
+        key_tail: VecDeque<I>,
+        value: Option<V>, /* `Option` is here solely to make borrow checker happy in `insert`.
+                           * Should never be None. */
+    },
+    Node {
+        next_level: HashMap<I, Box<Trie<I, V>>>,
+        value: Option<V>,
+    },
 }
+use Trie::*;
 
 impl<I: Eq + Hash + Clone, V> Default for Trie<I, V> {
     fn default() -> Self {
@@ -1223,38 +1233,79 @@ impl<I: Eq + Hash + Clone, V> Default for Trie<I, V> {
 
 impl<I: Eq + Hash + Clone, V> Trie<I, V> {
     pub fn new() -> Self {
-        Self {
-            value: None,
-            next_level: HashMap::new(),
-        }
+        Empty
     }
 
     pub fn insert(&mut self, key: &[I], value: V) -> Option<V> {
-        match key {
-            [] => {
-                let return_value = self.value.take();
-                self.value = Some(value);
-                return_value
+        match self {
+            Empty => {
+                *self = Leaf {
+                    key_tail: key.to_vec().into(),
+                    value: Some(value),
+                };
+                None
             }
-            [first, rest @ ..] => self
-                .next_level
-                .entry(first.clone())
-                .or_default()
-                .insert(rest, value),
+            Leaf {
+                key_tail,
+                value: ref mut trie_val,
+            } if key_tail == &key => {
+                // This `take` is the entire reason Leaf::value is an `Option<V>` rather than a
+                // simple `V`. It could be avoided here by not returning a value, but not in the
+                // next branch
+                let old_value = trie_val.take();
+                *trie_val = Some(value);
+                old_value
+            }
+            Leaf {
+                key_tail,
+                value: trie_val,
+            } => {
+                let old_value = trie_val.take();
+                // This is optimized for minimal allocation
+                *self = match key_tail.pop_front() {
+                    None => Node {
+                        next_level: HashMap::default(),
+                        value: old_value,
+                    },
+                    Some(first) => Node {
+                        next_level: HashMap::from([(
+                            first,
+                            Box::new(Leaf {
+                                key_tail: std::mem::take(key_tail),
+                                value: old_value,
+                            }),
+                        )]),
+                        value: None,
+                    },
+                };
+                self.insert(key, value)
+            }
+            Node {
+                next_level,
+                value: ref mut trie_val,
+            } => match key {
+                [] => {
+                    let old_value = trie_val.take();
+                    *trie_val = Some(value);
+                    old_value
+                }
+                [first, rest @ ..] => next_level
+                    .entry(first.clone())
+                    .or_default()
+                    .insert(rest, value),
+            },
         }
     }
 
     pub fn get<'a>(&'a self, key: &[I]) -> Option<&'a V> {
-        self.get_subtrie(key).and_then(|trie| trie.value.as_ref())
-    }
-
-    pub fn get_subtrie<'a>(&'a self, key: &[I]) -> Option<&'a Trie<I, V>> {
-        match key {
-            [] => Some(self),
-            [first, rest @ ..] => self
-                .next_level
-                .get(first)
-                .and_then(|subtrie| subtrie.get_subtrie(rest)),
+        match &self {
+            Empty => None,
+            Leaf { key_tail, value } if key_tail == &key => value.as_ref(),
+            Leaf { .. } => None,
+            Node { next_level, value } => match key {
+                [] => value.as_ref(),
+                [first, rest @ ..] => next_level.get(first).and_then(|subtrie| subtrie.get(rest)),
+            },
         }
     }
 
@@ -1272,34 +1323,44 @@ impl<I: Eq + Hash + Clone, V> Trie<I, V> {
     /// fact that it's the entire key). This case is extremely unlikely for
     /// hashes with 12+ hexadecimal characters.
     pub fn shortest_unique_prefix_len(&self, key: &[I]) -> usize {
-        match key {
-            [] if self.next_level.is_empty() => 0,
-            [] => {
-                // The special case: there are keys in the trie for which the original `key`
-                // (from the first level of recursion) is a prefix.
-                1
+        match self {
+            Empty => 0,
+            Leaf { key_tail, .. } => {
+                let common = std::iter::zip(key, key_tail)
+                    .take_while(|(a, b)| a == b)
+                    .count();
+                if common < key_tail.len() || common < key.len() {
+                    common + 1
+                } else {
+                    0
+                }
             }
-            [first, rest @ ..] => {
-                match self.next_level.get(first) {
-                    None if self.value.is_none() && self.next_level.is_empty() => 0, // Empty trie
-                    None => 1, // Key is missing but, if it wasn't, 1 char would be needed
-                    Some(next_trie) => {
-                        let next_prefix_len = next_trie.shortest_unique_prefix_len(rest);
-                        if next_prefix_len == 0
-                            && self.next_level.len() == 1
-                            && self.value.is_none()
-                        {
-                            // The `next_trie` subtrie of our trie is either empty or contains a
-                            // single element matching our key exactly. Moreover, our trie has the
-                            // same property. There's no need for more characters to distinguish our
-                            // key from all other keys.
-                            0
-                        } else {
-                            next_prefix_len + 1
+            Node { next_level, value } => match key {
+                [] if next_level.is_empty() => 0,
+                [] => {
+                    // The special case: there are keys in the trie for which the original
+                    // `key` (from the first level of recursion) is a prefix.
+                    1
+                }
+                [first, rest @ ..] => {
+                    match next_level.get(first) {
+                        None if value.is_none() && next_level.is_empty() => 0, /* Empty trie */
+                        None => 1, // Key is missing but, if it wasn't, 1 char would be needed
+                        Some(next_trie) => {
+                            let next_prefix_len = next_trie.shortest_unique_prefix_len(rest);
+                            if next_prefix_len == 0 && next_level.len() == 1 && value.is_none() {
+                                // The `next_trie` subtrie of our trie is either empty or contains a
+                                // single element matching our key exactly. Moreover, our trie has
+                                // the same property. There's no need for more characters to
+                                // distinguish our key from all other keys.
+                                0
+                            } else {
+                                next_prefix_len + 1
+                            }
                         }
                     }
                 }
-            }
+            },
         }
     }
 }
@@ -1309,15 +1370,21 @@ pub struct TrieValueIterator<'a, I: Eq + Hash + Clone, V> {
     current_value: Option<&'a V>,
     subtrie_iter: Option<Box<TrieValueIterator<'a, I, V>>>, /* Iterating inside a value of
                                                              * `next_level_iter` */
-    next_level_iter: std::collections::hash_map::Iter<'a, I, Box<Trie<I, V>>>,
+    next_level_iter: Option<std::collections::hash_map::Iter<'a, I, Box<Trie<I, V>>>>,
 }
 
 impl<'a, I: Eq + Hash + Clone, V> TrieValueIterator<'a, I, V> {
     pub fn new(trie: &'a Trie<I, V>) -> Self {
         Self {
-            current_value: trie.value.as_ref(),
+            current_value: match trie {
+                Empty => None,
+                Leaf { value, .. } | Node { value, .. } => value.as_ref(),
+            },
             subtrie_iter: None,
-            next_level_iter: trie.next_level.iter(),
+            next_level_iter: match trie {
+                Node { next_level, .. } => Some(next_level.iter()),
+                _ => None,
+            },
         }
     }
 }
@@ -1337,9 +1404,11 @@ impl<'a, I: Eq + Hash + Clone, V> Iterator for TrieValueIterator<'a, I, V> {
             }
         }
 
-        if let Some((_key, next_trie)) = self.next_level_iter.next() {
-            self.subtrie_iter = Some(Box::new(TrieValueIterator::new(next_trie)));
-            return self.next();
+        if let Some(next_iter) = self.next_level_iter.as_mut() {
+            if let Some((_key, next_trie)) = next_iter.next() {
+                self.subtrie_iter = Some(Box::new(TrieValueIterator::new(next_trie)));
+                return self.next();
+            }
         }
 
         None
