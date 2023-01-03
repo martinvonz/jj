@@ -1685,14 +1685,17 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
 
 /// CLI command builder and runner.
 #[must_use]
-pub struct CliRunner<F> {
+pub struct CliRunner {
     tracing_subscription: TracingSubscription,
     app: clap::Command,
     store_factories: Option<StoreFactories>,
-    dispatch_fn: F,
+    dispatch_fn: CliDispatchFn,
 }
 
-impl CliRunner<()> {
+type CliDispatchFn =
+    Box<dyn FnOnce(&mut Ui, &CommandHelper, &ArgMatches) -> Result<(), CommandError>>;
+
+impl CliRunner {
     /// Initializes CLI environment and returns a builder. This should be called
     /// as early as possible.
     pub fn init() -> Self {
@@ -1702,7 +1705,7 @@ impl CliRunner<()> {
             tracing_subscription,
             app: crate::commands::default_app(),
             store_factories: None,
-            dispatch_fn: (),
+            dispatch_fn: Box::new(crate::commands::run_command),
         }
     }
 
@@ -1717,37 +1720,27 @@ impl CliRunner<()> {
     }
 
     /// Registers new subcommands in addition to the default ones.
-    // TODO: maybe take dispatch_fn for the subcommands?
-    pub fn add_subcommand<C>(self) -> Self
+    pub fn add_subcommand<C, F>(self, custom_dispatch_fn: F) -> Self
     where
         C: clap::Subcommand,
+        F: FnOnce(&mut Ui, &CommandHelper, C) -> Result<(), CommandError> + 'static,
     {
+        let old_dispatch_fn = self.dispatch_fn;
+        let new_dispatch_fn =
+            move |ui: &mut Ui, command_helper: &CommandHelper, matches: &ArgMatches| {
+                match C::from_arg_matches(matches) {
+                    Ok(command) => custom_dispatch_fn(ui, command_helper, command),
+                    Err(_) => old_dispatch_fn(ui, command_helper, matches),
+                }
+            };
         CliRunner {
             tracing_subscription: self.tracing_subscription,
             app: C::augment_subcommands(self.app),
             store_factories: self.store_factories,
-            dispatch_fn: self.dispatch_fn,
+            dispatch_fn: Box::new(new_dispatch_fn),
         }
     }
 
-    // TODO: use crate::commands::run_command() by default
-    pub fn set_dispatch_fn<F>(self, dispatch_fn: F) -> CliRunner<F>
-    where
-        F: FnOnce(&mut Ui, &CommandHelper, &ArgMatches) -> Result<(), CommandError>,
-    {
-        CliRunner {
-            tracing_subscription: self.tracing_subscription,
-            app: self.app,
-            store_factories: self.store_factories,
-            dispatch_fn,
-        }
-    }
-}
-
-impl<F> CliRunner<F>
-where
-    F: FnOnce(&mut Ui, &CommandHelper, &ArgMatches) -> Result<(), CommandError>,
-{
     pub fn run(self, ui: &mut Ui) -> Result<(), CommandError> {
         ui.reset(crate::config::read_config()?);
         let (mut command_helper, matches) = parse_args(

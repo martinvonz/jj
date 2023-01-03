@@ -15,10 +15,8 @@
 use std::io::Read;
 use std::path::Path;
 
-use clap::{ArgMatches, FromArgMatches};
 use git2::Repository;
 use jujutsu::cli_util::{CliRunner, CommandError, CommandHelper};
-use jujutsu::commands::run_command;
 use jujutsu::ui::Ui;
 use jujutsu_lib::backend::{
     Backend, BackendResult, Commit, CommitId, Conflict, ConflictId, FileId, SymlinkId, Tree, TreeId,
@@ -45,14 +43,13 @@ fn create_store_factories() -> StoreFactories {
     store_factories
 }
 
-fn run(
+fn run_custom_command(
     ui: &mut Ui,
-    command_helper: &CommandHelper,
-    matches: &ArgMatches,
+    _command_helper: &CommandHelper,
+    command: CustomCommands,
 ) -> Result<(), CommandError> {
-    match CustomCommands::from_arg_matches(matches) {
-        // Handle our custom command
-        Ok(CustomCommands::InitJit) => {
+    match command {
+        CustomCommands::InitJit => {
             let wc_path = ui.cwd();
             // Initialize a workspace with the custom backend
             Workspace::init_with_backend(ui.settings(), wc_path, |store_path| {
@@ -60,16 +57,13 @@ fn run(
             })?;
             Ok(())
         }
-        // Handle default commands
-        Err(_) => run_command(ui, command_helper, matches),
     }
 }
 
 fn main() {
     CliRunner::init()
         .set_store_factories(create_store_factories())
-        .add_subcommand::<CustomCommands>()
-        .set_dispatch_fn(run)
+        .add_subcommand(run_custom_command)
         .run_and_exit();
 }
 
