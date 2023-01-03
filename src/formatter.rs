@@ -20,6 +20,7 @@ use std::{fmt, io};
 
 use crossterm::queue;
 use crossterm::style::{Attribute, Color, SetAttribute, SetForegroundColor};
+use itertools::Itertools;
 
 // Lets the caller label strings and translates the labels to colors
 pub trait Formatter: Write {
@@ -91,15 +92,15 @@ pub struct FormatterFactory {
 enum FormatterFactoryKind {
     PlainText,
     Color {
-        colors: Arc<HashMap<String, String>>,
+        rules: Arc<HashMap<Vec<String>, Style>>,
     },
 }
 
 impl FormatterFactory {
     pub fn prepare(config: &config::Config, color: bool) -> Self {
         let kind = if color {
-            let colors = Arc::new(config_colors(config));
-            FormatterFactoryKind::Color { colors }
+            let rules = Arc::new(rules_from_config(config));
+            FormatterFactoryKind::Color { rules }
         } else {
             FormatterFactoryKind::PlainText
         };
@@ -112,8 +113,8 @@ impl FormatterFactory {
     ) -> Box<dyn Formatter + 'output> {
         match &self.kind {
             FormatterFactoryKind::PlainText => Box::new(PlainTextFormatter::new(output)),
-            FormatterFactoryKind::Color { colors } => {
-                Box::new(ColorFormatter::new(output, colors.clone()))
+            FormatterFactoryKind::Color { rules } => {
+                Box::new(ColorFormatter::new(output, rules.clone()))
             }
         }
     }
@@ -150,8 +151,8 @@ impl<W: Write> Formatter for PlainTextFormatter<W> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct Style {
-    fg_color: Color,
+pub struct Style {
+    pub fg_color: Color,
 }
 
 impl Default for Style {
@@ -164,43 +165,38 @@ impl Default for Style {
 
 pub struct ColorFormatter<W> {
     output: W,
-    colors: Arc<HashMap<String, String>>,
+    rules: Arc<HashMap<Vec<String>, Style>>,
     labels: Vec<String>,
     cached_styles: HashMap<Vec<String>, Style>,
     current_style: Style,
 }
 
-fn config_colors(config: &config::Config) -> HashMap<String, String> {
-    let mut result = HashMap::new();
-    if let Ok(table) = config.get_table("colors") {
-        for (key, value) in table {
-            result.insert(key, value.to_string());
-        }
-    }
-    result
-}
-
 impl<W: Write> ColorFormatter<W> {
-    pub fn new(output: W, colors: Arc<HashMap<String, String>>) -> ColorFormatter<W> {
+    pub fn new(output: W, rules: Arc<HashMap<Vec<String>, Style>>) -> ColorFormatter<W> {
         ColorFormatter {
             output,
-            colors,
+            rules,
             labels: vec![],
             cached_styles: HashMap::new(),
             current_style: Style::default(),
         }
     }
 
+    pub fn for_config(output: W, config: &config::Config) -> ColorFormatter<W> {
+        let rules = rules_from_config(config);
+        Self::new(output, Arc::new(rules))
+    }
+
     fn current_style(&mut self) -> Style {
         if let Some(cached) = self.cached_styles.get(&self.labels) {
             cached.clone()
         } else {
-            let mut best_match = (-1, "");
-            for (key, value) in self.colors.as_ref() {
+            let mut best_match = (-1, Style::default());
+            for (labels, style) in self.rules.as_ref() {
                 let mut num_matching = 0;
                 let mut labels_iter = self.labels.iter();
                 let mut valid = true;
-                for required_label in key.split_whitespace() {
+                for required_label in labels {
                     loop {
                         match labels_iter.next() {
                             Some(label) if label == required_label => {
@@ -220,12 +216,11 @@ impl<W: Write> ColorFormatter<W> {
                     continue;
                 }
                 if num_matching >= best_match.0 {
-                    best_match = (num_matching, value)
+                    best_match = (num_matching, style.clone())
                 }
             }
 
-            let fg_color = color_for_name(best_match.1);
-            let style = Style { fg_color };
+            let style = best_match.1;
             self.cached_styles
                 .insert(self.labels.clone(), style.clone());
             style
@@ -263,6 +258,23 @@ fn is_bright(color: &Color) -> bool {
             | Color::Cyan
             | Color::White
     )
+}
+
+fn rules_from_config(config: &config::Config) -> HashMap<Vec<String>, Style> {
+    let mut result = HashMap::new();
+    if let Ok(table) = config.get_table("colors") {
+        for (key, value) in table {
+            let labels = key
+                .split_whitespace()
+                .map(ToString::to_string)
+                .collect_vec();
+            let style = Style {
+                fg_color: color_for_name(&value.to_string()),
+            };
+            result.insert(labels, style);
+        }
+    }
+    result
 }
 
 fn color_for_name(color_name: &str) -> Color {
@@ -311,9 +323,14 @@ impl<W: Write> Formatter for ColorFormatter<W> {
 
 #[cfg(test)]
 mod tests {
-    use maplit::hashmap;
-
     use super::*;
+
+    fn config_from_string(text: &str) -> config::Config {
+        config::Config::builder()
+            .add_source(config::File::from_str(text, config::FileFormat::Toml))
+            .build()
+            .unwrap()
+    }
 
     #[test]
     fn test_plaintext_formatter() {
@@ -347,13 +364,16 @@ mod tests {
             "bright cyan",
             "bright white",
         ];
-        let mut color_config = HashMap::new();
-        for color in &colors {
+        let mut config_builder = config::Config::builder();
+        for color in colors {
             // Use the color name as the label.
-            color_config.insert(color.replace(' ', "-").to_string(), color.to_string());
+            config_builder = config_builder
+                .set_override(format!("colors.{}", color.replace(' ', "-")), color)
+                .unwrap();
         }
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::new(&mut output, Arc::new(color_config));
+        let mut formatter =
+            ColorFormatter::for_config(&mut output, &config_builder.build().unwrap());
         for color in colors {
             formatter.add_label(&color.replace(' ', "-")).unwrap();
             formatter.write_str(&format!(" {color} ")).unwrap();
@@ -384,13 +404,13 @@ mod tests {
     fn test_color_formatter_single_label() {
         // Test that a single label can be colored and that the color is reset
         // afterwards.
-        let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::new(
-            &mut output,
-            Arc::new(hashmap! {
-                "inside".to_string() => "green".to_string(),
-            }),
+        let config = config_from_string(
+            r#"
+        colors.inside = "green"
+        "#,
         );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config);
         formatter.write_str(" before ").unwrap();
         formatter.add_label("inside").unwrap();
         formatter.write_str(" inside ").unwrap();
@@ -402,14 +422,14 @@ mod tests {
     #[test]
     fn test_color_formatter_no_space() {
         // Test that two different colors can touch.
-        let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::new(
-            &mut output,
-            Arc::new(hashmap! {
-                "red".to_string() => "red".to_string(),
-                "green".to_string() => "green".to_string(),
-            }),
+        let config = config_from_string(
+            r#"
+        colors.red = "red"
+        colors.green = "green"
+        "#,
         );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config);
         formatter.write_str("before").unwrap();
         formatter.add_label("red").unwrap();
         formatter.write_str("first").unwrap();
@@ -424,13 +444,13 @@ mod tests {
     #[test]
     fn test_color_formatter_ansi_codes_in_text() {
         // Test that ANSI codes in the input text are escaped.
-        let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::new(
-            &mut output,
-            Arc::new(hashmap! {
-                "red".to_string() => "red".to_string(),
-            }),
+        let config = config_from_string(
+            r#"
+        colors.red = "red"
+        "#,
         );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config);
         formatter.add_label("red").unwrap();
         formatter
             .write_str("\x1b[1mnot actually bold\x1b[0m")
@@ -445,15 +465,15 @@ mod tests {
         // A color can be associated with a combination of labels. A more specific match
         // overrides a less specific match. After the inner label is removed, the outer
         // color is used again (we don't reset).
-        let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::new(
-            &mut output,
-            Arc::new(hashmap! {
-                "outer".to_string() => "blue".to_string(),
-                "inner".to_string() => "red".to_string(),
-                "outer inner".to_string() => "green".to_string(),
-            }),
+        let config = config_from_string(
+            r#"
+        colors.outer = "blue"
+        colors.inner = "red"
+        colors."outer inner" = "green"
+        "#,
         );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config);
         formatter.write_str(" before outer ").unwrap();
         formatter.add_label("outer").unwrap();
         formatter.write_str(" before inner ").unwrap();
@@ -470,13 +490,13 @@ mod tests {
     #[test]
     fn test_color_formatter_partial_match() {
         // A partial match doesn't count
-        let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::new(
-            &mut output,
-            Arc::new(hashmap! {
-                "outer inner".to_string() => "green".to_string(),
-            }),
+        let config = config_from_string(
+            r#"
+        colors."outer inner" = "green"
+        "#,
         );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config);
         formatter.add_label("outer").unwrap();
         formatter.write_str(" not colored ").unwrap();
         formatter.add_label("inner").unwrap();
@@ -491,14 +511,14 @@ mod tests {
     #[test]
     fn test_color_formatter_unrecognized_color() {
         // An unrecognized color is ignored; it doesn't reset the color.
-        let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::new(
-            &mut output,
-            Arc::new(hashmap! {
-                "outer".to_string() => "red".to_string(),
-                "outer inner".to_string() => "bloo".to_string(),
-            }),
+        let config = config_from_string(
+            r#"
+        colors."outer" = "red"
+        colors."outer inner" = "bloo"
+        "#,
         );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config);
         formatter.add_label("outer").unwrap();
         formatter.write_str(" red before ").unwrap();
         formatter.add_label("inner").unwrap();
@@ -514,14 +534,14 @@ mod tests {
     #[test]
     fn test_color_formatter_sibling() {
         // A partial match on one rule does not eliminate other rules.
-        let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::new(
-            &mut output,
-            Arc::new(hashmap! {
-                "outer1 inner1".to_string() => "red".to_string(),
-                "inner2".to_string() => "green".to_string(),
-            }),
+        let config = config_from_string(
+            r#"
+        colors."outer1 inner1" = "red"
+        colors.inner2 = "green"
+        "#,
         );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config);
         formatter.add_label("outer1").unwrap();
         formatter.add_label("inner2").unwrap();
         formatter.write_str(" hello ").unwrap();
@@ -534,13 +554,13 @@ mod tests {
     #[test]
     fn test_color_formatter_reverse_order() {
         // Rules don't match labels out of order
-        let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::new(
-            &mut output,
-            Arc::new(hashmap! {
-                "inner outer".to_string() => "green".to_string(),
-            }),
+        let config = config_from_string(
+            r#"
+        colors."inner outer" = "green"
+        "#,
         );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config);
         formatter.add_label("outer").unwrap();
         formatter.add_label("inner").unwrap();
         formatter.write_str(" hello ").unwrap();
@@ -552,15 +572,15 @@ mod tests {
     #[test]
     fn test_color_formatter_number_of_matches_matters() {
         // Rules that match more labels take precedence.
-        let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::new(
-            &mut output,
-            Arc::new(hashmap! {
-                "a b".to_string() => "red".to_string(),
-                "c".to_string() => "green".to_string(),
-                "b c d".to_string() => "blue".to_string(),
-            }),
+        let config = config_from_string(
+            r#"
+        colors."a b" = "red"
+        colors."c" = "green"
+        colors."b c d" = "blue"
+        "#,
         );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config);
         formatter.add_label("a").unwrap();
         formatter.write_str(" a1 ").unwrap();
         formatter.add_label("b").unwrap();
@@ -583,16 +603,16 @@ mod tests {
     #[test]
     fn test_color_formatter_innermost_wins() {
         // When two labels match, the innermost one wins.
-        let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::new(
-            &mut output,
-            Arc::new(hashmap! {
-                "a".to_string() => "red".to_string(),
-                "b".to_string() => "green".to_string(),
-                "a c".to_string() => "blue".to_string(),
-                "b c".to_string() => "yellow".to_string(),
-            }),
+        let config = config_from_string(
+            r#"
+        colors."a" = "red"
+        colors."b" = "green"
+        colors."a c" = "blue"
+        colors."b c" = "yellow"
+        "#,
         );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config);
         formatter.add_label("a").unwrap();
         formatter.write_str(" a1 ").unwrap();
         formatter.add_label("b").unwrap();
