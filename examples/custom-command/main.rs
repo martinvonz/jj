@@ -14,7 +14,7 @@
 
 use clap::{FromArgMatches, Subcommand};
 use jujutsu::cli_util::{
-    handle_command_result, parse_args, short_commit_description, CommandError, TracingSubscription,
+    parse_args, short_commit_description, CliRunner, CommandError, TracingSubscription,
 };
 use jujutsu::commands::{default_app, run_command};
 use jujutsu::config::read_config;
@@ -62,11 +62,5 @@ fn run(ui: &mut Ui, tracing_subscription: &TracingSubscription) -> Result<(), Co
 }
 
 fn main() {
-    let tracing_subscription = TracingSubscription::init();
-    jujutsu::cleanup_guard::init();
-    let mut ui = Ui::new();
-    let result = run(&mut ui, &tracing_subscription);
-    let exit_code = handle_command_result(&mut ui, result);
-    ui.finalize_writes();
-    std::process::exit(exit_code);
+    CliRunner::init().set_dispatch_fn(run).run_and_exit();
 }

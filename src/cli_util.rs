@@ -1682,3 +1682,51 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
         }
     }
 }
+
+/// CLI command builder and runner.
+#[must_use]
+pub struct CliRunner<F> {
+    tracing_subscription: TracingSubscription,
+    dispatch_fn: F,
+}
+
+impl CliRunner<()> {
+    /// Initializes CLI environment and returns a builder. This should be called
+    /// as early as possible.
+    pub fn init() -> Self {
+        let tracing_subscription = TracingSubscription::init();
+        crate::cleanup_guard::init();
+        CliRunner {
+            tracing_subscription,
+            dispatch_fn: (),
+        }
+    }
+
+    // TODO: use crate::commands::run_command() by default
+    pub fn set_dispatch_fn<F>(self, dispatch_fn: F) -> CliRunner<F>
+    where
+        F: FnOnce(&mut Ui, &TracingSubscription) -> Result<(), CommandError>,
+    {
+        CliRunner {
+            tracing_subscription: self.tracing_subscription,
+            dispatch_fn,
+        }
+    }
+}
+
+impl<F> CliRunner<F>
+where
+    F: FnOnce(&mut Ui, &TracingSubscription) -> Result<(), CommandError>,
+{
+    pub fn run(self, ui: &mut Ui) -> Result<(), CommandError> {
+        (self.dispatch_fn)(ui, &self.tracing_subscription)
+    }
+
+    pub fn run_and_exit(self) -> ! {
+        let mut ui = Ui::new();
+        let result = self.run(&mut ui);
+        let exit_code = handle_command_result(&mut ui, result);
+        ui.finalize_writes();
+        std::process::exit(exit_code);
+    }
+}
