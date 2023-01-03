@@ -135,7 +135,7 @@ branches.
 [^2]: If you're wondering why we prefer clean commits in this project, see
 e.g.[this blog post][stacked]
 
-[detached head]: https://git-scm.com/docs/git-checkout#_detached_head
+[detached]: https://git-scm.com/docs/git-checkout#_detached_head
 
 [gh]: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
 
