@@ -1599,6 +1599,7 @@ fn handle_early_args(
 pub fn parse_args(
     ui: &mut Ui,
     app: clap::Command,
+    tracing_subscription: &TracingSubscription,
     args_os: ArgsOs,
 ) -> Result<(CommandHelper, ArgMatches), CommandError> {
     let mut string_args: Vec<String> = vec![];
@@ -1617,6 +1618,10 @@ pub fn parse_args(
     let matches = app.clone().try_get_matches_from(&string_args)?;
 
     let args: Args = Args::from_arg_matches(&matches).unwrap();
+    if args.global_args.verbose {
+        // TODO: set up verbose logging as early as possible
+        tracing_subscription.enable_verbose_logging()?;
+    }
     let command_helper = CommandHelper::new(app, string_args, args.global_args);
     Ok((command_helper, matches))
 }

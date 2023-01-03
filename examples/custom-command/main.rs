@@ -14,7 +14,7 @@
 
 use clap::{FromArgMatches, Subcommand};
 use jujutsu::cli_util::{
-    handle_command_result, parse_args, short_commit_description, CommandError,
+    handle_command_result, parse_args, short_commit_description, CommandError, TracingSubscription,
 };
 use jujutsu::commands::{default_app, run_command};
 use jujutsu::config::read_config;
@@ -33,10 +33,10 @@ struct FrobnicateArgs {
     revision: String,
 }
 
-fn run(ui: &mut Ui) -> Result<(), CommandError> {
+fn run(ui: &mut Ui, tracing_subscription: &TracingSubscription) -> Result<(), CommandError> {
     ui.reset(read_config()?);
     let app = CustomCommands::augment_subcommands(default_app());
-    let (command_helper, matches) = parse_args(ui, app, std::env::args_os())?;
+    let (command_helper, matches) = parse_args(ui, app, tracing_subscription, std::env::args_os())?;
     match CustomCommands::from_arg_matches(&matches) {
         // Handle our custom command
         Ok(CustomCommands::Frobnicate(args)) => {
@@ -62,9 +62,10 @@ fn run(ui: &mut Ui) -> Result<(), CommandError> {
 }
 
 fn main() {
+    let tracing_subscription = TracingSubscription::init();
     jujutsu::cleanup_guard::init();
     let mut ui = Ui::new();
-    let result = run(&mut ui);
+    let result = run(&mut ui, &tracing_subscription);
     let exit_code = handle_command_result(&mut ui, result);
     ui.finalize_writes();
     std::process::exit(exit_code);

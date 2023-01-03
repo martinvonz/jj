@@ -17,7 +17,7 @@ use std::path::Path;
 
 use clap::{FromArgMatches, Subcommand};
 use git2::Repository;
-use jujutsu::cli_util::{handle_command_result, parse_args, CommandError};
+use jujutsu::cli_util::{handle_command_result, parse_args, CommandError, TracingSubscription};
 use jujutsu::commands::{default_app, run_command};
 use jujutsu::config::read_config;
 use jujutsu::ui::Ui;
@@ -35,10 +35,11 @@ enum CustomCommands {
     InitJit,
 }
 
-fn run(ui: &mut Ui) -> Result<(), CommandError> {
+fn run(ui: &mut Ui, tracing_subscription: &TracingSubscription) -> Result<(), CommandError> {
     ui.reset(read_config()?);
     let app = CustomCommands::augment_subcommands(default_app());
-    let (mut command_helper, matches) = parse_args(ui, app, std::env::args_os())?;
+    let (mut command_helper, matches) =
+        parse_args(ui, app, tracing_subscription, std::env::args_os())?;
     let mut store_factories = StoreFactories::default();
     // Register the backend so it can be loaded when the repo is loaded. The name
     // must match `Backend::name()`.
@@ -63,9 +64,10 @@ fn run(ui: &mut Ui) -> Result<(), CommandError> {
 }
 
 fn main() {
+    let tracing_subscription = TracingSubscription::init();
     jujutsu::cleanup_guard::init();
     let mut ui = Ui::new();
-    let result = run(&mut ui);
+    let result = run(&mut ui, &tracing_subscription);
     let exit_code = handle_command_result(&mut ui, result);
     ui.finalize_writes();
     std::process::exit(exit_code);
