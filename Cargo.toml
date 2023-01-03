@@ -75,5 +75,5 @@ test-case = "2.2.2"
 testutils = { path = "lib/testutils" }
 
 [features]
-default = ["vendored-openssl", "jujutsu-lib/legacy-thrift"]
+default = ["jujutsu-lib/legacy-thrift"]
 vendored-openssl = ["git2/vendored-openssl", "jujutsu-lib/vendored-openssl"]

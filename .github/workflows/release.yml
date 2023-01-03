@@ -41,6 +41,9 @@ jobs:
         target: ${{ matrix.target }}
     - name: Build release binary
       run: cargo build --target ${{ matrix.target }} --verbose --release
+    - name: (re-)Build release binary with vendored OpenSSL
+      if: matrix.os != 'ubuntu-20.04' && matrix.os != 'macos-11'
+      run: cargo build --target ${{ matrix.target }} --verbose --release --features vendored-openssl
     - name: Build archive
       shell: bash
       run: |
