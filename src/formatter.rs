@@ -254,8 +254,8 @@ impl<W: Write> Formatter for ColorFormatter<W> {
         let new_color = self.current_color();
         if new_color != self.current_color {
             self.output.write_all(&new_color)?;
+            self.current_color = new_color;
         }
-        self.current_color = new_color;
         Ok(())
     }
 
@@ -264,8 +264,8 @@ impl<W: Write> Formatter for ColorFormatter<W> {
         let new_color = self.current_color();
         if new_color != self.current_color {
             self.output.write_all(&new_color)?;
+            self.current_color = new_color;
         }
-        self.current_color = new_color;
         Ok(())
     }
 }
