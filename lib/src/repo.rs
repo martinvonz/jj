@@ -24,7 +24,7 @@ use once_cell::sync::OnceCell;
 use thiserror::Error;
 
 use self::dirty_cell::DirtyCell;
-use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId, TreeId};
+use crate::backend::{Backend, BackendError, BackendResult, ChangeId, CommitId, ObjectId, TreeId};
 use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
@@ -37,6 +37,7 @@ use crate::op_store::{
     BranchTarget, OpStore, OperationId, OperationMetadata, RefTarget, WorkspaceId,
 };
 use crate::operation::Operation;
+use crate::revset::RevsetExpression;
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
@@ -239,6 +240,40 @@ impl ReadonlyRepo {
             self.index_store
                 .get_index_at_op(&self.operation, &self.store)
         })
+    }
+
+    // An interface for testing this functionality directly is constructed in
+    // a follow-up commit.
+    pub fn shortest_unique_prefix_length(&self, target_id_hex: &str) -> usize {
+        let all_visible_revisions = RevsetExpression::all()
+            .evaluate(self.as_repo_ref(), None)
+            .unwrap();
+        let change_hex_iter = all_visible_revisions
+            .iter()
+            .map(|index_entry| index_entry.change_id().hex());
+        // We need to account for rewritten commits as well
+        let index = self.as_repo_ref().index();
+        let commit_hex_iter = index
+            .iter()
+            .map(|index_entry| index_entry.commit_id().hex());
+
+        let target_id_hex = target_id_hex.as_bytes();
+        itertools::chain(change_hex_iter, commit_hex_iter)
+            .filter_map(|id_hex| {
+                let id_hex = id_hex.as_bytes();
+                let common_len = target_id_hex
+                    .iter()
+                    .zip(id_hex.iter())
+                    .take_while(|(a, b)| a == b)
+                    .count();
+                if common_len == target_id_hex.len() && common_len == id_hex.len() {
+                    None // Target id matched itself
+                } else {
+                    Some(common_len + 1)
+                }
+            })
+            .max()
+            .unwrap_or(0)
     }
 
     pub fn store(&self) -> &Arc<Store> {

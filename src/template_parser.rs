@@ -23,11 +23,12 @@ use pest_derive::Parser;
 use crate::formatter::PlainTextFormatter;
 use crate::templater::{
     AuthorProperty, BranchProperty, CommitOrChangeId, CommitOrChangeIdKeyword,
-    CommitOrChangeIdShort, CommitterProperty, ConditionalTemplate, ConflictProperty,
-    ConstantTemplateProperty, DescriptionProperty, DivergentProperty, DynamicLabelTemplate,
-    EmptyProperty, GitRefsProperty, IsGitHeadProperty, IsWorkingCopyProperty, LabelTemplate,
-    ListTemplate, LiteralTemplate, SignatureTimestamp, StringPropertyTemplate, TagProperty,
-    Template, TemplateFunction, TemplateProperty, WorkingCopiesProperty,
+    CommitOrChangeIdShort, CommitOrChangeIdShortPrefixAndBrackets, CommitterProperty,
+    ConditionalTemplate, ConflictProperty, ConstantTemplateProperty, DescriptionProperty,
+    DivergentProperty, DynamicLabelTemplate, EmptyProperty, GitRefsProperty, IsGitHeadProperty,
+    IsWorkingCopyProperty, LabelTemplate, ListTemplate, LiteralTemplate, SignatureTimestamp,
+    StringPropertyTemplate, TagProperty, Template, TemplateFunction, TemplateProperty,
+    WorkingCopiesProperty,
 };
 use crate::time_util;
 
@@ -215,6 +216,9 @@ fn parse_commit_or_chain_id_method<'a>(
 
     let this_function = match name.as_str() {
         "short" => Property::String(Box::new(CommitOrChangeIdShort { repo })),
+        "short_prefix_and_brackets" => {
+            Property::String(Box::new(CommitOrChangeIdShortPrefixAndBrackets { repo }))
+        }
         name => panic!("no such commit ID method: {name}"),
     };
     let chain_method = inner.last().unwrap();
