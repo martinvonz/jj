@@ -2712,18 +2712,31 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_parents = resolve_base_revs(&workspace_command, &args.destination)?;
     if let Some(rev_str) = &args.revision {
-        rebase_revision(ui, &mut workspace_command, &new_parents, rev_str)?;
+        rebase_revision(ui, command, &mut workspace_command, &new_parents, rev_str)?;
     } else if let Some(source_str) = &args.source {
-        rebase_descendants(ui, &mut workspace_command, &new_parents, source_str)?;
+        rebase_descendants(
+            ui,
+            command,
+            &mut workspace_command,
+            &new_parents,
+            source_str,
+        )?;
     } else {
         let branch_str = args.branch.as_deref().unwrap_or("@");
-        rebase_branch(ui, &mut workspace_command, &new_parents, branch_str)?;
+        rebase_branch(
+            ui,
+            command,
+            &mut workspace_command,
+            &new_parents,
+            branch_str,
+        )?;
     }
     Ok(())
 }
 
 fn rebase_branch(
     ui: &mut Ui,
+    _command: &CommandHelper,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
     branch_str: &str,
@@ -2761,6 +2774,7 @@ fn rebase_branch(
 
 fn rebase_descendants(
     ui: &mut Ui,
+    _command: &CommandHelper,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
     source_str: &str,
@@ -2781,6 +2795,7 @@ fn rebase_descendants(
 
 fn rebase_revision(
     ui: &mut Ui,
+    _command: &CommandHelper,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
     rev_str: &str,
@@ -3057,7 +3072,7 @@ fn cmd_branch(
         }
 
         BranchSubcommand::List => {
-            list_branches(ui, &workspace_command)?;
+            list_branches(ui, command, &workspace_command)?;
         }
     }
 
@@ -3066,6 +3081,7 @@ fn cmd_branch(
 
 fn list_branches(
     ui: &mut Ui,
+    _command: &CommandHelper,
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
