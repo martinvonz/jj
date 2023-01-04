@@ -25,12 +25,12 @@ use jujutsu_lib::files::DiffLine;
 use jujutsu_lib::matchers::Matcher;
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::RepoPath;
+use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::tree::{Tree, TreeDiffIterator};
 use jujutsu_lib::{conflicts, diff, files, rewrite, tree};
 
 use crate::cli_util::{CommandError, WorkspaceCommandHelper};
 use crate::formatter::Formatter;
-use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
 pub struct DiffFormatArgs {
@@ -53,10 +53,10 @@ pub enum DiffFormat {
 }
 
 /// Returns a list of requested diff formats, which will never be empty.
-pub fn diff_formats_for(ui: &Ui, args: &DiffFormatArgs) -> Vec<DiffFormat> {
+pub fn diff_formats_for(settings: &UserSettings, args: &DiffFormatArgs) -> Vec<DiffFormat> {
     let formats = diff_formats_from_args(args);
     if formats.is_empty() {
-        vec![default_diff_format(ui)]
+        vec![default_diff_format(settings)]
     } else {
         formats
     }
@@ -64,11 +64,15 @@ pub fn diff_formats_for(ui: &Ui, args: &DiffFormatArgs) -> Vec<DiffFormat> {
 
 /// Returns a list of requested diff formats for log-like commands, which may be
 /// empty.
-pub fn diff_formats_for_log(ui: &Ui, args: &DiffFormatArgs, patch: bool) -> Vec<DiffFormat> {
+pub fn diff_formats_for_log(
+    settings: &UserSettings,
+    args: &DiffFormatArgs,
+    patch: bool,
+) -> Vec<DiffFormat> {
     let mut formats = diff_formats_from_args(args);
     // --patch implies default if no format other than --summary is specified
     if patch && matches!(formats.as_slice(), [] | [DiffFormat::Summary]) {
-        formats.push(default_diff_format(ui));
+        formats.push(default_diff_format(settings));
         formats.dedup();
     }
     formats
@@ -85,8 +89,8 @@ fn diff_formats_from_args(args: &DiffFormatArgs) -> Vec<DiffFormat> {
     .collect()
 }
 
-fn default_diff_format(ui: &Ui) -> DiffFormat {
-    match ui.settings().config().get_string("diff.format").as_deref() {
+fn default_diff_format(settings: &UserSettings) -> DiffFormat {
+    match settings.config().get_string("diff.format").as_deref() {
         Ok("summary") => DiffFormat::Summary,
         Ok("git") => DiffFormat::Git,
         Ok("color-words") => DiffFormat::ColorWords,

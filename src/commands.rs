@@ -1384,7 +1384,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
         &from_tree,
         &to_tree,
         matcher.as_ref(),
-        &diff_util::diff_formats_for(ui, &args.format),
+        &diff_util::diff_formats_for(ui.settings(), &args.format),
     )?;
     Ok(())
 }
@@ -1424,7 +1424,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
         &workspace_command,
         &commit,
         &EverythingMatcher,
-        &diff_util::diff_formats_for(ui, &args.format),
+        &diff_util::diff_formats_for(ui.settings(), &args.format),
     )?;
     Ok(())
 }
@@ -1594,7 +1594,8 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     };
 
     let store = repo.store();
-    let diff_formats = diff_util::diff_formats_for_log(ui, &args.diff_format, args.patch);
+    let diff_formats =
+        diff_util::diff_formats_for_log(ui.settings(), &args.diff_format, args.patch);
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),
@@ -1734,7 +1735,8 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
         .view()
         .get_wc_commit_id(&workspace_id);
 
-    let diff_formats = diff_util::diff_formats_for_log(ui, &args.diff_format, args.patch);
+    let diff_formats =
+        diff_util::diff_formats_for_log(ui.settings(), &args.diff_format, args.patch);
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),
@@ -1839,7 +1841,7 @@ fn cmd_interdiff(
         &from_tree,
         &to.tree(),
         matcher.as_ref(),
-        &diff_util::diff_formats_for(ui, &args.format),
+        &diff_util::diff_formats_for(ui.settings(), &args.format),
     )
 }
 
