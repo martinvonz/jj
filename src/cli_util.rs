@@ -266,12 +266,17 @@ pub struct CommandHelper {
 }
 
 impl CommandHelper {
-    pub fn new(app: clap::Command, string_args: Vec<String>, global_args: GlobalArgs) -> Self {
+    pub fn new(
+        app: clap::Command,
+        string_args: Vec<String>,
+        global_args: GlobalArgs,
+        store_factories: StoreFactories,
+    ) -> Self {
         Self {
             app,
             string_args,
             global_args,
-            store_factories: StoreFactories::default(),
+            store_factories,
         }
     }
 
@@ -285,10 +290,6 @@ impl CommandHelper {
 
     pub fn global_args(&self) -> &GlobalArgs {
         &self.global_args
-    }
-
-    pub fn set_store_factories(&mut self, store_factories: StoreFactories) {
-        self.store_factories = store_factories;
     }
 
     pub fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
@@ -1752,10 +1753,12 @@ impl CliRunner {
         ui.reset(crate::config::read_config()?);
         let string_args = expand_args(ui, &self.app, std::env::args_os())?;
         let (matches, args) = parse_args(ui, &self.app, &self.tracing_subscription, &string_args)?;
-        let mut command_helper = CommandHelper::new(self.app, string_args, args.global_args);
-        if let Some(store_factories) = self.store_factories {
-            command_helper.set_store_factories(store_factories);
-        }
+        let command_helper = CommandHelper::new(
+            self.app,
+            string_args,
+            args.global_args,
+            self.store_factories.unwrap_or_default(),
+        );
         (self.dispatch_fn)(ui, &command_helper, &matches)
     }
 
