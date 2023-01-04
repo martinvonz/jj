@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::collections::{HashSet, VecDeque};
-use std::env::{ArgsOs, VarError};
+use std::env::{self, ArgsOs, VarError};
 use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
 use std::iter;
@@ -260,6 +260,7 @@ impl TracingSubscription {
 
 pub struct CommandHelper {
     app: clap::Command,
+    cwd: PathBuf,
     string_args: Vec<String>,
     global_args: GlobalArgs,
     store_factories: StoreFactories,
@@ -268,12 +269,14 @@ pub struct CommandHelper {
 impl CommandHelper {
     pub fn new(
         app: clap::Command,
+        cwd: PathBuf,
         string_args: Vec<String>,
         global_args: GlobalArgs,
         store_factories: StoreFactories,
     ) -> Self {
         Self {
             app,
+            cwd,
             string_args,
             global_args,
             store_factories,
@@ -282,6 +285,10 @@ impl CommandHelper {
 
     pub fn app(&self) -> &clap::Command {
         &self.app
+    }
+
+    pub fn cwd(&self) -> &Path {
+        &self.cwd
     }
 
     pub fn string_args(&self) -> &Vec<String> {
@@ -301,7 +308,7 @@ impl CommandHelper {
 
     pub fn load_workspace(&self, ui: &Ui) -> Result<Workspace, CommandError> {
         let wc_path_str = self.global_args.repository.as_deref().unwrap_or(".");
-        let wc_path = ui.cwd().join(wc_path_str);
+        let wc_path = self.cwd.join(wc_path_str);
         Workspace::load(ui.settings(), &wc_path, &self.store_factories).map_err(|err| match err {
             WorkspaceLoadError::NoWorkspaceHere(wc_path) => {
                 let message = format!("There is no jj repo in \"{wc_path_str}\"");
@@ -383,6 +390,7 @@ jj init --git-repo=.",
         WorkspaceCommandHelper::new(
             ui,
             workspace,
+            self.cwd.clone(),
             self.string_args.clone(),
             &self.global_args,
             repo,
@@ -408,6 +416,7 @@ impl WorkspaceCommandHelper {
     pub fn new(
         ui: &mut Ui,
         workspace: Workspace,
+        cwd: PathBuf,
         string_args: Vec<String>,
         global_args: &GlobalArgs,
         repo: Arc<ReadonlyRepo>,
@@ -426,7 +435,7 @@ impl WorkspaceCommandHelper {
             working_copy_shared_with_git = git_workdir == workspace.workspace_root().as_path();
         }
         Ok(Self {
-            cwd: ui.cwd().to_owned(),
+            cwd,
             string_args,
             global_args: global_args.clone(),
             settings,
@@ -1764,11 +1773,13 @@ impl CliRunner {
     }
 
     pub fn run(self, ui: &mut Ui) -> Result<(), CommandError> {
+        let cwd = env::current_dir().unwrap(); // TODO: maybe map_err to CommandError?
         ui.reset(crate::config::read_config()?);
         let string_args = expand_args(ui, &self.app, std::env::args_os())?;
         let (matches, args) = parse_args(ui, &self.app, &self.tracing_subscription, &string_args)?;
         let command_helper = CommandHelper::new(
             self.app,
+            cwd,
             string_args,
             args.global_args,
             self.store_factories.unwrap_or_default(),
