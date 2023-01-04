@@ -953,6 +953,7 @@ impl WorkspaceCommandHelper {
                 &self.workspace_id(),
                 self.workspace.working_copy_mut(),
                 maybe_old_commit.as_ref(),
+                &self.settings,
             )?;
             if let Some(stats) = stats {
                 print_checkout_stats(ui, stats)?;
@@ -1227,6 +1228,7 @@ pub fn update_working_copy(
     workspace_id: &WorkspaceId,
     wc: &mut WorkingCopy,
     old_commit: Option<&Commit>,
+    settings: &UserSettings,
 ) -> Result<Option<CheckoutStats>, CommandError> {
     let new_commit_id = match repo.view().get_wc_commit_id(workspace_id) {
         Some(new_commit_id) => new_commit_id,
@@ -1267,7 +1269,7 @@ pub fn update_working_copy(
             repo.as_repo_ref(),
             workspace_id,
             &new_commit,
-            ui.settings(),
+            settings,
         )?;
         ui.write("\n")?;
     }
