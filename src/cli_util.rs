@@ -1601,6 +1601,7 @@ fn handle_early_args(
     ui: &mut Ui,
     app: &clap::Command,
     args: &[String],
+    settings: &mut UserSettings,
 ) -> Result<(), CommandError> {
     // ignore_errors() bypasses errors like "--help" or missing subcommand
     let early_matches = app.clone().ignore_errors(true).get_matches_from(args);
@@ -1613,17 +1614,16 @@ fn handle_early_args(
         ui.set_pagination(crate::ui::PaginationChoice::No);
     }
     if !args.config_toml.is_empty() {
-        let mut settings = ui.settings().clone();
         settings.incorporate_toml_strings(&args.config_toml)?;
-        ui.reset(settings);
+        ui.reset(settings.clone()); // TODO: disown UserSettings from Ui
     }
     Ok(())
 }
 
 pub fn expand_args(
-    ui: &Ui,
     app: &clap::Command,
     args_os: ArgsOs,
+    settings: &UserSettings,
 ) -> Result<Vec<String>, CommandError> {
     let mut string_args: Vec<String> = vec![];
     for arg_os in args_os {
@@ -1634,7 +1634,7 @@ pub fn expand_args(
         }
     }
 
-    resolve_aliases(ui.settings(), app, &string_args)
+    resolve_aliases(settings, app, &string_args)
 }
 
 pub fn parse_args(
@@ -1642,10 +1642,11 @@ pub fn parse_args(
     app: &clap::Command,
     tracing_subscription: &TracingSubscription,
     string_args: &[String],
+    settings: &mut UserSettings,
 ) -> Result<(ArgMatches, Args), CommandError> {
     // TODO: read user configs from the repo pointed to by -R.
 
-    handle_early_args(ui, app, string_args)?;
+    handle_early_args(ui, app, string_args, settings)?;
     let matches = app.clone().try_get_matches_from(string_args)?;
 
     let args: Args = Args::from_arg_matches(&matches).unwrap();
@@ -1774,9 +1775,17 @@ impl CliRunner {
 
     pub fn run(self, ui: &mut Ui) -> Result<(), CommandError> {
         let cwd = env::current_dir().unwrap(); // TODO: maybe map_err to CommandError?
-        ui.reset(crate::config::read_config()?);
-        let string_args = expand_args(ui, &self.app, std::env::args_os())?;
-        let (matches, args) = parse_args(ui, &self.app, &self.tracing_subscription, &string_args)?;
+        let mut settings = crate::config::read_config()?;
+        ui.reset(settings.clone()); // TODO: disown UserSettings from Ui
+        let string_args = expand_args(&self.app, std::env::args_os(), &settings)?;
+        let (matches, args) = parse_args(
+            ui,
+            &self.app,
+            &self.tracing_subscription,
+            &string_args,
+            &mut settings,
+        )?;
+        // TODO: maybe instantiate UserSettings here
         let command_helper = CommandHelper::new(
             self.app,
             cwd,
