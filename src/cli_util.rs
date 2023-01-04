@@ -1623,7 +1623,7 @@ fn handle_early_args(
     }
     if !args.config_toml.is_empty() {
         settings.incorporate_toml_strings(&args.config_toml)?;
-        ui.reset(settings);
+        ui.reset(settings.config());
     }
     Ok(())
 }
@@ -1784,7 +1784,7 @@ impl CliRunner {
     pub fn run(self, ui: &mut Ui) -> Result<(), CommandError> {
         let cwd = env::current_dir().unwrap(); // TODO: maybe map_err to CommandError?
         let mut settings = crate::config::read_config()?;
-        ui.reset(&settings);
+        ui.reset(settings.config());
         let string_args = expand_args(&self.app, std::env::args_os(), &settings)?;
         let (matches, args) = parse_args(
             ui,
