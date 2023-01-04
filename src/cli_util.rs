@@ -824,7 +824,12 @@ impl WorkspaceCommandHelper {
         tree: &Tree,
         repo_path: &RepoPath,
     ) -> Result<TreeId, CommandError> {
-        Ok(crate::merge_tools::run_mergetool(ui, tree, repo_path)?)
+        Ok(crate::merge_tools::run_mergetool(
+            ui,
+            tree,
+            repo_path,
+            &self.settings,
+        )?)
     }
 
     pub fn edit_diff(
@@ -840,6 +845,7 @@ impl WorkspaceCommandHelper {
             right_tree,
             instructions,
             self.base_ignores(),
+            &self.settings,
         )?)
     }
 
@@ -859,6 +865,7 @@ impl WorkspaceCommandHelper {
                 right_tree,
                 instructions,
                 self.base_ignores(),
+                &self.settings,
             )?)
         } else if matcher.visit(&RepoPath::root()) == Visit::AllRecursively {
             // Optimization for a common case

@@ -154,6 +154,7 @@ pub fn run_mergetool(
     ui: &mut Ui,
     tree: &Tree,
     repo_path: &RepoPath,
+    settings: &UserSettings,
 ) -> Result<TreeId, ConflictResolveError> {
     let conflict_id = match tree.path_value(repo_path) {
         Some(TreeValue::Conflict(id)) => id,
@@ -185,7 +186,7 @@ pub fn run_mergetool(
         });
     };
 
-    let editor = get_merge_tool_from_settings(ui)?;
+    let editor = get_merge_tool_from_settings(ui, settings)?;
     let initial_output_content: Vec<u8> = if editor.merge_tool_edits_conflict_markers {
         let mut materialized_conflict = vec![];
         materialize_merge_result(&content, &mut materialized_conflict)
@@ -303,6 +304,7 @@ pub fn edit_diff(
     right_tree: &Tree,
     instructions: &str,
     base_ignores: Arc<GitIgnoreFile>,
+    settings: &UserSettings,
 ) -> Result<TreeId, DiffEditError> {
     let store = left_tree.store();
     let changed_files = left_tree
@@ -348,7 +350,7 @@ pub fn edit_diff(
             .map_err(ExternalToolError::SetUpDirError)?;
     }
 
-    let editor = get_diff_editor_from_settings(ui)?;
+    let editor = get_diff_editor_from_settings(ui, settings)?;
     let mut args_str = editor.edit_args.clone();
     args_str.push(left_wc_dir.display().to_string());
     args_str.push(right_wc_dir.display().to_string());
@@ -445,15 +447,20 @@ fn get_tool_config(settings: &UserSettings, name: &str) -> Result<MergeTool, Con
     }
 }
 
-fn get_diff_editor_from_settings(ui: &mut Ui) -> Result<MergeTool, ExternalToolError> {
-    let editor_name = editor_name_from_settings(ui, "diff")?;
-    Ok(get_tool_config(ui.settings(), &editor_name)?)
+fn get_diff_editor_from_settings(
+    ui: &mut Ui,
+    settings: &UserSettings,
+) -> Result<MergeTool, ExternalToolError> {
+    let editor_name = editor_name_from_settings(ui, settings, "diff")?;
+    Ok(get_tool_config(settings, &editor_name)?)
 }
 
-fn get_merge_tool_from_settings(ui: &mut Ui) -> Result<MergeTool, ConflictResolveError> {
-    let editor_name = editor_name_from_settings(ui, "merge")?;
-    let editor =
-        get_tool_config(ui.settings(), &editor_name).map_err(ExternalToolError::ConfigError)?;
+fn get_merge_tool_from_settings(
+    ui: &mut Ui,
+    settings: &UserSettings,
+) -> Result<MergeTool, ConflictResolveError> {
+    let editor_name = editor_name_from_settings(ui, settings, "merge")?;
+    let editor = get_tool_config(settings, &editor_name).map_err(ExternalToolError::ConfigError)?;
     if editor.merge_args.is_empty() {
         Err(ConflictResolveError::MergeArgsNotConfigured {
             tool_name: editor_name,
@@ -466,12 +473,12 @@ fn get_merge_tool_from_settings(ui: &mut Ui) -> Result<MergeTool, ConflictResolv
 /// Finds the appropriate tool for diff editing or merges
 fn editor_name_from_settings(
     ui: &mut Ui,
+    settings: &UserSettings,
     diff_or_merge: &str,
 ) -> Result<String, ExternalToolError> {
     // TODO: Make this configuration have a table of possible editors and detect the
     // best one here.
-    match ui
-        .settings()
+    match settings
         .config()
         .get_string(&format!("ui.{diff_or_merge}-editor"))
     {
