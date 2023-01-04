@@ -1615,13 +1615,13 @@ pub fn expand_args(
 
 pub fn parse_args(
     ui: &mut Ui,
-    app: clap::Command,
+    app: &clap::Command,
     tracing_subscription: &TracingSubscription,
     string_args: &[String],
-) -> Result<(CommandHelper, ArgMatches), CommandError> {
+) -> Result<(ArgMatches, Args), CommandError> {
     // TODO: read user configs from the repo pointed to by -R.
 
-    handle_early_args(ui, &app, string_args)?;
+    handle_early_args(ui, app, string_args)?;
     let matches = app.clone().try_get_matches_from(string_args)?;
 
     let args: Args = Args::from_arg_matches(&matches).unwrap();
@@ -1629,8 +1629,8 @@ pub fn parse_args(
         // TODO: set up verbose logging as early as possible
         tracing_subscription.enable_verbose_logging()?;
     }
-    let command_helper = CommandHelper::new(app, string_args.to_owned(), args.global_args);
-    Ok((command_helper, matches))
+
+    Ok((matches, args))
 }
 
 // TODO: Return std::process::ExitCode instead, once our MSRV is >= 1.61
@@ -1751,8 +1751,8 @@ impl CliRunner {
     pub fn run(self, ui: &mut Ui) -> Result<(), CommandError> {
         ui.reset(crate::config::read_config()?);
         let string_args = expand_args(ui, &self.app, std::env::args_os())?;
-        let (mut command_helper, matches) =
-            parse_args(ui, self.app, &self.tracing_subscription, &string_args)?;
+        let (matches, args) = parse_args(ui, &self.app, &self.tracing_subscription, &string_args)?;
+        let mut command_helper = CommandHelper::new(self.app, string_args, args.global_args);
         if let Some(store_factories) = self.store_factories {
             command_helper.set_store_factories(store_factories);
         }
