@@ -1596,12 +1596,11 @@ fn handle_early_args(
     Ok(())
 }
 
-pub fn parse_args(
-    ui: &mut Ui,
-    app: clap::Command,
-    tracing_subscription: &TracingSubscription,
+pub fn expand_args(
+    ui: &Ui,
+    app: &clap::Command,
     args_os: ArgsOs,
-) -> Result<(CommandHelper, ArgMatches), CommandError> {
+) -> Result<Vec<String>, CommandError> {
     let mut string_args: Vec<String> = vec![];
     for arg_os in args_os {
         if let Some(string_arg) = arg_os.to_str() {
@@ -1611,18 +1610,26 @@ pub fn parse_args(
         }
     }
 
+    resolve_aliases(ui.settings(), app, &string_args)
+}
+
+pub fn parse_args(
+    ui: &mut Ui,
+    app: clap::Command,
+    tracing_subscription: &TracingSubscription,
+    string_args: &[String],
+) -> Result<(CommandHelper, ArgMatches), CommandError> {
     // TODO: read user configs from the repo pointed to by -R.
 
-    let string_args = resolve_aliases(ui.settings(), &app, &string_args)?;
-    handle_early_args(ui, &app, &string_args)?;
-    let matches = app.clone().try_get_matches_from(&string_args)?;
+    handle_early_args(ui, &app, string_args)?;
+    let matches = app.clone().try_get_matches_from(string_args)?;
 
     let args: Args = Args::from_arg_matches(&matches).unwrap();
     if args.global_args.verbose {
         // TODO: set up verbose logging as early as possible
         tracing_subscription.enable_verbose_logging()?;
     }
-    let command_helper = CommandHelper::new(app, string_args, args.global_args);
+    let command_helper = CommandHelper::new(app, string_args.to_owned(), args.global_args);
     Ok((command_helper, matches))
 }
 
@@ -1743,12 +1750,9 @@ impl CliRunner {
 
     pub fn run(self, ui: &mut Ui) -> Result<(), CommandError> {
         ui.reset(crate::config::read_config()?);
-        let (mut command_helper, matches) = parse_args(
-            ui,
-            self.app,
-            &self.tracing_subscription,
-            std::env::args_os(),
-        )?;
+        let string_args = expand_args(ui, &self.app, std::env::args_os())?;
+        let (mut command_helper, matches) =
+            parse_args(ui, self.app, &self.tracing_subscription, &string_args)?;
         if let Some(store_factories) = self.store_factories {
             command_helper.set_store_factories(store_factories);
         }
