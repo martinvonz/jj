@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::io::{Stderr, Stdout, Write};
-use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Stdio};
 use std::str::FromStr;
 use std::{fmt, io, mem};
@@ -28,7 +27,6 @@ pub struct Ui {
     color: bool,
     paginate: PaginationChoice,
     progress_indicator: bool,
-    cwd: PathBuf,
     formatter_factory: FormatterFactory,
     output: UiOutput,
     settings: UserSettings,
@@ -123,13 +121,11 @@ impl Default for Ui {
 impl Ui {
     pub fn new() -> Ui {
         let settings = UserSettings::from_config(crate::config::default_config());
-        let cwd = std::env::current_dir().unwrap();
         let color = use_color(color_setting(&settings));
         let progress_indicator = progress_indicator_setting(&settings);
         let formatter_factory = FormatterFactory::prepare(&settings, color);
         Ui {
             color,
-            cwd,
             formatter_factory,
             paginate: PaginationChoice::Auto,
             progress_indicator,
@@ -175,10 +171,6 @@ impl Ui {
 
     pub fn color(&self) -> bool {
         self.color
-    }
-
-    pub fn cwd(&self) -> &Path {
-        &self.cwd
     }
 
     pub fn settings(&self) -> &UserSettings {

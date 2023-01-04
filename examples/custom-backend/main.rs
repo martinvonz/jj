@@ -45,12 +45,12 @@ fn create_store_factories() -> StoreFactories {
 
 fn run_custom_command(
     ui: &mut Ui,
-    _command_helper: &CommandHelper,
+    command_helper: &CommandHelper,
     command: CustomCommands,
 ) -> Result<(), CommandError> {
     match command {
         CustomCommands::InitJit => {
-            let wc_path = ui.cwd();
+            let wc_path = command_helper.cwd();
             // Initialize a workspace with the custom backend
             Workspace::init_with_backend(ui.settings(), wc_path, |store_path| {
                 Box::new(JitBackend::init(store_path))

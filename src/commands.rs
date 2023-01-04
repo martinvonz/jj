@@ -1130,7 +1130,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
     if command.global_args().repository.is_some() {
         return Err(user_error("'--repository' cannot be used with 'init'"));
     }
-    let wc_path = ui.cwd().join(&args.destination);
+    let wc_path = command.cwd().join(&args.destination);
     match fs::create_dir(&wc_path) {
         Ok(()) => {}
         Err(_) if wc_path.is_dir() => {}
@@ -1141,7 +1141,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
         .map_err(|e| user_error(format!("Failed to create workspace: {e}")))?; // raced?
 
     if let Some(git_store_str) = &args.git_repo {
-        let mut git_store_path = ui.cwd().join(git_store_str);
+        let mut git_store_path = command.cwd().join(git_store_str);
         git_store_path = git_store_path
             .canonicalize()
             .map_err(|_| user_error(format!("{} doesn't exist", git_store_path.display())))?;
@@ -1190,7 +1190,7 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
         }
         Workspace::init_local(ui.settings(), &wc_path)?;
     };
-    let cwd = ui.cwd().canonicalize().unwrap();
+    let cwd = command.cwd().canonicalize().unwrap();
     let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
     writeln!(ui, "Initialized repo in \"{}\"", relative_wc_path.display())?;
     if args.git && wc_path.join(".git").exists() {
@@ -3430,7 +3430,7 @@ fn cmd_workspace_add(
     args: &WorkspaceAddArgs,
 ) -> Result<(), CommandError> {
     let old_workspace_command = command.workspace_helper(ui)?;
-    let destination_path = ui.cwd().join(&args.destination);
+    let destination_path = command.cwd().join(&args.destination);
     if destination_path.exists() {
         return Err(user_error("Workspace already exists"));
     } else {
@@ -3469,6 +3469,7 @@ fn cmd_workspace_add(
     let mut new_workspace_command = WorkspaceCommandHelper::new(
         ui,
         new_workspace,
+        command.cwd().to_owned(),
         command.string_args().clone(),
         command.global_args(),
         repo,
@@ -3793,13 +3794,13 @@ fn cmd_git_clone(
     if command.global_args().repository.is_some() {
         return Err(user_error("'--repository' cannot be used with 'git clone'"));
     }
-    let source = absolute_git_source(ui.cwd(), &args.source);
+    let source = absolute_git_source(command.cwd(), &args.source);
     let wc_path_str = args
         .destination
         .as_deref()
         .or_else(|| clone_destination_for_source(&source))
         .ok_or_else(|| user_error("No destination specified and wasn't able to guess it"))?;
-    let wc_path = ui.cwd().join(wc_path_str);
+    let wc_path = command.cwd().join(wc_path_str);
     let wc_path_existed = wc_path.exists();
     if wc_path_existed {
         if !is_empty_dir(&wc_path) {
