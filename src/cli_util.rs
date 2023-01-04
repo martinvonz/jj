@@ -412,6 +412,8 @@ impl WorkspaceCommandHelper {
         global_args: &GlobalArgs,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<Self, CommandError> {
+        let settings = ui.settings().clone();
+        let revset_aliases_map = load_revset_aliases(ui, &settings)?;
         let loaded_at_head = &global_args.at_operation == "@";
         let may_update_working_copy = loaded_at_head && !global_args.no_commit_working_copy;
         let mut working_copy_shared_with_git = false;
@@ -427,10 +429,10 @@ impl WorkspaceCommandHelper {
             cwd: ui.cwd().to_owned(),
             string_args,
             global_args: global_args.clone(),
-            settings: ui.settings().clone(),
+            settings,
             workspace,
             repo,
-            revset_aliases_map: load_revset_aliases(ui)?,
+            revset_aliases_map,
             may_update_working_copy,
             working_copy_shared_with_git,
         })
@@ -1173,10 +1175,13 @@ fn resolve_single_op_from_store(
     }
 }
 
-fn load_revset_aliases(ui: &mut Ui) -> Result<RevsetAliasesMap, CommandError> {
+fn load_revset_aliases(
+    ui: &mut Ui,
+    settings: &UserSettings,
+) -> Result<RevsetAliasesMap, CommandError> {
     const TABLE_KEY: &str = "revset-aliases";
     let mut aliases_map = RevsetAliasesMap::new();
-    if let Ok(table) = ui.settings().config().get_table(TABLE_KEY) {
+    if let Ok(table) = settings.config().get_table(TABLE_KEY) {
         for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
             let r = value
                 .into_string()
