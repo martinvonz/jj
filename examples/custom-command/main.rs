@@ -40,7 +40,7 @@ fn run_custom_command(
             let mut tx = workspace_command.start_transaction("Frobnicate");
             let new_commit = tx
                 .mut_repo()
-                .rewrite_commit(ui.settings(), &commit)
+                .rewrite_commit(command_helper.settings(), &commit)
                 .set_description("Frobnicated!")
                 .write()?;
             workspace_command.finish_transaction(ui, tx)?;

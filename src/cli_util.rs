@@ -263,6 +263,7 @@ pub struct CommandHelper {
     cwd: PathBuf,
     string_args: Vec<String>,
     global_args: GlobalArgs,
+    settings: UserSettings,
     store_factories: StoreFactories,
 }
 
@@ -272,6 +273,7 @@ impl CommandHelper {
         cwd: PathBuf,
         string_args: Vec<String>,
         global_args: GlobalArgs,
+        settings: UserSettings,
         store_factories: StoreFactories,
     ) -> Self {
         Self {
@@ -279,6 +281,7 @@ impl CommandHelper {
             cwd,
             string_args,
             global_args,
+            settings,
             store_factories,
         }
     }
@@ -299,17 +302,21 @@ impl CommandHelper {
         &self.global_args
     }
 
+    pub fn settings(&self) -> &UserSettings {
+        &self.settings
+    }
+
     pub fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
-        let workspace = self.load_workspace(ui)?;
+        let workspace = self.load_workspace()?;
         let mut workspace_command = self.resolve_operation(ui, workspace)?;
         workspace_command.snapshot(ui)?;
         Ok(workspace_command)
     }
 
-    pub fn load_workspace(&self, ui: &Ui) -> Result<Workspace, CommandError> {
+    pub fn load_workspace(&self) -> Result<Workspace, CommandError> {
         let wc_path_str = self.global_args.repository.as_deref().unwrap_or(".");
         let wc_path = self.cwd.join(wc_path_str);
-        Workspace::load(ui.settings(), &wc_path, &self.store_factories).map_err(|err| match err {
+        Workspace::load(&self.settings, &wc_path, &self.store_factories).map_err(|err| match err {
             WorkspaceLoadError::NoWorkspaceHere(wc_path) => {
                 let message = format!("There is no jj repo in \"{wc_path_str}\"");
                 let git_dir = wc_path.join(".git");
@@ -363,7 +370,7 @@ jj init --git-repo=.",
                 let mut tx = workspace_command.start_transaction("resolve concurrent operations");
                 for other_op_head in op_heads.into_iter().skip(1) {
                     tx.merge_operation(other_op_head);
-                    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
+                    let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
                     if num_rebased > 0 {
                         writeln!(
                             ui,
@@ -393,6 +400,7 @@ jj init --git-repo=.",
             self.cwd.clone(),
             self.string_args.clone(),
             &self.global_args,
+            self.settings.clone(),
             repo,
         )
     }
@@ -419,9 +427,9 @@ impl WorkspaceCommandHelper {
         cwd: PathBuf,
         string_args: Vec<String>,
         global_args: &GlobalArgs,
+        settings: UserSettings,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<Self, CommandError> {
-        let settings = ui.settings().clone();
         let revset_aliases_map = load_revset_aliases(ui, &settings)?;
         let loaded_at_head = &global_args.at_operation == "@";
         let may_update_working_copy = loaded_at_head && !global_args.no_commit_working_copy;
@@ -509,7 +517,7 @@ impl WorkspaceCommandHelper {
                 self.repo = tx.commit();
                 locked_working_copy.finish(self.repo.op_id().clone());
             } else {
-                let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
+                let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
                 if num_rebased > 0 {
                     writeln!(
                         ui,
@@ -938,7 +946,7 @@ impl WorkspaceCommandHelper {
             writeln!(ui, "Nothing changed.")?;
             return Ok(());
         }
-        let num_rebased = mut_repo.rebase_descendants(ui.settings())?;
+        let num_rebased = mut_repo.rebase_descendants(&self.settings)?;
         if num_rebased > 0 {
             writeln!(ui, "Rebased {num_rebased} descendant commits")?;
         }
@@ -968,7 +976,7 @@ impl WorkspaceCommandHelper {
                 print_checkout_stats(ui, stats)?;
             }
         }
-        let settings = ui.settings();
+        let settings = &self.settings;
         if settings.user_name() == UserSettings::user_name_placeholder()
             || settings.user_email() == UserSettings::user_email_placeholder()
         {
@@ -1615,7 +1623,7 @@ fn handle_early_args(
     }
     if !args.config_toml.is_empty() {
         settings.incorporate_toml_strings(&args.config_toml)?;
-        ui.reset(settings.clone()); // TODO: disown UserSettings from Ui
+        ui.reset(settings);
     }
     Ok(())
 }
@@ -1776,7 +1784,7 @@ impl CliRunner {
     pub fn run(self, ui: &mut Ui) -> Result<(), CommandError> {
         let cwd = env::current_dir().unwrap(); // TODO: maybe map_err to CommandError?
         let mut settings = crate::config::read_config()?;
-        ui.reset(settings.clone()); // TODO: disown UserSettings from Ui
+        ui.reset(&settings);
         let string_args = expand_args(&self.app, std::env::args_os(), &settings)?;
         let (matches, args) = parse_args(
             ui,
@@ -1791,6 +1799,7 @@ impl CliRunner {
             cwd,
             string_args,
             args.global_args,
+            settings,
             self.store_factories.unwrap_or_default(),
         );
         (self.dispatch_fn)(ui, &command_helper, &matches)

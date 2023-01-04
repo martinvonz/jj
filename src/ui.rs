@@ -30,7 +30,6 @@ pub struct Ui {
     progress_indicator: bool,
     formatter_factory: FormatterFactory,
     output: UiOutput,
-    settings: UserSettings,
 }
 
 fn progress_indicator_setting(settings: &UserSettings) -> bool {
@@ -132,17 +131,14 @@ impl Ui {
             paginate: PaginationChoice::Auto,
             progress_indicator,
             output: UiOutput::new_terminal(),
-            settings,
         }
     }
 
-    pub fn reset(&mut self, settings: UserSettings) {
-        // TODO: maybe Ui shouldn't take ownership of UserSettings
-        self.color = use_color(color_setting(&settings));
-        self.pager_cmd = pager_setting(&settings);
-        self.progress_indicator = progress_indicator_setting(&settings);
-        self.formatter_factory = FormatterFactory::prepare(&settings, self.color);
-        self.settings = settings;
+    pub fn reset(&mut self, settings: &UserSettings) {
+        self.color = use_color(color_setting(settings));
+        self.pager_cmd = pager_setting(settings);
+        self.progress_indicator = progress_indicator_setting(settings);
+        self.formatter_factory = FormatterFactory::prepare(settings, self.color);
     }
 
     /// Sets the pagination value.
@@ -177,10 +173,6 @@ impl Ui {
 
     pub fn color(&self) -> bool {
         self.color
-    }
-
-    pub fn settings(&self) -> &UserSettings {
-        &self.settings
     }
 
     pub fn new_formatter<'output, W: Write + 'output>(

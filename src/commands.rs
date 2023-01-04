@@ -1157,7 +1157,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
                 .join(relative_path);
         }
         let (workspace, repo) =
-            Workspace::init_external_git(ui.settings(), &wc_path, &git_store_path)?;
+            Workspace::init_external_git(command.settings(), &wc_path, &git_store_path)?;
         let git_repo = repo.store().git_repo().unwrap();
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
         workspace_command.snapshot(ui)?;
@@ -1170,7 +1170,7 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
                 let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
                 tx.mut_repo().check_out(
                     workspace_command.workspace_id(),
-                    ui.settings(),
+                    command.settings(),
                     &git_head_commit,
                 )?;
             }
@@ -1179,16 +1179,16 @@ fn cmd_init(ui: &mut Ui, command: &CommandHelper, args: &InitArgs) -> Result<(),
             }
         }
     } else if args.git {
-        Workspace::init_internal_git(ui.settings(), &wc_path)?;
+        Workspace::init_internal_git(command.settings(), &wc_path)?;
     } else {
-        if !ui.settings().allow_native_backend() {
+        if !command.settings().allow_native_backend() {
             return Err(user_error_with_hint(
                 "The native backend is disallowed by default.",
                 "Did you mean to pass `--git`?
 Set `ui.allow-init-native` to allow initializing a repo with the native backend.",
             ));
         }
-        Workspace::init_local(ui.settings(), &wc_path)?;
+        Workspace::init_local(command.settings(), &wc_path)?;
     };
     let cwd = command.cwd().canonicalize().unwrap();
     let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
@@ -1206,25 +1206,24 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
 
 fn cmd_config(
     ui: &mut Ui,
-    _command: &CommandHelper,
+    command: &CommandHelper,
     subcommand: &ConfigSubcommand,
 ) -> Result<(), CommandError> {
     ui.request_pager();
     match subcommand {
         ConfigSubcommand::List { name } => {
             let raw_values = match name {
-                Some(name) => {
-                    ui.settings()
-                        .config()
-                        .get::<config::Value>(name)
-                        .map_err(|e| match e {
-                            config::ConfigError::NotFound { .. } => {
-                                user_error("key not found in config")
-                            }
-                            _ => e.into(),
-                        })?
-                }
-                None => ui.settings().config().collect()?.into(),
+                Some(name) => command
+                    .settings()
+                    .config()
+                    .get::<config::Value>(name)
+                    .map_err(|e| match e {
+                        config::ConfigError::NotFound { .. } => {
+                            user_error("key not found in config")
+                        }
+                        _ => e.into(),
+                    })?,
+                None => command.settings().config().collect()?.into(),
             };
             write_config_entry(ui, name.as_deref().unwrap_or(""), raw_values)?;
         }
@@ -1246,7 +1245,7 @@ fn cmd_checkout(
     let commit_builder = tx
         .mut_repo()
         .new_commit(
-            ui.settings(),
+            command.settings(),
             vec![target.id().clone()],
             target.tree_id().clone(),
         )
@@ -1309,10 +1308,10 @@ Make sure they're ignored, then try again.",
         }
     }
     tx.mut_repo()
-        .rewrite_commit(ui.settings(), &wc_commit)
+        .rewrite_commit(command.settings(), &wc_commit)
         .set_tree(new_tree_id)
         .write()?;
-    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
+    let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
     if num_rebased > 0 {
         writeln!(ui, "Rebased {num_rebased} descendant commits")?;
     }
@@ -1384,7 +1383,7 @@ fn cmd_diff(ui: &mut Ui, command: &CommandHelper, args: &DiffArgs) -> Result<(),
         &from_tree,
         &to_tree,
         matcher.as_ref(),
-        &diff_util::diff_formats_for(ui.settings(), &args.format),
+        &diff_util::diff_formats_for(command.settings(), &args.format),
     )?;
     Ok(())
 }
@@ -1395,7 +1394,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
     // TODO: Add branches, tags, etc
     // TODO: Indent the description like Git does
     let (author_timestamp_template, committer_timestamp_template) =
-        if ui.settings().relative_timestamps() {
+        if command.settings().relative_timestamps() {
             ("author.timestamp().ago()", "committer.timestamp().ago()")
         } else {
             ("author.timestamp()", "committer.timestamp()")
@@ -1424,7 +1423,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
         &workspace_command,
         &commit,
         &EverythingMatcher,
-        &diff_util::diff_formats_for(ui.settings(), &args.format),
+        &diff_util::diff_formats_for(command.settings(), &args.format),
     )?;
     Ok(())
 }
@@ -1454,7 +1453,7 @@ fn cmd_status(
                 repo.as_repo_ref(),
                 &workspace_id,
                 &parent,
-                ui.settings(),
+                command.settings(),
             )?;
             formatter.write_str("\n")?;
         }
@@ -1464,7 +1463,7 @@ fn cmd_status(
             repo.as_repo_ref(),
             &workspace_id,
             wc_commit,
-            ui.settings(),
+            command.settings(),
         )?;
         formatter.write_str("\n")?;
     } else {
@@ -1579,7 +1578,7 @@ fn log_template(settings: &UserSettings) -> String {
 fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
 
-    let default_revset = ui.settings().default_revset();
+    let default_revset = command.settings().default_revset();
     let revset_expression =
         workspace_command.parse_revset(args.revisions.as_deref().unwrap_or(&default_revset))?;
     let repo = workspace_command.repo();
@@ -1595,11 +1594,11 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
 
     let store = repo.store();
     let diff_formats =
-        diff_util::diff_formats_for_log(ui.settings(), &args.diff_format, args.patch);
+        diff_util::diff_formats_for_log(command.settings(), &args.diff_format, args.patch);
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),
-        None => log_template(ui.settings()),
+        None => log_template(command.settings()),
     };
     let template = crate::template_parser::parse_commit_template(
         repo.as_repo_ref(),
@@ -1736,11 +1735,11 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
         .get_wc_commit_id(&workspace_id);
 
     let diff_formats =
-        diff_util::diff_formats_for_log(ui.settings(), &args.diff_format, args.patch);
+        diff_util::diff_formats_for_log(command.settings(), &args.diff_format, args.patch);
 
     let template_string = match &args.template {
         Some(value) => value.to_string(),
-        None => log_template(ui.settings()),
+        None => log_template(command.settings()),
     };
     let template = crate::template_parser::parse_commit_template(
         workspace_command.repo().as_repo_ref(),
@@ -1841,7 +1840,7 @@ fn cmd_interdiff(
         &from_tree,
         &to.tree(),
         matcher.as_ref(),
-        &diff_util::diff_formats_for(ui.settings(), &args.format),
+        &diff_util::diff_formats_for(command.settings(), &args.format),
     )
 }
 
@@ -1944,7 +1943,7 @@ fn cmd_describe(
         message.into()
     } else {
         let template = description_template_for_commit(&workspace_command, &commit)?;
-        edit_description(workspace_command.repo(), &template, ui.settings())?
+        edit_description(workspace_command.repo(), &template, command.settings())?
     };
     if description == *commit.description() {
         ui.write("Nothing changed.\n")?;
@@ -1952,7 +1951,7 @@ fn cmd_describe(
         let mut tx =
             workspace_command.start_transaction(&format!("describe commit {}", commit.id().hex()));
         tx.mut_repo()
-            .rewrite_commit(ui.settings(), &commit)
+            .rewrite_commit(command.settings(), &commit)
             .set_description(description)
             .write()?;
         workspace_command.finish_transaction(ui, tx)?;
@@ -1971,12 +1970,12 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
 
     let mut tx = workspace_command.start_transaction(&format!("commit {}", commit.id().hex()));
-    let mut commit_builder = tx.mut_repo().rewrite_commit(ui.settings(), &commit);
+    let mut commit_builder = tx.mut_repo().rewrite_commit(command.settings(), &commit);
     let description = if let Some(message) = &args.message {
         message.into()
     } else {
         let template = description_template_for_commit(&workspace_command, &commit)?;
-        edit_description(workspace_command.repo(), &template, ui.settings())?
+        edit_description(workspace_command.repo(), &template, command.settings())?
     };
     commit_builder = commit_builder.set_description(description);
     let new_commit = commit_builder.write()?;
@@ -1988,7 +1987,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
         let new_checkout = tx
             .mut_repo()
             .new_commit(
-                ui.settings(),
+                command.settings(),
                 vec![new_commit.id().clone()],
                 new_commit.tree_id().clone(),
             )
@@ -2012,7 +2011,7 @@ fn cmd_duplicate(
         .start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
     let mut_repo = tx.mut_repo();
     let new_commit = mut_repo
-        .rewrite_commit(ui.settings(), &predecessor)
+        .rewrite_commit(command.settings(), &predecessor)
         .generate_new_change_id()
         .write()?;
     ui.write("Created: ")?;
@@ -2021,7 +2020,7 @@ fn cmd_duplicate(
         mut_repo.as_repo_ref(),
         &workspace_command.workspace_id(),
         &new_commit,
-        ui.settings(),
+        command.settings(),
     )?;
     ui.write("\n")?;
     workspace_command.finish_transaction(ui, tx)?;
@@ -2059,7 +2058,7 @@ fn cmd_abandon(
     for commit in to_abandon {
         tx.mut_repo().record_abandoned_commit(commit.id().clone());
     }
-    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())?;
+    let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
     if num_rebased > 0 {
         writeln!(
             ui,
@@ -2102,7 +2101,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
     let merged_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commits);
     let new_commit = tx
         .mut_repo()
-        .new_commit(ui.settings(), parent_ids, merged_tree.id().clone())
+        .new_commit(command.settings(), parent_ids, merged_tree.id().clone())
         .set_description(&args.message)
         .write()?;
     let workspace_id = workspace_command.workspace_id();
@@ -2194,7 +2193,7 @@ from the source will be moved into the destination.
         mut_repo.record_abandoned_commit(source.id().clone());
     } else {
         mut_repo
-            .rewrite_commit(ui.settings(), &source)
+            .rewrite_commit(command.settings(), &source)
             .set_tree(new_source_tree_id)
             .write()?;
     }
@@ -2203,7 +2202,7 @@ from the source will be moved into the destination.
         // rewritten source. Otherwise it will likely already have the content
         // changes we're moving, so applying them will have no effect and the
         // changes will disappear.
-        let mut rebaser = mut_repo.create_descendant_rebaser(ui.settings());
+        let mut rebaser = mut_repo.create_descendant_rebaser(command.settings());
         rebaser.rebase_all()?;
         let rebased_destination_id = rebaser.rebased().get(destination.id()).unwrap().clone();
         destination = mut_repo.store().get_commit(&rebased_destination_id)?;
@@ -2214,11 +2213,11 @@ from the source will be moved into the destination.
         workspace_command.repo(),
         &source,
         &destination,
-        ui.settings(),
+        command.settings(),
         abandon_source,
     )?;
     mut_repo
-        .rewrite_commit(ui.settings(), &destination)
+        .rewrite_commit(command.settings(), &destination)
         .set_tree(new_destination_tree_id)
         .set_description(description)
         .write()?;
@@ -2274,11 +2273,11 @@ from the source will be moved into the parent.
         workspace_command.repo(),
         &commit,
         parent,
-        ui.settings(),
+        command.settings(),
         abandon_child,
     )?;
     let new_parent = mut_repo
-        .rewrite_commit(ui.settings(), parent)
+        .rewrite_commit(command.settings(), parent)
         .set_tree(new_parent_tree_id)
         .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
         .set_description(description)
@@ -2288,7 +2287,7 @@ from the source will be moved into the parent.
     } else {
         // Commit the remainder on top of the new parent commit.
         mut_repo
-            .rewrite_commit(ui.settings(), &commit)
+            .rewrite_commit(command.settings(), &commit)
             .set_parents(vec![new_parent.id().clone()])
             .write()?;
     }
@@ -2347,25 +2346,25 @@ aborted.
             workspace_command.repo(),
             parent,
             &commit,
-            ui.settings(),
+            command.settings(),
             true,
         )?;
         // Commit the new child on top of the parent's parents.
         tx.mut_repo()
-            .rewrite_commit(ui.settings(), &commit)
+            .rewrite_commit(command.settings(), &commit)
             .set_parents(parent.parent_ids().to_vec())
             .set_description(description)
             .write()?;
     } else {
         let new_parent = tx
             .mut_repo()
-            .rewrite_commit(ui.settings(), parent)
+            .rewrite_commit(command.settings(), parent)
             .set_tree(new_parent_tree_id)
             .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
             .write()?;
         // Commit the new child on top of the new parent.
         tx.mut_repo()
-            .rewrite_commit(ui.settings(), &commit)
+            .rewrite_commit(command.settings(), &commit)
             .set_parents(vec![new_parent.id().clone()])
             .write()?;
     }
@@ -2421,7 +2420,7 @@ fn cmd_resolve(
     ));
     let new_tree_id = workspace_command.run_mergetool(ui, &commit.tree(), repo_path)?;
     tx.mut_repo()
-        .rewrite_commit(ui.settings(), &commit)
+        .rewrite_commit(command.settings(), &commit)
         .set_tree(new_tree_id)
         .write()?;
     workspace_command.finish_transaction(ui, tx)
@@ -2469,7 +2468,7 @@ fn cmd_restore(
             .start_transaction(&format!("restore into commit {}", to_commit.id().hex()));
         let mut_repo = tx.mut_repo();
         let new_commit = mut_repo
-            .rewrite_commit(ui.settings(), &to_commit)
+            .rewrite_commit(command.settings(), &to_commit)
             .set_tree(tree_id)
             .write()?;
         ui.write("Created ")?;
@@ -2478,7 +2477,7 @@ fn cmd_restore(
             mut_repo.as_repo_ref(),
             &workspace_command.workspace_id(),
             &new_commit,
-            ui.settings(),
+            command.settings(),
         )?;
         ui.write("\n")?;
         workspace_command.finish_transaction(ui, tx)?;
@@ -2533,7 +2532,7 @@ don't make any changes, then the operation will be aborted.",
             .start_transaction(&format!("edit commit {}", target_commit.id().hex()));
         let mut_repo = tx.mut_repo();
         let new_commit = mut_repo
-            .rewrite_commit(ui.settings(), &target_commit)
+            .rewrite_commit(command.settings(), &target_commit)
             .set_tree(tree_id)
             .write()?;
         ui.write("Created ")?;
@@ -2542,7 +2541,7 @@ don't make any changes, then the operation will be aborted.",
             mut_repo.as_repo_ref(),
             &workspace_command.workspace_id(),
             &new_commit,
-            ui.settings(),
+            command.settings(),
         )?;
         ui.write("\n")?;
         workspace_command.finish_transaction(ui, tx)?;
@@ -2643,10 +2642,11 @@ don't make any changes, then the operation will be aborted.
             &base_tree,
             &middle_tree,
         )?;
-        let first_description = edit_description(tx.base_repo(), &first_template, ui.settings())?;
+        let first_description =
+            edit_description(tx.base_repo(), &first_template, command.settings())?;
         let first_commit = tx
             .mut_repo()
-            .rewrite_commit(ui.settings(), &commit)
+            .rewrite_commit(command.settings(), &commit)
             .set_tree(tree_id)
             .set_description(first_description)
             .write()?;
@@ -2657,17 +2657,18 @@ don't make any changes, then the operation will be aborted.
             &middle_tree,
             &commit.tree(),
         )?;
-        let second_description = edit_description(tx.base_repo(), &second_template, ui.settings())?;
+        let second_description =
+            edit_description(tx.base_repo(), &second_template, command.settings())?;
         let second_commit = tx
             .mut_repo()
-            .rewrite_commit(ui.settings(), &commit)
+            .rewrite_commit(command.settings(), &commit)
             .set_parents(vec![first_commit.id().clone()])
             .set_tree(commit.tree_id().clone())
             .generate_new_change_id()
             .set_description(second_description)
             .write()?;
         let mut rebaser = DescendantRebaser::new(
-            ui.settings(),
+            command.settings(),
             tx.mut_repo(),
             hashmap! { commit.id().clone() => hashset!{second_commit.id().clone()} },
             hashset! {},
@@ -2683,7 +2684,7 @@ don't make any changes, then the operation will be aborted.
             tx.repo().as_repo_ref(),
             &workspace_command.workspace_id(),
             &first_commit,
-            ui.settings(),
+            command.settings(),
         )?;
         ui.write("\nSecond part: ")?;
         write_commit_summary(
@@ -2691,7 +2692,7 @@ don't make any changes, then the operation will be aborted.
             tx.repo().as_repo_ref(),
             &workspace_command.workspace_id(),
             &second_commit,
-            ui.settings(),
+            command.settings(),
         )?;
         ui.write("\n")?;
         workspace_command.finish_transaction(ui, tx)?;
@@ -2736,7 +2737,7 @@ fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result
 
 fn rebase_branch(
     ui: &mut Ui,
-    _command: &CommandHelper,
+    command: &CommandHelper,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
     branch_str: &str,
@@ -2763,10 +2764,10 @@ fn rebase_branch(
     {
         let root_commit = root_result?;
         workspace_command.check_rewriteable(&root_commit)?;
-        rebase_commit(ui.settings(), tx.mut_repo(), &root_commit, new_parents)?;
+        rebase_commit(command.settings(), tx.mut_repo(), &root_commit, new_parents)?;
         num_rebased += 1;
     }
-    num_rebased += tx.mut_repo().rebase_descendants(ui.settings())?;
+    num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
     writeln!(ui, "Rebased {num_rebased} commits")?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -2774,7 +2775,7 @@ fn rebase_branch(
 
 fn rebase_descendants(
     ui: &mut Ui,
-    _command: &CommandHelper,
+    command: &CommandHelper,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
     source_str: &str,
@@ -2786,8 +2787,8 @@ fn rebase_descendants(
         "rebase commit {} and descendants",
         old_commit.id().hex()
     ));
-    rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, new_parents)?;
-    let num_rebased = tx.mut_repo().rebase_descendants(ui.settings())? + 1;
+    rebase_commit(command.settings(), tx.mut_repo(), &old_commit, new_parents)?;
+    let num_rebased = tx.mut_repo().rebase_descendants(command.settings())? + 1;
     writeln!(ui, "Rebased {num_rebased} commits")?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
@@ -2795,7 +2796,7 @@ fn rebase_descendants(
 
 fn rebase_revision(
     ui: &mut Ui,
-    _command: &CommandHelper,
+    command: &CommandHelper,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
     rev_str: &str,
@@ -2805,7 +2806,7 @@ fn rebase_revision(
     check_rebase_destinations(workspace_command, new_parents, &old_commit)?;
     let mut tx =
         workspace_command.start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
-    rebase_commit(ui.settings(), tx.mut_repo(), &old_commit, new_parents)?;
+    rebase_commit(command.settings(), tx.mut_repo(), &old_commit, new_parents)?;
     // Manually rebase children because we don't want to rebase them onto the
     // rewritten commit. (But we still want to record the commit as rewritten so
     // branches and the working copy get updated to the rewritten commit.)
@@ -2852,14 +2853,14 @@ fn rebase_revision(
             .try_collect()?;
 
         rebase_commit(
-            ui.settings(),
+            command.settings(),
             tx.mut_repo(),
             &child_commit,
             &new_child_parents,
         )?;
         num_rebased_descendants += 1;
     }
-    num_rebased_descendants += tx.mut_repo().rebase_descendants(ui.settings())?;
+    num_rebased_descendants += tx.mut_repo().rebase_descendants(command.settings())?;
     if num_rebased_descendants > 0 {
         writeln!(
             ui,
@@ -2908,7 +2909,12 @@ fn cmd_backout(
         "back out commit {}",
         commit_to_back_out.id().hex()
     ));
-    back_out_commit(ui.settings(), tx.mut_repo(), &commit_to_back_out, &parents)?;
+    back_out_commit(
+        command.settings(),
+        tx.mut_repo(),
+        &commit_to_back_out,
+        &parents,
+    )?;
     workspace_command.finish_transaction(ui, tx)?;
 
     Ok(())
@@ -3081,7 +3087,7 @@ fn cmd_branch(
 
 fn list_branches(
     ui: &mut Ui,
-    _command: &CommandHelper,
+    command: &CommandHelper,
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
@@ -3099,7 +3105,7 @@ fn list_branches(
                     repo.as_repo_ref(),
                     &workspace_id,
                     &commit,
-                    ui.settings(),
+                    command.settings(),
                 )?;
                 writeln!(formatter)?;
             }
@@ -3115,7 +3121,7 @@ fn list_branches(
                         repo.as_repo_ref(),
                         &workspace_id,
                         &commit,
-                        ui.settings(),
+                        command.settings(),
                     )?;
                     writeln!(formatter)?;
                 }
@@ -3127,7 +3133,7 @@ fn list_branches(
                         repo.as_repo_ref(),
                         &workspace_id,
                         &commit,
-                        ui.settings(),
+                        command.settings(),
                     )?;
                     writeln!(formatter)?;
                 }
@@ -3470,7 +3476,7 @@ fn cmd_workspace_add(
         )));
     }
     let (new_workspace, repo) = Workspace::init_workspace_with_existing_repo(
-        ui.settings(),
+        command.settings(),
         &destination_path,
         repo,
         workspace_id,
@@ -3488,6 +3494,7 @@ fn cmd_workspace_add(
         command.cwd().to_owned(),
         command.string_args().clone(),
         command.global_args(),
+        command.settings().clone(),
         repo,
     )?;
     let mut tx = new_workspace_command.start_transaction(&format!(
@@ -3512,7 +3519,7 @@ fn cmd_workspace_add(
     };
     tx.mut_repo().check_out(
         new_workspace_command.workspace_id(),
-        ui.settings(),
+        command.settings(),
         &new_wc_commit,
     )?;
     new_workspace_command.finish_transaction(ui, tx)?;
@@ -3562,7 +3569,7 @@ fn cmd_workspace_list(
             repo.as_repo_ref(),
             workspace_id,
             &commit,
-            ui.settings(),
+            command.settings(),
         )?;
         writeln!(ui)?;
     }
@@ -3574,7 +3581,7 @@ fn cmd_workspace_update_stale(
     command: &CommandHelper,
     _args: &WorkspaceUpdateStaleArgs,
 ) -> Result<(), CommandError> {
-    let workspace = command.load_workspace(ui)?;
+    let workspace = command.load_workspace()?;
     let mut workspace_command = command.resolve_operation(ui, workspace)?;
     let repo = workspace_command.repo().clone();
     let workspace_id = workspace_command.workspace_id();
@@ -3603,7 +3610,7 @@ fn cmd_workspace_update_stale(
                 repo.as_repo_ref(),
                 &workspace_id,
                 &desired_wc_commit,
-                ui.settings(),
+                command.settings(),
             )?;
             ui.write("\n")?;
             print_checkout_stats(ui, stats)?;
@@ -3861,7 +3868,7 @@ fn cmd_git_clone(
             if let Ok(commit) = workspace_command.repo().store().get_commit(&commit_id) {
                 checkout_tx.mut_repo().check_out(
                     workspace_command.workspace_id(),
-                    ui.settings(),
+                    command.settings(),
                     &commit,
                 )?;
             }
@@ -3877,7 +3884,7 @@ fn do_git_clone(
     source: &str,
     wc_path: &Path,
 ) -> Result<(WorkspaceCommandHelper, Option<String>), CommandError> {
-    let (workspace, repo) = Workspace::init_internal_git(ui.settings(), wc_path)?;
+    let (workspace, repo) = Workspace::init_internal_git(command.settings(), wc_path)?;
     let git_repo = get_git_repo(repo.store())?;
     writeln!(ui, r#"Fetching into new repo in "{}""#, wc_path.display())?;
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
@@ -4079,7 +4086,7 @@ fn cmd_git_push(
         for (change_str, commit) in std::iter::zip(args.change.iter(), commits) {
             let branch_name = format!(
                 "{}{}",
-                ui.settings().push_branch_prefix(),
+                command.settings().push_branch_prefix(),
                 commit.change_id().hex()
             );
             if !seen_branches.insert(branch_name.clone()) {
