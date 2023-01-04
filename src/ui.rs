@@ -25,6 +25,7 @@ use crate::formatter::{Formatter, FormatterFactory};
 
 pub struct Ui {
     color: bool,
+    pager_cmd: FullCommandArgs,
     paginate: PaginationChoice,
     progress_indicator: bool,
     formatter_factory: FormatterFactory,
@@ -127,6 +128,7 @@ impl Ui {
         Ui {
             color,
             formatter_factory,
+            pager_cmd: pager_setting(&settings),
             paginate: PaginationChoice::Auto,
             progress_indicator,
             output: UiOutput::new_terminal(),
@@ -137,6 +139,7 @@ impl Ui {
     pub fn reset(&mut self, settings: UserSettings) {
         // TODO: maybe Ui shouldn't take ownership of UserSettings
         self.color = use_color(color_setting(&settings));
+        self.pager_cmd = pager_setting(&settings);
         self.progress_indicator = progress_indicator_setting(&settings);
         self.formatter_factory = FormatterFactory::prepare(&settings, self.color);
         self.settings = settings;
@@ -155,7 +158,7 @@ impl Ui {
 
         match self.output {
             UiOutput::Terminal { .. } if io::stdout().is_tty() => {
-                match UiOutput::new_paged(&self.settings) {
+                match UiOutput::new_paged(&self.pager_cmd) {
                     Ok(new_output) => {
                         self.output = new_output;
                     }
@@ -342,8 +345,7 @@ impl UiOutput {
         }
     }
 
-    fn new_paged(settings: &UserSettings) -> io::Result<UiOutput> {
-        let pager_cmd = pager_setting(settings);
+    fn new_paged(pager_cmd: &FullCommandArgs) -> io::Result<UiOutput> {
         let mut child = pager_cmd.to_command().stdin(Stdio::piped()).spawn()?;
         let child_stdin = child.stdin.take().unwrap();
         Ok(UiOutput::Paged { child, child_stdin })
