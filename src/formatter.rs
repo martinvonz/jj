@@ -17,8 +17,6 @@ use std::io;
 use std::io::{Error, Read, Write};
 use std::sync::Arc;
 
-use jujutsu_lib::settings::UserSettings;
-
 // Lets the caller label strings and translates the labels to colors
 pub trait Formatter: Write {
     fn write_bytes(&mut self, data: &[u8]) -> io::Result<()> {
@@ -68,9 +66,9 @@ enum FormatterFactoryKind {
 }
 
 impl FormatterFactory {
-    pub fn prepare(settings: &UserSettings, color: bool) -> Self {
+    pub fn prepare(config: &config::Config, color: bool) -> Self {
         let kind = if color {
-            let colors = Arc::new(config_colors(settings));
+            let colors = Arc::new(config_colors(config));
             FormatterFactoryKind::Color { colors }
         } else {
             FormatterFactoryKind::PlainText
@@ -129,9 +127,9 @@ pub struct ColorFormatter<W> {
     current_color: Vec<u8>,
 }
 
-fn config_colors(user_settings: &UserSettings) -> HashMap<String, String> {
+fn config_colors(config: &config::Config) -> HashMap<String, String> {
     let mut result = HashMap::new();
-    if let Ok(table) = user_settings.config().get_table("colors") {
+    if let Ok(table) = config.get_table("colors") {
         for (key, value) in table {
             result.insert(key, value.to_string());
         }

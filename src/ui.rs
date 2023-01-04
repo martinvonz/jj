@@ -18,7 +18,6 @@ use std::str::FromStr;
 use std::{fmt, io, mem};
 
 use crossterm::tty::IsTty;
-use jujutsu_lib::settings::UserSettings;
 
 use crate::config::FullCommandArgs;
 use crate::formatter::{Formatter, FormatterFactory};
@@ -32,11 +31,8 @@ pub struct Ui {
     output: UiOutput,
 }
 
-fn progress_indicator_setting(settings: &UserSettings) -> bool {
-    settings
-        .config()
-        .get_bool("ui.progress-indicator")
-        .unwrap_or(true)
+fn progress_indicator_setting(config: &config::Config) -> bool {
+    config.get_bool("ui.progress-indicator").unwrap_or(true)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -76,9 +72,8 @@ impl fmt::Display for ColorChoice {
     }
 }
 
-fn color_setting(settings: &UserSettings) -> ColorChoice {
-    settings
-        .config()
+fn color_setting(config: &config::Config) -> ColorChoice {
+    config
         .get_string("ui.color")
         .ok()
         .and_then(|s| s.parse().ok())
@@ -105,9 +100,8 @@ impl Default for PaginationChoice {
     }
 }
 
-fn pager_setting(settings: &UserSettings) -> FullCommandArgs {
-    settings
-        .config()
+fn pager_setting(config: &config::Config) -> FullCommandArgs {
+    config
         .get("ui.pager")
         .unwrap_or_else(|_| "less -FRX".into())
 }
@@ -120,25 +114,25 @@ impl Default for Ui {
 
 impl Ui {
     pub fn new() -> Ui {
-        let settings = UserSettings::from_config(crate::config::default_config());
-        let color = use_color(color_setting(&settings));
-        let progress_indicator = progress_indicator_setting(&settings);
-        let formatter_factory = FormatterFactory::prepare(&settings, color);
+        let config = crate::config::default_config();
+        let color = use_color(color_setting(&config));
+        let progress_indicator = progress_indicator_setting(&config);
+        let formatter_factory = FormatterFactory::prepare(&config, color);
         Ui {
             color,
             formatter_factory,
-            pager_cmd: pager_setting(&settings),
+            pager_cmd: pager_setting(&config),
             paginate: PaginationChoice::Auto,
             progress_indicator,
             output: UiOutput::new_terminal(),
         }
     }
 
-    pub fn reset(&mut self, settings: &UserSettings) {
-        self.color = use_color(color_setting(settings));
-        self.pager_cmd = pager_setting(settings);
-        self.progress_indicator = progress_indicator_setting(settings);
-        self.formatter_factory = FormatterFactory::prepare(settings, self.color);
+    pub fn reset(&mut self, config: &config::Config) {
+        self.color = use_color(color_setting(config));
+        self.pager_cmd = pager_setting(config);
+        self.progress_indicator = progress_indicator_setting(config);
+        self.formatter_factory = FormatterFactory::prepare(config, self.color);
     }
 
     /// Sets the pagination value.
