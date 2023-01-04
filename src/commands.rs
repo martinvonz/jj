@@ -1873,9 +1873,9 @@ fn rebase_to_dest_parent(
 }
 
 fn edit_description(
-    ui: &Ui,
     repo: &ReadonlyRepo,
     description: &str,
+    settings: &UserSettings,
 ) -> Result<String, CommandError> {
     let description_file_path = (|| -> Result<_, io::Error> {
         let mut file = tempfile::Builder::new()
@@ -1894,8 +1894,7 @@ fn edit_description(
         ))
     })?;
 
-    let editor: FullCommandArgs = ui
-        .settings()
+    let editor: FullCommandArgs = settings
         .config()
         .get("ui.editor")
         .unwrap_or_else(|_| "pico".into());
@@ -1945,7 +1944,7 @@ fn cmd_describe(
         message.into()
     } else {
         let template = description_template_for_commit(&workspace_command, &commit)?;
-        edit_description(ui, workspace_command.repo(), &template)?
+        edit_description(workspace_command.repo(), &template, ui.settings())?
     };
     if description == *commit.description() {
         ui.write("Nothing changed.\n")?;
@@ -1977,7 +1976,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
         message.into()
     } else {
         let template = description_template_for_commit(&workspace_command, &commit)?;
-        edit_description(ui, workspace_command.repo(), &template)?
+        edit_description(workspace_command.repo(), &template, ui.settings())?
     };
     commit_builder = commit_builder.set_description(description);
     let new_commit = commit_builder.write()?;
@@ -2113,10 +2112,10 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
 }
 
 fn combine_messages(
-    ui: &Ui,
     repo: &ReadonlyRepo,
     source: &Commit,
     destination: &Commit,
+    settings: &UserSettings,
     abandon_source: bool,
 ) -> Result<String, CommandError> {
     let description = if abandon_source {
@@ -2130,7 +2129,7 @@ fn combine_messages(
                 + destination.description()
                 + "\nJJ: Description from the source commit:\n"
                 + source.description();
-            edit_description(ui, repo, &combined)?
+            edit_description(repo, &combined, settings)?
         }
     } else {
         destination.description().to_string()
@@ -2212,10 +2211,10 @@ from the source will be moved into the destination.
     // Apply the selected changes onto the destination
     let new_destination_tree_id = merge_trees(&destination.tree(), &parent_tree, &new_parent_tree)?;
     let description = combine_messages(
-        ui,
         workspace_command.repo(),
         &source,
         &destination,
+        ui.settings(),
         abandon_source,
     )?;
     mut_repo
@@ -2271,8 +2270,13 @@ from the source will be moved into the parent.
     // (always the case in the non-interactive case).
     let abandon_child = &new_parent_tree_id == commit.tree_id();
     let mut_repo = tx.mut_repo();
-    let description =
-        combine_messages(ui, workspace_command.repo(), &commit, parent, abandon_child)?;
+    let description = combine_messages(
+        workspace_command.repo(),
+        &commit,
+        parent,
+        ui.settings(),
+        abandon_child,
+    )?;
     let new_parent = mut_repo
         .rewrite_commit(ui.settings(), parent)
         .set_tree(new_parent_tree_id)
@@ -2339,7 +2343,13 @@ aborted.
     // case).
     if &new_parent_tree_id == parent_base_tree.id() {
         tx.mut_repo().record_abandoned_commit(parent.id().clone());
-        let description = combine_messages(ui, workspace_command.repo(), parent, &commit, true)?;
+        let description = combine_messages(
+            workspace_command.repo(),
+            parent,
+            &commit,
+            ui.settings(),
+            true,
+        )?;
         // Commit the new child on top of the parent's parents.
         tx.mut_repo()
             .rewrite_commit(ui.settings(), &commit)
@@ -2633,7 +2643,7 @@ don't make any changes, then the operation will be aborted.
             &base_tree,
             &middle_tree,
         )?;
-        let first_description = edit_description(ui, tx.base_repo(), &first_template)?;
+        let first_description = edit_description(tx.base_repo(), &first_template, ui.settings())?;
         let first_commit = tx
             .mut_repo()
             .rewrite_commit(ui.settings(), &commit)
@@ -2647,7 +2657,7 @@ don't make any changes, then the operation will be aborted.
             &middle_tree,
             &commit.tree(),
         )?;
-        let second_description = edit_description(ui, tx.base_repo(), &second_template)?;
+        let second_description = edit_description(tx.base_repo(), &second_template, ui.settings())?;
         let second_commit = tx
             .mut_repo()
             .rewrite_commit(ui.settings(), &commit)
