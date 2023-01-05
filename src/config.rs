@@ -17,7 +17,6 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fmt};
 
-use jujutsu_lib::settings::UserSettings;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -26,6 +25,61 @@ pub enum ConfigError {
     ConfigReadError(#[from] config::ConfigError),
     #[error("Both {0} and {1} exist. Please consolidate your configs in one of them.")]
     AmbiguousSource(PathBuf, PathBuf),
+}
+
+/// Set of configs which can be merged as needed.
+///
+/// Sources from the lowest precedence:
+/// 1. Default
+/// 2. Base environment variables
+/// 3. User config `~/.jjconfig.toml` or `$JJ_CONFIG`
+/// 4. TODO: Repo config `.jj/repo/config.toml`
+/// 5. TODO: Workspace config `.jj/config.toml`
+/// 6. Override environment variables
+/// 7. TODO: Command-line arguments `--config-toml`
+#[derive(Clone, Debug)]
+pub struct LayeredConfigs {
+    default: config::Config,
+    env_base: config::Config,
+    user: Option<config::Config>,
+    env_overrides: config::Config,
+}
+
+impl LayeredConfigs {
+    /// Initializes configs with infallible sources.
+    pub fn from_environment() -> Self {
+        LayeredConfigs {
+            default: default_config(),
+            env_base: env_base(),
+            user: None,
+            env_overrides: env_overrides(),
+        }
+    }
+
+    pub fn read_user_config(&mut self) -> Result<(), ConfigError> {
+        self.user = config_path()?
+            .map(|path| read_config_path(&path))
+            .transpose()?;
+        Ok(())
+    }
+
+    /// Creates new merged config.
+    pub fn merge(&self) -> config::Config {
+        let config_sources = [
+            Some(&self.default),
+            Some(&self.env_base),
+            self.user.as_ref(),
+            Some(&self.env_overrides),
+        ];
+        config_sources
+            .into_iter()
+            .flatten()
+            .fold(config::Config::builder(), |builder, source| {
+                builder.add_source(source.clone())
+            })
+            .build()
+            .expect("loaded configs should be merged without error")
+    }
 }
 
 fn config_path() -> Result<Option<PathBuf>, ConfigError> {
@@ -152,17 +206,6 @@ fn read_config_path(config_path: &Path) -> Result<config::Config, config::Config
             )
         })
         .build()
-}
-
-pub fn read_config() -> Result<UserSettings, ConfigError> {
-    let mut config_builder = config::Config::builder()
-        .add_source(default_config())
-        .add_source(env_base());
-    if let Some(path) = config_path()? {
-        config_builder = config_builder.add_source(read_config_path(&path)?);
-    }
-    let config = config_builder.add_source(env_overrides()).build().unwrap();
-    Ok(UserSettings::from_config(config))
 }
 
 /// Command name and arguments specified by config.
