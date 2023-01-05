@@ -52,6 +52,7 @@ use jujutsu_lib::{dag_walk, file_util, git, revset};
 use thiserror::Error;
 use tracing_subscriber::prelude::*;
 
+use crate::config::LayeredConfigs;
 use crate::formatter::Formatter;
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
 use crate::templater::TemplateFormatter;
@@ -1780,9 +1781,12 @@ impl CliRunner {
 
     pub fn run(self, ui: &mut Ui) -> Result<(), CommandError> {
         let cwd = env::current_dir().unwrap(); // TODO: maybe map_err to CommandError?
-        let mut settings = crate::config::read_config()?;
-        ui.reset(settings.config());
-        let string_args = expand_args(&self.app, std::env::args_os(), settings.config())?;
+        let mut layered_configs = LayeredConfigs::from_environment();
+        layered_configs.read_user_config()?;
+        let config = layered_configs.merge();
+        ui.reset(&config);
+        let string_args = expand_args(&self.app, std::env::args_os(), &config)?;
+        let mut settings = UserSettings::from_config(config);
         let (matches, args) = parse_args(
             ui,
             &self.app,
