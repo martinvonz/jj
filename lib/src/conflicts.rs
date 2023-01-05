@@ -150,18 +150,21 @@ pub fn extract_file_conflict_as_single_hunk(
     conflict: &Conflict,
 ) -> Option<ConflictHunk> {
     let file_adds = file_parts(&conflict.adds);
-    let file_removes = file_parts(&conflict.removes);
-    if file_adds.len() != conflict.adds.len() || file_removes.len() != conflict.removes.len() {
+    if file_adds.len() != conflict.adds.len() {
         return None;
     }
     let added_content = file_adds
         .iter()
         .map(|part| get_file_contents(store, path, part))
         .collect_vec();
-    let removed_content = file_removes
+    let file_removes = file_parts(&conflict.removes);
+    let mut removed_content = file_removes
         .iter()
         .map(|part| get_file_contents(store, path, part))
         .collect_vec();
+    // If some of the removes are not regular files, we pretend those were empty
+    // files.
+    removed_content.resize(conflict.removes.len(), vec![]);
 
     Some(ConflictHunk {
         removes: removed_content,
