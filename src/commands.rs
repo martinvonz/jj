@@ -44,18 +44,18 @@ use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::store::Store;
 use jujutsu_lib::tree::{merge_trees, Tree};
 use jujutsu_lib::view::View;
-use jujutsu_lib::workspace::Workspace;
+use jujutsu_lib::workspace::{Workspace, WorkspaceLoader};
 use jujutsu_lib::{conflicts, file_util, git, revset};
 use maplit::{hashmap, hashset};
 use pest::Parser;
 
 use crate::cli_util::{
     self, check_stale_working_copy, print_checkout_stats, print_failed_git_export,
-    resolve_base_revs, short_change_hash, short_commit_description, short_commit_hash, user_error,
-    user_error_with_hint, write_commit_summary, write_config_entry, Args, CommandError,
-    CommandHelper, DescriptionArg, RevisionArg, WorkspaceCommandHelper,
+    resolve_base_revs, run_ui_editor, short_change_hash, short_commit_description,
+    short_commit_hash, user_error, user_error_with_hint, write_commit_summary, write_config_entry,
+    Args, CommandError, CommandHelper, DescriptionArg, RevisionArg, WorkspaceCommandHelper,
 };
-use crate::config::FullCommandArgs;
+use crate::config::config_path;
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{AsciiGraphDrawer, Edge};
@@ -145,18 +145,31 @@ struct InitArgs {
     git_repo: Option<String>,
 }
 
-/// Get config options
+#[derive(clap::Args, Clone, Debug)]
+#[command(group = clap::ArgGroup::new("config_level").multiple(false).required(true))]
+struct ConfigArgs {
+    /// Target the user-level config
+    #[arg(long, group = "config_level")]
+    user: bool,
+
+    /// Target the repo-level config
+    #[arg(long, group = "config_level")]
+    repo: bool,
+}
+
+/// Manage config options
 ///
 /// Operates on jj configuration, which comes from the config file and
 /// environment variables. Uses the config file at ~/.jjconfig.toml or
 /// $XDG_CONFIG_HOME/jj/config.toml, unless overridden with the JJ_CONFIG
-/// environment variable.
+/// environment variable, combined with repo config at ~/.jj/repo/config.toml
+/// if present.
 ///
 /// For supported config options and more details about jj config, see
 /// https://github.com/martinvonz/jj/blob/main/docs/config.md.
 ///
-/// Note: Currently only supports getting config options, but support for
-/// setting options and editing config files is also planned (see
+/// Note: Currently only supports getting config options and editing config
+/// files, but support for setting options is also planned (see
 /// https://github.com/martinvonz/jj/issues/531).
 #[derive(clap::Subcommand, Clone, Debug)]
 enum ConfigSubcommand {
@@ -166,7 +179,13 @@ enum ConfigSubcommand {
         /// An optional name of a specific config option to look up.
         #[arg(value_parser=NonEmptyStringValueParser::new())]
         name: Option<String>,
-        // TODO: Support --show-origin once mehcode/config-rs#319 is done.
+        // TODO(#531): Support --show-origin using LayeredConfigs.
+        // TODO(#531): Support ConfigArgs (--user or --repo) and --all.
+    },
+    #[command(visible_alias("e"))]
+    Edit {
+        #[clap(flatten)]
+        config_args: ConfigArgs,
     },
 }
 
@@ -1215,22 +1234,41 @@ fn cmd_config(
     subcommand: &ConfigSubcommand,
 ) -> Result<(), CommandError> {
     ui.request_pager();
+    let settings = command.settings();
     match subcommand {
         ConfigSubcommand::List { name } => {
             let raw_values = match name {
-                Some(name) => command
-                    .settings()
-                    .config()
-                    .get::<config::Value>(name)
-                    .map_err(|e| match e {
-                        config::ConfigError::NotFound { .. } => {
-                            user_error("key not found in config")
-                        }
-                        _ => e.into(),
-                    })?,
-                None => command.settings().config().collect()?.into(),
+                Some(name) => {
+                    settings
+                        .config()
+                        .get::<config::Value>(name)
+                        .map_err(|e| match e {
+                            config::ConfigError::NotFound { .. } => {
+                                user_error("key not found in config")
+                            }
+                            _ => e.into(),
+                        })?
+                }
+                None => settings.config().collect()?.into(),
             };
             write_config_entry(ui, name.as_deref().unwrap_or(""), raw_values)?;
+        }
+        ConfigSubcommand::Edit { config_args } => {
+            let edit_path = if config_args.user {
+                // TODO(#531): Special-case for editors that can't handle viewing directories?
+                config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
+            } else if config_args.repo {
+                let workspace_command = command.workspace_helper(ui)?;
+                let workspace_path = workspace_command.workspace_root();
+                WorkspaceLoader::init(workspace_path)
+                    .unwrap()
+                    .repo_path()
+                    .join("config.toml")
+            } else {
+                // Shouldn't be reachable unless clap ArgGroup is broken.
+                panic!("No config_level provided");
+            };
+            run_ui_editor(settings, &edit_path)?;
         }
     }
 
@@ -1898,20 +1936,7 @@ fn edit_description(
         ))
     })?;
 
-    let editor: FullCommandArgs = settings
-        .config()
-        .get("ui.editor")
-        .unwrap_or_else(|_| "pico".into());
-    let exit_status = editor
-        .to_command()
-        .arg(&description_file_path)
-        .status()
-        .map_err(|_| user_error(format!("Failed to run editor '{editor}'")))?;
-    if !exit_status.success() {
-        return Err(user_error(format!(
-            "Editor '{editor}' exited with an error"
-        )));
-    }
+    run_ui_editor(settings, &description_file_path)?;
 
     let description = fs::read_to_string(&description_file_path).map_err(|e| {
         user_error(format!(

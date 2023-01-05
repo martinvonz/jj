@@ -251,6 +251,53 @@ fn test_config_layer_workspace() {
     "###);
 }
 
+#[test]
+fn test_config_edit_missing_opt() {
+    let test_env = TestEnvironment::default();
+    let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "edit"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The following required arguments were not provided:
+      <--user|--repo>
+
+    Usage: jj config edit <--user|--repo>
+
+    For more information try '--help'
+    "###);
+}
+
+#[test]
+fn test_config_edit_user() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let edit_script = test_env.set_up_fake_editor();
+
+    std::fs::write(
+        edit_script,
+        format!("expectpath\n{}", test_env.config_dir().to_str().unwrap()),
+    )
+    .unwrap();
+    test_env.jj_cmd_success(&repo_path, &["config", "edit", "--user"]);
+}
+
+#[test]
+fn test_config_edit_repo() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let edit_script = test_env.set_up_fake_editor();
+
+    std::fs::write(
+        edit_script,
+        format!(
+            "expectpath\n{}",
+            repo_path.join(".jj/repo/config.toml").to_str().unwrap()
+        ),
+    )
+    .unwrap();
+    test_env.jj_cmd_success(&repo_path, &["config", "edit", "--repo"]);
+}
+
 fn find_stdout_lines(keyname_pattern: &str, stdout: &str) -> String {
     let key_line_re = Regex::new(&format!(r"(?m)^{keyname_pattern}=.*$")).unwrap();
     key_line_re

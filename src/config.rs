@@ -104,7 +104,7 @@ impl LayeredConfigs {
     }
 }
 
-fn config_path() -> Result<Option<PathBuf>, ConfigError> {
+pub fn config_path() -> Result<Option<PathBuf>, ConfigError> {
     if let Ok(config_path) = env::var("JJ_CONFIG") {
         // TODO: We should probably support colon-separated (std::env::split_paths)
         // paths here
