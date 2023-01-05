@@ -2399,6 +2399,7 @@ fn cmd_resolve(
     if args.list {
         return print_conflicted_paths(
             &conflicts,
+            &tree,
             ui.stdout_formatter().as_mut(),
             &workspace_command,
         );
@@ -2425,6 +2426,7 @@ fn cmd_resolve(
             ui.write("After this operation, some files at this revision still have conflicts:\n")?;
             print_conflicted_paths(
                 &new_conflicts,
+                &tree,
                 ui.stdout_formatter().as_mut(),
                 &workspace_command,
             )?;
@@ -2435,20 +2437,51 @@ fn cmd_resolve(
 
 fn print_conflicted_paths(
     conflicts: &[(RepoPath, jujutsu_lib::backend::ConflictId)],
+    tree: &Tree,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {
-    for (repo_path, _conflict_id) in conflicts.iter() {
-        // TODO: Similar to `jj diff --summary`, insert a few letters
-        // before the filename to indicate the kind of conflict.
-        // E.g. we could have a letter per add : `FF` is a usual conflict
-        // between two versions of a file, `FD` is a file vs directory,
-        // `FFF` for a merge of three conflicting versions. Additionally,
-        // if (# removes) + 1 > (# adds), this indicates the file was deleted
-        // in some versions of the conflict. Perhaps that should be `R` for removed.
+    for (repo_path, conflict_id) in conflicts.iter() {
+        let conflict = tree.store().read_conflict(repo_path, conflict_id)?;
+        let n_adds = conflict.adds.len();
+        let sides = n_adds.max(conflict.removes.len() + 1);
+        let deletions = sides - n_adds;
+
+        let mut seen_objects = BTreeSet::new(); // Sort for consistency and easier testing
+        if deletions > 0 {
+            seen_objects.insert(format!(
+                "{deletions} deletion{}",
+                if deletions > 1 { "s" } else { "" }
+            ));
+        }
+        for object in conflict.adds.iter() {
+            seen_objects.insert(
+                match object.value {
+                    TreeValue::File {
+                        executable: false, ..
+                    } => continue,
+                    TreeValue::File {
+                        executable: true, ..
+                    } => "an executable",
+                    TreeValue::Symlink(_) => "a symlink",
+                    TreeValue::Tree(_) => "a directory",
+                    TreeValue::GitSubmodule(_) => "a git submodule",
+                    TreeValue::Conflict(_) => "another conflict (you found a bug!)",
+                }
+                .to_string(),
+            );
+        }
+        let seen_objects = seen_objects.into_iter().collect_vec();
+        let msg_tail = match &seen_objects[..] {
+            [] => "".to_string(),
+            [only] => format!(" including {only}"),
+            [first @ .., last] => format!(" including {} and {}", first.join(", "), last),
+        };
+        let msg = format!("{sides}-sided conflict{msg_tail}");
+
         writeln!(
             formatter,
-            "{}",
+            "{}: {msg}",
             &workspace_command.format_file_path(repo_path)
         )?;
     }
