@@ -1547,14 +1547,11 @@ impl ValueParserFactory for RevisionArg {
 }
 
 fn resolve_aliases(
-    user_settings: &UserSettings,
+    config: &config::Config,
     app: &clap::Command,
     string_args: &[String],
 ) -> Result<Vec<String>, CommandError> {
-    let mut aliases_map = user_settings
-        .config()
-        .get_table("alias")
-        .unwrap_or_default();
+    let mut aliases_map = config.get_table("alias").unwrap_or_default();
     let mut resolved_aliases = HashSet::new();
     let mut string_args = string_args.to_vec();
     let mut real_commands = HashSet::new();
@@ -1631,7 +1628,7 @@ fn handle_early_args(
 pub fn expand_args(
     app: &clap::Command,
     args_os: ArgsOs,
-    settings: &UserSettings,
+    config: &config::Config,
 ) -> Result<Vec<String>, CommandError> {
     let mut string_args: Vec<String> = vec![];
     for arg_os in args_os {
@@ -1642,7 +1639,7 @@ pub fn expand_args(
         }
     }
 
-    resolve_aliases(settings, app, &string_args)
+    resolve_aliases(config, app, &string_args)
 }
 
 pub fn parse_args(
@@ -1785,7 +1782,7 @@ impl CliRunner {
         let cwd = env::current_dir().unwrap(); // TODO: maybe map_err to CommandError?
         let mut settings = crate::config::read_config()?;
         ui.reset(settings.config());
-        let string_args = expand_args(&self.app, std::env::args_os(), &settings)?;
+        let string_args = expand_args(&self.app, std::env::args_os(), settings.config())?;
         let (matches, args) = parse_args(
             ui,
             &self.app,
