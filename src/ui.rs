@@ -163,8 +163,11 @@ impl Ui {
                         self.output = new_output;
                     }
                     Err(e) => {
-                        self.write_warn(&format!("Failed to spawn pager: {e}\n"))
-                            .ok();
+                        self.write_warn(&format!(
+                            "Failed to spawn pager '{cmd}': {e}\n",
+                            cmd = self.pager_cmd,
+                        ))
+                        .ok();
                     }
                 }
             }
