@@ -118,6 +118,86 @@ fn test_config_list_all() {
     "###);
 }
 
+#[test]
+fn test_config_layer_override_default() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let config_key = "merge-tools.vimdiff.program";
+
+    // Default
+    let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
+    insta::assert_snapshot!(stdout, @r###"
+    merge-tools.vimdiff.program="vim"
+    "###);
+
+    // User
+    test_env.add_config(format!("{config_key} = {value:?}\n", value = "user").as_bytes());
+    let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
+    insta::assert_snapshot!(stdout, @r###"
+    merge-tools.vimdiff.program="user"
+    "###);
+
+    // Command argument
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "config",
+            "list",
+            config_key,
+            "--config-toml",
+            &format!("{config_key}={value:?}", value = "command-arg"),
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    merge-tools.vimdiff.program="command-arg"
+    "###);
+}
+
+#[test]
+fn test_config_layer_override_env() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let config_key = "ui.editor";
+
+    // Environment base
+    test_env.add_env_var("EDITOR", "env-base");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
+    insta::assert_snapshot!(stdout, @r###"
+    ui.editor="env-base"
+    "###);
+
+    // User
+    test_env.add_config(format!("{config_key} = {value:?}\n", value = "user").as_bytes());
+    let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
+    insta::assert_snapshot!(stdout, @r###"
+    ui.editor="user"
+    "###);
+
+    // Environment override
+    test_env.add_env_var("JJ_EDITOR", "env-override");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
+    insta::assert_snapshot!(stdout, @r###"
+    ui.editor="env-override"
+    "###);
+
+    // Command argument
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "config",
+            "list",
+            config_key,
+            "--config-toml",
+            &format!("{config_key}={value:?}", value = "command-arg"),
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    ui.editor="command-arg"
+    "###);
+}
+
 fn find_stdout_lines(keyname_pattern: &str, stdout: &str) -> String {
     let key_line_re = Regex::new(&format!(r"(?m)^{keyname_pattern}=.*$")).unwrap();
     key_line_re
