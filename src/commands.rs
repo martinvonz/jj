@@ -2397,7 +2397,7 @@ fn cmd_resolve(
         )));
     }
     if args.list {
-        return print_conflicted_files(
+        return print_conflicted_paths(
             &conflicts,
             ui.stdout_formatter().as_mut(),
             &workspace_command,
@@ -2423,7 +2423,7 @@ fn cmd_resolve(
         let new_conflicts = new_tree.conflicts_matching(&EverythingMatcher);
         if !new_conflicts.is_empty() {
             ui.write("After this operation, some files at this revision still have conflicts:\n")?;
-            print_conflicted_files(
+            print_conflicted_paths(
                 &new_conflicts,
                 ui.stdout_formatter().as_mut(),
                 &workspace_command,
@@ -2433,7 +2433,7 @@ fn cmd_resolve(
     Ok(())
 }
 
-fn print_conflicted_files(
+fn print_conflicted_paths(
     conflicts: &[(RepoPath, jujutsu_lib::backend::ConflictId)],
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
