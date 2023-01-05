@@ -153,10 +153,10 @@ On most distributions, you'll need to build from source using `cargo` directly.
 
 #### Build using `cargo`
 
-First make sure that you have the `libssl-dev` and `openssl` packages installed
-by running something like this:
+First make sure that you have the `libssl-dev`, `openssl`, and `pkg-config`
+packages installed by running something like this:
 ```shell script
-sudo apt-get install libssl-dev openssl
+sudo apt-get install libssl-dev openssl pkg-config
 ```
 
 Now run:
