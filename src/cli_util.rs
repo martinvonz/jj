@@ -1779,9 +1779,8 @@ impl CliRunner {
         }
     }
 
-    pub fn run(self, ui: &mut Ui) -> Result<(), CommandError> {
+    pub fn run(self, ui: &mut Ui, mut layered_configs: LayeredConfigs) -> Result<(), CommandError> {
         let cwd = env::current_dir().unwrap(); // TODO: maybe map_err to CommandError?
-        let mut layered_configs = LayeredConfigs::from_environment();
         layered_configs.read_user_config()?;
         let config = layered_configs.merge();
         ui.reset(&config);
@@ -1807,8 +1806,9 @@ impl CliRunner {
     }
 
     pub fn run_and_exit(self) -> ! {
-        let mut ui = Ui::new();
-        let result = self.run(&mut ui);
+        let layered_configs = LayeredConfigs::from_environment();
+        let mut ui = Ui::with_config(&layered_configs.merge());
+        let result = self.run(&mut ui, layered_configs);
         let exit_code = handle_command_result(&mut ui, result);
         ui.finalize_writes();
         std::process::exit(exit_code);
