@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::borrow::Cow;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fmt};
 
@@ -124,38 +124,44 @@ fn env_overrides() -> config::Config {
     builder.build().unwrap()
 }
 
+fn read_config_path(config_path: &Path) -> Result<config::Config, config::ConfigError> {
+    let mut files = vec![];
+    if config_path.is_dir() {
+        if let Ok(read_dir) = config_path.read_dir() {
+            // TODO: Walk the directory recursively?
+            for dir_entry in read_dir.flatten() {
+                let path = dir_entry.path();
+                if path.is_file() {
+                    files.push(path);
+                }
+            }
+        }
+        files.sort();
+    } else {
+        files.push(config_path.to_owned());
+    }
+
+    files
+        .iter()
+        .fold(config::Config::builder(), |builder, path| {
+            // TODO: Accept other formats and/or accept only certain file extensions?
+            builder.add_source(
+                config::File::from(path.as_ref())
+                    .required(false)
+                    .format(config::FileFormat::Toml),
+            )
+        })
+        .build()
+}
+
 pub fn read_config() -> Result<UserSettings, ConfigError> {
     let mut config_builder = config::Config::builder()
         .add_source(default_config())
         .add_source(env_base());
-
-    if let Some(config_path) = config_path()? {
-        let mut files = vec![];
-        if config_path.is_dir() {
-            if let Ok(read_dir) = config_path.read_dir() {
-                // TODO: Walk the directory recursively?
-                for dir_entry in read_dir.flatten() {
-                    let path = dir_entry.path();
-                    if path.is_file() {
-                        files.push(path);
-                    }
-                }
-            }
-            files.sort();
-        } else {
-            files.push(config_path);
-        }
-        for file in files {
-            // TODO: Accept other formats and/or accept only certain file extensions?
-            config_builder = config_builder.add_source(
-                config::File::from(file)
-                    .required(false)
-                    .format(config::FileFormat::Toml),
-            );
-        }
-    };
-
-    let config = config_builder.add_source(env_overrides()).build()?;
+    if let Some(path) = config_path()? {
+        config_builder = config_builder.add_source(read_config_path(&path)?);
+    }
+    let config = config_builder.add_source(env_overrides()).build().unwrap();
     Ok(UserSettings::from_config(config))
 }
 
