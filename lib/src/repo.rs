@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::io::ErrorKind;
+use std::ops::Bound::{Excluded, Unbounded};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, io};
@@ -37,7 +38,6 @@ use crate::op_store::{
     BranchTarget, OpStore, OperationId, OperationMetadata, RefTarget, WorkspaceId,
 };
 use crate::operation::Operation;
-use crate::revset::RevsetExpression;
 use crate::rewrite::DescendantRebaser;
 use crate::settings::{RepoSettings, UserSettings};
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
@@ -101,6 +101,8 @@ pub struct ReadonlyRepo {
     settings: RepoSettings,
     index_store: Arc<IndexStore>,
     index: OnceCell<Arc<ReadonlyIndex>>,
+    // TODO: This should eventually become part of the index and not be stored fully in memory.
+    commit_change_id_index: OnceCell<IdIndex>,
     view: View,
 }
 
@@ -190,6 +192,7 @@ impl ReadonlyRepo {
             settings: repo_settings,
             index_store,
             index: OnceCell::new(),
+            commit_change_id_index: OnceCell::new(),
             view,
         }))
     }
@@ -242,38 +245,30 @@ impl ReadonlyRepo {
         })
     }
 
-    // An interface for testing this functionality directly is constructed in
-    // a follow-up commit.
-    pub fn shortest_unique_prefix_length(&self, target_id_hex: &str) -> usize {
-        let all_visible_revisions = RevsetExpression::all()
-            .evaluate(self.as_repo_ref(), None)
-            .unwrap();
-        let change_hex_iter = all_visible_revisions
-            .iter()
-            .map(|index_entry| index_entry.change_id().hex());
-        // We need to account for rewritten commits as well
-        let index = self.as_repo_ref().index();
-        let commit_hex_iter = index
-            .iter()
-            .map(|index_entry| index_entry.commit_id().hex());
+    fn commit_change_id_index(&self) -> &IdIndex {
+        self.commit_change_id_index.get_or_init(|| {
+            let all_visible_revisions = crate::revset::RevsetExpression::all()
+                .evaluate(self.as_repo_ref(), None)
+                .unwrap();
+            let change_hex_iter = all_visible_revisions
+                .iter()
+                .map(|index_entry| index_entry.change_id().hex());
+            // We need to account for rewritten commits as well
+            let index = self.as_repo_ref().index();
+            let commit_hex_iter = index
+                .iter()
+                .map(|index_entry| index_entry.commit_id().hex());
+            let mut id_index = IdIndex::new();
+            for id_hex in itertools::chain(change_hex_iter, commit_hex_iter) {
+                id_index.insert(id_hex.as_bytes(), ());
+            }
+            id_index
+        })
+    }
 
-        let target_id_hex = target_id_hex.as_bytes();
-        itertools::chain(change_hex_iter, commit_hex_iter)
-            .filter_map(|id_hex| {
-                let id_hex = id_hex.as_bytes();
-                let common_len = target_id_hex
-                    .iter()
-                    .zip(id_hex.iter())
-                    .take_while(|(a, b)| a == b)
-                    .count();
-                if common_len == target_id_hex.len() && common_len == id_hex.len() {
-                    None // Target id matched itself
-                } else {
-                    Some(common_len + 1)
-                }
-            })
-            .max()
-            .unwrap_or(0)
+    pub fn shortest_unique_prefix_length(&self, target_id_hex: &str) -> usize {
+        self.commit_change_id_index()
+            .shortest_unique_prefix_len(target_id_hex.as_bytes())
     }
 
     pub fn store(&self) -> &Arc<Store> {
@@ -569,6 +564,7 @@ impl RepoLoader {
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
             index: OnceCell::with_value(index),
+            commit_change_id_index: OnceCell::new(),
             view,
         };
         Arc::new(repo)
@@ -584,6 +580,7 @@ impl RepoLoader {
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
             index: OnceCell::new(),
+            commit_change_id_index: OnceCell::new(),
             view,
         };
         Arc::new(repo)
@@ -1195,4 +1192,71 @@ mod dirty_cell {
             *self.dirty.get_mut() = true;
         }
     }
+}
+
+// This value would be used to find divergent changes, for example, or if it is
+// necessary to mark whether an id is a Change or a Commit id.
+type IdIndexValue = ();
+#[derive(Debug, Clone, Default)]
+pub struct IdIndex(BTreeMap<Vec<u8>, IdIndexValue>);
+
+impl IdIndex {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn insert(&mut self, key: &[u8], value: IdIndexValue) -> Option<IdIndexValue> {
+        self.0.insert(key.to_vec(), value)
+    }
+
+    /// This function returns the shortest length of a prefix of `key` that
+    /// disambiguates it from every other key in the index.
+    ///
+    /// This has some properties that we do not currently make much use of:
+    ///
+    /// - The algorithm works even if `key` itself is not in the index.
+    ///
+    /// - In the special case when there are keys in the trie for which our
+    ///   `key` is an exact prefix, returns `key.len() + 1`. Conceptually, in
+    ///   order to disambiguate, you need every letter of the key *and* the
+    ///   additional fact that it's the entire key). This case is extremely
+    ///   unlikely for hashes with 12+ hexadecimal characters.
+    pub fn shortest_unique_prefix_len(&self, key: &[u8]) -> usize {
+        let left = self
+            .0
+            .range::<[u8], _>((Unbounded, Excluded(key)))
+            .next_back();
+        let right = self.0.range::<[u8], _>((Excluded(key), Unbounded)).next();
+        itertools::chain(left, right)
+            .map(|(neighbor, _value)| {
+                let common_len = key.iter().zip(neighbor).take_while(|(a, b)| a == b).count();
+                common_len + 1
+            })
+            .max()
+            .unwrap_or(0)
+    }
+}
+
+#[test]
+fn test_id_index() {
+    let mut id_index = IdIndex::new();
+    id_index.insert(b"ab", ());
+    id_index.insert(b"acd", ());
+    assert_eq!(id_index.shortest_unique_prefix_len(b"acd"), 2);
+    assert_eq!(id_index.shortest_unique_prefix_len(b"ac"), 3);
+
+    let mut id_index = IdIndex::new();
+    id_index.insert(b"ab", ());
+    id_index.insert(b"acd", ());
+    id_index.insert(b"acf", ());
+    id_index.insert(b"a", ());
+    id_index.insert(b"ba", ());
+
+    assert_eq!(id_index.shortest_unique_prefix_len(b"a"), 2); // Unlikely for hashes case: the entire length of the key is an insufficient
+                                                              // prefix
+    assert_eq!(id_index.shortest_unique_prefix_len(b"ba"), 1);
+    assert_eq!(id_index.shortest_unique_prefix_len(b"ab"), 2);
+    assert_eq!(id_index.shortest_unique_prefix_len(b"acd"), 3);
+    // If it were there, the length would be 1.
+    assert_eq!(id_index.shortest_unique_prefix_len(b"c"), 1);
 }
