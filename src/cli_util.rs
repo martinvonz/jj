@@ -1607,7 +1607,7 @@ fn handle_early_args(
     ui: &mut Ui,
     app: &clap::Command,
     args: &[String],
-    settings: &mut UserSettings,
+    layered_configs: &mut LayeredConfigs,
 ) -> Result<(), CommandError> {
     // ignore_errors() bypasses errors like "--help" or missing subcommand
     let early_matches = app.clone().ignore_errors(true).get_matches_from(args);
@@ -1620,8 +1620,8 @@ fn handle_early_args(
         ui.set_pagination(crate::ui::PaginationChoice::No);
     }
     if !args.config_toml.is_empty() {
-        settings.incorporate_toml_strings(&args.config_toml)?;
-        ui.reset(settings.config());
+        layered_configs.parse_config_args(&args.config_toml)?;
+        ui.reset(&layered_configs.merge());
     }
     Ok(())
 }
@@ -1648,11 +1648,11 @@ pub fn parse_args(
     app: &clap::Command,
     tracing_subscription: &TracingSubscription,
     string_args: &[String],
-    settings: &mut UserSettings,
+    layered_configs: &mut LayeredConfigs,
 ) -> Result<(ArgMatches, Args), CommandError> {
     // TODO: read user configs from the repo pointed to by -R.
 
-    handle_early_args(ui, app, string_args, settings)?;
+    handle_early_args(ui, app, string_args, layered_configs)?;
     let matches = app.clone().try_get_matches_from(string_args)?;
 
     let args: Args = Args::from_arg_matches(&matches).unwrap();
@@ -1785,15 +1785,16 @@ impl CliRunner {
         let config = layered_configs.merge();
         ui.reset(&config);
         let string_args = expand_args(&self.app, std::env::args_os(), &config)?;
-        let mut settings = UserSettings::from_config(config);
         let (matches, args) = parse_args(
             ui,
             &self.app,
             &self.tracing_subscription,
             &string_args,
-            &mut settings,
+            &mut layered_configs,
         )?;
-        // TODO: maybe instantiate UserSettings here
+
+        let config = layered_configs.merge();
+        let settings = UserSettings::from_config(config);
         let command_helper = CommandHelper::new(
             self.app,
             cwd,

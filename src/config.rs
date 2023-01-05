@@ -36,13 +36,14 @@ pub enum ConfigError {
 /// 4. TODO: Repo config `.jj/repo/config.toml`
 /// 5. TODO: Workspace config `.jj/config.toml`
 /// 6. Override environment variables
-/// 7. TODO: Command-line arguments `--config-toml`
+/// 7. Command-line arguments `--config-toml`
 #[derive(Clone, Debug)]
 pub struct LayeredConfigs {
     default: config::Config,
     env_base: config::Config,
     user: Option<config::Config>,
     env_overrides: config::Config,
+    arg_overrides: Option<config::Config>,
 }
 
 impl LayeredConfigs {
@@ -53,6 +54,7 @@ impl LayeredConfigs {
             env_base: env_base(),
             user: None,
             env_overrides: env_overrides(),
+            arg_overrides: None,
         }
     }
 
@@ -63,6 +65,17 @@ impl LayeredConfigs {
         Ok(())
     }
 
+    pub fn parse_config_args(&mut self, toml_strs: &[String]) -> Result<(), ConfigError> {
+        let config = toml_strs
+            .iter()
+            .fold(config::Config::builder(), |builder, s| {
+                builder.add_source(config::File::from_str(s, config::FileFormat::Toml))
+            })
+            .build()?;
+        self.arg_overrides = Some(config);
+        Ok(())
+    }
+
     /// Creates new merged config.
     pub fn merge(&self) -> config::Config {
         let config_sources = [
@@ -70,6 +83,7 @@ impl LayeredConfigs {
             Some(&self.env_base),
             self.user.as_ref(),
             Some(&self.env_overrides),
+            self.arg_overrides.as_ref(),
         ];
         config_sources
             .into_iter()
