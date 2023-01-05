@@ -27,8 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj git push` now accepts multiple `--branch`/`--change` arguments
 
-* `jj config list` command prints values from config (with other subcommands
-  coming soon).
+* `jj config list` command prints values from config and `config edit` opens
+  the config in an editor.
 
 * `jj debug config-schema` command prints out JSON schema for the jj TOML config
   file format.

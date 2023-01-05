@@ -58,8 +58,18 @@ fn main() {
                     exit(1)
                 }
             }
+            ["expectpath"] => {
+                let actual = args.file.to_str().unwrap();
+                if actual != payload {
+                    eprintln!("fake-editor: Unexpected path.\n");
+                    eprintln!("EXPECTED: <{payload}>\nRECEIVED: <{actual}>");
+                    exit(1)
+                }
+            }
             ["write"] => {
-                fs::write(&args.file, payload).unwrap();
+                fs::write(&args.file, payload).unwrap_or_else(|_| {
+                    panic!("Failed to write file {}", args.file.to_str().unwrap())
+                });
             }
             _ => {
                 eprintln!("fake-editor: unexpected command: {command}");

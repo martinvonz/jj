@@ -111,6 +111,10 @@ impl TestEnvironment {
         &self.home_dir
     }
 
+    pub fn config_dir(&self) -> &PathBuf {
+        &self.config_dir
+    }
+
     pub fn add_config(&self, content: &[u8]) {
         // Concatenating two valid TOML files does not (generally) result in a valid
         // TOML file, so we use create a new file every time instead.

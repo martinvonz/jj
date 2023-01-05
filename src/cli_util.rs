@@ -52,7 +52,7 @@ use jujutsu_lib::{dag_walk, file_util, git, revset};
 use thiserror::Error;
 use tracing_subscriber::prelude::*;
 
-use crate::config::LayeredConfigs;
+use crate::config::{FullCommandArgs, LayeredConfigs};
 use crate::formatter::Formatter;
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
 use crate::templater::TemplateFormatter;
@@ -1374,6 +1374,25 @@ fn serialize_config_value(value: config::Value) -> String {
         config::ValueKind::String(val) => format!("{val:?}"),
         _ => value.to_string(),
     }
+}
+
+pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(), CommandError> {
+    let editor: FullCommandArgs = settings
+        .config()
+        .get("ui.editor")
+        .unwrap_or_else(|_| "pico".into());
+    let exit_status = editor
+        .to_command()
+        .arg(edit_path)
+        .status()
+        .map_err(|_| user_error(format!("Failed to run editor '{editor}'")))?;
+    if !exit_status.success() {
+        return Err(user_error(format!(
+            "Editor '{editor}' exited with an error"
+        )));
+    }
+
+    Ok(())
 }
 
 pub fn short_commit_description(commit: &Commit) -> String {
