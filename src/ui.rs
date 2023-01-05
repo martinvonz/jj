@@ -106,22 +106,15 @@ fn pager_setting(config: &config::Config) -> FullCommandArgs {
         .unwrap_or_else(|_| "less -FRX".into())
 }
 
-impl Default for Ui {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Ui {
-    pub fn new() -> Ui {
-        let config = crate::config::default_config();
-        let color = use_color(color_setting(&config));
-        let progress_indicator = progress_indicator_setting(&config);
-        let formatter_factory = FormatterFactory::prepare(&config, color);
+    pub fn with_config(config: &config::Config) -> Ui {
+        let color = use_color(color_setting(config));
+        let progress_indicator = progress_indicator_setting(config);
+        let formatter_factory = FormatterFactory::prepare(config, color);
         Ui {
             color,
             formatter_factory,
-            pager_cmd: pager_setting(&config),
+            pager_cmd: pager_setting(config),
             paginate: PaginationChoice::Auto,
             progress_indicator,
             output: UiOutput::new_terminal(),
