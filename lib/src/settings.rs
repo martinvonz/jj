@@ -61,25 +61,6 @@ impl UserSettings {
         }
     }
 
-    pub fn incorporate_toml_strings(
-        &mut self,
-        toml_strs: &[String],
-    ) -> Result<(), config::ConfigError> {
-        let mut config_builder = config::Config::builder().add_source(self.config.clone());
-        for s in toml_strs {
-            config_builder =
-                config_builder.add_source(config::File::from_str(s, config::FileFormat::Toml));
-        }
-        let new_config = config_builder.build()?;
-        let new_rng_seed = get_rng_seed_config(&new_config);
-        if new_rng_seed != get_rng_seed_config(&self.config) {
-            self.rng.reset(new_rng_seed);
-        }
-        self.timestamp = get_timestamp_config(&new_config, "debug.commit-timestamp");
-        self.config = new_config;
-        Ok(())
-    }
-
     pub fn with_repo(&self, repo_path: &Path) -> Result<RepoSettings, config::ConfigError> {
         let config = config::Config::builder()
             .add_source(self.config.clone())
@@ -202,11 +183,6 @@ impl JJRng {
     /// RNGs references to point to the same RNG.
     fn new(seed: Option<u64>) -> Self {
         Self(Mutex::new(JJRng::internal_rng_from_seed(seed)))
-    }
-
-    fn reset(&self, seed: Option<u64>) {
-        let mut rng = self.0.lock().unwrap();
-        *rng = JJRng::internal_rng_from_seed(seed)
     }
 
     fn internal_rng_from_seed(seed: Option<u64>) -> ChaCha20Rng {
