@@ -64,7 +64,7 @@ fn test_resolution() {
         "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    file
+    file: 2-sided conflict
     "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
@@ -184,7 +184,7 @@ conflict
     Working copy now at: 0bb40c908c8b conflict
     Added 0 files, modified 1 files, removed 0 files
     After this operation, some files at this revision still have conflicts:
-    file
+    file: 2-sided conflict
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(), @r###"
@@ -210,7 +210,7 @@ conflict
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    file
+    file: 2-sided conflict
     "###);
 
     // Check that if merge tool leaves conflict markers in output file but
@@ -311,7 +311,7 @@ fn test_normal_conflict_input_files() {
         "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    file
+    file: 2-sided conflict
     "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
@@ -352,7 +352,7 @@ fn test_baseless_conflict_input_files() {
         "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    file
+    file: 2-sided conflict
     "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
@@ -383,7 +383,7 @@ fn test_too_many_parents() {
     create_commit(&test_env, &repo_path, "conflict", &["a", "b", "c"], &[]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    file
+    file: 3-sided conflict
     "###);
 
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
@@ -416,7 +416,7 @@ fn test_edit_delete_conflict_input_files() {
         "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    file
+    file: 2-sided conflict including 1 deletion
     "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
@@ -449,10 +449,19 @@ fn test_file_vs_dir() {
     // Without a placeholder file, `jj` ignores an empty directory
     std::fs::write(repo_path.join("file").join("placeholder"), "").unwrap();
     create_commit(&test_env, &repo_path, "conflict", &["a", "b"], &[]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+        @   conflict
+        |\  
+        o | b
+        | o a
+        |/  
+        o base
+        o 
+        "###);
 
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    file
+    file: 2-sided conflict including a directory
     "###);
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
@@ -460,6 +469,56 @@ fn test_file_vs_dir() {
     Conflict:
       Removing file with id df967b96a579e45a18b8251732d16804b2e56a55
       Adding file with id 78981922613b2afb6025042ff6bd878ac1994e85
+      Adding tree with id 133bb38fc4e4bf6b551f1f04db7e48f04cac2877
+
+    "###);
+}
+
+#[test]
+fn test_description_with_dir_and_deletion() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "base", &[], &[("file", "base\n")]);
+    create_commit(&test_env, &repo_path, "edit", &["base"], &[("file", "b\n")]);
+    create_commit(&test_env, &repo_path, "dir", &["base"], &[]);
+    std::fs::remove_file(repo_path.join("file")).unwrap();
+    std::fs::create_dir(repo_path.join("file")).unwrap();
+    // Without a placeholder file, `jj` ignores an empty directory
+    std::fs::write(repo_path.join("file").join("placeholder"), "").unwrap();
+    create_commit(&test_env, &repo_path, "del", &["base"], &[]);
+    std::fs::remove_file(repo_path.join("file")).unwrap();
+    create_commit(
+        &test_env,
+        &repo_path,
+        "conflict",
+        &["edit", "dir", "del"],
+        &[],
+    );
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @-.   conflict
+    |\ \  
+    o | | del
+    | o | dir
+    |/ /  
+    | o edit
+    |/  
+    o base
+    o 
+    "###);
+
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
+    @r###"
+    file: 3-sided conflict including 1 deletion and a directory
+    "###);
+    let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
+    insta::assert_snapshot!(error, @r###"
+    Error: Failed to use external tool to resolve: Only conflicts that involve normal files (not symlinks, not executable, etc.) are supported. Conflict summary for "file":
+    Conflict:
+      Removing file with id df967b96a579e45a18b8251732d16804b2e56a55
+      Removing file with id df967b96a579e45a18b8251732d16804b2e56a55
+      Adding file with id 61780798228d17af2d34fce4cfbdf35556832472
       Adding tree with id 133bb38fc4e4bf6b551f1f04db7e48f04cac2877
 
     "###);
@@ -527,8 +586,8 @@ fn test_multiple_conflicts() {
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    file1
-    file2
+    file1: 2-sided conflict
+    file2: 2-sided conflict
     "###);
 
     let editor_script = test_env.set_up_fake_editor();
@@ -540,7 +599,7 @@ fn test_multiple_conflicts() {
     Working copy now at: 06cafc2b5489 conflict
     Added 0 files, modified 1 files, removed 0 files
     After this operation, some files at this revision still have conflicts:
-    file1
+    file1: 2-sided conflict
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
@@ -555,7 +614,7 @@ fn test_multiple_conflicts() {
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    file1
+    file1: 2-sided conflict
     "###);
 
     // Repeat the above with the `--quiet` option.
@@ -591,7 +650,7 @@ fn test_multiple_conflicts() {
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    file2
+    file2: 2-sided conflict
     "###);
     std::fs::write(
         &editor_script,
