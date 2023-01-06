@@ -268,10 +268,24 @@ fn rules_from_config(config: &config::Config) -> HashMap<Vec<String>, Style> {
                 .split_whitespace()
                 .map(ToString::to_string)
                 .collect_vec();
-            let style = Style {
-                fg_color: color_for_name(&value.to_string()),
-            };
-            result.insert(labels, style);
+            match value.kind {
+                config::ValueKind::String(color_name) => {
+                    let style = Style {
+                        fg_color: color_for_name(&color_name),
+                    };
+                    result.insert(labels, style);
+                }
+                config::ValueKind::Table(style_table) => {
+                    let mut style = Style::default();
+                    if let Some(value) = style_table.get("fg") {
+                        if let config::ValueKind::String(color_name) = &value.kind {
+                            style.fg_color = color_for_name(color_name);
+                        }
+                    }
+                    result.insert(labels, style);
+                }
+                _ => {}
+            }
         }
     }
     result
@@ -417,6 +431,22 @@ mod tests {
         formatter.remove_label().unwrap();
         formatter.write_str(" after ").unwrap();
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @" before [38;5;2m inside [39m after ");
+    }
+
+    #[test]
+    fn test_color_formatter_attributes() {
+        // Test that each attribute of the style can be set.
+        let config = config_from_string(
+            r#"
+        colors.red_fg = { fg = "red" }
+        "#,
+        );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        formatter.add_label("red_fg").unwrap();
+        formatter.write_str(" fg only ").unwrap();
+        formatter.remove_label().unwrap();
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[38;5;1m fg only [39m");
     }
 
     #[test]
