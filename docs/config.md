@@ -46,6 +46,13 @@ This setting overrides the `NO_COLOR` environment variable (if set).
 
     ui.color = "never" # Turn off color
 
+### Shortest unique prefixes for ids
+
+    ui.unique-prefixes = "brackets"  # E.g. `1e74d[6a8f51]`
+
+Whether to highlight a unique prefix for commit & change ids. Possible
+values are `brackets` and `none` (default: `none`).
+
 ### Relative timestamps
 
     ui.relative-timestamps = true
