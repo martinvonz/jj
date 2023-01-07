@@ -2442,7 +2442,18 @@ fn print_conflicted_paths(
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {
-    for (repo_path, conflict_id) in conflicts.iter() {
+    let formatted_paths = conflicts
+        .iter()
+        .map(|(path, _id)| workspace_command.format_file_path(path))
+        .collect_vec();
+    let max_path_len = formatted_paths.iter().map(|p| p.len()).max().unwrap_or(0);
+    let formatted_paths = formatted_paths
+        .into_iter()
+        .map(|p| format!("{:width$}", p, width = max_path_len.min(32) + 3));
+
+    for ((repo_path, conflict_id), formatted_path) in
+        std::iter::zip(conflicts.iter(), formatted_paths)
+    {
         let conflict = tree.store().read_conflict(repo_path, conflict_id)?;
         let n_adds = conflict.adds.len();
         let sides = n_adds.max(conflict.removes.len() + 1);
@@ -2481,11 +2492,7 @@ fn print_conflicted_paths(
             );
         }
 
-        write!(
-            formatter,
-            "{}\t",
-            &workspace_command.format_file_path(repo_path)
-        )?;
+        write!(formatter, "{formatted_path} ",)?;
         formatter.with_label("conflict_description", |formatter| {
             let print_pair = |formatter: &mut dyn Formatter, (text, label): &(String, &str)| {
                 formatter.with_label(label, |fmt| fmt.write_str(text))
