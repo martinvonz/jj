@@ -123,18 +123,16 @@ pub fn format_absolute_timestamp(timestamp: &Timestamp) -> String {
     }
 }
 
-pub fn format_timestamp_relative_to_now(timestamp: &Timestamp) -> String {
-    datetime_from_timestamp(timestamp)
-        .and_then(|datetime| {
-            let now = chrono::Local::now();
-
-            now.signed_duration_since(datetime).to_std().ok()
-        })
-        .map(|duration| {
-            let f = timeago::Formatter::new();
-            f.convert(duration)
-        })
+pub fn format_duration(from: &Timestamp, to: &Timestamp, format: &timeago::Formatter) -> String {
+    datetime_from_timestamp(from)
+        .zip(datetime_from_timestamp(to))
+        .and_then(|(from, to)| to.signed_duration_since(from).to_std().ok())
+        .map(|duration| format.convert(duration))
         .unwrap_or_else(|| "<out-of-range date>".to_string())
+}
+
+pub fn format_timestamp_relative_to_now(timestamp: &Timestamp) -> String {
+    format_duration(timestamp, &Timestamp::now(), &timeago::Formatter::new())
 }
 
 struct RelativeTimestampString;

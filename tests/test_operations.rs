@@ -44,12 +44,12 @@ fn test_op_log() {
     );
     let regex = Regex::new(r"\d\d years").unwrap();
     insta::assert_snapshot!(regex.replace_all(&stdout, "NN years"), @r###"
-    @ 45108169c0f8 test-username@host.example.com NN years ago - NN years ago
+    @ 45108169c0f8 test-username@host.example.com NN years ago, lasted less than a microsecond
     | describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     | args: jj describe -m 'description 0'
-    o a99a3fd5c51e test-username@host.example.com NN years ago - NN years ago
+    o a99a3fd5c51e test-username@host.example.com NN years ago, lasted less than a microsecond
     | add workspace 'default'
-    o 56b94dfc38e7 test-username@host.example.com NN years ago - NN years ago
+    o 56b94dfc38e7 test-username@host.example.com NN years ago, lasted less than a microsecond
       initialize repo
     "###);
     let add_workspace_id = "a99a3fd5c51e";
