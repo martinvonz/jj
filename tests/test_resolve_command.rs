@@ -535,21 +535,39 @@ fn test_multiple_conflicts() {
         &repo_path,
         "base",
         &[],
-        &[("file1", "first base\n"), ("file2", "second base\n")],
+        &[
+            (
+                "this_file_has_a_very_long_name_to_test_padding",
+                "first base\n",
+            ),
+            ("another_file", "second base\n"),
+        ],
     );
     create_commit(
         &test_env,
         &repo_path,
         "a",
         &["base"],
-        &[("file1", "first a\n"), ("file2", "second a\n")],
+        &[
+            (
+                "this_file_has_a_very_long_name_to_test_padding",
+                "first a\n",
+            ),
+            ("another_file", "second a\n"),
+        ],
     );
     create_commit(
         &test_env,
         &repo_path,
         "b",
         &["base"],
-        &[("file1", "first b\n"), ("file2", "second b\n")],
+        &[
+            (
+                "this_file_has_a_very_long_name_to_test_padding",
+                "first b\n",
+            ),
+            ("another_file", "second b\n"),
+        ],
     );
     create_commit(&test_env, &repo_path, "conflict", &["a", "b"], &[]);
     // Test the setup
@@ -563,7 +581,7 @@ fn test_multiple_conflicts() {
         o 
         "###);
     insta::assert_snapshot!(
-    std::fs::read_to_string(repo_path.join("file1")).unwrap()
+    std::fs::read_to_string(repo_path.join("this_file_has_a_very_long_name_to_test_padding")).unwrap()
         , @r###"
     <<<<<<<
     %%%%%%%
@@ -574,7 +592,7 @@ fn test_multiple_conflicts() {
     >>>>>>>
     "###);
     insta::assert_snapshot!(
-    std::fs::read_to_string(repo_path.join("file2")).unwrap()
+    std::fs::read_to_string(repo_path.join("another_file")).unwrap()
         , @r###"
     <<<<<<<
     %%%%%%%
@@ -586,47 +604,49 @@ fn test_multiple_conflicts() {
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
-    file1	2-sided conflict
-    file2	2-sided conflict
+    another_file	2-sided conflict
+    this_file_has_a_very_long_name_to_test_padding	2-sided conflict
     "###);
     // Test colors
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list", "--color=always"]), 
     @r###"
-    file1	[33m2-sided conflict[0m
-    file2	[33m2-sided conflict[0m
+    another_file	[33m2-sided conflict[0m
+    this_file_has_a_very_long_name_to_test_padding	[33m2-sided conflict[0m
     "###);
 
     let editor_script = test_env.set_up_fake_editor();
 
     // Check that we can manually pick which of the conflicts to resolve first
-    std::fs::write(&editor_script, "expect\n\0write\nresolution file2\n").unwrap();
+    std::fs::write(&editor_script, "expect\n\0write\nresolution another_file\n").unwrap();
     insta::assert_snapshot!(
-    test_env.jj_cmd_success(&repo_path, &["resolve", "file2"]), @r###"
-    Working copy now at: 5b4465fc6c31 conflict
+    test_env.jj_cmd_success(&repo_path, &["resolve", "another_file"]), @r###"
+    Working copy now at: 07feb084c0d2 conflict
     Added 0 files, modified 1 files, removed 0 files
     After this operation, some files at this revision still have conflicts:
-    file1	2-sided conflict
+    this_file_has_a_very_long_name_to_test_padding	2-sided conflict
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
-    Resolved conflict in file2:
+    Resolved conflict in another_file:
        1     : <<<<<<<
        2     : %%%%%%%
-       3    1: -secondresolution basefile2
+       3    1: -secondresolution baseanother_file
        4     : +second a
        5     : +++++++
        6     : second b
        7     : >>>>>>>
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
-    @"file1	2-sided conflict");
+    @r###"
+    this_file_has_a_very_long_name_to_test_padding	2-sided conflict
+    "###);
 
     // Repeat the above with the `--quiet` option.
     test_env.jj_cmd_success(&repo_path, &["undo"]);
-    std::fs::write(&editor_script, "expect\n\0write\nresolution file2\n").unwrap();
+    std::fs::write(&editor_script, "expect\n\0write\nresolution another_file\n").unwrap();
     insta::assert_snapshot!(
-    test_env.jj_cmd_success(&repo_path, &["resolve", "--quiet", "file2"]), @r###"
-    Working copy now at: afb1b8512e98 conflict
+    test_env.jj_cmd_success(&repo_path, &["resolve", "--quiet", "another_file"]), @r###"
+    Working copy now at: ff142405c921 conflict
     Added 0 files, modified 1 files, removed 0 files
     "###);
 
@@ -643,17 +663,19 @@ fn test_multiple_conflicts() {
     test_env.jj_cmd_success(&repo_path, &["resolve"]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
-    Resolved conflict in file1:
+    Resolved conflict in another_file:
        1     : <<<<<<<
        2     : %%%%%%%
-       3    1: -first base
-       4    1: +firstresolution a
+       3    1: first resolution for auto-secondchosen basefile
+       4     : +second a
        5     : +++++++
-       6    1: firstfor bauto-chosen file
+       6     : second b
        7     : >>>>>>>
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
-    @"file2	2-sided conflict");
+    @r###"
+    this_file_has_a_very_long_name_to_test_padding	2-sided conflict
+    "###);
     std::fs::write(
         &editor_script,
         "expect\n\0write\nsecond resolution for auto-chosen file\n",
@@ -663,21 +685,21 @@ fn test_multiple_conflicts() {
     test_env.jj_cmd_success(&repo_path, &["resolve"]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
-    Resolved conflict in file1:
+    Resolved conflict in another_file:
        1     : <<<<<<<
        2     : %%%%%%%
-       3    1: -first base
-       4    1: +firstresolution a
+       3    1: first resolution for auto-secondchosen basefile
+       4     : +second a
        5     : +++++++
-       6    1: firstfor bauto-chosen file
+       6     : second b
        7     : >>>>>>>
-    Resolved conflict in file2:
+    Resolved conflict in this_file_has_a_very_long_name_to_test_padding:
        1     : <<<<<<<
        2     : %%%%%%%
-       3    1: -second base
-       4    1: +secondresolution a
+       3    1: second resolution for auto-firstchosen basefile
+       4     : +first a
        5     : +++++++
-       6    1: secondfor bauto-chosen file
+       6     : first b
        7     : >>>>>>>
     "###);
 
