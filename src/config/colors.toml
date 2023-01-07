@@ -3,6 +3,9 @@
 "warning" = "yellow"
 "hint" = "blue"
 
+"conflict_description" = "yellow"
+"conflict_description difficult" = "red"
+
 "commit_id" = "blue"
 "change_id" = "magenta"
 "author" = "yellow"
