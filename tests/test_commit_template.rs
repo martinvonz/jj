@@ -50,3 +50,20 @@ fn test_log_author_timestamp_ago() {
         "expected every line to match regex"
     );
 }
+
+#[test]
+fn test_log_default_colors() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 1"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "my-branch"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ [1;35m9a45c67d3e96[0m [1;33mtest.user@example.com[0m [1;36m2001-02-03 04:05:08.000 +07:00[0m [1;35mmy-branch[0m [1;34m45a3aa29e907[0m
+    | [1;37mdescription 1[0m
+    o [35m000000000000[0m [33m[0m [36m1970-01-01 00:00:00.000 +00:00[0m [34m000000000000[0m
+      (no description set)
+    "###);
+}
