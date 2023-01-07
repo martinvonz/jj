@@ -26,7 +26,7 @@ use clap::builder::NonEmptyStringValueParser;
 use clap::{ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
 use config::Source;
 use itertools::Itertools;
-use jujutsu_lib::backend::{CommitId, ObjectId, Timestamp, TreeValue};
+use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::git::{GitFetchError, GitRefUpdate};
@@ -61,7 +61,7 @@ use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::progress::Progress;
 use crate::template_parser::{
-    format_absolute_timestamp, format_timestamp_relative_to_now, TemplateParser,
+    format_absolute_timestamp, format_duration, format_timestamp_relative_to_now, TemplateParser,
 };
 use crate::templater::Template;
 use crate::ui::Ui;
@@ -3356,15 +3356,6 @@ fn cmd_op_log(
     struct OpTemplate {
         relative_timestamps: bool,
     }
-    impl OpTemplate {
-        fn format_timestamp(&self, timestamp: &Timestamp) -> String {
-            if self.relative_timestamps {
-                format_timestamp_relative_to_now(timestamp)
-            } else {
-                format_absolute_timestamp(timestamp)
-            }
-        }
-    }
     impl Template<Operation> for OpTemplate {
         fn format(&self, op: &Operation, formatter: &mut dyn Formatter) -> io::Result<()> {
             // TODO: Make this templated
@@ -3376,11 +3367,25 @@ fn cmd_op_log(
             })?;
             formatter.write_str(" ")?;
             formatter.with_label("time", |formatter| {
-                formatter.write_str(&format!(
-                    "{} - {}",
-                    self.format_timestamp(&metadata.start_time),
-                    self.format_timestamp(&metadata.end_time)
-                ))
+                formatter.write_str(
+                    &(if self.relative_timestamps {
+                        let mut f = timeago::Formatter::new();
+                        f.min_unit(timeago::TimeUnit::Microseconds).ago("");
+                        let mut duration =
+                            format_duration(&metadata.start_time, &metadata.end_time, &f);
+                        if duration == "now" {
+                            duration = "less than a microsecond".to_string()
+                        }
+                        let start = format_timestamp_relative_to_now(&metadata.start_time);
+                        format!("{start}, lasted {duration}",)
+                    } else {
+                        format!(
+                            "{} - {}",
+                            format_absolute_timestamp(&metadata.start_time),
+                            format_absolute_timestamp(&metadata.end_time)
+                        )
+                    }),
+                )
             })?;
             formatter.write_str("\n")?;
             formatter.with_label("description", |formatter| {
