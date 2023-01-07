@@ -110,8 +110,8 @@ fn test_unsquash() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @   3217340cb761 
     |\  
-    o | 5658521e0f8b d e?
-    | o 90fe0a96fc90 c e?
+    o | 5658521e0f8b d e??
+    | o 90fe0a96fc90 c e??
     |/  
     o fa5efbdf533c b
     o 90aeefd03044 a
