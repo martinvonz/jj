@@ -103,6 +103,41 @@ impl TemplateProperty<Timestamp, String> for RelativeTimestampString {
     }
 }
 
+enum Property<'a, I> {
+    String(Box<dyn TemplateProperty<I, String> + 'a>),
+    Boolean(Box<dyn TemplateProperty<I, bool> + 'a>),
+    CommitId(Box<dyn TemplateProperty<I, CommitId> + 'a>),
+    Signature(Box<dyn TemplateProperty<I, Signature> + 'a>),
+    Timestamp(Box<dyn TemplateProperty<I, Timestamp> + 'a>),
+}
+
+impl<'a, I: 'a> Property<'a, I> {
+    fn after<C: 'a>(self, first: Box<dyn TemplateProperty<C, I> + 'a>) -> Property<'a, C> {
+        match self {
+            Property::String(property) => Property::String(Box::new(TemplateFunction::new(
+                first,
+                Box::new(move |value| property.extract(&value)),
+            ))),
+            Property::Boolean(property) => Property::Boolean(Box::new(TemplateFunction::new(
+                first,
+                Box::new(move |value| property.extract(&value)),
+            ))),
+            Property::CommitId(property) => Property::CommitId(Box::new(TemplateFunction::new(
+                first,
+                Box::new(move |value| property.extract(&value)),
+            ))),
+            Property::Signature(property) => Property::Signature(Box::new(TemplateFunction::new(
+                first,
+                Box::new(move |value| property.extract(&value)),
+            ))),
+            Property::Timestamp(property) => Property::Timestamp(Box::new(TemplateFunction::new(
+                first,
+                Box::new(move |value| property.extract(&value)),
+            ))),
+        }
+    }
+}
+
 fn parse_method_chain<'a, I: 'a>(
     pair: Pair<Rule>,
     input_property: Property<'a, I>,
@@ -214,41 +249,6 @@ fn parse_timestamp_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, Times
     };
     let chain_method = inner.last().unwrap();
     parse_method_chain(chain_method, this_function)
-}
-
-enum Property<'a, I> {
-    String(Box<dyn TemplateProperty<I, String> + 'a>),
-    Boolean(Box<dyn TemplateProperty<I, bool> + 'a>),
-    CommitId(Box<dyn TemplateProperty<I, CommitId> + 'a>),
-    Signature(Box<dyn TemplateProperty<I, Signature> + 'a>),
-    Timestamp(Box<dyn TemplateProperty<I, Timestamp> + 'a>),
-}
-
-impl<'a, I: 'a> Property<'a, I> {
-    fn after<C: 'a>(self, first: Box<dyn TemplateProperty<C, I> + 'a>) -> Property<'a, C> {
-        match self {
-            Property::String(property) => Property::String(Box::new(TemplateFunction::new(
-                first,
-                Box::new(move |value| property.extract(&value)),
-            ))),
-            Property::Boolean(property) => Property::Boolean(Box::new(TemplateFunction::new(
-                first,
-                Box::new(move |value| property.extract(&value)),
-            ))),
-            Property::CommitId(property) => Property::CommitId(Box::new(TemplateFunction::new(
-                first,
-                Box::new(move |value| property.extract(&value)),
-            ))),
-            Property::Signature(property) => Property::Signature(Box::new(TemplateFunction::new(
-                first,
-                Box::new(move |value| property.extract(&value)),
-            ))),
-            Property::Timestamp(property) => Property::Timestamp(Box::new(TemplateFunction::new(
-                first,
-                Box::new(move |value| property.extract(&value)),
-            ))),
-        }
-    }
 }
 
 struct PropertyAndLabels<'a, C>(Property<'a, C>, Vec<String>);
