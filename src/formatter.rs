@@ -164,7 +164,7 @@ fn config_colors(config: &config::Config) -> HashMap<String, String> {
     result
 }
 
-impl<W> ColorFormatter<W> {
+impl<W: Write> ColorFormatter<W> {
     pub fn new(output: W, colors: Arc<HashMap<String, String>>) -> ColorFormatter<W> {
         ColorFormatter {
             output,
@@ -214,6 +214,15 @@ impl<W> ColorFormatter<W> {
             color
         }
     }
+
+    fn write_new_color(&mut self) -> io::Result<()> {
+        let new_color = self.current_color();
+        if new_color != self.current_color {
+            self.output.write_all(&new_color)?;
+            self.current_color = new_color;
+        }
+        Ok(())
+    }
 }
 
 fn color_for_name(color_name: &str) -> Vec<u8> {
@@ -251,22 +260,12 @@ impl<W: Write> Write for ColorFormatter<W> {
 impl<W: Write> Formatter for ColorFormatter<W> {
     fn add_label(&mut self, label: &str) -> io::Result<()> {
         self.labels.push(label.to_owned());
-        let new_color = self.current_color();
-        if new_color != self.current_color {
-            self.output.write_all(&new_color)?;
-            self.current_color = new_color;
-        }
-        Ok(())
+        self.write_new_color()
     }
 
     fn remove_label(&mut self) -> io::Result<()> {
         self.labels.pop();
-        let new_color = self.current_color();
-        if new_color != self.current_color {
-            self.output.write_all(&new_color)?;
-            self.current_color = new_color;
-        }
-        Ok(())
+        self.write_new_color()
     }
 }
 
