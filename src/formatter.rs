@@ -154,12 +154,14 @@ impl<W: Write> Formatter for PlainTextFormatter<W> {
 pub struct Style {
     pub fg_color: Option<Color>,
     pub bg_color: Option<Color>,
+    pub bold: Option<bool>,
 }
 
 impl Style {
     fn merge(&mut self, other: &Style) {
         self.fg_color = other.fg_color.or(self.fg_color);
         self.bg_color = other.bg_color.or(self.bg_color);
+        self.bold = other.bold.or(self.bold);
     }
 }
 
@@ -238,6 +240,18 @@ impl<W: Write> ColorFormatter<W> {
             } else if !is_bright(&new_style.fg_color) && is_bright(&self.current_style.fg_color) {
                 queue!(self.output, SetAttribute(Attribute::Reset))?;
             }
+            if new_style.bold != self.current_style.bold {
+                if new_style.bold.unwrap_or_default() {
+                    queue!(self.output, SetAttribute(Attribute::Bold))?;
+                } else {
+                    // NoBold results in double underlining on some terminals, so we use reset
+                    // instead. However, that resets other attributes as well, so we reset
+                    // our record of the current style so we re-apply the other attributes
+                    // below.
+                    queue!(self.output, SetAttribute(Attribute::Reset))?;
+                    self.current_style = Style::default();
+                }
+            }
             if new_style.fg_color != self.current_style.fg_color {
                 queue!(
                     self.output,
@@ -283,6 +297,7 @@ fn rules_from_config(config: &config::Config) -> HashMap<Vec<String>, Style> {
                     let style = Style {
                         fg_color: color_for_name(&color_name),
                         bg_color: None,
+                        bold: None,
                     };
                     result.insert(labels, style);
                 }
@@ -296,6 +311,11 @@ fn rules_from_config(config: &config::Config) -> HashMap<Vec<String>, Style> {
                     if let Some(value) = style_table.get("bg") {
                         if let config::ValueKind::String(color_name) = &value.kind {
                             style.bg_color = color_for_name(color_name);
+                        }
+                    }
+                    if let Some(value) = style_table.get("bold") {
+                        if let config::ValueKind::Boolean(value) = &value.kind {
+                            style.bold = Some(*value);
                         }
                     }
                     result.insert(labels, style);
@@ -457,7 +477,8 @@ mod tests {
             r#"
         colors.red_fg = { fg = "red" }
         colors.blue_bg = { bg = "blue" }
-        colors.multiple = { fg = "green", bg = "yellow" }
+        colors.bold_font = { bold = true }
+        colors.multiple = { fg = "green", bg = "yellow", bold = true }
         "#,
         );
         let mut output: Vec<u8> = vec![];
@@ -468,6 +489,10 @@ mod tests {
         formatter.write_str("\n").unwrap();
         formatter.add_label("blue_bg").unwrap();
         formatter.write_str(" bg only ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str("\n").unwrap();
+        formatter.add_label("bold_font").unwrap();
+        formatter.write_str(" bold only ").unwrap();
         formatter.remove_label().unwrap();
         formatter.write_str("\n").unwrap();
         formatter.add_label("multiple").unwrap();
@@ -483,7 +508,8 @@ mod tests {
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @r###"
         [38;5;1m fg only [39m
         [48;5;4m bg only [49m
-        [38;5;2m[48;5;3m single rule [39m[49m
+        [1m bold only [0m
+        [1m[38;5;2m[48;5;3m single rule [0m
         [38;5;1m[48;5;4m two rules [49m[39m
         "###);
     }
@@ -491,11 +517,10 @@ mod tests {
     #[test]
     fn test_color_formatter_bold_reset() {
         // Test that we don't lose other attributes when we reset the bold attribute.
-        // TODO: Actually use bold instead of bright when we support that
         let config = config_from_string(
             r#"
         colors.not_bold = { fg = "red", bg = "blue" }
-        colors.bold_font = { fg = "bright red" }
+        colors.bold_font = { bold = true }
         "#,
         );
         let mut output: Vec<u8> = vec![];
@@ -507,8 +532,7 @@ mod tests {
         formatter.remove_label().unwrap();
         formatter.write_str(" not bold again ").unwrap();
         formatter.remove_label().unwrap();
-        // TODO: This loses the blue background when we reset the bold attribute.
-        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[38;5;1m[48;5;4m not bold [1m[38;5;9m bold [0m[38;5;1m not bold again [39m[49m");
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[38;5;1m[48;5;4m not bold [1m bold [0m[38;5;1m[48;5;4m not bold again [39m[49m");
     }
 
     #[test]
