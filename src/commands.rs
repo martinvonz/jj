@@ -22,12 +22,11 @@ use std::sync::Mutex;
 use std::time::Instant;
 use std::{fs, io};
 
-use chrono::{FixedOffset, LocalResult, TimeZone, Utc};
 use clap::builder::NonEmptyStringValueParser;
 use clap::{ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
 use config::Source;
 use itertools::Itertools;
-use jujutsu_lib::backend::{CommitId, ObjectId, Timestamp, TreeValue};
+use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::git::{GitFetchError, GitRefUpdate};
@@ -61,7 +60,7 @@ use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::progress::Progress;
-use crate::template_parser::TemplateParser;
+use crate::template_parser::{format_absolute_timestamp, TemplateParser};
 use crate::templater::Template;
 use crate::ui::Ui;
 
@@ -3343,26 +3342,6 @@ fn cmd_debug(
     Ok(())
 }
 
-// TODO: Move this somewhere where it can be reused by
-// `template_parser::SignatureTimestamp`.
-fn format_timestamp(timestamp: &Timestamp) -> String {
-    let utc = match Utc.timestamp_opt(
-        timestamp.timestamp.0.div_euclid(1000),
-        (timestamp.timestamp.0.rem_euclid(1000)) as u32 * 1000000,
-    ) {
-        LocalResult::None => {
-            return "<out-of-range date>".to_string();
-        }
-        LocalResult::Single(x) => x,
-        LocalResult::Ambiguous(y, _z) => y,
-    };
-    let datetime = utc.with_timezone(
-        &FixedOffset::east_opt(timestamp.tz_offset * 60)
-            .unwrap_or_else(|| FixedOffset::east_opt(0).unwrap()),
-    );
-    datetime.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string()
-}
-
 fn cmd_op_log(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -3389,8 +3368,8 @@ fn cmd_op_log(
             formatter.with_label("time", |formatter| {
                 formatter.write_str(&format!(
                     "{} - {}",
-                    format_timestamp(&metadata.start_time),
-                    format_timestamp(&metadata.end_time)
+                    format_absolute_timestamp(&metadata.start_time),
+                    format_absolute_timestamp(&metadata.end_time)
                 ))
             })?;
             formatter.write_str("\n")?;

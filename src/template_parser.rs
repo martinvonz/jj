@@ -95,6 +95,7 @@ impl TemplateProperty<Signature, String> for SignatureEmail {
     }
 }
 
+// TODO: Find a better place for the timestamp functions, e.g. their own module
 fn datetime_from_timestamp(context: &Timestamp) -> Option<DateTime<FixedOffset>> {
     let utc = match Utc.timestamp_opt(
         context.timestamp.0.div_euclid(1000),
@@ -115,21 +116,32 @@ fn datetime_from_timestamp(context: &Timestamp) -> Option<DateTime<FixedOffset>>
     )
 }
 
+pub fn format_absolute_timestamp(timestamp: &Timestamp) -> String {
+    match datetime_from_timestamp(timestamp) {
+        Some(datetime) => datetime.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string(),
+        None => "<out-of-range date>".to_string(),
+    }
+}
+
+pub fn format_timestamp_relative_to_now(timestamp: &Timestamp) -> String {
+    datetime_from_timestamp(timestamp)
+        .and_then(|datetime| {
+            let now = chrono::Local::now();
+
+            now.signed_duration_since(datetime).to_std().ok()
+        })
+        .map(|duration| {
+            let f = timeago::Formatter::new();
+            f.convert(duration)
+        })
+        .unwrap_or_else(|| "<out-of-range date>".to_string())
+}
+
 struct RelativeTimestampString;
 
 impl TemplateProperty<Timestamp, String> for RelativeTimestampString {
     fn extract(&self, context: &Timestamp) -> String {
-        datetime_from_timestamp(context)
-            .and_then(|datetime| {
-                let now = chrono::Local::now();
-
-                now.signed_duration_since(datetime).to_std().ok()
-            })
-            .map(|duration| {
-                let f = timeago::Formatter::new();
-                f.convert(duration)
-            })
-            .unwrap_or_else(|| "<out-of-range date>".to_string())
+        format_timestamp_relative_to_now(context)
     }
 }
 
@@ -324,10 +336,7 @@ fn coerce_to_string<'a, I: 'a>(
         )),
         Property::Timestamp(property) => Box::new(TemplateFunction::new(
             property,
-            Box::new(|timestamp| match datetime_from_timestamp(&timestamp) {
-                Some(datetime) => datetime.format("%Y-%m-%d %H:%M:%S.%3f %:z").to_string(),
-                None => "<out-of-range date>".to_string(),
-            }),
+            Box::new(|timestamp| format_absolute_timestamp(&timestamp)),
         )),
     }
 }
