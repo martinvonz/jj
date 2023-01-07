@@ -390,14 +390,14 @@ fn parse_commit_term<'a>(
                 }
             }
             Rule::identifier => {
-                let (term_property, labels) = parse_commit_keyword(repo, workspace_id, expr);
+                let (term_property, label) = parse_commit_keyword(repo, workspace_id, expr);
                 let property = parse_method_chain(maybe_method, term_property);
                 let string_property = coerce_to_string(property);
                 Box::new(LabelTemplate::new(
                     Box::new(StringPropertyTemplate {
                         property: string_property,
                     }),
-                    labels,
+                    vec![label],
                 ))
             }
             Rule::function => {
@@ -420,11 +420,15 @@ fn parse_commit_term<'a>(
                         }
                         let content: Box<dyn Template<Commit> + 'a> =
                             parse_commit_template_rule(repo, workspace_id, arg_template);
-                        let get_labels = move |commit: &Commit| -> String {
+                        let get_labels = move |commit: &Commit| -> Vec<String> {
                             let mut buf = vec![];
                             let mut formatter = PlainTextFormatter::new(&mut buf);
                             label_template.format(commit, &mut formatter).unwrap();
-                            String::from_utf8(buf).unwrap()
+                            String::from_utf8(buf)
+                                .unwrap()
+                                .split_whitespace()
+                                .map(ToString::to_string)
+                                .collect()
                         };
                         Box::new(DynamicLabelTemplate::new(content, Box::new(get_labels)))
                     }

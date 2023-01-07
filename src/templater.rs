@@ -64,11 +64,7 @@ pub struct LabelTemplate<'a, C> {
 }
 
 impl<'a, C> LabelTemplate<'a, C> {
-    pub fn new(content: Box<dyn Template<C> + 'a>, labels: String) -> Self {
-        let labels = labels
-            .split_whitespace()
-            .map(|label| label.to_string())
-            .collect_vec();
+    pub fn new(content: Box<dyn Template<C> + 'a>, labels: Vec<String>) -> Self {
         LabelTemplate { content, labels }
     }
 }
@@ -86,16 +82,18 @@ impl<'a, C> Template<C> for LabelTemplate<'a, C> {
     }
 }
 
+pub type DynamicLabelFunction<'a, C> = Box<dyn Fn(&C) -> Vec<String> + 'a>;
+
 // TODO: figure out why this lifetime is needed
 pub struct DynamicLabelTemplate<'a, C> {
     content: Box<dyn Template<C> + 'a>,
-    label_property: Box<dyn Fn(&C) -> String + 'a>,
+    label_property: DynamicLabelFunction<'a, C>,
 }
 
 impl<'a, C> DynamicLabelTemplate<'a, C> {
     pub fn new(
         content: Box<dyn Template<C> + 'a>,
-        label_property: Box<dyn Fn(&C) -> String + 'a>,
+        label_property: DynamicLabelFunction<'a, C>,
     ) -> Self {
         DynamicLabelTemplate {
             content,
@@ -107,7 +105,6 @@ impl<'a, C> DynamicLabelTemplate<'a, C> {
 impl<'a, C> Template<C> for DynamicLabelTemplate<'a, C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let labels = self.label_property.as_ref()(context);
-        let labels = labels.split_whitespace().collect_vec();
         for label in &labels {
             formatter.add_label(label)?;
         }
