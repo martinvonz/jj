@@ -1558,8 +1558,9 @@ fn log_template(settings: &UserSettings) -> String {
     };
     let default_template = format!(
         r#"
-            change_id.short()
-            if(divergent, label("divergent", " divergent"))
+            if(divergent,
+              label("divergent", change_id.short() "??"),
+              change_id.short())
             " " author.email()
             " " {committer_timestamp}
             if(branches, " " branches)
