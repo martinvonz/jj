@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::{fmt, io};
 
 use crossterm::queue;
-use crossterm::style::{Attribute, Color, SetAttribute, SetForegroundColor};
+use crossterm::style::{Attribute, Color, SetAttribute, SetBackgroundColor, SetForegroundColor};
 use itertools::Itertools;
 
 // Lets the caller label strings and translates the labels to colors
@@ -153,11 +153,13 @@ impl<W: Write> Formatter for PlainTextFormatter<W> {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Style {
     pub fg_color: Option<Color>,
+    pub bg_color: Option<Color>,
 }
 
 impl Style {
     fn merge(&mut self, other: &Style) {
         self.fg_color = other.fg_color.or(self.fg_color);
+        self.bg_color = other.bg_color.or(self.bg_color);
     }
 }
 
@@ -236,10 +238,18 @@ impl<W: Write> ColorFormatter<W> {
             } else if !is_bright(&new_style.fg_color) && is_bright(&self.current_style.fg_color) {
                 queue!(self.output, SetAttribute(Attribute::Reset))?;
             }
-            queue!(
-                self.output,
-                SetForegroundColor(new_style.fg_color.unwrap_or(Color::Reset))
-            )?;
+            if new_style.fg_color != self.current_style.fg_color {
+                queue!(
+                    self.output,
+                    SetForegroundColor(new_style.fg_color.unwrap_or(Color::Reset))
+                )?;
+            }
+            if new_style.bg_color != self.current_style.bg_color {
+                queue!(
+                    self.output,
+                    SetBackgroundColor(new_style.bg_color.unwrap_or(Color::Reset))
+                )?;
+            }
             self.current_style = new_style;
         }
         Ok(())
@@ -272,6 +282,7 @@ fn rules_from_config(config: &config::Config) -> HashMap<Vec<String>, Style> {
                 config::ValueKind::String(color_name) => {
                     let style = Style {
                         fg_color: color_for_name(&color_name),
+                        bg_color: None,
                     };
                     result.insert(labels, style);
                 }
@@ -280,6 +291,11 @@ fn rules_from_config(config: &config::Config) -> HashMap<Vec<String>, Style> {
                     if let Some(value) = style_table.get("fg") {
                         if let config::ValueKind::String(color_name) = &value.kind {
                             style.fg_color = color_for_name(color_name);
+                        }
+                    }
+                    if let Some(value) = style_table.get("bg") {
+                        if let config::ValueKind::String(color_name) = &value.kind {
+                            style.bg_color = color_for_name(color_name);
                         }
                     }
                     result.insert(labels, style);
@@ -435,10 +451,13 @@ mod tests {
 
     #[test]
     fn test_color_formatter_attributes() {
-        // Test that each attribute of the style can be set.
+        // Test that each attribute of the style can be set and that they can be
+        // combined in a single rule or by using multiple rules.
         let config = config_from_string(
             r#"
         colors.red_fg = { fg = "red" }
+        colors.blue_bg = { bg = "blue" }
+        colors.multiple = { fg = "green", bg = "yellow" }
         "#,
         );
         let mut output: Vec<u8> = vec![];
@@ -446,7 +465,50 @@ mod tests {
         formatter.add_label("red_fg").unwrap();
         formatter.write_str(" fg only ").unwrap();
         formatter.remove_label().unwrap();
-        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[38;5;1m fg only [39m");
+        formatter.write_str("\n").unwrap();
+        formatter.add_label("blue_bg").unwrap();
+        formatter.write_str(" bg only ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str("\n").unwrap();
+        formatter.add_label("multiple").unwrap();
+        formatter.write_str(" single rule ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str("\n").unwrap();
+        formatter.add_label("red_fg").unwrap();
+        formatter.add_label("blue_bg").unwrap();
+        formatter.write_str(" two rules ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str("\n").unwrap();
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @r###"
+        [38;5;1m fg only [39m
+        [48;5;4m bg only [49m
+        [38;5;2m[48;5;3m single rule [39m[49m
+        [38;5;1m[48;5;4m two rules [49m[39m
+        "###);
+    }
+
+    #[test]
+    fn test_color_formatter_bold_reset() {
+        // Test that we don't lose other attributes when we reset the bold attribute.
+        // TODO: Actually use bold instead of bright when we support that
+        let config = config_from_string(
+            r#"
+        colors.not_bold = { fg = "red", bg = "blue" }
+        colors.bold_font = { fg = "bright red" }
+        "#,
+        );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        formatter.add_label("not_bold").unwrap();
+        formatter.write_str(" not bold ").unwrap();
+        formatter.add_label("bold_font").unwrap();
+        formatter.write_str(" bold ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str(" not bold again ").unwrap();
+        formatter.remove_label().unwrap();
+        // TODO: This loses the blue background when we reset the bold attribute.
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[38;5;1m[48;5;4m not bold [1m[38;5;9m bold [0m[38;5;1m not bold again [39m[49m");
     }
 
     #[test]

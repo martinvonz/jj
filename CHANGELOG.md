@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The `ui.relative-timestamps` option now also affects `jj op log`.
 
+* Background colors are now supported. You can set e.g.
+  `color.error = { bg = "red" }` in your `~/.jjconfig.toml`.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
