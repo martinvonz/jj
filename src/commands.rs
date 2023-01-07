@@ -2485,7 +2485,7 @@ fn print_conflicted_paths(
 
         writeln!(
             formatter,
-            "{}: {msg}",
+            "{}\t{msg}",
             &workspace_command.format_file_path(repo_path)
         )?;
     }
