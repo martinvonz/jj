@@ -143,6 +143,12 @@ impl UserSettings {
             .unwrap_or(false)
     }
 
+    pub fn unique_prefixes(&self) -> String {
+        self.config
+            .get_string("ui.unique-prefixes")
+            .unwrap_or_default()
+    }
+
     pub fn config(&self) -> &config::Config {
         &self.config
     }

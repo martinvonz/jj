@@ -72,6 +72,26 @@ fn test_log_default() {
       (empty) (no description set)
     "###);
 
+    // Test default log output format with bracket prefixes
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "--config-toml", "ui.unique-prefixes='brackets'"]), @r###"
+    @ f[fdaa62087a] test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9d[e54178d59]
+    | (empty) description 1
+    o 9a[45c67d3e9] test.user@example.com 2001-02-03 04:05:08.000 +07:00 4[291e264ae9]
+    | add a file
+    o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
+      (empty) (no description set)
+    "###);
+
+    // Test default log output format with prefixes explicitly disabled
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "--config-toml", "ui.unique-prefixes='none'"]), @r###"
+    @ ffdaa62087a2 test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9de54178d59d
+    | (empty) description 1
+    o 9a45c67d3e96 test.user@example.com 2001-02-03 04:05:08.000 +07:00 4291e264ae97
+    | add a file
+    o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
+      (empty) (no description set)
+    "###);
+
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"

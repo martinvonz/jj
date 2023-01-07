@@ -1590,18 +1590,24 @@ fn log_template(settings: &UserSettings) -> String {
     } else {
         "committer.timestamp()"
     };
+    // TODO: If/when this logic is relevant in the `lib` crate, make this into
+    // and enum similar to `ColorChoice`.
+    let prefix_format = match settings.unique_prefixes().as_str() {
+        "brackets" => "short_prefix_and_brackets()",
+        _ => "short()",
+    };
     let default_template = format!(
         r#"
             if(divergent,
-              label("divergent", change_id.short() "??"),
-              change_id.short())
+              label("divergent", change_id.{prefix_format} "??"),
+              change_id.{prefix_format})
             " " author.email()
             " " {committer_timestamp}
             if(branches, " " branches)
             if(tags, " " tags)
             if(working_copies, " " working_copies)
             if(is_git_head, label("git_head", " HEAD@git"))
-            " " commit_id.short()
+            " " commit_id.{prefix_format}
             if(conflict, label("conflict", " conflict"))
             "\n"
             if(empty, label("empty", "(empty) "))
