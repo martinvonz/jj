@@ -1709,7 +1709,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     if let (None, [only_path]) = (&args.revisions, args.paths.as_slice()) {
         if only_path == "." && workspace_command.parse_file_path(only_path)?.is_root() {
             // For users of e.g. Mercurial, where `.` indicates the current commit.
-            ui.write_warn(&format!(
+            ui.write_warn(format!(
                 "warning: The argument {only_path:?} is being interpreted as a path, but this is \
                  often not useful because all non-empty commits touch '.'.  If you meant to show \
                  the working copy commit, pass -r '@' instead.\n"
@@ -1717,7 +1717,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         } else if revset.is_empty()
             && revset::parse(only_path, &RevsetAliasesMap::new(), None).is_ok()
         {
-            ui.write_warn(&format!(
+            ui.write_warn(format!(
                 "warning: The argument {only_path:?} is being interpreted as a path. To specify a \
                  revset, pass -r {only_path:?} instead.\n"
             ))?;

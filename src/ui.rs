@@ -146,7 +146,7 @@ impl Ui {
                         self.output = new_output;
                     }
                     Err(e) => {
-                        self.write_warn(&format!(
+                        self.write_warn(format!(
                             "Failed to spawn pager '{cmd}': {e}\n",
                             cmd = self.pager_cmd,
                         ))

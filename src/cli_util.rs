@@ -1670,7 +1670,7 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
         Err(CommandError::UserError { message, hint }) => {
             ui.write_error(&format!("Error: {message}\n")).unwrap();
             if let Some(hint) = hint {
-                ui.write_hint(&format!("Hint: {hint}\n")).unwrap();
+                ui.write_hint(format!("Hint: {hint}\n")).unwrap();
             }
             1
         }
