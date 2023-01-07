@@ -26,7 +26,7 @@ use clap::builder::NonEmptyStringValueParser;
 use clap::{ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
 use config::Source;
 use itertools::Itertools;
-use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
+use jujutsu_lib::backend::{CommitId, ObjectId, Timestamp, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::git::{GitFetchError, GitRefUpdate};
@@ -60,7 +60,9 @@ use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::progress::Progress;
-use crate::template_parser::{format_absolute_timestamp, TemplateParser};
+use crate::template_parser::{
+    format_absolute_timestamp, format_timestamp_relative_to_now, TemplateParser,
+};
 use crate::templater::Template;
 use crate::ui::Ui;
 
@@ -3354,7 +3356,18 @@ fn cmd_op_log(
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let mut formatter = formatter.as_mut();
-    struct OpTemplate;
+    struct OpTemplate {
+        relative_timestamps: bool,
+    }
+    impl OpTemplate {
+        fn format_timestamp(&self, timestamp: &Timestamp) -> String {
+            if self.relative_timestamps {
+                format_timestamp_relative_to_now(timestamp)
+            } else {
+                format_absolute_timestamp(timestamp)
+            }
+        }
+    }
     impl Template<Operation> for OpTemplate {
         fn format(&self, op: &Operation, formatter: &mut dyn Formatter) -> io::Result<()> {
             // TODO: Make this templated
@@ -3368,8 +3381,8 @@ fn cmd_op_log(
             formatter.with_label("time", |formatter| {
                 formatter.write_str(&format!(
                     "{} - {}",
-                    format_absolute_timestamp(&metadata.start_time),
-                    format_absolute_timestamp(&metadata.end_time)
+                    self.format_timestamp(&metadata.start_time),
+                    self.format_timestamp(&metadata.end_time)
                 ))
             })?;
             formatter.write_str("\n")?;
@@ -3384,7 +3397,9 @@ fn cmd_op_log(
             Ok(())
         }
     }
-    let template = OpTemplate;
+    let template = OpTemplate {
+        relative_timestamps: command.settings().relative_timestamps(),
+    };
 
     let mut graph = AsciiGraphDrawer::new(&mut formatter);
     for op in topo_order_reverse(

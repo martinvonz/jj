@@ -14,6 +14,8 @@
 
 use std::path::Path;
 
+use regex::Regex;
+
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -33,6 +35,21 @@ fn test_op_log() {
     o a99a3fd5c51e test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     | add workspace 'default'
     o 56b94dfc38e7 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+      initialize repo
+    "###);
+    // Test op log with relative dates
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["op", "log", "--config-toml", "ui.relative-timestamps=true"],
+    );
+    let regex = Regex::new(r"\d\d years").unwrap();
+    insta::assert_snapshot!(regex.replace_all(&stdout, "NN years"), @r###"
+    @ 45108169c0f8 test-username@host.example.com NN years ago - NN years ago
+    | describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    | args: jj describe -m 'description 0'
+    o a99a3fd5c51e test-username@host.example.com NN years ago - NN years ago
+    | add workspace 'default'
+    o 56b94dfc38e7 test-username@host.example.com NN years ago - NN years ago
       initialize repo
     "###);
     let add_workspace_id = "a99a3fd5c51e";
