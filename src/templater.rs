@@ -236,7 +236,7 @@ impl TemplateProperty<Commit, String> for BranchProperty<'_> {
             if let Some(local_target) = local_target {
                 if local_target.has_add(context.id()) {
                     if local_target.is_conflict() {
-                        names.push(format!("{branch_name}?"));
+                        names.push(format!("{branch_name}??"));
                     } else if branch_target
                         .remote_targets
                         .values()
