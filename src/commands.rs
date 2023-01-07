@@ -1540,9 +1540,7 @@ fn cmd_status(
             formatter.with_label("conflict", |formatter| {
                 writeln!(formatter, "There are unresolved conflicts at these paths:")
             })?;
-            for (path, _) in conflicts {
-                writeln!(formatter, "{}", &workspace_command.format_file_path(&path))?;
-            }
+            print_conflicted_paths(&conflicts, &tree, formatter, &workspace_command)?
         }
     }
 
