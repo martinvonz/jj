@@ -150,17 +150,9 @@ impl<W: Write> Formatter for PlainTextFormatter<W> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Style {
-    pub fg_color: Color,
-}
-
-impl Default for Style {
-    fn default() -> Self {
-        Self {
-            fg_color: Color::Reset,
-        }
-    }
+    pub fg_color: Option<Color>,
 }
 
 pub struct ColorFormatter<W> {
@@ -239,16 +231,19 @@ impl<W: Write> ColorFormatter<W> {
             } else if !is_bright(&new_style.fg_color) && is_bright(&self.current_style.fg_color) {
                 queue!(self.output, SetAttribute(Attribute::Reset))?;
             }
-            queue!(self.output, SetForegroundColor(new_style.fg_color))?;
+            queue!(
+                self.output,
+                SetForegroundColor(new_style.fg_color.unwrap_or(Color::Reset))
+            )?;
             self.current_style = new_style;
         }
         Ok(())
     }
 }
 
-fn is_bright(color: &Color) -> bool {
+fn is_bright(color: &Option<Color>) -> bool {
     matches!(
-        color,
+        color.unwrap_or(Color::Reset),
         Color::DarkGrey
             | Color::Red
             | Color::Green
@@ -291,25 +286,25 @@ fn rules_from_config(config: &config::Config) -> HashMap<Vec<String>, Style> {
     result
 }
 
-fn color_for_name(color_name: &str) -> Color {
+fn color_for_name(color_name: &str) -> Option<Color> {
     match color_name {
-        "black" => Color::Black,
-        "red" => Color::DarkRed,
-        "green" => Color::DarkGreen,
-        "yellow" => Color::DarkYellow,
-        "blue" => Color::DarkBlue,
-        "magenta" => Color::DarkMagenta,
-        "cyan" => Color::DarkCyan,
-        "white" => Color::Grey,
-        "bright black" => Color::DarkGrey,
-        "bright red" => Color::Red,
-        "bright green" => Color::Green,
-        "bright yellow" => Color::Yellow,
-        "bright blue" => Color::Blue,
-        "bright magenta" => Color::Magenta,
-        "bright cyan" => Color::Cyan,
-        "bright white" => Color::White,
-        _ => Color::Reset,
+        "black" => Some(Color::Black),
+        "red" => Some(Color::DarkRed),
+        "green" => Some(Color::DarkGreen),
+        "yellow" => Some(Color::DarkYellow),
+        "blue" => Some(Color::DarkBlue),
+        "magenta" => Some(Color::DarkMagenta),
+        "cyan" => Some(Color::DarkCyan),
+        "white" => Some(Color::Grey),
+        "bright black" => Some(Color::DarkGrey),
+        "bright red" => Some(Color::Red),
+        "bright green" => Some(Color::Green),
+        "bright yellow" => Some(Color::Yellow),
+        "bright blue" => Some(Color::Blue),
+        "bright magenta" => Some(Color::Magenta),
+        "bright cyan" => Some(Color::Cyan),
+        "bright white" => Some(Color::White),
+        _ => None,
     }
 }
 
