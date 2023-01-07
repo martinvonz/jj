@@ -287,11 +287,13 @@ impl<'a, I: 'a> Property<'a, I> {
     }
 }
 
+struct PropertyAndLabels<'a, C>(Property<'a, C>, Vec<String>);
+
 fn parse_commit_keyword<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
     pair: Pair<Rule>,
-) -> (Property<'a, Commit>, String) {
+) -> PropertyAndLabels<'a, Commit> {
     assert_eq!(pair.as_rule(), Rule::identifier);
     let property = match pair.as_str() {
         "description" => Property::String(Box::new(DescriptionProperty)),
@@ -312,7 +314,7 @@ fn parse_commit_keyword<'a>(
         "conflict" => Property::Boolean(Box::new(ConflictProperty)),
         name => panic!("unexpected identifier: {name}"),
     };
-    (property, pair.as_str().to_string())
+    PropertyAndLabels(property, vec![pair.as_str().to_string()])
 }
 
 fn coerce_to_string<'a, I: 'a>(
@@ -390,14 +392,15 @@ fn parse_commit_term<'a>(
                 }
             }
             Rule::identifier => {
-                let (term_property, label) = parse_commit_keyword(repo, workspace_id, expr);
+                let PropertyAndLabels(term_property, labels) =
+                    parse_commit_keyword(repo, workspace_id, expr);
                 let property = parse_method_chain(maybe_method, term_property);
                 let string_property = coerce_to_string(property);
                 Box::new(LabelTemplate::new(
                     Box::new(StringPropertyTemplate {
                         property: string_property,
                     }),
-                    vec![label],
+                    labels,
                 ))
             }
             Rule::function => {
