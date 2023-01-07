@@ -146,38 +146,47 @@ impl TemplateProperty<Timestamp, String> for RelativeTimestampString {
 fn parse_method_chain<'a, I: 'a>(
     pair: Pair<Rule>,
     input_property: Property<'a, I>,
-) -> Property<'a, I> {
+) -> PropertyAndLabels<'a, I> {
     assert_eq!(pair.as_rule(), Rule::maybe_method);
     if pair.as_str().is_empty() {
-        input_property
+        PropertyAndLabels(input_property, vec![])
     } else {
         let method = pair.into_inner().next().unwrap();
-        match input_property {
+        let label = method
+            .clone()
+            .into_inner()
+            .next()
+            .unwrap()
+            .as_str()
+            .to_string();
+        let (property, mut labels) = match input_property {
             Property::String(property) => {
-                let next_method = parse_string_method(method);
-                next_method.after(property)
+                let PropertyAndLabels(next_method, labels) = parse_string_method(method);
+                (next_method.after(property), labels)
             }
             Property::Boolean(property) => {
-                let next_method = parse_boolean_method(method);
-                next_method.after(property)
+                let PropertyAndLabels(next_method, labels) = parse_boolean_method(method);
+                (next_method.after(property), labels)
             }
             Property::CommitId(property) => {
-                let next_method = parse_commit_id_method(method);
-                next_method.after(property)
+                let PropertyAndLabels(next_method, labels) = parse_commit_id_method(method);
+                (next_method.after(property), labels)
             }
             Property::Signature(property) => {
-                let next_method = parse_signature_method(method);
-                next_method.after(property)
+                let PropertyAndLabels(next_method, labels) = parse_signature_method(method);
+                (next_method.after(property), labels)
             }
             Property::Timestamp(property) => {
-                let next_method = parse_timestamp_method(method);
-                next_method.after(property)
+                let PropertyAndLabels(next_method, labels) = parse_timestamp_method(method);
+                (next_method.after(property), labels)
             }
-        }
+        };
+        labels.insert(0, label);
+        PropertyAndLabels(property, labels)
     }
 }
 
-fn parse_string_method<'a>(method: Pair<Rule>) -> Property<'a, String> {
+fn parse_string_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, String> {
     assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
     let name = inner.next().unwrap();
@@ -192,7 +201,7 @@ fn parse_string_method<'a>(method: Pair<Rule>) -> Property<'a, String> {
     parse_method_chain(chain_method, this_function)
 }
 
-fn parse_boolean_method<'a>(method: Pair<Rule>) -> Property<'a, bool> {
+fn parse_boolean_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, bool> {
     assert_eq!(method.as_rule(), Rule::maybe_method);
     let mut inner = method.into_inner();
     let name = inner.next().unwrap();
@@ -203,7 +212,7 @@ fn parse_boolean_method<'a>(method: Pair<Rule>) -> Property<'a, bool> {
 
 // TODO: pass a context to the returned function (we need the repo to find the
 //       shortest unambiguous prefix)
-fn parse_commit_id_method<'a>(method: Pair<Rule>) -> Property<'a, CommitId> {
+fn parse_commit_id_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, CommitId> {
     assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
     let name = inner.next().unwrap();
@@ -217,18 +226,13 @@ fn parse_commit_id_method<'a>(method: Pair<Rule>) -> Property<'a, CommitId> {
     parse_method_chain(chain_method, this_function)
 }
 
-fn parse_signature_method<'a>(method: Pair<Rule>) -> Property<'a, Signature> {
+fn parse_signature_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, Signature> {
     assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
     let name = inner.next().unwrap();
     // TODO: validate arguments
 
     let this_function: Property<'a, Signature> = match name.as_str() {
-        // TODO: Automatically label these too (so author.name() gets
-        //       labels "author" *and" "name". Perhaps drop parentheses
-        //       from syntax for that? Or maybe this should be using
-        //       syntax for nested records (e.g.
-        //       `author % (name "<" email ">")`)?
         "name" => Property::String(Box::new(SignatureName)),
         "email" => Property::String(Box::new(SignatureEmail)),
         "timestamp" => Property::Timestamp(Box::new(SignatureTimestamp)),
@@ -238,7 +242,7 @@ fn parse_signature_method<'a>(method: Pair<Rule>) -> Property<'a, Signature> {
     parse_method_chain(chain_method, this_function)
 }
 
-fn parse_timestamp_method<'a>(method: Pair<Rule>) -> Property<'a, Timestamp> {
+fn parse_timestamp_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, Timestamp> {
     assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
     let name = inner.next().unwrap();
@@ -384,18 +388,25 @@ fn parse_commit_term<'a>(
                 } else {
                     let input_property =
                         Property::String(Box::new(ConstantTemplateProperty { output: text }));
-                    let property = parse_method_chain(maybe_method, input_property);
+                    let PropertyAndLabels(property, method_labels) =
+                        parse_method_chain(maybe_method, input_property);
                     let string_property = coerce_to_string(property);
-                    Box::new(StringPropertyTemplate {
-                        property: string_property,
-                    })
+                    Box::new(LabelTemplate::new(
+                        Box::new(StringPropertyTemplate {
+                            property: string_property,
+                        }),
+                        method_labels,
+                    ))
                 }
             }
             Rule::identifier => {
-                let PropertyAndLabels(term_property, labels) =
+                let PropertyAndLabels(term_property, keyword_labels) =
                     parse_commit_keyword(repo, workspace_id, expr);
-                let property = parse_method_chain(maybe_method, term_property);
+                let PropertyAndLabels(property, method_labels) =
+                    parse_method_chain(maybe_method, term_property);
                 let string_property = coerce_to_string(property);
+                let mut labels = keyword_labels;
+                labels.extend(method_labels);
                 Box::new(LabelTemplate::new(
                     Box::new(StringPropertyTemplate {
                         property: string_property,
