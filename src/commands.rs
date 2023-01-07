@@ -1561,7 +1561,7 @@ fn log_template(settings: &UserSettings) -> String {
             change_id.short()
             if(divergent, label("divergent", " divergent"))
             " " author.email()
-            " " label("timestamp", {committer_timestamp})
+            " " {committer_timestamp}
             if(branches, " " branches)
             if(tags, " " tags)
             if(working_copies, " " working_copies)
