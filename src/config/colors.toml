@@ -17,6 +17,7 @@
 "git_refs" = "magenta"
 "git_head" = "magenta"
 "divergent" = "red"
+"divergent change_id"="red"
 "conflict" = "red"
 
 # TODO: This near-duplication of the lines above is unfortunate. Should we
@@ -34,6 +35,7 @@
 "working_copy tags" = "bright magenta"
 "working_copy git_refs" = "bright magenta"
 "working_copy divergent" =  "bright red"
+"working_copy divergent change_id"="bright red"
 "working_copy conflict" = "bright red"
 "working_copy description" = "bright white"
 "diff header" = "yellow"
