@@ -209,17 +209,11 @@ fn test_git_push_changes() {
     test_env.jj_cmd_success(&workspace_root, &["new", "-m", "bar"]);
     std::fs::write(workspace_root.join("file"), "modified").unwrap();
 
-    fn replace_changeid(s: &str) -> String {
-        regex::Regex::new(r"[0-9a-f]{32}")
-            .unwrap()
-            .replace_all(s, "<CHANGE_ID>")
-            .to_string()
-    }
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--change", "@"]);
-    insta::assert_snapshot!(replace_changeid(&stdout), @r###"
-    Creating branch push-<CHANGE_ID> for revision @
+    insta::assert_snapshot!(stdout, @r###"
+    Creating branch push-1b76972398e6449e8e0701307e57d55a for revision @
     Branch changes to push to origin:
-      Add branch push-<CHANGE_ID> to 28d7620ea63a
+      Add branch push-1b76972398e6449e8e0701307e57d55a to 28d7620ea63a
     "###);
     // test pushing two changes at once
     std::fs::write(workspace_root.join("file"), "modified2").unwrap();
@@ -227,11 +221,11 @@ fn test_git_push_changes() {
         &workspace_root,
         &["git", "push", "--change", "@", "--change", "@-"],
     );
-    insta::assert_snapshot!(replace_changeid(&stdout), @r###"
-    Creating branch push-<CHANGE_ID> for revision @-
+    insta::assert_snapshot!(stdout, @r###"
+    Creating branch push-19b790168e7347a7ba98deae21e807c0 for revision @-
     Branch changes to push to origin:
-      Force branch push-<CHANGE_ID> from 28d7620ea63a to 48d8c7948133
-      Add branch push-<CHANGE_ID> to fa16a14170fb
+      Force branch push-1b76972398e6449e8e0701307e57d55a from 28d7620ea63a to 48d8c7948133
+      Add branch push-19b790168e7347a7ba98deae21e807c0 to fa16a14170fb
     "###);
     // specifying the same change twice doesn't break things
     std::fs::write(workspace_root.join("file"), "modified3").unwrap();
@@ -239,9 +233,9 @@ fn test_git_push_changes() {
         &workspace_root,
         &["git", "push", "--change", "@", "--change", "@"],
     );
-    insta::assert_snapshot!(replace_changeid(&stdout), @r###"
+    insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Force branch push-<CHANGE_ID> from 48d8c7948133 to b5f030322b1d
+      Force branch push-1b76972398e6449e8e0701307e57d55a from 48d8c7948133 to b5f030322b1d
     "###);
 }
 
