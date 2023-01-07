@@ -182,7 +182,7 @@ fn test_color_config() {
     // Test that --color=always is respected.
     let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ [1m[38;5;12m230dd059e1b059aefc0da06a2e5a7dbf22362f22[0m[39m
+    @ [1m[38;5;12m230dd059e1b059aefc0da06a2e5a7dbf22362f22[39m[0m
     o [38;5;4m0000000000000000000000000000000000000000[39m
     "###);
 
@@ -193,7 +193,7 @@ color="always""#,
     );
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ [1m[38;5;12m230dd059e1b059aefc0da06a2e5a7dbf22362f22[0m[39m
+    @ [1m[38;5;12m230dd059e1b059aefc0da06a2e5a7dbf22362f22[39m[0m
     o [38;5;4m0000000000000000000000000000000000000000[39m
     "###);
 
@@ -249,7 +249,7 @@ color="always""#,
     test_env.add_env_var("NO_COLOR", "");
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ [1m[38;5;12m230dd059e1b059aefc0da06a2e5a7dbf22362f22[0m[39m
+    @ [1m[38;5;12m230dd059e1b059aefc0da06a2e5a7dbf22362f22[39m[0m
     o [38;5;4m0000000000000000000000000000000000000000[39m
     "###);
 

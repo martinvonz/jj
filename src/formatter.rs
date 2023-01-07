@@ -231,15 +231,6 @@ impl<W: Write> ColorFormatter<W> {
     fn write_new_style(&mut self) -> io::Result<()> {
         let new_style = self.current_style();
         if new_style != self.current_style {
-            // For now, make bright colors imply bold font. That better matches our
-            // behavior from when we used ANSI codes 30-37 plus an optional 1 for
-            // bold/bright (we now use code 38 for setting foreground color).
-            // TODO: Make boldness configurable separately from color
-            if !is_bright(&self.current_style.fg_color) && is_bright(&new_style.fg_color) {
-                queue!(self.output, SetAttribute(Attribute::Bold))?;
-            } else if !is_bright(&new_style.fg_color) && is_bright(&self.current_style.fg_color) {
-                queue!(self.output, SetAttribute(Attribute::Reset))?;
-            }
             if new_style.bold != self.current_style.bold {
                 if new_style.bold.unwrap_or_default() {
                     queue!(self.output, SetAttribute(Attribute::Bold))?;
@@ -268,20 +259,6 @@ impl<W: Write> ColorFormatter<W> {
         }
         Ok(())
     }
-}
-
-fn is_bright(color: &Option<Color>) -> bool {
-    matches!(
-        color.unwrap_or(Color::Reset),
-        Color::DarkGrey
-            | Color::Red
-            | Color::Green
-            | Color::Yellow
-            | Color::Blue
-            | Color::Magenta
-            | Color::Cyan
-            | Color::White
-    )
 }
 
 fn rules_from_config(config: &config::Config) -> HashMap<Vec<String>, Style> {
@@ -439,14 +416,14 @@ mod tests {
         [38;5;5m magenta [39m
         [38;5;6m cyan [39m
         [38;5;7m white [39m
-        [1m[38;5;8m bright black [0m[39m
-        [1m[38;5;9m bright red [0m[39m
-        [1m[38;5;10m bright green [0m[39m
-        [1m[38;5;11m bright yellow [0m[39m
-        [1m[38;5;12m bright blue [0m[39m
-        [1m[38;5;13m bright magenta [0m[39m
-        [1m[38;5;14m bright cyan [0m[39m
-        [1m[38;5;15m bright white [0m[39m
+        [38;5;8m bright black [39m
+        [38;5;9m bright red [39m
+        [38;5;10m bright green [39m
+        [38;5;11m bright yellow [39m
+        [38;5;12m bright blue [39m
+        [38;5;13m bright magenta [39m
+        [38;5;14m bright cyan [39m
+        [38;5;15m bright white [39m
         "###);
     }
 

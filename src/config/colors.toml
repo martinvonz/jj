@@ -20,11 +20,7 @@
 "divergent change_id"="red"
 "conflict" = "red"
 
-# TODO: This near-duplication of the lines above is unfortunate. Should we
-# allow adding and clearing the "bright" bit somehow? Or should we instead
-# use a different background color? (We don't have support for background
-# colors yet.)
-
+"working_copy" = { bold = true }
 "working_copy commit_id" = "bright blue"
 "working_copy change_id" = "bright magenta"
 "working_copy email" = "bright yellow"
@@ -48,6 +44,7 @@
 "op-log user" = "yellow"
 "op-log time" = "cyan"
 "op-log tags" = "white"
+"op-log head" = { bold = true }
 "op-log head id" = "bright blue"
 "op-log head user" = "bright yellow"
 "op-log head time" = "bright cyan"
