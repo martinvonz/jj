@@ -375,6 +375,11 @@ fn test_too_many_parents() {
     create_commit(&test_env, &repo_path, "conflict", &["a", "b", "c"], &[]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @"file	3-sided conflict");
+    // Test warning color
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list", "--color=always"]), 
+    @r###"
+    file	[33m[31m3-sided[33m conflict[0m
+    "###);
 
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
@@ -502,6 +507,11 @@ fn test_description_with_dir_and_deletion() {
     @r###"
     file	3-sided conflict including 1 deletion and a directory
     "###);
+    // Test warning color. The deletion is fine, so it's not highlighted
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list", "--color=always"]), 
+    @r###"
+    file	[33m[31m3-sided[33m conflict including 1 deletion and [31ma directory[33m[0m
+    "###);
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
     Error: Failed to use external tool to resolve: Only conflicts that involve normal files (not symlinks, not executable, etc.) are supported. Conflict summary for "file":
@@ -579,6 +589,12 @@ fn test_multiple_conflicts() {
     file1	2-sided conflict
     file2	2-sided conflict
     "###);
+    // Test colors
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list", "--color=always"]), 
+    @r###"
+    file1	[33m2-sided conflict[0m
+    file2	[33m2-sided conflict[0m
+    "###);
 
     let editor_script = test_env.set_up_fake_editor();
 
@@ -586,7 +602,7 @@ fn test_multiple_conflicts() {
     std::fs::write(&editor_script, "expect\n\0write\nresolution file2\n").unwrap();
     insta::assert_snapshot!(
     test_env.jj_cmd_success(&repo_path, &["resolve", "file2"]), @r###"
-    Working copy now at: 06cafc2b5489 conflict
+    Working copy now at: 5b4465fc6c31 conflict
     Added 0 files, modified 1 files, removed 0 files
     After this operation, some files at this revision still have conflicts:
     file1	2-sided conflict
@@ -610,7 +626,7 @@ fn test_multiple_conflicts() {
     std::fs::write(&editor_script, "expect\n\0write\nresolution file2\n").unwrap();
     insta::assert_snapshot!(
     test_env.jj_cmd_success(&repo_path, &["resolve", "--quiet", "file2"]), @r###"
-    Working copy now at: 02326c070aa4 conflict
+    Working copy now at: afb1b8512e98 conflict
     Added 0 files, modified 1 files, removed 0 files
     "###);
 

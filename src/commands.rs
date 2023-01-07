@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Debug;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::ops::Deref;
@@ -2447,12 +2447,16 @@ fn print_conflicted_paths(
         let sides = n_adds.max(conflict.removes.len() + 1);
         let deletions = sides - n_adds;
 
-        let mut seen_objects = BTreeSet::new(); // Sort for consistency and easier testing
+        let mut seen_objects = BTreeMap::new(); // Sort for consistency and easier testing
         if deletions > 0 {
-            seen_objects.insert(format!(
-                "{deletions} deletion{}",
-                if deletions > 1 { "s" } else { "" }
-            ));
+            seen_objects.insert(
+                format!(
+                    // Starting with a number sorts this first
+                    "{deletions} deletion{}",
+                    if deletions > 1 { "s" } else { "" }
+                ),
+                "normal", // Deletions don't interfere with `jj resolve` or diff display
+            );
         }
         // TODO: We might decide it's OK for `jj resolve` to ignore special files in the
         // `removes` of a conflict (see e.g. https://github.com/martinvonz/jj/pull/978). In
@@ -2472,21 +2476,48 @@ fn print_conflicted_paths(
                     TreeValue::Conflict(_) => "another conflict (you found a bug!)",
                 }
                 .to_string(),
+                "difficult",
             );
         }
-        let seen_objects = seen_objects.into_iter().collect_vec();
-        let msg_tail = match &seen_objects[..] {
-            [] => "".to_string(),
-            [only] => format!(" including {only}"),
-            [first @ .., last] => format!(" including {} and {}", first.join(", "), last),
-        };
-        let msg = format!("{sides}-sided conflict{msg_tail}");
 
-        writeln!(
+        write!(
             formatter,
-            "{}\t{msg}",
+            "{}\t",
             &workspace_command.format_file_path(repo_path)
         )?;
+        formatter.with_label("conflict_description", |formatter| {
+            let print_pair = |formatter: &mut dyn Formatter, (text, label): &(String, &str)| {
+                formatter.with_label(label, |fmt| fmt.write_str(text))
+            };
+            print_pair(
+                formatter,
+                &(
+                    format!("{sides}-sided"),
+                    if sides > 2 { "difficult" } else { "normal" },
+                ),
+            )?;
+            formatter.write_str(" conflict")?;
+
+            if !seen_objects.is_empty() {
+                formatter.write_str(" including ")?;
+                let seen_objects = seen_objects.into_iter().collect_vec();
+                match &seen_objects[..] {
+                    [] => unreachable!(),
+                    [only] => print_pair(formatter, only)?,
+                    [first, middle @ .., last] => {
+                        print_pair(formatter, first)?;
+                        for pair in middle {
+                            formatter.write_str(", ")?;
+                            print_pair(formatter, pair)?;
+                        }
+                        formatter.write_str(" and ")?;
+                        print_pair(formatter, last)?;
+                    }
+                };
+            }
+            Ok(())
+        })?;
+        writeln!(formatter)?;
     }
     Ok(())
 }
