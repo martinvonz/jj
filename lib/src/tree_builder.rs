@@ -84,8 +84,7 @@ impl TreeBuilder {
         // Write trees level by level, starting with trees without children.
         let store = self.store.as_ref();
         loop {
-            let mut dirs_to_write: HashSet<RepoPath> =
-                trees_to_write.keys().cloned().into_iter().collect();
+            let mut dirs_to_write: HashSet<RepoPath> = trees_to_write.keys().cloned().collect();
 
             for dir in trees_to_write.keys() {
                 if let Some(parent) = dir.parent() {
