@@ -573,8 +573,8 @@ fn test_graph_template_color() {
     // TODO: The color codes shouldn't span the graph lines, and we shouldn't get an
     // extra line at the end
     insta::assert_snapshot!(stdout, @r###"
-    @ [38;5;2msingle line
-    | [39m
+    @ [1m[38;5;2msingle line
+    | [39m[0m
     o [38;5;1mfirst line
     | second line
     | third line
