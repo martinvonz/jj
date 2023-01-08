@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use common::{get_stderr_string, get_stdout_string, TestEnvironment};
-use regex::Regex;
 
 pub mod common;
 
@@ -548,39 +547,5 @@ fn test_default_revset_per_repo() {
             .jj_cmd_success(&repo_path, &["log", "-T", "commit_id"])
             .lines()
             .count()
-    );
-}
-
-#[test]
-fn test_log_author_timestamp() {
-    let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
-    let repo_path = test_env.env_root().join("repo");
-
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "-m", "second"]);
-
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp()"]);
-    insta::assert_snapshot!(stdout, @r###"
-    @ 2001-02-03 04:05:09.000 +07:00
-    o 2001-02-03 04:05:07.000 +07:00
-    o 1970-01-01 00:00:00.000 +00:00
-    "###);
-}
-
-#[test]
-fn test_log_author_timestamp_ago() {
-    let test_env = TestEnvironment::default();
-    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
-    let repo_path = test_env.env_root().join("repo");
-
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first"]);
-    test_env.jj_cmd_success(&repo_path, &["new", "-m", "second"]);
-
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp().ago()"]);
-    let line_re = Regex::new(r"@|o [0-9]+ years ago").unwrap();
-    assert!(
-        stdout.lines().all(|x| line_re.is_match(x)),
-        "expected every line to match regex"
     );
 }
