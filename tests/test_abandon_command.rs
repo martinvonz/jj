@@ -94,7 +94,10 @@ fn test_rebase_branch_with_merge() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "descendants(c)"]);
     insta::assert_snapshot!(stdout, @r###"
-    Abandoned 3 commits. This can be undone with `jj undo` or `jj op restore`.
+    Abandoned the following commits:
+      5557ece3e631 e
+      b7c62f28ed10 d
+      fe2e8e8b50b3 c
     Working copy now at: e7bb061217d5 (no description set)
     Added 0 files, modified 0 files, removed 3 files
     "###);

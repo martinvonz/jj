@@ -415,6 +415,9 @@ struct AbandonArgs {
     /// The revision(s) to abandon
     #[arg(default_value = "@")]
     revisions: Vec<RevisionArg>,
+    /// Do not print every abandoned commit on a separate line
+    #[arg(long, short)]
+    summary: bool,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -2090,9 +2093,9 @@ fn cmd_abandon(
     }
     let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
 
+    let workspace_id = command.workspace_helper(ui)?.workspace_id();
     if to_abandon.len() == 1 {
         ui.write("Abandoned commit ")?;
-        let workspace_id = command.workspace_helper(ui)?.workspace_id();
         write_commit_summary(
             ui.stdout_formatter().as_mut(),
             tx.repo().as_repo_ref(),
@@ -2101,12 +2104,21 @@ fn cmd_abandon(
             command.settings(),
         )?;
         ui.write("\n")?;
+    } else if !args.summary {
+        ui.write("Abandoned the following commits:\n")?;
+        for commit in to_abandon {
+            ui.write("  ")?;
+            write_commit_summary(
+                ui.stdout_formatter().as_mut(),
+                tx.repo().as_repo_ref(),
+                &workspace_id,
+                &commit,
+                command.settings(),
+            )?;
+            ui.write("\n")?;
+        }
     } else {
-        writeln!(
-            ui,
-            "Abandoned {} commits. This can be undone with `jj undo` or `jj op restore`.",
-            &to_abandon.len()
-        )?;
+        writeln!(ui, "Abandoned {} commits.", &to_abandon.len())?;
     }
     if num_rebased > 0 {
         writeln!(
