@@ -66,7 +66,7 @@ fn test_checkout_not_single_rev() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "root..@" resolved to more than one revision
     Hint: The revset resolved to these revisions:
-    2f8593712db5 ()
+    2f8593712db5 (no description set)
     5c1afd8b074f (fifth)
     009f88bf7141 (fourth)
     3fa8931e7b89 (third)

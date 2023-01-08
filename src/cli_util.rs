@@ -1395,9 +1395,19 @@ pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(),
     Ok(())
 }
 
+// TODO: Consider basing this function on `write_commit_summary`. It will need
+// more arguments passed to it, but the output will be more consistent.
 pub fn short_commit_description(commit: &Commit) -> String {
     let first_line = commit.description().split('\n').next().unwrap();
-    format!("{} ({})", short_commit_hash(commit.id()), first_line)
+    format!(
+        "{} ({})",
+        short_commit_hash(commit.id()),
+        if first_line.is_empty() {
+            "no description set"
+        } else {
+            first_line
+        }
+    )
 }
 
 pub fn short_commit_hash(commit_id: &CommitId) -> String {
