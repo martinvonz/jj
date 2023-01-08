@@ -2085,10 +2085,29 @@ fn cmd_abandon(
         )
     };
     let mut tx = workspace_command.start_transaction(&transaction_description);
-    for commit in to_abandon {
+    for commit in &to_abandon {
         tx.mut_repo().record_abandoned_commit(commit.id().clone());
     }
     let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
+
+    if to_abandon.len() == 1 {
+        ui.write("Abandoned commit ")?;
+        let workspace_id = command.workspace_helper(ui)?.workspace_id();
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
+            tx.repo().as_repo_ref(),
+            &workspace_id,
+            &to_abandon[0],
+            command.settings(),
+        )?;
+        ui.write("\n")?;
+    } else {
+        writeln!(
+            ui,
+            "Abandoned {} commits. This can be undone with `jj undo` or `jj op restore`.",
+            &to_abandon.len()
+        )?;
+    }
     if num_rebased > 0 {
         writeln!(
             ui,
