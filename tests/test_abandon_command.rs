@@ -56,6 +56,7 @@ fn test_rebase_branch_with_merge() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "d"]);
     insta::assert_snapshot!(stdout, @r###"
+    Abandoned commit b7c62f28ed10 d
     Rebased 1 descendant commits onto parents of abandoned commits
     Working copy now at: 11a2e10edf4e e
     Added 0 files, modified 0 files, removed 1 files
@@ -74,17 +75,18 @@ fn test_rebase_branch_with_merge() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon"] /* abandons `e` */);
     insta::assert_snapshot!(stdout, @r###"
+    Abandoned commit 5557ece3e631 e
     Working copy now at: 6b5275139632 (no description set)
     Added 0 files, modified 0 files, removed 3 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
-    | o d e?
+    | o d e??
     | o c
     | | o b
     | |/  
     |/|   
-    o | a e?
+    o | a e??
     |/  
     o 
     "###);
@@ -92,6 +94,7 @@ fn test_rebase_branch_with_merge() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "descendants(c)"]);
     insta::assert_snapshot!(stdout, @r###"
+    Abandoned 3 commits. This can be undone with `jj undo` or `jj op restore`.
     Working copy now at: e7bb061217d5 (no description set)
     Added 0 files, modified 0 files, removed 3 files
     "###);
@@ -99,8 +102,8 @@ fn test_rebase_branch_with_merge() {
     @ 
     | o b
     |/  
-    o a e?
-    o c d e?
+    o a e??
+    o c d e??
     "###);
 }
 
