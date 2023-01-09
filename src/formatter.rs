@@ -155,6 +155,12 @@ pub struct Style {
     pub fg_color: Option<Color>,
 }
 
+impl Style {
+    fn merge(&mut self, other: &Style) {
+        self.fg_color = other.fg_color.or(self.fg_color);
+    }
+}
+
 pub struct ColorFormatter<W> {
     output: W,
     rules: Arc<HashMap<Vec<String>, Style>>,
@@ -183,36 +189,35 @@ impl<W: Write> ColorFormatter<W> {
         if let Some(cached) = self.cached_styles.get(&self.labels) {
             cached.clone()
         } else {
-            let mut best_match = (-1, Style::default());
+            // We use the reverse list of matched indices as a measure of how well the rule
+            // matches the actual labels. For example, for rule "a d" and the actual labels
+            // "a b c d", we'll get [3,0]. We compare them by Rust's default Vec comparison.
+            // That means "a d" will trump both rule "d" (priority [3]) and rule
+            // "a b c" (priority [2,1,0]).
+            let mut matched_styles = vec![];
             for (labels, style) in self.rules.as_ref() {
-                let mut num_matching = 0;
-                let mut labels_iter = self.labels.iter();
-                let mut valid = true;
+                let mut labels_iter = self.labels.iter().enumerate();
+                // The indexes in the current label stack that match the required label.
+                let mut matched_indices = vec![];
                 for required_label in labels {
-                    loop {
-                        match labels_iter.next() {
-                            Some(label) if label == required_label => {
-                                num_matching += 1;
-                            }
-                            None => {
-                                valid = false;
-                            }
-                            Some(_) => {
-                                continue;
-                            }
+                    for (label_index, label) in &mut labels_iter {
+                        if label == required_label {
+                            matched_indices.push(label_index);
+                            break;
                         }
-                        break;
                     }
                 }
-                if !valid {
-                    continue;
-                }
-                if num_matching >= best_match.0 {
-                    best_match = (num_matching, style.clone())
+                if matched_indices.len() == labels.len() {
+                    matched_indices.reverse();
+                    matched_styles.push((style, matched_indices));
                 }
             }
+            matched_styles.sort_by_key(|(_, indices)| indices.clone());
 
-            let style = best_match.1;
+            let mut style = Style::default();
+            for (matched_style, _) in matched_styles {
+                style.merge(matched_style);
+            }
             self.cached_styles
                 .insert(self.labels.clone(), style.clone());
             style
@@ -551,9 +556,8 @@ mod tests {
         formatter.remove_label().unwrap();
         formatter.write_str(" also red afterwards ").unwrap();
         formatter.remove_label().unwrap();
-        // TODO: Make this not reset the color inside
         insta::assert_snapshot!(String::from_utf8(output).unwrap(),
-        @"[38;5;1m red before [39m still red inside [38;5;1m also red afterwards [39m");
+        @"[38;5;1m red before  still red inside  also red afterwards [39m");
     }
 
     #[test]
@@ -595,37 +599,6 @@ mod tests {
     }
 
     #[test]
-    fn test_color_formatter_number_of_matches_matters() {
-        // Rules that match more labels take precedence.
-        let config = config_from_string(
-            r#"
-        colors."a b" = "red"
-        colors."c" = "green"
-        colors."b c d" = "blue"
-        "#,
-        );
-        let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config);
-        formatter.add_label("a").unwrap();
-        formatter.write_str(" a1 ").unwrap();
-        formatter.add_label("b").unwrap();
-        formatter.write_str(" b1 ").unwrap();
-        formatter.add_label("c").unwrap();
-        formatter.write_str(" c1 ").unwrap();
-        formatter.add_label("d").unwrap();
-        formatter.write_str(" d ").unwrap();
-        formatter.remove_label().unwrap();
-        formatter.write_str(" c2 ").unwrap();
-        formatter.remove_label().unwrap();
-        formatter.write_str(" b2 ").unwrap();
-        formatter.remove_label().unwrap();
-        formatter.write_str(" a2 ").unwrap();
-        formatter.remove_label().unwrap();
-        insta::assert_snapshot!(String::from_utf8(output).unwrap(),
-        @" a1 [38;5;1m b1  c1 [38;5;4m d [38;5;1m c2  b2 [39m a2 ");
-    }
-
-    #[test]
     fn test_color_formatter_innermost_wins() {
         // When two labels match, the innermost one wins.
         let config = config_from_string(
@@ -649,8 +622,7 @@ mod tests {
         formatter.remove_label().unwrap();
         formatter.write_str(" a2 ").unwrap();
         formatter.remove_label().unwrap();
-        // TODO: This is currently not deterministic.
-        // insta::assert_snapshot!(String::from_utf8(output).unwrap(),
-        // @"[38;5;1m a1 [38;5;2m b1 [38;5;3m c [38;5;2m b2 [38;5;1m a2 [39m");
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(),
+        @"[38;5;1m a1 [38;5;2m b1 [38;5;3m c [38;5;2m b2 [38;5;1m a2 [39m");
     }
 }
