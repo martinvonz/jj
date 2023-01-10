@@ -111,6 +111,31 @@ fn test_repo_arg_with_git_clone() {
 }
 
 #[test]
+fn test_no_workspace_directory() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    std::fs::create_dir(&repo_path).unwrap();
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["status"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: There is no jj repo in "."
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["status", "-R", "repo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: There is no jj repo in "repo"
+    "###);
+
+    std::fs::create_dir(repo_path.join(".git")).unwrap();
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["status"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: There is no jj repo in "."
+    Hint: It looks like this is a git repo. You can create a jj repo backed by it by running this:
+    jj init --git-repo=.
+    "###);
+}
+
+#[test]
 fn test_color_config() {
     let mut test_env = TestEnvironment::default();
 
