@@ -159,3 +159,23 @@ fn test_log_default_divergence() {
       [38;5;2m(empty) [39m(no description set)
     "###);
 }
+
+#[test]
+fn test_log_git_head() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    git2::Repository::init(&repo_path).unwrap();
+    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+
+    test_env.jj_cmd_success(&repo_path, &["new", "-m=initial"]);
+    std::fs::write(repo_path.join("file"), "foo\n").unwrap();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ [1m[38;5;13m8[e4fac809c][39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;12m5[0aaf4754c][39m[0m
+    | [1minitial[0m
+    o [38;5;5m9[a45c67d3e][39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [38;5;5mmaster[39m[38;5;5m HEAD@git[39m [38;5;4m23[0dd059e1][39m
+    | [38;5;2m(empty) [39m(no description set)
+    o [38;5;5m0[000000000][39m  [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [38;5;4m0[000000000][39m
+      [38;5;2m(empty) [39m(no description set)
+    "###);
+}
