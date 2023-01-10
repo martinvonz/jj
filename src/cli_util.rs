@@ -58,7 +58,7 @@ use crate::merge_tools::{ConflictResolveError, DiffEditError};
 use crate::templater::TemplateFormatter;
 use crate::ui::{ColorChoice, Ui};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum CommandError {
     UserError {
         message: String,
@@ -68,7 +68,7 @@ pub enum CommandError {
     /// Invalid command line
     CliError(String),
     /// Invalid command line detected by clap
-    ClapCliError(clap::Error),
+    ClapCliError(Arc<clap::Error>),
     BrokenPipe,
     InternalError(String),
 }
@@ -216,7 +216,7 @@ impl From<glob::PatternError> for CommandError {
 
 impl From<clap::Error> for CommandError {
     fn from(err: clap::Error) -> Self {
-        CommandError::ClapCliError(err)
+        CommandError::ClapCliError(Arc::new(err))
     }
 }
 
