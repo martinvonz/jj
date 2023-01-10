@@ -52,17 +52,33 @@ fn test_log_author_timestamp_ago() {
 }
 
 #[test]
-fn test_log_default_colors() {
+fn test_log_default() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 1"]);
+    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "add a file"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "description 1"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "my-branch"]);
+
+    // Test default log output format
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log"]), @r###"
+    @ ffdaa62087a2 test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9de54178d59d
+    | description 1
+    o 9a45c67d3e96 test.user@example.com 2001-02-03 04:05:08.000 +07:00 4291e264ae97
+    | add a file
+    o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
+      (no description set)
+    "###);
+
+    // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ [1;35m9a45c67d3e96[0m [1;33mtest.user@example.com[0m [1;36m2001-02-03 04:05:08.000 +07:00[0m [1;35mmy-branch[0m [1;34m45a3aa29e907[0m
+    @ [1;35mffdaa62087a2[0m [1;33mtest.user@example.com[0m [1;36m2001-02-03 04:05:09.000 +07:00[0m [1;35mmy-branch[0m [1;34m9de54178d59d[0m
     | [1;37mdescription 1[0m
+    o [35m9a45c67d3e96[0m [33mtest.user@example.com[0m [36m2001-02-03 04:05:08.000 +07:00[0m [34m4291e264ae97[0m
+    | add a file
     o [35m000000000000[0m [33m[0m [36m1970-01-01 00:00:00.000 +00:00[0m [34m000000000000[0m
       (no description set)
     "###);
