@@ -265,6 +265,7 @@ pub struct CommandHelper {
     string_args: Vec<String>,
     global_args: GlobalArgs,
     settings: UserSettings,
+    maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
     store_factories: StoreFactories,
 }
 
@@ -275,6 +276,7 @@ impl CommandHelper {
         string_args: Vec<String>,
         global_args: GlobalArgs,
         settings: UserSettings,
+        maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
         store_factories: StoreFactories,
     ) -> Self {
         Self {
@@ -283,6 +285,7 @@ impl CommandHelper {
             string_args,
             global_args,
             settings,
+            maybe_workspace_loader,
             store_factories,
         }
     }
@@ -315,30 +318,10 @@ impl CommandHelper {
     }
 
     pub fn load_workspace(&self) -> Result<Workspace, CommandError> {
-        let wc_path_str = self.global_args.repository.as_deref().unwrap_or(".");
-        let wc_path = self.cwd.join(wc_path_str);
-        Workspace::load(&self.settings, &wc_path, &self.store_factories).map_err(|err| match err {
-            WorkspaceLoadError::NoWorkspaceHere(wc_path) => {
-                let message = format!("There is no jj repo in \"{wc_path_str}\"");
-                let git_dir = wc_path.join(".git");
-                if git_dir.is_dir() {
-                    user_error_with_hint(
-                        message,
-                        "It looks like this is a git repo. You can create a jj repo backed by it \
-                         by running this:
-jj init --git-repo=.",
-                    )
-                } else {
-                    user_error(message)
-                }
-            }
-            WorkspaceLoadError::RepoDoesNotExist(repo_dir) => user_error(format!(
-                "The repository directory at {} is missing. Was it moved?",
-                repo_dir.to_str().unwrap()
-            )),
-            WorkspaceLoadError::Path(e) => user_error(format!("{}: {}", e, e.error)),
-            WorkspaceLoadError::NonUnicodePath => user_error(err.to_string()),
-        })
+        let loader = self.maybe_workspace_loader.as_ref().map_err(Clone::clone)?;
+        loader
+            .load(&self.settings, &self.store_factories)
+            .map_err(|e| user_error(format!("{}: {}", e, e.error)))
     }
 
     pub fn resolve_operation(
@@ -988,6 +971,37 @@ impl WorkspaceCommandHelper {
         }
         Ok(())
     }
+}
+
+fn init_workspace_loader(
+    cwd: &Path,
+    global_args: &GlobalArgs,
+) -> Result<WorkspaceLoader, CommandError> {
+    let workspace_path_str = global_args.repository.as_deref().unwrap_or(".");
+    let workspace_path = cwd.join(workspace_path_str);
+    WorkspaceLoader::init(&workspace_path).map_err(|err| match err {
+        WorkspaceLoadError::NoWorkspaceHere(wc_path) => {
+            // Prefer user-specified workspace_path_str instead of absolute wc_path.
+            let message = format!(r#"There is no jj repo in "{workspace_path_str}""#);
+            let git_dir = wc_path.join(".git");
+            if git_dir.is_dir() {
+                user_error_with_hint(
+                    message,
+                    "It looks like this is a git repo. You can create a jj repo backed by it by \
+                     running this:
+jj init --git-repo=.",
+                )
+            } else {
+                user_error(message)
+            }
+        }
+        WorkspaceLoadError::RepoDoesNotExist(repo_dir) => user_error(format!(
+            "The repository directory at {} is missing. Was it moved?",
+            repo_dir.to_str().unwrap()
+        )),
+        WorkspaceLoadError::Path(e) => user_error(format!("{}: {}", e, e.error)),
+        WorkspaceLoadError::NonUnicodePath => user_error(err.to_string()),
+    })
 }
 
 #[derive(Debug, Error)]
@@ -1791,10 +1805,8 @@ impl CliRunner {
             &mut layered_configs,
         )?;
 
-        let workspace_path = cwd.join(args.global_args.repository.as_deref().unwrap_or("."));
-        // TODO: reuse loader to load workspace, but we can't report error here, and the
-        // error isn't clonable.
-        if let Ok(loader) = WorkspaceLoader::init(&workspace_path) {
+        let maybe_workspace_loader = init_workspace_loader(&cwd, &args.global_args);
+        if let Ok(loader) = &maybe_workspace_loader {
             // TODO: maybe show error/warning if repo config contained command alias
             layered_configs.read_repo_config(loader.repo_path())?;
         }
@@ -1807,6 +1819,7 @@ impl CliRunner {
             string_args,
             args.global_args,
             settings,
+            maybe_workspace_loader,
             self.store_factories.unwrap_or_default(),
         );
         (self.dispatch_fn)(ui, &command_helper, &matches)
