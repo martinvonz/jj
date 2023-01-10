@@ -33,22 +33,6 @@ fn test_load_bad_path() {
 }
 
 #[test_case(false ; "local backend")]
-#[test_case(true ; "git backend")]
-fn test_load_from_subdir(use_git: bool) {
-    let settings = testutils::user_settings();
-    let test_workspace = TestWorkspace::init(&settings, use_git);
-    let workspace = &test_workspace.workspace;
-
-    let subdir = workspace.workspace_root().join("dir").join("subdir");
-    std::fs::create_dir_all(subdir.clone()).unwrap();
-    let same_workspace = Workspace::load(&settings, &subdir, &StoreFactories::default());
-    assert!(same_workspace.is_ok());
-    let same_workspace = same_workspace.unwrap();
-    assert_eq!(same_workspace.repo_path(), workspace.repo_path());
-    assert_eq!(same_workspace.workspace_root(), workspace.workspace_root());
-}
-
-#[test_case(false ; "local backend")]
 // #[test_case(true ; "git backend")]
 fn test_init_additional_workspace(use_git: bool) {
     let settings = testutils::user_settings();

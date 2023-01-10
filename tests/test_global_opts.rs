@@ -111,6 +111,23 @@ fn test_repo_arg_with_git_clone() {
 }
 
 #[test]
+fn test_resolve_workspace_directory() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let subdir = repo_path.join("dir").join("subdir");
+    std::fs::create_dir_all(&subdir).unwrap();
+
+    // Ancestor of cwd
+    let stdout = test_env.jj_cmd_success(&subdir, &["status"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Parent commit: 000000000000 (no description set)
+    Working copy : 230dd059e1b0 (no description set)
+    The working copy is clean
+    "###);
+}
+
+#[test]
 fn test_no_workspace_directory() {
     let test_env = TestEnvironment::default();
     let repo_path = test_env.env_root().join("repo");

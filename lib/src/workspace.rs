@@ -267,13 +267,13 @@ pub struct WorkspaceLoader {
 }
 
 impl WorkspaceLoader {
-    pub fn init(workspace_path: &Path) -> Result<Self, WorkspaceLoadError> {
-        let jj_dir = find_jj_dir(workspace_path)
-            .ok_or_else(|| WorkspaceLoadError::NoWorkspaceHere(workspace_path.to_owned()))?;
-        let workspace_root = jj_dir
-            .parent()
-            .ok_or(WorkspaceLoadError::NonUnicodePath)?
-            .to_owned();
+    pub fn init(workspace_root: &Path) -> Result<Self, WorkspaceLoadError> {
+        let jj_dir = workspace_root.join(".jj");
+        if !jj_dir.is_dir() {
+            return Err(WorkspaceLoadError::NoWorkspaceHere(
+                workspace_root.to_owned(),
+            ));
+        }
         let mut repo_dir = jj_dir.join("repo");
         // If .jj/repo is a file, then we interpret its contents as a relative path to
         // the actual repo directory (typically in another workspace).
@@ -293,7 +293,7 @@ impl WorkspaceLoader {
         }
         let working_copy_state_path = jj_dir.join("working_copy");
         Ok(WorkspaceLoader {
-            workspace_root,
+            workspace_root: workspace_root.to_owned(),
             repo_dir,
             working_copy_state_path,
         })
@@ -319,15 +319,5 @@ impl WorkspaceLoader {
             self.working_copy_state_path.clone(),
         );
         Workspace::new(&self.workspace_root, working_copy, repo_loader)
-    }
-}
-
-fn find_jj_dir(mut workspace_root: &Path) -> Option<PathBuf> {
-    loop {
-        let jj_path = workspace_root.join(".jj");
-        if jj_path.is_dir() {
-            return Some(jj_path);
-        }
-        workspace_root = workspace_root.parent()?;
     }
 }
