@@ -56,7 +56,7 @@ fn test_duplicate() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created: 2f6dc5a1ffc2 a
+    Duplicated 2443ea76b0b1 as 2f6dc5a1ffc2 a
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     o 2f6dc5a1ffc2   a
@@ -72,7 +72,7 @@ fn test_duplicate() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["undo"]), @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate" /* duplicates `c` */]);
     insta::assert_snapshot!(stdout, @r###"
-    Created: 1dd099ea963c c
+    Duplicated 17a00fc21654 as 1dd099ea963c c
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     o   1dd099ea963c   c
@@ -83,6 +83,163 @@ fn test_duplicate() {
     |/| |   
     | |/    
     o | d370aee184ba   b
+    | o 2443ea76b0b1   a
+    |/  
+    o 000000000000   (no description set)
+    "###);
+}
+
+#[test]
+fn test_duplicate_many() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "a", &[]);
+    create_commit(&test_env, &repo_path, "b", &["a"]);
+    create_commit(&test_env, &repo_path, "c", &["a"]);
+    create_commit(&test_env, &repo_path, "d", &["c"]);
+    create_commit(&test_env, &repo_path, "e", &["b", "d"]);
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @   921dde6e55c0   e
+    |\  
+    o | ebd06dba20ec   d
+    o | c0cb3a0b73e7   c
+    | o 1394f625cbbd   b
+    |/  
+    o 2443ea76b0b1   a
+    o 000000000000   (no description set)
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b:"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Duplicated 1394f625cbbd as 3b74d9691015 b
+    Duplicated 921dde6e55c0 as 8348ddcec733 e
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o   8348ddcec733   e
+    |\  
+    o | 3b74d9691015   b
+    | | @   921dde6e55c0   e
+    | | |\  
+    | |/ /  
+    | o | ebd06dba20ec   d
+    | o | c0cb3a0b73e7   c
+    |/ /  
+    | o 1394f625cbbd   b
+    |/  
+    o 2443ea76b0b1   a
+    o 000000000000   (no description set)
+    "###);
+
+    // Try specifying the same commit twice directly
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b", "b"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Duplicated 1394f625cbbd as 0276d3d7c24d b
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o 0276d3d7c24d   b
+    | @   921dde6e55c0   e
+    | |\  
+    | o | ebd06dba20ec   d
+    | o | c0cb3a0b73e7   c
+    |/ /  
+    | o 1394f625cbbd   b
+    |/  
+    o 2443ea76b0b1   a
+    o 000000000000   (no description set)
+    "###);
+
+    // Try specifying the same commit twice indirectly
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b:", "d:"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Duplicated 1394f625cbbd as fa167d18a83a b
+    Duplicated ebd06dba20ec as 2181781b4f81 d
+    Duplicated 921dde6e55c0 as 0f7430f2727a e
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o   0f7430f2727a   e
+    |\  
+    o | 2181781b4f81   d
+    | o fa167d18a83a   b
+    | | @   921dde6e55c0   e
+    | | |\  
+    | | o | ebd06dba20ec   d
+    | |/ /  
+    |/| |   
+    o | | c0cb3a0b73e7   c
+    |/ /  
+    | o 1394f625cbbd   b
+    |/  
+    o 2443ea76b0b1   a
+    o 000000000000   (no description set)
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    // Reminder of the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @   921dde6e55c0   e
+    |\  
+    o | ebd06dba20ec   d
+    o | c0cb3a0b73e7   c
+    | o 1394f625cbbd   b
+    |/  
+    o 2443ea76b0b1   a
+    o 000000000000   (no description set)
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "d:", "a"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Duplicated 2443ea76b0b1 as c6f7f8c4512e a
+    Duplicated ebd06dba20ec as d94e4c55a68b d
+    Duplicated 921dde6e55c0 as 9bd4389f5d47 e
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o   9bd4389f5d47   e
+    |\  
+    o | d94e4c55a68b   d
+    | | o c6f7f8c4512e   a
+    | | | @   921dde6e55c0   e
+    | | | |\  
+    | | |_|/  
+    | |/| |   
+    | | | o ebd06dba20ec   d
+    | |_|/  
+    |/| |   
+    o | | c0cb3a0b73e7   c
+    | o | 1394f625cbbd   b
+    |/ /  
+    o | 2443ea76b0b1   a
+    |/  
+    o 000000000000   (no description set)
+    "###);
+
+    // Check for BUG -- makes too many 'a'-s, etc.
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a:"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Duplicated 2443ea76b0b1 as 0fe67a05989e a
+    Duplicated 1394f625cbbd as e13ac0adabdf b
+    Duplicated c0cb3a0b73e7 as df53fa589286 c
+    Duplicated ebd06dba20ec as 2f2442db08eb d
+    Duplicated 921dde6e55c0 as ee8fe64ed254 e
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o   ee8fe64ed254   e
+    |\  
+    o | 2f2442db08eb   d
+    o | df53fa589286   c
+    | o e13ac0adabdf   b
+    |/  
+    o 0fe67a05989e   a
+    | @   921dde6e55c0   e
+    | |\  
+    | o | ebd06dba20ec   d
+    | o | c0cb3a0b73e7   c
+    | | o 1394f625cbbd   b
+    | |/  
     | o 2443ea76b0b1   a
     |/  
     o 000000000000   (no description set)
@@ -104,7 +261,7 @@ fn test_undo_after_duplicate() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created: f5cefcbb65a4 a
+    Duplicated 2443ea76b0b1 as f5cefcbb65a4 a
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     o f5cefcbb65a4   a
@@ -138,11 +295,11 @@ fn test_rebase_duplicates() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created: fdaaf3950f07 b
+    Duplicated 1394f625cbbd as fdaaf3950f07 b
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created: 870cf438ccbb b
+    Duplicated 1394f625cbbd as 870cf438ccbb b
     "###);
     insta::assert_snapshot!(get_log_output_with_ts(&test_env, &repo_path), @r###"
     o 870cf438ccbb   b @ 2001-02-03 04:05:14.000 +07:00

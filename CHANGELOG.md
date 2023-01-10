@@ -63,6 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   operations ("origin" by default) using the `git.fetch` and `git.push`
   configuration entries.
 
+* `jj duplicate` can now duplicate multiple changes in one go. This preserves
+  any parent-child relationships between them. For example, the entire tree of
+  descendants of `abc` can be duplicated with `jj duplicate abc:`.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
