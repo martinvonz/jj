@@ -155,6 +155,7 @@ pub struct Style {
     pub fg_color: Option<Color>,
     pub bg_color: Option<Color>,
     pub bold: Option<bool>,
+    pub underlined: Option<bool>,
 }
 
 impl Style {
@@ -162,6 +163,7 @@ impl Style {
         self.fg_color = other.fg_color.or(self.fg_color);
         self.bg_color = other.bg_color.or(self.bg_color);
         self.bold = other.bold.or(self.bold);
+        self.underlined = other.underlined.or(self.underlined);
     }
 }
 
@@ -243,6 +245,13 @@ impl<W: Write> ColorFormatter<W> {
                     self.current_style = Style::default();
                 }
             }
+            if new_style.underlined != self.current_style.underlined {
+                if new_style.underlined.unwrap_or_default() {
+                    queue!(self.output, SetAttribute(Attribute::Underlined))?;
+                } else {
+                    queue!(self.output, SetAttribute(Attribute::NoUnderline))?;
+                }
+            }
             if new_style.fg_color != self.current_style.fg_color {
                 queue!(
                     self.output,
@@ -275,6 +284,7 @@ fn rules_from_config(config: &config::Config) -> HashMap<Vec<String>, Style> {
                         fg_color: color_for_name(&color_name),
                         bg_color: None,
                         bold: None,
+                        underlined: None,
                     };
                     result.insert(labels, style);
                 }
@@ -293,6 +303,11 @@ fn rules_from_config(config: &config::Config) -> HashMap<Vec<String>, Style> {
                     if let Some(value) = style_table.get("bold") {
                         if let config::ValueKind::Boolean(value) = &value.kind {
                             style.bold = Some(*value);
+                        }
+                    }
+                    if let Some(value) = style_table.get("underlined") {
+                        if let config::ValueKind::Boolean(value) = &value.kind {
+                            style.underlined = Some(*value);
                         }
                     }
                     result.insert(labels, style);
@@ -455,7 +470,8 @@ mod tests {
         colors.red_fg = { fg = "red" }
         colors.blue_bg = { bg = "blue" }
         colors.bold_font = { bold = true }
-        colors.multiple = { fg = "green", bg = "yellow", bold = true }
+        colors.underlined_text = { underlined = true }
+        colors.multiple = { fg = "green", bg = "yellow", bold = true, underlined = true }
         "#,
         );
         let mut output: Vec<u8> = vec![];
@@ -472,6 +488,10 @@ mod tests {
         formatter.write_str(" bold only ").unwrap();
         formatter.remove_label().unwrap();
         formatter.write_str("\n").unwrap();
+        formatter.add_label("underlined_text").unwrap();
+        formatter.write_str(" underlined only ").unwrap();
+        formatter.remove_label().unwrap();
+        formatter.write_str("\n").unwrap();
         formatter.add_label("multiple").unwrap();
         formatter.write_str(" single rule ").unwrap();
         formatter.remove_label().unwrap();
@@ -486,7 +506,8 @@ mod tests {
         [38;5;1m fg only [39m
         [48;5;4m bg only [49m
         [1m bold only [0m
-        [1m[38;5;2m[48;5;3m single rule [0m
+        [4m underlined only [24m
+        [1m[4m[38;5;2m[48;5;3m single rule [0m
         [38;5;1m[48;5;4m two rules [49m[39m
         "###);
     }
@@ -496,7 +517,7 @@ mod tests {
         // Test that we don't lose other attributes when we reset the bold attribute.
         let config = config_from_string(
             r#"
-        colors.not_bold = { fg = "red", bg = "blue" }
+        colors.not_bold = { fg = "red", bg = "blue", underlined = true }
         colors.bold_font = { bold = true }
         "#,
         );
@@ -509,7 +530,7 @@ mod tests {
         formatter.remove_label().unwrap();
         formatter.write_str(" not bold again ").unwrap();
         formatter.remove_label().unwrap();
-        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[38;5;1m[48;5;4m not bold [1m bold [0m[38;5;1m[48;5;4m not bold again [39m[49m");
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[4m[38;5;1m[48;5;4m not bold [1m bold [0m[4m[38;5;1m[48;5;4m not bold again [24m[39m[49m");
     }
 
     #[test]
