@@ -82,6 +82,8 @@ where
     }
 }
 
+type Rules = Vec<(Vec<String>, Style)>;
+
 /// Creates `Formatter` instances with preconfigured parameters.
 #[derive(Clone, Debug)]
 pub struct FormatterFactory {
@@ -91,9 +93,7 @@ pub struct FormatterFactory {
 #[derive(Clone, Debug)]
 enum FormatterFactoryKind {
     PlainText,
-    Color {
-        rules: Arc<HashMap<Vec<String>, Style>>,
-    },
+    Color { rules: Arc<Rules> },
 }
 
 impl FormatterFactory {
@@ -169,14 +169,14 @@ impl Style {
 
 pub struct ColorFormatter<W> {
     output: W,
-    rules: Arc<HashMap<Vec<String>, Style>>,
+    rules: Arc<Rules>,
     labels: Vec<String>,
     cached_styles: HashMap<Vec<String>, Style>,
     current_style: Style,
 }
 
 impl<W: Write> ColorFormatter<W> {
-    pub fn new(output: W, rules: Arc<HashMap<Vec<String>, Style>>) -> ColorFormatter<W> {
+    pub fn new(output: W, rules: Arc<Rules>) -> ColorFormatter<W> {
         ColorFormatter {
             output,
             rules,
@@ -270,8 +270,8 @@ impl<W: Write> ColorFormatter<W> {
     }
 }
 
-fn rules_from_config(config: &config::Config) -> HashMap<Vec<String>, Style> {
-    let mut result = HashMap::new();
+fn rules_from_config(config: &config::Config) -> Rules {
+    let mut result = vec![];
     if let Ok(table) = config.get_table("colors") {
         for (key, value) in table {
             let labels = key
@@ -286,7 +286,7 @@ fn rules_from_config(config: &config::Config) -> HashMap<Vec<String>, Style> {
                         bold: None,
                         underlined: None,
                     };
-                    result.insert(labels, style);
+                    result.push((labels, style));
                 }
                 config::ValueKind::Table(style_table) => {
                     let mut style = Style::default();
@@ -310,7 +310,7 @@ fn rules_from_config(config: &config::Config) -> HashMap<Vec<String>, Style> {
                             style.underlined = Some(*value);
                         }
                     }
-                    result.insert(labels, style);
+                    result.push((labels, style));
                 }
                 _ => {}
             }
