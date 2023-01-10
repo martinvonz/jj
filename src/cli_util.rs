@@ -997,7 +997,7 @@ jj init --git-repo=.",
         }
         WorkspaceLoadError::RepoDoesNotExist(repo_dir) => user_error(format!(
             "The repository directory at {} is missing. Was it moved?",
-            repo_dir.to_str().unwrap()
+            repo_dir.display(),
         )),
         WorkspaceLoadError::Path(e) => user_error(format!("{}: {}", e, e.error)),
         WorkspaceLoadError::NonUnicodePath => user_error(err.to_string()),
