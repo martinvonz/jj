@@ -977,15 +977,18 @@ fn init_workspace_loader(
     cwd: &Path,
     global_args: &GlobalArgs,
 ) -> Result<WorkspaceLoader, CommandError> {
-    let workspace_path_str = global_args.repository.as_deref().unwrap_or(".");
-    let workspace_path = cwd.join(workspace_path_str);
-    let workspace_root = workspace_path
-        .ancestors()
-        .find(|path| path.join(".jj").is_dir())
-        .unwrap_or(&workspace_path);
-    WorkspaceLoader::init(workspace_root).map_err(|err| match err {
+    let workspace_root = if let Some(path) = global_args.repository.as_ref() {
+        cwd.join(path)
+    } else {
+        cwd.ancestors()
+            .find(|path| path.join(".jj").is_dir())
+            .unwrap_or(cwd)
+            .to_owned()
+    };
+    WorkspaceLoader::init(&workspace_root).map_err(|err| match err {
         WorkspaceLoadError::NoWorkspaceHere(wc_path) => {
             // Prefer user-specified workspace_path_str instead of absolute wc_path.
+            let workspace_path_str = global_args.repository.as_deref().unwrap_or(".");
             let message = format!(r#"There is no jj repo in "{workspace_path_str}""#);
             let git_dir = wc_path.join(".git");
             if git_dir.is_dir() {

@@ -50,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Commit description set by `-m`/`--message` is now terminated with a newline
   character, just like descriptions set by editor are.
 
+* The `-R`/`--repository` path must be a valid workspace directory. Its
+  ancestor directories are no longer searched.
+
 ### Contributors
 
 Thanks to the people who made this release happen!
