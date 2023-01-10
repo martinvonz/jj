@@ -83,3 +83,48 @@ fn test_log_default() {
       (no description set)
     "###);
 }
+
+#[test]
+fn test_log_default_divergence() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file"), "foo\n").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "description 1"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
+    // No divergence
+    insta::assert_snapshot!(stdout, @r###"
+    @ 9a45c67d3e96 test.user@example.com 2001-02-03 04:05:08.000 +07:00 7a17d52e633c
+    | description 1
+    o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
+      (no description set)
+    "###);
+
+    // Create divergence
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["describe", "-m", "description 2", "--at-operation", "@-"],
+    );
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Concurrent modification detected, resolving automatically.
+    o 9a45c67d3e96 divergent test.user@example.com 2001-02-03 04:05:10.000 +07:00 8979953d4c67
+    | description 2
+    | @ 9a45c67d3e96 divergent test.user@example.com 2001-02-03 04:05:08.000 +07:00 7a17d52e633c
+    |/  description 1
+    o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
+      (no description set)
+    "###);
+
+    // Color
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
+    insta::assert_snapshot!(stdout, @r###"
+    o [35m9a45c67d3e96[0m[31m divergent[0m [33mtest.user@example.com[0m [36m2001-02-03 04:05:10.000 +07:00[0m [34m8979953d4c67[0m
+    | description 2
+    | @ [1;35m9a45c67d3e96[0m[1;31m divergent[0m [1;33mtest.user@example.com[0m [1;36m2001-02-03 04:05:08.000 +07:00[0m [1;34m7a17d52e633c[0m
+    |/  [1;37mdescription 1[0m
+    o [35m000000000000[0m [33m[0m [36m1970-01-01 00:00:00.000 +00:00[0m [34m000000000000[0m
+      (no description set)
+    "###);
+}
