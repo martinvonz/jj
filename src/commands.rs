@@ -25,6 +25,7 @@ use std::{fs, io};
 use clap::builder::NonEmptyStringValueParser;
 use clap::{ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
 use config::Source;
+use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
@@ -397,9 +398,9 @@ struct CommitArgs {
 /// Create a new change with the same content as an existing one
 #[derive(clap::Args, Clone, Debug)]
 struct DuplicateArgs {
-    /// The revision to duplicate
+    /// The revision(s) to duplicate
     #[arg(default_value = "@")]
-    revision: RevisionArg,
+    revisions: Vec<RevisionArg>,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
@@ -2041,30 +2042,93 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
     Ok(())
 }
 
+fn resolve_multiple_rewriteable_revsets(
+    revisions: &[RevisionArg],
+    workspace_command: &WorkspaceCommandHelper,
+) -> Result<Vec<Commit>, CommandError> {
+    let mut acc = Vec::new();
+    for revset in revisions {
+        let revisions = workspace_command.resolve_revset(revset)?;
+        workspace_command.check_non_empty(&revisions)?;
+        for commit in &revisions {
+            workspace_command.check_not_root_commit(commit)?;
+        }
+        acc.extend(revisions);
+    }
+    Ok(acc)
+}
+
 fn cmd_duplicate(
     ui: &mut Ui,
     command: &CommandHelper,
     args: &DuplicateArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let predecessor = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_not_root_commit(&predecessor)?;
+    let mut to_duplicate: IndexSet<Commit> =
+        resolve_multiple_rewriteable_revsets(&args.revisions, &workspace_command)?
+            .into_iter()
+            .collect();
+    let mut duplicated_old_to_new: IndexMap<Commit, Commit> = IndexMap::new();
+
     let mut tx = workspace_command
-        .start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
+        .start_transaction(&format!("duplicating {} commit(s)", to_duplicate.len()));
     let mut_repo = tx.mut_repo();
-    let new_commit = mut_repo
-        .rewrite_commit(command.settings(), &predecessor)
-        .generate_new_change_id()
-        .write()?;
-    ui.write("Created: ")?;
-    write_commit_summary(
-        ui.stdout_formatter().as_mut(),
-        mut_repo.as_repo_ref(),
-        &workspace_command.workspace_id(),
-        &new_commit,
-        command.settings(),
-    )?;
-    ui.write("\n")?;
+    // TODO fix `target/debug/jj duplicate 6dd8-:` fails, probably because it
+    // diverges and then the branches merge.
+    while !to_duplicate.is_empty() {
+        let mut predecessor = None;
+        // Find a commit whose parents we either don't plan to duplicate or have already
+        // duplicated.
+        // This reimplements the heads() revset function, but we will optimize it
+        // shortly.
+        for commit in to_duplicate.iter() {
+            if !commit.parents().iter().any(|parent| {
+                to_duplicate
+                    .iter()
+                    .any(|other_commit| other_commit == parent)
+            }) {
+                predecessor = Some(commit.clone());
+                break;
+            }
+        }
+
+        let predecessor = predecessor.expect(
+            "Found a cycle: every commit has a parent that is also in the set of commits to \
+             duplicate",
+        );
+        let new_parents = predecessor
+            .parents()
+            .iter()
+            .map(|parent| {
+                if let Some(duplicated_parent) = duplicated_old_to_new.get(parent) {
+                    duplicated_parent
+                } else {
+                    parent
+                }
+                .id()
+                .clone()
+            })
+            .collect();
+        let new_commit = mut_repo
+            .rewrite_commit(command.settings(), &predecessor)
+            .generate_new_change_id()
+            .set_parents(new_parents)
+            .write()?;
+        to_duplicate.remove(&predecessor);
+        duplicated_old_to_new.insert(predecessor, new_commit);
+    }
+
+    for (old, new) in duplicated_old_to_new.iter() {
+        ui.write(&format!("Duplicated {} as ", short_commit_hash(old.id())))?;
+        write_commit_summary(
+            ui.stdout_formatter().as_mut(),
+            mut_repo.as_repo_ref(),
+            &workspace_command.workspace_id(),
+            new,
+            command.settings(),
+        )?;
+        ui.write("\n")?;
+    }
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -2075,18 +2139,7 @@ fn cmd_abandon(
     args: &AbandonArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let to_abandon = {
-        let mut acc = Vec::new();
-        for revset in &args.revisions {
-            let revisions = workspace_command.resolve_revset(revset)?;
-            workspace_command.check_non_empty(&revisions)?;
-            for commit in &revisions {
-                workspace_command.check_not_root_commit(commit)?;
-            }
-            acc.extend(revisions);
-        }
-        acc
-    };
+    let to_abandon = resolve_multiple_rewriteable_revsets(&args.revisions, &workspace_command)?;
     let transaction_description = if to_abandon.len() == 1 {
         format!("abandon commit {}", to_abandon[0].id().hex())
     } else {

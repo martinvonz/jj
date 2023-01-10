@@ -52,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `empty` condition in templates is true when the commit makes no change to
   the three compared to its parents.
 
+* `jj duplicate` can now duplicate multiple changes in one go. This preserves any
+  parent-child relationships between them. For example, an entire tree can be
+  duplicated with `jj duplicate 'descendants(abc)'`.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
