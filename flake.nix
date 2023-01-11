@@ -14,7 +14,7 @@
       foreachSystem = f: lib.foldl' (attrs: system: lib.recursiveUpdate attrs (f system)) { } systems;
     in
     {
-      overlay = (final: prev: {
+      overlays.default = (final: prev: {
         jujutsu = final.callPackage
           (
             { stdenv
@@ -78,13 +78,15 @@
       let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ self.overlay ];
+          overlays = [ self.overlays.default ];
         };
       in
       {
-        packages.${system}.jujutsu = pkgs.jujutsu;
-        defaultPackage.${system} = self.packages.${system}.jujutsu;
-        defaultApp.${system} = {
+        packages.${system} = {
+          jujutsu = pkgs.jujutsu;
+          default = self.packages.${system}.jujutsu;
+        };
+        apps.${system}.default = {
           type = "app";
           program = "${pkgs.jujutsu}/bin/jj";
         };
