@@ -34,7 +34,7 @@ fn test_load_at_operation(use_git: bool) {
     // If we load the repo at head, we should not see the commit since it was
     // removed
     let loader = RepoLoader::init(&settings, repo.repo_path(), &StoreFactories::default());
-    let head_repo = loader.load_at_head().resolve(&settings).unwrap();
+    let head_repo = loader.load_at_head(&settings).unwrap();
     assert!(!head_repo.view().heads().contains(commit.id()));
 
     // If we load the repo at the previous operation, we should see the commit since

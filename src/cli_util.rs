@@ -33,10 +33,12 @@ use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git::{GitExportError, GitImportError};
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
-use jujutsu_lib::op_heads_store::{OpHeadResolutionError, OpHeads, OpHeadsStore};
+use jujutsu_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
 use jujutsu_lib::operation::Operation;
-use jujutsu_lib::repo::{MutableRepo, ReadonlyRepo, RepoRef, RewriteRootCommit, StoreFactories};
+use jujutsu_lib::repo::{
+    MutableRepo, ReadonlyRepo, RepoLoader, RepoRef, RewriteRootCommit, StoreFactories,
+};
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
 use jujutsu_lib::revset::{
     Revset, RevsetAliasesMap, RevsetError, RevsetExpression, RevsetParseError,
@@ -128,12 +130,13 @@ impl From<WorkspaceInitError> for CommandError {
     }
 }
 
-impl From<OpHeadResolutionError> for CommandError {
-    fn from(err: OpHeadResolutionError) -> Self {
+impl From<OpHeadResolutionError<CommandError>> for CommandError {
+    fn from(err: OpHeadResolutionError<CommandError>) -> Self {
         match err {
             OpHeadResolutionError::NoHeads => CommandError::InternalError(
                 "Corrupt repository: there are no operations".to_string(),
             ),
+            OpHeadResolutionError::Err(e) => e,
         }
     }
 }
@@ -311,11 +314,30 @@ impl CommandHelper {
         &self.settings
     }
 
-    pub fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
+    fn workspace_helper_internal(
+        &self,
+        ui: &mut Ui,
+        snapshot: bool,
+    ) -> Result<WorkspaceCommandHelper, CommandError> {
         let workspace = self.load_workspace()?;
-        let mut workspace_command = self.resolve_operation(ui, workspace)?;
-        workspace_command.snapshot(ui)?;
+        let op_head = self.resolve_operation(ui, workspace.repo_loader())?;
+        let repo = workspace.repo_loader().load_at(&op_head);
+        let mut workspace_command = self.for_loaded_repo(ui, workspace, repo)?;
+        if snapshot {
+            workspace_command.snapshot(ui)?;
+        }
         Ok(workspace_command)
+    }
+
+    pub fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
+        self.workspace_helper_internal(ui, true)
+    }
+
+    pub fn workspace_helper_no_snapshot(
+        &self,
+        ui: &mut Ui,
+    ) -> Result<WorkspaceCommandHelper, CommandError> {
+        self.workspace_helper_internal(ui, false)
     }
 
     pub fn load_workspace(&self) -> Result<Workspace, CommandError> {
@@ -328,49 +350,46 @@ impl CommandHelper {
     pub fn resolve_operation(
         &self,
         ui: &mut Ui,
-        workspace: Workspace,
-    ) -> Result<WorkspaceCommandHelper, CommandError> {
-        let repo_loader = workspace.repo_loader();
-        let op_heads = resolve_op_for_load(
-            repo_loader.op_store(),
-            repo_loader.op_heads_store(),
-            &self.global_args.at_operation,
-        )?;
-        let workspace_command = match op_heads {
-            OpHeads::Single(op) => {
-                let repo = repo_loader.load_at(&op);
-                self.for_loaded_repo(ui, workspace, repo)?
-            }
-            OpHeads::Unresolved {
-                locked_op_heads,
-                op_heads,
-            } => {
-                writeln!(
-                    ui,
-                    "Concurrent modification detected, resolving automatically.",
-                )?;
-                let base_repo = repo_loader.load_at(&op_heads[0]);
-                // TODO: It may be helpful to print each operation we're merging here
-                let mut workspace_command = self.for_loaded_repo(ui, workspace, base_repo)?;
-                let mut tx = workspace_command.start_transaction("resolve concurrent operations");
-                for other_op_head in op_heads.into_iter().skip(1) {
-                    tx.merge_operation(other_op_head);
-                    let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
-                    if num_rebased > 0 {
-                        writeln!(
-                            ui,
-                            "Rebased {num_rebased} descendant commits onto commits rewritten by \
-                             other operation"
-                        )?;
+        repo_loader: &RepoLoader,
+    ) -> Result<Operation, OpHeadResolutionError<CommandError>> {
+        if self.global_args.at_operation == "@" {
+            op_heads_store::resolve_op_heads(
+                repo_loader.op_heads_store().as_ref(),
+                repo_loader.op_store(),
+                |op_heads| {
+                    writeln!(
+                        ui,
+                        "Concurrent modification detected, resolving automatically.",
+                    )?;
+                    let base_repo = repo_loader.load_at(&op_heads[0]);
+                    // TODO: It may be helpful to print each operation we're merging here
+                    let mut tx = start_repo_transaction(
+                        &base_repo,
+                        &self.settings,
+                        &self.string_args,
+                        "resolve concurrent operations",
+                    );
+                    for other_op_head in op_heads.into_iter().skip(1) {
+                        tx.merge_operation(other_op_head);
+                        let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
+                        if num_rebased > 0 {
+                            writeln!(
+                                ui,
+                                "Rebased {num_rebased} descendant commits onto commits rewritten \
+                                 by other operation"
+                            )?;
+                        }
                     }
-                }
-                let merged_repo = tx.write().leave_unpublished();
-                locked_op_heads.finish(merged_repo.operation());
-                workspace_command.repo = merged_repo;
-                workspace_command
-            }
-        };
-        Ok(workspace_command)
+                    Ok(tx.write().leave_unpublished().operation().clone())
+                },
+            )
+        } else {
+            resolve_op_for_load(
+                repo_loader.op_store(),
+                repo_loader.op_heads_store(),
+                &self.global_args.at_operation,
+            )
+        }
     }
 
     pub fn for_loaded_repo(
@@ -1157,32 +1176,30 @@ fn resolve_op_for_load(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &Arc<dyn OpHeadsStore>,
     op_str: &str,
-) -> Result<OpHeads, CommandError> {
-    if op_str == "@" {
-        Ok(op_heads_store.get_heads(op_store)?)
-    } else {
-        let get_current_op = || match op_heads_store.get_heads(op_store)? {
-            OpHeads::Single(current_op) => Ok(current_op),
-            OpHeads::Unresolved { .. } => Err(user_error(format!(
+) -> Result<Operation, OpHeadResolutionError<CommandError>> {
+    let get_current_op = || {
+        op_heads_store::resolve_op_heads(op_heads_store.as_ref(), op_store, |_| {
+            Err(user_error(format!(
                 r#"The "{op_str}" expression resolved to more than one operation"#
-            ))),
-        };
-        let operation = resolve_single_op(op_store, op_heads_store, get_current_op, op_str)?;
-        Ok(OpHeads::Single(operation))
-    }
+            )))
+        })
+    };
+    let operation = resolve_single_op(op_store, op_heads_store, get_current_op, op_str)?;
+    Ok(operation)
 }
 
 fn resolve_single_op(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &Arc<dyn OpHeadsStore>,
-    get_current_op: impl FnOnce() -> Result<Operation, CommandError>,
+    get_current_op: impl FnOnce() -> Result<Operation, OpHeadResolutionError<CommandError>>,
     op_str: &str,
 ) -> Result<Operation, CommandError> {
     let op_symbol = op_str.trim_end_matches('-');
     let op_postfix = &op_str[op_symbol.len()..];
     let mut operation = match op_symbol {
         "@" => get_current_op(),
-        s => resolve_single_op_from_store(op_store, op_heads_store, s),
+        s => resolve_single_op_from_store(op_store, op_heads_store, s)
+            .map_err(OpHeadResolutionError::Err),
     }?;
     for _ in op_postfix.chars() {
         operation = match operation.parents().as_slice() {

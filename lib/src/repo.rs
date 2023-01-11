@@ -33,7 +33,7 @@ use crate::git_backend::GitBackend;
 use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
 use crate::index_store::IndexStore;
 use crate::local_backend::LocalBackend;
-use crate::op_heads_store::{LockedOpHeads, OpHeads, OpHeadsStore};
+use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{
     BranchTarget, OpStore, OperationId, OperationMetadata, RefTarget, WorkspaceId,
 };
@@ -201,10 +201,8 @@ impl ReadonlyRepo {
         user_settings: &UserSettings,
         repo_path: &Path,
         store_factories: &StoreFactories,
-    ) -> Result<Arc<ReadonlyRepo>, BackendError> {
-        RepoLoader::init(user_settings, repo_path, store_factories)
-            .load_at_head()
-            .resolve(user_settings)
+    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<BackendError>> {
+        RepoLoader::init(user_settings, repo_path, store_factories).load_at_head(user_settings)
     }
 
     pub fn loader(&self) -> RepoLoader {
@@ -303,46 +301,12 @@ impl ReadonlyRepo {
     pub fn reload_at_head(
         &self,
         user_settings: &UserSettings,
-    ) -> Result<Arc<ReadonlyRepo>, BackendError> {
-        self.loader().load_at_head().resolve(user_settings)
+    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<BackendError>> {
+        self.loader().load_at_head(user_settings)
     }
 
     pub fn reload_at(&self, operation: &Operation) -> Arc<ReadonlyRepo> {
         self.loader().load_at(operation)
-    }
-}
-
-pub enum RepoAtHead {
-    Single(Arc<ReadonlyRepo>),
-    Unresolved(Box<UnresolvedHeadRepo>),
-}
-
-impl RepoAtHead {
-    pub fn resolve(self, user_settings: &UserSettings) -> Result<Arc<ReadonlyRepo>, BackendError> {
-        match self {
-            RepoAtHead::Single(repo) => Ok(repo),
-            RepoAtHead::Unresolved(unresolved) => unresolved.resolve(user_settings),
-        }
-    }
-}
-
-pub struct UnresolvedHeadRepo {
-    pub repo_loader: RepoLoader,
-    pub locked_op_heads: LockedOpHeads,
-    pub op_heads: Vec<Operation>,
-}
-
-impl UnresolvedHeadRepo {
-    pub fn resolve(self, user_settings: &UserSettings) -> Result<Arc<ReadonlyRepo>, BackendError> {
-        let base_repo = self.repo_loader.load_at(&self.op_heads[0]);
-        let mut tx = base_repo.start_transaction(user_settings, "resolve concurrent operations");
-        for other_op_head in self.op_heads.into_iter().skip(1) {
-            tx.merge_operation(other_op_head);
-            tx.mut_repo().rebase_descendants(user_settings)?;
-        }
-        let merged_repo = tx.write().leave_unpublished();
-        self.locked_op_heads.finish(merged_repo.operation());
-        Ok(merged_repo)
     }
 }
 
@@ -526,22 +490,17 @@ impl RepoLoader {
         &self.op_heads_store
     }
 
-    pub fn load_at_head(&self) -> RepoAtHead {
-        let op_heads = self.op_heads_store.get_heads(&self.op_store).unwrap();
-        match op_heads {
-            OpHeads::Single(op) => {
-                let view = View::new(op.view().take_store_view());
-                RepoAtHead::Single(self._finish_load(op, view))
-            }
-            OpHeads::Unresolved {
-                locked_op_heads,
-                op_heads,
-            } => RepoAtHead::Unresolved(Box::new(UnresolvedHeadRepo {
-                repo_loader: self.clone(),
-                locked_op_heads,
-                op_heads,
-            })),
-        }
+    pub fn load_at_head(
+        &self,
+        user_settings: &UserSettings,
+    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<BackendError>> {
+        let op = op_heads_store::resolve_op_heads(
+            self.op_heads_store.as_ref(),
+            &self.op_store,
+            |op_heads| self._resolve_op_heads(op_heads, user_settings),
+        )?;
+        let view = View::new(op.view().take_store_view());
+        Ok(self._finish_load(op, view))
     }
 
     pub fn load_at(&self, op: &Operation) -> Arc<ReadonlyRepo> {
@@ -568,6 +527,21 @@ impl RepoLoader {
             view,
         };
         Arc::new(repo)
+    }
+
+    fn _resolve_op_heads(
+        &self,
+        op_heads: Vec<Operation>,
+        user_settings: &UserSettings,
+    ) -> Result<Operation, BackendError> {
+        let base_repo = self.load_at(&op_heads[0]);
+        let mut tx = base_repo.start_transaction(user_settings, "resolve concurrent operations");
+        for other_op_head in op_heads.into_iter().skip(1) {
+            tx.merge_operation(other_op_head);
+            tx.mut_repo().rebase_descendants(user_settings)?;
+        }
+        let merged_repo = tx.write().leave_unpublished();
+        Ok(merged_repo.operation().clone())
     }
 
     fn _finish_load(&self, operation: Operation, view: View) -> Arc<ReadonlyRepo> {
