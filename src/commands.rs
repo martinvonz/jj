@@ -1609,6 +1609,16 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         &workspace_id,
         &template_string,
     );
+    let format_commit_template = |commit: &Commit, formatter: &mut dyn Formatter| {
+        let is_checkout = Some(commit.id()) == checkout_id;
+        if is_checkout {
+            formatter.with_label("working_copy", |formatter| {
+                template.format(commit, formatter)
+            })
+        } else {
+            template.format(commit, formatter)
+        }
+    };
 
     {
         ui.request_pager();
@@ -1652,16 +1662,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 let commit_id = index_entry.commit_id();
                 let commit = store.get_commit(&commit_id)?;
                 let is_checkout = Some(&commit_id) == checkout_id;
-                {
-                    let mut formatter = ui.new_formatter(&mut buffer);
-                    if is_checkout {
-                        formatter.with_label("working_copy", |formatter| {
-                            template.format(&commit, formatter)
-                        })?;
-                    } else {
-                        template.format(&commit, formatter.as_mut())?;
-                    }
-                }
+                format_commit_template(&commit, ui.new_formatter(&mut buffer).as_mut())?;
                 if !buffer.ends_with(b"\n") {
                     buffer.push(b'\n');
                 }
@@ -1691,7 +1692,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
             };
             for index_entry in iter {
                 let commit = store.get_commit(&index_entry.commit_id())?;
-                template.format(&commit, formatter)?;
+                format_commit_template(&commit, formatter)?;
                 if !diff_formats.is_empty() {
                     diff_util::show_patch(
                         formatter,
