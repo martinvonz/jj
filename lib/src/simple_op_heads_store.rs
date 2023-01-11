@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashSet;
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -24,9 +23,9 @@ use crate::lock::FileLock;
 use crate::op_heads_store::{
     LockedOpHeads, LockedOpHeadsResolver, OpHeadResolutionError, OpHeads, OpHeadsStore,
 };
+use crate::op_store;
 use crate::op_store::{OpStore, OperationId, OperationMetadata};
 use crate::operation::Operation;
-use crate::{dag_walk, op_store};
 
 pub struct SimpleOpHeadsStore {
     store: Arc<InnerSimpleOpHeadsStore>,
@@ -106,23 +105,6 @@ impl InnerSimpleOpHeadsStore {
             }
         }
         op_heads
-    }
-
-    /// Removes operations in the input that are ancestors of other operations
-    /// in the input. The ancestors are removed both from the list and from
-    /// disk.
-    /// TODO: Move this into the OpStore trait for sharing
-    fn handle_ancestor_ops(&self, op_heads: Vec<Operation>) -> Vec<Operation> {
-        let op_head_ids_before: HashSet<_> = op_heads.iter().map(|op| op.id().clone()).collect();
-        let neighbors_fn = |op: &Operation| op.parents();
-        // Remove ancestors so we don't create merge operation with an operation and its
-        // ancestor
-        let op_heads = dag_walk::heads(op_heads, &neighbors_fn, &|op: &Operation| op.id().clone());
-        let op_head_ids_after: HashSet<_> = op_heads.iter().map(|op| op.id().clone()).collect();
-        for removed_op_head in op_head_ids_before.difference(&op_head_ids_after) {
-            self.remove_op_head(removed_op_head);
-        }
-        op_heads.into_iter().collect()
     }
 }
 
@@ -244,7 +226,7 @@ impl OpHeadsStore for SimpleOpHeadsStore {
                 Operation::new(op_store.clone(), op_id.clone(), data)
             })
             .collect_vec();
-        let mut op_heads = self.store.handle_ancestor_ops(op_heads);
+        let mut op_heads = self.handle_ancestor_ops(op_heads);
 
         // Return without creating a merge operation
         if op_heads.len() == 1 {
