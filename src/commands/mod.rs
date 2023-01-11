@@ -3148,8 +3148,7 @@ fn cmd_workspace_update_stale(
     command: &CommandHelper,
     _args: &WorkspaceUpdateStaleArgs,
 ) -> Result<(), CommandError> {
-    let workspace = command.load_workspace()?;
-    let mut workspace_command = command.resolve_operation(ui, workspace)?;
+    let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
     let repo = workspace_command.repo().clone();
     let (mut locked_wc, desired_wc_commit) =
         workspace_command.unsafe_start_working_copy_mutation()?;

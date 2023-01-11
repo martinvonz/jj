@@ -17,50 +17,25 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use itertools::Itertools;
-
 use crate::lock::FileLock;
-use crate::op_heads_store::{
-    LockedOpHeads, LockedOpHeadsResolver, OpHeadResolutionError, OpHeads, OpHeadsStore,
-};
+use crate::op_heads_store::{OpHeadsStore, OpHeadsStoreLock};
 use crate::op_store;
 use crate::op_store::{OpStore, OperationId, OperationMetadata};
 use crate::operation::Operation;
 
 pub struct SimpleOpHeadsStore {
-    store: Arc<InnerSimpleOpHeadsStore>,
+    dir: PathBuf,
 }
 
 impl Debug for SimpleOpHeadsStore {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SimpleOpHeadsStore")
-            .field("dir", &self.store.dir)
+            .field("dir", &self.dir)
             .finish()
     }
 }
 
-/// Manages the very set of current heads of the operation log. This store is
-/// simply a directory where each operation id is a file with that name (and no
-/// content).
-struct InnerSimpleOpHeadsStore {
-    dir: PathBuf,
-}
-
-struct SimpleOpHeadsStoreLockResolver {
-    store: Arc<InnerSimpleOpHeadsStore>,
-    _lock: FileLock,
-}
-
-impl LockedOpHeadsResolver for SimpleOpHeadsStoreLockResolver {
-    fn finish(&self, new_op: &Operation) {
-        self.store.add_op_head(new_op.id());
-        for old_id in new_op.parent_ids() {
-            self.store.remove_op_head(old_id);
-        }
-    }
-}
-
-impl InnerSimpleOpHeadsStore {
+impl SimpleOpHeadsStore {
     pub fn init(
         dir: &Path,
         op_store: &Arc<dyn OpStore>,
@@ -78,51 +53,9 @@ impl InnerSimpleOpHeadsStore {
 
         let op_heads_dir = dir.join("simple_op_heads");
         fs::create_dir(&op_heads_dir).unwrap();
-        let op_heads_store = InnerSimpleOpHeadsStore { dir: op_heads_dir };
+        let op_heads_store = Self { dir: op_heads_dir };
         op_heads_store.add_op_head(init_operation.id());
         (op_heads_store, init_operation)
-    }
-
-    pub fn add_op_head(&self, id: &OperationId) {
-        std::fs::write(self.dir.join(id.hex()), "").unwrap();
-    }
-
-    pub fn remove_op_head(&self, id: &OperationId) {
-        // It's fine if the old head was not found. It probably means
-        // that we're on a distributed file system where the locking
-        // doesn't work. We'll probably end up with two current
-        // heads. We'll detect that next time we load the view.
-        std::fs::remove_file(self.dir.join(id.hex())).ok();
-    }
-
-    pub fn get_op_heads(&self) -> Vec<OperationId> {
-        let mut op_heads = vec![];
-        for op_head_entry in std::fs::read_dir(&self.dir).unwrap() {
-            let op_head_file_name = op_head_entry.unwrap().file_name();
-            let op_head_file_name = op_head_file_name.to_str().unwrap();
-            if let Ok(op_head) = hex::decode(op_head_file_name) {
-                op_heads.push(OperationId::new(op_head));
-            }
-        }
-        op_heads
-    }
-}
-
-impl SimpleOpHeadsStore {
-    pub fn init(
-        dir: &Path,
-        op_store: &Arc<dyn OpStore>,
-        root_view: &op_store::View,
-        operation_metadata: OperationMetadata,
-    ) -> (Self, Operation) {
-        let (inner, init_op) =
-            InnerSimpleOpHeadsStore::init(dir, op_store, root_view, operation_metadata);
-        (
-            SimpleOpHeadsStore {
-                store: Arc::new(inner),
-            },
-            init_op,
-        )
     }
 
     pub fn load(dir: &Path) -> Self {
@@ -130,23 +63,33 @@ impl SimpleOpHeadsStore {
 
         // TODO: Delete this migration code at 0.8+ or so
         if !op_heads_dir.exists() {
-            let old_store = InnerSimpleOpHeadsStore {
+            let old_store = Self {
                 dir: dir.to_path_buf(),
             };
             fs::create_dir(&op_heads_dir).unwrap();
-            let new_store = InnerSimpleOpHeadsStore { dir: op_heads_dir };
+            let new_store = Self { dir: op_heads_dir };
 
             for id in old_store.get_op_heads() {
                 old_store.remove_op_head(&id);
                 new_store.add_op_head(&id);
             }
-            return SimpleOpHeadsStore {
-                store: Arc::new(new_store),
-            };
+            return new_store;
         }
 
-        SimpleOpHeadsStore {
-            store: Arc::new(InnerSimpleOpHeadsStore { dir: op_heads_dir }),
+        Self { dir: op_heads_dir }
+    }
+}
+
+struct SimpleOpHeadsStoreLock<'a> {
+    store: &'a dyn OpHeadsStore,
+    _lock: FileLock,
+}
+
+impl OpHeadsStoreLock<'_> for SimpleOpHeadsStoreLock<'_> {
+    fn promote_new_op(&self, new_op: &Operation) {
+        self.store.add_op_head(new_op.id());
+        for old_id in new_op.parent_ids() {
+            self.store.remove_op_head(old_id);
         }
     }
 }
@@ -157,86 +100,33 @@ impl OpHeadsStore for SimpleOpHeadsStore {
     }
 
     fn add_op_head(&self, id: &OperationId) {
-        self.store.add_op_head(id);
+        std::fs::write(self.dir.join(id.hex()), "").unwrap();
     }
 
     fn remove_op_head(&self, id: &OperationId) {
-        self.store.remove_op_head(id);
+        // It's fine if the old head was not found. It probably means
+        // that we're on a distributed file system where the locking
+        // doesn't work. We'll probably end up with two current
+        // heads. We'll detect that next time we load the view.
+        std::fs::remove_file(self.dir.join(id.hex())).ok();
     }
 
     fn get_op_heads(&self) -> Vec<OperationId> {
-        self.store.get_op_heads()
+        let mut op_heads = vec![];
+        for op_head_entry in std::fs::read_dir(&self.dir).unwrap() {
+            let op_head_file_name = op_head_entry.unwrap().file_name();
+            let op_head_file_name = op_head_file_name.to_str().unwrap();
+            if let Ok(op_head) = hex::decode(op_head_file_name) {
+                op_heads.push(OperationId::new(op_head));
+            }
+        }
+        op_heads
     }
 
-    fn lock(&self) -> LockedOpHeads {
-        let lock = FileLock::lock(self.store.dir.join("lock"));
-        LockedOpHeads::new(Box::new(SimpleOpHeadsStoreLockResolver {
-            store: self.store.clone(),
-            _lock: lock,
-        }))
-    }
-
-    fn get_heads(&self, op_store: &Arc<dyn OpStore>) -> Result<OpHeads, OpHeadResolutionError> {
-        let mut op_heads = self.get_op_heads();
-
-        if op_heads.is_empty() {
-            return Err(OpHeadResolutionError::NoHeads);
-        }
-
-        if op_heads.len() == 1 {
-            let operation_id = op_heads.pop().unwrap();
-            let operation = op_store.read_operation(&operation_id).unwrap();
-            return Ok(OpHeads::Single(Operation::new(
-                op_store.clone(),
-                operation_id,
-                operation,
-            )));
-        }
-
-        // There are multiple heads. We take a lock, then check if there are still
-        // multiple heads (it's likely that another process was in the process of
-        // deleting on of them). If there are still multiple heads, we attempt to
-        // merge all the views into one. We then write that view and a corresponding
-        // operation to the op-store.
-        // Note that the locking isn't necessary for correctness; we take the lock
-        // only to prevent other concurrent processes from doing the same work (and
-        // producing another set of divergent heads).
-        let locked_op_heads = self.lock();
-        let op_head_ids = self.get_op_heads();
-
-        if op_head_ids.is_empty() {
-            return Err(OpHeadResolutionError::NoHeads);
-        }
-
-        if op_head_ids.len() == 1 {
-            let op_head_id = op_head_ids[0].clone();
-            let op_head = op_store.read_operation(&op_head_id).unwrap();
-            // Return early so we don't write a merge operation with a single parent
-            return Ok(OpHeads::Single(Operation::new(
-                op_store.clone(),
-                op_head_id,
-                op_head,
-            )));
-        }
-
-        let op_heads = op_head_ids
-            .iter()
-            .map(|op_id: &OperationId| {
-                let data = op_store.read_operation(op_id).unwrap();
-                Operation::new(op_store.clone(), op_id.clone(), data)
-            })
-            .collect_vec();
-        let mut op_heads = self.handle_ancestor_ops(op_heads);
-
-        // Return without creating a merge operation
-        if op_heads.len() == 1 {
-            return Ok(OpHeads::Single(op_heads.pop().unwrap()));
-        }
-
-        op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
-        Ok(OpHeads::Unresolved {
-            locked_op_heads,
-            op_heads,
+    fn lock<'a>(&'a self) -> Box<dyn OpHeadsStoreLock<'a> + 'a> {
+        Box::new(SimpleOpHeadsStoreLock {
+            store: self,
+            _lock: FileLock::lock(self.dir.join("lock")),
         })
     }
 }
@@ -249,7 +139,6 @@ mod tests {
 
     use itertools::Itertools;
 
-    use super::InnerSimpleOpHeadsStore;
     use crate::op_heads_store::OpHeadsStore;
     use crate::op_store::OperationId;
     use crate::simple_op_heads_store::SimpleOpHeadsStore;
@@ -274,7 +163,7 @@ mod tests {
         ops.insert(op1.clone());
         ops.insert(op2.clone());
 
-        let old_store = InnerSimpleOpHeadsStore {
+        let old_store = SimpleOpHeadsStore {
             dir: store_path.clone(),
         };
         old_store.add_op_head(&op1);

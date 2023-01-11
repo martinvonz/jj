@@ -438,7 +438,7 @@ fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Arc<Re
         op_ids.push(tx.commit().op_id().clone());
         std::thread::sleep(std::time::Duration::from_millis(1));
     }
-    let repo = repo_loader.load_at_head().resolve(settings).unwrap();
+    let repo = repo_loader.load_at_head(settings).unwrap();
     // Test the setup. The assumption here is that the parent order matches the
     // order in which they were merged (which currently matches the transaction
     // commit order), so we want to know make sure they appear in a certain
