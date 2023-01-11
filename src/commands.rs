@@ -51,7 +51,7 @@ use pest::Parser;
 
 use crate::cli_util::{
     self, check_stale_working_copy, print_checkout_stats, print_failed_git_export,
-    resolve_base_revs, short_commit_description, short_commit_hash, user_error,
+    resolve_base_revs, short_change_hash, short_commit_description, short_commit_hash, user_error,
     user_error_with_hint, write_commit_summary, write_config_entry, Args, CommandError,
     CommandHelper, DescriptionArg, RevisionArg, WorkspaceCommandHelper,
 };
@@ -4179,7 +4179,7 @@ fn cmd_git_push(
             &args.remote
         ));
         for (change_str, commit) in std::iter::zip(args.change.iter(), commits) {
-            let branch_name = format!(
+            let mut branch_name = format!(
                 "{}{}",
                 command.settings().push_branch_prefix(),
                 commit.change_id().hex()
@@ -4193,12 +4193,39 @@ fn cmd_git_push(
                 .get_local_branch(&branch_name)
                 .is_none()
             {
-                writeln!(
-                    ui,
-                    "Creating branch {} for revision {}",
-                    branch_name,
-                    change_str.deref()
-                )?;
+                // A local branch with the full change ID doesn't exist already, so use the
+                // short ID if it's not ambiguous (which it shouldn't be most of the time).
+                let short_change_id = short_change_hash(commit.change_id());
+                let new_branch_name = match workspace_command.resolve_single_rev(&short_change_id) {
+                    Ok(_) => {
+                        // Short change ID is not ambiguous but we do need to check if
+                        // a branch already exists with the short ID.
+                        branch_name = format!(
+                            "{}{}",
+                            command.settings().push_branch_prefix(),
+                            short_change_id
+                        );
+                        if workspace_command
+                            .repo()
+                            .view()
+                            .get_local_branch(&branch_name)
+                            .is_none()
+                        {
+                            Some(&branch_name)
+                        } else {
+                            None
+                        }
+                    }
+                    Err(_) => Some(&branch_name),
+                };
+                if let Some(branch_name) = new_branch_name {
+                    writeln!(
+                        ui,
+                        "Creating branch {} for revision {}",
+                        branch_name,
+                        change_str.deref()
+                    )?;
+                }
             }
             tx.mut_repo()
                 .set_local_branch(branch_name.clone(), RefTarget::Normal(commit.id().clone()));
