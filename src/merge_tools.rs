@@ -43,21 +43,22 @@ pub enum ExternalToolError {
     ConfigError(#[from] ConfigError),
     #[error("Error setting up temporary directory: {0:?}")]
     SetUpDirError(#[source] std::io::Error),
-    #[error("Error executing '{tool_binary}' with args {args:?}: {source}")]
+    // TODO: Remove the "(run with --verbose to see the exact invocation)"
+    // from this and other errors. Print it as a hint but only if --verbose is *not* set.
+    #[error(
+        "Error executing '{tool_binary}' (run with --verbose to see the exact invocation). \
+         {source}"
+    )]
     FailedToExecute {
         tool_binary: String,
-        args: Vec<String>,
         #[source]
         source: std::io::Error,
     },
     #[error(
-        "Tool exited with a non-zero code.\n Details: tool '{tool_binary}' was \
-         executed with args {args:?}. Exit code: {}.",
+        "Tool exited with a non-zero code (run with --verbose to see the exact invocation). Exit code: {}.",
          exit_status.code().map(|c| c.to_string()).unwrap_or_else(|| "<unknown>".to_string())
     )]
     ToolAborted {
-        tool_binary: String,
-        args: Vec<String>,
         exit_status: std::process::ExitStatus,
     },
     #[error("I/O error: {0:?}")]
@@ -101,7 +102,10 @@ pub enum ConflictResolveError {
         removes: usize,
         adds: usize,
     },
-    #[error("The output file is either unchanged or empty after the editor quit.")]
+    #[error(
+        "The output file is either unchanged or empty after the editor quit (run with --verbose \
+         to see the exact invocation)."
+    )]
     EmptyOrUnchanged,
     #[error("Backend error: {0:?}")]
     BackendError(#[from] jujutsu_lib::backend::BackendError),
@@ -227,22 +231,17 @@ pub fn run_mergetool(
         .try_collect()?;
 
     let args = interpolate_mergetool_filename_patterns(&editor.merge_args, &paths);
-    let args_str = args
-        .iter()
-        .map(|p| p.to_string_lossy().into_owned())
-        .collect_vec();
-    let exit_status = Command::new(&editor.program)
-        .args(args)
+    let mut cmd = Command::new(&editor.program);
+    cmd.args(args);
+    tracing::debug!(?cmd, "Invoking the external merge tool:");
+    let exit_status = cmd
         .status()
         .map_err(|e| ExternalToolError::FailedToExecute {
             tool_binary: editor.program.clone(),
-            args: args_str.clone(),
             source: e,
         })?;
     if !exit_status.success() {
         return Err(ConflictResolveError::from(ExternalToolError::ToolAborted {
-            tool_binary: editor.program,
-            args: args_str,
             exit_status,
         }));
     }
@@ -351,24 +350,20 @@ pub fn edit_diff(
     }
 
     let editor = get_diff_editor_from_settings(ui, settings)?;
-    let mut args_str = editor.edit_args.clone();
-    args_str.push(left_wc_dir.display().to_string());
-    args_str.push(right_wc_dir.display().to_string());
     // Start a diff editor on the two directories.
-    let exit_status = Command::new(&editor.program)
-        .args(&editor.edit_args)
+    let mut cmd = Command::new(&editor.program);
+    cmd.args(&editor.edit_args)
         .arg(&left_wc_dir)
-        .arg(&right_wc_dir)
+        .arg(&right_wc_dir);
+    tracing::debug!(?cmd, "Invoking the external diff editor:");
+    let exit_status = cmd
         .status()
         .map_err(|e| ExternalToolError::FailedToExecute {
             tool_binary: editor.program.clone(),
-            args: args_str.clone(),
             source: e,
         })?;
     if !exit_status.success() {
         return Err(DiffEditError::from(ExternalToolError::ToolAborted {
-            tool_binary: editor.program,
-            args: args_str,
             exit_status,
         }));
     }

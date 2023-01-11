@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use regex::Regex;
-
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -52,10 +50,8 @@ fn test_diffedit() {
 
     // Nothing happens if the diff-editor exits with an error
     std::fs::write(&edit_script, "rm file2\0fail").unwrap();
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["diffedit"]);
-    insta::assert_snapshot!(Regex::new(r"Details: [^\n]+").unwrap().replace(&stderr, "Details: <OS-Dependent>"), @r###"
-    Error: Failed to edit diff: Tool exited with a non-zero code.
-     Details: <OS-Dependent>
+    insta::assert_snapshot!(&test_env.jj_cmd_failure(&repo_path, &["diffedit"]), @r###"
+    Error: Failed to edit diff: Tool exited with a non-zero code (run with --verbose to see the exact invocation). Exit code: 1.
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -202,10 +198,8 @@ fn test_diffedit_old_restore_interactive_tests() {
 
     // Nothing happens if the diff-editor exits with an error
     std::fs::write(&edit_script, "rm file2\0fail").unwrap();
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["diffedit", "--from", "@-"]);
-    insta::assert_snapshot!(Regex::new(r"Details: [^\n]+").unwrap().replace(&stderr, "Details: <OS-Dependent>"), @r###"
-    Error: Failed to edit diff: Tool exited with a non-zero code.
-     Details: <OS-Dependent>
+    insta::assert_snapshot!(&test_env.jj_cmd_failure(&repo_path, &["diffedit", "--from", "@-"]), @r###"
+    Error: Failed to edit diff: Tool exited with a non-zero code (run with --verbose to see the exact invocation). Exit code: 1.
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
