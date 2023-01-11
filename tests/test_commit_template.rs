@@ -82,6 +82,17 @@ fn test_log_default() {
     o [35m000000000000[0m [33m[0m [36m1970-01-01 00:00:00.000 +00:00[0m [34m000000000000[0m
       (no description set)
     "###);
+
+    // Color without graph
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always", "--no-graph"]);
+    insta::assert_snapshot!(stdout, @r###"
+    [1;35mffdaa62087a2[0m [1;33mtest.user@example.com[0m [1;36m2001-02-03 04:05:09.000 +07:00[0m [1;35mmy-branch[0m [1;34m9de54178d59d[0m
+    [1;37mdescription 1[0m
+    [35m9a45c67d3e96[0m [33mtest.user@example.com[0m [36m2001-02-03 04:05:08.000 +07:00[0m [34m4291e264ae97[0m
+    add a file
+    [35m000000000000[0m [33m[0m [36m1970-01-01 00:00:00.000 +00:00[0m [34m000000000000[0m
+    (no description set)
+    "###);
 }
 
 #[test]
