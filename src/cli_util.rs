@@ -27,7 +27,7 @@ use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFact
 use clap::{Arg, ArgAction, ArgMatches, Command, Error, FromArgMatches};
 use git2::{Oid, Repository};
 use itertools::Itertools;
-use jujutsu_lib::backend::{BackendError, CommitId, ObjectId, TreeId};
+use jujutsu_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::git::{GitExportError, GitImportError};
 use jujutsu_lib::gitignore::GitIgnoreFile;
@@ -1383,6 +1383,10 @@ pub fn short_commit_description(commit: &Commit) -> String {
 
 pub fn short_commit_hash(commit_id: &CommitId) -> String {
     commit_id.hex()[0..12].to_string()
+}
+
+pub fn short_change_hash(change_id: &ChangeId) -> String {
+    change_id.hex()[0..12].to_string()
 }
 
 pub fn short_operation_hash(operation_id: &OperationId) -> String {
