@@ -275,17 +275,15 @@ fn check_resolve_produces_input_file(
     std::fs::write(editor_script, format!("expect\n{expected_content}")).unwrap();
 
     let merge_arg_config = format!(r#"merge-tools.fake-editor.merge-args = ["${role}"]"#);
-    let error =
-        test_env.jj_cmd_failure(repo_path, &["resolve", "--config-toml", &merge_arg_config]);
     // This error means that fake-editor exited successfully but did not modify the
     // output file.
     // We cannot use `insta::assert_snapshot!` here after insta 1.22 due to
     // https://github.com/mitsuhiko/insta/commit/745b45b. Hopefully, this will again become possible
     // in the future. See also https://github.com/mitsuhiko/insta/issues/313.
     assert_eq!(
-        error,
+        &test_env.jj_cmd_failure(repo_path, &["resolve", "--config-toml", &merge_arg_config]),
         "Error: Failed to use external tool to resolve: The output file is either unchanged or \
-         empty after the editor quit.\n"
+         empty after the editor quit (run with --verbose to see the exact invocation).\n"
     );
 }
 
