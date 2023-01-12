@@ -24,7 +24,7 @@ byteorder = "1.4.3"
 chrono = { version = "0.4.23", default-features = false, features = ["std", "clock"] }
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
 digest = "0.10.6"
-git2 = "0.15.0"
+git2 = "0.16.0"
 hex = "0.4.3"
 itertools = "0.10.5"
 maplit = "1.0.2"
