@@ -24,7 +24,6 @@ use std::{fs, io};
 
 use clap::builder::NonEmptyStringValueParser;
 use clap::{ArgGroup, ArgMatches, Command, CommandFactory, FromArgMatches, Subcommand};
-use config::Source;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
@@ -47,11 +46,11 @@ use pest::Parser;
 
 use crate::cli_util::{
     self, check_stale_working_copy, print_checkout_stats, resolve_base_revs, run_ui_editor,
-    short_commit_hash, user_error, user_error_with_hint, write_config_entry, Args, CommandError,
-    CommandHelper, DescriptionArg, RevisionArg, WorkspaceCommandHelper,
+    serialize_config_value, short_commit_hash, user_error, user_error_with_hint, Args,
+    CommandError, CommandHelper, DescriptionArg, RevisionArg, WorkspaceCommandHelper,
     DESCRIPTION_PLACEHOLDER_TEMPLATE,
 };
-use crate::config::config_path;
+use crate::config::{config_path, AnnotatedValue, ConfigSource};
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{get_graphlog, Edge};
@@ -172,8 +171,11 @@ enum ConfigSubcommand {
         /// An optional name of a specific config option to look up.
         #[arg(value_parser=NonEmptyStringValueParser::new())]
         name: Option<String>,
-        // TODO(#531): Support --show-origin using LayeredConfigs.
-        // TODO(#531): Support ConfigArgs (--user or --repo) and --all.
+        /// Whether to explicitly include built-in default values in the list.
+        #[arg(long)]
+        include_defaults: bool,
+        // TODO(#1047): Support --show-origin using LayeredConfigs.
+        // TODO(#1047): Support ConfigArgs (--user or --repo).
     },
     #[command(visible_alias("e"))]
     Edit {
@@ -1029,22 +1031,42 @@ fn cmd_config(
     ui.request_pager();
     let settings = command.settings();
     match subcommand {
-        ConfigSubcommand::List { name } => {
-            let raw_values = match name {
-                Some(name) => {
-                    settings
-                        .config()
-                        .get::<config::Value>(name)
-                        .map_err(|e| match e {
-                            config::ConfigError::NotFound { .. } => {
-                                user_error("key not found in config")
-                            }
-                            _ => e.into(),
-                        })?
+        ConfigSubcommand::List {
+            name,
+            include_defaults,
+        } => {
+            let name_path = name
+                .as_ref()
+                .map_or(vec![], |name| name.split('.').collect_vec());
+            let values = command.resolved_config_values(&name_path)?;
+            let mut wrote_values = false;
+            for AnnotatedValue {
+                path,
+                value,
+                source,
+                is_overridden,
+            } in &values
+            {
+                // Remove overridden values.
+                // TODO(#1047): Allow printing overridden values via `--include-overridden`.
+                if *is_overridden {
+                    continue;
                 }
-                None => settings.config().collect()?.into(),
-            };
-            write_config_entry(ui, name.as_deref().unwrap_or(""), raw_values)?;
+                // Skip built-ins if not included.
+                if !*include_defaults && *source == ConfigSource::Default {
+                    continue;
+                }
+                writeln!(ui, "{}={}", path.join("."), serialize_config_value(value))?;
+                wrote_values = true;
+            }
+            if !wrote_values {
+                // Note to stderr explaining why output is empty.
+                if let Some(name) = name {
+                    writeln!(ui.warning(), "No matching config key for {name}")?;
+                } else {
+                    writeln!(ui.warning(), "No config to list")?;
+                }
+            }
         }
         ConfigSubcommand::Edit { config_args } => {
             let edit_path = if config_args.user {

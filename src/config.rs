@@ -13,10 +13,13 @@
 // limitations under the License.
 
 use std::borrow::Cow;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fmt};
 
+use config::Source;
+use itertools::Itertools;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -25,6 +28,24 @@ pub enum ConfigError {
     ConfigReadError(#[from] config::ConfigError),
     #[error("Both {0} and {1} exist. Please consolidate your configs in one of them.")]
     AmbiguousSource(PathBuf, PathBuf),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ConfigSource {
+    Default,
+    Env,
+    // TODO: Track explicit file paths, especially for when user config is a dir.
+    User,
+    Repo,
+    CommandArg,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct AnnotatedValue {
+    pub path: Vec<String>,
+    pub value: config::Value,
+    pub source: ConfigSource,
+    pub is_overridden: bool,
 }
 
 /// Set of configs which can be merged as needed.
@@ -85,22 +106,83 @@ impl LayeredConfigs {
 
     /// Creates new merged config.
     pub fn merge(&self) -> config::Config {
-        let config_sources = [
-            Some(&self.default),
-            Some(&self.env_base),
-            self.user.as_ref(),
-            self.repo.as_ref(),
-            Some(&self.env_overrides),
-            self.arg_overrides.as_ref(),
-        ];
-        config_sources
+        self.sources()
             .into_iter()
-            .flatten()
+            .map(|(_, config)| config)
             .fold(config::Config::builder(), |builder, source| {
                 builder.add_source(source.clone())
             })
             .build()
             .expect("loaded configs should be merged without error")
+    }
+
+    fn sources(&self) -> Vec<(ConfigSource, &config::Config)> {
+        let config_sources = [
+            (ConfigSource::Default, Some(&self.default)),
+            (ConfigSource::Env, Some(&self.env_base)),
+            (ConfigSource::User, self.user.as_ref()),
+            (ConfigSource::Repo, self.repo.as_ref()),
+            (ConfigSource::Env, Some(&self.env_overrides)),
+            (ConfigSource::CommandArg, self.arg_overrides.as_ref()),
+        ];
+        config_sources
+            .into_iter()
+            .filter_map(|(source, config)| config.map(|c| (source, c)))
+            .collect_vec()
+    }
+
+    pub fn resolved_config_values(
+        &self,
+        filter_prefix: &[&str],
+    ) -> Result<Vec<AnnotatedValue>, ConfigError> {
+        // Collect annotated values from each config.
+        let mut config_vals = vec![];
+
+        let prefix_key = match filter_prefix {
+            &[] => None,
+            _ => Some(filter_prefix.join(".")),
+        };
+        for (source, config) in self.sources() {
+            let top_value = match prefix_key {
+                Some(ref key) => match config.get(key) {
+                    Err(config::ConfigError::NotFound { .. }) => continue,
+                    val => val?,
+                },
+                None => config.collect()?.into(),
+            };
+            let mut config_stack: Vec<(Vec<&str>, &config::Value)> =
+                vec![(filter_prefix.to_vec(), &top_value)];
+            while let Some((path, value)) = config_stack.pop() {
+                match &value.kind {
+                    config::ValueKind::Table(table) => {
+                        // TODO: Remove sorting when config crate maintains deterministic ordering.
+                        for (k, v) in table.iter().sorted_by_key(|(k, _)| *k).rev() {
+                            let mut key_path = path.to_vec();
+                            key_path.push(k);
+                            config_stack.push((key_path, v));
+                        }
+                    }
+                    _ => {
+                        config_vals.push(AnnotatedValue {
+                            path: path.iter().map(|&s| s.to_owned()).collect_vec(),
+                            value: value.to_owned(),
+                            source: source.to_owned(),
+                            // Note: Value updated below.
+                            is_overridden: false,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Walk through config values in reverse order and mark each overridden value as
+        // overridden.
+        let mut keys_found = HashSet::new();
+        for val in config_vals.iter_mut().rev() {
+            val.is_overridden = !keys_found.insert(&val.path);
+        }
+
+        Ok(config_vals)
     }
 }
 
@@ -339,5 +421,156 @@ mod tests {
         let args: FullCommandArgs = config.get("string").unwrap();
         assert_eq!(args, FullCommandArgs::String("emacs -nw".to_owned()));
         assert_eq!(args.args(), ["emacs", "-nw"].as_ref());
+    }
+
+    #[test]
+    fn test_layered_configs_resolved_config_values_empty() {
+        let empty_config = config::Config::default();
+        let layered_configs = LayeredConfigs {
+            default: empty_config.to_owned(),
+            env_base: empty_config.to_owned(),
+            user: None,
+            repo: None,
+            env_overrides: empty_config,
+            arg_overrides: None,
+        };
+        assert_eq!(layered_configs.resolved_config_values(&[]).unwrap(), []);
+    }
+
+    #[test]
+    fn test_layered_configs_resolved_config_values_single_key() {
+        let empty_config = config::Config::default();
+        let env_base_config = config::Config::builder()
+            .set_override("user.name", "base-user-name")
+            .unwrap()
+            .set_override("user.email", "base@user.email")
+            .unwrap()
+            .build()
+            .unwrap();
+        let repo_config = config::Config::builder()
+            .set_override("user.email", "repo@user.email")
+            .unwrap()
+            .build()
+            .unwrap();
+        let layered_configs = LayeredConfigs {
+            default: empty_config.to_owned(),
+            env_base: env_base_config,
+            user: None,
+            repo: Some(repo_config),
+            env_overrides: empty_config,
+            arg_overrides: None,
+        };
+        // Note: "email" is alphabetized, before "name" from same layer.
+        insta::assert_debug_snapshot!(
+            layered_configs.resolved_config_values(&[]).unwrap(),
+            @r###"
+        [
+            AnnotatedValue {
+                path: [
+                    "user",
+                    "email",
+                ],
+                value: Value {
+                    origin: None,
+                    kind: String(
+                        "base@user.email",
+                    ),
+                },
+                source: Env,
+                is_overridden: true,
+            },
+            AnnotatedValue {
+                path: [
+                    "user",
+                    "name",
+                ],
+                value: Value {
+                    origin: None,
+                    kind: String(
+                        "base-user-name",
+                    ),
+                },
+                source: Env,
+                is_overridden: false,
+            },
+            AnnotatedValue {
+                path: [
+                    "user",
+                    "email",
+                ],
+                value: Value {
+                    origin: None,
+                    kind: String(
+                        "repo@user.email",
+                    ),
+                },
+                source: Repo,
+                is_overridden: false,
+            },
+        ]
+        "###
+        );
+    }
+
+    #[test]
+    fn test_layered_configs_resolved_config_values_filter_path() {
+        let empty_config = config::Config::default();
+        let user_config = config::Config::builder()
+            .set_override("test-table1.foo", "user-FOO")
+            .unwrap()
+            .set_override("test-table2.bar", "user-BAR")
+            .unwrap()
+            .build()
+            .unwrap();
+        let repo_config = config::Config::builder()
+            .set_override("test-table1.bar", "repo-BAR")
+            .unwrap()
+            .build()
+            .unwrap();
+        let layered_configs = LayeredConfigs {
+            default: empty_config.to_owned(),
+            env_base: empty_config.to_owned(),
+            user: Some(user_config),
+            repo: Some(repo_config),
+            env_overrides: empty_config,
+            arg_overrides: None,
+        };
+        insta::assert_debug_snapshot!(
+            layered_configs
+                .resolved_config_values(&["test-table1"])
+                .unwrap(),
+            @r###"
+        [
+            AnnotatedValue {
+                path: [
+                    "test-table1",
+                    "foo",
+                ],
+                value: Value {
+                    origin: None,
+                    kind: String(
+                        "user-FOO",
+                    ),
+                },
+                source: User,
+                is_overridden: false,
+            },
+            AnnotatedValue {
+                path: [
+                    "test-table1",
+                    "bar",
+                ],
+                value: Value {
+                    origin: None,
+                    kind: String(
+                        "repo-BAR",
+                    ),
+                },
+                source: Repo,
+                is_overridden: false,
+            },
+        ]
+        "###
+        );
     }
 }
