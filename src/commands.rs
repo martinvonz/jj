@@ -1534,12 +1534,13 @@ fn cmd_status(
         }
     }
     if !conflicted_local_branches.is_empty() {
-        formatter.with_label("conflict", |formatter| {
-            writeln!(formatter, "These branches have conflicts:")
-        })?;
+        writeln!(
+            formatter.labeled("conflict"),
+            "These branches have conflicts:"
+        )?;
         for branch_name in conflicted_local_branches {
             write!(formatter, "  ")?;
-            formatter.with_label("branch", |formatter| write!(formatter, "{branch_name}"))?;
+            write!(formatter.labeled("branch"), "{branch_name}")?;
             writeln!(formatter)?;
         }
         writeln!(
@@ -1549,14 +1550,13 @@ fn cmd_status(
         )?;
     }
     if !conflicted_remote_branches.is_empty() {
-        formatter.with_label("conflict", |formatter| {
-            writeln!(formatter, "These remote branches have conflicts:")
-        })?;
+        writeln!(
+            formatter.labeled("conflict"),
+            "These remote branches have conflicts:"
+        )?;
         for (branch_name, remote_name) in conflicted_remote_branches {
             write!(formatter, "  ")?;
-            formatter.with_label("branch", |formatter| {
-                write!(formatter, "{branch_name}@{remote_name}")
-            })?;
+            write!(formatter.labeled("branch"), "{branch_name}@{remote_name}")?;
             writeln!(formatter)?;
         }
         writeln!(
@@ -1581,9 +1581,10 @@ fn cmd_status(
 
         let conflicts = tree.conflicts();
         if !conflicts.is_empty() {
-            formatter.with_label("conflict", |formatter| {
-                writeln!(formatter, "There are unresolved conflicts at these paths:")
-            })?;
+            writeln!(
+                formatter.labeled("conflict"),
+                "There are unresolved conflicts at these paths:"
+            )?;
             print_conflicted_paths(&conflicts, &tree, formatter, &workspace_command)?
         }
     }
@@ -3260,29 +3261,12 @@ fn list_branches(
     let repo = workspace_command.repo();
 
     let workspace_id = workspace_command.workspace_id();
-    let print_branch_target = |formatter: &mut dyn Formatter,
-                               target: Option<&RefTarget>|
-     -> Result<(), CommandError> {
-        match target {
-            Some(RefTarget::Normal(id)) => {
-                write!(formatter, ": ")?;
-                let commit = repo.store().get_commit(id)?;
-                write_commit_summary(
-                    formatter,
-                    repo.as_repo_ref(),
-                    &workspace_id,
-                    &commit,
-                    command.settings(),
-                )?;
-                writeln!(formatter)?;
-            }
-            Some(RefTarget::Conflict { adds, removes }) => {
-                write!(formatter, " ")?;
-                formatter.with_label("conflict", |formatter| write!(formatter, "(conflicted)"))?;
-                writeln!(formatter, ":")?;
-                for id in removes {
+    let print_branch_target =
+        |formatter: &mut dyn Formatter, target: Option<&RefTarget>| -> Result<(), CommandError> {
+            match target {
+                Some(RefTarget::Normal(id)) => {
+                    write!(formatter, ": ")?;
                     let commit = repo.store().get_commit(id)?;
-                    write!(formatter, "  - ")?;
                     write_commit_summary(
                         formatter,
                         repo.as_repo_ref(),
@@ -3292,31 +3276,47 @@ fn list_branches(
                     )?;
                     writeln!(formatter)?;
                 }
-                for id in adds {
-                    let commit = repo.store().get_commit(id)?;
-                    write!(formatter, "  + ")?;
-                    write_commit_summary(
-                        formatter,
-                        repo.as_repo_ref(),
-                        &workspace_id,
-                        &commit,
-                        command.settings(),
-                    )?;
-                    writeln!(formatter)?;
+                Some(RefTarget::Conflict { adds, removes }) => {
+                    write!(formatter, " ")?;
+                    write!(formatter.labeled("conflict"), "(conflicted)")?;
+                    writeln!(formatter, ":")?;
+                    for id in removes {
+                        let commit = repo.store().get_commit(id)?;
+                        write!(formatter, "  - ")?;
+                        write_commit_summary(
+                            formatter,
+                            repo.as_repo_ref(),
+                            &workspace_id,
+                            &commit,
+                            command.settings(),
+                        )?;
+                        writeln!(formatter)?;
+                    }
+                    for id in adds {
+                        let commit = repo.store().get_commit(id)?;
+                        write!(formatter, "  + ")?;
+                        write_commit_summary(
+                            formatter,
+                            repo.as_repo_ref(),
+                            &workspace_id,
+                            &commit,
+                            command.settings(),
+                        )?;
+                        writeln!(formatter)?;
+                    }
+                }
+                None => {
+                    writeln!(formatter, " (deleted)")?;
                 }
             }
-            None => {
-                writeln!(formatter, " (deleted)")?;
-            }
-        }
-        Ok(())
-    };
+            Ok(())
+        };
 
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
     let index = repo.index();
     for (name, branch_target) in repo.view().branches() {
-        formatter.with_label("branch", |formatter| write!(formatter, "{name}"))?;
+        write!(formatter.labeled("branch"), "{name}")?;
         print_branch_target(formatter, branch_target.local_target.as_ref())?;
 
         for (remote, remote_target) in branch_target
@@ -3328,7 +3328,7 @@ fn list_branches(
                 continue;
             }
             write!(formatter, "  ")?;
-            formatter.with_label("branch", |formatter| write!(formatter, "@{remote}"))?;
+            write!(formatter.labeled("branch"), "@{remote}")?;
             if let Some(local_target) = branch_target.local_target.as_ref() {
                 let remote_ahead_count = index
                     .walk_revs(&remote_target.adds(), &local_target.adds())
@@ -3463,12 +3463,15 @@ fn cmd_op_log(
     impl Template<Operation> for OpTemplate {
         fn format(&self, op: &Operation, formatter: &mut dyn Formatter) -> io::Result<()> {
             // TODO: Make this templated
-            formatter.with_label("id", |formatter| formatter.write_str(&op.id().hex()[0..12]))?;
+            write!(formatter.labeled("id"), "{}", &op.id().hex()[0..12])?;
             formatter.write_str(" ")?;
             let metadata = &op.store_operation().metadata;
-            formatter.with_label("user", |formatter| {
-                formatter.write_str(&format!("{}@{}", metadata.username, metadata.hostname))
-            })?;
+            write!(
+                formatter.labeled("user"),
+                "{}@{}",
+                metadata.username,
+                metadata.hostname
+            )?;
             formatter.write_str(" ")?;
             formatter.with_label("time", |formatter| {
                 formatter.write_str(
@@ -3492,13 +3495,13 @@ fn cmd_op_log(
                 )
             })?;
             formatter.write_str("\n")?;
-            formatter.with_label("description", |formatter| {
-                formatter.write_str(&metadata.description)
-            })?;
+            write!(
+                formatter.labeled("description"),
+                "{}",
+                &metadata.description
+            )?;
             for (key, value) in &metadata.tags {
-                formatter.with_label("tags", |formatter| {
-                    formatter.write_str(&format!("\n{key}: {value}"))
-                })?;
+                write!(formatter.labeled("tags"), "\n{key}: {value}")?;
             }
             Ok(())
         }

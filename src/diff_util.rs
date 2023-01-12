@@ -216,17 +216,21 @@ fn show_color_words_diff_line(
     diff_line: &DiffLine,
 ) -> io::Result<()> {
     if diff_line.has_left_content {
-        formatter.with_label("removed", |formatter| {
-            formatter.write_bytes(format!("{:>4}", diff_line.left_line_number).as_bytes())
-        })?;
+        write!(
+            formatter.labeled("removed"),
+            "{:>4}",
+            diff_line.left_line_number
+        )?;
         formatter.write_bytes(b" ")?;
     } else {
         formatter.write_bytes(b"     ")?;
     }
     if diff_line.has_right_content {
-        formatter.with_label("added", |formatter| {
-            formatter.write_bytes(format!("{:>4}", diff_line.right_line_number).as_bytes())
-        })?;
+        write!(
+            formatter.labeled("added"),
+            "{:>4}",
+            diff_line.right_line_number
+        )?;
         formatter.write_bytes(b": ")?;
     } else {
         formatter.write_bytes(b"    : ")?;
@@ -315,9 +319,10 @@ pub fn show_color_words_diff(
             tree::Diff::Added(right_value) => {
                 let right_content = diff_content(repo, &path, &right_value)?;
                 let description = basic_diff_file_type(&right_value);
-                formatter.with_label("header", |formatter| {
-                    formatter.write_str(&format!("Added {description} {ui_path}:\n"))
-                })?;
+                writeln!(
+                    formatter.labeled("header"),
+                    "Added {description} {ui_path}:"
+                )?;
                 show_color_words_diff_hunks(&[], &right_content, formatter)?;
             }
             tree::Diff::Modified(left_value, right_value) => {
@@ -364,17 +369,16 @@ pub fn show_color_words_diff(
                         )
                     }
                 };
-                formatter.with_label("header", |formatter| {
-                    formatter.write_str(&format!("{description} {ui_path}:\n"))
-                })?;
+                writeln!(formatter.labeled("header"), "{description} {ui_path}:")?;
                 show_color_words_diff_hunks(&left_content, &right_content, formatter)?;
             }
             tree::Diff::Removed(left_value) => {
                 let left_content = diff_content(repo, &path, &left_value)?;
                 let description = basic_diff_file_type(&left_value);
-                formatter.with_label("header", |formatter| {
-                    formatter.write_str(&format!("Removed {description} {ui_path}:\n"))
-                })?;
+                writeln!(
+                    formatter.labeled("header"),
+                    "Removed {description} {ui_path}:"
+                )?;
                 show_color_words_diff_hunks(&left_content, &[], formatter)?;
             }
         }
@@ -539,16 +543,14 @@ fn show_unified_diff_hunks(
     right_content: &[u8],
 ) -> Result<(), CommandError> {
     for hunk in unified_diff_hunks(left_content, right_content, 3) {
-        formatter.with_label("hunk_header", |formatter| {
-            writeln!(
-                formatter,
-                "@@ -{},{} +{},{} @@",
-                hunk.left_line_range.start,
-                hunk.left_line_range.len(),
-                hunk.right_line_range.start,
-                hunk.right_line_range.len()
-            )
-        })?;
+        writeln!(
+            formatter.labeled("hunk_header"),
+            "@@ -{},{} +{},{} @@",
+            hunk.left_line_range.start,
+            hunk.left_line_range.len(),
+            hunk.right_line_range.start,
+            hunk.right_line_range.len()
+        )?;
         for (line_type, content) in hunk.lines {
             match line_type {
                 DiffLineType::Context => {
@@ -651,31 +653,25 @@ pub fn show_diff_summary(
         for (repo_path, diff) in tree_diff {
             match diff {
                 tree::Diff::Modified(_, _) => {
-                    formatter.with_label("modified", |formatter| {
-                        writeln!(
-                            formatter,
-                            "M {}",
-                            workspace_command.format_file_path(&repo_path)
-                        )
-                    })?;
+                    writeln!(
+                        formatter.labeled("modified"),
+                        "M {}",
+                        workspace_command.format_file_path(&repo_path)
+                    )?;
                 }
                 tree::Diff::Added(_) => {
-                    formatter.with_label("added", |formatter| {
-                        writeln!(
-                            formatter,
-                            "A {}",
-                            workspace_command.format_file_path(&repo_path)
-                        )
-                    })?;
+                    writeln!(
+                        formatter.labeled("added"),
+                        "A {}",
+                        workspace_command.format_file_path(&repo_path)
+                    )?;
                 }
                 tree::Diff::Removed(_) => {
-                    formatter.with_label("removed", |formatter| {
-                        writeln!(
-                            formatter,
-                            "R {}",
-                            workspace_command.format_file_path(&repo_path)
-                        )
-                    })?;
+                    writeln!(
+                        formatter.labeled("removed"),
+                        "R {}",
+                        workspace_command.format_file_path(&repo_path)
+                    )?;
                 }
             }
         }

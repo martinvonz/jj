@@ -34,6 +34,13 @@ pub trait Formatter: Write {
 }
 
 impl dyn Formatter + '_ {
+    pub fn labeled<S: AsRef<str>>(&mut self, label: S) -> LabeledWriter<&mut Self, S> {
+        LabeledWriter {
+            formatter: self,
+            label,
+        }
+    }
+
     pub fn with_label(
         &mut self,
         label: &str,
