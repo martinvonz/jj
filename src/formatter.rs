@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::BorrowMut;
 use std::collections::HashMap;
-use std::io;
 use std::io::{Error, Write};
 use std::sync::Arc;
+use std::{fmt, io};
 
 // Lets the caller label strings and translates the labels to colors
 pub trait Formatter: Write {
@@ -42,6 +43,31 @@ impl dyn Formatter + '_ {
         // Call `remove_label()` whether or not `write_inner()` fails, but don't let
         // its error replace the one from `write_inner()`.
         write_inner(self).and(self.remove_label())
+    }
+}
+
+/// `Formatter` wrapper to write a labeled message with `write!()` or
+/// `writeln!()`.
+pub struct LabeledWriter<T, S> {
+    formatter: T,
+    label: S,
+}
+
+impl<T, S> LabeledWriter<T, S> {
+    pub fn new(formatter: T, label: S) -> Self {
+        LabeledWriter { formatter, label }
+    }
+}
+
+impl<'a, T, S> LabeledWriter<T, S>
+where
+    T: BorrowMut<dyn Formatter + 'a>,
+    S: AsRef<str>,
+{
+    pub fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> io::Result<()> {
+        self.formatter
+            .borrow_mut()
+            .with_label(self.label.as_ref(), |formatter| formatter.write_fmt(args))
     }
 }
 
