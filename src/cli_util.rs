@@ -1089,11 +1089,11 @@ pub fn print_failed_git_export(
             formatter.write_str("\n")?;
         }
         drop(formatter);
-        ui.write_hint(
+        writeln!(
+            ui.hint(),
             r#"Hint: Git doesn't allow a branch name that looks like a parent directory of
 another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
-export or their "parent" branches.
-"#,
+export or their "parent" branches."#,
         )?;
     }
     Ok(())
@@ -1724,7 +1724,7 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
         Err(CommandError::UserError { message, hint }) => {
             ui.write_error(&format!("Error: {message}\n")).unwrap();
             if let Some(hint) = hint {
-                ui.write_hint(format!("Hint: {hint}\n")).unwrap();
+                writeln!(ui.hint(), "Hint: {hint}").unwrap();
             }
             1
         }

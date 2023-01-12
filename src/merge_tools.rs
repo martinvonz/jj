@@ -485,10 +485,11 @@ fn editor_name_from_settings(
         Ok(editor_binary) => Ok(editor_binary),
         Err(_) => {
             let default_editor = "meld".to_string();
-            ui.write_hint(format!(
+            writeln!(
+                ui.hint(),
                 "Using default editor '{default_editor}'; you can change this by setting \
-                 ui.{diff_or_merge}-editor\n"
-            ))?;
+                 ui.{diff_or_merge}-editor"
+            )?;
             Ok(default_editor)
         }
     }

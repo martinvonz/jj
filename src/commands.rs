@@ -1222,11 +1222,12 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
     writeln!(ui, "Initialized repo in \"{}\"", relative_wc_path.display())?;
     if args.git && wc_path.join(".git").exists() {
         ui.write_warn("Empty repo created.\n")?;
-        ui.write_hint(format!(
+        writeln!(
+            ui.hint(),
             "Hint: To create a repo backed by the existing Git repo, run `jj init --git-repo={}` \
-             instead.\n",
+             instead.",
             relative_wc_path.display()
-        ))?;
+        )?;
     }
     Ok(())
 }
