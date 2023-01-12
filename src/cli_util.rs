@@ -923,33 +923,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn start_transaction(&self, description: &str) -> Transaction {
-        let mut tx = self.repo.start_transaction(&self.settings, description);
-        // TODO: Either do better shell-escaping here or store the values in some list
-        // type (which we currently don't have).
-        let shell_escape = |arg: &String| {
-            if arg.as_bytes().iter().all(|b| {
-                matches!(b,
-                    b'A'..=b'Z'
-                    | b'a'..=b'z'
-                    | b'0'..=b'9'
-                    | b','
-                    | b'-'
-                    | b'.'
-                    | b'/'
-                    | b':'
-                    | b'@'
-                    | b'_'
-                )
-            }) {
-                arg.clone()
-            } else {
-                format!("'{}'", arg.replace('\'', "\\'"))
-            }
-        };
-        let mut quoted_strings = vec!["jj".to_string()];
-        quoted_strings.extend(self.string_args.iter().skip(1).map(shell_escape));
-        tx.set_tag("args".to_string(), quoted_strings.join(" "));
-        tx
+        start_repo_transaction(&self.repo, &self.settings, &self.string_args, description)
     }
 
     pub fn finish_transaction(
@@ -1044,6 +1018,41 @@ jj init --git-repo=.",
         WorkspaceLoadError::Path(e) => user_error(format!("{}: {}", e, e.error)),
         WorkspaceLoadError::NonUnicodePath => user_error(err.to_string()),
     })
+}
+
+pub fn start_repo_transaction(
+    repo: &Arc<ReadonlyRepo>,
+    settings: &UserSettings,
+    string_args: &[String],
+    description: &str,
+) -> Transaction {
+    let mut tx = repo.start_transaction(settings, description);
+    // TODO: Either do better shell-escaping here or store the values in some list
+    // type (which we currently don't have).
+    let shell_escape = |arg: &String| {
+        if arg.as_bytes().iter().all(|b| {
+            matches!(b,
+                b'A'..=b'Z'
+                | b'a'..=b'z'
+                | b'0'..=b'9'
+                | b','
+                | b'-'
+                | b'.'
+                | b'/'
+                | b':'
+                | b'@'
+                | b'_'
+            )
+        }) {
+            arg.clone()
+        } else {
+            format!("'{}'", arg.replace('\'', "\\'"))
+        }
+    };
+    let mut quoted_strings = vec!["jj".to_string()];
+    quoted_strings.extend(string_args.iter().skip(1).map(shell_escape));
+    tx.set_tag("args".to_string(), quoted_strings.join(" "));
+    tx
 }
 
 #[derive(Debug, Error)]
