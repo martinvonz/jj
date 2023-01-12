@@ -39,6 +39,22 @@ fn test_config_list_single() {
 }
 
 #[test]
+fn test_config_list_nonexistent() {
+    let test_env = TestEnvironment::default();
+    let assert = test_env
+        .jj_cmd(
+            test_env.env_root(),
+            &["config", "list", "nonexistent-test-key"],
+        )
+        .assert()
+        .success()
+        .stdout("");
+    insta::assert_snapshot!(common::get_stderr_string(&assert), @r###"
+    No matching config key for nonexistent-test-key
+    "###);
+}
+
+#[test]
 fn test_config_list_table() {
     let test_env = TestEnvironment::default();
     test_env.add_config(
@@ -121,7 +137,10 @@ fn test_config_layer_override_default() {
     let config_key = "merge-tools.vimdiff.program";
 
     // Default
-    let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["config", "list", config_key, "--include-defaults"],
+    );
     insta::assert_snapshot!(stdout, @r###"
     merge-tools.vimdiff.program="vim"
     "###);

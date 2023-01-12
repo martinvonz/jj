@@ -55,7 +55,7 @@ use jujutsu_lib::{dag_walk, file_util, git, revset};
 use thiserror::Error;
 use tracing_subscriber::prelude::*;
 
-use crate::config::{FullCommandArgs, LayeredConfigs};
+use crate::config::{AnnotatedValue, FullCommandArgs, LayeredConfigs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
 use crate::ui::{ColorChoice, Ui};
@@ -280,17 +280,20 @@ pub struct CommandHelper {
     string_args: Vec<String>,
     global_args: GlobalArgs,
     settings: UserSettings,
+    layered_configs: LayeredConfigs,
     maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
     store_factories: StoreFactories,
 }
 
 impl CommandHelper {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         app: Command,
         cwd: PathBuf,
         string_args: Vec<String>,
         global_args: GlobalArgs,
         settings: UserSettings,
+        layered_configs: LayeredConfigs,
         maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
         store_factories: StoreFactories,
     ) -> Self {
@@ -300,6 +303,7 @@ impl CommandHelper {
             string_args,
             global_args,
             settings,
+            layered_configs,
             maybe_workspace_loader,
             store_factories,
         }
@@ -323,6 +327,13 @@ impl CommandHelper {
 
     pub fn settings(&self) -> &UserSettings {
         &self.settings
+    }
+
+    pub fn resolved_config_values(
+        &self,
+        prefix: &[&str],
+    ) -> Result<Vec<AnnotatedValue>, crate::config::ConfigError> {
+        self.layered_configs.resolved_config_values(prefix)
     }
 
     fn workspace_helper_internal(
@@ -1472,44 +1483,21 @@ pub fn write_commit_summary(
     template.format(commit, formatter)
 }
 
-pub fn write_config_entry(
-    ui: &mut Ui,
-    path: &str,
-    value: config::Value,
-) -> Result<(), CommandError> {
-    match value.kind {
-        // Handle table values specially to render each child nicely on its own line.
-        config::ValueKind::Table(table) => {
-            // TODO: Remove sorting when config crate maintains deterministic ordering.
-            for (key, table_val) in table.into_iter().sorted_by_key(|(k, _)| k.to_owned()) {
-                let key_path = match path {
-                    "" => key,
-                    _ => format!("{path}.{key}"),
-                };
-                write_config_entry(ui, key_path.as_str(), table_val)?;
-            }
-        }
-        _ => writeln!(ui, "{path}={}", serialize_config_value(value))?,
-    };
-    Ok(())
-}
-
 // TODO: Use a proper TOML library to serialize instead.
-fn serialize_config_value(value: config::Value) -> String {
-    match value.kind {
+pub fn serialize_config_value(value: &config::Value) -> String {
+    match &value.kind {
         config::ValueKind::Table(table) => format!(
             "{{{}}}",
             // TODO: Remove sorting when config crate maintains deterministic ordering.
             table
-                .into_iter()
-                .sorted_by_key(|(k, _)| k.to_owned())
+                .iter()
+                .sorted_by_key(|(k, _)| *k)
                 .map(|(k, v)| format!("{k}={}", serialize_config_value(v)))
                 .join(", ")
         ),
-        config::ValueKind::Array(vals) => format!(
-            "[{}]",
-            vals.into_iter().map(serialize_config_value).join(", ")
-        ),
+        config::ValueKind::Array(vals) => {
+            format!("[{}]", vals.iter().map(serialize_config_value).join(", "))
+        }
         config::ValueKind::String(val) => format!("{val:?}"),
         _ => value.to_string(),
     }
@@ -2017,6 +2005,7 @@ impl CliRunner {
             string_args,
             args.global_args,
             settings,
+            layered_configs,
             maybe_workspace_loader,
             self.store_factories.unwrap_or_default(),
         );
