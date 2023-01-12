@@ -80,8 +80,9 @@ One-time setup:
 During development (adapt according to your preference):
 
     cargo watch --ignore '.jj/**' -s \
-      'cargo +nightly fmt && cargo clippy --workspace --all-targets \
+      'cargo clippy --workspace --all-targets \
        && cargo +1.60 check --workspace --all-targets'
+    cargo +nightly fmt # Occasionally
     cargo nextest run --workspace # Occasionally
     cargo insta test --workspace # Occasionally
 
