@@ -72,11 +72,11 @@ impl<'a, C> LabelTemplate<'a, C> {
 impl<'a, C> Template<C> for LabelTemplate<'a, C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         for label in &self.labels {
-            formatter.add_label(label)?;
+            formatter.push_label(label)?;
         }
         self.content.format(context, formatter)?;
         for _label in &self.labels {
-            formatter.remove_label()?;
+            formatter.pop_label()?;
         }
         Ok(())
     }
@@ -106,11 +106,11 @@ impl<'a, C> Template<C> for DynamicLabelTemplate<'a, C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let labels = self.label_property.as_ref()(context);
         for label in &labels {
-            formatter.add_label(label)?;
+            formatter.push_label(label)?;
         }
         self.content.format(context, formatter)?;
         for _label in &labels {
-            formatter.remove_label()?;
+            formatter.pop_label()?;
         }
         Ok(())
     }
