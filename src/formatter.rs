@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 use std::io;
-use std::io::{Error, Read, Write};
+use std::io::{Error, Write};
 use std::sync::Arc;
 
 // Lets the caller label strings and translates the labels to colors
@@ -25,12 +25,6 @@ pub trait Formatter: Write {
 
     fn write_str(&mut self, text: &str) -> io::Result<()> {
         self.write_all(text.as_bytes())
-    }
-
-    fn write_from_reader(&mut self, reader: &mut dyn Read) -> io::Result<()> {
-        let mut buffer = vec![];
-        reader.read_to_end(&mut buffer).unwrap();
-        self.write_all(&buffer)
     }
 
     fn add_label(&mut self, label: &str) -> io::Result<()>;
