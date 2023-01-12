@@ -1087,7 +1087,7 @@ pub fn print_failed_git_export(
         let mut formatter = ui.stderr_formatter();
         for branch_name in failed_branches {
             formatter.write_str("  ")?;
-            formatter.with_label("branch", |formatter| formatter.write_str(branch_name))?;
+            write!(formatter.labeled("branch"), "{branch_name}")?;
             formatter.write_str("\n")?;
         }
         drop(formatter);
