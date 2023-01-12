@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj rebase` now accepts multiple `-s` and `-b` arguments. Revsets with
   multiple commits are allowed with `--allow-large-revsets`.
 
+* `jj git fetch` now supports a `--branch` argument to fetch some of the
+  branches only.
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines
