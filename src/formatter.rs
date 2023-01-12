@@ -170,8 +170,11 @@ impl Style {
 pub struct ColorFormatter<W> {
     output: W,
     rules: Arc<Rules>,
+    /// The stack of currently applied labels. These determine the desired
+    /// style.
     labels: Vec<String>,
     cached_styles: HashMap<Vec<String>, Style>,
+    /// The style we last wrote to the output.
     current_style: Style,
 }
 
@@ -191,7 +194,7 @@ impl<W: Write> ColorFormatter<W> {
         Self::new(output, Arc::new(rules))
     }
 
-    fn current_style(&mut self) -> Style {
+    fn requested_style(&mut self) -> Style {
         if let Some(cached) = self.cached_styles.get(&self.labels) {
             cached.clone()
         } else {
@@ -231,7 +234,7 @@ impl<W: Write> ColorFormatter<W> {
     }
 
     fn write_new_style(&mut self) -> io::Result<()> {
-        let new_style = self.current_style();
+        let new_style = self.requested_style();
         if new_style != self.current_style {
             if new_style.bold != self.current_style.bold {
                 if new_style.bold.unwrap_or_default() {
