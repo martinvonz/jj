@@ -226,12 +226,8 @@ impl Ui {
         LabeledWriter::new(self.stderr_formatter(), "warning")
     }
 
-    pub fn write_error(&mut self, text: &str) -> io::Result<()> {
-        let mut formatter = self.stderr_formatter();
-        formatter.add_label("error")?;
-        formatter.write_str(text)?;
-        formatter.remove_label()?;
-        Ok(())
+    pub fn error(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
+        LabeledWriter::new(self.stderr_formatter(), "error")
     }
 
     pub fn flush(&mut self) -> io::Result<()> {
@@ -252,8 +248,7 @@ impl Ui {
                 // It's possible (though unlikely) that this write fails, but
                 // this function gets called so late that there's not much we
                 // can do about it.
-                self.write_error(&format!("Failed to wait on pager: {e}\n"))
-                    .ok();
+                writeln!(self.error(), "Failed to wait on pager: {e}").ok();
             }
         }
     }

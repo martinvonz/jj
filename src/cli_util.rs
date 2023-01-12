@@ -1724,19 +1724,18 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
     match result {
         Ok(()) => 0,
         Err(CommandError::UserError { message, hint }) => {
-            ui.write_error(&format!("Error: {message}\n")).unwrap();
+            writeln!(ui.error(), "Error: {message}").unwrap();
             if let Some(hint) = hint {
                 writeln!(ui.hint(), "Hint: {hint}").unwrap();
             }
             1
         }
         Err(CommandError::ConfigError(message)) => {
-            ui.write_error(&format!("Config error: {message}\n"))
-                .unwrap();
+            writeln!(ui.error(), "Config error: {message}").unwrap();
             1
         }
         Err(CommandError::CliError(message)) => {
-            ui.write_error(&format!("Error: {message}\n")).unwrap();
+            writeln!(ui.error(), "Error: {message}").unwrap();
             2
         }
         Err(CommandError::ClapCliError(inner)) => {
@@ -1768,8 +1767,7 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
         }
         Err(CommandError::BrokenPipe) => 3,
         Err(CommandError::InternalError(message)) => {
-            ui.write_error(&format!("Internal error: {message}\n"))
-                .unwrap();
+            writeln!(ui.error(), "Internal error: {message}").unwrap();
             255
         }
     }

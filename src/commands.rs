@@ -1128,18 +1128,20 @@ fn add_to_git_exclude(ui: &mut Ui, git_repo: &git2::Repository) -> Result<(), Co
                 }
             }
             Err(err) => {
-                ui.write_error(&format!(
-                    "Failed to add `.jj/` to {}: {}\n",
+                writeln!(
+                    ui.error(),
+                    "Failed to add `.jj/` to {}: {}",
                     exclude_file_path.to_string_lossy(),
                     err
-                ))?;
+                )?;
             }
         }
     } else {
-        ui.write_error(&format!(
-            "Failed to add `.jj/` to {} because it doesn't exist\n",
+        writeln!(
+            ui.error(),
+            "Failed to add `.jj/` to {} because it doesn't exist",
             exclude_file_path.to_string_lossy()
-        ))?;
+        )?;
     }
     Ok(())
 }
