@@ -146,10 +146,11 @@ impl Ui {
                         self.output = new_output;
                     }
                     Err(e) => {
-                        self.write_warn(format!(
-                            "Failed to spawn pager '{cmd}': {e}\n",
+                        writeln!(
+                            self.warning(),
+                            "Failed to spawn pager '{cmd}': {e}",
                             cmd = self.pager_cmd,
-                        ))
+                        )
                         .ok();
                     }
                 }
@@ -221,12 +222,8 @@ impl Ui {
         LabeledWriter::new(self.stderr_formatter(), "hint")
     }
 
-    pub fn write_warn(&mut self, text: impl AsRef<str>) -> io::Result<()> {
-        let mut formatter = self.stderr_formatter();
-        formatter.add_label("warning")?;
-        formatter.write_str(text.as_ref())?;
-        formatter.remove_label()?;
-        Ok(())
+    pub fn warning(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
+        LabeledWriter::new(self.stderr_formatter(), "warning")
     }
 
     pub fn write_error(&mut self, text: &str) -> io::Result<()> {

@@ -1221,7 +1221,7 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
     let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
     writeln!(ui, "Initialized repo in \"{}\"", relative_wc_path.display())?;
     if args.git && wc_path.join(".git").exists() {
-        ui.write_warn("Empty repo created.\n")?;
+        writeln!(ui.warning(), "Empty repo created.")?;
         writeln!(
             ui.hint(),
             "Hint: To create a repo backed by the existing Git repo, run `jj init --git-repo={}` \
@@ -1753,18 +1753,20 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     if let (None, [only_path]) = (&args.revisions, args.paths.as_slice()) {
         if only_path == "." && workspace_command.parse_file_path(only_path)?.is_root() {
             // For users of e.g. Mercurial, where `.` indicates the current commit.
-            ui.write_warn(format!(
+            writeln!(
+                ui.warning(),
                 "warning: The argument {only_path:?} is being interpreted as a path, but this is \
                  often not useful because all non-empty commits touch '.'.  If you meant to show \
-                 the working copy commit, pass -r '@' instead.\n"
-            ))?;
+                 the working copy commit, pass -r '@' instead."
+            )?;
         } else if revset.is_empty()
             && revset::parse(only_path, &RevsetAliasesMap::new(), None).is_ok()
         {
-            ui.write_warn(format!(
+            writeln!(
+                ui.warning(),
                 "warning: The argument {only_path:?} is being interpreted as a path. To specify a \
-                 revset, pass -r {only_path:?} instead.\n"
-            ))?;
+                 revset, pass -r {only_path:?} instead."
+            )?;
         }
     }
 
@@ -3152,10 +3154,11 @@ fn cmd_branch(
                 .try_collect()?;
 
             if branch_names.len() > 1 {
-                ui.write_warn(format!(
-                    "warning: Creating multiple branches ({}).\n",
+                writeln!(
+                    ui.warning(),
+                    "warning: Creating multiple branches ({}).",
                     branch_names.len()
-                ))?;
+                )?;
             }
 
             let target_commit =
@@ -3180,10 +3183,11 @@ fn cmd_branch(
             names: branch_names,
         } => {
             if branch_names.len() > 1 {
-                ui.write_warn(format!(
-                    "warning: Updating multiple branches ({}).\n",
+                writeln!(
+                    ui.warning(),
+                    "warning: Updating multiple branches ({}).",
                     branch_names.len()
-                ))?;
+                )?;
             }
 
             let target_commit =
