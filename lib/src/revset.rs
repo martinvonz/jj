@@ -378,8 +378,11 @@ pub enum RevsetExpression {
     Roots(Rc<RevsetExpression>),
     VisibleHeads,
     PublicHeads,
-    Branches,
-    RemoteBranches,
+    Branches(String),
+    RemoteBranches {
+        branch_needle: String,
+        remote_needle: String,
+    },
     Tags,
     GitRefs,
     GitHead,
@@ -422,12 +425,15 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::PublicHeads)
     }
 
-    pub fn branches() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Branches)
+    pub fn branches(needle: String) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Branches(needle))
     }
 
-    pub fn remote_branches() -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::RemoteBranches)
+    pub fn remote_branches(branch_needle: String, remote_needle: String) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::RemoteBranches {
+            branch_needle,
+            remote_needle,
+        })
     }
 
     pub fn tags() -> Rc<RevsetExpression> {
@@ -934,12 +940,31 @@ fn parse_builtin_function(
             Ok(RevsetExpression::public_heads())
         }
         "branches" => {
-            expect_no_arguments(name, arguments_pair)?;
-            Ok(RevsetExpression::branches())
+            let opt_arg = expect_one_optional_argument(name, arguments_pair)?;
+            let needle = if let Some(arg) = opt_arg {
+                parse_function_argument_to_string(name, arg, state)?
+            } else {
+                "".to_owned()
+            };
+            Ok(RevsetExpression::branches(needle))
         }
         "remote_branches" => {
-            expect_no_arguments(name, arguments_pair)?;
-            Ok(RevsetExpression::remote_branches())
+            let (branch_opt_arg, remote_opt_arg) =
+                expect_two_optional_argument(name, arguments_pair)?;
+            let branch_needle = if let Some(branch_arg) = branch_opt_arg {
+                parse_function_argument_to_string(name, branch_arg, state)?
+            } else {
+                "".to_owned()
+            };
+            let remote_needle = if let Some(remote_arg) = remote_opt_arg {
+                parse_function_argument_to_string(name, remote_arg, state)?
+            } else {
+                "".to_owned()
+            };
+            Ok(RevsetExpression::remote_branches(
+                branch_needle,
+                remote_needle,
+            ))
         }
         "tags" => {
             expect_no_arguments(name, arguments_pair)?;
@@ -1068,10 +1093,12 @@ fn expect_one_argument<'i>(
     }
 }
 
+type OptionalArg<'i> = Option<Pair<'i, Rule>>;
+
 fn expect_one_optional_argument<'i>(
     name: &str,
     arguments_pair: Pair<'i, Rule>,
-) -> Result<Option<Pair<'i, Rule>>, RevsetParseError> {
+) -> Result<OptionalArg<'i>, RevsetParseError> {
     let span = arguments_pair.as_span();
     let mut argument_pairs = arguments_pair.into_inner().fuse();
     if let (opt_arg, None) = (argument_pairs.next(), argument_pairs.next()) {
@@ -1081,6 +1108,29 @@ fn expect_one_optional_argument<'i>(
             RevsetParseErrorKind::InvalidFunctionArguments {
                 name: name.to_owned(),
                 message: "Expected 0 or 1 arguments".to_string(),
+            },
+            span,
+        ))
+    }
+}
+
+fn expect_two_optional_argument<'i>(
+    name: &str,
+    arguments_pair: Pair<'i, Rule>,
+) -> Result<(OptionalArg<'i>, OptionalArg<'i>), RevsetParseError> {
+    let span = arguments_pair.as_span();
+    let mut argument_pairs = arguments_pair.into_inner().fuse();
+    if let (opt_arg1, opt_arg2, None) = (
+        argument_pairs.next(),
+        argument_pairs.next(),
+        argument_pairs.next(),
+    ) {
+        Ok((opt_arg1, opt_arg2))
+    } else {
+        Err(RevsetParseError::with_span(
+            RevsetParseErrorKind::InvalidFunctionArguments {
+                name: name.to_owned(),
+                message: "Expected 0 to 2 arguments".to_string(),
             },
             span,
         ))
@@ -1168,8 +1218,8 @@ fn transform_expression_bottom_up(
                 transform_rec(candidates, f).map(RevsetExpression::Roots)
             }
             RevsetExpression::PublicHeads => None,
-            RevsetExpression::Branches => None,
-            RevsetExpression::RemoteBranches => None,
+            RevsetExpression::Branches(_) => None,
+            RevsetExpression::RemoteBranches { .. } => None,
             RevsetExpression::Tags => None,
             RevsetExpression::GitRefs => None,
             RevsetExpression::GitHead => None,
@@ -1957,20 +2007,31 @@ pub fn evaluate_expression<'repo>(
             repo,
             &repo.view().public_heads().iter().cloned().collect_vec(),
         )),
-        RevsetExpression::Branches => {
+        RevsetExpression::Branches(needle) => {
             let mut commit_ids = vec![];
-            for branch_target in repo.view().branches().values() {
+            for (branch_name, branch_target) in repo.view().branches() {
+                if !branch_name.contains(needle) {
+                    continue;
+                }
                 if let Some(local_target) = &branch_target.local_target {
                     commit_ids.extend(local_target.adds());
                 }
             }
             Ok(revset_for_commit_ids(repo, &commit_ids))
         }
-        RevsetExpression::RemoteBranches => {
+        RevsetExpression::RemoteBranches {
+            branch_needle,
+            remote_needle,
+        } => {
             let mut commit_ids = vec![];
-            for branch_target in repo.view().branches().values() {
-                for remote_target in branch_target.remote_targets.values() {
-                    commit_ids.extend(remote_target.adds());
+            for (branch_name, branch_target) in repo.view().branches() {
+                if !branch_name.contains(branch_needle) {
+                    continue;
+                }
+                for (remote_name, remote_target) in branch_target.remote_targets.iter() {
+                    if remote_name.contains(remote_needle) {
+                        commit_ids.extend(remote_target.adds());
+                    }
                 }
             }
             Ok(revset_for_commit_ids(repo, &commit_ids))
@@ -2282,6 +2343,13 @@ mod tests {
         assert_eq!(
             parse("foo.bar-v1+7-"),
             Ok(RevsetExpression::symbol("foo.bar-v1+7".to_string()).parents())
+        );
+        // Default arguments for *branches() are all ""
+        assert_eq!(parse("branches()"), parse(r#"branches("")"#));
+        assert_eq!(parse("remote_branches()"), parse(r#"remote_branches("")"#));
+        assert_eq!(
+            parse("remote_branches()"),
+            parse(r#"remote_branches("", "")"#)
         );
         // '.' is not allowed at the beginning or end
         assert_eq!(parse(".foo"), Err(RevsetParseErrorKind::SyntaxError));
@@ -2643,37 +2711,37 @@ mod tests {
 
         assert_eq!(
             optimize(parse("parents(branches() & all())").unwrap()),
-            RevsetExpression::branches().parents()
+            RevsetExpression::branches("".to_owned()).parents()
         );
         assert_eq!(
             optimize(parse("children(branches() & all())").unwrap()),
-            RevsetExpression::branches().children()
+            RevsetExpression::branches("".to_owned()).children()
         );
         assert_eq!(
             optimize(parse("ancestors(branches() & all())").unwrap()),
-            RevsetExpression::branches().ancestors()
+            RevsetExpression::branches("".to_owned()).ancestors()
         );
         assert_eq!(
             optimize(parse("descendants(branches() & all())").unwrap()),
-            RevsetExpression::branches().descendants()
+            RevsetExpression::branches("".to_owned()).descendants()
         );
 
         assert_eq!(
             optimize(parse("(branches() & all())..(all() & tags())").unwrap()),
-            RevsetExpression::branches().range(&RevsetExpression::tags())
+            RevsetExpression::branches("".to_owned()).range(&RevsetExpression::tags())
         );
         assert_eq!(
             optimize(parse("(branches() & all()):(all() & tags())").unwrap()),
-            RevsetExpression::branches().dag_range_to(&RevsetExpression::tags())
+            RevsetExpression::branches("".to_owned()).dag_range_to(&RevsetExpression::tags())
         );
 
         assert_eq!(
             optimize(parse("heads(branches() & all())").unwrap()),
-            RevsetExpression::branches().heads()
+            RevsetExpression::branches("".to_owned()).heads()
         );
         assert_eq!(
             optimize(parse("roots(branches() & all())").unwrap()),
-            RevsetExpression::branches().roots()
+            RevsetExpression::branches("".to_owned()).roots()
         );
 
         assert_eq!(
@@ -2687,24 +2755,26 @@ mod tests {
         );
         assert_eq!(
             optimize(parse("present(branches() & all())").unwrap()),
-            Rc::new(RevsetExpression::Present(RevsetExpression::branches()))
+            Rc::new(RevsetExpression::Present(RevsetExpression::branches(
+                "".to_owned()
+            )))
         );
 
         assert_eq!(
             optimize(parse("~branches() & all()").unwrap()),
-            RevsetExpression::branches().negated()
+            RevsetExpression::branches("".to_owned()).negated()
         );
         assert_eq!(
             optimize(parse("(branches() & all()) | (all() & tags())").unwrap()),
-            RevsetExpression::branches().union(&RevsetExpression::tags())
+            RevsetExpression::branches("".to_owned()).union(&RevsetExpression::tags())
         );
         assert_eq!(
             optimize(parse("(branches() & all()) & (all() & tags())").unwrap()),
-            RevsetExpression::branches().intersection(&RevsetExpression::tags())
+            RevsetExpression::branches("".to_owned()).intersection(&RevsetExpression::tags())
         );
         assert_eq!(
             optimize(parse("(branches() & all()) ~ (all() & tags())").unwrap()),
-            RevsetExpression::branches().minus(&RevsetExpression::tags())
+            RevsetExpression::branches("".to_owned()).minus(&RevsetExpression::tags())
         );
     }
 
@@ -2737,7 +2807,7 @@ mod tests {
         let optimized = optimize(parsed.clone());
         assert_eq!(
             unwrap_union(&optimized).0.as_ref(),
-            &RevsetExpression::Branches
+            &RevsetExpression::Branches("".to_owned())
         );
         assert!(Rc::ptr_eq(
             unwrap_union(&parsed).1,
