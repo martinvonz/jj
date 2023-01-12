@@ -16,7 +16,6 @@ The commits listed by `jj log` without arguments are called "visible commits".
 Other commits are only included if you explicitly mention them (e.g. by commit
 ID or a Git ref pointing to them).
 
-
 ## Symbols
 
 The symbol `root` refers to the virtual commit that is the oldest ancestor of
@@ -48,7 +47,6 @@ Jujutsu attempts to resolve a symbol in the following order:
 5. Git ref
 6. Commit ID or change ID
 
-
 ## Operators
 
 The following operators are supported. `x` and `y` below can be any revset, not
@@ -74,7 +72,6 @@ only symbols.
 You can use parentheses to control evaluation order, such as `(x & y) | z` or
 `x & (y | z)`.
 
-
 ## Functions
 
 You can also specify revisions by using functions. Some functions take other
@@ -88,10 +85,20 @@ revsets (expressions) as arguments.
 * `all()`: All visible commits in the repo.
 * `none()`: No commits. This function is rarely useful; it is provided for
   completeness.
-* `branches()`: All local branch targets. If a branch is in a conflicted state,
+* `branches([needle])`: All local branch targets. If `needle` is specified,
+  branches whose name contains the given string are selected. For example,
+  `branches(push)` would match the branches `push-123` and `repushed` but not
+  the branch `main`. If a branch is in a conflicted state, all its possible
+  targets are included.
+* `remote_branches([branch_needle[, remote_needle]])`: All remote branch
+  targets across all remotes. If just the `branch_needle` is specificed,
+  branches whose name contains the given string across all remotes are
+  selected. If both `branch_needle` and `remote_needle` are specified, the
+  selection is further restricted to just the remotes whose name contains
+  `remote_needle`. For example, `remote_branches(push, ri)` would match the
+  branches `push-123@origin` and `repushed@private` but not `push-123@upstream`
+  or `main@origin` or `main@upstream`. If a branch is in a conflicted state,
   all its possible targets are included.
-* `remote_branches()`: All remote branch targets across all remotes. If a
-  branch is in a conflicted state, all its possible targets are included.
 * `tags()`: All tag targets. If a tag is in a conflicted state, all its
   possible targets are included.
 * `git_refs()`:  All Git ref targets as of the last import. If a Git ref
@@ -114,55 +121,67 @@ revsets (expressions) as arguments.
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
   in `x` doesn't exist (e.g. is an unknown branch name.)
 
-
 ## Aliases
 
 New symbols and functions can be defined in the config file, by using any
 combination of the predefined symbols/functions and other aliases.
 
 For example:
+
 ```toml
 [revset-aliases]
 'mine' = 'author(martinvonz)'
 'user(x)' = 'author(x) | committer(x)'
 ```
 
-
 ## Examples
 
 Show the parent(s) of the working-copy commit (like `git log -1 HEAD`):
+
 ```
 jj log -r @-
 ```
 
 Show commits not on any remote branch:
+
 ```
 jj log -r 'remote_branches()..'
 ```
 
+Show commits not on `origin` (if you have other remotes like `fork`):
+
+```
+jj log -r 'remote_branches("", origin)..'
+```
+
 Show all ancestors of the working copy (almost like plain `git log`)
+
 ```
 jj log -r :@
 ```
 
 Show the initial commits in the repo (the ones Git calls "root commits"):
+
 ```
 jj log -r root+
 ```
 
 Show some important commits (like `git --simplify-by-decoration`):
+
 ```
 jj log -r 'tags() | branches()'
 ```
 
 Show local commits leading up to the working copy, as well as descendants of
 those commits:
+
 ```
 jj log -r '(remote_branches()..@):'
 ```
 
 Show commits authored by "martinvonz" and containing the word "reset" in the
 description:
+
 ```
 jj log -r 'author(martinvonz) & description(reset)'
 ```

@@ -52,6 +52,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `empty` condition in templates is true when the commit makes no change to
   the three compared to its parents.
 
+* `branches([needle])` revset function now takes `needle` as an optional
+  argument and matches just the branches whose name contains `needle`.
+
+* `remote_branches([branch_needle[, remote_needle]])` now takes `branch_needle`
+  and `remote_needle` as optional arguments and matches just the branches whose
+  name contains `branch_needle` and remote contains `remote_needle`.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
@@ -91,11 +98,11 @@ No changes, only changed to a released version of the `thrift` crate dependency.
 
 * Adjusted precedence of revset union/intersection/difference operators.
   `x | y & z` is now equivalent to `x | (y & z)`.
-  
+
 * Support for open commits has been dropped. The `ui.enable-open-commits` config
   that was added in 0.5.0 is no longer respected. The `jj open/close` commands
   have been deleted.
-  
+
 * `jj commit` is now a separate command from `jj close` (which no longer
   exists). The behavior has changed slightly. It now always asks for a
   description, even if there already was a description set. It now also only
@@ -153,7 +160,7 @@ No changes, only changed to a released version of the `thrift` crate dependency.
   revset.
 
 * The new global flag `-v/--verbose` will turn on debug logging to give
-  some additional insight into what is happening behind the scenes. 
+  some additional insight into what is happening behind the scenes.
   Note: This is not comprehensively supported by all operations yet.
 
 * `jj log`, `jj show`, and `jj obslog` now all support showing relative
@@ -165,7 +172,7 @@ No changes, only changed to a released version of the `thrift` crate dependency.
   This typically occurred when running in a working copy colocated with Git
   (created by running `jj init --git-dir=.`).
   [#463](https://github.com/martinvonz/jj/issues/463)
-  
+
 * When exporting branches to Git, we used to fail if some branches could not be
   exported (e.g. because Git doesn't allow a branch called `main` and another
   branch called `main/sub`). We now print a warning about these branches
@@ -417,7 +424,7 @@ No changes (just trying to get automated GitHub release to work).
   has a non-empty description.
 
 * All commands now consistently snapshot the working copy (it was missing from
-  e.g. `jj undo` and `jj merge` before). 
+  e.g. `jj undo` and `jj merge` before).
 
 ## [0.4.0] - 2022-04-02
 
