@@ -20,7 +20,7 @@ use std::{fmt, io, mem};
 use crossterm::tty::IsTty;
 
 use crate::config::FullCommandArgs;
-use crate::formatter::{Formatter, FormatterFactory};
+use crate::formatter::{Formatter, FormatterFactory, LabeledWriter};
 
 pub struct Ui {
     color: bool,
@@ -217,12 +217,8 @@ impl Ui {
         }
     }
 
-    pub fn write_hint(&mut self, text: impl AsRef<str>) -> io::Result<()> {
-        let mut formatter = self.stderr_formatter();
-        formatter.add_label("hint")?;
-        formatter.write_str(text.as_ref())?;
-        formatter.remove_label()?;
-        Ok(())
+    pub fn hint(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
+        LabeledWriter::new(self.stderr_formatter(), "hint")
     }
 
     pub fn write_warn(&mut self, text: impl AsRef<str>) -> io::Result<()> {
