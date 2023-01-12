@@ -312,7 +312,7 @@ pub fn show_color_words_diff(
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
-    formatter.add_label("diff")?;
+    formatter.push_label("diff")?;
     for (path, diff) in tree_diff {
         let ui_path = workspace_command.format_file_path(&path);
         match diff {
@@ -383,7 +383,7 @@ pub fn show_color_words_diff(
             }
         }
     }
-    formatter.remove_label()?;
+    formatter.pop_label()?;
     Ok(())
 }
 
@@ -586,7 +586,7 @@ pub fn show_git_diff(
     tree_diff: TreeDiffIterator,
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
-    formatter.add_label("diff")?;
+    formatter.push_label("diff")?;
     for (path, diff) in tree_diff {
         let path_string = path.to_internal_file_string();
         match diff {
@@ -640,7 +640,7 @@ pub fn show_git_diff(
             }
         }
     }
-    formatter.remove_label()?;
+    formatter.pop_label()?;
     Ok(())
 }
 

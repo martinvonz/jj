@@ -1669,7 +1669,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         ui.request_pager();
         let mut formatter = ui.stdout_formatter();
         let mut formatter = formatter.as_mut();
-        formatter.add_label("log")?;
+        formatter.push_label("log")?;
 
         if !args.no_graph {
             let mut graph = AsciiGraphDrawer::new(&mut formatter);
@@ -1802,7 +1802,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let mut formatter = formatter.as_mut();
-    formatter.add_label("log")?;
+    formatter.push_label("log")?;
 
     let commits = topo_order_reverse(
         vec![start_commit],
