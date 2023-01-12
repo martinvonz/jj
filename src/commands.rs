@@ -4187,45 +4187,30 @@ fn cmd_git_push(
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
             }
-            if workspace_command
-                .repo()
-                .view()
-                .get_local_branch(&branch_name)
-                .is_none()
-            {
+            let view = workspace_command.repo().view();
+            if view.get_local_branch(&branch_name).is_none() {
                 // A local branch with the full change ID doesn't exist already, so use the
                 // short ID if it's not ambiguous (which it shouldn't be most of the time).
                 let short_change_id = short_change_hash(commit.change_id());
-                let new_branch_name = match workspace_command.resolve_single_rev(&short_change_id) {
-                    Ok(_) => {
-                        // Short change ID is not ambiguous but we do need to check if
-                        // a branch already exists with the short ID.
-                        branch_name = format!(
-                            "{}{}",
-                            command.settings().push_branch_prefix(),
-                            short_change_id
-                        );
-                        if workspace_command
-                            .repo()
-                            .view()
-                            .get_local_branch(&branch_name)
-                            .is_none()
-                        {
-                            Some(&branch_name)
-                        } else {
-                            None
-                        }
-                    }
-                    Err(_) => Some(&branch_name),
+                if workspace_command
+                    .resolve_single_rev(&short_change_id)
+                    .is_ok()
+                {
+                    // Short change ID is not ambiguous, so update the branch name to use it.
+                    branch_name = format!(
+                        "{}{}",
+                        command.settings().push_branch_prefix(),
+                        short_change_id
+                    );
                 };
-                if let Some(branch_name) = new_branch_name {
-                    writeln!(
-                        ui,
-                        "Creating branch {} for revision {}",
-                        branch_name,
-                        change_str.deref()
-                    )?;
-                }
+            }
+            if view.get_local_branch(&branch_name).is_none() {
+                writeln!(
+                    ui,
+                    "Creating branch {} for revision {}",
+                    branch_name,
+                    change_str.deref()
+                )?;
             }
             tx.mut_repo()
                 .set_local_branch(branch_name.clone(), RefTarget::Normal(commit.id().clone()));
