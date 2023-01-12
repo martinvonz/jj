@@ -85,6 +85,12 @@ pub struct GitRemoteListArgs {}
 /// Fetch from a Git remote
 #[derive(clap::Args, Clone, Debug)]
 pub struct GitFetchArgs {
+    /// Fetch only some of the branches (caution: known bugs)
+    ///
+    /// Any `*` in the argument is expanded as a glob. So, one `--branch` can
+    /// match several branches.
+    #[arg(long)]
+    branch: Vec<String>,
     /// The remote to fetch from (only named remotes are supported, can be
     /// repeated)
     #[arg(long = "remote", value_name = "remote")]
@@ -263,6 +269,7 @@ fn cmd_git_fetch(
                 tx.mut_repo(),
                 &git_repo,
                 &remote,
+                &args.branch,
                 cb,
                 &command.settings().git_settings(),
             )
@@ -390,6 +397,7 @@ fn do_git_clone(
             fetch_tx.mut_repo(),
             &git_repo,
             remote_name,
+            &[],
             cb,
             &command.settings().git_settings(),
         )
@@ -399,6 +407,9 @@ fn do_git_clone(
             panic!("shouldn't happen as we just created the git remote")
         }
         GitFetchError::InternalGitError(err) => user_error(format!("Fetch failed: {err}")),
+        GitFetchError::InvalidGlob => {
+            unreachable!("we didn't provide any globs")
+        }
     })?;
     fetch_tx.finish(ui)?;
     Ok((workspace_command, maybe_default_branch))

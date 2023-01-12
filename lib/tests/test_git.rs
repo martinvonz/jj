@@ -957,6 +957,7 @@ fn test_fetch_empty_repo() {
         tx.mut_repo(),
         &test_data.git_repo,
         "origin",
+        &[],
         git::RemoteCallbacks::default(),
         &git_settings,
     )
@@ -980,6 +981,7 @@ fn test_fetch_initial_commit() {
         tx.mut_repo(),
         &test_data.git_repo,
         "origin",
+        &[],
         git::RemoteCallbacks::default(),
         &git_settings,
     )
@@ -1021,6 +1023,7 @@ fn test_fetch_success() {
         tx.mut_repo(),
         &test_data.git_repo,
         "origin",
+        &[],
         git::RemoteCallbacks::default(),
         &git_settings,
     )
@@ -1041,6 +1044,7 @@ fn test_fetch_success() {
         tx.mut_repo(),
         &test_data.git_repo,
         "origin",
+        &[],
         git::RemoteCallbacks::default(),
         &git_settings,
     )
@@ -1082,6 +1086,7 @@ fn test_fetch_prune_deleted_ref() {
         tx.mut_repo(),
         &test_data.git_repo,
         "origin",
+        &[],
         git::RemoteCallbacks::default(),
         &git_settings,
     )
@@ -1100,6 +1105,7 @@ fn test_fetch_prune_deleted_ref() {
         tx.mut_repo(),
         &test_data.git_repo,
         "origin",
+        &[],
         git::RemoteCallbacks::default(),
         &git_settings,
     )
@@ -1120,6 +1126,7 @@ fn test_fetch_no_default_branch() {
         tx.mut_repo(),
         &test_data.git_repo,
         "origin",
+        &[],
         git::RemoteCallbacks::default(),
         &git_settings,
     )
@@ -1142,6 +1149,7 @@ fn test_fetch_no_default_branch() {
         tx.mut_repo(),
         &test_data.git_repo,
         "origin",
+        &[],
         git::RemoteCallbacks::default(),
         &git_settings,
     )
@@ -1161,6 +1169,7 @@ fn test_fetch_no_such_remote() {
         tx.mut_repo(),
         &test_data.git_repo,
         "invalid-remote",
+        &[],
         git::RemoteCallbacks::default(),
         &git_settings,
     );
