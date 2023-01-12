@@ -964,10 +964,12 @@ impl WorkspaceCommandHelper {
         if settings.user_name() == UserSettings::user_name_placeholder()
             || settings.user_email() == UserSettings::user_email_placeholder()
         {
-            ui.write_warn(r#"Name and email not configured. Add something like the following to $HOME/.jjconfig.toml:
+            writeln!(
+                ui.warning(),
+                r#"Name and email not configured. Add something like the following to $HOME/.jjconfig.toml:
   user.name = "Some One"
-  user.email = "someone@example.com"
-"#)?;
+  user.email = "someone@example.com""#
+            )?;
         }
         Ok(())
     }
@@ -1081,7 +1083,7 @@ pub fn print_failed_git_export(
     failed_branches: &[String],
 ) -> Result<(), std::io::Error> {
     if !failed_branches.is_empty() {
-        ui.write_warn("Failed to export some branches:\n")?;
+        writeln!(ui.warning(), "Failed to export some branches:")?;
         let mut formatter = ui.stderr_formatter();
         for branch_name in failed_branches {
             formatter.write_str("  ")?;
@@ -1228,7 +1230,7 @@ fn load_revset_aliases(
                 .map_err(|e| e.to_string())
                 .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
             if let Err(s) = r {
-                ui.write_warn(format!("Failed to load \"{TABLE_KEY}.{decl}\": {s}\n"))?;
+                writeln!(ui.warning(), r#"Failed to load "{TABLE_KEY}.{decl}": {s}"#)?;
             }
         }
     }
