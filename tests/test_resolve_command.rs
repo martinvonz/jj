@@ -388,7 +388,7 @@ fn test_too_many_parents() {
     // Test warning color
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list", "--color=always"]), 
     @r###"
-    file    [38;5;3m[38;5;1m3-sided[38;5;3m conflict[39m
+    file    [38;5;1m3-sided[38;5;3m conflict[39m
     "###);
 
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
@@ -520,7 +520,7 @@ fn test_description_with_dir_and_deletion() {
     // Test warning color. The deletion is fine, so it's not highlighted
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list", "--color=always"]), 
     @r###"
-    file    [38;5;3m[38;5;1m3-sided[38;5;3m conflict including 1 deletion and [38;5;1ma directory[38;5;3m[39m
+    file    [38;5;1m3-sided[38;5;3m conflict including 1 deletion and [38;5;1ma directory[39m
     "###);
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
