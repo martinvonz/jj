@@ -235,3 +235,75 @@ fn test_git_colocated_conflicting_git_refs() {
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
     test_env.jj_cmd_success(workspace_root, &["log", "-T", "commit_id \" \" branches"])
 }
+
+#[test]
+fn test_git_colocated_unreachable_commits() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&workspace_root).unwrap();
+
+    // Create an initial commit in Git
+    let empty_tree_oid = git_repo.treebuilder(None).unwrap().write().unwrap();
+    let tree1 = git_repo.find_tree(empty_tree_oid).unwrap();
+    let signature = git2::Signature::new(
+        "Someone",
+        "someone@example.com",
+        &git2::Time::new(1234567890, 60),
+    )
+    .unwrap();
+    let oid1 = git_repo
+        .commit(
+            Some("refs/heads/master"),
+            &signature,
+            &signature,
+            "initial",
+            &tree1,
+            &[],
+        )
+        .unwrap();
+    insta::assert_snapshot!(
+        git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
+        @"2ee37513d2b5e549f7478c671a780053614bff19"
+    );
+
+    // Add a second commit in Git
+    let tree2 = git_repo.find_tree(empty_tree_oid).unwrap();
+    let signature = git2::Signature::new(
+        "Someone",
+        "someone@example.com",
+        &git2::Time::new(1234567890, 62),
+    )
+    .unwrap();
+    let oid2 = git_repo
+        .commit(
+            None,
+            &signature,
+            &signature,
+            "next",
+            &tree2,
+            &[&git_repo.find_commit(oid1).unwrap()],
+        )
+        .unwrap();
+    insta::assert_snapshot!(
+        git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
+        @"2ee37513d2b5e549f7478c671a780053614bff19"
+    );
+
+    // Import the repo while there is no path to the second commit
+    test_env.jj_cmd_success(&workspace_root, &["init", "--git-repo", "."]);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @ 66ae47cee4f8c28ee8d7e4f5d9401b03c07e22f2 
+    o 2ee37513d2b5e549f7478c671a780053614bff19 master
+    o 0000000000000000000000000000000000000000 
+    "###);
+    insta::assert_snapshot!(
+        git_repo.head().unwrap().peel_to_commit().unwrap().id().to_string(),
+        @"2ee37513d2b5e549f7478c671a780053614bff19"
+    );
+
+    // Check that trying to look up the second commit fails gracefully
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["show", &oid2.to_string()]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revision "8e713ff77b54928dd4a82aaabeca44b1ae91722c" doesn't exist
+    "###);
+}
