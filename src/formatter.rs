@@ -346,6 +346,7 @@ fn color_for_name(color_name: &str) -> Option<Color> {
 
 impl<W: Write> Write for ColorFormatter<W> {
     fn write(&mut self, data: &[u8]) -> Result<usize, Error> {
+        self.write_new_style()?;
         self.output.write(data)
     }
 
@@ -357,12 +358,15 @@ impl<W: Write> Write for ColorFormatter<W> {
 impl<W: Write> Formatter for ColorFormatter<W> {
     fn push_label(&mut self, label: &str) -> io::Result<()> {
         self.labels.push(label.to_owned());
-        self.write_new_style()
+        Ok(())
     }
 
     fn pop_label(&mut self) -> io::Result<()> {
         self.labels.pop();
-        self.write_new_style()
+        if self.labels.is_empty() {
+            self.write_new_style()?
+        }
+        Ok(())
     }
 }
 
@@ -511,7 +515,7 @@ mod tests {
         [1m bold only [0m
         [4m underlined only [24m
         [1m[4m[38;5;2m[48;5;3m single rule [0m
-        [38;5;1m[48;5;4m two rules [49m[39m
+        [38;5;1m[48;5;4m two rules [39m[49m
         "###);
     }
 
