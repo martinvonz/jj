@@ -539,3 +539,47 @@ fn test_default_revset_per_repo() {
             .count()
     );
 }
+
+#[test]
+fn test_graph_template_color() {
+    // Test that color codes from a multi-line template don't span the graph lines.
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["describe", "-m", "first line\nsecond line\nthird line"],
+    );
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "single line"]);
+
+    test_env.add_config(
+        br#"[colors]
+        description = "red"
+        "working_copy description" = "green"
+        "#,
+    );
+
+    // First test without color for comparison
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ single line
+    o first line
+    | second line
+    | third line
+    o (no description set)
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "log", "-T=description"]);
+    // TODO: The color codes shouldn't span the graph lines, and we shouldn't get an
+    // extra line at the end
+    insta::assert_snapshot!(stdout, @r###"
+    @ [32msingle line
+    | [0m
+    o [31mfirst line
+    | second line
+    | third line
+    | [0m
+    o [31m(no description set)
+      [0m
+    "###);
+}
