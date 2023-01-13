@@ -42,12 +42,12 @@ with conflicts directly in the working copy by using `jj edit <commit>`. The
 main disadvantage of that is that it's harder to inspect the conflict
 resolutions.
 
-There's not yet a way of resolving conflicts in an external merge tool
-(https://github.com/martinvonz/jj/issues/18). There's also no good way of
+With the `jj resolve` command, you can use an external merge tool to resolve
+conflicts that have 2 sides and a base.  There is not yet a good way of
 resolving conflicts between directories, files, and symlinks
-(https://github.com/martinvonz/jj/issues/19). You can use `jj restore` to
-choose one side of the conflict, but there's no way to even see where the
-involved parts came from.
+(https://github.com/martinvonz/jj/issues/19). You can use `jj restore` to choose
+one side of the conflict, but there's no way to even see where the involved
+parts came from.
 
 
 ## Ignored files
