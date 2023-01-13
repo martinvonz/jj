@@ -84,7 +84,7 @@ revsets (expressions) as arguments.
 * `children(x)`: Same as `x+`.
 * `ancestors(x)`: Same as `:x`.
 * `descendants(x)`: Same as `x:`.
-* `connected(x)`: Same as `x:x`.
+* `connected(x)`: Same as `x:x`. Useful when `x` includes several commits.
 * `all()`: All visible commits in the repo.
 * `none()`: No commits. This function is rarely useful; it is provided for
   completeness.
