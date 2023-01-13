@@ -570,16 +570,11 @@ fn test_graph_template_color() {
     o (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "log", "-T=description"]);
-    // TODO: The color codes shouldn't span the graph lines, and we shouldn't get an
-    // extra line at the end
     insta::assert_snapshot!(stdout, @r###"
-    @ [1m[38;5;2msingle line
-    | [0m
-    o [38;5;1mfirst line
-    | second line
-    | third line
-    | [39m
-    o [38;5;1m(no description set)
-      [39m
+    @ [1m[38;5;2msingle line[0m
+    o [38;5;1mfirst line[39m
+    | [38;5;1msecond line[39m
+    | [38;5;1mthird line[39m
+    o [38;5;1m(no description set)[39m
     "###);
 }
