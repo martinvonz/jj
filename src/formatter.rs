@@ -16,7 +16,7 @@ use std::borrow::BorrowMut;
 use std::collections::HashMap;
 use std::io::{Error, Write};
 use std::sync::Arc;
-use std::{fmt, io};
+use std::{fmt, io, mem};
 
 use crossterm::queue;
 use crossterm::style::{Attribute, Color, SetAttribute, SetBackgroundColor, SetForegroundColor};
@@ -346,8 +346,43 @@ fn color_for_name(color_name: &str) -> Option<Color> {
 
 impl<W: Write> Write for ColorFormatter<W> {
     fn write(&mut self, data: &[u8]) -> Result<usize, Error> {
-        self.write_new_style()?;
-        self.output.write(data)
+        /*
+        We clear the current style at the end of each line, and then we re-apply the style
+        after the newline. There are several reasons for this:
+
+         * We can more easily skip styling a trailing blank line, which other
+           internal code then can correctly detect as having a trailing
+           newline.
+
+         * Some tools (like `less -R`) add an extra newline if the final
+           character is not a newline (e.g. if there's a color reset after
+           it), which led to an annoying blank line after the diff summary in
+           e.g. `jj status`.
+
+         * Since each line is styled independently, you get all the necessary
+           escapes even when grepping through the output.
+
+         * Some terminals extend background color to the end of the terminal
+           (i.e. past the newline character), which is probably not what the
+           user wanted.
+
+         * Some tools (like `less -R`) get confused and lose coloring of lines
+           after a newline.
+         */
+        for line in data.split_inclusive(|b| *b == b'\n') {
+            if line.ends_with(b"\n") {
+                self.write_new_style()?;
+                self.output.write_all(&line[..line.len() - 1])?;
+                let labels = mem::take(&mut self.labels);
+                self.write_new_style()?;
+                self.output.write_all(b"\n")?;
+                self.labels = labels;
+            } else {
+                self.write_new_style()?;
+                self.output.write_all(line)?;
+            }
+        }
+        Ok(data.len())
     }
 
     fn flush(&mut self) -> Result<(), Error> {
