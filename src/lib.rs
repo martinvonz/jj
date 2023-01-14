@@ -25,4 +25,5 @@ pub mod merge_tools;
 mod progress;
 pub mod template_parser;
 pub mod templater;
+pub mod time_util;
 pub mod ui;
