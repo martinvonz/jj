@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::BorrowMut;
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::ops::AddAssign;
@@ -29,25 +28,6 @@ use crate::formatter::Formatter;
 
 pub trait Template<C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()>;
-}
-
-// TODO: Extract a trait for this type?
-pub struct TemplateFormatter<'f, 't: 'f, C> {
-    template: Box<dyn Template<C> + 't>,
-    formatter: &'f mut dyn Formatter,
-}
-
-impl<'f, 't: 'f, C> TemplateFormatter<'f, 't, C> {
-    pub fn new(template: Box<dyn Template<C> + 't>, formatter: &'f mut dyn Formatter) -> Self {
-        TemplateFormatter {
-            template,
-            formatter,
-        }
-    }
-
-    pub fn format<'c, 'a: 'c>(&'a mut self, context: &'c C) -> io::Result<()> {
-        self.template.format(context, self.formatter.borrow_mut())
-    }
 }
 
 pub struct LiteralTemplate(pub String);
