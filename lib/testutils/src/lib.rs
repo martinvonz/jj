@@ -61,14 +61,16 @@ pub fn new_temp_dir() -> TempDir {
 
 pub fn user_settings() -> UserSettings {
     let config = config::Config::builder()
-        .set_override("user.name", "Test User")
-        .unwrap()
-        .set_override("user.email", "test.user@example.com")
-        .unwrap()
-        .set_override("operation.hostname", "host.example.com")
-        .unwrap()
-        .set_override("operation.username", "test-username")
-        .unwrap()
+        .add_source(config::File::from_str(
+            r#"
+                user.name = "Test User"
+                user.email = "test.user@example.com"
+                operation.username = "test-username"
+                operation.hostname = "host.example.com"
+                debug.randomness-seed = "42"
+           "#,
+            config::FileFormat::Toml,
+        ))
         .build()
         .unwrap();
     UserSettings::from_config(config)
