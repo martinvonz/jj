@@ -246,14 +246,14 @@ fn test_git_push_existing_long_branch() {
     std::fs::write(workspace_root.join("file"), "contents").unwrap();
     test_env.jj_cmd_success(
         &workspace_root,
-        &["branch", "create", "push-19b790168e7347a7ba98deae21e807c0"],
+        &["branch", "create", "push-19b790168e73f7a73a98deae21e807c0"],
     );
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push", "--change=@"]);
 
     insta::assert_snapshot!(stdout, @r###"
     Branch changes to push to origin:
-      Add branch push-19b790168e7347a7ba98deae21e807c0 to fa16a14170fb
+      Add branch push-19b790168e73f7a73a98deae21e807c0 to fa16a14170fb
     "###);
 }
 
