@@ -1620,10 +1620,11 @@ mod tests {
     use test_case::test_case;
 
     use super::*;
-    /// Note that this function produces different ids on subsequent test runs
-    /// TODO: The dependence on the uuid crate is unnecessary.
-    pub fn new_change_id() -> ChangeId {
-        ChangeId::from_bytes(uuid::Uuid::new_v4().as_bytes())
+
+    /// Generator of unique 16-byte ChangeId excluding root id
+    fn change_id_generator() -> impl FnMut() -> ChangeId {
+        let mut iter = (1_u128..).map(|n| ChangeId::new(n.to_le_bytes().into()));
+        move || iter.next().unwrap()
     }
 
     #[test_case(false; "memory")]
@@ -1657,6 +1658,7 @@ mod tests {
     #[test_case(true; "file")]
     fn index_root_commit(on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
+        let mut new_change_id = change_id_generator();
         let mut index = MutableIndex::full(3);
         let id_0 = CommitId::from_hex("000000");
         let change_id0 = new_change_id();
@@ -1695,6 +1697,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "parent commit is not indexed")]
     fn index_missing_parent_commit() {
+        let mut new_change_id = change_id_generator();
         let mut index = MutableIndex::full(3);
         let id_0 = CommitId::from_hex("000000");
         let id_1 = CommitId::from_hex("111111");
@@ -1707,6 +1710,7 @@ mod tests {
     #[test_case(true, true; "incremental on disk")]
     fn index_multiple_commits(incremental: bool, on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
+        let mut new_change_id = change_id_generator();
         let mut index = MutableIndex::full(3);
         // 5
         // |\
@@ -1803,6 +1807,7 @@ mod tests {
     #[test_case(true; "on disk")]
     fn index_many_parents(on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
+        let mut new_change_id = change_id_generator();
         let mut index = MutableIndex::full(3);
         //     6
         //    /|\
@@ -1866,6 +1871,7 @@ mod tests {
     #[test]
     fn resolve_prefix() {
         let temp_dir = testutils::new_temp_dir();
+        let mut new_change_id = change_id_generator();
         let mut index = MutableIndex::full(3);
 
         // Create some commits with different various common prefixes.
@@ -1932,6 +1938,7 @@ mod tests {
     }
     #[test]
     fn test_is_ancestor() {
+        let mut new_change_id = change_id_generator();
         let mut index = MutableIndex::full(3);
         // 5
         // |\
@@ -1968,6 +1975,7 @@ mod tests {
 
     #[test]
     fn test_common_ancestors() {
+        let mut new_change_id = change_id_generator();
         let mut index = MutableIndex::full(3);
         // 5
         // |\
@@ -2049,6 +2057,7 @@ mod tests {
 
     #[test]
     fn test_common_ancestors_criss_cross() {
+        let mut new_change_id = change_id_generator();
         let mut index = MutableIndex::full(3);
         // 3 4
         // |X|
@@ -2073,6 +2082,7 @@ mod tests {
 
     #[test]
     fn test_common_ancestors_merge_with_ancestor() {
+        let mut new_change_id = change_id_generator();
         let mut index = MutableIndex::full(3);
         // 4   5
         // |\ /|
@@ -2099,6 +2109,7 @@ mod tests {
 
     #[test]
     fn test_walk_revs() {
+        let mut new_change_id = change_id_generator();
         let mut index = MutableIndex::full(3);
         // 5
         // |\
@@ -2177,6 +2188,7 @@ mod tests {
 
     #[test]
     fn test_walk_revs_filter_by_generation() {
+        let mut new_change_id = change_id_generator();
         let mut index = MutableIndex::full(3);
         // 8 6
         // | |
@@ -2258,6 +2270,7 @@ mod tests {
 
     #[test]
     fn test_heads() {
+        let mut new_change_id = change_id_generator();
         let mut index = MutableIndex::full(3);
         // 5
         // |\
