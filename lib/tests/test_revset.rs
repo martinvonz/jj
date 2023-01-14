@@ -25,6 +25,7 @@ use jujutsu_lib::revset::{
     self, optimize, parse, resolve_symbol, RevsetAliasesMap, RevsetError, RevsetExpression,
     RevsetWorkspaceContext,
 };
+use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
 use testutils::{
@@ -46,6 +47,14 @@ fn test_resolve_symbol_root(use_git: bool) {
 #[test]
 fn test_resolve_symbol_commit_id() {
     let settings = testutils::user_settings();
+    // Stabilize change ids so they won't make commit id prefixes ambiguous
+    let config = config::Config::builder()
+        .add_source(settings.config().clone())
+        .set_override("debug.randomness-seed", "42")
+        .unwrap()
+        .build()
+        .unwrap();
+    let settings = UserSettings::from_config(config);
     // Test only with git so we can get predictable commit ids
     let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
@@ -91,6 +100,11 @@ fn test_resolve_symbol_commit_id() {
         commits[2].id().hex(),
         "0468f7da8de2ce442f512aacf83411d26cd2e0cf"
     );
+
+    // Change ids should never have prefix "04"
+    insta::assert_snapshot!(commits[0].change_id().hex(), @"781199f9d55d18e855a7aa84c5e4b40d");
+    insta::assert_snapshot!(commits[1].change_id().hex(), @"a2c96fc88f32e487328f04927f20c4b1");
+    insta::assert_snapshot!(commits[2].change_id().hex(), @"4399e4f3123763dfe7d68a2809ecc01b");
 
     // Test lookup by full commit id
     let repo_ref = repo.as_repo_ref();
