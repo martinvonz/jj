@@ -21,7 +21,6 @@ use std::sync::{Arc, Mutex};
 use git2::Oid;
 use itertools::Itertools;
 use prost::Message;
-use uuid::Uuid;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
@@ -138,13 +137,8 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
 /// Creates a random ref in refs/jj/. Used for preventing GC of commits we
 /// create.
 fn create_no_gc_ref() -> String {
-    let mut no_gc_ref = NO_GC_REF_NAMESPACE.to_owned();
-    let mut uuid_buffer = Uuid::encode_buffer();
-    let uuid_str = Uuid::new_v4()
-        .as_hyphenated()
-        .encode_lower(&mut uuid_buffer);
-    no_gc_ref.push_str(uuid_str);
-    no_gc_ref
+    let random_bytes: [u8; 16] = rand::random();
+    format!("{NO_GC_REF_NAMESPACE}{}", hex::encode(random_bytes))
 }
 
 fn validate_git_object_id(id: &impl ObjectId) -> Result<git2::Oid, BackendError> {
