@@ -15,7 +15,7 @@
 use std::borrow::BorrowMut;
 use std::collections::{HashMap, HashSet};
 use std::io;
-use std::ops::{Add, AddAssign};
+use std::ops::AddAssign;
 
 use itertools::Itertools;
 use jujutsu_lib::backend::{ChangeId, CommitId, ObjectId, Signature, Timestamp};
@@ -166,13 +166,10 @@ pub struct DescriptionProperty;
 
 impl TemplateProperty<Commit, String> for DescriptionProperty {
     fn extract(&self, context: &Commit) -> String {
-        let description = context.description().to_owned();
-        if description.ends_with('\n') {
-            description
-        } else if description.is_empty() {
-            "(no description set)\n".to_string()
-        } else {
-            description.add("\n")
+        match context.description() {
+            s if s.is_empty() => "(no description set)\n".to_owned(),
+            s if s.ends_with('\n') => s.to_owned(),
+            s => format!("{s}\n"),
         }
     }
 }
