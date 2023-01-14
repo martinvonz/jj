@@ -1422,10 +1422,10 @@ pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(),
 pub fn short_commit_description(commit: &Commit) -> String {
     let first_line = commit.description().split('\n').next().unwrap();
     format!(
-        "{} ({})",
+        "{} {}",
         short_commit_hash(commit.id()),
         if first_line.is_empty() {
-            "no description set"
+            "(no description set)"
         } else {
             first_line
         }
