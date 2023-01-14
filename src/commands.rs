@@ -51,9 +51,9 @@ use pest::Parser;
 
 use crate::cli_util::{
     self, check_stale_working_copy, print_checkout_stats, print_failed_git_export,
-    resolve_base_revs, run_ui_editor, short_change_hash, short_commit_description,
-    short_commit_hash, user_error, user_error_with_hint, write_commit_summary, write_config_entry,
-    Args, CommandError, CommandHelper, DescriptionArg, RevisionArg, WorkspaceCommandHelper,
+    resolve_base_revs, run_ui_editor, short_change_hash, short_commit_hash, user_error,
+    user_error_with_hint, write_commit_summary, write_config_entry, Args, CommandError,
+    CommandHelper, DescriptionArg, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::config::config_path;
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
@@ -2224,8 +2224,8 @@ Adjust the right side until the diff shows the changes you want to move
 to the destination. If you don't make any changes, then all the changes
 from the source will be moved into the destination.
 ",
-        short_commit_description(&source),
-        short_commit_description(&destination)
+        workspace_command.format_commit_summary(&source),
+        workspace_command.format_commit_summary(&destination)
     );
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let new_parent_tree_id = workspace_command.select_diff(
@@ -2306,8 +2306,8 @@ Adjust the right side until the diff shows the changes you want to move
 to the destination. If you don't make any changes, then all the changes
 from the source will be moved into the parent.
 ",
-        short_commit_description(&commit),
-        short_commit_description(parent)
+        workspace_command.format_commit_summary(&commit),
+        workspace_command.format_commit_summary(parent)
     );
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let new_parent_tree_id = workspace_command.select_diff(
@@ -2383,8 +2383,8 @@ the parent commit. The changes you edited out will be moved into the
 child commit. If you don't make any changes, then the operation will be
 aborted.
 ",
-            short_commit_description(parent),
-            short_commit_description(&commit)
+            workspace_command.format_commit_summary(parent),
+            workspace_command.format_commit_summary(&commit)
         );
         new_parent_tree_id =
             workspace_command.edit_diff(ui, &parent_base_tree, &parent.tree(), &instructions)?;
@@ -2654,7 +2654,7 @@ fn cmd_diffedit(
             vec![workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?];
         diff_description = format!(
             "The diff initially shows the commit's changes relative to:\n{}",
-            short_commit_description(&base_commits[0])
+            workspace_command.format_commit_summary(&base_commits[0])
         );
     } else {
         target_commit =
@@ -2672,7 +2672,7 @@ You are editing changes in: {}
 
 Adjust the right side until it shows the contents you want. If you
 don't make any changes, then the operation will be aborted.",
-        short_commit_description(&target_commit),
+        workspace_command.format_commit_summary(&target_commit),
     );
     let base_tree = merge_commit_trees(
         workspace_command.repo().as_repo_ref(),
@@ -2769,7 +2769,7 @@ Adjust the right side until it shows the contents you want for the first
 (parent) commit. The remainder will be in the second commit. If you
 don't make any changes, then the operation will be aborted.
 ",
-        short_commit_description(&commit)
+        workspace_command.format_commit_summary(&commit)
     );
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let tree_id = workspace_command.select_diff(
