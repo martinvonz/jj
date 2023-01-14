@@ -58,7 +58,6 @@ use tracing_subscriber::prelude::*;
 use crate::config::{FullCommandArgs, LayeredConfigs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
-use crate::templater::TemplateFormatter;
 use crate::ui::{ColorChoice, Ui};
 
 #[derive(Clone, Debug)]
@@ -1389,9 +1388,7 @@ pub fn write_commit_summary(
         .unwrap_or_else(|_| String::from(r#"commit_id.short() " " description.first_line()"#));
     let template =
         crate::template_parser::parse_commit_template(repo, workspace_id, &template_string);
-    let mut template_writer = TemplateFormatter::new(template, formatter);
-    template_writer.format(commit)?;
-    Ok(())
+    template.format(commit, formatter)
 }
 
 pub fn write_config_entry(
