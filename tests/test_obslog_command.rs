@@ -41,7 +41,7 @@ fn test_obslog_with_or_without_diff() {
     o  test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
     | my description
     o  test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
-      my description
+      (empty) my description
     "###);
 
     // There should be no diff caused by the rebase because it was a pure rebase
@@ -65,7 +65,7 @@ fn test_obslog_with_or_without_diff() {
     | Added regular file file2:
     |         1: foo
     o  test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
-      my description
+      (empty) my description
     "###);
 
     // Test `--no-graph`
@@ -78,7 +78,7 @@ fn test_obslog_with_or_without_diff() {
      test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
     my description
      test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
-    my description
+    (empty) my description
     "###);
 
     // Test `--git` format, and that it implies `-p`
@@ -115,7 +115,7 @@ fn test_obslog_with_or_without_diff() {
     @@ -1,0 +1,1 @@
     +foo
      test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
-    my description
+    (empty) my description
     "###);
 }
 
@@ -146,16 +146,16 @@ fn test_obslog_squash() {
     | | Added regular file file1:
     | |         1: foo
     o |  test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
-    | | first
+    | | (empty) first
     o |  test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
-     /  (no description set)
+     /  (empty) (no description set)
     o  test.user@example.com 2001-02-03 04:05:10.000 +07:00 f09a38899f2b
     | second
     | Modified regular file file1:
     |    1    1: foo
     |         2: bar
     o  test.user@example.com 2001-02-03 04:05:09.000 +07:00 579965369703
-      second
+      (empty) second
     "###);
 }
 

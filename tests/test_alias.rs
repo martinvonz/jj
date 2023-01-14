@@ -132,7 +132,7 @@ fn test_alias_cannot_override_builtin() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "root"]);
     insta::assert_snapshot!(stdout, @r###"
     o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
-      (no description set)
+      (empty) (no description set)
     "###);
 }
 
