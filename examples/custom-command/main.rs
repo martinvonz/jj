@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jujutsu::cli_util::{short_commit_description, CliRunner, CommandError, CommandHelper};
+use jujutsu::cli_util::{CliRunner, CommandError, CommandHelper};
 use jujutsu::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
@@ -47,7 +47,7 @@ fn run_custom_command(
             writeln!(
                 ui,
                 "Frobnicated revision: {}",
-                short_commit_description(&new_commit)
+                workspace_command.format_commit_summary(&new_commit)
             )?;
             Ok(())
         }

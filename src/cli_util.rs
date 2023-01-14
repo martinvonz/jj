@@ -53,7 +53,7 @@ use thiserror::Error;
 use tracing_subscriber::prelude::*;
 
 use crate::config::{FullCommandArgs, LayeredConfigs};
-use crate::formatter::Formatter;
+use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
 use crate::templater::TemplateFormatter;
 use crate::ui::{ColorChoice, Ui};
@@ -682,7 +682,10 @@ impl WorkspaceCommandHelper {
                 let elided = iter.next().is_some();
                 let hint = format!(
                     "The revset resolved to these revisions:\n{commits}{ellipsis}",
-                    commits = commits.iter().map(short_commit_description).join("\n"),
+                    commits = commits
+                        .iter()
+                        .map(|c| self.format_commit_summary(c))
+                        .join("\n"),
                     ellipsis = elided.then(|| "\n...").unwrap_or_default()
                 );
                 Err(user_error_with_hint(
@@ -731,12 +734,21 @@ impl WorkspaceCommandHelper {
     // operate on tx.base_repo(), but WorkspaceCommandHelper API doesn't clarify
     // that.
 
+    /// Returns one-line summary of the given `commit`.
+    pub fn format_commit_summary(&self, commit: &Commit) -> String {
+        let mut output = Vec::new();
+        self.write_commit_summary(&mut PlainTextFormatter::new(&mut output), commit)
+            .expect("write() to PlainTextFormatter should never fail");
+        String::from_utf8(output).expect("template output should be utf-8 bytes")
+    }
+
     /// Writes one-line summary of the given `commit`.
     pub fn write_commit_summary(
         &self,
         formatter: &mut dyn Formatter,
         commit: &Commit,
     ) -> std::io::Result<()> {
+        // TODO: parsed template can be cached if it doesn't capture repo
         write_commit_summary(
             formatter,
             self.repo.as_repo_ref(),
@@ -1415,21 +1427,6 @@ pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(),
     }
 
     Ok(())
-}
-
-// TODO: Consider basing this function on `write_commit_summary`. It will need
-// more arguments passed to it, but the output will be more consistent.
-pub fn short_commit_description(commit: &Commit) -> String {
-    let first_line = commit.description().split('\n').next().unwrap();
-    format!(
-        "{} {}",
-        short_commit_hash(commit.id()),
-        if first_line.is_empty() {
-            "(no description set)"
-        } else {
-            first_line
-        }
-    )
 }
 
 pub fn short_commit_hash(commit_id: &CommitId) -> String {
