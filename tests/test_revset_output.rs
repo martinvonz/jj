@@ -162,13 +162,13 @@ fn test_alias() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "my-root"]);
     insta::assert_snapshot!(stdout, @r###"
     o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
-      (no description set)
+      (empty) (no description set)
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "identity(my-root)"]);
     insta::assert_snapshot!(stdout, @r###"
     o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
-      (no description set)
+      (empty) (no description set)
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root & syntax-error"]);
@@ -264,7 +264,7 @@ fn test_bad_alias_decl() {
         .success();
     insta::assert_snapshot!(get_stdout_string(&assert), @r###"
     o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
-      (no description set)
+      (empty) (no description set)
     "###);
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"
     Failed to load "revset-aliases."bad"":  --> 1:1

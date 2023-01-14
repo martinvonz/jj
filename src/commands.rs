@@ -1615,6 +1615,7 @@ fn log_template(settings: &UserSettings) -> String {
             " " commit_id.short()
             if(conflict, label("conflict", " conflict"))
             "\n"
+            if(empty, label("empty", "(empty) "))
             description.first_line()
             "\n""#,
     );

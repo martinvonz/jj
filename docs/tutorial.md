@@ -133,7 +133,7 @@ in its `jj log` command:
 ```shell script
 $ jj log
 @ f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00 192b456b024b
-| (no description set)
+| (empty) (no description set)
 o f63e76f175b9 martinvonz@google.com 2021-05-23 22:13:45.000 -07:00 fb563a4c6d26
 | Jujutsu is ready!
 o 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 main 080a9b37ff7e
@@ -159,11 +159,11 @@ example:
 ```shell script
 $ jj log -r '@ | root | branches()'
 @ f39aeb1a0200 martinvonz@google.com 2021-05-23 23:10:27.000 -07:00 192b456b024b
-: (no description set)
+: (empty) (no description set)
 o 6a91b4ba16c7 martinvonz@google.com 2021-05-23 22:08:37.000 -07:00 main 080a9b37ff7e
 : cli: make `jj st` show parent commit before working copy commit
 o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
-  (no description set)
+  (empty) (no description set)
 ```
 
 The `000000000000` commit is a virtual commit that's called the "root commit".
@@ -254,7 +254,7 @@ Rebased 1 descendant commits
 Working copy now at: e659edc4a9fc (no description set)
 $ jj log
 @ 461f38324592 martinvonz@google.com 2021-05-26 12:53:08.000 -07:00 e659edc4a9fc
-| (no description set)
+| (empty) (no description set)
 | o 8e6178b84ffb martinvonz@google.com 2021-05-26 12:39:35.000 -07:00 69dbcf76642a
 |/  C
 o 5548374c0794 martinvonz@google.com 2021-05-26 12:39:30.000 -07:00 576d647acf36
