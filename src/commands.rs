@@ -60,10 +60,11 @@ use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{AsciiGraphDrawer, Edge};
 use crate::progress::Progress;
-use crate::template_parser::{
-    format_absolute_timestamp, format_duration, format_timestamp_relative_to_now, TemplateParser,
-};
+use crate::template_parser::TemplateParser;
 use crate::templater::Template;
+use crate::time_util::{
+    format_absolute_timestamp, format_duration, format_timestamp_relative_to_now,
+};
 use crate::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
