@@ -27,33 +27,23 @@ struct GitIgnoreLine {
 }
 
 impl GitIgnoreLine {
-    // Remove trailing spaces (unless backslash-escaped)
+    // Remove trailing spaces (unless backslash-escaped). Any character
+    // can be backslash-escaped as well.
     fn remove_trailing_space(input: &str) -> &str {
-        let mut trimmed_len = 0;
-        let mut non_space_seen = false;
-        let mut prev_was_space = false;
-        let mut in_escape = false;
         let input = input.strip_suffix('\r').unwrap_or(input);
-        for (i, c) in input.char_indices() {
-            if !prev_was_space && non_space_seen {
-                trimmed_len = i;
+        let mut it = input.char_indices().rev().peekable();
+        while let Some((i, c)) = it.next() {
+            if c != ' ' {
+                return &input[..i + c.len_utf8()];
             }
-            if c == ' ' {
-                if in_escape {
-                    in_escape = false;
-                } else {
-                    prev_was_space = true;
+            if matches!(it.peek(), Some((_, '\\'))) {
+                if it.skip(1).take_while(|(_, b)| *b == '\\').count() % 2 == 1 {
+                    return &input[..i];
                 }
-            } else {
-                non_space_seen = true;
-                prev_was_space = false;
-                in_escape = c == '\\'
+                return &input[..i + 1];
             }
         }
-        if !prev_was_space && non_space_seen {
-            trimmed_len = input.len();
-        }
-        input.split_at(trimmed_len).0
+        ""
     }
 
     fn parse(prefix: &str, input: &str) -> Option<GitIgnoreLine> {
@@ -347,6 +337,9 @@ mod tests {
     fn test_gitignore_whitespace() {
         assert!(!matches_file(b" \n", " "));
         assert!(matches_file(b"\\ \n", " "));
+        assert!(matches_file(b"\\\\ \n", "\\"));
+        assert!(!matches_file(b"\\\\ \n", " "));
+        assert!(matches_file(b"\\\\\\ \n", "\\ "));
         assert!(matches_file(b" a\n", " a"));
         assert!(matches_file(b"a b\n", "a b"));
         assert!(matches_file(b"a b \n", "a b"));
