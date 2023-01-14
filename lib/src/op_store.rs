@@ -125,15 +125,12 @@ pub enum RefTarget {
 impl ContentHash for RefTarget {
     fn hash(&self, state: &mut impl digest::Update) {
         use RefTarget::*;
-        match *self {
-            Normal(ref id) => {
+        match self {
+            Normal(id) => {
                 state.update(&0u32.to_le_bytes());
                 id.hash(state);
             }
-            Conflict {
-                ref removes,
-                ref adds,
-            } => {
+            Conflict { removes, adds } => {
                 state.update(&1u32.to_le_bytes());
                 removes.hash(state);
                 adds.hash(state);
