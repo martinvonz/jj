@@ -74,6 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the jj repo from a Git repo. They will now be considered as non-existent if
   referenced explicitly instead of crashing.
 
+* Fixed handling of escaped characters in .gitignore (only keep trailing spaces
+  if escaped properly).
+
 ### Contributors
 
 Thanks to the people who made this release happen!
