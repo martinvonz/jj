@@ -23,6 +23,7 @@ use jujutsu_lib::commit::Commit;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::revset::RevsetExpression;
+use jujutsu_lib::rewrite::merge_commit_trees;
 
 use crate::formatter::Formatter;
 
@@ -441,5 +442,15 @@ pub struct SignatureTimestamp;
 impl TemplateProperty<Signature, Timestamp> for SignatureTimestamp {
     fn extract(&self, context: &Signature) -> Timestamp {
         context.timestamp.clone()
+    }
+}
+
+pub struct EmptyProperty<'a> {
+    pub repo: RepoRef<'a>,
+}
+
+impl TemplateProperty<Commit, bool> for EmptyProperty<'_> {
+    fn extract(&self, context: &Commit) -> bool {
+        context.tree().id() == merge_commit_trees(self.repo, &context.parents()).id()
     }
 }

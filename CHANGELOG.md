@@ -46,6 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   e.g. `color.error = { bg = "red", bold = true, underline = true }` in your
   `~/.jjconfig.toml`.
 
+* The `empty` condition in templates is true when the commit makes no change to
+  the three compared to its parents.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
