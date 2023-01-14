@@ -155,13 +155,11 @@ impl UserSettings {
 pub struct JJRng(Mutex<ChaCha20Rng>);
 impl JJRng {
     pub fn new_change_id(&self) -> ChangeId {
-        let random_bytes = self.gen();
-        // The `uuid` crate is used merely to specify the number of random bytes (16)
-        ChangeId::from_bytes(
-            uuid::Builder::from_random_bytes(random_bytes)
-                .into_uuid()
-                .as_bytes(),
-        )
+        let mut random_bytes: [u8; 16] = self.gen();
+        // TODO: make it fully random
+        random_bytes[6] = (random_bytes[6] & 0x0f) | ((4 as u8) << 4); // Version: 4
+        random_bytes[8] = (random_bytes[8] & 0x3f) | 0x80; // Variant::RFC4122
+        ChangeId::new(random_bytes.into())
     }
 
     /// Wraps Rng::gen but only requires an immutable reference. Can be made
