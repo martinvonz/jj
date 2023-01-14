@@ -25,7 +25,6 @@ use jujutsu_lib::revset::{
     self, optimize, parse, resolve_symbol, RevsetAliasesMap, RevsetError, RevsetExpression,
     RevsetWorkspaceContext,
 };
-use jujutsu_lib::settings::UserSettings;
 use jujutsu_lib::workspace::Workspace;
 use test_case::test_case;
 use testutils::{
@@ -47,14 +46,6 @@ fn test_resolve_symbol_root(use_git: bool) {
 #[test]
 fn test_resolve_symbol_commit_id() {
     let settings = testutils::user_settings();
-    // Stabilize change ids so they won't make commit id prefixes ambiguous
-    let config = config::Config::builder()
-        .add_source(settings.config().clone())
-        .set_override("debug.randomness-seed", "42")
-        .unwrap()
-        .build()
-        .unwrap();
-    let settings = UserSettings::from_config(config);
     // Test only with git so we can get predictable commit ids
     let test_repo = TestRepo::init(true);
     let repo = &test_repo.repo;
