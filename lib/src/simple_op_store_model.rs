@@ -181,13 +181,13 @@ impl TSerializable for RefTarget {
   fn write_to_out_protocol(&self, o_prot: &mut dyn TOutputProtocol) -> thrift::Result<()> {
     let struct_ident = TStructIdentifier::new("RefTarget");
     o_prot.write_struct_begin(&struct_ident)?;
-    match *self {
-      RefTarget::CommitId(ref f) => {
+    match self {
+      RefTarget::CommitId(f) => {
         o_prot.write_field_begin(&TFieldIdentifier::new("commit_id", TType::String, 1))?;
         o_prot.write_bytes(f)?;
         o_prot.write_field_end()?;
       },
-      RefTarget::Conflict(ref f) => {
+      RefTarget::Conflict(f) => {
         o_prot.write_field_begin(&TFieldIdentifier::new("conflict", TType::Struct, 2))?;
         f.write_to_out_protocol(o_prot)?;
         o_prot.write_field_end()?;

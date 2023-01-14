@@ -230,25 +230,25 @@ pub enum TreeValue {
 impl ContentHash for TreeValue {
     fn hash(&self, state: &mut impl digest::Update) {
         use TreeValue::*;
-        match *self {
-            File { ref id, executable } => {
+        match self {
+            File { id, executable } => {
                 state.update(&0u32.to_le_bytes());
                 id.hash(state);
                 executable.hash(state);
             }
-            Symlink(ref id) => {
+            Symlink(id) => {
                 state.update(&1u32.to_le_bytes());
                 id.hash(state);
             }
-            Tree(ref id) => {
+            Tree(id) => {
                 state.update(&2u32.to_le_bytes());
                 id.hash(state);
             }
-            GitSubmodule(ref id) => {
+            GitSubmodule(id) => {
                 state.update(&3u32.to_le_bytes());
                 id.hash(state);
             }
-            Conflict(ref id) => {
+            Conflict(id) => {
                 state.update(&4u32.to_le_bytes());
                 id.hash(state);
             }

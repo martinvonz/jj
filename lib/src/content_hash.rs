@@ -71,9 +71,9 @@ impl ContentHash for String {
 
 impl<T: ContentHash> ContentHash for Option<T> {
     fn hash(&self, state: &mut impl digest::Update) {
-        match *self {
+        match self {
             None => state.update(&[0]),
-            Some(ref x) => {
+            Some(x) => {
                 state.update(&[1]);
                 x.hash(state)
             }
