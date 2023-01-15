@@ -7,14 +7,13 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 use clap::{ArgGroup, Subcommand};
-use config::ConfigError;
 use itertools::Itertools;
 use jujutsu_lib::backend::ObjectId;
 use jujutsu_lib::git::{self, GitFetchError, GitPushError, GitRefUpdate};
 use jujutsu_lib::op_store::{BranchTarget, RefTarget};
 use jujutsu_lib::refs::{classify_branch_push_action, BranchPushAction, BranchPushUpdate};
 use jujutsu_lib::repo::Repo;
-use jujutsu_lib::settings::UserSettings;
+use jujutsu_lib::settings::{ConfigResultExt as _, UserSettings};
 use jujutsu_lib::store::Store;
 use jujutsu_lib::view::View;
 use jujutsu_lib::workspace::Workspace;
@@ -341,27 +340,22 @@ fn get_default_fetch_remotes(
 ) -> Result<Vec<String>, CommandError> {
     const KEY: &str = "git.fetch";
     let config = command.settings().config();
-
-    match config
-        .get(KEY)
-        .or_else(|_| config.get_string(KEY).map(|r| vec![r]))
-    {
+    if let Ok(remotes) = config.get(KEY) {
+        Ok(remotes)
+    } else if let Some(remote) = config.get_string(KEY).optional()? {
+        Ok(vec![remote])
+    } else if let Some(remote) = get_single_remote(git_repo)? {
         // if nothing was explicitly configured, try to guess
-        Err(ConfigError::NotFound(_)) => {
-            if let Some(remote) = get_single_remote(git_repo)? {
-                if remote != DEFAULT_REMOTE {
-                    writeln!(
-                        ui.hint(),
-                        "Fetching from the only existing remote: {}",
-                        remote
-                    )?;
-                }
-                Ok(vec![remote])
-            } else {
-                Ok(vec![DEFAULT_REMOTE.to_owned()])
-            }
+        if remote != DEFAULT_REMOTE {
+            writeln!(
+                ui.hint(),
+                "Fetching from the only existing remote: {}",
+                remote
+            )?;
         }
-        r => Ok(r?),
+        Ok(vec![remote])
+    } else {
+        Ok(vec![DEFAULT_REMOTE.to_owned()])
     }
 }
 
@@ -928,19 +922,17 @@ fn get_default_push_remote(
     command: &CommandHelper,
     git_repo: &git2::Repository,
 ) -> Result<String, CommandError> {
-    match command.settings().config().get_string("git.push") {
+    let config = command.settings().config();
+    if let Some(remote) = config.get_string("git.push").optional()? {
+        Ok(remote)
+    } else if let Some(remote) = get_single_remote(git_repo)? {
         // similar to get_default_fetch_remotes
-        Err(ConfigError::NotFound(_)) => {
-            if let Some(remote) = get_single_remote(git_repo)? {
-                if remote != DEFAULT_REMOTE {
-                    writeln!(ui.hint(), "Pushing to the only existing remote: {}", remote)?;
-                }
-                Ok(remote)
-            } else {
-                Ok(DEFAULT_REMOTE.to_owned())
-            }
+        if remote != DEFAULT_REMOTE {
+            writeln!(ui.hint(), "Pushing to the only existing remote: {}", remote)?;
         }
-        r => Ok(r?),
+        Ok(remote)
+    } else {
+        Ok(DEFAULT_REMOTE.to_owned())
     }
 }
 
