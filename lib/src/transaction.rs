@@ -25,7 +25,7 @@ use crate::settings::UserSettings;
 use crate::view::View;
 
 pub struct Transaction {
-    repo: Option<MutableRepo>,
+    mut_repo: MutableRepo,
     parent_ops: Vec<Operation>,
     op_metadata: OperationMetadata,
     end_time: Option<Timestamp>,
@@ -41,7 +41,7 @@ impl Transaction {
         let op_metadata = create_op_metadata(user_settings, description.to_string());
         let end_time = user_settings.operation_timestamp();
         Transaction {
-            repo: Some(mut_repo),
+            mut_repo,
             parent_ops,
             op_metadata,
             end_time,
@@ -49,7 +49,7 @@ impl Transaction {
     }
 
     pub fn base_repo(&self) -> &ReadonlyRepo {
-        self.repo.as_ref().unwrap().base_repo()
+        self.mut_repo.base_repo()
     }
 
     pub fn set_tag(&mut self, key: String, value: String) {
@@ -57,11 +57,11 @@ impl Transaction {
     }
 
     pub fn repo(&self) -> &MutableRepo {
-        self.repo.as_ref().unwrap()
+        &self.mut_repo
     }
 
     pub fn mut_repo(&mut self) -> &mut MutableRepo {
-        self.repo.as_mut().unwrap()
+        &mut self.mut_repo
     }
 
     pub fn merge_operation(&mut self, other_op: Operation) {
@@ -89,7 +89,7 @@ impl Transaction {
     /// That means that a repo can be loaded at the operation, but the
     /// operation will not be seen when loading the repo at head.
     pub fn write(mut self) -> UnpublishedOperation {
-        let mut_repo = self.repo.take().unwrap();
+        let mut_repo = self.mut_repo;
         // TODO: Should we instead just do the rebasing here if necessary?
         assert!(
             !mut_repo.has_rewrites(),
