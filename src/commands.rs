@@ -2101,7 +2101,7 @@ fn cmd_abandon(
     }
     let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
 
-    let workspace_id = command.workspace_helper(ui)?.workspace_id();
+    let workspace_id = workspace_command.workspace_id();
     if to_abandon.len() == 1 {
         ui.write("Abandoned commit ")?;
         write_commit_summary(
