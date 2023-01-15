@@ -20,6 +20,7 @@ use std::{env, fmt};
 
 use config::Source;
 use itertools::Itertools;
+use jujutsu_lib::settings::ConfigResultExt as _;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -144,10 +145,13 @@ impl LayeredConfigs {
         };
         for (source, config) in self.sources() {
             let top_value = match prefix_key {
-                Some(ref key) => match config.get(key) {
-                    Err(config::ConfigError::NotFound { .. }) => continue,
-                    val => val?,
-                },
+                Some(ref key) => {
+                    if let Some(val) = config.get(key).optional()? {
+                        val
+                    } else {
+                        continue;
+                    }
+                }
                 None => config.collect()?.into(),
             };
             let mut config_stack: Vec<(Vec<&str>, &config::Value)> =

@@ -198,3 +198,17 @@ impl JJRng {
         }
     }
 }
+
+pub trait ConfigResultExt<T> {
+    fn optional(self) -> Result<Option<T>, config::ConfigError>;
+}
+
+impl<T> ConfigResultExt<T> for Result<T, config::ConfigError> {
+    fn optional(self) -> Result<Option<T>, config::ConfigError> {
+        match self {
+            Ok(value) => Ok(Some(value)),
+            Err(config::ConfigError::NotFound(_)) => Ok(None),
+            Err(err) => Err(err),
+        }
+    }
+}

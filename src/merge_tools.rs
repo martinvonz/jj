@@ -29,7 +29,7 @@ use jujutsu_lib::conflicts::{
 use jujutsu_lib::gitignore::GitIgnoreFile;
 use jujutsu_lib::matchers::EverythingMatcher;
 use jujutsu_lib::repo_path::RepoPath;
-use jujutsu_lib::settings::UserSettings;
+use jujutsu_lib::settings::{ConfigResultExt as _, UserSettings};
 use jujutsu_lib::store::Store;
 use jujutsu_lib::tree::Tree;
 use jujutsu_lib::working_copy::{CheckoutError, SnapshotError, TreeState};
@@ -507,17 +507,15 @@ fn editor_args_from_settings(
 ) -> Result<CommandNameAndArgs, ExternalToolError> {
     // TODO: Make this configuration have a table of possible editors and detect the
     // best one here.
-    match settings.config().get::<CommandNameAndArgs>(key) {
-        Ok(args) => Ok(args),
-        Err(config::ConfigError::NotFound(_)) => {
-            let default_editor = "meld";
-            writeln!(
-                ui.hint(),
-                "Using default editor '{default_editor}'; you can change this by setting {key}"
-            )?;
-            Ok(default_editor.into())
-        }
-        Err(err) => Err(err.into()),
+    if let Some(args) = settings.config().get(key).optional()? {
+        Ok(args)
+    } else {
+        let default_editor = "meld";
+        writeln!(
+            ui.hint(),
+            "Using default editor '{default_editor}'; you can change this by setting {key}"
+        )?;
+        Ok(default_editor.into())
     }
 }
 
