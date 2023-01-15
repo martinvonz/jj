@@ -2207,7 +2207,7 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
     let commits = resolve_base_revs(&workspace_command, &args.revisions)?;
     let parent_ids = commits.iter().map(|c| c.id().clone()).collect();
     let mut tx = workspace_command.start_transaction("new empty commit");
-    let merged_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commits);
+    let merged_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &commits);
     let new_commit = tx
         .mut_repo()
         .new_commit(command.settings(), parent_ids, merged_tree.id().clone())
@@ -2261,9 +2261,7 @@ fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(),
         source.id().hex(),
         destination.id().hex()
     ));
-    let mut_repo = tx.mut_repo();
-    let repo = workspace_command.repo();
-    let parent_tree = merge_commit_trees(repo.as_repo_ref(), &source.parents());
+    let parent_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &source.parents());
     let source_tree = source.tree();
     let instructions = format!(
         "\
@@ -2292,40 +2290,45 @@ from the source will be moved into the destination.
     if &new_parent_tree_id == parent_tree.id() {
         return Err(user_error("No changes to move"));
     }
-    let new_parent_tree = repo
+    let new_parent_tree = tx
+        .base_repo()
         .store()
         .get_tree(&RepoPath::root(), &new_parent_tree_id)?;
     // Apply the reverse of the selected changes onto the source
     let new_source_tree_id = merge_trees(&source_tree, &new_parent_tree, &parent_tree)?;
     let abandon_source = new_source_tree_id == *parent_tree.id();
     if abandon_source {
-        mut_repo.record_abandoned_commit(source.id().clone());
+        tx.mut_repo().record_abandoned_commit(source.id().clone());
     } else {
-        mut_repo
+        tx.mut_repo()
             .rewrite_commit(command.settings(), &source)
             .set_tree(new_source_tree_id)
             .write()?;
     }
-    if repo.index().is_ancestor(source.id(), destination.id()) {
+    if tx
+        .base_repo()
+        .index()
+        .is_ancestor(source.id(), destination.id())
+    {
         // If we're moving changes to a descendant, first rebase descendants onto the
         // rewritten source. Otherwise it will likely already have the content
         // changes we're moving, so applying them will have no effect and the
         // changes will disappear.
-        let mut rebaser = mut_repo.create_descendant_rebaser(command.settings());
+        let mut rebaser = tx.mut_repo().create_descendant_rebaser(command.settings());
         rebaser.rebase_all()?;
         let rebased_destination_id = rebaser.rebased().get(destination.id()).unwrap().clone();
-        destination = mut_repo.store().get_commit(&rebased_destination_id)?;
+        destination = tx.mut_repo().store().get_commit(&rebased_destination_id)?;
     }
     // Apply the selected changes onto the destination
     let new_destination_tree_id = merge_trees(&destination.tree(), &parent_tree, &new_parent_tree)?;
     let description = combine_messages(
-        workspace_command.repo(),
+        tx.base_repo(),
         &source,
         &destination,
         command.settings(),
         abandon_source,
     )?;
-    mut_repo
+    tx.mut_repo()
         .rewrite_commit(command.settings(), &destination)
         .set_tree(new_destination_tree_id)
         .set_description(description)
@@ -2377,14 +2380,14 @@ from the source will be moved into the parent.
     // Abandon the child if the parent now has all the content from the child
     // (always the case in the non-interactive case).
     let abandon_child = &new_parent_tree_id == commit.tree_id();
-    let mut_repo = tx.mut_repo();
     let description = combine_messages(
-        workspace_command.repo(),
+        tx.base_repo(),
         &commit,
         parent,
         command.settings(),
         abandon_child,
     )?;
+    let mut_repo = tx.mut_repo();
     let new_parent = mut_repo
         .rewrite_commit(command.settings(), parent)
         .set_tree(new_parent_tree_id)
@@ -2420,8 +2423,7 @@ fn cmd_unsquash(
     workspace_command.check_rewriteable(parent)?;
     let mut tx =
         workspace_command.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
-    let parent_base_tree =
-        merge_commit_trees(workspace_command.repo().as_repo_ref(), &parent.parents());
+    let parent_base_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &parent.parents());
     let new_parent_tree_id;
     if args.interactive {
         let instructions = format!(
@@ -2451,13 +2453,8 @@ aborted.
     // case).
     if &new_parent_tree_id == parent_base_tree.id() {
         tx.mut_repo().record_abandoned_commit(parent.id().clone());
-        let description = combine_messages(
-            workspace_command.repo(),
-            parent,
-            &commit,
-            command.settings(),
-            true,
-        )?;
+        let description =
+            combine_messages(tx.base_repo(), parent, &commit, command.settings(), true)?;
         // Commit the new child on top of the parent's parents.
         tx.mut_repo()
             .rewrite_commit(command.settings(), &commit)
@@ -2838,8 +2835,8 @@ don't make any changes, then the operation will be aborted.
     } else {
         let mut tx =
             workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
-        let middle_tree = workspace_command
-            .repo()
+        let middle_tree = tx
+            .base_repo()
             .store()
             .get_tree(&RepoPath::root(), &tree_id)?;
 
@@ -2963,7 +2960,7 @@ fn rebase_branch(
         .range(&RevsetExpression::commit(branch_commit.id().clone()))
         .roots();
     let mut num_rebased = 0;
-    let store = workspace_command.repo().store();
+    let store = tx.base_repo().store();
     for root_result in workspace_command
         .evaluate_revset(&roots_expression)
         .unwrap()
@@ -3020,13 +3017,12 @@ fn rebase_revision(
     // branches and the working copy get updated to the rewritten commit.)
     let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
     let mut num_rebased_descendants = 0;
-    let store = workspace_command.repo().store();
 
     for child_commit in workspace_command
         .evaluate_revset(&children_expression)
         .unwrap()
         .iter()
-        .commits(store)
+        .commits(tx.base_repo().store())
     {
         let child_commit = child_commit?;
         let new_child_parent_ids: Vec<CommitId> = child_commit
@@ -3057,7 +3053,7 @@ fn rebase_revision(
             .evaluate_revset(&new_child_parents_expression)
             .unwrap()
             .iter()
-            .commits(store)
+            .commits(tx.base_repo().store())
             .try_collect()?;
 
         rebase_commit(
@@ -3583,7 +3579,7 @@ fn cmd_op_undo(
 
     let mut tx =
         workspace_command.start_transaction(&format!("undo operation {}", bad_op.id().hex()));
-    let repo_loader = workspace_command.repo().loader();
+    let repo_loader = tx.base_repo().loader();
     let bad_repo = repo_loader.load_at(&bad_op);
     let parent_repo = repo_loader.load_at(&parent_ops[0]);
     tx.mut_repo().merge(&bad_repo, &parent_repo);
@@ -3695,19 +3691,18 @@ fn cmd_workspace_add(
     ));
     // Check out a parent of the current workspace's working-copy commit, or the
     // root if there is no working-copy commit in the current workspace.
-    let new_wc_commit = if let Some(old_checkout_id) = new_workspace_command
-        .repo()
+    let new_wc_commit = if let Some(old_checkout_id) = tx
+        .base_repo()
         .view()
         .get_wc_commit_id(&old_workspace_command.workspace_id())
     {
-        new_workspace_command
-            .repo()
+        tx.base_repo()
             .store()
             .get_commit(old_checkout_id)?
             .parents()[0]
             .clone()
     } else {
-        new_workspace_command.repo().store().root_commit()
+        tx.base_repo().store().root_commit()
     };
     tx.mut_repo().check_out(
         new_workspace_command.workspace_id(),
@@ -4047,7 +4042,7 @@ fn cmd_git_clone(
         if let Some(RefTarget::Normal(commit_id)) = default_branch_target {
             let mut checkout_tx =
                 workspace_command.start_transaction("check out git remote's default branch");
-            if let Ok(commit) = workspace_command.repo().store().get_commit(&commit_id) {
+            if let Ok(commit) = checkout_tx.base_repo().store().get_commit(&commit_id) {
                 checkout_tx.mut_repo().check_out(
                     workspace_command.workspace_id(),
                     command.settings(),
@@ -4278,7 +4273,7 @@ fn cmd_git_push(
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
             }
-            let view = workspace_command.repo().view();
+            let view = tx.base_repo().view();
             if view.get_local_branch(&branch_name).is_none() {
                 // A local branch with the full change ID doesn't exist already, so use the
                 // short ID if it's not ambiguous (which it shouldn't be most of the time).
@@ -4385,7 +4380,7 @@ fn cmd_git_push(
         return Ok(());
     }
 
-    let repo = workspace_command.repo();
+    let repo = tx.base_repo();
 
     let mut ref_updates = vec![];
     let mut new_heads = vec![];
