@@ -726,6 +726,26 @@ impl WorkspaceCommandHelper {
         }
     }
 
+    // TODO: Any methods that depend on self.repo aren't aware of a mutable repo
+    // while transaction is in progress. That's fine if the caller expects to
+    // operate on tx.base_repo(), but WorkspaceCommandHelper API doesn't clarify
+    // that.
+
+    /// Writes one-line summary of the given `commit`.
+    pub fn write_commit_summary(
+        &self,
+        formatter: &mut dyn Formatter,
+        commit: &Commit,
+    ) -> std::io::Result<()> {
+        write_commit_summary(
+            formatter,
+            self.repo.as_repo_ref(),
+            self.workspace.workspace_id(),
+            commit,
+            &self.settings,
+        )
+    }
+
     pub fn check_rewriteable(&self, commit: &Commit) -> Result<(), CommandError> {
         if commit.id() == self.repo.store().root_commit_id() {
             return Err(user_error("Cannot rewrite the root commit"));

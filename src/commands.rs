@@ -1495,26 +1495,13 @@ fn cmd_status(
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
     if let Some(wc_commit) = &maybe_checkout {
-        let workspace_id = workspace_command.workspace_id();
         for parent in wc_commit.parents() {
             formatter.write_str("Parent commit: ")?;
-            write_commit_summary(
-                formatter,
-                repo.as_repo_ref(),
-                &workspace_id,
-                &parent,
-                command.settings(),
-            )?;
+            workspace_command.write_commit_summary(formatter, &parent)?;
             formatter.write_str("\n")?;
         }
         formatter.write_str("Working copy : ")?;
-        write_commit_summary(
-            formatter,
-            repo.as_repo_ref(),
-            &workspace_id,
-            wc_commit,
-            command.settings(),
-        )?;
+        workspace_command.write_commit_summary(formatter, wc_commit)?;
         formatter.write_str("\n")?;
     } else {
         formatter.write_str("No working copy\n")?;
@@ -3257,25 +3244,18 @@ fn cmd_branch(
 
 fn list_branches(
     ui: &mut Ui,
-    command: &CommandHelper,
+    _command: &CommandHelper,
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
 
-    let workspace_id = workspace_command.workspace_id();
     let print_branch_target =
         |formatter: &mut dyn Formatter, target: Option<&RefTarget>| -> Result<(), CommandError> {
             match target {
                 Some(RefTarget::Normal(id)) => {
                     write!(formatter, ": ")?;
                     let commit = repo.store().get_commit(id)?;
-                    write_commit_summary(
-                        formatter,
-                        repo.as_repo_ref(),
-                        &workspace_id,
-                        &commit,
-                        command.settings(),
-                    )?;
+                    workspace_command.write_commit_summary(formatter, &commit)?;
                     writeln!(formatter)?;
                 }
                 Some(RefTarget::Conflict { adds, removes }) => {
@@ -3285,25 +3265,13 @@ fn list_branches(
                     for id in removes {
                         let commit = repo.store().get_commit(id)?;
                         write!(formatter, "  - ")?;
-                        write_commit_summary(
-                            formatter,
-                            repo.as_repo_ref(),
-                            &workspace_id,
-                            &commit,
-                            command.settings(),
-                        )?;
+                        workspace_command.write_commit_summary(formatter, &commit)?;
                         writeln!(formatter)?;
                     }
                     for id in adds {
                         let commit = repo.store().get_commit(id)?;
                         write!(formatter, "  + ")?;
-                        write_commit_summary(
-                            formatter,
-                            repo.as_repo_ref(),
-                            &workspace_id,
-                            &commit,
-                            command.settings(),
-                        )?;
+                        workspace_command.write_commit_summary(formatter, &commit)?;
                         writeln!(formatter)?;
                     }
                 }
@@ -3734,13 +3702,7 @@ fn cmd_workspace_list(
     for (workspace_id, checkout_id) in repo.view().wc_commit_ids().iter().sorted() {
         write!(ui, "{}: ", workspace_id.as_str())?;
         let commit = repo.store().get_commit(checkout_id)?;
-        write_commit_summary(
-            ui.stdout_formatter().as_mut(),
-            repo.as_repo_ref(),
-            &workspace_command.workspace_id(),
-            &commit,
-            command.settings(),
-        )?;
+        workspace_command.write_commit_summary(ui.stdout_formatter().as_mut(), &commit)?;
         writeln!(ui)?;
     }
     Ok(())
@@ -3754,7 +3716,6 @@ fn cmd_workspace_update_stale(
     let workspace = command.load_workspace()?;
     let mut workspace_command = command.resolve_operation(ui, workspace)?;
     let repo = workspace_command.repo().clone();
-    let workspace_id = workspace_command.workspace_id();
     let (mut locked_wc, desired_wc_commit) =
         workspace_command.unsafe_start_working_copy_mutation()?;
     match check_stale_working_copy(&locked_wc, &desired_wc_commit, repo.clone()) {
@@ -3775,13 +3736,8 @@ fn cmd_workspace_update_stale(
                 })?;
             locked_wc.finish(repo.op_id().clone());
             ui.write("Working copy now at: ")?;
-            write_commit_summary(
-                ui.stdout_formatter().as_mut(),
-                repo.as_repo_ref(),
-                &workspace_id,
-                &desired_wc_commit,
-                command.settings(),
-            )?;
+            workspace_command
+                .write_commit_summary(ui.stdout_formatter().as_mut(), &desired_wc_commit)?;
             ui.write("\n")?;
             print_checkout_stats(ui, stats)?;
         }
