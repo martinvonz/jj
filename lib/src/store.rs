@@ -16,9 +16,9 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::sync::{Arc, RwLock};
 
-use crate::backend;
 use crate::backend::{
-    Backend, BackendResult, CommitId, Conflict, ConflictId, FileId, SymlinkId, TreeId,
+    self, Backend, BackendError, BackendResult, CommitId, Conflict, ConflictId, FileId, SymlinkId,
+    TreeId,
 };
 use crate::commit::Commit;
 use crate::repo_path::RepoPath;
@@ -81,11 +81,24 @@ impl Store {
         write_locked_cache.insert(id.clone(), data.clone());
         Ok(data)
     }
-
     pub fn write_commit(self: &Arc<Self>, commit: backend::Commit) -> BackendResult<Commit> {
         assert!(!commit.parents.is_empty());
-        let commit_id = self.backend.write_commit(&commit)?;
-        let data = Arc::new(commit);
+        let mut mut_commit = commit;
+        let commit_id = loop {
+            // It's possible that another commit with the same commit id (but different
+            // change id) already exists. Fundge the timestamp until this is no
+            // longer the case.
+            let maybe_commit_id = self.backend.write_commit(&mut_commit);
+            match maybe_commit_id {
+                Err(BackendError::AlreadyHaveCommitWithId { .. }) => {
+                    // This is measured in milliseconds, and Git can't handle durations
+                    // less than 1 second.
+                    mut_commit.committer.timestamp.timestamp.0 -= 1000
+                }
+                _ => break maybe_commit_id?,
+            }
+        };
+        let data = Arc::new(mut_commit);
         {
             let mut write_locked_cache = self.commit_cache.write().unwrap();
             write_locked_cache.insert(commit_id.clone(), data.clone());

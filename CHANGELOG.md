@@ -67,6 +67,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the jj repo from a Git repo. They will now be considered as non-existent if
   referenced explicitly instead of crashing.
 
+* `jj duplicate` followed by `jj rebase` of a tree containing both the original
+  and duplicate commit no longer crashes.
+
 ### Contributors
 
 Thanks to the people who made this release happen!

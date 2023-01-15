@@ -127,10 +127,21 @@ fn test_rebase_duplicates() {
     o 000000000000   (no description set) @ 1970-01-01 00:00:00.000 +00:00
     "###);
 
-    // This is the bug: this should succeed
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-s", "a", "-d", "a-"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Unexpected error from backend: Git commit '29bd36b60e6002f04e03c5077f989c93e3c910e1' already exists with different associated non-Git meta-data
+    let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-s", "a", "-d", "a-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 4 commits
+    Working copy now at: 29bd36b60e60 b
+    "###);
+    // One of the duplicate commit's timestamps was changed a little to make it have
+    // a different commit id from the other.
+    insta::assert_snapshot!(get_log_output_with_ts(&test_env, &repo_path), @r###"
+    o b43fe7354758   b @ 2001-02-03 04:05:14.000 +07:00
+    | o 08beb14c3ead   b @ 2001-02-03 04:05:15.000 +07:00
+    |/  
+    | @ 29bd36b60e60   b @ 2001-02-03 04:05:16.000 +07:00
+    |/  
+    o 2f6dc5a1ffc2   a @ 2001-02-03 04:05:16.000 +07:00
+    o 000000000000   (no description set) @ 1970-01-01 00:00:00.000 +00:00
     "###);
 }
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
@@ -144,7 +155,6 @@ fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     )
 }
 
-// The timestamp is relevant for the bugfix
 fn get_log_output_with_ts(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(
         repo_path,
