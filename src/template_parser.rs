@@ -23,7 +23,7 @@ use pest_derive::Parser;
 use crate::formatter::PlainTextFormatter;
 use crate::templater::{
     AuthorProperty, BranchProperty, CommitOrChangeId, CommitOrChangeIdKeyword,
-    CommitOrChangeIdShortest, CommitterProperty, ConditionalTemplate, ConflictProperty,
+    CommitOrChangeIdShort, CommitterProperty, ConditionalTemplate, ConflictProperty,
     ConstantTemplateProperty, DescriptionProperty, DivergentProperty, DynamicLabelTemplate,
     EmptyProperty, GitRefsProperty, IsGitHeadProperty, IsWorkingCopyProperty, LabelTemplate,
     ListTemplate, LiteralTemplate, SignatureTimestamp, StringPropertyTemplate, TagProperty,
@@ -208,7 +208,7 @@ fn parse_commit_or_chain_id_method<'a>(
     // TODO: validate arguments
 
     let this_function = match name.as_str() {
-        "short" => Property::String(Box::new(CommitOrChangeIdShortest)),
+        "short" => Property::String(Box::new(CommitOrChangeIdShort)),
         name => panic!("no such commit ID method: {name}"),
     };
     let chain_method = inner.last().unwrap();
