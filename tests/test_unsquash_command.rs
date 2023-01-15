@@ -86,11 +86,10 @@ fn test_unsquash() {
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "merge", "c", "d"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "e"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   1f8f152ff48e e
-    |\  
-    o | 5658521e0f8b d
-    | o 90fe0a96fc90 c
-    |/  
+    @─╮ 1f8f152ff48e e
+    o │ 5658521e0f8b d
+    │ o 90fe0a96fc90 c
+    ├─╯ 
     o fa5efbdf533c b
     o 90aeefd03044 a
     o 000000000000 
@@ -108,11 +107,10 @@ fn test_unsquash() {
     Working copy now at: 3217340cb761 merge
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   3217340cb761 
-    |\  
-    o | 5658521e0f8b d e??
-    | o 90fe0a96fc90 c e??
-    |/  
+    @─╮ 3217340cb761 
+    o │ 5658521e0f8b d e??
+    │ o 90fe0a96fc90 c e??
+    ├─╯ 
     o fa5efbdf533c b
     o 90aeefd03044 a
     o 000000000000 

@@ -87,11 +87,10 @@ fn test_squash() {
     test_env.jj_cmd_success(&repo_path, &["new", "c", "d"]);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "e"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   c7a11b36d333 e
-    |\  
-    o | 5658521e0f8b d
-    | o 90fe0a96fc90 c
-    |/  
+    @─╮ c7a11b36d333 e
+    o │ 5658521e0f8b d
+    │ o 90fe0a96fc90 c
+    ├─╯ 
     o fa5efbdf533c b
     o 90aeefd03044 a
     o 000000000000 
@@ -110,11 +109,10 @@ fn test_squash() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 959145c11426 
-    o   80960125bb96 e
-    |\  
-    o | 5658521e0f8b d
-    | o 90fe0a96fc90 c
-    |/  
+    o─╮ 80960125bb96 e
+    o │ 5658521e0f8b d
+    │ o 90fe0a96fc90 c
+    ├─╯ 
     o fa5efbdf533c b
     o 90aeefd03044 a
     o 000000000000 

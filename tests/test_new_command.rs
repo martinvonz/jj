@@ -37,9 +37,9 @@ fn test_new() {
     test_env.jj_cmd_success(&repo_path, &["new", "-m", "off of root", "root"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 026537ddb96b801b9cb909985d5443aab44616c1 off of root
-    | o 4f2d6e0a3482a6a34e4856a4a63869c0df109e79 a new commit
-    | o 5d5c60b2aa96b8dbf55710656c50285c66cdcd74 add a file
-    |/  
+    │ o 4f2d6e0a3482a6a34e4856a4a63869c0df109e79 a new commit
+    │ o 5d5c60b2aa96b8dbf55710656c50285c66cdcd74 add a file
+    ├─╯ 
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
 }
@@ -59,11 +59,10 @@ fn test_new_merge() {
     // Create a merge commit
     test_env.jj_cmd_success(&repo_path, &["new", "main", "@"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   0c4e5b9b68ae0cbe7ce3c61042619513d09005bf (no description set)
-    |\  
-    o | f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
-    | o 38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
-    |/  
+    @─╮ 0c4e5b9b68ae0cbe7ce3c61042619513d09005bf (no description set)
+    o │ f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
+    │ o 38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
+    ├─╯ 
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
@@ -75,11 +74,10 @@ fn test_new_merge() {
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     test_env.jj_cmd_success(&repo_path, &["merge", "main", "@"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   200ed1a14c8acf09783dafefe5bebf2ff58f12fd (no description set)
-    |\  
-    o | f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
-    | o 38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
-    |/  
+    @─╮ 200ed1a14c8acf09783dafefe5bebf2ff58f12fd (no description set)
+    o │ f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
+    │ o 38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
+    ├─╯ 
     o 0000000000000000000000000000000000000000 (no description set)
     "###);
 

@@ -60,9 +60,9 @@ fn test_move() {
     @ 0d7353584003 f
     o e9515f21068c e
     o bdd835cae844 d
-    | o caa4d0b23201 c
-    | o 55171e33db26 b
-    |/  
+    │ o caa4d0b23201 c
+    │ o 55171e33db26 b
+    ├─╯ 
     o 3db0a2f5b535 a
     o 000000000000 
     "###);
@@ -93,8 +93,8 @@ fn test_move() {
     @ 1c03e3d3c63f f
     o e9515f21068c e
     o bdd835cae844 d
-    | o 55171e33db26 b c
-    |/  
+    │ o 55171e33db26 b c
+    ├─╯ 
     o 3db0a2f5b535 a
     o 000000000000 
     "###);
@@ -120,9 +120,9 @@ fn test_move() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ c8d83075e8c2 f
     o 2c50bfc59c68 e
-    | o caa4d0b23201 c
-    | o 55171e33db26 b
-    |/  
+    │ o caa4d0b23201 c
+    │ o 55171e33db26 b
+    ├─╯ 
     o 3db0a2f5b535 a d
     o 000000000000 
     "###);
@@ -145,9 +145,9 @@ fn test_move() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 2b723b1d6033 f
     o 4293930d6333 d e
-    | o caa4d0b23201 c
-    | o 55171e33db26 b
-    |/  
+    │ o caa4d0b23201 c
+    │ o 55171e33db26 b
+    ├─╯ 
     o 3db0a2f5b535 a
     o 000000000000 
     "###);
@@ -188,9 +188,9 @@ fn test_move_partial() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ bdd835cae844 d
-    | o 5028db694b6b c
-    | o 55171e33db26 b
-    |/  
+    │ o 5028db694b6b c
+    │ o 55171e33db26 b
+    ├─╯ 
     o 3db0a2f5b535 a
     o 000000000000 
     "###);
@@ -206,8 +206,8 @@ fn test_move_partial() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 71b69e433fbc d
-    | o 55171e33db26 b c
-    |/  
+    │ o 55171e33db26 b c
+    ├─╯ 
     o 3db0a2f5b535 a
     o 000000000000 
     "###);
@@ -236,9 +236,9 @@ fn test_move_partial() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 63f1a6e96edb d
-    | o d027c6e3e6bc c
-    | o 55171e33db26 b
-    |/  
+    │ o d027c6e3e6bc c
+    │ o 55171e33db26 b
+    ├─╯ 
     o 3db0a2f5b535 a
     o 000000000000 
     "###);
@@ -269,9 +269,9 @@ fn test_move_partial() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 17c2e6632cc5 d
-    | o 6a3ae047a03e c
-    | o 55171e33db26 b
-    |/  
+    │ o 6a3ae047a03e c
+    │ o 55171e33db26 b
+    ├─╯ 
     o 3db0a2f5b535 a
     o 000000000000 
     "###);
@@ -303,8 +303,8 @@ fn test_move_partial() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     o 21253406d416 c
     o e1cf08aae711 b
-    | @ bdd835cae844 d
-    |/  
+    │ @ bdd835cae844 d
+    ├─╯ 
     o 3db0a2f5b535 a
     o 000000000000 
     "###);

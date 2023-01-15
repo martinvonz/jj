@@ -51,12 +51,12 @@ fn test_log_with_or_without_diff() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "-p"]);
     insta::assert_snapshot!(stdout, @r###"
     @ a new commit
-    | Modified regular file file1:
-    |    1    1: foo
-    |         2: bar
+    │ Modified regular file file1:
+    │    1    1: foo
+    │         2: bar
     o add a file
-    | Added regular file file1:
-    |         1: foo
+    │ Added regular file file1:
+    │         1: foo
     o (no description set)
     "###);
 
@@ -71,14 +71,14 @@ fn test_log_with_or_without_diff() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "-p", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     @ a new commit
-    | M file1
-    | Modified regular file file1:
-    |    1    1: foo
-    |         2: bar
+    │ M file1
+    │ Modified regular file file1:
+    │    1    1: foo
+    │         2: bar
     o add a file
-    | A file1
-    | Added regular file file1:
-    |         1: foo
+    │ A file1
+    │ Added regular file file1:
+    │         1: foo
     o (no description set)
     "###);
 
@@ -86,23 +86,23 @@ fn test_log_with_or_without_diff() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "-s", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
     @ a new commit
-    | M file1
-    | diff --git a/file1 b/file1
-    | index 257cc5642c...3bd1f0e297 100644
-    | --- a/file1
-    | +++ b/file1
-    | @@ -1,1 +1,2 @@
-    |  foo
-    | +bar
+    │ M file1
+    │ diff --git a/file1 b/file1
+    │ index 257cc5642c...3bd1f0e297 100644
+    │ --- a/file1
+    │ +++ b/file1
+    │ @@ -1,1 +1,2 @@
+    │  foo
+    │ +bar
     o add a file
-    | A file1
-    | diff --git a/file1 b/file1
-    | new file mode 100644
-    | index 0000000000..257cc5642c
-    | --- /dev/null
-    | +++ b/file1
-    | @@ -1,0 +1,1 @@
-    | +foo
+    │ A file1
+    │ diff --git a/file1 b/file1
+    │ new file mode 100644
+    │ index 0000000000..257cc5642c
+    │ --- /dev/null
+    │ +++ b/file1
+    │ @@ -1,0 +1,1 @@
+    │ +foo
     o (no description set)
     "###);
 
@@ -120,9 +120,9 @@ fn test_log_with_or_without_diff() {
     );
     insta::assert_snapshot!(stdout, @r###"
     @ a new commit
-    | M file1
+    │ M file1
     o add a file
-    | A file1
+    │ A file1
     o (no description set)
     "###);
 
@@ -133,12 +133,12 @@ fn test_log_with_or_without_diff() {
     );
     insta::assert_snapshot!(stdout, @r###"
     @ a new commit
-    | Modified regular file file1:
-    |    1    1: foo
-    |         2: bar
+    │ Modified regular file file1:
+    │    1    1: foo
+    │         2: bar
     o add a file
-    | Added regular file file1:
-    |         1: foo
+    │ Added regular file file1:
+    │         1: foo
     o (no description set)
     "###);
 
@@ -209,9 +209,9 @@ fn test_log_with_or_without_diff() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     @ a new commit
-    | M file1
+    │ M file1
     o add a file
-    | A file1
+    │ A file1
     o (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(
@@ -233,7 +233,7 @@ fn test_log_with_or_without_diff() {
     );
     insta::assert_snapshot!(stdout, @r###"
     @ a new commit
-    ~ diff --git a/file1 b/file1
+    ⯆ diff --git a/file1 b/file1
       index 257cc5642c...3bd1f0e297 100644
       --- a/file1
       +++ b/file1
@@ -263,7 +263,7 @@ fn test_log_with_or_without_diff() {
     );
     insta::assert_snapshot!(stdout, @r###"
     @ a new commit
-    ~ Modified regular file file1:
+    ⯆ Modified regular file file1:
          1    1: foo
               2: bar
     "###);
@@ -325,8 +325,8 @@ fn test_log_divergence() {
     insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
     o description 2 !divergence!
-    | @ description 1 !divergence!
-    |/  
+    │ @ description 1 !divergence!
+    ├─╯ 
     o (no description set)
     "###);
 }
@@ -374,21 +374,21 @@ fn test_log_filtered_by_path() {
     insta::assert_snapshot!(stdout, @r###"
     @ second
     o first
-    ~ 
+    ⯆ 
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
     @ second
-    ~ 
+    ⯆ 
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description", "-s", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     @ second
-    | M file1
+    │ M file1
     o first
-    ~ A file1
+    ⯆ A file1
     "###);
 
     let stdout = test_env.jj_cmd_success(
@@ -434,7 +434,7 @@ fn test_log_warn_path_might_be_revset() {
         .success();
     insta::assert_snapshot!(get_stdout_string(&assert), @r###"
     @ (no description set)
-    ~ 
+    ⯆ 
     "###);
     insta::assert_snapshot!(get_stderr_string(&assert), @"");
 
@@ -445,7 +445,7 @@ fn test_log_warn_path_might_be_revset() {
         .success();
     insta::assert_snapshot!(get_stdout_string(&assert), @r###"
     @ (no description set)
-    ~ 
+    ⯆ 
     "###);
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"warning: The argument "." is being interpreted as a path, but this is often not useful because all non-empty commits touch '.'.  If you meant to show the working copy commit, pass -r '@' instead."###);
 
@@ -565,16 +565,16 @@ fn test_graph_template_color() {
     insta::assert_snapshot!(stdout, @r###"
     @ single line
     o first line
-    | second line
-    | third line
+    │ second line
+    │ third line
     o (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "log", "-T=description"]);
     insta::assert_snapshot!(stdout, @r###"
     @ [1m[38;5;2msingle line[0m
     o [38;5;1mfirst line[39m
-    | [38;5;1msecond line[39m
-    | [38;5;1mthird line[39m
+    │ [38;5;1msecond line[39m
+    │ [38;5;1mthird line[39m
     o [38;5;1m(no description set)[39m
     "###);
 }
