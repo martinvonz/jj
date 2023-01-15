@@ -1028,13 +1028,13 @@ fn cmd_config(
     command: &CommandHelper,
     subcommand: &ConfigSubcommand,
 ) -> Result<(), CommandError> {
-    ui.request_pager();
     let settings = command.settings();
     match subcommand {
         ConfigSubcommand::List {
             name,
             include_defaults,
         } => {
+            ui.request_pager();
             let name_path = name
                 .as_ref()
                 .map_or(vec![], |name| name.split('.').collect_vec());
