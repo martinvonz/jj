@@ -1975,7 +1975,7 @@ fn cmd_describe(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_rewriteable(&commit)?;
+    workspace_command.check_not_root_commit(&commit)?;
     let description = if args.stdin {
         let mut buffer = String::new();
         io::stdin().read_to_string(&mut buffer).unwrap();
@@ -2048,6 +2048,7 @@ fn cmd_duplicate(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let predecessor = workspace_command.resolve_single_rev(&args.revision)?;
+    workspace_command.check_not_root_commit(&predecessor)?;
     let mut tx = workspace_command
         .start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
     let mut_repo = tx.mut_repo();
@@ -2080,7 +2081,7 @@ fn cmd_abandon(
             let revisions = workspace_command.resolve_revset(revset)?;
             workspace_command.check_non_empty(&revisions)?;
             for commit in &revisions {
-                workspace_command.check_rewriteable(commit)?;
+                workspace_command.check_not_root_commit(commit)?;
             }
             acc.extend(revisions);
         }
@@ -2213,8 +2214,8 @@ fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(),
     if source.id() == destination.id() {
         return Err(user_error("Source and destination cannot be the same."));
     }
-    workspace_command.check_rewriteable(&source)?;
-    workspace_command.check_rewriteable(&destination)?;
+    workspace_command.check_not_root_commit(&source)?;
+    workspace_command.check_not_root_commit(&destination)?;
     let mut tx = workspace_command.start_transaction(&format!(
         "move changes from {} to {}",
         source.id().hex(),
@@ -2297,13 +2298,13 @@ from the source will be moved into the destination.
 fn cmd_squash(ui: &mut Ui, command: &CommandHelper, args: &SquashArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_rewriteable(&commit)?;
+    workspace_command.check_not_root_commit(&commit)?;
     let parents = commit.parents();
     if parents.len() != 1 {
         return Err(user_error("Cannot squash merge commits"));
     }
     let parent = &parents[0];
-    workspace_command.check_rewriteable(parent)?;
+    workspace_command.check_not_root_commit(parent)?;
     let mut tx =
         workspace_command.start_transaction(&format!("squash commit {}", commit.id().hex()));
     let instructions = format!(
@@ -2371,13 +2372,13 @@ fn cmd_unsquash(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_rewriteable(&commit)?;
+    workspace_command.check_not_root_commit(&commit)?;
     let parents = commit.parents();
     if parents.len() != 1 {
         return Err(user_error("Cannot unsquash merge commits"));
     }
     let parent = &parents[0];
-    workspace_command.check_rewriteable(parent)?;
+    workspace_command.check_not_root_commit(parent)?;
     let mut tx =
         workspace_command.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
     let parent_base_tree =
@@ -2471,7 +2472,7 @@ fn cmd_resolve(
     };
 
     let (repo_path, _) = conflicts.get(0).unwrap();
-    workspace_command.check_rewriteable(&commit)?;
+    workspace_command.check_not_root_commit(&commit)?;
     let mut tx = workspace_command.start_transaction(&format!(
         "Resolve conflicts in commit {}",
         commit.id().hex()
@@ -2608,7 +2609,7 @@ fn cmd_restore(
     };
     let from_commit = workspace_command.resolve_single_rev(from_str)?;
     let to_commit = workspace_command.resolve_single_rev(to_str)?;
-    workspace_command.check_rewriteable(&to_commit)?;
+    workspace_command.check_not_root_commit(&to_commit)?;
     let tree_id = if args.paths.is_empty() {
         from_commit.tree_id().clone()
     } else {
@@ -2675,7 +2676,7 @@ fn cmd_diffedit(
         base_commits = target_commit.parents();
         diff_description = "The diff initially shows the commit's changes.".to_string();
     };
-    workspace_command.check_rewriteable(&target_commit)?;
+    workspace_command.check_not_root_commit(&target_commit)?;
 
     let instructions = format!(
         "\
@@ -2770,7 +2771,7 @@ fn diff_summary_to_description(bytes: &[u8]) -> String {
 fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_rewriteable(&commit)?;
+    workspace_command.check_not_root_commit(&commit)?;
     let base_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commit.parents());
     let instructions = format!(
         "\
@@ -2931,7 +2932,7 @@ fn rebase_branch(
         .commits(store)
     {
         let root_commit = root_result?;
-        workspace_command.check_rewriteable(&root_commit)?;
+        workspace_command.check_not_root_commit(&root_commit)?;
         rebase_commit(command.settings(), tx.mut_repo(), &root_commit, new_parents)?;
         num_rebased += 1;
     }
@@ -2949,7 +2950,7 @@ fn rebase_descendants(
     source_str: &str,
 ) -> Result<(), CommandError> {
     let old_commit = workspace_command.resolve_single_rev(source_str)?;
-    workspace_command.check_rewriteable(&old_commit)?;
+    workspace_command.check_not_root_commit(&old_commit)?;
     check_rebase_destinations(workspace_command, new_parents, &old_commit)?;
     let mut tx = workspace_command.start_transaction(&format!(
         "rebase commit {} and descendants",
@@ -2970,7 +2971,7 @@ fn rebase_revision(
     rev_str: &str,
 ) -> Result<(), CommandError> {
     let old_commit = workspace_command.resolve_single_rev(rev_str)?;
-    workspace_command.check_rewriteable(&old_commit)?;
+    workspace_command.check_not_root_commit(&old_commit)?;
     check_rebase_destinations(workspace_command, new_parents, &old_commit)?;
     let mut tx =
         workspace_command.start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
