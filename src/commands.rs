@@ -2951,7 +2951,7 @@ fn rebase_branch(
     let branch_commit = workspace_command.resolve_single_rev(branch_str)?;
     let mut tx = workspace_command
         .start_transaction(&format!("rebase branch at {}", branch_commit.id().hex()));
-    check_rebase_destinations(workspace_command, new_parents, &branch_commit)?;
+    check_rebase_destinations(workspace_command.repo(), new_parents, &branch_commit)?;
 
     let parent_ids = new_parents
         .iter()
@@ -2988,7 +2988,7 @@ fn rebase_descendants(
 ) -> Result<(), CommandError> {
     let old_commit = workspace_command.resolve_single_rev(source_str)?;
     workspace_command.check_rewriteable(&old_commit)?;
-    check_rebase_destinations(workspace_command, new_parents, &old_commit)?;
+    check_rebase_destinations(workspace_command.repo(), new_parents, &old_commit)?;
     let mut tx = workspace_command.start_transaction(&format!(
         "rebase commit {} and descendants",
         old_commit.id().hex()
@@ -3009,7 +3009,7 @@ fn rebase_revision(
 ) -> Result<(), CommandError> {
     let old_commit = workspace_command.resolve_single_rev(rev_str)?;
     workspace_command.check_rewriteable(&old_commit)?;
-    check_rebase_destinations(workspace_command, new_parents, &old_commit)?;
+    check_rebase_destinations(workspace_command.repo(), new_parents, &old_commit)?;
     let mut tx =
         workspace_command.start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
     rebase_commit(command.settings(), tx.mut_repo(), &old_commit, new_parents)?;
@@ -3079,16 +3079,12 @@ fn rebase_revision(
 }
 
 fn check_rebase_destinations(
-    workspace_command: &WorkspaceCommandHelper,
+    repo: &ReadonlyRepo,
     new_parents: &[Commit],
     commit: &Commit,
 ) -> Result<(), CommandError> {
     for parent in new_parents {
-        if workspace_command
-            .repo()
-            .index()
-            .is_ancestor(commit.id(), parent.id())
-        {
+        if repo.index().is_ancestor(commit.id(), parent.id()) {
             return Err(user_error(format!(
                 "Cannot rebase {} onto descendant {}",
                 short_commit_hash(commit.id()),
