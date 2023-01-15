@@ -108,6 +108,12 @@ fn test_rebase_branch_with_merge() {
     o a e??
     o c d e??
     "###);
+
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["abandon", "root"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot rewrite the root commit
+    "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
