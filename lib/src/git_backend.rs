@@ -445,6 +445,28 @@ impl Backend for GitBackend {
     }
 
     fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId> {
+        let mut mut_commit = contents.clone();
+        // It's possible a commit already exists with the same commit id but different
+        // change id. Adjust the timestamp until this is no longer the case.
+        loop {
+            match self.write_commit_internal(&mut_commit)? {
+                None => {
+                    // This is measured in milliseconds, and Git can't handle durations
+                    // less than 1 second.
+                    mut_commit.committer.timestamp.timestamp.0 -= 1000
+                }
+                Some(result) => return Ok(result),
+            }
+        }
+    }
+}
+
+impl GitBackend {
+    /// Returns `Ok(None)` in the special case where the commit with the same id
+    /// already exists in the store.
+    fn write_commit_internal(&self, contents: &Commit) -> BackendResult<Option<CommitId>> {
+        // `write_commit_internal` is a separate function from `write_commit` because
+        // it would stall if it called itself without first unlocking `self.repo`.
         let locked_repo = self.repo.lock().unwrap();
         let git_tree_id = validate_git_object_id(&contents.root_tree)?;
         let git_tree = locked_repo
@@ -493,10 +515,7 @@ impl Backend for GitBackend {
             .start_mutation();
         if let Some(existing_extras) = mut_table.get_value(git_id.as_bytes()) {
             if existing_extras != extras {
-                return Err(BackendError::Other(format!(
-                    "Git commit '{}' already exists with different associated non-Git meta-data",
-                    id.hex()
-                )));
+                return Ok(None);
             }
         }
         mut_table.add_entry(git_id.as_bytes().to_vec(), extras);
@@ -506,7 +525,7 @@ impl Backend for GitBackend {
                 BackendError::Other(format!("Failed to write non-git metadata: {err}"))
             })?;
         *self.cached_extra_metadata.lock().unwrap() = None;
-        Ok(id)
+        Ok(Some(id))
     }
 }
 
@@ -756,13 +775,8 @@ mod tests {
         let commit_id1 = store.write_commit(&commit1).unwrap();
         let mut commit2 = commit1;
         commit2.predecessors.push(commit_id1.clone());
-        let expected_error_message = format!("Git commit '{}' already exists", commit_id1.hex());
-        match store.write_commit(&commit2) {
-            Ok(_) => {
-                panic!("expectedly successfully wrote two commits with the same git commit object")
-            }
-            Err(BackendError::Other(message)) if message.contains(&expected_error_message) => {}
-            Err(err) => panic!("unexpected error: {err:?}"),
-        };
+        // `write_commit` should prevent the ids from being the same by changing the
+        // committer timestamp of the commit it actually writes.
+        assert_ne!(store.write_commit(&commit2).unwrap(), commit_id1);
     }
 }

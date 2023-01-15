@@ -83,6 +83,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj undo` now works after `jj duplicate`.
 
+* `jj duplicate` followed by `jj rebase` of a tree containing both the original
+  and duplicate commit no longer crashes. The fix should also resolve any remaining
+  instances of https://github.com/martinvonz/jj/issues/27.
+
 ### Contributors
 
 Thanks to the people who made this release happen!
