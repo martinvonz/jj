@@ -2041,6 +2041,7 @@ fn cmd_duplicate(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let predecessor = workspace_command.resolve_single_rev(&args.revision)?;
+    workspace_command.check_rewriteable(&predecessor)?;
     let mut tx = workspace_command
         .start_transaction(&format!("duplicate commit {}", predecessor.id().hex()));
     let mut_repo = tx.mut_repo();

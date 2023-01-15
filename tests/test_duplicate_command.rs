@@ -49,17 +49,17 @@ fn test_duplicate() {
     o 000000000000   (no description set)
     "###);
 
-    /* BUG!!! Panics instead of failing! */
-    // let stderr = test_env.jj_cmd_failure(&repo_path, &["duplicate", "root"]);
-    // insta::assert_snapshot!(stderr, @r###"
-    // "###);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["duplicate", "root"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot rewrite the root commit
+    "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a"]);
     insta::assert_snapshot!(stdout, @r###"
-    Created: 3d341b2f2b09 a
+    Created: 2f6dc5a1ffc2 a
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o 3d341b2f2b09   a
+    o 2f6dc5a1ffc2   a
     | @   17a00fc21654   c
     | |\  
     | o | d370aee184ba   b
@@ -69,13 +69,13 @@ fn test_duplicate() {
     o 000000000000   (no description set)
     "###);
 
-    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["undo"]), @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate" /* duplicates `c` */]);
     insta::assert_snapshot!(stdout, @r###"
-    Created: 2426bb15bfd6 c
+    Created: 1dd099ea963c c
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o   2426bb15bfd6   c
+    o   1dd099ea963c   c
     |\  
     | | @   17a00fc21654   c
     | | |\  
