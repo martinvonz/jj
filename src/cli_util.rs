@@ -505,7 +505,7 @@ impl WorkspaceCommandHelper {
         ui: &mut Ui,
         git_repo: &Repository,
     ) -> Result<(), CommandError> {
-        let mut tx = self.start_transaction("import git refs");
+        let mut tx = self.start_transaction("import git refs").into_inner();
         git::import_refs(tx.mut_repo(), git_repo)?;
         if tx.mut_repo().has_changes() {
             let old_git_head = self.repo.view().git_head();
@@ -761,11 +761,6 @@ impl WorkspaceCommandHelper {
         }
     }
 
-    // TODO: Any methods that depend on self.repo aren't aware of a mutable repo
-    // while transaction is in progress. That's fine if the caller expects to
-    // operate on tx.base_repo(), but WorkspaceCommandHelper API doesn't clarify
-    // that.
-
     /// Returns one-line summary of the given `commit`.
     pub fn format_commit_summary(&self, commit: &Commit) -> String {
         let mut output = Vec::new();
@@ -951,15 +946,15 @@ impl WorkspaceCommandHelper {
         }
     }
 
-    pub fn start_transaction(&self, description: &str) -> Transaction {
-        start_repo_transaction(&self.repo, &self.settings, &self.string_args, description)
+    pub fn start_transaction<'a>(
+        &'a mut self,
+        description: &str,
+    ) -> WorkspaceCommandTransaction<'a> {
+        let tx = start_repo_transaction(&self.repo, &self.settings, &self.string_args, description);
+        WorkspaceCommandTransaction { helper: self, tx }
     }
 
-    pub fn finish_transaction(
-        &mut self,
-        ui: &mut Ui,
-        mut tx: Transaction,
-    ) -> Result<(), CommandError> {
+    fn finish_transaction(&mut self, ui: &mut Ui, mut tx: Transaction) -> Result<(), CommandError> {
         let mut_repo = tx.mut_repo();
         let store = mut_repo.store().clone();
         if !mut_repo.has_changes() {
@@ -1008,6 +1003,61 @@ impl WorkspaceCommandHelper {
             )?;
         }
         Ok(())
+    }
+}
+
+#[must_use]
+pub struct WorkspaceCommandTransaction<'a> {
+    helper: &'a mut WorkspaceCommandHelper,
+    tx: Transaction,
+}
+
+impl WorkspaceCommandTransaction<'_> {
+    /// Workspace helper that may use the base repo.
+    pub fn base_workspace_helper(&self) -> &WorkspaceCommandHelper {
+        self.helper
+    }
+
+    pub fn base_repo(&self) -> &ReadonlyRepo {
+        self.tx.base_repo()
+    }
+
+    pub fn repo(&self) -> &MutableRepo {
+        self.tx.repo()
+    }
+
+    pub fn mut_repo(&mut self) -> &mut MutableRepo {
+        self.tx.mut_repo()
+    }
+
+    pub fn check_out(&mut self, commit: &Commit) -> Result<Commit, CheckOutCommitError> {
+        let workspace_id = self.helper.workspace_id();
+        let settings = &self.helper.settings;
+        self.tx.mut_repo().check_out(workspace_id, settings, commit)
+    }
+
+    pub fn edit(&mut self, commit: &Commit) -> Result<(), EditCommitError> {
+        let workspace_id = self.helper.workspace_id();
+        self.tx.mut_repo().edit(workspace_id, commit)
+    }
+
+    pub fn write_commit_summary(
+        &self,
+        formatter: &mut dyn Formatter,
+        commit: &Commit,
+    ) -> std::io::Result<()> {
+        let repo = self.tx.repo().as_repo_ref();
+        let workspace_id = self.helper.workspace.workspace_id();
+        let settings = &self.helper.settings;
+        write_commit_summary(formatter, repo, workspace_id, commit, settings)
+    }
+
+    pub fn finish(self, ui: &mut Ui) -> Result<(), CommandError> {
+        self.helper.finish_transaction(ui, self.tx)
+    }
+
+    pub fn into_inner(self) -> Transaction {
+        self.tx
     }
 }
 

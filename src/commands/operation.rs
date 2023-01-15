@@ -166,7 +166,7 @@ pub fn cmd_op_undo(
     let bad_repo = repo_loader.load_at(&bad_op);
     let parent_repo = repo_loader.load_at(&parent_ops[0]);
     tx.mut_repo().merge(&bad_repo, &parent_repo);
-    workspace_command.finish_transaction(ui, tx)?;
+    tx.finish(ui)?;
 
     Ok(())
 }
@@ -181,7 +181,7 @@ fn cmd_op_restore(
     let mut tx = workspace_command
         .start_transaction(&format!("restore to operation {}", target_op.id().hex()));
     tx.mut_repo().set_view(target_op.view().take_store_view());
-    workspace_command.finish_transaction(ui, tx)?;
+    tx.finish(ui)?;
 
     Ok(())
 }

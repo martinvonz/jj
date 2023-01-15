@@ -43,7 +43,7 @@ fn run_custom_command(
                 .rewrite_commit(command_helper.settings(), &commit)
                 .set_description("Frobnicated!")
                 .write()?;
-            workspace_command.finish_transaction(ui, tx)?;
+            tx.finish(ui)?;
             writeln!(
                 ui,
                 "Frobnicated revision: {}",
