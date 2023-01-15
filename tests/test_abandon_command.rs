@@ -43,14 +43,13 @@ fn test_rebase_branch_with_merge() {
     create_commit(&test_env, &repo_path, "e", &["a", "d"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   e
-    |\  
-    o | d
-    o | c
-    | | o b
-    | |/  
-    | o a
-    |/  
+    @─╮ e
+    o │ d
+    o │ c
+    │ │ o b
+    │ ├─╯ 
+    │ o a
+    ├─╯ 
     o 
     "###);
 
@@ -62,13 +61,12 @@ fn test_rebase_branch_with_merge() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   e
-    |\  
-    o | c d
-    | | o b
-    | |/  
-    | o a
-    |/  
+    @─╮ e
+    o │ c d
+    │ │ o b
+    │ ├─╯ 
+    │ o a
+    ├─╯ 
     o 
     "###);
 
@@ -81,13 +79,12 @@ fn test_rebase_branch_with_merge() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
-    | o d e??
-    | o c
-    | | o b
-    | |/  
-    |/|   
-    o | a e??
-    |/  
+    │ o d e??
+    │ o c
+    │ │ o b
+    ├─│─╯ 
+    o │ a e??
+    ├─╯ 
     o 
     "###);
 
@@ -103,8 +100,8 @@ fn test_rebase_branch_with_merge() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 
-    | o b
-    |/  
+    │ o b
+    ├─╯ 
     o a e??
     o c d e??
     "###);
