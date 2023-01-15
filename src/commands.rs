@@ -2076,6 +2076,7 @@ fn cmd_duplicate(
     // TODO fix `target/debug/jj duplicate 6dd8-:` fails, probably because it
     // diverges and then the branches merge.
     while !to_duplicate.is_empty() {
+        println!("{to_duplicate:?}");
         let mut predecessor = None;
         // Find a commit whose parents we either don't plan to duplicate or have already
         // duplicated.
@@ -2114,7 +2115,12 @@ fn cmd_duplicate(
             .generate_new_change_id()
             .set_parents(new_parents)
             .write()?;
-        to_duplicate.remove(&predecessor);
+        if !(to_duplicate.remove(&predecessor)) {
+            panic!(
+                "Can't find {predecessor:?} inside {to_duplicate:?} even though I just got it \
+                 from there"
+            );
+        }
         duplicated_old_to_new.insert(predecessor, new_commit);
     }
 
