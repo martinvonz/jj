@@ -24,7 +24,7 @@ pub struct TestEnvironment {
     _temp_dir: TempDir,
     env_root: PathBuf,
     home_dir: PathBuf,
-    config_dir: PathBuf,
+    config_path: PathBuf,
     env_vars: HashMap<String, String>,
     config_file_number: RefCell<i64>,
     command_number: RefCell<i64>,
@@ -45,7 +45,7 @@ impl Default for TestEnvironment {
             _temp_dir: tmp_dir,
             env_root,
             home_dir,
-            config_dir,
+            config_path: config_dir,
             env_vars,
             config_file_number: RefCell::new(0),
             command_number: RefCell::new(0),
@@ -64,7 +64,7 @@ impl TestEnvironment {
         }
         cmd.env("RUST_BACKTRACE", "1");
         cmd.env("HOME", self.home_dir.to_str().unwrap());
-        cmd.env("JJ_CONFIG", self.config_dir.to_str().unwrap());
+        cmd.env("JJ_CONFIG", self.config_path.to_str().unwrap());
         cmd.env("JJ_USER", "Test User");
         cmd.env("JJ_EMAIL", "test.user@example.com");
         cmd.env("JJ_OP_HOSTNAME", "host.example.com");
@@ -119,18 +119,25 @@ impl TestEnvironment {
         &self.home_dir
     }
 
-    pub fn config_dir(&self) -> &PathBuf {
-        &self.config_dir
+    pub fn config_path(&self) -> &PathBuf {
+        &self.config_path
+    }
+
+    pub fn set_config_path(&mut self, config_path: PathBuf) {
+        self.config_path = config_path;
     }
 
     pub fn add_config(&self, content: &str) {
+        if self.config_path.is_file() {
+            panic!("add_config not supported when config_path is a file");
+        }
         // Concatenating two valid TOML files does not (generally) result in a valid
         // TOML file, so we use create a new file every time instead.
         let mut config_file_number = self.config_file_number.borrow_mut();
         *config_file_number += 1;
         let config_file_number = *config_file_number;
         std::fs::write(
-            self.config_dir
+            self.config_path
                 .join(format!("config{config_file_number:04}.toml")),
             content,
         )

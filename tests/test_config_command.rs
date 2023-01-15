@@ -266,6 +266,123 @@ fn test_config_layer_workspace() {
 }
 
 #[test]
+fn test_config_set_missing_opts() {
+    let test_env = TestEnvironment::default();
+    let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "set"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: The following required arguments were not provided:
+      <--user|--repo>
+      <NAME>
+      <VALUE>
+
+    Usage: jj config set <--user|--repo> <NAME> <VALUE>
+
+    For more information try '--help'
+    "###);
+}
+
+#[test]
+fn test_config_set_for_user() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    // Point to a config file since `config set` can't handle directories.
+    let user_config_path = test_env.config_path().join("config.toml");
+    test_env.set_config_path(user_config_path.to_owned());
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["config", "set", "--user", "test-key", "test-val"],
+    );
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["config", "set", "--user", "test-table.foo", "true"],
+    );
+
+    // Ensure test-key successfully written to user config.
+    let user_config_toml = std::fs::read_to_string(&user_config_path)
+        .unwrap_or_else(|_| panic!("Failed to read file {}", user_config_path.display()));
+    insta::assert_snapshot!(user_config_toml, @r###"
+    test-key = "test-val"
+
+    [test-table]
+    foo = true
+    "###);
+}
+
+#[test]
+fn test_config_set_for_repo() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["config", "set", "--repo", "test-key", "test-val"],
+    );
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["config", "set", "--repo", "test-table.foo", "true"],
+    );
+    // Ensure test-key successfully written to user config.
+    let expected_repo_config_path = repo_path.join(".jj/repo/config.toml");
+    let repo_config_toml =
+        std::fs::read_to_string(&expected_repo_config_path).unwrap_or_else(|_| {
+            panic!(
+                "Failed to read file {}",
+                expected_repo_config_path.display()
+            )
+        });
+    insta::assert_snapshot!(repo_config_toml, @r###"
+    test-key = "test-val"
+
+    [test-table]
+    foo = true
+    "###);
+}
+
+#[test]
+fn test_config_set_type_mismatch() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let user_config_path = test_env.config_path().join("config.toml");
+    test_env.set_config_path(user_config_path);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["config", "set", "--user", "test-table.foo", "test-val"],
+    );
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &["config", "set", "--user", "test-table", "not-a-table"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to set test-table: would overwrite entire non-scalar value with scalar
+    "###);
+}
+
+#[test]
+fn test_config_set_nontable_parent() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let user_config_path = test_env.config_path().join("config.toml");
+    test_env.set_config_path(user_config_path);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["config", "set", "--user", "test-nontable", "test-val"],
+    );
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &["config", "set", "--user", "test-nontable.foo", "test-val"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to set test-nontable.foo: would overwrite non-table value with parent table
+    "###);
+}
+
+#[test]
 fn test_config_edit_missing_opt() {
     let test_env = TestEnvironment::default();
     let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "edit"]);
@@ -288,7 +405,7 @@ fn test_config_edit_user() {
 
     std::fs::write(
         edit_script,
-        format!("expectpath\n{}", test_env.config_dir().to_str().unwrap()),
+        format!("expectpath\n{}", test_env.config_path().to_str().unwrap()),
     )
     .unwrap();
     test_env.jj_cmd_success(&repo_path, &["config", "edit", "--user"]);

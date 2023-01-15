@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj git fetch` now supports a `--branch` argument to fetch some of the
   branches only.
 
+* `jj config set` command allows simple config edits like
+  `jj config set --repo user.email "somebody@example.com"`
+
 ### Fixed bugs
 
 * Modify/delete conflicts now include context lines
