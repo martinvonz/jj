@@ -93,6 +93,46 @@ fn test_duplicate() {
     "###);
 }
 
+// https://github.com/martinvonz/jj/issues/694
+#[test]
+fn test_rebase_duplicates() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "a", &[]);
+    create_commit(&test_env, &repo_path, "b", &["a"]);
+    // Test the setup
+    insta::assert_snapshot!(get_log_output_with_ts(&test_env, &repo_path), @r###"
+    @ 1394f625cbbd   b @ 2001-02-03 04:05:11.000 +07:00
+    o 2443ea76b0b1   a @ 2001-02-03 04:05:09.000 +07:00
+    o 000000000000   (no description set) @ 1970-01-01 00:00:00.000 +00:00
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Created: fdaaf3950f07 b
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Created: 870cf438ccbb b
+    "###);
+    insta::assert_snapshot!(get_log_output_with_ts(&test_env, &repo_path), @r###"
+    o 870cf438ccbb   b @ 2001-02-03 04:05:14.000 +07:00
+    | o fdaaf3950f07   b @ 2001-02-03 04:05:13.000 +07:00
+    |/  
+    | @ 1394f625cbbd   b @ 2001-02-03 04:05:11.000 +07:00
+    |/  
+    o 2443ea76b0b1   a @ 2001-02-03 04:05:09.000 +07:00
+    o 000000000000   (no description set) @ 1970-01-01 00:00:00.000 +00:00
+    "###);
+
+    // This is the bug: this should succeed
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-s", "a", "-d", "a-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Unexpected error from backend: Error: Git commit '29bd36b60e6002f04e03c5077f989c93e3c910e1' already exists with different associated non-Git meta-data
+    "###);
+}
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(
         repo_path,
@@ -100,6 +140,18 @@ fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
             "log",
             "-T",
             r#"commit_id.short() "   " description.first_line()"#,
+        ],
+    )
+}
+
+// The timestamp is relevant for the bugfix
+fn get_log_output_with_ts(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(
+        repo_path,
+        &[
+            "log",
+            "-T",
+            r#"commit_id.short() "   " description.first_line() " @ " committer.timestamp()"#,
         ],
     )
 }
