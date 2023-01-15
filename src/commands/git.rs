@@ -188,7 +188,7 @@ fn cmd_git_remote_remove(
         for branch in branches_to_delete {
             tx.mut_repo().remove_remote_branch(&branch, &args.remote);
         }
-        workspace_command.finish_transaction(ui, tx)?;
+        tx.finish(ui)?;
     }
     Ok(())
 }
@@ -211,7 +211,7 @@ fn cmd_git_remote_rename(
         .start_transaction(&format!("rename git remote {} to {}", &args.old, &args.new));
     tx.mut_repo().rename_remote(&args.old, &args.new);
     if tx.mut_repo().has_changes() {
-        workspace_command.finish_transaction(ui, tx)?;
+        tx.finish(ui)?;
     }
     Ok(())
 }
@@ -248,7 +248,7 @@ fn cmd_git_fetch(
     let mut tx = workspace_command.start_transaction(&format!("fetch from git remote {}", &remote));
     with_remote_callbacks(ui, |cb| git::fetch(tx.mut_repo(), &git_repo, &remote, cb))
         .map_err(|err| user_error(err.to_string()))?;
-    workspace_command.finish_transaction(ui, tx)?;
+    tx.finish(ui)?;
     Ok(())
 }
 
@@ -342,13 +342,9 @@ fn cmd_git_clone(
             let mut checkout_tx =
                 workspace_command.start_transaction("check out git remote's default branch");
             if let Ok(commit) = checkout_tx.base_repo().store().get_commit(&commit_id) {
-                checkout_tx.mut_repo().check_out(
-                    workspace_command.workspace_id(),
-                    command.settings(),
-                    &commit,
-                )?;
+                checkout_tx.check_out(&commit)?;
             }
-            workspace_command.finish_transaction(ui, checkout_tx)?;
+            checkout_tx.finish(ui)?;
         }
     }
     Ok(())
@@ -377,7 +373,7 @@ fn do_git_clone(
         }
         GitFetchError::InternalGitError(err) => user_error(format!("Fetch failed: {err}")),
     })?;
-    workspace_command.finish_transaction(ui, fetch_tx)?;
+    fetch_tx.finish(ui)?;
     Ok((workspace_command, maybe_default_branch))
 }
 
@@ -577,7 +573,8 @@ fn cmd_git_push(
                 // A local branch with the full change ID doesn't exist already, so use the
                 // short ID if it's not ambiguous (which it shouldn't be most of the time).
                 let short_change_id = short_change_hash(commit.change_id());
-                if workspace_command
+                if tx
+                    .base_workspace_helper()
                     .resolve_single_rev(&short_change_id)
                     .is_ok()
                 {
@@ -796,7 +793,7 @@ fn cmd_git_push(
     })
     .map_err(|err| user_error(err.to_string()))?;
     git::import_refs(tx.mut_repo(), &git_repo)?;
-    workspace_command.finish_transaction(ui, tx)?;
+    tx.finish(ui)?;
     Ok(())
 }
 
@@ -832,7 +829,7 @@ fn cmd_git_import(
     let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction("import git refs");
     git::import_refs(tx.mut_repo(), &git_repo)?;
-    workspace_command.finish_transaction(ui, tx)?;
+    tx.finish(ui)?;
     Ok(())
 }
 
@@ -846,7 +843,7 @@ fn cmd_git_export(
     let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction("export git refs");
     let failed_branches = git::export_refs(tx.mut_repo(), &git_repo)?;
-    workspace_command.finish_transaction(ui, tx)?;
+    tx.finish(ui)?;
     print_failed_git_export(ui, &failed_branches)?;
     Ok(())
 }

@@ -153,7 +153,7 @@ pub fn cmd_branch(
                     RefTarget::Normal(target_commit.id().clone()),
                 );
             }
-            workspace_command.finish_transaction(ui, tx)?;
+            tx.finish(ui)?;
         }
 
         BranchSubcommand::Set {
@@ -196,7 +196,7 @@ pub fn cmd_branch(
                     RefTarget::Normal(target_commit.id().clone()),
                 );
             }
-            workspace_command.finish_transaction(ui, tx)?;
+            tx.finish(ui)?;
         }
 
         BranchSubcommand::Delete { names } => {
@@ -206,7 +206,7 @@ pub fn cmd_branch(
             for branch_name in names {
                 tx.mut_repo().remove_local_branch(branch_name);
             }
-            workspace_command.finish_transaction(ui, tx)?;
+            tx.finish(ui)?;
         }
 
         BranchSubcommand::Forget { names, glob } => {
@@ -218,7 +218,7 @@ pub fn cmd_branch(
             for branch_name in names {
                 tx.mut_repo().remove_branch(&branch_name);
             }
-            workspace_command.finish_transaction(ui, tx)?;
+            tx.finish(ui)?;
         }
 
         BranchSubcommand::List => {
