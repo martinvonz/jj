@@ -30,6 +30,65 @@ fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, paren
     test_env.jj_cmd_success(repo_path, &["branch", "create", name]);
 }
 
+#[test]
+fn test_duplicate() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "a", &[]);
+    create_commit(&test_env, &repo_path, "b", &[]);
+    create_commit(&test_env, &repo_path, "c", &["a", "b"]);
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @   17a00fc21654   c
+    |\  
+    o | d370aee184ba   b
+    | o 2443ea76b0b1   a
+    |/  
+    o 000000000000   (no description set)
+    "###);
+
+    /* BUG!!! Panics instead of failing! */
+    // let stderr = test_env.jj_cmd_failure(&repo_path, &["duplicate", "root"]);
+    // insta::assert_snapshot!(stderr, @r###"
+    // "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Created: 3d341b2f2b09 a
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o 3d341b2f2b09   a
+    | @   17a00fc21654   c
+    | |\  
+    | o | d370aee184ba   b
+    |/ /  
+    | o 2443ea76b0b1   a
+    |/  
+    o 000000000000   (no description set)
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate" /* duplicates `c` */]);
+    insta::assert_snapshot!(stdout, @r###"
+    Created: 2426bb15bfd6 c
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o   2426bb15bfd6   c
+    |\  
+    | | @   17a00fc21654   c
+    | | |\  
+    | |/ /  
+    |/| |   
+    | |/    
+    o | d370aee184ba   b
+    | o 2443ea76b0b1   a
+    |/  
+    o 000000000000   (no description set)
+    "###);
+}
+
 // https://github.com/martinvonz/jj/issues/1050
 #[test]
 fn test_undo_after_duplicate() {
