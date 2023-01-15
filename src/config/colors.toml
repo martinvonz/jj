@@ -24,7 +24,9 @@
 "working_copy" = { bold = true }
 "working_copy commit_id" = "bright blue"
 "working_copy change_id" = "bright magenta"
-"working_copy email" = "bright yellow"
+# We do not use bright yellow because of how it looks on xterm's default theme.
+# https://github.com/martinvonz/jj/issues/528
+"working_copy email" = "yellow"
 "working_copy timestamp" = "bright cyan"
 "working_copy working_copies" = "bright magenta"
 "working_copy branch"  = "bright magenta"
@@ -34,10 +36,9 @@
 "working_copy divergent" =  "bright red"
 "working_copy divergent change_id"="bright red"
 "working_copy conflict" = "bright red"
-"working_copy description" = "bright white"
 "working_copy empty" = "bright green"
 "diff header" = "yellow"
-"diff file_header" = "bright white"
+"diff file_header" = { bold = true }
 "diff hunk_header" = "cyan"
 "diff removed" = "red"
 "diff added" = "green"
@@ -45,10 +46,7 @@
 "op-log id" = "blue"
 "op-log user" = "yellow"
 "op-log time" = "cyan"
-"op-log tags" = "white"
 "op-log head" = { bold = true }
 "op-log head id" = "bright blue"
-"op-log head user" = "bright yellow"
+"op-log head user" = "yellow"  # No bright yellow, see comment above
 "op-log head time" = "bright cyan"
-"op-log head description" = "bright white"
-"op-log head tags" = "bright white"
