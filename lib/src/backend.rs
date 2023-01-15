@@ -212,6 +212,8 @@ pub enum BackendError {
         object_type: &'static str,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+    #[error("Git commit '{hash}' already exists with different associated non-Git meta-data")]
+    AlreadyHaveCommitWithId { hash: String },
     #[error("Error: {0}")]
     Other(String),
 }

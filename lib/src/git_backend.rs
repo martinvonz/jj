@@ -493,10 +493,7 @@ impl Backend for GitBackend {
             .start_mutation();
         if let Some(existing_extras) = mut_table.get_value(git_id.as_bytes()) {
             if existing_extras != extras {
-                return Err(BackendError::Other(format!(
-                    "Git commit '{}' already exists with different associated non-Git meta-data",
-                    id.hex()
-                )));
+                return Err(BackendError::AlreadyHaveCommitWithId { hash: id.hex() });
             }
         }
         mut_table.add_entry(git_id.as_bytes().to_vec(), extras);
@@ -756,12 +753,11 @@ mod tests {
         let commit_id1 = store.write_commit(&commit1).unwrap();
         let mut commit2 = commit1;
         commit2.predecessors.push(commit_id1.clone());
-        let expected_error_message = format!("Git commit '{}' already exists", commit_id1.hex());
         match store.write_commit(&commit2) {
             Ok(_) => {
                 panic!("expectedly successfully wrote two commits with the same git commit object")
             }
-            Err(BackendError::Other(message)) if message.contains(&expected_error_message) => {}
+            Err(BackendError::AlreadyHaveCommitWithId { hash }) if hash == commit_id1.hex() => {}
             Err(err) => panic!("unexpected error: {err:?}"),
         };
     }

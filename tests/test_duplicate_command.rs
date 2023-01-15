@@ -130,7 +130,7 @@ fn test_rebase_duplicates() {
     // This is the bug: this should succeed
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-s", "a", "-d", "a-"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Unexpected error from backend: Error: Git commit '29bd36b60e6002f04e03c5077f989c93e3c910e1' already exists with different associated non-Git meta-data
+    Error: Unexpected error from backend: Git commit '29bd36b60e6002f04e03c5077f989c93e3c910e1' already exists with different associated non-Git meta-data
     "###);
 }
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
