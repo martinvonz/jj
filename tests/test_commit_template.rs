@@ -76,22 +76,22 @@ fn test_log_default() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
     @ [1m[38;5;13mffdaa62087a2[39m [38;5;11mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12m9de54178d59d[39m[0m
-    | [1m[38;5;11m(empty) [38;5;15mdescription 1[39m[0m
+    | [1m[38;5;10m(empty) [38;5;15mdescription 1[39m[0m
     o [38;5;5m9a45c67d3e96[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [38;5;4m4291e264ae97[39m
     | add a file
     o [38;5;5m000000000000[39m  [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [38;5;4m000000000000[39m
-      [38;5;3m(empty) [39m(no description set)
+      [38;5;2m(empty) [39m(no description set)
     "###);
 
     // Color without graph
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
     [1m[38;5;13mffdaa62087a2[39m [38;5;11mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12m9de54178d59d[39m[0m
-    [1m[38;5;11m(empty) [38;5;15mdescription 1[39m[0m
+    [1m[38;5;10m(empty) [38;5;15mdescription 1[39m[0m
     [38;5;5m9a45c67d3e96[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [38;5;4m4291e264ae97[39m
     add a file
     [38;5;5m000000000000[39m  [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [38;5;4m000000000000[39m
-    [38;5;3m(empty) [39m(no description set)
+    [38;5;2m(empty) [39m(no description set)
     "###);
 }
 
@@ -136,6 +136,6 @@ fn test_log_default_divergence() {
     | @ [1m[38;5;9m9a45c67d3e96??[39m [38;5;11mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12m7a17d52e633c[39m[0m
     |/  [1m[38;5;15mdescription 1[39m[0m
     o [38;5;5m000000000000[39m  [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [38;5;4m000000000000[39m
-      [38;5;3m(empty) [39m(no description set)
+      [38;5;2m(empty) [39m(no description set)
     "###);
 }
