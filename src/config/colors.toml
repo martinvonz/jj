@@ -19,7 +19,7 @@
 "divergent" = "red"
 "divergent change_id"="red"
 "conflict" = "red"
-"empty" = "yellow"
+"empty" = "green"
 
 "working_copy" = { bold = true }
 "working_copy commit_id" = "bright blue"
@@ -35,7 +35,7 @@
 "working_copy divergent change_id"="bright red"
 "working_copy conflict" = "bright red"
 "working_copy description" = "bright white"
-"working_copy empty" = "bright yellow"
+"working_copy empty" = "bright green"
 "diff header" = "yellow"
 "diff file_header" = "bright white"
 "diff hunk_header" = "cyan"
