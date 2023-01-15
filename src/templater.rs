@@ -441,16 +441,16 @@ impl CommitOrChangeIdKeyword {
         commit_or_change_id.hex()
     }
 
-    pub fn shortest_format(commit_or_change_id: CommitOrChangeId) -> String {
+    pub fn short_format(commit_or_change_id: CommitOrChangeId) -> String {
         commit_or_change_id.hex()[..12].to_string()
     }
 }
 
-pub struct CommitOrChangeIdShortest;
+pub struct CommitOrChangeIdShort;
 
-impl TemplateProperty<CommitOrChangeId, String> for CommitOrChangeIdShortest {
+impl TemplateProperty<CommitOrChangeId, String> for CommitOrChangeIdShort {
     fn extract(&self, context: &CommitOrChangeId) -> String {
-        CommitOrChangeIdKeyword::shortest_format(context.clone())
+        CommitOrChangeIdKeyword::short_format(context.clone())
     }
 }
 
