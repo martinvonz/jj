@@ -21,6 +21,7 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::rc::Rc;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
@@ -55,10 +56,13 @@ use jujutsu_lib::working_copy::{
 use jujutsu_lib::workspace::{Workspace, WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader};
 use jujutsu_lib::{dag_walk, file_util, git, revset};
 use thiserror::Error;
+use toml_edit;
 use tracing_subscriber::prelude::*;
 
 use crate::commit_templater;
-use crate::config::{AnnotatedValue, CommandNameAndArgs, LayeredConfigs};
+use crate::config::{
+    config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
+};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::merge_tools::{ConflictResolveError, DiffEditError};
 use crate::template_parser::{TemplateAliasesMap, TemplateParseError};
@@ -1612,6 +1616,94 @@ pub fn serialize_config_value(value: &config::Value) -> String {
         config::ValueKind::String(val) => format!("{val:?}"),
         _ => value.to_string(),
     }
+}
+
+pub fn write_config_value_to_file(
+    key: &str,
+    value_str: &str,
+    path: &Path,
+) -> Result<(), CommandError> {
+    // Read config
+    let config_toml = std::fs::read_to_string(path).or_else(|err| {
+        match err.kind() {
+            // If config doesn't exist yet, read as empty and we'll write one.
+            std::io::ErrorKind::NotFound => Ok("".to_string()),
+            _ => Err(user_error(format!(
+                "Failed to read file {path}: {err:?}",
+                path = path.display()
+            ))),
+        }
+    })?;
+    let mut doc = toml_edit::Document::from_str(&config_toml).map_err(|err| {
+        user_error(format!(
+            "Failed to parse file {path}: {err:?}",
+            path = path.display()
+        ))
+    })?;
+
+    // Apply config value
+    // Iterpret value as string unless it's another simple scalar type.
+    // TODO(#531): Infer types based on schema (w/ --type arg to override).
+    let item = match toml_edit::Value::from_str(value_str) {
+        Ok(value @ toml_edit::Value::Boolean(..))
+        | Ok(value @ toml_edit::Value::Integer(..))
+        | Ok(value @ toml_edit::Value::Float(..))
+        | Ok(value @ toml_edit::Value::String(..)) => toml_edit::value(value),
+        _ => toml_edit::value(value_str),
+    };
+    let mut target_table = doc.as_table_mut();
+    let mut key_parts_iter = key.split('.');
+    // Note: split guarantees at least one item.
+    let last_key_part = key_parts_iter.next_back().unwrap();
+    for key_part in key_parts_iter {
+        target_table = target_table
+            .entry(key_part)
+            .or_insert_with(|| toml_edit::Item::Table(toml_edit::Table::new()))
+            .as_table_mut()
+            .ok_or_else(|| {
+                user_error(format!(
+                    "Failed to set {key}: would overwrite non-table value with parent table"
+                ))
+            })?;
+    }
+    // Error out if overwriting non-scalar value for key (table or array).
+    match target_table.get(last_key_part) {
+        None | Some(toml_edit::Item::None) => {}
+        Some(toml_edit::Item::Value(val)) if !val.is_array() && !val.is_inline_table() => {}
+        _ => {
+            return Err(user_error(format!(
+                "Failed to set {key}: would overwrite entire non-scalar value with scalar"
+            )))
+        }
+    }
+    target_table[last_key_part] = item;
+
+    // Write config back
+    std::fs::write(path, doc.to_string()).map_err(|err| {
+        user_error(format!(
+            "Failed to write file {path}: {err:?}",
+            path = path.display()
+        ))
+    })
+}
+
+pub fn get_config_file_path(
+    config_source: &ConfigSource,
+    workspace_loader: &WorkspaceLoader,
+) -> Result<PathBuf, CommandError> {
+    let edit_path = match config_source {
+        // TODO(#531): Special-case for editors that can't handle viewing directories?
+        ConfigSource::User => {
+            config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
+        }
+        ConfigSource::Repo => workspace_loader.repo_path().join("config.toml"),
+        _ => {
+            return Err(user_error(format!(
+                "Can't get path for config source {config_source:?}"
+            )));
+        }
+    };
+    Ok(edit_path)
 }
 
 pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(), CommandError> {

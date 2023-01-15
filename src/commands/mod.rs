@@ -47,12 +47,13 @@ use jujutsu_lib::{conflicts, file_util, revset};
 use maplit::{hashmap, hashset};
 
 use crate::cli_util::{
-    self, check_stale_working_copy, print_checkout_stats, resolve_multiple_nonempty_revsets,
-    resolve_mutliple_nonempty_revsets_flag_guarded, run_ui_editor, serialize_config_value,
-    short_commit_hash, user_error, user_error_with_hint, Args, CommandError, CommandHelper,
-    DescriptionArg, RevisionArg, WorkspaceCommandHelper,
+    self, check_stale_working_copy, get_config_file_path, print_checkout_stats,
+    resolve_multiple_nonempty_revsets, resolve_mutliple_nonempty_revsets_flag_guarded,
+    run_ui_editor, serialize_config_value, short_commit_hash, user_error, user_error_with_hint,
+    write_config_value_to_file, Args, CommandError, CommandHelper, DescriptionArg, RevisionArg,
+    WorkspaceCommandHelper,
 };
-use crate::config::{config_path, AnnotatedValue, ConfigSource};
+use crate::config::{AnnotatedValue, ConfigSource};
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::graphlog::{get_graphlog, Edge};
@@ -151,6 +152,19 @@ struct ConfigArgs {
     repo: bool,
 }
 
+impl ConfigArgs {
+    fn get_source_kind(&self) -> ConfigSource {
+        if self.user {
+            ConfigSource::User
+        } else if self.repo {
+            ConfigSource::Repo
+        } else {
+            // Shouldn't be reachable unless clap ArgGroup is broken.
+            panic!("No config_level provided");
+        }
+    }
+}
+
 /// Manage config options
 ///
 /// Operates on jj configuration, which comes from the config file and
@@ -161,14 +175,12 @@ struct ConfigArgs {
 ///
 /// For supported config options and more details about jj config, see
 /// https://github.com/martinvonz/jj/blob/main/docs/config.md.
-///
-/// Note: Currently only supports getting config options and editing config
-/// files, but support for setting options is also planned (see
-/// https://github.com/martinvonz/jj/issues/531).
 #[derive(clap::Subcommand, Clone, Debug)]
 enum ConfigSubcommand {
     #[command(visible_alias("l"))]
     List(ConfigListArgs),
+    #[command(visible_alias("s"))]
+    Set(ConfigSetArgs),
     #[command(visible_alias("e"))]
     Edit(ConfigEditArgs),
 }
@@ -186,6 +198,18 @@ struct ConfigListArgs {
     // TODO(#1047): Support ConfigArgs (--user or --repo).
 }
 
+/// Update config file to set the given option to a given value.
+#[derive(clap::Args, Clone, Debug)]
+struct ConfigSetArgs {
+    #[arg(required = true)]
+    name: String,
+    #[arg(required = true)]
+    value: String,
+    #[clap(flatten)]
+    config_args: ConfigArgs,
+}
+
+/// Start an editor on a jj config file.
 #[derive(clap::Args, Clone, Debug)]
 struct ConfigEditArgs {
     #[clap(flatten)]
@@ -1062,6 +1086,7 @@ fn cmd_config(
 ) -> Result<(), CommandError> {
     match subcommand {
         ConfigSubcommand::List(sub_args) => cmd_config_list(ui, command, sub_args),
+        ConfigSubcommand::Set(sub_args) => cmd_config_set(ui, command, sub_args),
         ConfigSubcommand::Edit(sub_args) => cmd_config_edit(ui, command, sub_args),
     }
 }
@@ -1108,23 +1133,34 @@ fn cmd_config_list(
     Ok(())
 }
 
+fn cmd_config_set(
+    _ui: &mut Ui,
+    command: &CommandHelper,
+    args: &ConfigSetArgs,
+) -> Result<(), CommandError> {
+    let config_path = get_config_file_path(
+        &args.config_args.get_source_kind(),
+        command.workspace_loader()?,
+    )?;
+    if config_path.is_dir() {
+        return Err(user_error(format!(
+            "Can't set config in path {path} (dirs not supported)",
+            path = config_path.display()
+        )));
+    }
+    write_config_value_to_file(&args.name, &args.value, &config_path)
+}
+
 fn cmd_config_edit(
     _ui: &mut Ui,
     command: &CommandHelper,
     args: &ConfigEditArgs,
 ) -> Result<(), CommandError> {
-    let edit_path = if args.config_args.user {
-        // TODO(#531): Special-case for editors that can't handle viewing directories?
-        config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
-    } else if args.config_args.repo {
-        let workspace_loader = command.workspace_loader()?;
-        workspace_loader.repo_path().join("config.toml")
-    } else {
-        // Shouldn't be reachable unless clap ArgGroup is broken.
-        panic!("No config_level provided");
-    };
-    run_ui_editor(command.settings(), &edit_path)?;
-    Ok(())
+    let config_path = get_config_file_path(
+        &args.config_args.get_source_kind(),
+        command.workspace_loader()?,
+    )?;
+    run_ui_editor(command.settings(), &config_path)
 }
 
 fn cmd_checkout(
