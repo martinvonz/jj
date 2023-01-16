@@ -1710,12 +1710,13 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                         &diff_formats,
                     )?;
                 }
-                let node_symbol = if is_checkout { b"@" } else { b"o" };
+                let node_symbol = if is_checkout { "@" } else { "o" };
+
                 graph.add_node(
                     &index_entry.position(),
                     &graphlog_edges,
                     node_symbol,
-                    &buffer,
+                    &String::from_utf8_lossy(&buffer),
                 )?;
             }
         } else {
@@ -1823,11 +1824,16 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
                 )?;
             }
             let node_symbol = if Some(commit.id()) == wc_commit_id {
-                b"@"
+                "@"
             } else {
-                b"o"
+                "o"
             };
-            graph.add_node(commit.id(), &edges, node_symbol, &buffer)?;
+            graph.add_node(
+                commit.id(),
+                &edges,
+                node_symbol,
+                &String::from_utf8_lossy(&buffer),
+            )?;
         }
     } else {
         for commit in commits {
@@ -3505,8 +3511,13 @@ fn cmd_op_log(
         if !buffer.ends_with(b"\n") {
             buffer.push(b'\n');
         }
-        let node_symbol = if is_head_op { b"@" } else { b"o" };
-        graph.add_node(op.id(), &edges, node_symbol, &buffer)?;
+        let node_symbol = if is_head_op { "@" } else { "o" };
+        graph.add_node(
+            op.id(),
+            &edges,
+            node_symbol,
+            &String::from_utf8_lossy(&buffer),
+        )?;
     }
 
     Ok(())
