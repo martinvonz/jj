@@ -35,11 +35,11 @@ fn test_obslog_with_or_without_diff() {
     let stdout = get_log_output(&test_env, &repo_path, &["obslog"]);
     insta::assert_snapshot!(stdout, @r###"
     @  test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad36073
-    | my description
+    │ my description
     o  test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
-    | my description
+    │ my description
     o  test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
-    | my description
+    │ my description
     o  test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
       (empty) my description
     "###);
@@ -49,21 +49,21 @@ fn test_obslog_with_or_without_diff() {
     let stdout = get_log_output(&test_env, &repo_path, &["obslog", "-p"]);
     insta::assert_snapshot!(stdout, @r###"
     @  test.user@example.com 2001-02-03 04:05:10.000 +07:00 66b42ad36073
-    | my description
-    | Resolved conflict in file1:
-    |    1    1: <<<<<<<resolved
-    |    2     : %%%%%%%
-    |    3     : +bar
-    |    4     : >>>>>>>
+    │ my description
+    │ Resolved conflict in file1:
+    │    1    1: <<<<<<<resolved
+    │    2     : %%%%%%%
+    │    3     : +bar
+    │    4     : >>>>>>>
     o  test.user@example.com 2001-02-03 04:05:09.000 +07:00 af536e5af67e conflict
-    | my description
+    │ my description
     o  test.user@example.com 2001-02-03 04:05:09.000 +07:00 6fbba7bcb590
-    | my description
-    | Modified regular file file1:
-    |    1    1: foo
-    |         2: bar
-    | Added regular file file2:
-    |         1: foo
+    │ my description
+    │ Modified regular file file1:
+    │    1    1: foo
+    │         2: bar
+    │ Added regular file file2:
+    │         1: foo
     o  test.user@example.com 2001-02-03 04:05:08.000 +07:00 eac0d0dae082
       (empty) my description
     "###);
@@ -136,26 +136,26 @@ fn test_obslog_squash() {
 
     let stdout = get_log_output(&test_env, &repo_path, &["obslog", "-p", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    o    test.user@example.com 2001-02-03 04:05:10.000 +07:00 27e721a5ba72
-    |\  squashed
-    | | Modified regular file file1:
-    | |    1    1: foo
-    | |         2: bar
-    o |  test.user@example.com 2001-02-03 04:05:09.000 +07:00 9764e503e1a9
-    | | first
-    | | Added regular file file1:
-    | |         1: foo
-    o |  test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
-    | | (empty) first
-    o |  test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
-     /  (empty) (no description set)
-    o  test.user@example.com 2001-02-03 04:05:10.000 +07:00 f09a38899f2b
-    | second
-    | Modified regular file file1:
-    |    1    1: foo
-    |         2: bar
-    o  test.user@example.com 2001-02-03 04:05:09.000 +07:00 579965369703
-      (empty) second
+    o─╮ 9a45c67d3e96 test.user@example.com 2001-02-03 04:05:10.000 +07:00 27e721a5ba72
+    │ │ squashed
+    │ │ Modified regular file file1:
+    │ │    1    1: foo
+    │ │         2: bar
+    o │ 9a45c67d3e96 test.user@example.com 2001-02-03 04:05:09.000 +07:00 9764e503e1a9
+    │ │ first
+    │ │ Added regular file file1:
+    │ │         1: foo
+    o │ 9a45c67d3e96 test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c1984c1
+    │ │ (empty) first
+    o │ 9a45c67d3e96 test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059e1b0
+      │ (empty) (no description set)
+      o  test.user@example.com 2001-02-03 04:05:10.000 +07:00 f09a38899f2b
+      │ second
+      │ Modified regular file file1:
+      │    1    1: foo
+      │         2: bar
+      o  test.user@example.com 2001-02-03 04:05:09.000 +07:00 579965369703
+        (empty) second
     "###);
 }
 

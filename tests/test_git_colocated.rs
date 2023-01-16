@@ -174,8 +174,8 @@ fn test_git_colocated_branches() {
     test_env.jj_cmd_success(&workspace_root, &["new", "@-", "-m", "bar"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     @ 3560559274ab431feea00b7b7e0b9250ecce951f 
-    | o 1e6f0b403ed2ff9713b5d6b1dc601e4804250cda 
-    |/  
+    │ o 1e6f0b403ed2ff9713b5d6b1dc601e4804250cda 
+    ├─╯ 
     o 230dd059e1b059aefc0da06a2e5a7dbf22362f22 master
     o 0000000000000000000000000000000000000000 
     "###);
@@ -204,8 +204,8 @@ fn test_git_colocated_branches() {
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
     Working copy now at: eb08b363bb5e (no description set)
     @ eb08b363bb5ef8ee549314260488980d7bbe8f63 
-    | o 1e6f0b403ed2ff9713b5d6b1dc601e4804250cda master
-    |/  
+    │ o 1e6f0b403ed2ff9713b5d6b1dc601e4804250cda master
+    ├─╯ 
     o 230dd059e1b059aefc0da06a2e5a7dbf22362f22 
     o 0000000000000000000000000000000000000000 
     "###);

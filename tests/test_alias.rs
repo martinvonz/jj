@@ -33,7 +33,7 @@ fn test_alias_basic() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["b"]);
     insta::assert_snapshot!(stdout, @r###"
     @ my-branch
-    ~
+    ⯆ 
     "###);
 }
 

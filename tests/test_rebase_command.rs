@@ -99,11 +99,11 @@ fn test_rebase_branch() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ e
-    | o d
-    | | o c
-    | |/  
-    | o b
-    |/  
+    │ o d
+    │ │ o c
+    │ ├─╯ 
+    │ o b
+    ├─╯ 
     o a
     o 
     "###);
@@ -114,8 +114,8 @@ fn test_rebase_branch() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     o d
-    | o c
-    |/  
+    │ o c
+    ├─╯ 
     o b
     @ e
     o a
@@ -136,14 +136,13 @@ fn test_rebase_branch_with_merge() {
     create_commit(&test_env, &repo_path, "e", &["a", "d"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   e
-    |\  
-    o | d
-    o | c
-    | | o b
-    | |/  
-    | o a
-    |/  
+    @─╮ e
+    o │ d
+    o │ c
+    │ │ o b
+    │ ├─╯ 
+    │ o a
+    ├─╯ 
     o 
     "###);
 
@@ -192,11 +191,10 @@ fn test_rebase_single_revision() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ d
-    o   c
-    |\  
-    o | b
-    | o a
-    |/  
+    o─╮ c
+    o │ b
+    │ o a
+    ├─╯ 
     o 
     "###);
 
@@ -215,8 +213,8 @@ fn test_rebase_single_revision() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ d
     o c
-    | o b
-    |/  
+    │ o b
+    ├─╯ 
     o a
     o 
     "###);
@@ -231,14 +229,12 @@ fn test_rebase_single_revision() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   d
-    |\  
-    | | o c
-    o | | b
-    | |/  
-    |/|   
-    | o a
-    |/  
+    @─╮ d
+    │ │ o c
+    o │ │ b
+    ├─│─╯ 
+    │ o a
+    ├─╯ 
     o 
     "###);
 }
@@ -255,12 +251,11 @@ fn test_rebase_single_revision_merge_parent() {
     create_commit(&test_env, &repo_path, "d", &["a", "c"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   d
-    |\  
-    o | c
-    o | b
-    | o a
-    |/  
+    @─╮ d
+    o │ c
+    o │ b
+    │ o a
+    ├─╯ 
     o 
     "###);
 
@@ -273,13 +268,12 @@ fn test_rebase_single_revision_merge_parent() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @   d
-    |\  
-    | | o c
-    | |/  
-    o | b
-    | o a
-    |/  
+    @─╮ d
+    │ │ o c
+    │ ├─╯ 
+    o │ b
+    │ o a
+    ├─╯ 
     o 
     "###);
 }
@@ -296,21 +290,20 @@ fn test_rebase_multiple_destinations() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ c
-    | o b
-    |/  
-    | o a
-    |/  
+    │ o b
+    ├─╯ 
+    │ o a
+    ├─╯ 
     o 
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "c"]);
     insta::assert_snapshot!(stdout, @r###""###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    o   a
-    |\  
-    @ | c
-    | o b
-    |/  
+    o─╮ a
+    @ │ c
+    │ o b
+    ├─╯ 
     o 
     "###);
 
@@ -334,11 +327,10 @@ fn test_rebase_with_descendants() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ d
-    o   c
-    |\  
-    o | b
-    | o a
-    |/  
+    o─╮ c
+    o │ b
+    │ o a
+    ├─╯ 
     o 
     "###);
 

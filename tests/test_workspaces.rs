@@ -48,15 +48,15 @@ fn test_workspaces_add_second_workspace() {
     // graph indicates the current workspace's checkout.
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
     o 397eac932ad3c349b2659fd2eb035a4dd3da4193 second@
-    | @ e0e6d5672858dc9a57ec5b772b7c4f3270ed0223 default@
-    |/  
+    │ @ e0e6d5672858dc9a57ec5b772b7c4f3270ed0223 default@
+    ├─╯ 
     o 7d308bc9d934c53c6cc52935192e2d6ac5d78cfd 
     o 0000000000000000000000000000000000000000 
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path), @r###"
     @ 397eac932ad3c349b2659fd2eb035a4dd3da4193 second@
-    | o e0e6d5672858dc9a57ec5b772b7c4f3270ed0223 default@
-    |/  
+    │ o e0e6d5672858dc9a57ec5b772b7c4f3270ed0223 default@
+    ├─╯ 
     o 7d308bc9d934c53c6cc52935192e2d6ac5d78cfd 
     o 0000000000000000000000000000000000000000 
     "###);
@@ -85,8 +85,8 @@ fn test_workspaces_conflicting_edits() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
     o 265af0cdbcc7bb33e3734ad72565c943ce3fb0d4 secondary@
-    | @ 351099fa72cfbb1b34e410e89821efc623295974 default@
-    |/  
+    │ @ 351099fa72cfbb1b34e410e89821efc623295974 default@
+    ├─╯ 
     o cf911c223d3e24e001fc8264d6dbf0610804fc40 
     o 0000000000000000000000000000000000000000 
     "###);
@@ -105,8 +105,8 @@ fn test_workspaces_conflicting_edits() {
     // The secondary workspace's working-copy commit was updated
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
     @ fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
-    | o a1896a17282f19089a5cec44358d6609910e0513 secondary@
-    |/  
+    │ o a1896a17282f19089a5cec44358d6609910e0513 secondary@
+    ├─╯ 
     o c0d4a99ef98ada7da8dc73a778bbb747c4178385 
     o 0000000000000000000000000000000000000000 
     "###);
@@ -132,8 +132,8 @@ fn test_workspaces_conflicting_edits() {
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
     @r###"
     o fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
-    | @ a1896a17282f19089a5cec44358d6609910e0513 secondary@
-    |/  
+    │ @ a1896a17282f19089a5cec44358d6609910e0513 secondary@
+    ├─╯ 
     o c0d4a99ef98ada7da8dc73a778bbb747c4178385 
     o 0000000000000000000000000000000000000000 
     "###);
@@ -142,8 +142,8 @@ fn test_workspaces_conflicting_edits() {
     assert!(!stdout.starts_with("The working copy is stale"));
     insta::assert_snapshot!(stdout, @r###"
     o fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
-    | @ a1896a17282f19089a5cec44358d6609910e0513 secondary@
-    |/  
+    │ @ a1896a17282f19089a5cec44358d6609910e0513 secondary@
+    ├─╯ 
     o c0d4a99ef98ada7da8dc73a778bbb747c4178385 
     o 0000000000000000000000000000000000000000 
     "###);
@@ -182,8 +182,8 @@ fn test_workspaces_forget() {
     // from that workspace.
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
     o feda1c4e5ffe63fb16818ccdd8c21483537e31f2 
-    | o e949be04e93e830fcce23fefac985c1deee52eea 
-    |/  
+    │ o e949be04e93e830fcce23fefac985c1deee52eea 
+    ├─╯ 
     o 123ed18e4c4c0d77428df41112bc02ffc83fb935 
     o 0000000000000000000000000000000000000000 
     "###);
