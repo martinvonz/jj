@@ -16,6 +16,8 @@ use std::hash::Hash;
 use std::io;
 use std::io::Write;
 
+use jujutsu_lib::settings::UserSettings;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 // An edge to another node in the graph
 pub enum Edge<T> {
@@ -43,6 +45,119 @@ impl<T> Edge<T> {
     }
 }
 
+pub trait GraphLog<K: Clone + Eq + Hash> {
+    fn add_node(
+        &mut self,
+        id: &K,
+        edges: &[Edge<K>],
+        node_symbol: &str,
+        text: &str,
+    ) -> io::Result<()>;
+}
+
+#[cfg(feature = "sapling")]
+mod sapling {
+    use std::hash::Hash;
+    use std::io::{self, Write};
+    use std::marker::PhantomData;
+
+    use dag::render::{Ancestor, Renderer};
+    use itertools::Itertools;
+
+    use super::{Edge, GraphLog};
+
+    pub struct SaplingGraphLog<'writer, K, R: Renderer<K, Output = String>> {
+        renderer: R,
+        writer: &'writer mut dyn Write,
+        phantom: PhantomData<K>,
+    }
+
+    impl<K: Clone> From<&Edge<K>> for Ancestor<K> {
+        fn from(e: &Edge<K>) -> Self {
+            match e {
+                Edge::Present {
+                    target,
+                    direct: true,
+                } => Ancestor::Parent(target.clone()),
+                Edge::Present { target, .. } => Ancestor::Ancestor(target.clone()),
+                Edge::Missing => Ancestor::Anonymous,
+            }
+        }
+    }
+
+    impl<'writer, K, R> GraphLog<K> for SaplingGraphLog<'writer, K, R>
+    where
+        K: Clone + Eq + Hash,
+        R: Renderer<K, Output = String>,
+    {
+        fn add_node(
+            &mut self,
+            id: &K,
+            edges: &[Edge<K>],
+            node_symbol: &str,
+            text: &str,
+        ) -> io::Result<()> {
+            let row = self.renderer.next_row(
+                id.clone(),
+                edges.iter().map_into().collect(),
+                node_symbol.into(),
+                text.into(),
+            );
+
+            write!(self.writer, "{row}")
+        }
+    }
+
+    impl<'writer, K, R> SaplingGraphLog<'writer, K, R>
+    where
+        K: Clone + Eq + Hash + 'writer,
+        R: Renderer<K, Output = String> + 'writer,
+    {
+        pub fn create(
+            renderer: R,
+            formatter: &'writer mut dyn Write,
+        ) -> Box<dyn GraphLog<K> + 'writer> {
+            Box::new(SaplingGraphLog {
+                renderer,
+                writer: formatter,
+                phantom: PhantomData,
+            })
+        }
+    }
+}
+
+pub fn get_graphlog<'a, K: Clone + Eq + Hash + 'a>(
+    #[allow(unused)] settings: &UserSettings,
+    formatter: &'a mut dyn Write,
+) -> Box<dyn GraphLog<K> + 'a> {
+    #[cfg(feature = "sapling")]
+    {
+        use dag::render::GraphRowRenderer;
+        use sapling::SaplingGraphLog;
+
+        let builder = GraphRowRenderer::new().output().with_min_row_height(0);
+
+        match settings.graph_format().as_str() {
+            "curved" => return SaplingGraphLog::create(builder.build_box_drawing(), formatter),
+            "square" => {
+                return SaplingGraphLog::create(
+                    builder.build_box_drawing().with_square_glyphs(),
+                    formatter,
+                );
+            }
+            "ascii-alternative" => {
+                return SaplingGraphLog::create(builder.build_ascii(), formatter)
+            }
+            "ascii-large" => {
+                return SaplingGraphLog::create(builder.build_ascii_large(), formatter)
+            }
+            _ => {}
+        }
+    };
+
+    Box::new(AsciiGraphDrawer::new(formatter))
+}
+
 pub struct AsciiGraphDrawer<'writer, K> {
     writer: &'writer mut dyn Write,
     edges: Vec<Edge<K>>,
@@ -60,8 +175,10 @@ where
             pending_text: Default::default(),
         }
     }
+}
 
-    pub fn add_node(
+impl<'writer, K: Clone + Eq + Hash> GraphLog<K> for AsciiGraphDrawer<'writer, K> {
+    fn add_node(
         &mut self,
         id: &K,
         edges: &[Edge<K>],
@@ -96,7 +213,7 @@ where
                     for _ in edge_index + 1..self.edges.len() {
                         write!(self.writer, " \\")?;
                     }
-                    write!(self.writer, "\n")?;
+                    writeln!(self.writer)?;
                 }
             }
 
@@ -191,7 +308,9 @@ where
 
         Ok(())
     }
+}
 
+impl<'writer, K: Clone + Eq + Hash> AsciiGraphDrawer<'writer, K> {
     fn index_by_target(&self, id: &K) -> Option<usize> {
         for (i, edge) in self.edges.iter().enumerate() {
             match edge {
@@ -313,7 +432,7 @@ where
         if let Some(text) = self.pending_text.pop() {
             write!(self.writer, "{text}")?;
         }
-        write!(self.writer, "\n")
+        writeln!(self.writer)
     }
 }
 

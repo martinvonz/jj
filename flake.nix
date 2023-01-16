@@ -44,6 +44,10 @@
 
               cargoLock = {
                 lockFile = "${self}/Cargo.lock";
+                outputHashes = {
+                  "dag-0.1.0" = "sha256-Tbta3hkBMvovqz84cu++inVDqrEB2vCGcwTaErOczRw=";
+                  "quickcheck_arbitrary_derive-0.1.0" = "sha256-kUgApls8Uq07QcDrgOLXmAk08fNaEdQtDrnGhP6ff6w=";
+                };
               };
               nativeBuildInputs = [
                 pkg-config gzip makeWrapper

@@ -58,7 +58,7 @@ use crate::cli_util::{
 use crate::config::config_path;
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::{Formatter, PlainTextFormatter};
-use crate::graphlog::{AsciiGraphDrawer, Edge};
+use crate::graphlog::{get_graphlog, Edge};
 use crate::progress::Progress;
 use crate::template_parser::TemplateParser;
 use crate::templater::Template;
@@ -1661,7 +1661,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         formatter.push_label("log")?;
 
         if !args.no_graph {
-            let mut graph = AsciiGraphDrawer::new(&mut formatter);
+            let mut graph = get_graphlog(command.settings(), &mut formatter);
             let iter: Box<dyn Iterator<Item = (IndexEntry, Vec<RevsetGraphEdge>)>> =
                 if args.reversed {
                     Box::new(revset.iter().graph().reversed())
@@ -1800,7 +1800,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
         Box::new(|commit: &Commit| commit.predecessors()),
     );
     if !args.no_graph {
-        let mut graph = AsciiGraphDrawer::new(&mut formatter);
+        let mut graph = get_graphlog(command.settings(), &mut formatter);
         for commit in commits {
             let mut edges = vec![];
             for predecessor in &commit.predecessors() {
@@ -3486,7 +3486,7 @@ fn cmd_op_log(
         relative_timestamps: command.settings().relative_timestamps(),
     };
 
-    let mut graph = AsciiGraphDrawer::new(&mut formatter);
+    let mut graph = get_graphlog(command.settings(), &mut formatter);
     for op in topo_order_reverse(
         vec![head_op],
         Box::new(|op: &Operation| op.id().clone()),
