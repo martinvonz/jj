@@ -81,6 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed handling of escaped characters in .gitignore (only keep trailing spaces
   if escaped properly).
 
+* `jj undo` now works after `jj duplicate`.
+
 ### Contributors
 
 Thanks to the people who made this release happen!
