@@ -13,6 +13,7 @@ readme = "README.md"
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 categories = ["command-line-utilities", "development-tools"]
 default-run = "jj"
+rust-version = "1.60"
 
 [[bin]]
 name = "jj"
