@@ -1,0 +1,206 @@
+
+        @ node 1
+        
+
+        @ many
+        │ lines
+        │ of
+        │ text
+        ⬤ single line
+        
+
+        @ 
+        │ 
+        │ many
+        │ 
+        │ lines
+        │ 
+        │ of
+        │ 
+        │ text
+        │ 
+        │ 
+        ⬤ single line
+        
+
+        @ node 3
+        ⬤ node 2
+        ⬤ node 1
+        
+
+        ⬤ node 7
+        │ ⬤ node 6
+        ⬤ │ node 5
+        │ ⬤ node 4
+        @ │ node 3
+        │ ⬤ node 2
+        ⬤ node 1
+        
+
+        ⬤ node 3
+        ⯆ 
+        ⬤ node 2
+        ⯆ 
+        @ node 1
+        ⯆ 
+        
+
+        ⬤ node 4
+        │ ⬤ node 3
+        ⬤ │ node 2
+        ⯆ │ 
+          ⬤ node 1
+        
+
+        ⬤ node 4
+        │ ⬤ node 3
+        ⬤ │ node 2
+          │ more
+          │ text
+          ⬤ node 1
+        
+
+        ⬤ node 4
+        │ ⬤ node 3
+        │ ⬤ node 2
+        │ ⯆ 
+        ⬤ node 1
+          more
+          text
+        
+
+        ⬤ node 3
+        │ ⬤ node 2
+        │ ⯆ with
+        │   long
+        │   description
+        ⬤ node 1
+        
+
+        @ node 4
+        │ ⬤ node 3
+        ├─╯ 
+        │ ⬤ node 2
+        ├─╯ 
+        ⬤ node 1
+        
+
+        ⬤ node 10
+        │ ⬤ node 9
+        │ │ ⬤ node 8
+        ⬤ │ │ node 7
+        │ ⬤ │ node 6
+        │ │ ⬤ node 5
+        ⬤ │ │ node 4
+        │ ⬤ │ node 3
+        ├─╯ │ 
+        │   ⬤ node 2
+        ├───╯ 
+        ⬤ node 1
+        
+
+        ⬤ node 5
+        │ ⬤ node 4
+        │ │ ⬤ node 3
+        ├─│─╯ 
+        │ ⬤ node 2
+        ├─╯ 
+        ⬤ node 1
+        
+
+        ⬤ node 7
+        │ ⬤ node 6
+        │ │ ⬤ node 5
+        │ │ │ ⬤ node 4
+        ├─│─│─╯ 
+        │ ⬤ │ node 3
+        ├─╯ │ 
+        │   ⬤ node 2
+        ├───╯ 
+        ⬤ node 1
+        
+
+        ⬤ node 6
+        │ ⬤ node 5
+        │ │ ⬤ node 4
+        ⬤ │ │ node 3
+        ├─│─╯ 
+        │ ⬤ node 2
+        ├─╯ 
+        ⬤ node 1
+        
+
+        @─┬─┬─╮ node 5
+        │ │ │ │ more
+        │ │ │ │ text
+        │ │ │ ⬤ node 4
+        │ │ │ ⯆ 
+        │ │ ⬤ node 3
+        │ │ ⯆ 
+        │ ⬤ node 2
+        │ ⯆ 
+        ⬤ node 1
+        ⯆ 
+        
+
+        ⬤ node 8
+        │ ⬤ node 7
+        │ │ ⬤ node 6
+        │ │ │ with
+        │ │ │ some
+        │ │ │ more
+        │ │ │ lines
+        │ ⬤─│─╮ node 5
+        │ ⬤ │ │ node 4
+        ├─╯ │ │ 
+        │   │ ⬤ node 3
+        ├───│─╯ 
+        │   ⬤ node 2
+        ├───╯ 
+        ⬤ node 1
+        
+
+        ⬤ node 6
+        ⬤─┬─╮ node 5
+        │ │ ⬤ node 4
+        │ ⬤ │ node 3
+        │ ├─╯ 
+        ⬤ │ node 2
+        ├─╯ 
+        ⬤ node 1
+        
+
+        ⬤ node 10
+        │ ⬤ node 9
+        │ │ ⬤ node 8
+        │ ⬤─│─┬─┬─╮ node 7
+        │ ⬤ │ │ │ │ node 6
+        ├─╯ │ │ │ │ 
+        │   │ ⬤ │ │ node 5
+        ├───│─╯ │ │ 
+        │   │   ⬤ │ node 4
+        ├───│───╯ │ 
+        │   │     ⬤ node 3
+        ├───│─────╯ 
+        │   ⬤ node 2
+        ├───╯ 
+        ⬤ node 1
+        
+
+        @─┬─┬─╮ node 1
+        │ │ │ ⯆ with
+        │ │ ⯆   many
+        │ ⯆     lines
+        ⯆       of
+                text
+        
+
+        ⬤ node 3
+        │ ⬤─┬─┬─╮ node 2
+        │ │ ┊ ⯆ ┊ with
+        │ ⯆ ┊   ┊ many
+        ├───╯   ┊ lines
+        ├───────╯ of
+        │         text
+        ⬤ node 1
+        

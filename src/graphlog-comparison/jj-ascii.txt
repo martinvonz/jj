@@ -1,0 +1,214 @@
+
+        @ node 1
+        
+
+        @ many
+        | lines
+        | of
+        | text
+        o single line
+        
+
+        @ 
+        | 
+        | many
+        | 
+        | lines
+        | 
+        | of
+        | 
+        | text
+        | 
+        | 
+        o single line
+        
+
+        @ node 3
+        o node 2
+        o node 1
+        
+
+        o node 7
+        | o node 6
+        o | node 5
+        | o node 4
+        @ | node 3
+        | o node 2
+        o node 1
+        
+
+        o node 3
+        ~ 
+        o node 2
+        ~ 
+        @ node 1
+        ~ 
+        
+
+        o node 4
+        | o node 3
+        o | node 2
+        ~/  
+        o node 1
+        
+
+        o node 4
+        | o node 3
+        o | node 2
+         /  more
+        |   text
+        o node 1
+        
+
+        o node 4
+        | o node 3
+        | o node 2
+        | ~ 
+        o node 1
+          more
+          text
+        
+
+        o node 3
+        | o node 2
+        | ~ with
+        |   long
+        |   description
+        o node 1
+        
+
+        @ node 4
+        | o node 3
+        |/  
+        | o node 2
+        |/  
+        o node 1
+        
+
+        o node 10
+        | o node 9
+        | | o node 8
+        o | | node 7
+        | o | node 6
+        | | o node 5
+        o | | node 4
+        | o | node 3
+        |/ /  
+        | o node 2
+        |/  
+        o node 1
+        
+
+        o node 5
+        | o node 4
+        | | o node 3
+        | |/  
+        |/|   
+        | o node 2
+        |/  
+        o node 1
+        
+
+        o node 7
+        | o node 6
+        | | o node 5
+        | | | o node 4
+        | |_|/  
+        |/| |   
+        | o | node 3
+        |/ /  
+        | o node 2
+        |/  
+        o node 1
+        
+
+        o node 6
+        | o node 5
+        | | o node 4
+        o | | node 3
+        | |/  
+        |/|   
+        | o node 2
+        |/  
+        o node 1
+        
+
+        @---.   node 5
+        |\ \ \  more
+        | | | | text
+        | | | o node 4
+        | | | ~ 
+        | | o node 3
+        | | ~ 
+        | o node 2
+        | ~ 
+        o node 1
+        ~ 
+        
+
+        o node 8
+        | o node 7
+        | | o node 6
+        | | | with
+        | | | some
+        | | | more
+        | | | lines
+        | o |   node 5
+        | |\ \  
+        | o | | node 4
+        |/ / /  
+        | o | node 3
+        |/ /  
+        | o node 2
+        |/  
+        o node 1
+        
+
+        o node 6
+        o-.   node 5
+        |\ \  
+        | | o node 4
+        | o | node 3
+        | |/  
+        o | node 2
+        |/  
+        o node 1
+        
+
+        o node 10
+        | o node 9
+        | | o node 8
+        | |  \
+        | |    \
+        | o---. |   node 7
+        | |\ \ \ \  
+        | o | | | | node 6
+        |/ / / / /  
+        | o | | | node 5
+        |/ / / /  
+        | o | | node 4
+        |/ / /  
+        | o | node 3
+        |/ /  
+        | o node 2
+        |/  
+        o node 1
+        
+
+        @---.   node 1
+        |\ \ \  with
+        | | | ~ many
+        | | ~   lines
+        | ~     of
+        ~       text
+        
+
+        o node 3
+        | o---.   node 2
+        | |\ \ \  with
+        | | : ~/  many
+        | ~/ /    lines
+        |/ /      of
+        |/        text
+        o node 1
+        
