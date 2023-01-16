@@ -3737,7 +3737,7 @@ fn cmd_workspace_list(
         write_commit_summary(
             ui.stdout_formatter().as_mut(),
             repo.as_repo_ref(),
-            workspace_id,
+            &workspace_command.workspace_id(),
             &commit,
             command.settings(),
         )?;

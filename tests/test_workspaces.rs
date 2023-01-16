@@ -209,6 +209,41 @@ fn test_workspaces_forget() {
     insta::assert_snapshot!(stdout, @"");
 }
 
+/// Test context of commit summary template
+#[test]
+fn test_list_workspaces_template() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    test_env.add_config(
+        br###"
+        template.commit_summary = """commit_id.short() " " description.first_line()
+                                     if(current_working_copy, " (current)")"""
+        "###,
+    );
+    let main_path = test_env.env_root().join("main");
+    let secondary_path = test_env.env_root().join("secondary");
+
+    std::fs::write(main_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_success(&main_path, &["commit", "-m", "initial"]);
+    test_env.jj_cmd_success(
+        &main_path,
+        &["workspace", "add", "--name", "second", "../secondary"],
+    );
+
+    // "current_working_copy" should point to the workspace we operate on
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: e0e6d5672858 (no description set) (current)
+    second: f68da2d114f1 (no description set)
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&secondary_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: e0e6d5672858 (no description set)
+    second: f68da2d114f1 (no description set) (current)
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     test_env.jj_cmd_success(
         cwd,
