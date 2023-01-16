@@ -610,7 +610,9 @@ impl MutableRepo {
     }
 
     pub fn has_changes(&self) -> bool {
-        self.view() != &self.base_repo.view
+        !(self.abandoned_commits.is_empty()
+            && self.rewritten_commits.is_empty()
+            && self.view() == &self.base_repo.view)
     }
 
     pub fn consume(self) -> (MutableIndex, View) {
