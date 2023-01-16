@@ -146,6 +146,12 @@ impl UserSettings {
     pub fn config(&self) -> &config::Config {
         &self.config
     }
+
+    pub fn graph_format(&self) -> String {
+        self.config
+            .get_string("ui.graph.format")
+            .unwrap_or_else(|_| "ascii".to_string())
+    }
 }
 
 /// This Rng uses interior mutability to allow generating random values using an

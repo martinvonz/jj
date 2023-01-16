@@ -40,6 +40,7 @@ clap_complete = "4.0.7"
 clap_mangen = "0.2.6"
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
 crossterm = { version = "0.25", default-features = false }
+dag = { git = "https://github.com/facebook/sapling", optional = true, default-features = false }
 dirs = "4.0.0"
 git2 = "0.16.0"
 glob = "0.3.1"
@@ -75,5 +76,6 @@ test-case = "2.2.2"
 testutils = { path = "lib/testutils" }
 
 [features]
+sapling = ["dag"]
 default = ["jujutsu-lib/legacy-thrift"]
 vendored-openssl = ["git2/vendored-openssl", "jujutsu-lib/vendored-openssl"]
