@@ -51,6 +51,12 @@ notice = "warn"
 # output a note when they are encountered.
 ignore = [
     #"RUSTSEC-0000-0000",
+
+    # https://github.com/martinvonz/jj/issues/1056
+    # Temporarily ignore this advisory until we can eliminate the dependency on
+    # the abomonation crate.
+    "RUSTSEC-2021-0120",
+
     "RUSTSEC-2021-0145",
 ]
 # Threshold for security vulnerabilities, any vulnerability with a CVSS score
