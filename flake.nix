@@ -38,7 +38,7 @@
               pname = "jujutsu";
               version = "unstable-${self.shortRev or "dirty"}";
               buildNoDefaultFeatures = true;
-              buildFeatures = ["jujutsu-lib/legacy-thrift"];
+              buildFeatures = [ "jujutsu-lib/legacy-thrift" ];
 
               src = self;
 
@@ -50,8 +50,10 @@
                 };
               };
               nativeBuildInputs = [
-                pkg-config gzip makeWrapper
+                gzip
                 installShellFiles
+                makeWrapper
+                pkg-config
               ];
               buildInputs = [ openssl dbus sqlite ]
               ++ lib.optionals stdenv.isDarwin [
@@ -71,7 +73,6 @@
                 installShellCompletion --zsh --name _${pname} ./completions.zsh
               '';
             }
-
           )
           {
             inherit (final.darwin.apple_sdk.frameworks) Security SystemConfiguration;
@@ -101,5 +102,6 @@
             export RUST_BACKTRACE=1
           '';
         });
+        formatter.${system} = pkgs.nixpkgs-fmt;
       }));
 }
