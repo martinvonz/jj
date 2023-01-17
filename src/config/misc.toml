@@ -1,3 +1,9 @@
+[alias]
+# Placeholder: added by user
+
 [git]
 push = "origin"
 fetch = "origin"
+
+[revset-aliases]
+# Placeholder: added by user

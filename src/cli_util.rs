@@ -1281,15 +1281,14 @@ fn load_revset_aliases(
 ) -> Result<RevsetAliasesMap, CommandError> {
     const TABLE_KEY: &str = "revset-aliases";
     let mut aliases_map = RevsetAliasesMap::new();
-    if let Ok(table) = settings.config().get_table(TABLE_KEY) {
-        for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
-            let r = value
-                .into_string()
-                .map_err(|e| e.to_string())
-                .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
-            if let Err(s) = r {
-                writeln!(ui.warning(), r#"Failed to load "{TABLE_KEY}.{decl}": {s}"#)?;
-            }
+    let table = settings.config().get_table(TABLE_KEY)?;
+    for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
+        let r = value
+            .into_string()
+            .map_err(|e| e.to_string())
+            .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
+        if let Err(s) = r {
+            writeln!(ui.warning(), r#"Failed to load "{TABLE_KEY}.{decl}": {s}"#)?;
         }
     }
     Ok(aliases_map)
@@ -1649,7 +1648,7 @@ fn resolve_aliases(
     app: &clap::Command,
     string_args: &[String],
 ) -> Result<Vec<String>, CommandError> {
-    let mut aliases_map = config.get_table("alias").unwrap_or_default();
+    let mut aliases_map = config.get_table("alias")?;
     let mut resolved_aliases = HashSet::new();
     let mut string_args = string_args.to_vec();
     let mut real_commands = HashSet::new();
