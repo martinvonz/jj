@@ -67,7 +67,7 @@ pub enum ExternalToolError {
 
 #[derive(Debug, Error)]
 pub enum DiffEditError {
-    #[error("{0}")]
+    #[error(transparent)]
     ExternalToolError(#[from] ExternalToolError),
     #[error("Failed to write directories to diff: {0:?}")]
     CheckoutError(#[from] CheckoutError),
@@ -77,7 +77,7 @@ pub enum DiffEditError {
 
 #[derive(Debug, Error)]
 pub enum ConflictResolveError {
-    #[error("{0}")]
+    #[error(transparent)]
     ExternalToolError(#[from] ExternalToolError),
     #[error(
         "To use `{tool_name}` as a merge tool, the config `merge-tools.{tool_name}.merge-args` \
