@@ -969,8 +969,8 @@ struct GitRemoteListArgs {}
 #[derive(clap::Args, Clone, Debug)]
 struct GitFetchArgs {
     /// The remote to fetch from (only named remotes are supported)
-    #[arg(long, default_value = "origin")]
-    remote: String,
+    #[arg(long)]
+    remote: Option<String>,
 }
 
 /// Create a new repo backed by a clone of a Git repo
@@ -996,8 +996,8 @@ struct GitCloneArgs {
 #[command(group(ArgGroup::new("what").args(&["branch", "all", "change"])))]
 struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
-    #[arg(long, default_value = "origin")]
-    remote: String,
+    #[arg(long)]
+    remote: Option<String>,
     /// Push only this branch (can be repeated)
     #[arg(long, short)]
     branch: Vec<String>,
@@ -3901,14 +3901,15 @@ fn cmd_git_fetch(
     args: &GitFetchArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
+    let remote = args
+        .remote
+        .clone()
+        .unwrap_or_else(|| command.settings().config().get("git.fetch").unwrap());
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
-    let mut tx =
-        workspace_command.start_transaction(&format!("fetch from git remote {}", &args.remote));
-    with_remote_callbacks(ui, |cb| {
-        git::fetch(tx.mut_repo(), &git_repo, &args.remote, cb)
-    })
-    .map_err(|err| user_error(err.to_string()))?;
+    let mut tx = workspace_command.start_transaction(&format!("fetch from git remote {}", &remote));
+    with_remote_callbacks(ui, |cb| git::fetch(tx.mut_repo(), &git_repo, &remote, cb))
+        .map_err(|err| user_error(err.to_string()))?;
     workspace_command.finish_transaction(ui, tx)?;
     Ok(())
 }
@@ -4157,7 +4158,10 @@ fn cmd_git_push(
     args: &GitPushArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-
+    let remote = args
+        .remote
+        .clone()
+        .unwrap_or_else(|| command.settings().config().get("git.push").unwrap());
     let mut tx;
     let mut branch_updates = vec![];
     let mut seen_branches = hashset! {};
@@ -4167,7 +4171,7 @@ fn cmd_git_push(
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
             }
-            let push_action = classify_branch_push_action(branch_target, &args.remote);
+            let push_action = classify_branch_push_action(branch_target, &remote);
             match push_action {
                 BranchPushAction::AlreadyMatches => {}
                 BranchPushAction::LocalConflicted => {}
@@ -4178,7 +4182,7 @@ fn cmd_git_push(
             }
         }
         tx = workspace_command
-            .start_transaction(&format!("push all branches to git remote {}", &args.remote));
+            .start_transaction(&format!("push all branches to git remote {}", &remote));
     } else if !args.branch.is_empty() {
         for branch_name in &args.branch {
             if !seen_branches.insert(branch_name.clone()) {
@@ -4186,7 +4190,7 @@ fn cmd_git_push(
             }
             if let Some(update) = branch_updates_for_push(
                 workspace_command.repo().as_repo_ref(),
-                &args.remote,
+                &remote,
                 branch_name,
             )? {
                 branch_updates.push((branch_name.clone(), update));
@@ -4194,14 +4198,14 @@ fn cmd_git_push(
                 writeln!(
                     ui,
                     "Branch {}@{} already matches {}",
-                    branch_name, &args.remote, branch_name
+                    branch_name, &remote, branch_name
                 )?;
             }
         }
         tx = workspace_command.start_transaction(&format!(
             "push {} to git remote {}",
             make_branch_term(&args.branch),
-            &args.remote
+            &remote
         ));
     } else if !args.change.is_empty() {
         // TODO: Allow specifying --branch and --change at the same time
@@ -4218,7 +4222,7 @@ fn cmd_git_push(
                 "change"
             },
             commits.iter().map(|c| c.change_id().hex()).join(", "),
-            &args.remote
+            &remote
         ));
         for (change_str, commit) in std::iter::zip(args.change.iter(), commits) {
             let mut branch_name = format!(
@@ -4257,14 +4261,14 @@ fn cmd_git_push(
             tx.mut_repo()
                 .set_local_branch(branch_name.clone(), RefTarget::Normal(commit.id().clone()));
             if let Some(update) =
-                branch_updates_for_push(tx.mut_repo().as_repo_ref(), &args.remote, &branch_name)?
+                branch_updates_for_push(tx.mut_repo().as_repo_ref(), &remote, &branch_name)?
             {
                 branch_updates.push((branch_name.clone(), update));
             } else {
                 writeln!(
                     ui,
                     "Branch {}@{} already matches {}",
-                    branch_name, &args.remote, branch_name
+                    branch_name, &remote, branch_name
                 )?;
             }
         }
@@ -4309,7 +4313,7 @@ fn cmd_git_push(
                     if !seen_branches.insert(branch_name.clone()) {
                         continue;
                     }
-                    let push_action = classify_branch_push_action(branch_target, &args.remote);
+                    let push_action = classify_branch_push_action(branch_target, &remote);
                     match push_action {
                         BranchPushAction::AlreadyMatches => {}
                         BranchPushAction::LocalConflicted => {}
@@ -4326,7 +4330,7 @@ fn cmd_git_push(
         }
         tx = workspace_command.start_transaction(&format!(
             "push current branch(es) to git remote {}",
-            &args.remote
+            &remote
         ));
     }
     drop(seen_branches);
@@ -4370,7 +4374,7 @@ fn cmd_git_push(
     // already been pushed.
     let mut old_heads = vec![];
     for branch_target in repo.view().branches().values() {
-        if let Some(old_head) = branch_target.remote_targets.get(&args.remote) {
+        if let Some(old_head) = branch_target.remote_targets.get(&remote) {
             old_heads.extend(old_head.adds());
         }
     }
@@ -4402,7 +4406,7 @@ fn cmd_git_push(
         }
     }
 
-    writeln!(ui, "Branch changes to push to {}:", &args.remote)?;
+    writeln!(ui, "Branch changes to push to {}:", &remote)?;
     for (branch_name, update) in &branch_updates {
         match (&update.old_target, &update.new_target) {
             (Some(old_target), Some(new_target)) => {
@@ -4449,7 +4453,7 @@ fn cmd_git_push(
 
     let git_repo = get_git_repo(repo.store())?;
     with_remote_callbacks(ui, |cb| {
-        git::push_updates(&git_repo, &args.remote, &ref_updates, cb)
+        git::push_updates(&git_repo, &remote, &ref_updates, cb)
     })
     .map_err(|err| user_error(err.to_string()))?;
     git::import_refs(tx.mut_repo(), &git_repo)?;

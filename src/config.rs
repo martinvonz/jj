@@ -151,15 +151,15 @@ fn env_base() -> config::Config {
 pub fn default_config() -> config::Config {
     // Syntax error in default config isn't a user error. That's why defaults are
     // loaded by separate builder.
+    macro_rules! from_toml {
+        ($file:literal) => {
+            config::File::from_str(include_str!($file), config::FileFormat::Toml)
+        };
+    }
     config::Config::builder()
-        .add_source(config::File::from_str(
-            include_str!("config/colors.toml"),
-            config::FileFormat::Toml,
-        ))
-        .add_source(config::File::from_str(
-            include_str!("config/merge_tools.toml"),
-            config::FileFormat::Toml,
-        ))
+        .add_source(from_toml!("config/colors.toml"))
+        .add_source(from_toml!("config/merge_tools.toml"))
+        .add_source(from_toml!("config/git.toml"))
         .build()
         .unwrap()
 }

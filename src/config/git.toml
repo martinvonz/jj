@@ -1,0 +1,3 @@
+[git]
+push = "origin"
+fetch = "origin"
