@@ -252,15 +252,20 @@ fn test_unsquash_description() {
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@"), @r###"
     destination
 
+
+
     source
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
     JJ: Enter a description for the combined commit.
     JJ: Description from the destination commit:
+
     destination
 
+
     JJ: Description from the source commit:
+
     source
 
     JJ: Lines starting with "JJ: " (like this one) will be removed.
