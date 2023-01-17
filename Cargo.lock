@@ -479,7 +479,7 @@ dependencies = [
 [[package]]
 name = "dag"
 version = "0.1.0"
-source = "git+https://github.com/facebook/sapling#fcacb0ad73e91ff899ab6fc34787dce1da884250"
+source = "git+https://github.com/facebook/sapling?rev=97e9d5112a4150286b44ba8544f543c69147e195#97e9d5112a4150286b44ba8544f543c69147e195"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -504,7 +504,7 @@ dependencies = [
 [[package]]
 name = "dag-types"
 version = "0.1.0"
-source = "git+https://github.com/facebook/sapling#fcacb0ad73e91ff899ab6fc34787dce1da884250"
+source = "git+https://github.com/facebook/sapling?rev=97e9d5112a4150286b44ba8544f543c69147e195#97e9d5112a4150286b44ba8544f543c69147e195"
 dependencies = [
  "abomonation",
  "abomonation_derive",
@@ -559,7 +559,7 @@ checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 [[package]]
 name = "drawdag"
 version = "0.1.0"
-source = "git+https://github.com/facebook/sapling#fcacb0ad73e91ff899ab6fc34787dce1da884250"
+source = "git+https://github.com/facebook/sapling?rev=97e9d5112a4150286b44ba8544f543c69147e195#97e9d5112a4150286b44ba8544f543c69147e195"
 
 [[package]]
 name = "either"
@@ -1171,7 +1171,7 @@ dependencies = [
 [[package]]
 name = "mincode"
 version = "0.1.0"
-source = "git+https://github.com/facebook/sapling#fcacb0ad73e91ff899ab6fc34787dce1da884250"
+source = "git+https://github.com/facebook/sapling?rev=97e9d5112a4150286b44ba8544f543c69147e195#97e9d5112a4150286b44ba8544f543c69147e195"
 dependencies = [
  "byteorder",
  "serde",
@@ -1181,7 +1181,7 @@ dependencies = [
 [[package]]
 name = "minibytes"
 version = "0.1.0"
-source = "git+https://github.com/facebook/sapling#fcacb0ad73e91ff899ab6fc34787dce1da884250"
+source = "git+https://github.com/facebook/sapling?rev=97e9d5112a4150286b44ba8544f543c69147e195#97e9d5112a4150286b44ba8544f543c69147e195"
 dependencies = [
  "serde",
 ]
@@ -1223,7 +1223,7 @@ dependencies = [
 [[package]]
 name = "nonblocking"
 version = "0.1.0"
-source = "git+https://github.com/facebook/sapling#fcacb0ad73e91ff899ab6fc34787dce1da884250"
+source = "git+https://github.com/facebook/sapling?rev=97e9d5112a4150286b44ba8544f543c69147e195#97e9d5112a4150286b44ba8544f543c69147e195"
 
 [[package]]
 name = "normalize-line-endings"
@@ -2277,7 +2277,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "vlqencoding"
 version = "0.1.0"
-source = "git+https://github.com/facebook/sapling#fcacb0ad73e91ff899ab6fc34787dce1da884250"
+source = "git+https://github.com/facebook/sapling?rev=97e9d5112a4150286b44ba8544f543c69147e195#97e9d5112a4150286b44ba8544f543c69147e195"
 
 [[package]]
 name = "wait-timeout"
