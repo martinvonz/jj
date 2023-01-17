@@ -126,3 +126,21 @@ For a detailed overview, how Jujutsu handles conflicts, revisit the [tutorial][t
 [http-auth]: https://github.com/martinvonz/jj/issues/469 
 [tut]: tutorial.md#Conflicts
 [stacked]: https://jg.gg/2018/09/29/stacked-diffs-versus-pull-requests/
+
+## Using several remotes
+
+It is common to use several remotes when contributing to a shared repository. For example,
+"upstream" can designate the remote where the changes will be merged through a pull-request
+while "origin" is your private fork of the project. In this case, you might want to
+`jj git fetch` from "upstream" and to `jj git push` to "origin".
+
+You can configure the default remotes to fetch from and push to in your configuration file
+(for example `.jj/repo/config.toml`):
+
+```toml
+[git]
+fetch = "upstream"
+push = "origin"
+```
+
+The default for both `git.fetch` and `git.push` is "origin".

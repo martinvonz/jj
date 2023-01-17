@@ -59,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `remote_needle` as optional arguments and matches just the branches whose
   name contains `branch_needle` and remote contains `remote_needle`.
 
+* Default remotes can be configured for the `jj git fetch` and `jj git push`
+  operations ("origin" by default) using the `git.fetch` and `git.push`
+  configuration entries.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
