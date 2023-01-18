@@ -146,7 +146,7 @@ impl UserSettings {
     pub fn unique_prefixes(&self) -> String {
         self.config
             .get_string("ui.unique-prefixes")
-            .unwrap_or_default()
+            .unwrap_or_else(|_| "brackets".to_string())
     }
 
     pub fn config(&self) -> &config::Config {
