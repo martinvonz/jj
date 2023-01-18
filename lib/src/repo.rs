@@ -250,7 +250,7 @@ impl ReadonlyRepo {
             // We need to account for rewritten commits as well
             let mut id_index = IdIndex::new();
             for entry in self.as_repo_ref().index().iter() {
-                id_index.insert(entry.commit_id().hex().as_bytes(), ());
+                id_index.insert(entry.commit_id().as_bytes(), ());
             }
             id_index
         })
@@ -263,22 +263,22 @@ impl ReadonlyRepo {
                 .unwrap();
             let mut id_index = IdIndex::new();
             for entry in all_visible_revisions.iter() {
-                id_index.insert(entry.change_id().hex().as_bytes(), ());
+                id_index.insert(entry.change_id().as_bytes(), ());
             }
             id_index
         })
     }
 
-    pub fn shortest_unique_prefix_length(&self, target_id_hex: &str) -> usize {
+    pub fn shortest_unique_prefix_length(&self, target_id_bytes: &[u8]) -> usize {
         // For `len = index.shortest(id)`, a prefix of length `len` will disambiguate
         // `id` from all other ids in the index. This will be just as true for
         // `max(len, anything_else)`, so a max of such lengths will disambiguate in all
         // indices.
         cmp::max(
             self.commit_id_index()
-                .shortest_unique_prefix_len(target_id_hex.as_bytes()),
+                .shortest_unique_prefix_len(target_id_bytes),
             self.change_id_index()
-                .shortest_unique_prefix_len(target_id_hex.as_bytes()),
+                .shortest_unique_prefix_len(target_id_bytes),
         )
     }
 
@@ -1194,12 +1194,16 @@ impl IdIndex {
         Self::default()
     }
 
+    /// Inserts a bytes key to the index.
     pub fn insert(&mut self, key: &[u8], value: IdIndexValue) -> Option<IdIndexValue> {
         self.0.insert(key.to_vec(), value)
     }
 
     /// This function returns the shortest length of a prefix of `key` that
     /// disambiguates it from every other key in the index.
+    ///
+    /// The given `key` must be provided as bytes, not as ASCII hexadecimal
+    /// digits. The length to be returned is a number of hexadecimal digits.
     ///
     /// This has some properties that we do not currently make much use of:
     ///
@@ -1217,10 +1221,7 @@ impl IdIndex {
             .next_back();
         let right = self.0.range::<[u8], _>((Excluded(key), Unbounded)).next();
         itertools::chain(left, right)
-            .map(|(neighbor, _value)| {
-                let common_len = key.iter().zip(neighbor).take_while(|(a, b)| a == b).count();
-                common_len + 1
-            })
+            .map(|(neighbor, _value)| backend::common_hex_len(key, neighbor) + 1)
             .max()
             .unwrap_or(0)
     }
@@ -1233,23 +1234,44 @@ mod tests {
     #[test]
     fn test_id_index() {
         let mut id_index = IdIndex::new();
-        id_index.insert(b"ab", ());
-        id_index.insert(b"acd0", ());
-        assert_eq!(id_index.shortest_unique_prefix_len(b"acd0"), 2);
-        assert_eq!(id_index.shortest_unique_prefix_len(b"ac"), 3);
+        id_index.insert(&hex::decode("ab").unwrap(), ());
+        id_index.insert(&hex::decode("acd0").unwrap(), ());
+        assert_eq!(
+            id_index.shortest_unique_prefix_len(&hex::decode("acd0").unwrap()),
+            2
+        );
+        assert_eq!(
+            id_index.shortest_unique_prefix_len(&hex::decode("ac").unwrap()),
+            3
+        );
 
         let mut id_index = IdIndex::new();
-        id_index.insert(b"ab", ());
-        id_index.insert(b"acd0", ());
-        id_index.insert(b"acf0", ());
-        id_index.insert(b"a0", ());
-        id_index.insert(b"ba", ());
+        id_index.insert(&hex::decode("ab").unwrap(), ());
+        id_index.insert(&hex::decode("acd0").unwrap(), ());
+        id_index.insert(&hex::decode("acf0").unwrap(), ());
+        id_index.insert(&hex::decode("a0").unwrap(), ());
+        id_index.insert(&hex::decode("ba").unwrap(), ());
 
-        assert_eq!(id_index.shortest_unique_prefix_len(b"a0"), 2);
-        assert_eq!(id_index.shortest_unique_prefix_len(b"ba"), 1);
-        assert_eq!(id_index.shortest_unique_prefix_len(b"ab"), 2);
-        assert_eq!(id_index.shortest_unique_prefix_len(b"acd0"), 3);
+        assert_eq!(
+            id_index.shortest_unique_prefix_len(&hex::decode("a0").unwrap()),
+            2
+        );
+        assert_eq!(
+            id_index.shortest_unique_prefix_len(&hex::decode("ba").unwrap()),
+            1
+        );
+        assert_eq!(
+            id_index.shortest_unique_prefix_len(&hex::decode("ab").unwrap()),
+            2
+        );
+        assert_eq!(
+            id_index.shortest_unique_prefix_len(&hex::decode("acd0").unwrap()),
+            3
+        );
         // If it were there, the length would be 1.
-        assert_eq!(id_index.shortest_unique_prefix_len(b"c0"), 1);
+        assert_eq!(
+            id_index.shortest_unique_prefix_len(&hex::decode("c0").unwrap()),
+            1
+        );
     }
 }

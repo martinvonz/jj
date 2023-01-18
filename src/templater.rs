@@ -412,6 +412,10 @@ impl<'a, C, I, O> TemplateProperty<C, O> for TemplateFunction<'a, C, I, O> {
 pub struct CommitOrChangeId(Vec<u8>);
 
 impl CommitOrChangeId {
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
     pub fn hex(&self) -> String {
         hex::encode(&self.0)
     }
@@ -423,12 +427,15 @@ impl CommitOrChangeId {
     }
 
     pub fn short_prefix_and_brackets(&self, repo: RepoRef) -> String {
-        highlight_shortest_prefix(self.hex(), 12, repo)
+        highlight_shortest_prefix(self, 12, repo)
     }
 }
 
-fn highlight_shortest_prefix(mut hex: String, total_len: usize, repo: RepoRef) -> String {
-    let prefix_len = repo.base_repo().shortest_unique_prefix_length(&hex);
+fn highlight_shortest_prefix(id: &CommitOrChangeId, total_len: usize, repo: RepoRef) -> String {
+    let prefix_len = repo
+        .base_repo()
+        .shortest_unique_prefix_length(id.as_bytes());
+    let mut hex = id.hex();
     if prefix_len < total_len - 2 {
         format!(
             "{}[{}]",
