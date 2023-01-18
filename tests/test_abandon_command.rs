@@ -112,11 +112,8 @@ fn test_rebase_branch_with_merge() {
     // Test abandoning the same commit twice directly
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "b", "b"]);
-    // Note that the same commit is listed twice
     insta::assert_snapshot!(stdout, @r###"
-    Abandoned the following commits:
-      1394f625cbbd b
-      1394f625cbbd b
+    Abandoned commit 1394f625cbbd b
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @   e
@@ -131,12 +128,10 @@ fn test_rebase_branch_with_merge() {
     // Test abandoning the same commit twice indirectly
     test_env.jj_cmd_success(&repo_path, &["undo"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["abandon", "d:", "a:"]);
-    // Note that the same commit is listed twice
     insta::assert_snapshot!(stdout, @r###"
     Abandoned the following commits:
       5557ece3e631 e
       b7c62f28ed10 d
-      5557ece3e631 e
       1394f625cbbd b
       2443ea76b0b1 a
     Working copy now at: af874bffee6e (no description set)

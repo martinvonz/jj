@@ -2038,8 +2038,8 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
 fn resolve_multiple_rewriteable_revsets(
     revision_args: &[RevisionArg],
     workspace_command: &WorkspaceCommandHelper,
-) -> Result<Vec<Commit>, CommandError> {
-    let mut acc = Vec::new();
+) -> Result<IndexSet<Commit>, CommandError> {
+    let mut acc = IndexSet::new();
     for revset in revision_args {
         let revisions = workspace_command.resolve_revset(revset)?;
         workspace_command.check_non_empty(&revisions)?;
@@ -2058,9 +2058,7 @@ fn cmd_duplicate(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let to_duplicate: IndexSet<Commit> =
-        resolve_multiple_rewriteable_revsets(&args.revisions, &workspace_command)?
-            .into_iter()
-            .collect();
+        resolve_multiple_rewriteable_revsets(&args.revisions, &workspace_command)?;
     let mut duplicated_old_to_new: IndexMap<Commit, Commit> = IndexMap::new();
 
     let mut tx = workspace_command
