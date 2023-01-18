@@ -128,7 +128,7 @@ fn resolve_change_id(
         // TODO: Create a persistent lookup from change id to (visible?) commit ids.
         for index_entry in RevsetExpression::all().evaluate(repo, None).unwrap().iter() {
             let change_id = index_entry.change_id();
-            if change_id.hex().starts_with(hex_prefix.hex()) {
+            if hex_prefix.matches(&change_id) {
                 if let Some(previous_change_id) = found_change_id.replace(change_id.clone()) {
                     if previous_change_id != change_id {
                         return Err(RevsetError::AmbiguousIdPrefix(change_id_prefix.to_owned()));

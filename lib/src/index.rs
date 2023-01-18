@@ -282,18 +282,18 @@ impl HexPrefix {
         self.0.as_str()
     }
 
-    pub fn bytes_prefixes(&self) -> (CommitId, CommitId) {
+    pub fn bytes_prefixes<Q: ObjectId>(&self) -> (Q, Q) {
         if self.0.len() % 2 == 0 {
             let bytes = hex::decode(&self.0).unwrap();
-            (CommitId::new(bytes.clone()), CommitId::new(bytes))
+            (Q::new(bytes.clone()), Q::new(bytes))
         } else {
             let min_bytes = hex::decode(self.0.clone() + "0").unwrap();
             let prefix = min_bytes[0..min_bytes.len() - 1].to_vec();
-            (CommitId::new(prefix), CommitId::new(min_bytes))
+            (Q::new(prefix), Q::new(min_bytes))
         }
     }
 
-    pub fn matches(&self, id: &CommitId) -> bool {
+    pub fn matches<Q: ObjectId>(&self, id: &Q) -> bool {
         id.hex().starts_with(&self.0)
     }
 }
