@@ -70,6 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj log` now highlights the shortest unique prefix of every commit and change id
   with brackets. To disable, set the new `ui.unique-prefixes` option to `none`
 
+* `jj print` was renamed to `jj cat`. `jj print` remains as an alias.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export

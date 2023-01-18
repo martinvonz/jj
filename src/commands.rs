@@ -77,7 +77,8 @@ enum Commands {
     Checkout(CheckoutArgs),
     Untrack(UntrackArgs),
     Files(FilesArgs),
-    Print(PrintArgs),
+    #[command(alias = "print")]
+    Cat(CatArgs),
     Diff(DiffArgs),
     Show(ShowArgs),
     Status(StatusArgs),
@@ -229,7 +230,7 @@ struct FilesArgs {
 
 /// Print contents of a file in a revision
 #[derive(clap::Args, Clone, Debug)]
-struct PrintArgs {
+struct CatArgs {
     /// The revision to get the file contents from
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
@@ -1382,7 +1383,7 @@ fn cmd_files(ui: &mut Ui, command: &CommandHelper, args: &FilesArgs) -> Result<(
     Ok(())
 }
 
-fn cmd_print(ui: &mut Ui, command: &CommandHelper, args: &PrintArgs) -> Result<(), CommandError> {
+fn cmd_cat(ui: &mut Ui, command: &CommandHelper, args: &CatArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let path = workspace_command.parse_file_path(&args.path)?;
@@ -4596,7 +4597,7 @@ pub fn run_command(
         Commands::Checkout(sub_args) => cmd_checkout(ui, command_helper, sub_args),
         Commands::Untrack(sub_args) => cmd_untrack(ui, command_helper, sub_args),
         Commands::Files(sub_args) => cmd_files(ui, command_helper, sub_args),
-        Commands::Print(sub_args) => cmd_print(ui, command_helper, sub_args),
+        Commands::Cat(sub_args) => cmd_cat(ui, command_helper, sub_args),
         Commands::Diff(sub_args) => cmd_diff(ui, command_helper, sub_args),
         Commands::Show(sub_args) => cmd_show(ui, command_helper, sub_args),
         Commands::Status(sub_args) => cmd_status(ui, command_helper, sub_args),
