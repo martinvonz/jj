@@ -64,9 +64,9 @@ fn test_log_default() {
 
     // Test default log output format
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log"]), @r###"
-    @ ffdaa62087a2 test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9de54178d59d
+    @ f[fdaa62087a] test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9d[e54178d59]
     | (empty) description 1
-    o 9a45c67d3e96 test.user@example.com 2001-02-03 04:05:08.000 +07:00 4291e264ae97
+    o 9a[45c67d3e9] test.user@example.com 2001-02-03 04:05:08.000 +07:00 4[291e264ae9]
     | add a file
     o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
       (empty) (no description set)
@@ -95,9 +95,9 @@ fn test_log_default() {
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ [1m[38;5;13mffdaa62087a2[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12m9de54178d59d[39m[0m
+    @ [1m[38;5;13mf[fdaa62087a][39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12m9d[e54178d59][39m[0m
     | [1m[38;5;10m(empty) [39mdescription 1[0m
-    o [38;5;5m9a45c67d3e96[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [38;5;4m4291e264ae97[39m
+    o [38;5;5m9a[45c67d3e9][39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [38;5;4m4[291e264ae9][39m
     | add a file
     o [38;5;5m000000000000[39m  [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [38;5;4m000000000000[39m
       [38;5;2m(empty) [39m(no description set)
@@ -106,9 +106,9 @@ fn test_log_default() {
     // Color without graph
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
-    [1m[38;5;13mffdaa62087a2[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12m9de54178d59d[39m[0m
+    [1m[38;5;13mf[fdaa62087a][39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12m9d[e54178d59][39m[0m
     [1m[38;5;10m(empty) [39mdescription 1[0m
-    [38;5;5m9a45c67d3e96[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [38;5;4m4291e264ae97[39m
+    [38;5;5m9a[45c67d3e9][39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [38;5;4m4[291e264ae9][39m
     add a file
     [38;5;5m000000000000[39m  [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [38;5;4m000000000000[39m
     [38;5;2m(empty) [39m(no description set)
@@ -126,7 +126,7 @@ fn test_log_default_divergence() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
     // No divergence
     insta::assert_snapshot!(stdout, @r###"
-    @ 9a45c67d3e96 test.user@example.com 2001-02-03 04:05:08.000 +07:00 7a17d52e633c
+    @ 9[a45c67d3e9] test.user@example.com 2001-02-03 04:05:08.000 +07:00 7[a17d52e633]
     | description 1
     o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
       (empty) (no description set)
@@ -140,9 +140,9 @@ fn test_log_default_divergence() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
     insta::assert_snapshot!(stdout, @r###"
     Concurrent modification detected, resolving automatically.
-    o 9a45c67d3e96?? test.user@example.com 2001-02-03 04:05:10.000 +07:00 8979953d4c67
+    o 9[a45c67d3e9]?? test.user@example.com 2001-02-03 04:05:10.000 +07:00 8[979953d4c6]
     | description 2
-    | @ 9a45c67d3e96?? test.user@example.com 2001-02-03 04:05:08.000 +07:00 7a17d52e633c
+    | @ 9[a45c67d3e9]?? test.user@example.com 2001-02-03 04:05:08.000 +07:00 7[a17d52e633]
     |/  description 1
     o 000000000000  1970-01-01 00:00:00.000 +00:00 000000000000
       (empty) (no description set)
@@ -151,9 +151,9 @@ fn test_log_default_divergence() {
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
-    o [38;5;1m9a45c67d3e96??[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:10.000 +07:00[39m [38;5;4m8979953d4c67[39m
+    o [38;5;1m9[a45c67d3e9]??[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:10.000 +07:00[39m [38;5;4m8[979953d4c6][39m
     | description 2
-    | @ [1m[38;5;9m9a45c67d3e96??[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12m7a17d52e633c[39m[0m
+    | @ [1m[38;5;9m9[a45c67d3e9]??[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12m7[a17d52e633][39m[0m
     |/  [1mdescription 1[0m
     o [38;5;5m000000000000[39m  [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [38;5;4m000000000000[39m
       [38;5;2m(empty) [39m(no description set)
