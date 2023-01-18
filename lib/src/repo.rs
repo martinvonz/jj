@@ -1237,26 +1237,31 @@ impl IdIndex {
     }
 }
 
-#[test]
-fn test_id_index() {
-    let mut id_index = IdIndex::new();
-    id_index.insert(b"ab", ());
-    id_index.insert(b"acd", ());
-    assert_eq!(id_index.shortest_unique_prefix_len(b"acd"), 2);
-    assert_eq!(id_index.shortest_unique_prefix_len(b"ac"), 3);
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let mut id_index = IdIndex::new();
-    id_index.insert(b"ab", ());
-    id_index.insert(b"acd", ());
-    id_index.insert(b"acf", ());
-    id_index.insert(b"a", ());
-    id_index.insert(b"ba", ());
+    #[test]
+    fn test_id_index() {
+        let mut id_index = IdIndex::new();
+        id_index.insert(b"ab", ());
+        id_index.insert(b"acd", ());
+        assert_eq!(id_index.shortest_unique_prefix_len(b"acd"), 2);
+        assert_eq!(id_index.shortest_unique_prefix_len(b"ac"), 3);
 
-    assert_eq!(id_index.shortest_unique_prefix_len(b"a"), 2); // Unlikely for hashes case: the entire length of the key is an insufficient
-                                                              // prefix
-    assert_eq!(id_index.shortest_unique_prefix_len(b"ba"), 1);
-    assert_eq!(id_index.shortest_unique_prefix_len(b"ab"), 2);
-    assert_eq!(id_index.shortest_unique_prefix_len(b"acd"), 3);
-    // If it were there, the length would be 1.
-    assert_eq!(id_index.shortest_unique_prefix_len(b"c"), 1);
+        let mut id_index = IdIndex::new();
+        id_index.insert(b"ab", ());
+        id_index.insert(b"acd", ());
+        id_index.insert(b"acf", ());
+        id_index.insert(b"a", ());
+        id_index.insert(b"ba", ());
+
+        assert_eq!(id_index.shortest_unique_prefix_len(b"a"), 2); // Unlikely for hashes case: the entire length of the key is an insufficient
+                                                                  // prefix
+        assert_eq!(id_index.shortest_unique_prefix_len(b"ba"), 1);
+        assert_eq!(id_index.shortest_unique_prefix_len(b"ab"), 2);
+        assert_eq!(id_index.shortest_unique_prefix_len(b"acd"), 3);
+        // If it were there, the length would be 1.
+        assert_eq!(id_index.shortest_unique_prefix_len(b"c"), 1);
+    }
 }
