@@ -415,7 +415,6 @@ fn do_git_clone(
     Ok((workspace_command, maybe_default_branch))
 }
 
-#[allow(clippy::explicit_auto_deref)] // https://github.com/rust-lang/rust-clippy/issues/9763
 fn with_remote_callbacks<T>(ui: &mut Ui, f: impl FnOnce(git::RemoteCallbacks<'_>) -> T) -> T {
     let mut ui = Mutex::new(ui);
     let mut callback = None;
