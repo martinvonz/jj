@@ -2009,17 +2009,19 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
         .get_wc_commit_id(&workspace_command.workspace_id())
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
-
-    let mut tx = workspace_command.start_transaction(&format!("commit {}", commit.id().hex()));
-    let mut commit_builder = tx.mut_repo().rewrite_commit(command.settings(), &commit);
     let description = if let Some(message) = &args.message {
         message.into()
     } else {
         let template = description_template_for_commit(&workspace_command, &commit)?;
         edit_description(workspace_command.repo(), &template, command.settings())?
     };
-    commit_builder = commit_builder.set_description(description);
-    let new_commit = commit_builder.write()?;
+
+    let mut tx = workspace_command.start_transaction(&format!("commit {}", commit.id().hex()));
+    let new_commit = tx
+        .mut_repo()
+        .rewrite_commit(command.settings(), &commit)
+        .set_description(description)
+        .write()?;
     let workspace_ids = tx
         .mut_repo()
         .view()
@@ -2253,6 +2255,7 @@ fn cmd_move(ui: &mut Ui, command: &CommandHelper, args: &MoveArgs) -> Result<(),
     }
     workspace_command.check_rewriteable(&source)?;
     workspace_command.check_rewriteable(&destination)?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let mut tx = workspace_command.start_transaction(&format!(
         "move changes from {} to {}",
         source.id().hex(),
@@ -2278,7 +2281,6 @@ from the source will be moved into the destination.
         workspace_command.format_commit_summary(&source),
         workspace_command.format_commit_summary(&destination)
     );
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let new_parent_tree_id = workspace_command.select_diff(
         ui,
         &parent_tree,
@@ -2342,6 +2344,7 @@ fn cmd_squash(ui: &mut Ui, command: &CommandHelper, args: &SquashArgs) -> Result
     }
     let parent = &parents[0];
     workspace_command.check_rewriteable(parent)?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let mut tx =
         workspace_command.start_transaction(&format!("squash commit {}", commit.id().hex()));
     let instructions = format!(
@@ -2360,7 +2363,6 @@ from the source will be moved into the parent.
         workspace_command.format_commit_summary(&commit),
         workspace_command.format_commit_summary(parent)
     );
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let new_parent_tree_id = workspace_command.select_diff(
         ui,
         &parent.tree(),
@@ -2949,9 +2951,9 @@ fn rebase_branch(
     branch_str: &str,
 ) -> Result<(), CommandError> {
     let branch_commit = workspace_command.resolve_single_rev(branch_str)?;
+    check_rebase_destinations(workspace_command.repo(), new_parents, &branch_commit)?;
     let mut tx = workspace_command
         .start_transaction(&format!("rebase branch at {}", branch_commit.id().hex()));
-    check_rebase_destinations(workspace_command.repo(), new_parents, &branch_commit)?;
 
     let parent_ids = new_parents
         .iter()
