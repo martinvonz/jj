@@ -105,7 +105,7 @@ fn resolve_short_commit_id(
     repo: RepoRef,
     symbol: &str,
 ) -> Result<Option<Vec<CommitId>>, RevsetError> {
-    if let Some(prefix) = HexPrefix::new(symbol.to_owned()) {
+    if let Some(prefix) = HexPrefix::new(symbol) {
         match repo.index().resolve_prefix(&prefix) {
             PrefixResolution::NoMatch => Ok(None),
             PrefixResolution::AmbiguousMatch => {
@@ -122,7 +122,7 @@ fn resolve_change_id(
     repo: RepoRef,
     change_id_prefix: &str,
 ) -> Result<Option<Vec<CommitId>>, RevsetError> {
-    if let Some(hex_prefix) = HexPrefix::new(change_id_prefix.to_owned()) {
+    if let Some(hex_prefix) = HexPrefix::new(change_id_prefix) {
         let mut found_change_id = None;
         let mut commit_ids = vec![];
         // TODO: Create a persistent lookup from change id to (visible?) commit ids.

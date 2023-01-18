@@ -263,38 +263,60 @@ impl Debug for ReadonlyIndex {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HexPrefix(String);
+pub struct HexPrefix {
+    // For odd-length prefix, lower 4 bits of the last byte is padded with 0
+    min_prefix_bytes: Vec<u8>,
+    has_odd_byte: bool,
+}
 
 impl HexPrefix {
-    pub fn new(prefix: String) -> Option<HexPrefix> {
-        if prefix
-            .matches(|c: char| !c.is_ascii_hexdigit() || c.is_ascii_uppercase())
-            .next()
-            .is_some()
-        {
-            None
+    pub fn new(prefix: &str) -> Option<HexPrefix> {
+        let has_odd_byte = prefix.len() & 1 != 0;
+        let min_prefix_bytes = if has_odd_byte {
+            hex::decode(prefix.to_owned() + "0").ok()?
         } else {
-            Some(HexPrefix(prefix))
-        }
+            hex::decode(prefix).ok()?
+        };
+        Some(HexPrefix {
+            min_prefix_bytes,
+            has_odd_byte,
+        })
     }
 
-    pub fn hex(&self) -> &str {
-        self.0.as_str()
+    pub fn hex(&self) -> String {
+        let mut hex_string = hex::encode(&self.min_prefix_bytes);
+        if self.has_odd_byte {
+            hex_string.pop().unwrap();
+        }
+        hex_string
+    }
+
+    fn split_odd_byte(&self) -> (Option<u8>, &[u8]) {
+        if self.has_odd_byte {
+            let (&odd, prefix) = self.min_prefix_bytes.split_last().unwrap();
+            (Some(odd), prefix)
+        } else {
+            (None, &self.min_prefix_bytes)
+        }
     }
 
     pub fn bytes_prefixes<Q: ObjectId>(&self) -> (Q, Q) {
-        if self.0.len() % 2 == 0 {
-            let bytes = hex::decode(&self.0).unwrap();
-            (Q::new(bytes.clone()), Q::new(bytes))
-        } else {
-            let min_bytes = hex::decode(self.0.clone() + "0").unwrap();
-            let prefix = min_bytes[0..min_bytes.len() - 1].to_vec();
-            (Q::new(prefix), Q::new(min_bytes))
-        }
+        let (_, prefix) = self.split_odd_byte();
+        (Q::from_bytes(prefix), Q::from_bytes(&self.min_prefix_bytes))
     }
 
     pub fn matches<Q: ObjectId>(&self, id: &Q) -> bool {
-        id.hex().starts_with(&self.0)
+        let id_bytes = id.as_bytes();
+        let (maybe_odd, prefix) = self.split_odd_byte();
+        if id_bytes.starts_with(prefix) {
+            if let Some(odd) = maybe_odd {
+                matches!(id_bytes.get(prefix.len()), Some(v) if v & 0xf0 == odd)
+            } else {
+                true
+            }
+        } else {
+            false
+        }
     }
 }
 
@@ -1912,44 +1934,44 @@ mod tests {
 
         // Can find commits given the full hex number
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new(id_0.hex()).unwrap()),
+            index.resolve_prefix(&HexPrefix::new(&id_0.hex()).unwrap()),
             PrefixResolution::SingleMatch(id_0)
         );
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new(id_1.hex()).unwrap()),
+            index.resolve_prefix(&HexPrefix::new(&id_1.hex()).unwrap()),
             PrefixResolution::SingleMatch(id_1)
         );
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new(id_2.hex()).unwrap()),
+            index.resolve_prefix(&HexPrefix::new(&id_2.hex()).unwrap()),
             PrefixResolution::SingleMatch(id_2)
         );
         // Test nonexistent commits
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new("ffffff".to_string()).unwrap()),
+            index.resolve_prefix(&HexPrefix::new("ffffff").unwrap()),
             PrefixResolution::NoMatch
         );
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new("000001".to_string()).unwrap()),
+            index.resolve_prefix(&HexPrefix::new("000001").unwrap()),
             PrefixResolution::NoMatch
         );
         // Test ambiguous prefix
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new("0".to_string()).unwrap()),
+            index.resolve_prefix(&HexPrefix::new("0").unwrap()),
             PrefixResolution::AmbiguousMatch
         );
         // Test a globally unique prefix in initial part
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new("009".to_string()).unwrap()),
+            index.resolve_prefix(&HexPrefix::new("009").unwrap()),
             PrefixResolution::SingleMatch(CommitId::from_hex("009999"))
         );
         // Test a globally unique prefix in incremental part
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new("03".to_string()).unwrap()),
+            index.resolve_prefix(&HexPrefix::new("03").unwrap()),
             PrefixResolution::SingleMatch(CommitId::from_hex("033333"))
         );
         // Test a locally unique but globally ambiguous prefix
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new("0554".to_string()).unwrap()),
+            index.resolve_prefix(&HexPrefix::new("0554").unwrap()),
             PrefixResolution::AmbiguousMatch
         );
     }
@@ -2326,5 +2348,41 @@ mod tests {
         assert_eq!(index.heads(&[id_5.clone(), id_2]), vec![id_5.clone()]);
         // Merge commit and other commit
         assert_eq!(index.heads(&[id_5.clone(), id_3.clone()]), vec![id_3, id_5]);
+    }
+
+    #[test]
+    fn test_hex_prefix_prefixes() {
+        let (prefix, min_prefix) = HexPrefix::new("").unwrap().bytes_prefixes::<CommitId>();
+        assert_eq!(prefix, CommitId::from_hex(""));
+        assert_eq!(min_prefix, CommitId::from_hex(""));
+
+        let (prefix, min_prefix) = HexPrefix::new("1").unwrap().bytes_prefixes::<CommitId>();
+        assert_eq!(prefix, CommitId::from_hex(""));
+        assert_eq!(min_prefix, CommitId::from_hex("10"));
+
+        let (prefix, min_prefix) = HexPrefix::new("12").unwrap().bytes_prefixes::<CommitId>();
+        assert_eq!(prefix, CommitId::from_hex("12"));
+        assert_eq!(min_prefix, CommitId::from_hex("12"));
+
+        let (prefix, min_prefix) = HexPrefix::new("123").unwrap().bytes_prefixes::<CommitId>();
+        assert_eq!(prefix, CommitId::from_hex("12"));
+        assert_eq!(min_prefix, CommitId::from_hex("1230"));
+    }
+
+    #[test]
+    fn test_hex_prefix_matches() {
+        let id = CommitId::from_hex("1234");
+
+        assert!(HexPrefix::new("").unwrap().matches(&id));
+        assert!(HexPrefix::new("1").unwrap().matches(&id));
+        assert!(HexPrefix::new("12").unwrap().matches(&id));
+        assert!(HexPrefix::new("123").unwrap().matches(&id));
+        assert!(HexPrefix::new("1234").unwrap().matches(&id));
+        assert!(!HexPrefix::new("12345").unwrap().matches(&id));
+
+        assert!(!HexPrefix::new("a").unwrap().matches(&id));
+        assert!(!HexPrefix::new("1a").unwrap().matches(&id));
+        assert!(!HexPrefix::new("12a").unwrap().matches(&id));
+        assert!(!HexPrefix::new("123a").unwrap().matches(&id));
     }
 }
