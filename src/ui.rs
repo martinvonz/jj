@@ -107,29 +107,30 @@ fn pager_setting(config: &config::Config) -> FullCommandArgs {
 }
 
 impl Ui {
-    pub fn with_config(config: &config::Config) -> Ui {
+    pub fn with_config(config: &config::Config) -> Result<Ui, config::ConfigError> {
         let color = use_color(color_setting(config));
         // Sanitize ANSI escape codes if we're printing to a terminal. Doesn't affect
         // ANSI escape codes that originate from the formatter itself.
         let sanitize = io::stdout().is_tty();
-        let formatter_factory = FormatterFactory::prepare(config, color, sanitize);
+        let formatter_factory = FormatterFactory::prepare(config, color, sanitize)?;
         let progress_indicator = progress_indicator_setting(config);
-        Ui {
+        Ok(Ui {
             color,
             formatter_factory,
             pager_cmd: pager_setting(config),
             paginate: PaginationChoice::Auto,
             progress_indicator,
             output: UiOutput::new_terminal(),
-        }
+        })
     }
 
-    pub fn reset(&mut self, config: &config::Config) {
+    pub fn reset(&mut self, config: &config::Config) -> Result<(), config::ConfigError> {
         self.color = use_color(color_setting(config));
         self.pager_cmd = pager_setting(config);
         self.progress_indicator = progress_indicator_setting(config);
         let sanitize = io::stdout().is_tty();
-        self.formatter_factory = FormatterFactory::prepare(config, self.color, sanitize);
+        self.formatter_factory = FormatterFactory::prepare(config, self.color, sanitize)?;
+        Ok(())
     }
 
     /// Sets the pagination value.

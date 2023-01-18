@@ -98,16 +98,20 @@ enum FormatterFactoryKind {
 }
 
 impl FormatterFactory {
-    pub fn prepare(config: &config::Config, color: bool, sanitized: bool) -> Self {
+    pub fn prepare(
+        config: &config::Config,
+        color: bool,
+        sanitized: bool,
+    ) -> Result<Self, config::ConfigError> {
         let kind = if color {
-            let rules = Arc::new(rules_from_config(config));
+            let rules = Arc::new(rules_from_config(config)?);
             FormatterFactoryKind::Color { rules }
         } else if sanitized {
             FormatterFactoryKind::Sanitized
         } else {
             FormatterFactoryKind::PlainText
         };
-        FormatterFactory { kind }
+        Ok(FormatterFactory { kind })
     }
 
     pub fn new_formatter<'output, W: Write + 'output>(
@@ -232,9 +236,9 @@ impl<W: Write> ColorFormatter<W> {
         }
     }
 
-    pub fn for_config(output: W, config: &config::Config) -> ColorFormatter<W> {
-        let rules = rules_from_config(config);
-        Self::new(output, Arc::new(rules))
+    pub fn for_config(output: W, config: &config::Config) -> Result<Self, config::ConfigError> {
+        let rules = rules_from_config(config)?;
+        Ok(Self::new(output, Arc::new(rules)))
     }
 
     fn requested_style(&mut self) -> Style {
@@ -316,53 +320,52 @@ impl<W: Write> ColorFormatter<W> {
     }
 }
 
-fn rules_from_config(config: &config::Config) -> Rules {
+fn rules_from_config(config: &config::Config) -> Result<Rules, config::ConfigError> {
     let mut result = vec![];
-    if let Ok(table) = config.get_table("colors") {
-        for (key, value) in table {
-            let labels = key
-                .split_whitespace()
-                .map(ToString::to_string)
-                .collect_vec();
-            match value.kind {
-                config::ValueKind::String(color_name) => {
-                    let style = Style {
-                        fg_color: color_for_name(&color_name),
-                        bg_color: None,
-                        bold: None,
-                        underlined: None,
-                    };
-                    result.push((labels, style));
-                }
-                config::ValueKind::Table(style_table) => {
-                    let mut style = Style::default();
-                    if let Some(value) = style_table.get("fg") {
-                        if let config::ValueKind::String(color_name) = &value.kind {
-                            style.fg_color = color_for_name(color_name);
-                        }
-                    }
-                    if let Some(value) = style_table.get("bg") {
-                        if let config::ValueKind::String(color_name) = &value.kind {
-                            style.bg_color = color_for_name(color_name);
-                        }
-                    }
-                    if let Some(value) = style_table.get("bold") {
-                        if let config::ValueKind::Boolean(value) = &value.kind {
-                            style.bold = Some(*value);
-                        }
-                    }
-                    if let Some(value) = style_table.get("underlined") {
-                        if let config::ValueKind::Boolean(value) = &value.kind {
-                            style.underlined = Some(*value);
-                        }
-                    }
-                    result.push((labels, style));
-                }
-                _ => {}
+    let table = config.get_table("colors")?;
+    for (key, value) in table {
+        let labels = key
+            .split_whitespace()
+            .map(ToString::to_string)
+            .collect_vec();
+        match value.kind {
+            config::ValueKind::String(color_name) => {
+                let style = Style {
+                    fg_color: color_for_name(&color_name),
+                    bg_color: None,
+                    bold: None,
+                    underlined: None,
+                };
+                result.push((labels, style));
             }
+            config::ValueKind::Table(style_table) => {
+                let mut style = Style::default();
+                if let Some(value) = style_table.get("fg") {
+                    if let config::ValueKind::String(color_name) = &value.kind {
+                        style.fg_color = color_for_name(color_name);
+                    }
+                }
+                if let Some(value) = style_table.get("bg") {
+                    if let config::ValueKind::String(color_name) = &value.kind {
+                        style.bg_color = color_for_name(color_name);
+                    }
+                }
+                if let Some(value) = style_table.get("bold") {
+                    if let config::ValueKind::Boolean(value) = &value.kind {
+                        style.bold = Some(*value);
+                    }
+                }
+                if let Some(value) = style_table.get("underlined") {
+                    if let config::ValueKind::Boolean(value) = &value.kind {
+                        style.underlined = Some(*value);
+                    }
+                }
+                result.push((labels, style));
+            }
+            _ => {}
         }
     }
-    result
+    Ok(result)
 }
 
 fn color_for_name(color_name: &str) -> Option<Color> {
@@ -540,7 +543,7 @@ mod tests {
         }
         let mut output: Vec<u8> = vec![];
         let mut formatter =
-            ColorFormatter::for_config(&mut output, &config_builder.build().unwrap());
+            ColorFormatter::for_config(&mut output, &config_builder.build().unwrap()).unwrap();
         for color in colors {
             formatter.push_label(&color.replace(' ', "-")).unwrap();
             formatter.write_str(&format!(" {color} ")).unwrap();
@@ -577,7 +580,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
         formatter.write_str(" before ").unwrap();
         formatter.push_label("inside").unwrap();
         formatter.write_str(" inside ").unwrap();
@@ -600,7 +603,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
         formatter.push_label("red_fg").unwrap();
         formatter.write_str(" fg only ").unwrap();
         formatter.pop_label().unwrap();
@@ -647,7 +650,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
         formatter.push_label("not_bold").unwrap();
         formatter.write_str(" not bold ").unwrap();
         formatter.push_label("bold_font").unwrap();
@@ -668,7 +671,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
         formatter.write_str("before").unwrap();
         formatter.push_label("red").unwrap();
         formatter.write_str("first").unwrap();
@@ -689,7 +692,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
         formatter.push_label("red").unwrap();
         formatter
             .write_str("\x1b[1mnot actually bold\x1b[0m")
@@ -711,7 +714,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
         formatter.write_str(" before outer ").unwrap();
         formatter.push_label("outer").unwrap();
         formatter.write_str(" before inner ").unwrap();
@@ -734,7 +737,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
         formatter.push_label("outer").unwrap();
         formatter.write_str(" not colored ").unwrap();
         formatter.push_label("inner").unwrap();
@@ -756,7 +759,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
         formatter.push_label("outer").unwrap();
         formatter.write_str(" red before ").unwrap();
         formatter.push_label("inner").unwrap();
@@ -778,7 +781,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
         formatter.push_label("outer1").unwrap();
         formatter.push_label("inner2").unwrap();
         formatter.write_str(" hello ").unwrap();
@@ -797,7 +800,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
         formatter.push_label("outer").unwrap();
         formatter.push_label("inner").unwrap();
         formatter.write_str(" hello ").unwrap();
@@ -818,7 +821,7 @@ mod tests {
         "#,
         );
         let mut output: Vec<u8> = vec![];
-        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
         formatter.push_label("a").unwrap();
         formatter.write_str(" a1 ").unwrap();
         formatter.push_label("b").unwrap();
