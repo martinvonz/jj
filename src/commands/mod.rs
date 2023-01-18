@@ -2733,9 +2733,6 @@ fn rebase_branch(
 ) -> Result<(), CommandError> {
     let branch_commit = workspace_command.resolve_single_rev(branch_str)?;
     check_rebase_destinations(workspace_command.repo(), new_parents, &branch_commit)?;
-    let mut tx = workspace_command
-        .start_transaction(&format!("rebase branch at {}", branch_commit.id().hex()));
-
     let parent_ids = new_parents
         .iter()
         .map(|commit| commit.id().clone())
@@ -2743,17 +2740,19 @@ fn rebase_branch(
     let roots_expression = RevsetExpression::commits(parent_ids)
         .range(&RevsetExpression::commit(branch_commit.id().clone()))
         .roots();
-    let mut num_rebased = 0;
-    let store = tx.base_repo().store();
-    for root_result in workspace_command
+    let root_commits: Vec<_> = workspace_command
         .evaluate_revset(&roots_expression)
         .unwrap()
         .iter()
-        .commits(store)
-    {
-        let root_commit = root_result?;
-        workspace_command.check_rewriteable(&root_commit)?;
-        rebase_commit(command.settings(), tx.mut_repo(), &root_commit, new_parents)?;
+        .commits(workspace_command.repo().store())
+        .try_collect()?;
+
+    let mut tx = workspace_command
+        .start_transaction(&format!("rebase branch at {}", branch_commit.id().hex()));
+    let mut num_rebased = 0;
+    for root_commit in &root_commits {
+        workspace_command.check_rewriteable(root_commit)?;
+        rebase_commit(command.settings(), tx.mut_repo(), root_commit, new_parents)?;
         num_rebased += 1;
     }
     num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
@@ -2793,22 +2792,22 @@ fn rebase_revision(
     let old_commit = workspace_command.resolve_single_rev(rev_str)?;
     workspace_command.check_rewriteable(&old_commit)?;
     check_rebase_destinations(workspace_command.repo(), new_parents, &old_commit)?;
+    let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
+    let child_commits: Vec<_> = workspace_command
+        .evaluate_revset(&children_expression)
+        .unwrap()
+        .iter()
+        .commits(workspace_command.repo().store())
+        .try_collect()?;
+
     let mut tx =
         workspace_command.start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
     rebase_commit(command.settings(), tx.mut_repo(), &old_commit, new_parents)?;
     // Manually rebase children because we don't want to rebase them onto the
     // rewritten commit. (But we still want to record the commit as rewritten so
     // branches and the working copy get updated to the rewritten commit.)
-    let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
     let mut num_rebased_descendants = 0;
-
-    for child_commit in workspace_command
-        .evaluate_revset(&children_expression)
-        .unwrap()
-        .iter()
-        .commits(tx.base_repo().store())
-    {
-        let child_commit = child_commit?;
+    for child_commit in &child_commits {
         let new_child_parent_ids: Vec<CommitId> = child_commit
             .parents()
             .iter()
@@ -2843,7 +2842,7 @@ fn rebase_revision(
         rebase_commit(
             command.settings(),
             tx.mut_repo(),
-            &child_commit,
+            child_commit,
             &new_child_parents,
         )?;
         num_rebased_descendants += 1;
