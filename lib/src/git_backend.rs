@@ -445,37 +445,14 @@ impl Backend for GitBackend {
     }
 
     fn write_commit(&self, contents: &Commit) -> BackendResult<CommitId> {
-        let mut mut_commit = contents.clone();
-        // It's possible a commit already exists with the same commit id but different
-        // change id. Adjust the timestamp until this is no longer the case.
-        loop {
-            match self.write_commit_internal(&mut_commit)? {
-                None => {
-                    // This is measured in milliseconds, and Git can't handle durations
-                    // less than 1 second.
-                    mut_commit.committer.timestamp.timestamp.0 -= 1000
-                }
-                Some(result) => return Ok(result),
-            }
-        }
-    }
-}
-
-impl GitBackend {
-    /// Returns `Ok(None)` in the special case where the commit with the same id
-    /// already exists in the store.
-    fn write_commit_internal(&self, contents: &Commit) -> BackendResult<Option<CommitId>> {
-        // `write_commit_internal` is a separate function from `write_commit` because
-        // it would stall if it called itself without first unlocking `self.repo`.
         let locked_repo = self.repo.lock().unwrap();
         let git_tree_id = validate_git_object_id(&contents.root_tree)?;
         let git_tree = locked_repo
             .find_tree(git_tree_id)
             .map_err(|err| map_not_found_err(err, &contents.root_tree))?;
         let author = signature_to_git(&contents.author);
-        let committer = signature_to_git(&contents.committer);
+        let mut committer = signature_to_git(&contents.committer);
         let message = &contents.description;
-
         let mut parents = vec![];
         for parent_id in &contents.parents {
             if *parent_id == self.root_commit_id {
@@ -493,39 +470,55 @@ impl GitBackend {
             }
         }
         let parent_refs = parents.iter().collect_vec();
-        let git_id = locked_repo
-            .commit(
-                Some(&create_no_gc_ref()),
-                &author,
-                &committer,
-                message,
-                &git_tree,
-                &parent_refs,
-            )
-            .map_err(|err| BackendError::WriteObject {
-                object_type: "commit",
-                source: Box::new(err),
-            })?;
-        let id = CommitId::from_bytes(git_id.as_bytes());
         let extras = serialize_extras(contents);
         let mut mut_table = self
             .extra_metadata_store
             .get_head()
             .unwrap()
             .start_mutation();
-        if let Some(existing_extras) = mut_table.get_value(git_id.as_bytes()) {
-            if existing_extras != extras {
-                return Ok(None);
+        let id = loop {
+            let git_id = locked_repo
+                .commit(
+                    Some(&create_no_gc_ref()),
+                    &author,
+                    &committer,
+                    message,
+                    &git_tree,
+                    &parent_refs,
+                )
+                .map_err(|err| BackendError::WriteObject {
+                    object_type: "commit",
+                    source: Box::new(err),
+                })?;
+            let id = CommitId::from_bytes(git_id.as_bytes());
+            match mut_table.get_value(id.as_bytes()) {
+                Some(existing_extras) if existing_extras != extras => {
+                    // It's possible a commit already exists with the same commit id but different
+                    // change id. Adjust the timestamp until this is no longer the case.
+                    let new_when = git2::Time::new(
+                        committer.when().seconds() - 1,
+                        committer.when().offset_minutes(),
+                    );
+                    committer = git2::Signature::new(
+                        committer.name().unwrap(),
+                        committer.email().unwrap(),
+                        &new_when,
+                    )
+                    .unwrap();
+                }
+                _ => {
+                    break id;
+                }
             }
-        }
-        mut_table.add_entry(git_id.as_bytes().to_vec(), extras);
+        };
+        mut_table.add_entry(id.to_bytes(), extras);
         self.extra_metadata_store
             .save_table(mut_table)
             .map_err(|err| {
                 BackendError::Other(format!("Failed to write non-git metadata: {err}"))
             })?;
         *self.cached_extra_metadata.lock().unwrap() = None;
-        Ok(Some(id))
+        Ok(id)
     }
 }
 
