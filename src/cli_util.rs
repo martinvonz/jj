@@ -1848,6 +1848,27 @@ impl CliRunner {
         }
     }
 
+    /// Registers new global arguments in addition to the default ones.
+    pub fn add_global_args<A, F>(self, process_before: F) -> Self
+    where
+        A: clap::Args,
+        F: FnOnce(&mut Ui, A) -> Result<(), CommandError> + 'static,
+    {
+        let old_dispatch_fn = self.dispatch_fn;
+        let new_dispatch_fn =
+            move |ui: &mut Ui, command_helper: &CommandHelper, matches: &ArgMatches| {
+                let custom_args = A::from_arg_matches(matches).unwrap();
+                process_before(ui, custom_args)?;
+                old_dispatch_fn(ui, command_helper, matches)
+            };
+        CliRunner {
+            tracing_subscription: self.tracing_subscription,
+            app: A::augment_args(self.app),
+            store_factories: self.store_factories,
+            dispatch_fn: Box::new(new_dispatch_fn),
+        }
+    }
+
     pub fn run(self, ui: &mut Ui, mut layered_configs: LayeredConfigs) -> Result<(), CommandError> {
         let cwd = env::current_dir().unwrap(); // TODO: maybe map_err to CommandError?
         layered_configs.read_user_config()?;
