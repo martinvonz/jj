@@ -1717,7 +1717,7 @@ fn handle_early_args(
     }
     if !args.config_toml.is_empty() {
         layered_configs.parse_config_args(&args.config_toml)?;
-        ui.reset(&layered_configs.merge());
+        ui.reset(&layered_configs.merge())?;
     }
     Ok(())
 }
@@ -1899,7 +1899,7 @@ impl CliRunner {
         let cwd = env::current_dir().unwrap(); // TODO: maybe map_err to CommandError?
         layered_configs.read_user_config()?;
         let config = layered_configs.merge();
-        ui.reset(&config);
+        ui.reset(&config)?;
         let string_args = expand_args(&self.app, std::env::args_os(), &config)?;
         let (matches, args) = parse_args(
             ui,
@@ -1915,7 +1915,7 @@ impl CliRunner {
             layered_configs.read_repo_config(loader.repo_path())?;
         }
         let config = layered_configs.merge();
-        ui.reset(&config);
+        ui.reset(&config)?;
         let settings = UserSettings::from_config(config);
         let command_helper = CommandHelper::new(
             self.app,
@@ -1932,7 +1932,8 @@ impl CliRunner {
     #[must_use]
     pub fn run(self) -> ExitCode {
         let layered_configs = LayeredConfigs::from_environment();
-        let mut ui = Ui::with_config(&layered_configs.merge());
+        let mut ui = Ui::with_config(&layered_configs.merge())
+            .expect("default config should be valid, env vars are stringly typed");
         let result = self.run_internal(&mut ui, layered_configs);
         let exit_code = handle_command_result(&mut ui, result);
         ui.finalize_writes();
