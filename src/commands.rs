@@ -3901,10 +3901,11 @@ fn cmd_git_fetch(
     args: &GitFetchArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let remote = args
-        .remote
-        .clone()
-        .unwrap_or_else(|| command.settings().config().get("git.fetch").unwrap());
+    let remote = if let Some(name) = &args.remote {
+        name.clone()
+    } else {
+        command.settings().config().get("git.fetch")?
+    };
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction(&format!("fetch from git remote {}", &remote));
@@ -4158,10 +4159,11 @@ fn cmd_git_push(
     args: &GitPushArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let remote = args
-        .remote
-        .clone()
-        .unwrap_or_else(|| command.settings().config().get("git.push").unwrap());
+    let remote = if let Some(name) = &args.remote {
+        name.clone()
+    } else {
+        command.settings().config().get("git.push")?
+    };
     let mut tx;
     let mut branch_updates = vec![];
     let mut seen_branches = hashset! {};
