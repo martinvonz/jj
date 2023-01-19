@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+* The minimum supported Rust version (MSRV) is now 1.61.0.
+
 * The `jj touchup` command was renamed to `jj diffedit`.
 
 * The `-i` option to `jj restore` was removed in favor of new `--from`/`--to`
