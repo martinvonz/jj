@@ -429,11 +429,11 @@ impl CommitOrChangeId {
 
 fn highlight_shortest_prefix(mut hex: String, total_len: usize, repo: RepoRef) -> String {
     let prefix_len = repo.base_repo().shortest_unique_prefix_length(&hex);
-    if prefix_len < total_len - 1 {
+    if prefix_len < total_len - 2 {
         format!(
             "{}[{}]",
             &hex[0..prefix_len],
-            &hex[prefix_len..total_len - 1]
+            &hex[prefix_len..total_len - 2]
         )
     } else {
         hex.truncate(total_len);

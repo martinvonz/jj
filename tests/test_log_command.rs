@@ -304,7 +304,7 @@ fn test_log_prefix_highlight() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "original", "-T", prefix_format]),
         @r###"
-    @ Change 9[a45c67d3e9] initial b[a1a30916d2] original
+    @ Change 9[a45c67d3e] initial b[a1a30916d] original
     ~ 
     "###
     );
@@ -315,24 +315,24 @@ fn test_log_prefix_highlight() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "original", "-T", prefix_format]),
         @r###"
-    o Change 9a4[5c67d3e9] initial ba1[a30916d2] original
+    o Change 9a4[5c67d3e] initial ba1[a30916d] original
     ~ 
     "###
     );
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-----------..@", "-T", prefix_format]),
         @r###"
-    @ Change 4c9[32da8013] commit49 d8[3437a2cef] 
-    o Change 0d[58f15eaba] commit48 f3[abb4ea0ac] 
-    o Change fc[e6c2c5912] commit47 38e[891bea27] 
-    o Change d5[1defcac30] commit46 1c[04d947707] 
-    o Change 4f[13b1391d6] commit45 747[24ae22b1] 
-    o Change 6a[de2950a04] commit44 c7a[a67cf7bb] 
-    o Change 06c[482e452d] commit43 8e[c99dfcb6c] 
-    o Change 392[beeb018e] commit42 8f0[e60411b7] 
-    o Change a1[b73d3ff91] commit41 71[d6937a66c] 
-    o Change 708[8f461291] commit40 db[572049026] 
-    o Change c49[f7f006c7] commit39 d94[54fec8a6] 
+    @ Change 4c9[32da801] commit49 d8[3437a2ce] 
+    o Change 0d[58f15eab] commit48 f3[abb4ea0a] 
+    o Change fc[e6c2c591] commit47 38e[891bea2] 
+    o Change d5[1defcac3] commit46 1c[04d94770] 
+    o Change 4f[13b1391d] commit45 747[24ae22b] 
+    o Change 6a[de2950a0] commit44 c7a[a67cf7b] 
+    o Change 06c[482e452] commit43 8e[c99dfcb6] 
+    o Change 392[beeb018] commit42 8f0[e60411b] 
+    o Change a1[b73d3ff9] commit41 71[d6937a66] 
+    o Change 708[8f46129] commit40 db[57204902] 
+    o Change c49[f7f006c] commit39 d94[54fec8a] 
     ~ 
     "###
     );
@@ -355,7 +355,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "all()", "-T", prefix_format]),
         @r###"
-    @ Change 9[a45c67d3e9] initial b[a1a30916d2] original
+    @ Change 9[a45c67d3e] initial b[a1a30916d] original
     o Change 000000000000 (no description set) 000000000000 
     "###
     );
@@ -367,7 +367,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "ba1", "-T", prefix_format]),
         @r###"
-    o Change 9a4[5c67d3e9] initial ba1[a30916d2] 
+    o Change 9a4[5c67d3e] initial ba1[a30916d] 
     ~ 
     "###
     );
@@ -375,7 +375,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "all()", "-T", prefix_format]),
         @r###"
-    @ Change 9a4[5c67d3e9] commit99 de[3177d2acf] original
+    @ Change 9a4[5c67d3e] commit99 de[3177d2ac] original
     o Change 000000000000 (no description set) 000000000000 
     "###
     );
@@ -388,7 +388,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "de", "-T", prefix_format]),
         @r###"
-    @ Change 9a4[5c67d3e9] commit99 de[3177d2acf] original
+    @ Change 9a4[5c67d3e] commit99 de[3177d2ac] original
     ~ 
     "###
     );
