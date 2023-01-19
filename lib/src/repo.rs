@@ -1234,23 +1234,22 @@ mod tests {
     fn test_id_index() {
         let mut id_index = IdIndex::new();
         id_index.insert(b"ab", ());
-        id_index.insert(b"acd", ());
-        assert_eq!(id_index.shortest_unique_prefix_len(b"acd"), 2);
+        id_index.insert(b"acd0", ());
+        assert_eq!(id_index.shortest_unique_prefix_len(b"acd0"), 2);
         assert_eq!(id_index.shortest_unique_prefix_len(b"ac"), 3);
 
         let mut id_index = IdIndex::new();
         id_index.insert(b"ab", ());
-        id_index.insert(b"acd", ());
-        id_index.insert(b"acf", ());
-        id_index.insert(b"a", ());
+        id_index.insert(b"acd0", ());
+        id_index.insert(b"acf0", ());
+        id_index.insert(b"a0", ());
         id_index.insert(b"ba", ());
 
-        assert_eq!(id_index.shortest_unique_prefix_len(b"a"), 2); // Unlikely for hashes case: the entire length of the key is an insufficient
-                                                                  // prefix
+        assert_eq!(id_index.shortest_unique_prefix_len(b"a0"), 2);
         assert_eq!(id_index.shortest_unique_prefix_len(b"ba"), 1);
         assert_eq!(id_index.shortest_unique_prefix_len(b"ab"), 2);
-        assert_eq!(id_index.shortest_unique_prefix_len(b"acd"), 3);
+        assert_eq!(id_index.shortest_unique_prefix_len(b"acd0"), 3);
         // If it were there, the length would be 1.
-        assert_eq!(id_index.shortest_unique_prefix_len(b"c"), 1);
+        assert_eq!(id_index.shortest_unique_prefix_len(b"c0"), 1);
     }
 }
