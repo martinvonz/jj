@@ -420,23 +420,13 @@ impl CommitOrChangeId {
             CommitOrChangeId::ChangeId(id) => id.hex(),
         }
     }
-}
 
-pub struct CommitOrChangeIdKeyword;
-
-impl CommitOrChangeIdKeyword {
-    pub fn default_format(commit_or_change_id: CommitOrChangeId) -> String {
-        commit_or_change_id.hex()
+    pub fn short(&self) -> String {
+        self.hex()[..12].to_string()
     }
 
-    pub fn short_format(commit_or_change_id: CommitOrChangeId) -> String {
-        commit_or_change_id.hex()[..12].to_string()
-    }
-    pub fn short_prefix_and_brackets_format(
-        commit_or_change_id: CommitOrChangeId,
-        repo: RepoRef,
-    ) -> String {
-        highlight_shortest_prefix(&commit_or_change_id.hex(), 12, repo)
+    pub fn short_prefix_and_brackets(&self, repo: RepoRef) -> String {
+        highlight_shortest_prefix(&self.hex(), 12, repo)
     }
 }
 
@@ -459,7 +449,7 @@ pub struct CommitOrChangeIdShort<'a> {
 
 impl TemplateProperty<CommitOrChangeId, String> for CommitOrChangeIdShort<'_> {
     fn extract(&self, context: &CommitOrChangeId) -> String {
-        CommitOrChangeIdKeyword::short_format(context.clone())
+        context.short()
     }
 }
 
@@ -469,7 +459,7 @@ pub struct CommitOrChangeIdShortPrefixAndBrackets<'a> {
 
 impl TemplateProperty<CommitOrChangeId, String> for CommitOrChangeIdShortPrefixAndBrackets<'_> {
     fn extract(&self, context: &CommitOrChangeId) -> String {
-        CommitOrChangeIdKeyword::short_prefix_and_brackets_format(context.clone(), self.repo)
+        context.short_prefix_and_brackets(self.repo)
     }
 }
 
