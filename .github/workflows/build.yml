@@ -36,9 +36,9 @@ jobs:
       with:
         toolchain:  ${{ matrix.rust_version }}
     - name: Build
-      run: cargo build --workspace --verbose
+      run: cargo build --workspace --all-targets --verbose
     - name: Test
-      run: cargo test --workspace --verbose
+      run: cargo test --workspace --all-targets --verbose
       env:
         RUST_BACKTRACE: 1
 
