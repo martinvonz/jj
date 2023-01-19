@@ -34,13 +34,13 @@ fn test_obslog_with_or_without_diff() {
 
     let stdout = get_log_output(&test_env, &repo_path, &["obslog"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ 8[e4fac809cb] test.user@example.com 2001-02-03 04:05:10.000 +07:00 66[b42ad3607]
+    @ 8[e4fac809c] test.user@example.com 2001-02-03 04:05:10.000 +07:00 66[b42ad360]
     | my description
-    o 8[e4fac809cb] test.user@example.com 2001-02-03 04:05:09.000 +07:00 af[536e5af67] conflict
+    o 8[e4fac809c] test.user@example.com 2001-02-03 04:05:09.000 +07:00 af[536e5af6] conflict
     | my description
-    o 8[e4fac809cb] test.user@example.com 2001-02-03 04:05:09.000 +07:00 6f[bba7bcb59]
+    o 8[e4fac809c] test.user@example.com 2001-02-03 04:05:09.000 +07:00 6f[bba7bcb5]
     | my description
-    o 8[e4fac809cb] test.user@example.com 2001-02-03 04:05:08.000 +07:00 e[ac0d0dae08]
+    o 8[e4fac809c] test.user@example.com 2001-02-03 04:05:08.000 +07:00 e[ac0d0dae0]
       (empty) my description
     "###);
 
@@ -48,43 +48,43 @@ fn test_obslog_with_or_without_diff() {
     // (even even though it resulted in a conflict).
     let stdout = get_log_output(&test_env, &repo_path, &["obslog", "-p"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ 8[e4fac809cb] test.user@example.com 2001-02-03 04:05:10.000 +07:00 66[b42ad3607]
+    @ 8[e4fac809c] test.user@example.com 2001-02-03 04:05:10.000 +07:00 66[b42ad360]
     | my description
     | Resolved conflict in file1:
     |    1    1: <<<<<<<resolved
     |    2     : %%%%%%%
     |    3     : +bar
     |    4     : >>>>>>>
-    o 8[e4fac809cb] test.user@example.com 2001-02-03 04:05:09.000 +07:00 af[536e5af67] conflict
+    o 8[e4fac809c] test.user@example.com 2001-02-03 04:05:09.000 +07:00 af[536e5af6] conflict
     | my description
-    o 8[e4fac809cb] test.user@example.com 2001-02-03 04:05:09.000 +07:00 6f[bba7bcb59]
+    o 8[e4fac809c] test.user@example.com 2001-02-03 04:05:09.000 +07:00 6f[bba7bcb5]
     | my description
     | Modified regular file file1:
     |    1    1: foo
     |         2: bar
     | Added regular file file2:
     |         1: foo
-    o 8[e4fac809cb] test.user@example.com 2001-02-03 04:05:08.000 +07:00 e[ac0d0dae08]
+    o 8[e4fac809c] test.user@example.com 2001-02-03 04:05:08.000 +07:00 e[ac0d0dae0]
       (empty) my description
     "###);
 
     // Test `--no-graph`
     let stdout = get_log_output(&test_env, &repo_path, &["obslog", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
-    8[e4fac809cb] test.user@example.com 2001-02-03 04:05:10.000 +07:00 66[b42ad3607]
+    8[e4fac809c] test.user@example.com 2001-02-03 04:05:10.000 +07:00 66[b42ad360]
     my description
-    8[e4fac809cb] test.user@example.com 2001-02-03 04:05:09.000 +07:00 af[536e5af67] conflict
+    8[e4fac809c] test.user@example.com 2001-02-03 04:05:09.000 +07:00 af[536e5af6] conflict
     my description
-    8[e4fac809cb] test.user@example.com 2001-02-03 04:05:09.000 +07:00 6f[bba7bcb59]
+    8[e4fac809c] test.user@example.com 2001-02-03 04:05:09.000 +07:00 6f[bba7bcb5]
     my description
-    8[e4fac809cb] test.user@example.com 2001-02-03 04:05:08.000 +07:00 e[ac0d0dae08]
+    8[e4fac809c] test.user@example.com 2001-02-03 04:05:08.000 +07:00 e[ac0d0dae0]
     (empty) my description
     "###);
 
     // Test `--git` format, and that it implies `-p`
     let stdout = get_log_output(&test_env, &repo_path, &["obslog", "--no-graph", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
-    8[e4fac809cb] test.user@example.com 2001-02-03 04:05:10.000 +07:00 66[b42ad3607]
+    8[e4fac809c] test.user@example.com 2001-02-03 04:05:10.000 +07:00 66[b42ad360]
     my description
     diff --git a/file1 b/file1
     index e155302a24...2ab19ae607 100644
@@ -96,9 +96,9 @@ fn test_obslog_with_or_without_diff() {
     -+bar
     ->>>>>>>
     +resolved
-    8[e4fac809cb] test.user@example.com 2001-02-03 04:05:09.000 +07:00 af[536e5af67] conflict
+    8[e4fac809c] test.user@example.com 2001-02-03 04:05:09.000 +07:00 af[536e5af6] conflict
     my description
-    8[e4fac809cb] test.user@example.com 2001-02-03 04:05:09.000 +07:00 6f[bba7bcb59]
+    8[e4fac809c] test.user@example.com 2001-02-03 04:05:09.000 +07:00 6f[bba7bcb5]
     my description
     diff --git a/file1 b/file1
     index 257cc5642c...3bd1f0e297 100644
@@ -114,7 +114,7 @@ fn test_obslog_with_or_without_diff() {
     +++ b/file2
     @@ -1,0 +1,1 @@
     +foo
-    8[e4fac809cb] test.user@example.com 2001-02-03 04:05:08.000 +07:00 e[ac0d0dae08]
+    8[e4fac809c] test.user@example.com 2001-02-03 04:05:08.000 +07:00 e[ac0d0dae0]
     (empty) my description
     "###);
 }
@@ -136,25 +136,25 @@ fn test_obslog_squash() {
 
     let stdout = get_log_output(&test_env, &repo_path, &["obslog", "-p", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    o   9a[45c67d3e9] test.user@example.com 2001-02-03 04:05:10.000 +07:00 27[e721a5ba7]
+    o   9a[45c67d3e] test.user@example.com 2001-02-03 04:05:10.000 +07:00 27[e721a5ba]
     |\  squashed
     | | Modified regular file file1:
     | |    1    1: foo
     | |         2: bar
-    o | 9a[45c67d3e9] test.user@example.com 2001-02-03 04:05:09.000 +07:00 97[64e503e1a]
+    o | 9a[45c67d3e] test.user@example.com 2001-02-03 04:05:09.000 +07:00 97[64e503e1]
     | | first
     | | Added regular file file1:
     | |         1: foo
-    o | 9a[45c67d3e9] test.user@example.com 2001-02-03 04:05:08.000 +07:00 6[9542c1984c]
+    o | 9a[45c67d3e] test.user@example.com 2001-02-03 04:05:08.000 +07:00 6[9542c1984]
     | | (empty) first
-    o | 9a[45c67d3e9] test.user@example.com 2001-02-03 04:05:07.000 +07:00 23[0dd059e1b]
+    o | 9a[45c67d3e] test.user@example.com 2001-02-03 04:05:07.000 +07:00 23[0dd059e1]
      /  (empty) (no description set)
-    o ff[daa62087a] test.user@example.com 2001-02-03 04:05:10.000 +07:00 f[09a38899f2]
+    o ff[daa62087] test.user@example.com 2001-02-03 04:05:10.000 +07:00 f[09a38899f]
     | second
     | Modified regular file file1:
     |    1    1: foo
     |         2: bar
-    o ff[daa62087a] test.user@example.com 2001-02-03 04:05:09.000 +07:00 5[7996536970]
+    o ff[daa62087] test.user@example.com 2001-02-03 04:05:09.000 +07:00 5[799653697]
       (empty) second
     "###);
 }
