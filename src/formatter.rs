@@ -376,14 +376,14 @@ impl<W: Write> Write for ColorFormatter<W> {
         for line in data.split_inclusive(|b| *b == b'\n') {
             if line.ends_with(b"\n") {
                 self.write_new_style()?;
-                self.output.write_all(&line[..line.len() - 1])?;
+                write_sanitized(&mut self.output, &line[..line.len() - 1])?;
                 let labels = mem::take(&mut self.labels);
                 self.write_new_style()?;
                 self.output.write_all(b"\n")?;
                 self.labels = labels;
             } else {
                 self.write_new_style()?;
-                self.output.write_all(line)?;
+                write_sanitized(&mut self.output, line)?;
             }
         }
         Ok(data.len())
@@ -410,6 +410,22 @@ impl<W: Write> Formatter for ColorFormatter<W> {
             self.write_new_style()?
         }
         Ok(())
+    }
+}
+
+fn write_sanitized(output: &mut impl Write, buf: &[u8]) -> Result<(), Error> {
+    if buf.contains(&b'\x1b') {
+        let mut sanitized = Vec::with_capacity(buf.len());
+        for b in buf {
+            if *b == b'\x1b' {
+                sanitized.extend_from_slice("␛".as_bytes());
+            } else {
+                sanitized.push(*b);
+            }
+        }
+        output.write_all(&sanitized)
+    } else {
+        output.write_all(buf)
     }
 }
 
@@ -620,8 +636,7 @@ mod tests {
             .write_str("\x1b[1mnot actually bold\x1b[0m")
             .unwrap();
         formatter.pop_label().unwrap();
-        // TODO: Replace the ANSI escape (\x1b) by something else (🌈?)
-        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[38;5;1m[1mnot actually bold[0m[39m");
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[38;5;1m␛[1mnot actually bold␛[0m[39m");
     }
 
     #[test]
