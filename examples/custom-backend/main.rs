@@ -60,11 +60,11 @@ fn run_custom_command(
     }
 }
 
-fn main() {
+fn main() -> std::process::ExitCode {
     CliRunner::init()
         .set_store_factories(create_store_factories())
         .add_subcommand(run_custom_command)
-        .run_and_exit();
+        .run()
 }
 
 /// A commit backend that's extremely similar to the Git backend
