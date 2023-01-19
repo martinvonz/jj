@@ -140,7 +140,7 @@ See below for how to build from source. There are also
 [pre-built binaries](https://github.com/martinvonz/jj/releases) for Windows,
 Mac, or Linux (musl).
 
-If you're installing from source, you need to use Rust version 1.60 or higher,
+If you're installing from source, you need to use Rust version 1.61 or higher,
 or you will get a cryptic message like this:
 ```
 error: failed to select a version for the requirement `libgit2-sys = "=0.14.0"``

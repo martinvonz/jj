@@ -33,7 +33,7 @@ use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
 #[cfg(not(feature = "map_first_last"))]
-// This import is used on Rust 1.60, but not on recent version.
+// This import is used on Rust 1.61, but not on recent version.
 // TODO: Remove it when our MSRV becomes recent enough.
 #[allow(unused_imports)]
 use crate::nightly_shims::BTreeSetExt;

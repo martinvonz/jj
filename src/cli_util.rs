@@ -1735,7 +1735,8 @@ pub fn parse_args(
     Ok((matches, args))
 }
 
-// TODO: Return std::process::ExitCode instead, once our MSRV is >= 1.61
+// TODO: Return std::process::ExitCode instead, once
+// feature(exitcode_exit_method) is stabilized
 #[must_use]
 pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i32 {
     match result {
