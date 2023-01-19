@@ -28,6 +28,10 @@ pub trait Formatter: Write {
         self.write_all(text.as_bytes())
     }
 
+    /// Returns the backing `Write`. This is useful for writing data that is
+    /// already formatted, such as in the graphical log.
+    fn raw(&mut self) -> &mut dyn Write;
+
     fn push_label(&mut self, label: &str) -> io::Result<()>;
 
     fn pop_label(&mut self) -> io::Result<()>;
@@ -137,6 +141,10 @@ impl<W: Write> Write for PlainTextFormatter<W> {
 }
 
 impl<W: Write> Formatter for PlainTextFormatter<W> {
+    fn raw(&mut self) -> &mut dyn Write {
+        &mut self.output
+    }
+
     fn push_label(&mut self, _label: &str) -> io::Result<()> {
         Ok(())
     }
@@ -387,6 +395,10 @@ impl<W: Write> Write for ColorFormatter<W> {
 }
 
 impl<W: Write> Formatter for ColorFormatter<W> {
+    fn raw(&mut self) -> &mut dyn Write {
+        &mut self.output
+    }
+
     fn push_label(&mut self, label: &str) -> io::Result<()> {
         self.labels.push(label.to_owned());
         Ok(())

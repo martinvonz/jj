@@ -54,7 +54,7 @@ fn cmd_op_log(
     let head_op_id = head_op.id().clone();
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
-    let mut formatter = formatter.as_mut();
+    let formatter = formatter.as_mut();
     struct OpTemplate {
         relative_timestamps: bool,
     }
@@ -108,7 +108,7 @@ fn cmd_op_log(
         relative_timestamps: command.settings().relative_timestamps(),
     };
 
-    let mut graph = get_graphlog(command.settings(), &mut formatter);
+    let mut graph = get_graphlog(command.settings(), formatter.raw());
     for op in topo_order_reverse(
         vec![head_op],
         Box::new(|op: &Operation| op.id().clone()),
