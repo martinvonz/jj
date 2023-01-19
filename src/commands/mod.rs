@@ -1443,10 +1443,10 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     {
         ui.request_pager();
         let mut formatter = ui.stdout_formatter();
-        let mut formatter = formatter.as_mut();
+        let formatter = formatter.as_mut();
 
         if !args.no_graph {
-            let mut graph = get_graphlog(command.settings(), &mut formatter);
+            let mut graph = get_graphlog(command.settings(), formatter.raw());
             let iter: Box<dyn Iterator<Item = (IndexEntry, Vec<RevsetGraphEdge>)>> =
                 if args.reversed {
                     Box::new(revset.iter().graph().reversed())
@@ -1576,7 +1576,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
 
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
-    let mut formatter = formatter.as_mut();
+    let formatter = formatter.as_mut();
     formatter.push_label("log")?;
 
     let commits = topo_order_reverse(
@@ -1585,7 +1585,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
         Box::new(|commit: &Commit| commit.predecessors()),
     );
     if !args.no_graph {
-        let mut graph = get_graphlog(command.settings(), &mut formatter);
+        let mut graph = get_graphlog(command.settings(), formatter.raw());
         for commit in commits {
             let mut edges = vec![];
             for predecessor in &commit.predecessors() {
