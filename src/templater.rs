@@ -422,16 +422,18 @@ impl CommitOrChangeId {
     }
 
     pub fn short(&self) -> String {
-        self.hex()[..12].to_string()
+        let mut hex = self.hex();
+        hex.truncate(12);
+        hex
     }
 
     pub fn short_prefix_and_brackets(&self, repo: RepoRef) -> String {
-        highlight_shortest_prefix(&self.hex(), 12, repo)
+        highlight_shortest_prefix(self.hex(), 12, repo)
     }
 }
 
-fn highlight_shortest_prefix(hex: &str, total_len: usize, repo: RepoRef) -> String {
-    let prefix_len = repo.base_repo().shortest_unique_prefix_length(hex);
+fn highlight_shortest_prefix(mut hex: String, total_len: usize, repo: RepoRef) -> String {
+    let prefix_len = repo.base_repo().shortest_unique_prefix_length(&hex);
     if prefix_len < total_len - 1 {
         format!(
             "{}[{}]",
@@ -439,7 +441,8 @@ fn highlight_shortest_prefix(hex: &str, total_len: usize, repo: RepoRef) -> Stri
             &hex[prefix_len..total_len - 1]
         )
     } else {
-        hex[0..total_len].to_string()
+        hex.truncate(total_len);
+        hex
     }
 }
 
