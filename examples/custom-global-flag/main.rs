@@ -29,8 +29,6 @@ fn process_before(ui: &mut Ui, custom_global_args: CustomGlobalArgs) -> Result<(
     Ok(())
 }
 
-fn main() {
-    CliRunner::init()
-        .add_global_args(process_before)
-        .run_and_exit();
+fn main() -> std::process::ExitCode {
+    CliRunner::init().add_global_args(process_before).run()
 }

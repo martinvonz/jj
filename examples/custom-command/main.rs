@@ -54,8 +54,6 @@ fn run_custom_command(
     }
 }
 
-fn main() {
-    CliRunner::init()
-        .add_subcommand(run_custom_command)
-        .run_and_exit();
+fn main() -> std::process::ExitCode {
+    CliRunner::init().add_subcommand(run_custom_command).run()
 }

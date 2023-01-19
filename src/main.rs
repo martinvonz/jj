@@ -14,6 +14,6 @@
 
 use jujutsu::cli_util::CliRunner;
 
-fn main() {
-    CliRunner::init().run_and_exit();
+fn main() -> std::process::ExitCode {
+    CliRunner::init().run()
 }

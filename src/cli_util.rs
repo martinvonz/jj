@@ -19,6 +19,7 @@ use std::fmt::Debug;
 use std::iter;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -1735,26 +1736,24 @@ pub fn parse_args(
     Ok((matches, args))
 }
 
-// TODO: Return std::process::ExitCode instead, once
-// feature(exitcode_exit_method) is stabilized
 #[must_use]
-pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i32 {
+pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> ExitCode {
     match result {
-        Ok(()) => 0,
+        Ok(()) => ExitCode::SUCCESS,
         Err(CommandError::UserError { message, hint }) => {
             writeln!(ui.error(), "Error: {message}").unwrap();
             if let Some(hint) = hint {
                 writeln!(ui.hint(), "Hint: {hint}").unwrap();
             }
-            1
+            ExitCode::from(1)
         }
         Err(CommandError::ConfigError(message)) => {
             writeln!(ui.error(), "Config error: {message}").unwrap();
-            1
+            ExitCode::from(1)
         }
         Err(CommandError::CliError(message)) => {
             writeln!(ui.error(), "Error: {message}").unwrap();
-            2
+            ExitCode::from(2)
         }
         Err(CommandError::ClapCliError(inner)) => {
             let clap_str = if ui.color() {
@@ -1775,18 +1774,18 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> i
             match inner.kind() {
                 clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion => {
                     ui.write(&clap_str).unwrap();
-                    0
+                    ExitCode::SUCCESS
                 }
                 _ => {
                     ui.write_stderr(&clap_str).unwrap();
-                    2
+                    ExitCode::from(2)
                 }
             }
         }
-        Err(CommandError::BrokenPipe) => 3,
+        Err(CommandError::BrokenPipe) => ExitCode::from(3),
         Err(CommandError::InternalError(message)) => {
             writeln!(ui.error(), "Internal error: {message}").unwrap();
-            255
+            ExitCode::from(255)
         }
     }
 }
@@ -1870,7 +1869,11 @@ impl CliRunner {
         }
     }
 
-    pub fn run(self, ui: &mut Ui, mut layered_configs: LayeredConfigs) -> Result<(), CommandError> {
+    fn run_internal(
+        self,
+        ui: &mut Ui,
+        mut layered_configs: LayeredConfigs,
+    ) -> Result<(), CommandError> {
         let cwd = env::current_dir().unwrap(); // TODO: maybe map_err to CommandError?
         layered_configs.read_user_config()?;
         let config = layered_configs.merge();
@@ -1904,12 +1907,13 @@ impl CliRunner {
         (self.dispatch_fn)(ui, &command_helper, &matches)
     }
 
-    pub fn run_and_exit(self) -> ! {
+    #[must_use]
+    pub fn run(self) -> ExitCode {
         let layered_configs = LayeredConfigs::from_environment();
         let mut ui = Ui::with_config(&layered_configs.merge());
-        let result = self.run(&mut ui, layered_configs);
+        let result = self.run_internal(&mut ui, layered_configs);
         let exit_code = handle_command_result(&mut ui, result);
         ui.finalize_writes();
-        std::process::exit(exit_code);
+        exit_code
     }
 }
