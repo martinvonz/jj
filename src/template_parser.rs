@@ -23,12 +23,12 @@ use pest_derive::Parser;
 use crate::formatter::PlainTextFormatter;
 use crate::templater::{
     AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdProperty, CommitOrChangeId,
-    CommitOrChangeIdKeyword, CommitOrChangeIdShort, CommitOrChangeIdShortPrefixAndBrackets,
-    CommitterProperty, ConditionalTemplate, ConflictProperty, ConstantTemplateProperty,
-    DescriptionProperty, DivergentProperty, DynamicLabelTemplate, EmptyProperty, GitRefsProperty,
-    IsGitHeadProperty, IsWorkingCopyProperty, LabelTemplate, ListTemplate, LiteralTemplate,
-    SignatureTimestamp, StringPropertyTemplate, TagProperty, Template, TemplateFunction,
-    TemplateProperty, WorkingCopiesProperty,
+    CommitOrChangeIdShort, CommitOrChangeIdShortPrefixAndBrackets, CommitterProperty,
+    ConditionalTemplate, ConflictProperty, ConstantTemplateProperty, DescriptionProperty,
+    DivergentProperty, DynamicLabelTemplate, EmptyProperty, GitRefsProperty, IsGitHeadProperty,
+    IsWorkingCopyProperty, LabelTemplate, ListTemplate, LiteralTemplate, SignatureTimestamp,
+    StringPropertyTemplate, TagProperty, Template, TemplateFunction, TemplateProperty,
+    WorkingCopiesProperty,
 };
 use crate::time_util;
 
@@ -295,10 +295,9 @@ fn coerce_to_string<'a, I: 'a>(
             property,
             Box::new(|value| String::from(if value { "true" } else { "false" })),
         )),
-        Property::CommitOrChangeId(property, _) => Box::new(TemplateFunction::new(
-            property,
-            Box::new(CommitOrChangeIdKeyword::default_format),
-        )),
+        Property::CommitOrChangeId(property, _) => {
+            Box::new(TemplateFunction::new(property, Box::new(|id| id.hex())))
+        }
         Property::Signature(property) => Box::new(TemplateFunction::new(
             property,
             Box::new(|signature| signature.name),
