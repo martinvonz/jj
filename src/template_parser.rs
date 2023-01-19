@@ -22,13 +22,13 @@ use pest_derive::Parser;
 
 use crate::formatter::PlainTextFormatter;
 use crate::templater::{
-    AuthorProperty, BranchProperty, CommitOrChangeId, CommitOrChangeIdKeyword,
-    CommitOrChangeIdShort, CommitOrChangeIdShortPrefixAndBrackets, CommitterProperty,
-    ConditionalTemplate, ConflictProperty, ConstantTemplateProperty, DescriptionProperty,
-    DivergentProperty, DynamicLabelTemplate, EmptyProperty, GitRefsProperty, IsGitHeadProperty,
-    IsWorkingCopyProperty, LabelTemplate, ListTemplate, LiteralTemplate, SignatureTimestamp,
-    StringPropertyTemplate, TagProperty, Template, TemplateFunction, TemplateProperty,
-    WorkingCopiesProperty,
+    AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdProperty, CommitOrChangeId,
+    CommitOrChangeIdKeyword, CommitOrChangeIdShort, CommitOrChangeIdShortPrefixAndBrackets,
+    CommitterProperty, ConditionalTemplate, ConflictProperty, ConstantTemplateProperty,
+    DescriptionProperty, DivergentProperty, DynamicLabelTemplate, EmptyProperty, GitRefsProperty,
+    IsGitHeadProperty, IsWorkingCopyProperty, LabelTemplate, ListTemplate, LiteralTemplate,
+    SignatureTimestamp, StringPropertyTemplate, TagProperty, Template, TemplateFunction,
+    TemplateProperty, WorkingCopiesProperty,
 };
 use crate::time_util;
 
@@ -265,12 +265,8 @@ fn parse_commit_keyword<'a>(
     assert_eq!(pair.as_rule(), Rule::identifier);
     let property = match pair.as_str() {
         "description" => Property::String(Box::new(DescriptionProperty)),
-        "change_id" => {
-            Property::CommitOrChangeId(Box::new(CommitOrChangeIdKeyword::change()), repo)
-        }
-        "commit_id" => {
-            Property::CommitOrChangeId(Box::new(CommitOrChangeIdKeyword::commit()), repo)
-        }
+        "change_id" => Property::CommitOrChangeId(Box::new(ChangeIdProperty), repo),
+        "commit_id" => Property::CommitOrChangeId(Box::new(CommitIdProperty), repo),
         "author" => Property::Signature(Box::new(AuthorProperty)),
         "committer" => Property::Signature(Box::new(CommitterProperty)),
         "working_copies" => Property::String(Box::new(WorkingCopiesProperty { repo })),

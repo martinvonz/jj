@@ -422,21 +422,9 @@ impl CommitOrChangeId {
     }
 }
 
-#[derive(Debug, Clone)]
-enum CommitOrChange {
-    Commit,
-    Change,
-}
-
-pub struct CommitOrChangeIdKeyword(CommitOrChange);
+pub struct CommitOrChangeIdKeyword;
 
 impl CommitOrChangeIdKeyword {
-    pub fn commit() -> Self {
-        Self(CommitOrChange::Commit)
-    }
-    pub fn change() -> Self {
-        Self(CommitOrChange::Change)
-    }
     pub fn default_format(commit_or_change_id: CommitOrChangeId) -> String {
         commit_or_change_id.hex()
     }
@@ -485,12 +473,19 @@ impl TemplateProperty<CommitOrChangeId, String> for CommitOrChangeIdShortPrefixA
     }
 }
 
-impl TemplateProperty<Commit, CommitOrChangeId> for CommitOrChangeIdKeyword {
+pub struct CommitIdProperty;
+
+impl TemplateProperty<Commit, CommitOrChangeId> for CommitIdProperty {
     fn extract(&self, context: &Commit) -> CommitOrChangeId {
-        match &self.0 {
-            CommitOrChange::Commit => CommitOrChangeId::CommitId(context.id().clone()),
-            CommitOrChange::Change => CommitOrChangeId::ChangeId(context.change_id().clone()),
-        }
+        CommitOrChangeId::CommitId(context.id().clone())
+    }
+}
+
+pub struct ChangeIdProperty;
+
+impl TemplateProperty<Commit, CommitOrChangeId> for ChangeIdProperty {
+    fn extract(&self, context: &Commit) -> CommitOrChangeId {
+        CommitOrChangeId::ChangeId(context.change_id().clone())
     }
 }
 
