@@ -18,7 +18,7 @@ use std::io;
 use std::ops::AddAssign;
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{ChangeId, CommitId, ObjectId, Signature, Timestamp};
+use jujutsu_lib::backend::{ChangeId, ObjectId, Signature, Timestamp};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
@@ -407,18 +407,13 @@ impl<'a, C, I, O> TemplateProperty<C, O> for TemplateFunction<'a, C, I, O> {
     }
 }
 
+/// Type-erased `CommitId`/`ChangeId`.
 #[derive(Debug, Clone)]
-pub enum CommitOrChangeId {
-    CommitId(CommitId),
-    ChangeId(ChangeId),
-}
+pub struct CommitOrChangeId(Vec<u8>);
 
 impl CommitOrChangeId {
     pub fn hex(&self) -> String {
-        match self {
-            CommitOrChangeId::CommitId(id) => id.hex(),
-            CommitOrChangeId::ChangeId(id) => id.hex(),
-        }
+        hex::encode(&self.0)
     }
 
     pub fn short(&self) -> String {
@@ -470,7 +465,7 @@ pub struct CommitIdProperty;
 
 impl TemplateProperty<Commit, CommitOrChangeId> for CommitIdProperty {
     fn extract(&self, context: &Commit) -> CommitOrChangeId {
-        CommitOrChangeId::CommitId(context.id().clone())
+        CommitOrChangeId(context.id().to_bytes())
     }
 }
 
@@ -478,7 +473,7 @@ pub struct ChangeIdProperty;
 
 impl TemplateProperty<Commit, CommitOrChangeId> for ChangeIdProperty {
     fn extract(&self, context: &Commit) -> CommitOrChangeId {
-        CommitOrChangeId::ChangeId(context.change_id().clone())
+        CommitOrChangeId(context.change_id().to_bytes())
     }
 }
 
