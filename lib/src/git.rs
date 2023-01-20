@@ -553,11 +553,8 @@ impl<'a> RemoteCallbacks<'a> {
         if let Some(progress_cb) = self.progress {
             callbacks.transfer_progress(move |progress| {
                 progress_cb(&Progress {
-                    bytes_downloaded: if progress.received_objects() < progress.total_objects() {
-                        Some(progress.received_bytes() as u64)
-                    } else {
-                        None
-                    },
+                    bytes_downloaded: (progress.received_objects() < progress.total_objects())
+                        .then(|| progress.received_bytes() as u64),
                     overall: (progress.indexed_objects() + progress.indexed_deltas()) as f32
                         / (progress.total_objects() + progress.total_deltas()) as f32,
                 });

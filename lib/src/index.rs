@@ -1240,11 +1240,7 @@ impl IndexSegment for ReadonlyIndex {
     fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         let lookup_pos = self.commit_id_byte_prefix_to_lookup_pos(commit_id)?;
         let entry = self.lookup_entry(lookup_pos);
-        if &entry.commit_id() == commit_id {
-            Some(entry.pos())
-        } else {
-            None
-        }
+        (&entry.commit_id() == commit_id).then(|| entry.pos())
     }
 
     fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
