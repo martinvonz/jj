@@ -1233,30 +1233,12 @@ impl IndexSegment for ReadonlyIndex {
     }
 
     fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
-        if self.num_local_commits == 0 {
-            // Avoid overflow when subtracting 1 below
-            return None;
-        }
-        let mut low = 0;
-        let mut high = self.num_local_commits - 1;
-
-        // binary search for the commit id
-        loop {
-            let mid = (low + high) / 2;
-            let entry = self.lookup_entry(mid);
-            let entry_commit_id = entry.commit_id();
-            if high == low {
-                return if &entry_commit_id == commit_id {
-                    Some(entry.pos())
-                } else {
-                    None
-                };
-            }
-            if commit_id > &entry_commit_id {
-                low = mid + 1;
-            } else {
-                high = mid;
-            }
+        let lookup_pos = self.commit_id_byte_prefix_to_lookup_pos(commit_id)?;
+        let entry = self.lookup_entry(lookup_pos);
+        if &entry.commit_id() == commit_id {
+            Some(entry.pos())
+        } else {
+            None
         }
     }
 
