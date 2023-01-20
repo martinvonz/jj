@@ -672,6 +672,13 @@ trait IndexSegment {
 
     fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition>;
 
+    /// Suppose the given `commit_id` exists, returns the positions of the
+    /// previous and next commit ids in lexicographical order.
+    fn segment_commit_id_to_neighbor_positions(
+        &self,
+        commit_id: &CommitId,
+    ) -> (Option<IndexPosition>, Option<IndexPosition>);
+
     fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
 
     fn segment_generation_number(&self, local_pos: u32) -> u32;
@@ -1243,6 +1250,31 @@ impl IndexSegment for ReadonlyIndex {
         (&entry.commit_id() == commit_id).then(|| entry.pos())
     }
 
+    fn segment_commit_id_to_neighbor_positions(
+        &self,
+        commit_id: &CommitId,
+    ) -> (Option<IndexPosition>, Option<IndexPosition>) {
+        if let Some(lookup_pos) = self.commit_id_byte_prefix_to_lookup_pos(commit_id) {
+            let entry_commit_id = self.lookup_entry(lookup_pos).commit_id();
+            let (prev_lookup_pos, next_lookup_pos) = match entry_commit_id.cmp(commit_id) {
+                Ordering::Less => {
+                    assert_eq!(lookup_pos + 1, self.num_local_commits);
+                    (Some(lookup_pos), None)
+                }
+                Ordering::Equal => {
+                    let succ = ((lookup_pos + 1)..self.num_local_commits).next();
+                    (lookup_pos.checked_sub(1), succ)
+                }
+                Ordering::Greater => (lookup_pos.checked_sub(1), Some(lookup_pos)),
+            };
+            let prev_pos = prev_lookup_pos.map(|p| self.lookup_entry(p).pos());
+            let next_pos = next_lookup_pos.map(|p| self.lookup_entry(p).pos());
+            (prev_pos, next_pos)
+        } else {
+            (None, None)
+        }
+    }
+
     fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         let (bytes_prefix, min_bytes_prefix) = prefix.bytes_prefixes();
         match self.commit_id_byte_prefix_to_lookup_pos(&min_bytes_prefix) {
@@ -1330,6 +1362,23 @@ impl IndexSegment for MutableIndex {
 
     fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         self.lookup.get(commit_id).cloned()
+    }
+
+    fn segment_commit_id_to_neighbor_positions(
+        &self,
+        commit_id: &CommitId,
+    ) -> (Option<IndexPosition>, Option<IndexPosition>) {
+        let prev_pos = self
+            .lookup
+            .range((Bound::Unbounded, Bound::Excluded(commit_id)))
+            .next_back()
+            .map(|(_, &pos)| pos);
+        let next_pos = self
+            .lookup
+            .range((Bound::Excluded(commit_id), Bound::Unbounded))
+            .next()
+            .map(|(_, &pos)| pos);
+        (prev_pos, next_pos)
     }
 
     fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
@@ -1955,6 +2004,90 @@ mod tests {
             PrefixResolution::AmbiguousMatch
         );
     }
+
+    #[test]
+    #[allow(clippy::redundant_clone)] // allow id_n.clone()
+    fn neighbor_commit_ids() {
+        let temp_dir = testutils::new_temp_dir();
+        let mut new_change_id = change_id_generator();
+        let mut index = MutableIndex::full(3);
+
+        // Create some commits with different various common prefixes.
+        let id_0 = CommitId::from_hex("000001");
+        let id_1 = CommitId::from_hex("009999");
+        let id_2 = CommitId::from_hex("055488");
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[]);
+
+        // Write the first three commits to one file and build the remainder on top.
+        let initial_file = index.save_in(temp_dir.path().to_owned()).unwrap();
+        index = MutableIndex::incremental(initial_file.clone());
+
+        let id_3 = CommitId::from_hex("055444");
+        let id_4 = CommitId::from_hex("055555");
+        let id_5 = CommitId::from_hex("033333");
+        index.add_commit_data(id_3.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_5.clone(), new_change_id(), &[]);
+
+        // Local lookup in readonly index, commit_id exists.
+        assert_eq!(
+            initial_file.segment_commit_id_to_neighbor_positions(&id_0),
+            (None, Some(IndexPosition(1))),
+        );
+        assert_eq!(
+            initial_file.segment_commit_id_to_neighbor_positions(&id_1),
+            (Some(IndexPosition(0)), Some(IndexPosition(2))),
+        );
+        assert_eq!(
+            initial_file.segment_commit_id_to_neighbor_positions(&id_2),
+            (Some(IndexPosition(1)), None),
+        );
+
+        // Local lookup in readonly index, commit_id does not exist.
+        assert_eq!(
+            initial_file.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("000000")),
+            (None, Some(IndexPosition(0))),
+        );
+        assert_eq!(
+            initial_file.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("000002")),
+            (Some(IndexPosition(0)), Some(IndexPosition(1))),
+        );
+        assert_eq!(
+            initial_file.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("ffffff")),
+            (Some(IndexPosition(2)), None),
+        );
+
+        // Local lookup in mutable index, commit_id exists. id_5 < id_3 < id_4
+        assert_eq!(
+            index.segment_commit_id_to_neighbor_positions(&id_5),
+            (None, Some(IndexPosition(3))),
+        );
+        assert_eq!(
+            index.segment_commit_id_to_neighbor_positions(&id_3),
+            (Some(IndexPosition(5)), Some(IndexPosition(4))),
+        );
+        assert_eq!(
+            index.segment_commit_id_to_neighbor_positions(&id_4),
+            (Some(IndexPosition(3)), None),
+        );
+
+        // Local lookup in mutable index, commit_id does not exist. id_5 < id_3 < id_4
+        assert_eq!(
+            index.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("033332")),
+            (None, Some(IndexPosition(5))),
+        );
+        assert_eq!(
+            index.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("033334")),
+            (Some(IndexPosition(5)), Some(IndexPosition(3))),
+        );
+        assert_eq!(
+            index.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("ffffff")),
+            (Some(IndexPosition(4)), None),
+        );
+    }
+
     #[test]
     fn test_is_ancestor() {
         let mut new_change_id = change_id_generator();
