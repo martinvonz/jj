@@ -28,13 +28,7 @@ pub enum OpHeadResolutionError<E> {
     #[error("Operation log has no heads")]
     NoHeads,
     #[error("Op resolution error: {0}")]
-    Err(E),
-}
-
-impl<E> From<E> for OpHeadResolutionError<E> {
-    fn from(e: E) -> Self {
-        OpHeadResolutionError::Err(e)
-    }
+    Err(#[from] E),
 }
 
 pub trait OpHeadsStoreLock<'a> {
