@@ -18,7 +18,7 @@ use std::io::ErrorKind;
 use std::ops::Bound::{Excluded, Unbounded};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::{fs, io};
+use std::{cmp, fs, io};
 
 use itertools::Itertools;
 use once_cell::sync::OnceCell;
@@ -102,7 +102,8 @@ pub struct ReadonlyRepo {
     index_store: Arc<IndexStore>,
     index: OnceCell<Arc<ReadonlyIndex>>,
     // TODO: This should eventually become part of the index and not be stored fully in memory.
-    commit_change_id_index: OnceCell<IdIndex>,
+    commit_id_index: OnceCell<IdIndex>,
+    change_id_index: OnceCell<IdIndex>,
     view: View,
 }
 
@@ -192,7 +193,8 @@ impl ReadonlyRepo {
             settings: repo_settings,
             index_store,
             index: OnceCell::new(),
-            commit_change_id_index: OnceCell::new(),
+            commit_id_index: OnceCell::new(),
+            change_id_index: OnceCell::new(),
             view,
         }))
     }
@@ -243,30 +245,41 @@ impl ReadonlyRepo {
         })
     }
 
-    fn commit_change_id_index(&self) -> &IdIndex {
-        self.commit_change_id_index.get_or_init(|| {
+    fn commit_id_index(&self) -> &IdIndex {
+        self.commit_id_index.get_or_init(|| {
+            // We need to account for rewritten commits as well
+            let mut id_index = IdIndex::new();
+            for entry in self.as_repo_ref().index().iter() {
+                id_index.insert(entry.commit_id().hex().as_bytes(), ());
+            }
+            id_index
+        })
+    }
+
+    fn change_id_index(&self) -> &IdIndex {
+        self.change_id_index.get_or_init(|| {
             let all_visible_revisions = crate::revset::RevsetExpression::all()
                 .evaluate(self.as_repo_ref(), None)
                 .unwrap();
-            let change_hex_iter = all_visible_revisions
-                .iter()
-                .map(|index_entry| index_entry.change_id().hex());
-            // We need to account for rewritten commits as well
-            let index = self.as_repo_ref().index();
-            let commit_hex_iter = index
-                .iter()
-                .map(|index_entry| index_entry.commit_id().hex());
             let mut id_index = IdIndex::new();
-            for id_hex in itertools::chain(change_hex_iter, commit_hex_iter) {
-                id_index.insert(id_hex.as_bytes(), ());
+            for entry in all_visible_revisions.iter() {
+                id_index.insert(entry.change_id().hex().as_bytes(), ());
             }
             id_index
         })
     }
 
     pub fn shortest_unique_prefix_length(&self, target_id_hex: &str) -> usize {
-        self.commit_change_id_index()
-            .shortest_unique_prefix_len(target_id_hex.as_bytes())
+        // For `len = index.shortest(id)`, a prefix of length `len` will disambiguate
+        // `id` from all other ids in the index. This will be just as true for
+        // `max(len, anything_else)`, so a max of such lengths will disambiguate in all
+        // indices.
+        cmp::max(
+            self.commit_id_index()
+                .shortest_unique_prefix_len(target_id_hex.as_bytes()),
+            self.change_id_index()
+                .shortest_unique_prefix_len(target_id_hex.as_bytes()),
+        )
     }
 
     pub fn store(&self) -> &Arc<Store> {
@@ -523,7 +536,8 @@ impl RepoLoader {
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
             index: OnceCell::with_value(index),
-            commit_change_id_index: OnceCell::new(),
+            commit_id_index: OnceCell::new(),
+            change_id_index: OnceCell::new(),
             view,
         };
         Arc::new(repo)
@@ -554,7 +568,8 @@ impl RepoLoader {
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
             index: OnceCell::new(),
-            commit_change_id_index: OnceCell::new(),
+            commit_id_index: OnceCell::new(),
+            change_id_index: OnceCell::new(),
             view,
         };
         Arc::new(repo)
