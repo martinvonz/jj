@@ -24,10 +24,6 @@ use itertools::Itertools;
 
 // Lets the caller label strings and translates the labels to colors
 pub trait Formatter: Write {
-    fn write_bytes(&mut self, data: &[u8]) -> io::Result<()> {
-        self.write_all(data)
-    }
-
     fn write_str(&mut self, text: &str) -> io::Result<()> {
         self.write_all(text.as_bytes())
     }

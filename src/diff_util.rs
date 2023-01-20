@@ -148,7 +148,7 @@ fn show_color_words_diff_hunks(
     right: &[u8],
     formatter: &mut dyn Formatter,
 ) -> io::Result<()> {
-    const SKIPPED_CONTEXT_LINE: &[u8] = b"    ...\n";
+    const SKIPPED_CONTEXT_LINE: &str = "    ...\n";
     let num_context_lines = 3;
     let mut context = VecDeque::new();
     // Have we printed "..." for any skipped context?
@@ -173,7 +173,7 @@ fn show_color_words_diff_hunks(
             }
             if start_skipping_context {
                 context.drain(..2);
-                formatter.write_bytes(SKIPPED_CONTEXT_LINE)?;
+                formatter.write_str(SKIPPED_CONTEXT_LINE)?;
                 skipped_context = true;
                 context_before = true;
             }
@@ -197,7 +197,7 @@ fn show_color_words_diff_hunks(
             show_color_words_diff_line(formatter, line)?;
         }
         if context_before {
-            formatter.write_bytes(SKIPPED_CONTEXT_LINE)?;
+            formatter.write_str(SKIPPED_CONTEXT_LINE)?;
         }
     }
 
@@ -205,7 +205,7 @@ fn show_color_words_diff_hunks(
     let no_hunk = left.is_empty() && right.is_empty();
     let any_last_newline = left.ends_with(b"\n") || right.ends_with(b"\n");
     if !skipped_context && !no_hunk && !any_last_newline {
-        formatter.write_bytes(b"\n")?;
+        formatter.write_str("\n")?;
     }
 
     Ok(())
@@ -221,9 +221,9 @@ fn show_color_words_diff_line(
             "{:>4}",
             diff_line.left_line_number
         )?;
-        formatter.write_bytes(b" ")?;
+        formatter.write_str(" ")?;
     } else {
-        formatter.write_bytes(b"     ")?;
+        formatter.write_str("     ")?;
     }
     if diff_line.has_right_content {
         write!(
@@ -231,23 +231,23 @@ fn show_color_words_diff_line(
             "{:>4}",
             diff_line.right_line_number
         )?;
-        formatter.write_bytes(b": ")?;
+        formatter.write_str(": ")?;
     } else {
-        formatter.write_bytes(b"    : ")?;
+        formatter.write_str("    : ")?;
     }
     for hunk in &diff_line.hunks {
         match hunk {
             DiffHunk::Matching(data) => {
-                formatter.write_bytes(data)?;
+                formatter.write_all(data)?;
             }
             DiffHunk::Different(data) => {
                 let before = data[0];
                 let after = data[1];
                 if !before.is_empty() {
-                    formatter.with_label("removed", |formatter| formatter.write_bytes(before))?;
+                    formatter.with_label("removed", |formatter| formatter.write_all(before))?;
                 }
                 if !after.is_empty() {
-                    formatter.with_label("added", |formatter| formatter.write_bytes(after))?;
+                    formatter.with_label("added", |formatter| formatter.write_all(after))?;
                 }
             }
         }
