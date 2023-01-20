@@ -138,7 +138,7 @@ content_hash! {
 }
 
 content_hash! {
-    #[derive(Debug, Clone)]
+    #[derive(Debug, PartialEq, Eq, Clone)]
     pub struct Commit {
         pub parents: Vec<CommitId>,
         pub predecessors: Vec<CommitId>,
@@ -291,7 +291,7 @@ impl<'a> Iterator for TreeEntriesNonRecursiveIterator<'a> {
 }
 
 content_hash! {
-    #[derive(Default, Debug, Clone)]
+    #[derive(Default, PartialEq, Eq, Debug, Clone)]
     pub struct Tree {
         entries: BTreeMap<RepoPathComponent, TreeValue>,
     }
