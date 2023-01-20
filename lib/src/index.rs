@@ -1262,11 +1262,11 @@ impl IndexSegment for ReadonlyIndex {
 
     fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         let (bytes_prefix, min_bytes_prefix) = prefix.bytes_prefixes();
-        match self.commit_id_byte_prefix_to_pos(&min_bytes_prefix) {
+        match self.commit_id_byte_prefix_to_lookup_pos(&min_bytes_prefix) {
             None => PrefixResolution::NoMatch,
             Some(lookup_pos) => {
                 let mut first_match = None;
-                for i in lookup_pos.0..self.num_local_commits {
+                for i in lookup_pos..self.num_local_commits {
                     let entry = self.lookup_entry(i);
                     let id = entry.commit_id();
                     if !id.as_bytes().starts_with(bytes_prefix.as_bytes()) {
@@ -1614,7 +1614,7 @@ impl ReadonlyIndex {
         )
     }
 
-    fn commit_id_byte_prefix_to_pos(&self, prefix: &CommitId) -> Option<IndexPosition> {
+    fn commit_id_byte_prefix_to_lookup_pos(&self, prefix: &CommitId) -> Option<u32> {
         if self.num_local_commits == 0 {
             // Avoid overflow when subtracting 1 below
             return None;
@@ -1626,7 +1626,7 @@ impl ReadonlyIndex {
         loop {
             let mid = (low + high) / 2;
             if high == low {
-                return Some(IndexPosition(mid));
+                return Some(mid);
             }
             let entry = self.lookup_entry(mid);
             if entry.commit_id().as_bytes() < prefix.as_bytes() {
