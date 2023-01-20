@@ -203,7 +203,12 @@ impl CommitLookupEntry<'_> {
     }
 
     fn commit_id(&self) -> CommitId {
-        CommitId::from_bytes(&self.data[0..self.hash_length])
+        CommitId::from_bytes(self.commit_id_bytes())
+    }
+
+    // might be better to add borrowed version of CommitId
+    fn commit_id_bytes(&self) -> &[u8] {
+        &self.data[0..self.hash_length]
     }
 
     fn pos(&self) -> IndexPosition {
@@ -1611,7 +1616,7 @@ impl ReadonlyIndex {
                 return Some(mid);
             }
             let entry = self.lookup_entry(mid);
-            if entry.commit_id().as_bytes() < prefix.as_bytes() {
+            if entry.commit_id_bytes() < prefix.as_bytes() {
                 low = mid + 1;
             } else {
                 high = mid;
