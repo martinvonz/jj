@@ -102,7 +102,6 @@ pub struct ReadonlyRepo {
     index_store: Arc<IndexStore>,
     index: OnceCell<Arc<ReadonlyIndex>>,
     // TODO: This should eventually become part of the index and not be stored fully in memory.
-    commit_id_index: OnceCell<IdIndex>,
     change_id_index: OnceCell<IdIndex>,
     view: View,
 }
@@ -193,7 +192,6 @@ impl ReadonlyRepo {
             settings: repo_settings,
             index_store,
             index: OnceCell::new(),
-            commit_id_index: OnceCell::new(),
             change_id_index: OnceCell::new(),
             view,
         }))
@@ -245,17 +243,6 @@ impl ReadonlyRepo {
         })
     }
 
-    fn commit_id_index(&self) -> &IdIndex {
-        self.commit_id_index.get_or_init(|| {
-            // We need to account for rewritten commits as well
-            let mut id_index = IdIndex::new();
-            for entry in self.as_repo_ref().index().iter() {
-                id_index.insert(entry.commit_id().as_bytes(), ());
-            }
-            id_index
-        })
-    }
-
     fn change_id_index(&self) -> &IdIndex {
         self.change_id_index.get_or_init(|| {
             let all_visible_revisions = crate::revset::RevsetExpression::all()
@@ -278,8 +265,8 @@ impl ReadonlyRepo {
             // The root change/commit ids share the same prefix, and they are found in both
             // indices with different lengths. So we have to feed bytes of valid lengths.
             cmp::max(
-                self.commit_id_index()
-                    .shortest_unique_prefix_len(root_commit_id.as_bytes()),
+                self.index()
+                    .shortest_unique_commit_id_prefix_len(root_commit_id),
                 self.change_id_index()
                     .shortest_unique_prefix_len(root_change_id.as_bytes()),
             )
@@ -289,8 +276,8 @@ impl ReadonlyRepo {
             // `max(len, anything_else)`, so a max of such lengths will disambiguate in all
             // indices.
             cmp::max(
-                self.commit_id_index()
-                    .shortest_unique_prefix_len(target_id_bytes),
+                self.index()
+                    .shortest_unique_commit_id_prefix_len(&CommitId::from_bytes(target_id_bytes)),
                 self.change_id_index()
                     .shortest_unique_prefix_len(target_id_bytes),
             )
@@ -551,7 +538,6 @@ impl RepoLoader {
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
             index: OnceCell::with_value(index),
-            commit_id_index: OnceCell::new(),
             change_id_index: OnceCell::new(),
             view,
         };
@@ -583,7 +569,6 @@ impl RepoLoader {
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
             index: OnceCell::new(),
-            commit_id_index: OnceCell::new(),
             change_id_index: OnceCell::new(),
             view,
         };
