@@ -338,12 +338,6 @@ impl RepoPathTree {
     }
 }
 
-impl Default for RepoPathTree {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 pub struct RepoPathTreeIterator<'a> {
     tree: &'a RepoPathTree,
     map_iter: Option<hash_map::Iter<'a, RepoPathComponent, RepoPathTree>>,
