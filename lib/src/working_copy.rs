@@ -495,11 +495,7 @@ impl TreeState {
             .file_states
             .iter()
             .filter_map(|(path, state)| {
-                if state.file_type != FileType::GitSubmodule {
-                    Some(path.clone())
-                } else {
-                    None
-                }
+                (state.file_type != FileType::GitSubmodule).then(|| path.clone())
             })
             .collect();
         while let Some((dir, disk_dir, git_ignore)) = work.pop() {
