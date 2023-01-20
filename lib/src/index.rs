@@ -1621,18 +1621,15 @@ impl ReadonlyIndex {
         }
         let mut low = 0;
         let mut high = self.num_local_commits - 1;
-        let prefix_len = prefix.as_bytes().len();
 
         // binary search for the commit id
         loop {
             let mid = (low + high) / 2;
-            let entry = self.lookup_entry(mid);
-            let entry_commit_id = entry.commit_id();
-            let entry_prefix = &entry_commit_id.as_bytes()[0..prefix_len];
             if high == low {
                 return Some(IndexPosition(mid));
             }
-            if entry_prefix < prefix.as_bytes() {
+            let entry = self.lookup_entry(mid);
+            if entry.commit_id().as_bytes() < prefix.as_bytes() {
                 low = mid + 1;
             } else {
                 high = mid;
