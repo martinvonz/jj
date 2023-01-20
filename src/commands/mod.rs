@@ -1444,7 +1444,6 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         ui.request_pager();
         let mut formatter = ui.stdout_formatter();
         let mut formatter = formatter.as_mut();
-        formatter.push_label("log")?;
 
         if !args.no_graph {
             let mut graph = get_graphlog(command.settings(), &mut formatter);
