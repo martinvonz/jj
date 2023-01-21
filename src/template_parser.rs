@@ -201,7 +201,6 @@ impl<'a, I: 'a> Property<'a, I> {
         }
     }
 
-    #[cfg(test)] // TODO: remove after adding call site in production code
     fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<I, Output = i64> + 'a>> {
         match self {
             Property::Integer(property) => Some(property),
@@ -263,7 +262,6 @@ impl<'a, C: 'a> Expression<'a, C> {
         }
     }
 
-    #[cfg(test)] // TODO: remove after adding call site in production code
     fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<C, Output = i64> + 'a>> {
         match self {
             Expression::Property(PropertyAndLabels(property, _)) => property.try_into_integer(),
@@ -471,8 +469,20 @@ fn parse_commit_or_change_id_method<'a, I: 'a>(
     self_property: impl TemplateProperty<I, Output = CommitOrChangeId<'a>> + 'a,
     name: Pair<Rule>,
     args_pair: Pair<Rule>,
-    _parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
+    parse_keyword: &impl Fn(Pair<Rule>) -> TemplateParseResult<PropertyAndLabels<'a, I>>,
 ) -> TemplateParseResult<Property<'a, I>> {
+    let parse_optional_integer = |args_pair: Pair<Rule>| -> Result<Option<_>, TemplateParseError> {
+        let ([], [len_pair]) = expect_arguments(args_pair)?;
+        len_pair
+            .map(|len_pair| {
+                let span = len_pair.as_span();
+                parse_template_rule(len_pair, parse_keyword).and_then(|p| {
+                    p.try_into_integer()
+                        .ok_or_else(|| TemplateParseError::invalid_argument_type("Integer", span))
+                })
+            })
+            .transpose()
+    };
     let property = match name.as_str() {
         "short" => {
             expect_no_arguments(args_pair)?;
@@ -482,17 +492,21 @@ fn parse_commit_or_change_id_method<'a, I: 'a>(
             ))
         }
         "shortest_prefix_and_brackets" => {
-            expect_no_arguments(args_pair)?;
+            let len_property = parse_optional_integer(args_pair)?;
             Property::String(chain_properties(
-                self_property,
-                TemplatePropertyFn(|id: &CommitOrChangeId| id.shortest_prefix_and_brackets()),
+                (self_property, len_property),
+                TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
+                    id.shortest_prefix_and_brackets(len.unwrap_or(12))
+                }),
             ))
         }
         "shortest_styled_prefix" => {
-            expect_no_arguments(args_pair)?;
+            let len_property = parse_optional_integer(args_pair)?;
             Property::IdWithHighlightedPrefix(chain_properties(
-                self_property,
-                TemplatePropertyFn(|id: &CommitOrChangeId| id.shortest_styled_prefix()),
+                (self_property, len_property),
+                TemplatePropertyFn(|(id, len): &(CommitOrChangeId, Option<i64>)| {
+                    id.shortest_styled_prefix(len.unwrap_or(12))
+                }),
             ))
         }
         _ => {
