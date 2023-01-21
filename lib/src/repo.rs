@@ -270,16 +270,31 @@ impl ReadonlyRepo {
     }
 
     pub fn shortest_unique_prefix_length(&self, target_id_bytes: &[u8]) -> usize {
-        // For `len = index.shortest(id)`, a prefix of length `len` will disambiguate
-        // `id` from all other ids in the index. This will be just as true for
-        // `max(len, anything_else)`, so a max of such lengths will disambiguate in all
-        // indices.
-        cmp::max(
-            self.commit_id_index()
-                .shortest_unique_prefix_len(target_id_bytes),
-            self.change_id_index()
-                .shortest_unique_prefix_len(target_id_bytes),
-        )
+        let root_commit_id = self.store().root_commit_id();
+        let root_change_id = backend::root_change_id();
+        if target_id_bytes == root_commit_id.as_bytes()
+            || target_id_bytes == root_change_id.as_bytes()
+        {
+            // The root change/commit ids share the same prefix, and they are found in both
+            // indices with different lengths. So we have to feed bytes of valid lengths.
+            cmp::max(
+                self.commit_id_index()
+                    .shortest_unique_prefix_len(root_commit_id.as_bytes()),
+                self.change_id_index()
+                    .shortest_unique_prefix_len(root_change_id.as_bytes()),
+            )
+        } else {
+            // For `len = index.shortest(id)`, a prefix of length `len` will disambiguate
+            // `id` from all other ids in the index. This will be just as true for
+            // `max(len, anything_else)`, so a max of such lengths will disambiguate in all
+            // indices.
+            cmp::max(
+                self.commit_id_index()
+                    .shortest_unique_prefix_len(target_id_bytes),
+                self.change_id_index()
+                    .shortest_unique_prefix_len(target_id_bytes),
+            )
+        }
     }
 
     pub fn store(&self) -> &Arc<Store> {
