@@ -82,6 +82,25 @@ fn test_log_default() {
       (empty) (no description set)
     "###);
 
+    // Test default log output format with styled prefixes and color
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "--color=always",
+            "--config-toml",
+            "ui.unique-prefixes='styled'",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @ [1m[38;5;13mf[38;5;8mfdaa62087a2[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12m9d[38;5;8me54178d59d[39m[0m
+    | [1m[38;5;10m(empty) [39mdescription 1[0m
+    o [1m[38;5;5m9a[0m[38;5;8m45c67d3e96[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4m4[0m[38;5;8m291e264ae97[39m
+    | add a file
+    o [1m[38;5;5m0[0m[38;5;8m00000000000[39m  [38;5;6m1970-01-01 00:00:00.000 +00:00[39m [1m[38;5;4m0[0m[38;5;8m00000000000[39m
+      [38;5;2m(empty) [39m(no description set)
+    "###);
+
     // Test default log output format with prefixes explicitly disabled
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "--config-toml", "ui.unique-prefixes='none'"]), @r###"
     @ ffdaa62087a2 test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9de54178d59d
