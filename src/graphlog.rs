@@ -61,8 +61,8 @@ mod sapling {
     use std::io::{self, Write};
     use std::marker::PhantomData;
 
-    use dag::render::{Ancestor, Renderer};
     use itertools::Itertools;
+    use renderdag::{Ancestor, Renderer};
 
     use super::{Edge, GraphLog};
 
@@ -132,7 +132,7 @@ pub fn get_graphlog<'a, K: Clone + Eq + Hash + 'a>(
 ) -> Box<dyn GraphLog<K> + 'a> {
     #[cfg(feature = "sapling")]
     {
-        use dag::render::GraphRowRenderer;
+        use renderdag::GraphRowRenderer;
         use sapling::SaplingGraphLog;
 
         let builder = GraphRowRenderer::new().output().with_min_row_height(0);
