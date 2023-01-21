@@ -93,14 +93,17 @@ pub struct FormatterFactory {
 #[derive(Clone, Debug)]
 enum FormatterFactoryKind {
     PlainText,
+    Sanitized,
     Color { rules: Arc<Rules> },
 }
 
 impl FormatterFactory {
-    pub fn prepare(config: &config::Config, color: bool) -> Self {
+    pub fn prepare(config: &config::Config, color: bool, sanitized: bool) -> Self {
         let kind = if color {
             let rules = Arc::new(rules_from_config(config));
             FormatterFactoryKind::Color { rules }
+        } else if sanitized {
+            FormatterFactoryKind::Sanitized
         } else {
             FormatterFactoryKind::PlainText
         };
@@ -113,6 +116,7 @@ impl FormatterFactory {
     ) -> Box<dyn Formatter + 'output> {
         match &self.kind {
             FormatterFactoryKind::PlainText => Box::new(PlainTextFormatter::new(output)),
+            FormatterFactoryKind::Sanitized => Box::new(SanitizingFormatter::new(output)),
             FormatterFactoryKind::Color { rules } => {
                 Box::new(ColorFormatter::new(output, rules.clone()))
             }
@@ -141,6 +145,41 @@ impl<W: Write> Write for PlainTextFormatter<W> {
 }
 
 impl<W: Write> Formatter for PlainTextFormatter<W> {
+    fn raw(&mut self) -> &mut dyn Write {
+        &mut self.output
+    }
+
+    fn push_label(&mut self, _label: &str) -> io::Result<()> {
+        Ok(())
+    }
+
+    fn pop_label(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+pub struct SanitizingFormatter<W> {
+    output: W,
+}
+
+impl<W> SanitizingFormatter<W> {
+    pub fn new(output: W) -> SanitizingFormatter<W> {
+        Self { output }
+    }
+}
+
+impl<W: Write> Write for SanitizingFormatter<W> {
+    fn write(&mut self, data: &[u8]) -> Result<usize, Error> {
+        write_sanitized(&mut self.output, data)?;
+        Ok(data.len())
+    }
+
+    fn flush(&mut self) -> Result<(), Error> {
+        self.output.flush()
+    }
+}
+
+impl<W: Write> Formatter for SanitizingFormatter<W> {
     fn raw(&mut self) -> &mut dyn Write {
         &mut self.output
     }
@@ -449,6 +488,26 @@ mod tests {
         formatter.write_str("hello").unwrap();
         formatter.pop_label().unwrap();
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"hello");
+    }
+
+    #[test]
+    fn test_plaintext_formatter_ansi_codes_in_text() {
+        // Test that ANSI codes in the input text are NOT escaped.
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = PlainTextFormatter::new(&mut output);
+        formatter.write_str("\x1b[1mactually bold\x1b[0m").unwrap();
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[1mactually bold[0m");
+    }
+
+    #[test]
+    fn test_sanitizing_formatter_ansi_codes_in_text() {
+        // Test that ANSI codes in the input text are escaped.
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = SanitizingFormatter::new(&mut output);
+        formatter
+            .write_str("\x1b[1mnot actually bold\x1b[0m")
+            .unwrap();
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"␛[1mnot actually bold␛[0m");
     }
 
     #[test]
