@@ -356,7 +356,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "all()", "-T", prefix_format]),
         @r###"
     @ Change 9[a45c67d3e] initial b[a1a30916d] original
-    o Change 000000000000 (no description set) 000000000000 
+    o Change 0[000000000] (no description set) 0[000000000] 
     "###
     );
     for i in 1..100 {
@@ -376,7 +376,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "all()", "-T", prefix_format]),
         @r###"
     @ Change 9a4[5c67d3e] commit99 de[3177d2ac] original
-    o Change 000000000000 (no description set) 000000000000 
+    o Change 000[0000000] (no description set) 000[0000000] 
     "###
     );
     insta::assert_snapshot!(
