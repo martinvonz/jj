@@ -73,6 +73,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with brackets. To disable, set the new `ui.unique-prefixes` option to `none`
 
 * `jj print` was renamed to `jj cat`. `jj print` remains as an alias.
+  
+* In content that goes to the terminal, the ANSI escape byte (0x1b) is replaced
+  by a "␛" character. That prevents them from interfering with the ANSI escapes
+  jj itself writes.
 
 ### Fixed bugs
 
