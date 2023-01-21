@@ -227,6 +227,16 @@ impl From<FormattedString> for String {
         String::from_utf8_lossy(&result).to_string()
     }
 }
+pub struct FormattedStringPropertyTemplate<'a, C> {
+    pub property: Box<dyn TemplateProperty<C, FormattedString> + 'a>,
+}
+
+impl<'a, C> Template<C> for FormattedStringPropertyTemplate<'a, C> {
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+        let text = self.property.extract(context);
+        text.format(formatter)
+    }
+}
 
 #[cfg(test)]
 mod tests {

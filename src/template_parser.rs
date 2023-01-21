@@ -25,10 +25,10 @@ use crate::templater::{
     AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdProperty, CommitOrChangeId,
     CommitOrChangeIdShort, CommitOrChangeIdShortPrefixAndBrackets, CommitterProperty,
     ConditionalTemplate, ConflictProperty, ConstantTemplateProperty, DescriptionProperty,
-    DivergentProperty, DynamicLabelTemplate, EmptyProperty, GitRefsProperty, IsGitHeadProperty,
-    IsWorkingCopyProperty, LabelTemplate, ListTemplate, LiteralTemplate, SignatureTimestamp,
-    StringPropertyTemplate, TagProperty, Template, TemplateFunction, TemplateProperty,
-    WorkingCopiesProperty,
+    DivergentProperty, DynamicLabelTemplate, EmptyProperty, FormattedString,
+    FormattedStringPropertyTemplate, GitRefsProperty, IsGitHeadProperty, IsWorkingCopyProperty,
+    LabelTemplate, ListTemplate, LiteralTemplate, SignatureTimestamp, StringPropertyTemplate,
+    TagProperty, Template, TemplateFunction, TemplateProperty, WorkingCopiesProperty,
 };
 use crate::time_util;
 
@@ -98,6 +98,8 @@ impl TemplateProperty<Timestamp, String> for RelativeTimestampString {
 
 enum Property<'a, I> {
     String(Box<dyn TemplateProperty<I, String> + 'a>),
+    #[allow(dead_code)] // TODO: remove exception. `branches` property will have this type shortly
+    FormattedString(Box<dyn TemplateProperty<I, FormattedString> + 'a>),
     Boolean(Box<dyn TemplateProperty<I, bool> + 'a>),
     CommitOrChangeId(
         Box<dyn TemplateProperty<I, CommitOrChangeId> + 'a>,
@@ -114,6 +116,9 @@ impl<'a, I: 'a> Property<'a, I> {
                 first,
                 Box::new(move |value| property.extract(&value)),
             ))),
+            Property::FormattedString(property) => Property::FormattedString(Box::new(
+                TemplateFunction::new(first, Box::new(move |value| property.extract(&value))),
+            )),
             Property::Boolean(property) => Property::Boolean(Box::new(TemplateFunction::new(
                 first,
                 Box::new(move |value| property.extract(&value)),
@@ -138,7 +143,7 @@ impl<'a, I: 'a> Property<'a, I> {
 }
 
 fn parse_method_chain<'a, I: 'a>(
-    pair: Pair<Rule>,
+    pair: Pair<'a, Rule>,
     input_property: Property<'a, I>,
 ) -> PropertyAndLabels<'a, I> {
     assert_eq!(pair.as_rule(), Rule::maybe_method);
@@ -156,6 +161,10 @@ fn parse_method_chain<'a, I: 'a>(
         let (property, mut labels) = match input_property {
             Property::String(property) => {
                 let PropertyAndLabels(next_method, labels) = parse_string_method(method);
+                (next_method.after(property), labels)
+            }
+            Property::FormattedString(property) => {
+                let PropertyAndLabels(next_method, labels) = parse_formatted_string_method(method);
                 (next_method.after(property), labels)
             }
             Property::Boolean(property) => {
@@ -181,7 +190,7 @@ fn parse_method_chain<'a, I: 'a>(
     }
 }
 
-fn parse_string_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, String> {
+fn parse_string_method(method: Pair<Rule>) -> PropertyAndLabels<String> {
     assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
     let name = inner.next().unwrap();
@@ -196,6 +205,16 @@ fn parse_string_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, String> 
     parse_method_chain(chain_method, this_function)
 }
 
+fn parse_formatted_string_method(method: Pair<'_, Rule>) -> PropertyAndLabels<FormattedString> {
+    assert_eq!(method.as_rule(), Rule::method);
+    let mut inner = method.into_inner();
+    let name = inner.next().unwrap();
+    panic!(
+        "no such formatted string method: {name}. Formatted string currently doesn't have any \
+         methods."
+    )
+}
+
 fn parse_boolean_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, bool> {
     assert_eq!(method.as_rule(), Rule::maybe_method);
     let mut inner = method.into_inner();
@@ -206,7 +225,7 @@ fn parse_boolean_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, bool> {
 }
 
 fn parse_commit_or_change_id_method<'a>(
-    method: Pair<Rule>,
+    method: Pair<'a, Rule>,
     repo: RepoRef<'a>,
 ) -> PropertyAndLabels<'a, CommitOrChangeId> {
     assert_eq!(method.as_rule(), Rule::method);
@@ -225,7 +244,7 @@ fn parse_commit_or_change_id_method<'a>(
     parse_method_chain(chain_method, this_function)
 }
 
-fn parse_signature_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, Signature> {
+fn parse_signature_method<'a>(method: Pair<'a, Rule>) -> PropertyAndLabels<'a, Signature> {
     assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
     let name = inner.next().unwrap();
@@ -241,7 +260,7 @@ fn parse_signature_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, Signa
     parse_method_chain(chain_method, this_function)
 }
 
-fn parse_timestamp_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, Timestamp> {
+fn parse_timestamp_method(method: Pair<'_, Rule>) -> PropertyAndLabels<Timestamp> {
     assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
     let name = inner.next().unwrap();
@@ -291,6 +310,9 @@ fn coerce_to_string<'a, I: 'a>(
 ) -> Box<dyn TemplateProperty<I, String> + 'a> {
     match property {
         Property::String(property) => property,
+        Property::FormattedString(property) => {
+            Box::new(TemplateFunction::new(property, Box::new(String::from)))
+        }
         Property::Boolean(property) => Box::new(TemplateFunction::new(
             property,
             Box::new(|value| String::from(if value { "true" } else { "false" })),
@@ -334,7 +356,7 @@ fn parse_boolean_commit_property<'a>(
 fn parse_commit_term<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
-    pair: Pair<Rule>,
+    pair: Pair<'a, Rule>,
 ) -> Box<dyn Template<Commit> + 'a> {
     assert_eq!(pair.as_rule(), Rule::term);
     if pair.as_str().is_empty() {
@@ -368,13 +390,22 @@ fn parse_commit_term<'a>(
                     parse_commit_keyword(repo, workspace_id, expr);
                 let PropertyAndLabels(property, method_labels) =
                     parse_method_chain(maybe_method, term_property);
-                let string_property = coerce_to_string(property);
                 let mut labels = keyword_labels;
                 labels.extend(method_labels);
                 Box::new(LabelTemplate::new(
-                    Box::new(StringPropertyTemplate {
-                        property: string_property,
-                    }),
+                    match property {
+                        Property::FormattedString(property) => {
+                            Box::new(FormattedStringPropertyTemplate { property })
+                        }
+                        _ => {
+                            // TODO: In the next commit, `coerce_to_string` us replaced by
+                            // conversion to FormattedString
+                            let string_property = coerce_to_string(property);
+                            Box::new(StringPropertyTemplate {
+                                property: string_property,
+                            })
+                        }
+                    },
                     labels,
                 ))
             }
@@ -443,7 +474,7 @@ fn parse_commit_term<'a>(
 fn parse_commit_template_rule<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
-    pair: Pair<Rule>,
+    pair: Pair<'a, Rule>,
 ) -> Box<dyn Template<Commit> + 'a> {
     match pair.as_rule() {
         Rule::template => {
@@ -467,7 +498,7 @@ fn parse_commit_template_rule<'a>(
 pub fn parse_commit_template<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
-    template_text: &str,
+    template_text: &'a str,
 ) -> Box<dyn Template<Commit> + 'a> {
     let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::template, template_text).unwrap();
 
