@@ -57,6 +57,14 @@ This project follows [Google's Open Source Community
 Guidelines](https://opensource.google/conduct/).
 
 
+## Learning Rust
+
+In addition to the [Rust Book](https://doc.rust-lang.org/book/) and the other
+excellent resources at https://www.rust-lang.org/learn, we recommend the
+["Comprehensive Rust" mini-course](https://google.github.io/comprehensive-rust/)
+for an overview, especially if you are familiar with C++.
+
+
 ## Setting up a development environment
 
 To develop `jj`, the mandatory steps are simply
