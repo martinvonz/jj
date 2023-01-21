@@ -27,8 +27,8 @@ use crate::templater::{
     ConditionalTemplate, ConflictProperty, ConstantTemplateProperty, DescriptionProperty,
     DivergentProperty, DynamicLabelTemplate, EmptyProperty, FormattedString,
     FormattedStringPropertyTemplate, GitRefsProperty, IsGitHeadProperty, IsWorkingCopyProperty,
-    LabelTemplate, ListTemplate, LiteralTemplate, SignatureTimestamp, StringPropertyTemplate,
-    TagProperty, Template, TemplateFunction, TemplateProperty, WorkingCopiesProperty,
+    LabelTemplate, ListTemplate, LiteralTemplate, SignatureTimestamp, TagProperty, Template,
+    TemplateFunction, TemplateProperty, WorkingCopiesProperty,
 };
 use crate::time_util;
 
@@ -305,28 +305,34 @@ fn parse_commit_keyword<'a>(
     PropertyAndLabels(property, vec![pair.as_str().to_string()])
 }
 
-fn coerce_to_string<'a, I: 'a>(
+fn as_formatted_string<'a, I: 'a>(
     property: Property<'a, I>,
-) -> Box<dyn TemplateProperty<I, String> + 'a> {
+) -> Box<dyn TemplateProperty<I, FormattedString> + 'a> {
     match property {
-        Property::String(property) => property,
-        Property::FormattedString(property) => {
-            Box::new(TemplateFunction::new(property, Box::new(String::from)))
-        }
+        Property::String(property) => Box::new(TemplateFunction::new(
+            property,
+            Box::new(FormattedString::from),
+        )),
+        Property::FormattedString(property) => property,
         Property::Boolean(property) => Box::new(TemplateFunction::new(
             property,
-            Box::new(|value| String::from(if value { "true" } else { "false" })),
+            Box::new(|value| {
+                FormattedString::from(String::from(if value { "true" } else { "false" }))
+            }),
         )),
-        Property::CommitOrChangeId(property, _) => {
-            Box::new(TemplateFunction::new(property, Box::new(|id| id.hex())))
-        }
+        Property::CommitOrChangeId(property, _) => Box::new(TemplateFunction::new(
+            property,
+            Box::new(|id| FormattedString::from(id.hex())),
+        )),
         Property::Signature(property) => Box::new(TemplateFunction::new(
             property,
-            Box::new(|signature| signature.name),
+            Box::new(|signature| FormattedString::from(signature.name)),
         )),
         Property::Timestamp(property) => Box::new(TemplateFunction::new(
             property,
-            Box::new(|timestamp| time_util::format_absolute_timestamp(&timestamp)),
+            Box::new(|timestamp| {
+                FormattedString::from(time_util::format_absolute_timestamp(&timestamp))
+            }),
         )),
     }
 }
@@ -376,10 +382,10 @@ fn parse_commit_term<'a>(
                         Property::String(Box::new(ConstantTemplateProperty { output: text }));
                     let PropertyAndLabels(property, method_labels) =
                         parse_method_chain(maybe_method, input_property);
-                    let string_property = coerce_to_string(property);
+                    let formatted_string_property = as_formatted_string(property);
                     Box::new(LabelTemplate::new(
-                        Box::new(StringPropertyTemplate {
-                            property: string_property,
+                        Box::new(FormattedStringPropertyTemplate {
+                            property: formatted_string_property,
                         }),
                         method_labels,
                     ))
@@ -392,20 +398,11 @@ fn parse_commit_term<'a>(
                     parse_method_chain(maybe_method, term_property);
                 let mut labels = keyword_labels;
                 labels.extend(method_labels);
+                let formatted_string_property = as_formatted_string(property);
                 Box::new(LabelTemplate::new(
-                    match property {
-                        Property::FormattedString(property) => {
-                            Box::new(FormattedStringPropertyTemplate { property })
-                        }
-                        _ => {
-                            // TODO: In the next commit, `coerce_to_string` us replaced by
-                            // conversion to FormattedString
-                            let string_property = coerce_to_string(property);
-                            Box::new(StringPropertyTemplate {
-                                property: string_property,
-                            })
-                        }
-                    },
+                    Box::new(FormattedStringPropertyTemplate {
+                        property: formatted_string_property,
+                    }),
                     labels,
                 ))
             }
