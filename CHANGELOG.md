@@ -125,6 +125,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * templates now support additional string methods `.starts_with(x)`, `.ends_with(x)`
   `.remove_prefix(x)`, `.remove_suffix(x)`, and `.substr(start, end)`.
 
+* `jj next` and `jj prev` are added, these allow you to traverse the history
+  in a linear style. For people coming from Sapling and `git-branchles`
+  see [#2126](https://github.com/martinvonz/jj/issues/2126) for 
+  further pending improvements.
+
 ### Fixed bugs
 
 * Fix issues related to .gitignore handling of untracked directories

@@ -86,6 +86,8 @@ fn test_alias_calls_unknown_command() {
     insta::assert_snapshot!(stderr, @r###"
     error: unrecognized subcommand 'nonexistent'
 
+      tip: a similar subcommand exists: 'next'
+
     Usage: jj [OPTIONS] [COMMAND]
 
     For more information, try '--help'.
