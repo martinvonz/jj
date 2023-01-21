@@ -780,12 +780,12 @@ trait IndexSegment: Send + Sync {
 pub struct CompositeIndex<'a>(&'a dyn IndexSegment);
 
 impl<'a> CompositeIndex<'a> {
-    fn ancestor_files_without_local(&self) -> impl Iterator<Item = &Arc<ReadonlyIndexImpl>> {
+    fn ancestor_files_without_local(&self) -> impl Iterator<Item = &'a Arc<ReadonlyIndexImpl>> {
         let parent_file = self.0.segment_parent_file();
         iter::successors(parent_file, |file| file.segment_parent_file())
     }
 
-    fn ancestor_index_segments(&self) -> impl Iterator<Item = &dyn IndexSegment> {
+    fn ancestor_index_segments(&self) -> impl Iterator<Item = &'a dyn IndexSegment> {
         iter::once(self.0).chain(
             self.ancestor_files_without_local()
                 .map(|file| file.as_ref() as &dyn IndexSegment),
@@ -835,13 +835,12 @@ impl<'a> CompositeIndex<'a> {
     }
 
     pub fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry<'a> {
-        let num_parent_commits = self.0.segment_num_parent_commits();
-        if pos.0 >= num_parent_commits {
-            self.0.segment_entry_by_pos(pos, pos.0 - num_parent_commits)
-        } else {
-            let parent_file = self.0.segment_parent_file().unwrap();
-            CompositeIndex(&**parent_file).entry_by_pos(pos)
-        }
+        self.ancestor_index_segments()
+            .find_map(|segment| {
+                u32::checked_sub(pos.0, segment.segment_num_parent_commits())
+                    .map(|local_pos| segment.segment_entry_by_pos(pos, local_pos))
+            })
+            .unwrap()
     }
 
     pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
