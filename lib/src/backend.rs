@@ -18,6 +18,7 @@ use std::io::Read;
 use std::result::Result;
 use std::vec::Vec;
 
+use once_cell::sync::Lazy;
 use thiserror::Error;
 
 use crate::content_hash::ContentHash;
@@ -329,6 +330,12 @@ impl Tree {
     }
 }
 
+pub fn root_change_id() -> &'static ChangeId {
+    static ROOT_CHANGE_ID: Lazy<ChangeId> =
+        Lazy::new(|| ChangeId::new(vec![0; CHANGE_ID_HASH_LENGTH]));
+    &ROOT_CHANGE_ID
+}
+
 pub fn make_root_commit(empty_tree_id: TreeId) -> Commit {
     let timestamp = Timestamp {
         timestamp: MillisSinceEpoch(0),
@@ -339,7 +346,7 @@ pub fn make_root_commit(empty_tree_id: TreeId) -> Commit {
         email: String::new(),
         timestamp,
     };
-    let change_id = ChangeId::new(vec![0; CHANGE_ID_HASH_LENGTH]);
+    let change_id = root_change_id().to_owned();
     Commit {
         parents: vec![],
         predecessors: vec![],
