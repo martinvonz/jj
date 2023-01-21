@@ -164,7 +164,7 @@ fn parse_method_chain<'a, I: 'a>(
             }
             Property::CommitOrChangeId(property, repo) => {
                 let PropertyAndLabels(next_method, labels) =
-                    parse_commit_or_chain_id_method(method, repo);
+                    parse_commit_or_change_id_method(method, repo);
                 (next_method.after(property), labels)
             }
             Property::Signature(property) => {
@@ -205,7 +205,7 @@ fn parse_boolean_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, bool> {
     panic!("no such boolean method: {}", name.as_str());
 }
 
-fn parse_commit_or_chain_id_method<'a>(
+fn parse_commit_or_change_id_method<'a>(
     method: Pair<Rule>,
     repo: RepoRef<'a>,
 ) -> PropertyAndLabels<'a, CommitOrChangeId> {
