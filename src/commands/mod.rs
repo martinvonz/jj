@@ -1379,6 +1379,7 @@ fn log_template(settings: &UserSettings) -> String {
     // and enum similar to `ColorChoice`.
     let prefix_format = match settings.unique_prefixes().as_str() {
         "brackets" => "shortest_prefix_and_brackets()",
+        "styled" => "shortest_styled_prefix()",
         _ => "short()",
     };
     let default_template = format!(

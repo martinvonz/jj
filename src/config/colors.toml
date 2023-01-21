@@ -8,6 +8,13 @@
 
 "commit_id" = "blue"
 "change_id" = "magenta"
+
+# Unique prefixes and the rest for change & commit ids
+"prefix" = { bold = true}
+"rest" = "bright black"
+"divergent rest" = "red"
+"divergent prefix" = {fg = "red", underlined=true}
+
 "email" = "yellow"
 "timestamp" = "cyan"
 "working_copies" = "magenta"
