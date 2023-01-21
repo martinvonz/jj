@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `ui.relative-timestamps` option now also affects `jj op log`.
 
 * Background colors, bold text, and underlining are now supported. You can set
-  e.g. `color.error = { bg = "red", bold = true, underline = true }` in your
+  e.g. `color.error = { bg = "red", bold = true, underlined = true }` in your
   `~/.jjconfig.toml`.
 
 * The `empty` condition in templates is true when the commit makes no change to
