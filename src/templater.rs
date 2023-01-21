@@ -567,12 +567,14 @@ impl<'a> CommitOrChangeId<'a> {
         hex
     }
 
-    pub fn shortest_prefix_and_brackets(&self) -> String {
+    /// The length of the id printed (not counting the brackets) will be the
+    /// maximum of `total_len` and the length of the shortest unique prefix
+    pub fn shortest_prefix_and_brackets(&self, total_len: i64) -> String {
         let hex = self.hex();
         let (prefix, rest) = extract_entire_prefix_and_trimmed_tail(
             &hex,
             self.repo.shortest_unique_id_prefix_len(self.as_bytes()),
-            12 - 2,
+            max(total_len, 0) as usize,
         );
         if rest.is_empty() {
             prefix.to_string()
@@ -581,12 +583,14 @@ impl<'a> CommitOrChangeId<'a> {
         }
     }
 
-    pub fn shortest_styled_prefix(&self) -> IdWithHighlightedPrefix {
+    /// The length of the id printed will be the maximum of `total_len` and the
+    /// length of the shortest unique prefix
+    pub fn shortest_styled_prefix(&self, total_len: i64) -> IdWithHighlightedPrefix {
         let hex = self.hex();
         let (prefix, rest) = extract_entire_prefix_and_trimmed_tail(
             &hex,
             self.repo.shortest_unique_id_prefix_len(self.as_bytes()),
-            12,
+            max(total_len, 0) as usize,
         );
         IdWithHighlightedPrefix {
             prefix: prefix.to_string(),
