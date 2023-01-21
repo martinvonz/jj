@@ -17,11 +17,11 @@ use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs::File;
 use std::hash::{Hash, Hasher};
-use std::io;
 use std::io::{Cursor, Read, Write};
 use std::ops::{Bound, Range};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::{io, iter};
 
 use blake2::{Blake2b512, Digest};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -698,6 +698,18 @@ trait IndexSegment {
 struct CompositeIndex<'a>(&'a dyn IndexSegment);
 
 impl<'a> CompositeIndex<'a> {
+    fn ancestor_files_without_local(&self) -> impl Iterator<Item = &Arc<ReadonlyIndex>> {
+        let parent_file = self.0.segment_parent_file();
+        iter::successors(parent_file, |file| file.segment_parent_file())
+    }
+
+    fn ancestor_index_segments(&self) -> impl Iterator<Item = &dyn IndexSegment> {
+        iter::once(self.0).chain(
+            self.ancestor_files_without_local()
+                .map(|file| file.as_ref() as &dyn IndexSegment),
+        )
+    }
+
     pub fn num_commits(&self) -> u32 {
         self.0.segment_num_parent_commits() + self.0.segment_num_commits()
     }
@@ -721,19 +733,13 @@ impl<'a> CompositeIndex<'a> {
         }
         let num_heads = is_head.iter().filter(|is_head| **is_head).count() as u32;
 
-        let mut levels = vec![IndexLevelStats {
-            num_commits: self.0.segment_num_commits(),
-            name: self.0.segment_name(),
-        }];
-        let mut parent_file = self.0.segment_parent_file().cloned();
-        while parent_file.is_some() {
-            let file = parent_file.as_ref().unwrap();
-            levels.push(IndexLevelStats {
-                num_commits: file.segment_num_commits(),
-                name: file.segment_name(),
-            });
-            parent_file = file.segment_parent_file().cloned();
-        }
+        let mut levels = self
+            .ancestor_index_segments()
+            .map(|segment| IndexLevelStats {
+                num_commits: segment.segment_num_commits(),
+                name: segment.segment_name(),
+            })
+            .collect_vec();
         levels.reverse();
 
         IndexStats {
@@ -760,27 +766,20 @@ impl<'a> CompositeIndex<'a> {
     }
 
     pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
-        let local_match = self.0.segment_commit_id_to_pos(commit_id);
-        local_match.or_else(|| {
-            self.0
-                .segment_parent_file()
-                .and_then(|file| IndexRef::Readonly(file).commit_id_to_pos(commit_id))
-        })
+        self.ancestor_index_segments()
+            .find_map(|segment| segment.segment_commit_id_to_pos(commit_id))
     }
 
     pub fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        let local_match = self.0.segment_resolve_prefix(prefix);
-        if local_match == PrefixResolution::AmbiguousMatch {
-            // return early to avoid checking the parent file(s)
-            return local_match;
-        }
-        let parent_match = self
-            .0
-            .segment_parent_file()
-            .map_or(PrefixResolution::NoMatch, |file| {
-                file.resolve_prefix(prefix)
-            });
-        local_match.plus(&parent_match)
+        self.ancestor_index_segments()
+            .fold(PrefixResolution::NoMatch, |acc_match, segment| {
+                if acc_match == PrefixResolution::AmbiguousMatch {
+                    acc_match // avoid checking the parent file(s)
+                } else {
+                    let local_match = segment.segment_resolve_prefix(prefix);
+                    acc_match.plus(&local_match)
+                }
+            })
     }
 
     pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
