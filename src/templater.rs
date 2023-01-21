@@ -25,7 +25,7 @@ use jujutsu_lib::repo::RepoRef;
 use jujutsu_lib::revset::RevsetExpression;
 use jujutsu_lib::rewrite::merge_commit_trees;
 
-use crate::formatter::Formatter;
+use crate::formatter::{Formatter, PlainTextFormatter};
 
 pub trait Template<C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()>;
@@ -152,6 +152,122 @@ impl<'a, C> Template<C> for StringPropertyTemplate<'a, C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let text = self.property.extract(context);
         formatter.write_str(&text)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum FormattedString {
+    Plain(String),
+    Labeled {
+        str: Box<FormattedString>,
+        label: String,
+    }, // TODO: Consider Vec<String> for labels
+    Concat(Vec<FormattedString>),
+}
+impl FormattedString {
+    pub fn to_template(self) -> Box<dyn Template<()>> {
+        match self {
+            FormattedString::Plain(s) => Box::new(LiteralTemplate(s)),
+            FormattedString::Labeled { str, label } => {
+                Box::new(LabelTemplate::new(str.to_template(), vec![label]))
+            }
+            FormattedString::Concat(strs) => Box::new(ListTemplate(
+                strs.into_iter().map(|fs| fs.to_template()).collect_vec(),
+            )),
+        }
+    }
+    pub fn format(self, formatter: &mut dyn Formatter) -> io::Result<()> {
+        self.to_template().format(&(), formatter)
+    }
+
+    /// Prepends `label` to the list of labels of every portion of this
+    /// formatted string
+    pub fn prepend_label(self, label: String) -> Self {
+        Self::Labeled {
+            str: Box::new(self),
+            label,
+        }
+    }
+
+    pub fn concat(strings: Vec<FormattedString>) -> Self {
+        Self::Concat(strings)
+    }
+
+    pub fn join(strs: Vec<FormattedString>, with: FormattedString) -> FormattedString {
+        FormattedString::concat(itertools::intersperse(strs.into_iter(), with).collect_vec())
+    }
+}
+impl Default for FormattedString {
+    fn default() -> FormattedString {
+        Self::from("".to_string())
+    }
+}
+impl From<String> for FormattedString {
+    fn from(s: String) -> FormattedString {
+        Self::Plain(s)
+    }
+}
+impl From<&str> for FormattedString {
+    fn from(s: &str) -> FormattedString {
+        Self::Plain(s.to_string())
+    }
+}
+impl From<FormattedString> for String {
+    fn from(fs: FormattedString) -> String {
+        let mut result = vec![];
+        fs.to_template()
+            .format(&(), &mut PlainTextFormatter::new(&mut result))
+            .unwrap();
+        String::from_utf8_lossy(&result).to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::formatter::ColorFormatter;
+
+    fn config_from_string(text: &str) -> config::Config {
+        config::Config::builder()
+            .add_source(config::File::from_str(text, config::FileFormat::Toml))
+            .build()
+            .unwrap()
+    }
+
+    #[test]
+    fn test_color_formatter_sibling() {
+        // A partial match on one rule does not eliminate other rules.
+        let config = config_from_string(
+            r#"
+        colors."first second" = "blue"
+        colors."second first" = "red"
+        colors."second" = "green"
+        "#,
+        );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter = ColorFormatter::for_config(&mut output, &config);
+        let input = vec![
+            FormattedString::from(r#"prepend_label("first") => no color"#)
+                .prepend_label("first".to_string()),
+            FormattedString::from(r#"prepend_label("second") => green"#)
+                .prepend_label("second".to_string()),
+            FormattedString::from(r#"prepend_label("first").prepend_label("second") => red"#)
+                .prepend_label("first".to_string())
+                .prepend_label("second".to_string()),
+            FormattedString::from(r#"prepend_label("second").prepend_label("first") => blue"#)
+                .prepend_label("second".to_string())
+                .prepend_label("first".to_string()),
+        ];
+        FormattedString::join(input, FormattedString::from("\n"))
+            .format(&mut formatter)
+            .unwrap(); // TODO: Replace concat with join
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(),
+        @r###"
+        prepend_label("first") => no color
+        [38;5;2mprepend_label("second") => green[39m
+        [38;5;1mprepend_label("first").prepend_label("second") => red[39m
+        [38;5;4mprepend_label("second").prepend_label("first") => blue[39m
+        "###);
     }
 }
 
