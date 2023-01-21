@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cmp::{max, min};
 use std::io;
 
 use itertools::Itertools;
@@ -494,7 +495,7 @@ impl CommitOrChangeId<'_> {
     }
 
     pub fn short_prefix_and_brackets(&self) -> String {
-        highlight_shortest_prefix(self, 12)
+        highlight_shortest_prefix_brackets(self, 12)
     }
 }
 
@@ -504,18 +505,63 @@ impl Template<()> for CommitOrChangeId<'_> {
     }
 }
 
-fn highlight_shortest_prefix(id: &CommitOrChangeId, total_len: usize) -> String {
-    let prefix_len = id.repo.shortest_unique_id_prefix_len(id.as_bytes());
-    let mut hex = id.hex();
-    if prefix_len < total_len - 2 {
-        format!(
-            "{}[{}]",
-            &hex[0..prefix_len],
-            &hex[prefix_len..total_len - 2]
+/// This function supports short `total_len` by ensuring that the entire
+/// unique prefix is always printed
+fn extract_entire_prefix_and_trimmed_tail(
+    s: &str,
+    prefix_len: usize,
+    total_len: usize,
+) -> (&str, &str) {
+    let prefix_len = min(prefix_len, s.len());
+    let total_len = max(prefix_len, min(total_len, s.len()));
+    (&s[0..prefix_len], &s[prefix_len..total_len])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_entire_prefix_and_trimmed_tail;
+
+    #[test]
+    fn test_prefix() {
+        let s = "0123456789";
+        insta::assert_debug_snapshot!(extract_entire_prefix_and_trimmed_tail(s, 2, 5), @r###"
+        (
+            "01",
+            "234",
         )
+        "###);
+        insta::assert_debug_snapshot!(extract_entire_prefix_and_trimmed_tail(s, 2, 11), @r###"
+        (
+            "01",
+            "23456789",
+        )
+        "###);
+        insta::assert_debug_snapshot!(extract_entire_prefix_and_trimmed_tail(s, 11, 2), @r###"
+        (
+            "0123456789",
+            "",
+        )
+        "###);
+        insta::assert_debug_snapshot!(extract_entire_prefix_and_trimmed_tail(s, 11, 11), @r###"
+        (
+            "0123456789",
+            "",
+        )
+        "###);
+    }
+}
+
+fn highlight_shortest_prefix_brackets(id: &CommitOrChangeId, total_len: usize) -> String {
+    let hex = id.hex();
+    let (prefix, rest) = extract_entire_prefix_and_trimmed_tail(
+        &hex,
+        id.repo.shortest_unique_id_prefix_len(id.as_bytes()),
+        total_len - 2,
+    );
+    if rest.is_empty() {
+        prefix.to_string()
     } else {
-        hex.truncate(total_len);
-        hex
+        format!("{prefix}[{rest}]")
     }
 }
 
