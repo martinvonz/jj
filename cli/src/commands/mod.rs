@@ -108,10 +108,12 @@ enum Commands {
     Merge(NewArgs),
     Move(MoveArgs),
     New(NewArgs),
+    Next(NextArgs),
     Obslog(ObslogArgs),
     #[command(subcommand)]
     #[command(visible_alias = "op")]
     Operation(operation::OperationCommands),
+    Prev(PrevArgs),
     Rebase(RebaseArgs),
     Resolve(ResolveArgs),
     Restore(RestoreArgs),
@@ -543,6 +545,82 @@ struct NewArgs {
     /// Insert the new change between the target commit(s) and their parents
     #[arg(long, short = 'B', visible_alias = "before")]
     insert_before: bool,
+}
+
+/// Move the current working copy commit to the next child revision in the
+/// repository.
+///
+///
+/// The command moves you to the next child in a linear fashion.
+///
+///
+/// D      D @
+/// |      |/
+/// C @ => C
+/// |/     |
+/// B      B
+///
+///
+/// If `--edit` is passed, it will move you directly to the child
+/// revision.
+///
+///
+/// D    D
+/// |    |
+/// C    C
+/// |    |
+/// B => @
+/// |    |
+/// @    A
+// TODO(#2126): Handle multiple child revisions properly.
+#[derive(clap::Args, Clone, Debug)]
+#[command(verbatim_doc_comment)]
+struct NextArgs {
+    /// How many revisions to move forward. By default advances to the next
+    /// child.
+    #[arg(default_value = "1")]
+    amount: u64,
+    /// Instead of creating a new working-copy commit on top of the target
+    /// commit (like `jj new`), edit the target commit directly (like `jj
+    /// edit`).
+    #[arg(long)]
+    edit: bool,
+}
+
+/// Move the working copy commit to the parent of the current revision.
+///
+///
+/// The command moves you to the parent in a linear fashion.
+///
+///
+/// D @  D
+/// |/   |
+/// A => A @
+/// |    | /
+/// B    B
+///
+///
+/// If `--edit` is passed, it will move the working copy commit
+/// directly to the parent.
+///
+///
+/// D @  D
+/// |/   |
+/// C => @
+/// |    |
+/// B    B
+/// |    |
+/// A    A
+// TODO(#2126): Handle multiple parents, e.g merges.
+#[derive(clap::Args, Clone, Debug)]
+#[command(verbatim_doc_comment)]
+struct PrevArgs {
+    /// How many revisions to move backward. By default moves to the parent.
+    #[arg(default_value = "1")]
+    amount: u64,
+    /// Edit the parent directly, instead of moving the working-copy commit.
+    #[arg(long)]
+    edit: bool,
 }
 
 /// Move changes from one revision into another
@@ -2348,6 +2426,136 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     Ok(())
 }
 
+fn cmd_next(ui: &mut Ui, command: &CommandHelper, args: &NextArgs) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let edit = args.edit;
+    let amount = args.amount;
+    let current_wc_id = workspace_command
+        .get_wc_commit_id()
+        .ok_or_else(|| user_error("This command requires a working copy"))?;
+    let current_wc = workspace_command.repo().store().get_commit(current_wc_id)?;
+    let current_short = short_commit_hash(current_wc.id());
+    // If we're editing, start at the working-copy commit.
+    // Otherwise start from our direct parent.
+    let start_id = if edit {
+        current_wc_id
+    } else {
+        match current_wc.parent_ids() {
+            [parent_id] => parent_id,
+            _ => return Err(user_error("Cannot run `jj next` on a merge commit")),
+        }
+    };
+    let descendant_expression = RevsetExpression::commit(start_id.clone()).descendants_at(amount);
+    let target_expression = if edit {
+        descendant_expression
+    } else {
+        descendant_expression.minus(&RevsetExpression::commit(current_wc_id.clone()).descendants())
+    };
+    let targets: Vec<Commit> = target_expression
+        .resolve(workspace_command.repo().as_ref())?
+        .evaluate(workspace_command.repo().as_ref())?
+        .iter()
+        .commits(workspace_command.repo().store())
+        .take(2)
+        .try_collect()?;
+    let target = match targets.as_slice() {
+        [target] => target,
+        [] => {
+            // We found no descendant.
+            return Err(user_error(format!(
+                "No descendant found {amount} commit{} forward",
+                if amount > 1 { "s" } else { "" }
+            )));
+        }
+        _ => {
+            // TODO(#2126) We currently cannot deal with multiple children, which result
+            // from branches. Prompt the user for resolution.
+            return Err(user_error("Ambiguous target commit"));
+        }
+    };
+    let target_short = short_commit_hash(target.id());
+    // We're editing, just move to the target commit.
+    if edit {
+        // We're editing, the target must be rewritable.
+        workspace_command.check_rewritable(target)?;
+        let mut tx = workspace_command
+            .start_transaction(&format!("next: {current_short} -> editing {target_short}"));
+        tx.edit(target)?;
+        tx.finish(ui)?;
+        return Ok(());
+    }
+    let mut tx =
+        workspace_command.start_transaction(&format!("next: {current_short} -> {target_short}"));
+    // Move the working-copy commit to the new parent.
+    tx.check_out(target)?;
+    tx.finish(ui)?;
+    Ok(())
+}
+
+fn cmd_prev(ui: &mut Ui, command: &CommandHelper, args: &PrevArgs) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let edit = args.edit;
+    let amount = args.amount;
+    let current_wc_id = workspace_command
+        .get_wc_commit_id()
+        .ok_or_else(|| user_error("This command requires a working copy"))?;
+    let current_wc = workspace_command.repo().store().get_commit(current_wc_id)?;
+    let current_short = short_commit_hash(current_wc.id());
+    let start_id = if edit {
+        current_wc_id
+    } else {
+        match current_wc.parent_ids() {
+            [parent_id] => parent_id,
+            _ => return Err(user_error("Cannot run `jj prev` on a merge commit")),
+        }
+    };
+    let ancestor_expression = RevsetExpression::commit(start_id.clone()).ancestors_at(amount);
+    let target_revset = if edit {
+        ancestor_expression
+    } else {
+        // Jujutsu will always create a new commit for prev, even where Mercurial cannot
+        // and fails. The decision and all discussion around it are available
+        // here: https://github.com/martinvonz/jj/pull/1200#discussion_r1298623933
+        //
+        // If users ever request erroring out, add `.ancestors()` to the revset below.
+        ancestor_expression.minus(&RevsetExpression::commit(current_wc_id.clone()))
+    };
+    let targets: Vec<_> = target_revset
+        .resolve(workspace_command.repo().as_ref())?
+        .evaluate(workspace_command.repo().as_ref())?
+        .iter()
+        .commits(workspace_command.repo().store())
+        .take(2)
+        .try_collect()?;
+    let target = match targets.as_slice() {
+        [target] => target,
+        [] => {
+            return Err(user_error(format!(
+                "No ancestor found {amount} commit{} back",
+                if amount > 1 { "s" } else { "" }
+            )))
+        }
+        _ => return Err(user_error("Ambiguous target commit")),
+    };
+    // Generate a short commit hash, to make it readable in the op log.
+    let target_short = short_commit_hash(target.id());
+    // If we're editing, just move to the revision directly.
+    if edit {
+        // The target must be rewritable if we're editing.
+        workspace_command.check_rewritable(target)?;
+        let mut tx = workspace_command
+            .start_transaction(&format!("prev: {current_short} -> editing {target_short}"));
+        tx.edit(target)?;
+        tx.finish(ui)?;
+        return Ok(());
+    }
+    let mut tx =
+        workspace_command.start_transaction(&format!("prev: {current_short} -> {target_short}"));
+    tx.check_out(target)?;
+    tx.finish(ui)?;
+    Ok(())
+}
+
 fn combine_messages(
     repo: &ReadonlyRepo,
     source: &Commit,
@@ -3731,6 +3939,8 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Commands::Duplicate(sub_args) => cmd_duplicate(ui, command_helper, sub_args),
         Commands::Abandon(sub_args) => cmd_abandon(ui, command_helper, sub_args),
         Commands::Edit(sub_args) => cmd_edit(ui, command_helper, sub_args),
+        Commands::Next(sub_args) => cmd_next(ui, command_helper, sub_args),
+        Commands::Prev(sub_args) => cmd_prev(ui, command_helper, sub_args),
         Commands::New(sub_args) => cmd_new(ui, command_helper, sub_args),
         Commands::Move(sub_args) => cmd_move(ui, command_helper, sub_args),
         Commands::Squash(sub_args) => cmd_squash(ui, command_helper, sub_args),
