@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::io::ErrorKind;
-use std::ops::Bound::{Excluded, Unbounded};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{cmp, fs, io};
@@ -248,11 +247,12 @@ impl ReadonlyRepo {
             let all_visible_revisions = crate::revset::RevsetExpression::all()
                 .evaluate(self.as_repo_ref(), None)
                 .unwrap();
-            let mut id_index = IdIndex::new();
-            for entry in all_visible_revisions.iter() {
-                id_index.insert(entry.change_id().as_bytes(), ());
-            }
-            id_index
+            IdIndex::from_vec(
+                all_visible_revisions
+                    .iter()
+                    .map(|entry| (entry.change_id().to_bytes(), ()))
+                    .collect(),
+            )
         })
     }
 
@@ -1186,17 +1186,14 @@ mod dirty_cell {
 // This value would be used to find divergent changes, for example, or if it is
 // necessary to mark whether an id is a Change or a Commit id.
 type IdIndexValue = ();
-#[derive(Debug, Clone, Default)]
-pub struct IdIndex(BTreeMap<Vec<u8>, IdIndexValue>);
+#[derive(Debug, Clone)]
+pub struct IdIndex(Vec<(Vec<u8>, IdIndexValue)>);
 
 impl IdIndex {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Inserts a bytes key to the index.
-    pub fn insert(&mut self, key: &[u8], value: IdIndexValue) -> Option<IdIndexValue> {
-        self.0.insert(key.to_vec(), value)
+    /// Creates new index from the given keys. Keys may have duplicates.
+    pub fn from_vec(mut vec: Vec<(Vec<u8>, IdIndexValue)>) -> Self {
+        vec.sort_unstable_by(|(k0, _), (k1, _)| k0.cmp(k1));
+        IdIndex(vec)
     }
 
     /// This function returns the shortest length of a prefix of `key` that
@@ -1215,11 +1212,9 @@ impl IdIndex {
     ///   additional fact that it's the entire key). This case is extremely
     ///   unlikely for hashes with 12+ hexadecimal characters.
     pub fn shortest_unique_prefix_len(&self, key: &[u8]) -> usize {
-        let left = self
-            .0
-            .range::<[u8], _>((Unbounded, Excluded(key)))
-            .next_back();
-        let right = self.0.range::<[u8], _>((Excluded(key), Unbounded)).next();
+        let pos = self.0.partition_point(|(k, _)| k.as_slice() < key);
+        let left = pos.checked_sub(1).map(|p| &self.0[p]);
+        let right = self.0[pos..].iter().find(|(k, _)| k.as_slice() != key);
         itertools::chain(left, right)
             .map(|(neighbor, _value)| backend::common_hex_len(key, neighbor) + 1)
             .max()
@@ -1233,9 +1228,18 @@ mod tests {
 
     #[test]
     fn test_id_index() {
-        let mut id_index = IdIndex::new();
-        id_index.insert(&hex::decode("ab").unwrap(), ());
-        id_index.insert(&hex::decode("acd0").unwrap(), ());
+        // No crash if empty
+        let id_index = IdIndex::from_vec(vec![]);
+        assert_eq!(
+            id_index.shortest_unique_prefix_len(&hex::decode("00").unwrap()),
+            0
+        );
+
+        let id_index = IdIndex::from_vec(vec![
+            (hex::decode("ab").unwrap(), ()),
+            (hex::decode("acd0").unwrap(), ()),
+            (hex::decode("acd0").unwrap(), ()), // duplicated key is allowed
+        ]);
         assert_eq!(
             id_index.shortest_unique_prefix_len(&hex::decode("acd0").unwrap()),
             2
@@ -1245,12 +1249,13 @@ mod tests {
             3
         );
 
-        let mut id_index = IdIndex::new();
-        id_index.insert(&hex::decode("ab").unwrap(), ());
-        id_index.insert(&hex::decode("acd0").unwrap(), ());
-        id_index.insert(&hex::decode("acf0").unwrap(), ());
-        id_index.insert(&hex::decode("a0").unwrap(), ());
-        id_index.insert(&hex::decode("ba").unwrap(), ());
+        let id_index = IdIndex::from_vec(vec![
+            (hex::decode("ab").unwrap(), ()),
+            (hex::decode("acd0").unwrap(), ()),
+            (hex::decode("acf0").unwrap(), ()),
+            (hex::decode("a0").unwrap(), ()),
+            (hex::decode("ba").unwrap(), ()),
+        ]);
 
         assert_eq!(
             id_index.shortest_unique_prefix_len(&hex::decode("a0").unwrap()),
