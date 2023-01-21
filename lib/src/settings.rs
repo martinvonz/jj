@@ -19,7 +19,7 @@ use chrono::DateTime;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 
-use crate::backend::{ChangeId, ObjectId, Signature, Timestamp};
+use crate::backend::{ChangeId, ObjectId, Signature, Timestamp, CHANGE_ID_HASH_LENGTH};
 
 #[derive(Debug, Clone)]
 pub struct UserSettings {
@@ -167,7 +167,7 @@ impl UserSettings {
 pub struct JJRng(Mutex<ChaCha20Rng>);
 impl JJRng {
     pub fn new_change_id(&self) -> ChangeId {
-        let random_bytes: [u8; 16] = self.gen();
+        let random_bytes: [u8; CHANGE_ID_HASH_LENGTH] = self.gen();
         ChangeId::new(random_bytes.into())
     }
 

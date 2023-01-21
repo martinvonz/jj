@@ -23,6 +23,8 @@ use thiserror::Error;
 use crate::content_hash::ContentHash;
 use crate::repo_path::{RepoPath, RepoPathComponent};
 
+pub const CHANGE_ID_HASH_LENGTH: usize = 16;
+
 pub trait ObjectId {
     fn new(value: Vec<u8>) -> Self;
     fn object_type(&self) -> String;
@@ -337,7 +339,7 @@ pub fn make_root_commit(empty_tree_id: TreeId) -> Commit {
         email: String::new(),
         timestamp,
     };
-    let change_id = ChangeId::new(vec![0; 16]);
+    let change_id = ChangeId::new(vec![0; CHANGE_ID_HASH_LENGTH]);
     Commit {
         parents: vec![],
         predecessors: vec![],
