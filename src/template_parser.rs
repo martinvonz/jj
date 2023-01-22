@@ -353,6 +353,10 @@ fn parse_boolean_commit_property<'a>(
                 property,
                 Box::new(|string| !string.is_empty()),
             )),
+            Property::FormattedString(property) => Box::new(TemplateFunction::new(
+                property,
+                Box::new(|string| !string.is_empty()),
+            )),
             _ => panic!("cannot yet use this as boolean: {pair:?}"),
         },
         _ => panic!("cannot yet use this as boolean: {pair:?}"),

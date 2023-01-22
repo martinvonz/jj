@@ -195,6 +195,14 @@ impl FormattedString {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        match self {
+            FormattedString::Plain(s) => s.is_empty(),
+            FormattedString::Labeled { str, .. } => str.is_empty(),
+            FormattedString::Concat(strs) => strs.iter().all(|s| s.is_empty()),
+        }
+    }
+
     pub fn concat(strings: Vec<FormattedString>) -> Self {
         Self::Concat(strings)
     }
