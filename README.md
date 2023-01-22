@@ -17,7 +17,10 @@
 This is not a Google product. It is an experimental version-control system
 (VCS). It was written by me, Martin von Zweigbergk (martinvonz@google.com). It
 is my personal hobby project and my 20% project at Google. It does not indicate
-any commitment or direction from Google.
+any commitment or direction from Google. However, my presentation from Git Merge
+2022 does include some information about Google's plans. See the
+[slides](https://docs.google.com/presentation/d/1F8j9_UOOSGUN9MvHxPZX_L4bQ9NMcYOp1isn17kTC_M/view)
+or the [recording](https://www.youtube.com/watch?v=bx_LGilOuE4).
 
 
 ## Introduction
