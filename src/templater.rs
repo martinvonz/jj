@@ -145,15 +145,24 @@ impl<C, O: Clone> TemplateProperty<C, O> for Literal<O> {
     }
 }
 
-// TODO: figure out why this lifetime is needed
-pub struct StringPropertyTemplate<'a, C> {
-    pub property: Box<dyn TemplateProperty<C, String> + 'a>,
+/// Adapter to extract context-less template value from property for displaying.
+pub struct FormattablePropertyTemplate<'a, C, O> {
+    property: Box<dyn TemplateProperty<C, O> + 'a>,
 }
 
-impl<'a, C> Template<C> for StringPropertyTemplate<'a, C> {
+impl<'a, C, O> FormattablePropertyTemplate<'a, C, O> {
+    pub fn new(property: Box<dyn TemplateProperty<C, O> + 'a>) -> Self {
+        FormattablePropertyTemplate { property }
+    }
+}
+
+impl<C, O> Template<C> for FormattablePropertyTemplate<'_, C, O>
+where
+    O: Template<()>,
+{
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        let text = self.property.extract(context);
-        formatter.write_str(&text)
+        let template = self.property.extract(context);
+        template.format(&(), formatter)
     }
 }
 
