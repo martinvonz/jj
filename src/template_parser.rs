@@ -56,14 +56,6 @@ fn parse_string_literal(pair: Pair<Rule>) -> String {
     result
 }
 
-struct StringShort;
-
-impl TemplateProperty<String, String> for StringShort {
-    fn extract(&self, context: &String) -> String {
-        context.chars().take(12).collect()
-    }
-}
-
 struct StringFirstLine;
 
 impl TemplateProperty<String, String> for StringFirstLine {
@@ -188,7 +180,6 @@ fn parse_string_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, String> 
     // TODO: validate arguments
 
     let this_function = match name.as_str() {
-        "short" => Property::String(Box::new(StringShort)),
         "first_line" => Property::String(Box::new(StringFirstLine)),
         name => panic!("no such string method: {name}"),
     };
