@@ -33,7 +33,11 @@ pub trait Template<C> {
 
 impl Template<()> for Signature {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
-        formatter.write_str(&self.name)
+        write!(formatter, "{}", self.name)?;
+        write!(formatter, " <")?;
+        write!(formatter.labeled("email"), "{}", self.email)?;
+        write!(formatter, ">")?;
+        Ok(())
     }
 }
 
