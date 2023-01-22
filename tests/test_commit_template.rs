@@ -63,7 +63,8 @@ fn test_log_default() {
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "my-branch"]);
 
     // Test default log output format
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log"]), @r###"
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
+    insta::assert_snapshot!(stdout, @r###"
     @ f[fdaa62087] test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9d[e54178d5]
     | (empty) description 1
     o 9a[45c67d3e] test.user@example.com 2001-02-03 04:05:08.000 +07:00 4[291e264ae]
@@ -73,7 +74,11 @@ fn test_log_default() {
     "###);
 
     // Test default log output format with bracket prefixes
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "--config-toml", "ui.unique-prefixes='brackets'"]), @r###"
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "--config-toml", "ui.unique-prefixes='brackets'"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
     @ f[fdaa62087] test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9d[e54178d5]
     | (empty) description 1
     o 9a[45c67d3e] test.user@example.com 2001-02-03 04:05:08.000 +07:00 4[291e264ae]
@@ -102,7 +107,11 @@ fn test_log_default() {
     "###);
 
     // Test default log output format with prefixes explicitly disabled
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "--config-toml", "ui.unique-prefixes='none'"]), @r###"
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "--config-toml", "ui.unique-prefixes='none'"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
     @ ffdaa62087a2 test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9de54178d59d
     | (empty) description 1
     o 9a45c67d3e96 test.user@example.com 2001-02-03 04:05:08.000 +07:00 4291e264ae97
