@@ -98,7 +98,6 @@ impl TemplateProperty<Timestamp, String> for RelativeTimestampString {
 
 enum Property<'a, I> {
     String(Box<dyn TemplateProperty<I, String> + 'a>),
-    #[allow(dead_code)] // TODO: remove exception. `branches` property will have this type shortly
     FormattedString(Box<dyn TemplateProperty<I, FormattedString> + 'a>),
     Boolean(Box<dyn TemplateProperty<I, bool> + 'a>),
     CommitOrChangeId(
@@ -293,7 +292,7 @@ fn parse_commit_keyword<'a>(
             repo,
             workspace_id: workspace_id.clone(),
         })),
-        "branches" => Property::String(Box::new(BranchProperty { repo })),
+        "branches" => Property::FormattedString(Box::new(BranchProperty { repo })),
         "tags" => Property::String(Box::new(TagProperty { repo })),
         "git_refs" => Property::String(Box::new(GitRefsProperty { repo })),
         "is_git_head" => Property::Boolean(Box::new(IsGitHeadProperty::new(repo))),

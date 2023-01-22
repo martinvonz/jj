@@ -358,37 +358,53 @@ pub struct BranchProperty<'a> {
     pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<Commit, String> for BranchProperty<'_> {
-    fn extract(&self, context: &Commit) -> String {
+impl TemplateProperty<Commit, FormattedString> for BranchProperty<'_> {
+    fn extract(&self, context: &Commit) -> FormattedString {
         let mut names = vec![];
         for (branch_name, branch_target) in self.repo.view().branches() {
             let local_target = branch_target.local_target.as_ref();
             if let Some(local_target) = local_target {
                 if local_target.has_add(context.id()) {
+                    let mut pieces = vec![];
+                    pieces.push(FormattedString::from(branch_name.clone()));
                     if local_target.is_conflict() {
-                        names.push(format!("{branch_name}??"));
+                        pieces.push(
+                            FormattedString::from("??".to_string())
+                                .prepend_label("divergent".to_string()),
+                        );
                     } else if branch_target
                         .remote_targets
                         .values()
                         .any(|remote_target| remote_target != local_target)
                     {
-                        names.push(format!("{branch_name}*"));
-                    } else {
-                        names.push(branch_name.clone());
+                        pieces.push(
+                            FormattedString::from("*".to_string())
+                                .prepend_label("diff".to_string())
+                                .prepend_label("remote".to_string()),
+                        );
                     }
+                    names.push(FormattedString::concat(pieces));
                 }
             }
             for (remote_name, remote_target) in &branch_target.remote_targets {
                 if Some(remote_target) != local_target && remote_target.has_add(context.id()) {
+                    let mut pieces = vec![
+                        FormattedString::from(branch_name.clone()),
+                        FormattedString::from("@").prepend_label("separator".to_string()),
+                        // TODO: This doesn't seem to affect HEAD@git
+                        FormattedString::from(remote_name.clone())
+                            .prepend_label("remote".to_string()),
+                    ];
                     if remote_target.is_conflict() {
-                        names.push(format!("{branch_name}@{remote_name}?"));
-                    } else {
-                        names.push(format!("{branch_name}@{remote_name}"));
+                        pieces.push(
+                            FormattedString::from("??").prepend_label("divergent".to_string()),
+                        );
                     }
+                    names.push(FormattedString::concat(pieces));
                 }
             }
         }
-        names.join(" ")
+        FormattedString::join(names, FormattedString::from(" "))
     }
 }
 

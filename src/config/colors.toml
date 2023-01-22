@@ -13,6 +13,7 @@
 "working_copies" = "magenta"
 "branch" = "magenta"
 "branches" = "magenta"
+"branches divergent" = "red"
 "tags" = "magenta"
 "git_refs" = "magenta"
 "git_head" = "magenta"
