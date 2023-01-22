@@ -98,6 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and duplicate commit no longer crashes. The fix should also resolve any remaining
   instances of https://github.com/martinvonz/jj/issues/27.
 
+* Fix the output of `jj debug completion --help` by reversing fish and zsh text.
+
 ### Contributors
 
 Thanks to the people who made this release happen!
