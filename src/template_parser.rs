@@ -25,9 +25,10 @@ use crate::templater::{
     AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdProperty, CommitOrChangeId,
     CommitOrChangeIdShort, CommitOrChangeIdShortPrefixAndBrackets, CommitterProperty,
     ConditionalTemplate, ConflictProperty, DescriptionProperty, DivergentProperty,
-    DynamicLabelTemplate, EmptyProperty, GitRefsProperty, IsGitHeadProperty, IsWorkingCopyProperty,
-    LabelTemplate, ListTemplate, Literal, SignatureTimestamp, StringPropertyTemplate, TagProperty,
-    Template, TemplateFunction, TemplateProperty, WorkingCopiesProperty,
+    DynamicLabelTemplate, EmptyProperty, FormattablePropertyTemplate, GitRefsProperty,
+    IsGitHeadProperty, IsWorkingCopyProperty, LabelTemplate, ListTemplate, Literal,
+    SignatureTimestamp, TagProperty, Template, TemplateFunction, TemplateProperty,
+    WorkingCopiesProperty,
 };
 use crate::time_util;
 
@@ -117,6 +118,21 @@ impl<'a, I: 'a> Property<'a, I> {
             }
             Property::Signature(property) => Property::Signature(chain(first, property)),
             Property::Timestamp(property) => Property::Timestamp(chain(first, property)),
+        }
+    }
+
+    fn into_template(self) -> Box<dyn Template<I> + 'a> {
+        fn wrap<'a, I: 'a, O: Template<()> + 'a>(
+            property: Box<dyn TemplateProperty<I, O> + 'a>,
+        ) -> Box<dyn Template<I> + 'a> {
+            Box::new(FormattablePropertyTemplate::new(property))
+        }
+        match self {
+            Property::String(property) => wrap(property),
+            Property::Boolean(property) => wrap(property),
+            Property::CommitOrChangeId(property, _) => wrap(property),
+            Property::Signature(property) => wrap(property),
+            Property::Timestamp(property) => wrap(property),
         }
     }
 }
@@ -262,29 +278,6 @@ fn parse_commit_keyword<'a>(
     PropertyAndLabels(property, vec![pair.as_str().to_string()])
 }
 
-fn coerce_to_string<'a, I: 'a>(
-    property: Property<'a, I>,
-) -> Box<dyn TemplateProperty<I, String> + 'a> {
-    match property {
-        Property::String(property) => property,
-        Property::Boolean(property) => Box::new(TemplateFunction::new(
-            property,
-            Box::new(|value| String::from(if value { "true" } else { "false" })),
-        )),
-        Property::CommitOrChangeId(property, _) => {
-            Box::new(TemplateFunction::new(property, Box::new(|id| id.hex())))
-        }
-        Property::Signature(property) => Box::new(TemplateFunction::new(
-            property,
-            Box::new(|signature| signature.name),
-        )),
-        Property::Timestamp(property) => Box::new(TemplateFunction::new(
-            property,
-            Box::new(|timestamp| time_util::format_absolute_timestamp(&timestamp)),
-        )),
-    }
-}
-
 fn parse_boolean_commit_property<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
@@ -329,13 +322,7 @@ fn parse_commit_term<'a>(
                     let input_property = Property::String(Box::new(Literal(text)));
                     let PropertyAndLabels(property, method_labels) =
                         parse_method_chain(maybe_method, input_property);
-                    let string_property = coerce_to_string(property);
-                    Box::new(LabelTemplate::new(
-                        Box::new(StringPropertyTemplate {
-                            property: string_property,
-                        }),
-                        method_labels,
-                    ))
+                    Box::new(LabelTemplate::new(property.into_template(), method_labels))
                 }
             }
             Rule::identifier => {
@@ -343,15 +330,9 @@ fn parse_commit_term<'a>(
                     parse_commit_keyword(repo, workspace_id, expr);
                 let PropertyAndLabels(property, method_labels) =
                     parse_method_chain(maybe_method, term_property);
-                let string_property = coerce_to_string(property);
                 let mut labels = keyword_labels;
                 labels.extend(method_labels);
-                Box::new(LabelTemplate::new(
-                    Box::new(StringPropertyTemplate {
-                        property: string_property,
-                    }),
-                    labels,
-                ))
+                Box::new(LabelTemplate::new(property.into_template(), labels))
             }
             Rule::function => {
                 let mut inner = expr.into_inner();
