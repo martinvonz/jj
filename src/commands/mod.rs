@@ -833,17 +833,17 @@ struct DebugCompletionArgs {
     ///
     /// Apply it by running this:
     ///
-    /// autoload -U compinit
-    /// compinit
-    /// source <(jj debug completion --zsh | sed '$d')  # remove the last line
-    /// compdef _jj jj
+    /// jj debug completion --fish | source
     #[arg(long, verbatim_doc_comment)]
     fish: bool,
     /// Print a completion script for Zsh
     ///
     /// Apply it by running this:
     ///
-    /// jj debug completion --fish | source
+    /// autoload -U compinit
+    /// compinit
+    /// source <(jj debug completion --zsh | sed '$d')  # remove the last line
+    /// compdef _jj jj
     #[arg(long, verbatim_doc_comment)]
     zsh: bool,
 }
