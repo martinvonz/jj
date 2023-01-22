@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::borrow::BorrowMut;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::io;
 use std::ops::AddAssign;
 
@@ -160,16 +160,16 @@ pub enum FormattedString {
     Plain(String),
     Labeled {
         str: Box<FormattedString>,
-        label: String,
-    }, // TODO: Consider Vec<String> for labels
+        labels: VecDeque<String>,
+    },
     Concat(Vec<FormattedString>),
 }
 impl FormattedString {
     pub fn to_template(self) -> Box<dyn Template<()>> {
         match self {
             FormattedString::Plain(s) => Box::new(LiteralTemplate(s)),
-            FormattedString::Labeled { str, label } => {
-                Box::new(LabelTemplate::new(str.to_template(), vec![label]))
+            FormattedString::Labeled { str, labels } => {
+                Box::new(LabelTemplate::new(str.to_template(), labels.into()))
             }
             FormattedString::Concat(strs) => Box::new(ListTemplate(
                 strs.into_iter().map(|fs| fs.to_template()).collect_vec(),
@@ -183,9 +183,15 @@ impl FormattedString {
     /// Prepends `label` to the list of labels of every portion of this
     /// formatted string
     pub fn prepend_label(self, label: String) -> Self {
-        Self::Labeled {
-            str: Box::new(self),
-            label,
+        match self {
+            Self::Labeled { str, mut labels } => {
+                labels.push_front(label);
+                Self::Labeled { str, labels }
+            }
+            _ => Self::Labeled {
+                str: Box::new(self),
+                labels: VecDeque::from(vec![label]),
+            },
         }
     }
 
