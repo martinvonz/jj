@@ -106,13 +106,12 @@ ui.graph.style = "curved"
 ```
 
 ### Shortest unique prefixes for ids
-
 ```toml
-ui.unique-prefixes = "none"
+ui.unique-prefixes = "brackets"  # Does not rely on color
 ```
 
-Whether to highlight a unique prefix for commit & change ids. Possible values
-are `brackets` and `none` (default: `brackets`).
+Whether to highlight a unique prefix for commit & change ids. Possible
+values are `styled`, `brackets` and `none` (default: `styled`).
 
 ### Relative timestamps
 

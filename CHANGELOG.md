@@ -76,8 +76,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   any parent-child relationships between them. For example, the entire tree of
   descendants of `abc` can be duplicated with `jj duplicate abc:`.
 
-* `jj log` now highlights the shortest unique prefix of every commit and change id
-  with brackets. To disable, set the new `ui.unique-prefixes` option to `none`
+* `jj log` now highlights the shortest unique prefix of every commit and change
+  id and shows the rest in gray. To disable, set the new `ui.unique-prefixes`
+  option to `none`. For a presentation that doesn't rely on color, set it to
+  `brackets`.
 
 * `jj print` was renamed to `jj cat`. `jj print` remains as an alias.
   
