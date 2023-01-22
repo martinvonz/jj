@@ -1233,8 +1233,8 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
         r#"
             "Commit ID: " commit_id "\n"
             "Change ID: " change_id "\n"
-            "Author: " author " <" author.email() "> (" {author_timestamp_template} ")\n"
-            "Committer: " committer " <" committer.email() "> (" {committer_timestamp_template} ")\n"
+            "Author: " author " (" {author_timestamp_template} ")\n"
+            "Committer: " committer " (" {committer_timestamp_template} ")\n"
             "\n"
             description
             "\n""#,
