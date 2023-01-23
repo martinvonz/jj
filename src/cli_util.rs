@@ -37,8 +37,8 @@ use jujutsu_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::{
-    EditCommitError, MutableRepo, ReadonlyRepo, RepoLoader, RepoRef, RewriteRootCommit,
-    StoreFactories,
+    CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, RepoLoader, RepoRef,
+    RewriteRootCommit, StoreFactories,
 };
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
 use jujutsu_lib::revset::{
@@ -121,6 +121,12 @@ impl From<RewriteRootCommit> for CommandError {
 impl From<EditCommitError> for CommandError {
     fn from(err: EditCommitError) -> Self {
         CommandError::InternalError(format!("Failed to edit a commit: {err}"))
+    }
+}
+
+impl From<CheckOutCommitError> for CommandError {
+    fn from(err: CheckOutCommitError) -> Self {
+        CommandError::InternalError(format!("Failed to check out a commit: {err}"))
     }
 }
 
