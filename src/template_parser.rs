@@ -110,10 +110,9 @@ impl<'a, I: 'a> Property<'a, I> {
             first: Box<dyn TemplateProperty<C, Output = I> + 'a>,
             second: Box<dyn TemplateProperty<I, Output = O> + 'a>,
         ) -> Box<dyn TemplateProperty<C, Output = O> + 'a> {
-            Box::new(TemplateFunction::new(
-                first,
-                Box::new(move |value| second.extract(&value)),
-            ))
+            Box::new(TemplateFunction::new(first, move |value| {
+                second.extract(&value)
+            }))
         }
         match self {
             Property::String(property) => Property::String(chain(first, property)),
@@ -294,10 +293,9 @@ fn parse_boolean_commit_property<'a>(
     match pair.as_rule() {
         Rule::identifier => match parse_commit_keyword(repo, workspace_id, pair.clone()).0 {
             Property::Boolean(property) => property,
-            Property::String(property) => Box::new(TemplateFunction::new(
-                property,
-                Box::new(|string| !string.is_empty()),
-            )),
+            Property::String(property) => {
+                Box::new(TemplateFunction::new(property, |string| !string.is_empty()))
+            }
             _ => panic!("cannot yet use this as boolean: {pair:?}"),
         },
         _ => panic!("cannot yet use this as boolean: {pair:?}"),
@@ -368,7 +366,7 @@ fn parse_commit_term<'a>(
                                 .map(ToString::to_string)
                                 .collect()
                         };
-                        Box::new(DynamicLabelTemplate::new(content, Box::new(get_labels)))
+                        Box::new(DynamicLabelTemplate::new(content, get_labels))
                     }
                     "if" => {
                         let condition_pair = inner.next().unwrap();
