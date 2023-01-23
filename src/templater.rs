@@ -130,8 +130,10 @@ impl<'a, C> Template<C> for ListTemplate<'a, C> {
     }
 }
 
-pub trait TemplateProperty<C, O> {
-    fn extract(&self, context: &C) -> O;
+pub trait TemplateProperty<C> {
+    type Output;
+
+    fn extract(&self, context: &C) -> Self::Output;
 }
 
 /// Adapter to drop template context.
@@ -143,7 +145,9 @@ impl<C, O: Template<()>> Template<C> for Literal<O> {
     }
 }
 
-impl<C, O: Clone> TemplateProperty<C, O> for Literal<O> {
+impl<C, O: Clone> TemplateProperty<C> for Literal<O> {
+    type Output = O;
+
     fn extract(&self, _context: &C) -> O {
         self.0.clone()
     }
@@ -151,11 +155,11 @@ impl<C, O: Clone> TemplateProperty<C, O> for Literal<O> {
 
 /// Adapter to extract context-less template value from property for displaying.
 pub struct FormattablePropertyTemplate<'a, C, O> {
-    property: Box<dyn TemplateProperty<C, O> + 'a>,
+    property: Box<dyn TemplateProperty<C, Output = O> + 'a>,
 }
 
 impl<'a, C, O> FormattablePropertyTemplate<'a, C, O> {
-    pub fn new(property: Box<dyn TemplateProperty<C, O> + 'a>) -> Self {
+    pub fn new(property: Box<dyn TemplateProperty<C, Output = O> + 'a>) -> Self {
         FormattablePropertyTemplate { property }
     }
 }
@@ -172,8 +176,10 @@ where
 
 pub struct DescriptionProperty;
 
-impl TemplateProperty<Commit, String> for DescriptionProperty {
-    fn extract(&self, context: &Commit) -> String {
+impl TemplateProperty<Commit> for DescriptionProperty {
+    type Output = String;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         match context.description() {
             s if s.is_empty() => "(no description set)\n".to_owned(),
             s if s.ends_with('\n') => s.to_owned(),
@@ -184,16 +190,20 @@ impl TemplateProperty<Commit, String> for DescriptionProperty {
 
 pub struct AuthorProperty;
 
-impl TemplateProperty<Commit, Signature> for AuthorProperty {
-    fn extract(&self, context: &Commit) -> Signature {
+impl TemplateProperty<Commit> for AuthorProperty {
+    type Output = Signature;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         context.author().clone()
     }
 }
 
 pub struct CommitterProperty;
 
-impl TemplateProperty<Commit, Signature> for CommitterProperty {
-    fn extract(&self, context: &Commit) -> Signature {
+impl TemplateProperty<Commit> for CommitterProperty {
+    type Output = Signature;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         context.committer().clone()
     }
 }
@@ -202,8 +212,10 @@ pub struct WorkingCopiesProperty<'a> {
     pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<Commit, String> for WorkingCopiesProperty<'_> {
-    fn extract(&self, context: &Commit) -> String {
+impl TemplateProperty<Commit> for WorkingCopiesProperty<'_> {
+    type Output = String;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         let wc_commit_ids = self.repo.view().wc_commit_ids();
         if wc_commit_ids.len() <= 1 {
             return "".to_string();
@@ -223,8 +235,10 @@ pub struct IsWorkingCopyProperty<'a> {
     pub workspace_id: WorkspaceId,
 }
 
-impl TemplateProperty<Commit, bool> for IsWorkingCopyProperty<'_> {
-    fn extract(&self, context: &Commit) -> bool {
+impl TemplateProperty<Commit> for IsWorkingCopyProperty<'_> {
+    type Output = bool;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         Some(context.id()) == self.repo.view().get_wc_commit_id(&self.workspace_id)
     }
 }
@@ -233,8 +247,10 @@ pub struct BranchProperty<'a> {
     pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<Commit, String> for BranchProperty<'_> {
-    fn extract(&self, context: &Commit) -> String {
+impl TemplateProperty<Commit> for BranchProperty<'_> {
+    type Output = String;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         let mut names = vec![];
         for (branch_name, branch_target) in self.repo.view().branches() {
             let local_target = branch_target.local_target.as_ref();
@@ -271,8 +287,10 @@ pub struct TagProperty<'a> {
     pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<Commit, String> for TagProperty<'_> {
-    fn extract(&self, context: &Commit) -> String {
+impl TemplateProperty<Commit> for TagProperty<'_> {
+    type Output = String;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         let mut names = vec![];
         for (tag_name, target) in self.repo.view().tags() {
             if target.has_add(context.id()) {
@@ -291,8 +309,10 @@ pub struct GitRefsProperty<'a> {
     pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<Commit, String> for GitRefsProperty<'_> {
-    fn extract(&self, context: &Commit) -> String {
+impl TemplateProperty<Commit> for GitRefsProperty<'_> {
+    type Output = String;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         // TODO: We should keep a map from commit to ref names so we don't have to walk
         // all refs here.
         let mut names = vec![];
@@ -319,8 +339,10 @@ impl<'a> IsGitHeadProperty<'a> {
     }
 }
 
-impl TemplateProperty<Commit, bool> for IsGitHeadProperty<'_> {
-    fn extract(&self, context: &Commit) -> bool {
+impl TemplateProperty<Commit> for IsGitHeadProperty<'_> {
+    type Output = bool;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         self.repo.view().git_head().as_ref() == Some(context.id())
     }
 }
@@ -350,22 +372,26 @@ impl DivergentProperty {
     }
 }
 
-impl TemplateProperty<Commit, bool> for DivergentProperty {
-    fn extract(&self, context: &Commit) -> bool {
+impl TemplateProperty<Commit> for DivergentProperty {
+    type Output = bool;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         self.divergent_changes.contains(context.change_id())
     }
 }
 
 pub struct ConflictProperty;
 
-impl TemplateProperty<Commit, bool> for ConflictProperty {
-    fn extract(&self, context: &Commit) -> bool {
+impl TemplateProperty<Commit> for ConflictProperty {
+    type Output = bool;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         context.tree().has_conflict()
     }
 }
 
 pub struct ConditionalTemplate<'a, C> {
-    pub condition: Box<dyn TemplateProperty<C, bool> + 'a>,
+    pub condition: Box<dyn TemplateProperty<C, Output = bool> + 'a>,
     pub true_template: Box<dyn Template<C> + 'a>,
     pub false_template: Option<Box<dyn Template<C> + 'a>>,
 }
@@ -373,7 +399,7 @@ pub struct ConditionalTemplate<'a, C> {
 // TODO: figure out why this lifetime is needed
 impl<'a, C> ConditionalTemplate<'a, C> {
     pub fn new(
-        condition: Box<dyn TemplateProperty<C, bool> + 'a>,
+        condition: Box<dyn TemplateProperty<C, Output = bool> + 'a>,
         true_template: Box<dyn Template<C> + 'a>,
         false_template: Option<Box<dyn Template<C> + 'a>>,
     ) -> Self {
@@ -399,14 +425,14 @@ impl<'a, C> Template<C> for ConditionalTemplate<'a, C> {
 // TODO: If needed, add a ContextualTemplateFunction where the function also
 // gets the context
 pub struct TemplateFunction<'a, C, I, O> {
-    pub property: Box<dyn TemplateProperty<C, I> + 'a>,
+    pub property: Box<dyn TemplateProperty<C, Output = I> + 'a>,
     pub function: Box<dyn Fn(I) -> O + 'a>,
 }
 
 // TODO: figure out why this lifetime is needed
 impl<'a, C, I, O> TemplateFunction<'a, C, I, O> {
     pub fn new(
-        template: Box<dyn TemplateProperty<C, I> + 'a>,
+        template: Box<dyn TemplateProperty<C, Output = I> + 'a>,
         function: Box<dyn Fn(I) -> O + 'a>,
     ) -> Self {
         TemplateFunction {
@@ -416,8 +442,10 @@ impl<'a, C, I, O> TemplateFunction<'a, C, I, O> {
     }
 }
 
-impl<'a, C, I, O> TemplateProperty<C, O> for TemplateFunction<'a, C, I, O> {
-    fn extract(&self, context: &C) -> O {
+impl<'a, C, I, O> TemplateProperty<C> for TemplateFunction<'a, C, I, O> {
+    type Output = O;
+
+    fn extract(&self, context: &C) -> Self::Output {
         (self.function)(self.property.extract(context))
     }
 }
@@ -473,8 +501,10 @@ pub struct CommitOrChangeIdShort<'a> {
     pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<CommitOrChangeId, String> for CommitOrChangeIdShort<'_> {
-    fn extract(&self, context: &CommitOrChangeId) -> String {
+impl TemplateProperty<CommitOrChangeId> for CommitOrChangeIdShort<'_> {
+    type Output = String;
+
+    fn extract(&self, context: &CommitOrChangeId) -> Self::Output {
         context.short()
     }
 }
@@ -483,32 +513,40 @@ pub struct CommitOrChangeIdShortPrefixAndBrackets<'a> {
     pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<CommitOrChangeId, String> for CommitOrChangeIdShortPrefixAndBrackets<'_> {
-    fn extract(&self, context: &CommitOrChangeId) -> String {
+impl TemplateProperty<CommitOrChangeId> for CommitOrChangeIdShortPrefixAndBrackets<'_> {
+    type Output = String;
+
+    fn extract(&self, context: &CommitOrChangeId) -> Self::Output {
         context.short_prefix_and_brackets(self.repo)
     }
 }
 
 pub struct CommitIdProperty;
 
-impl TemplateProperty<Commit, CommitOrChangeId> for CommitIdProperty {
-    fn extract(&self, context: &Commit) -> CommitOrChangeId {
+impl TemplateProperty<Commit> for CommitIdProperty {
+    type Output = CommitOrChangeId;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         CommitOrChangeId(context.id().to_bytes())
     }
 }
 
 pub struct ChangeIdProperty;
 
-impl TemplateProperty<Commit, CommitOrChangeId> for ChangeIdProperty {
-    fn extract(&self, context: &Commit) -> CommitOrChangeId {
+impl TemplateProperty<Commit> for ChangeIdProperty {
+    type Output = CommitOrChangeId;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         CommitOrChangeId(context.change_id().to_bytes())
     }
 }
 
 pub struct SignatureTimestamp;
 
-impl TemplateProperty<Signature, Timestamp> for SignatureTimestamp {
-    fn extract(&self, context: &Signature) -> Timestamp {
+impl TemplateProperty<Signature> for SignatureTimestamp {
+    type Output = Timestamp;
+
+    fn extract(&self, context: &Signature) -> Self::Output {
         context.timestamp.clone()
     }
 }
@@ -517,8 +555,10 @@ pub struct EmptyProperty<'a> {
     pub repo: RepoRef<'a>,
 }
 
-impl TemplateProperty<Commit, bool> for EmptyProperty<'_> {
-    fn extract(&self, context: &Commit) -> bool {
+impl TemplateProperty<Commit> for EmptyProperty<'_> {
+    type Output = bool;
+
+    fn extract(&self, context: &Commit) -> Self::Output {
         context.tree().id() == merge_commit_trees(self.repo, &context.parents()).id()
     }
 }

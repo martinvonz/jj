@@ -58,53 +58,61 @@ fn parse_string_literal(pair: Pair<Rule>) -> String {
 
 struct StringFirstLine;
 
-impl TemplateProperty<String, String> for StringFirstLine {
-    fn extract(&self, context: &String) -> String {
+impl TemplateProperty<String> for StringFirstLine {
+    type Output = String;
+
+    fn extract(&self, context: &String) -> Self::Output {
         context.lines().next().unwrap().to_string()
     }
 }
 
 struct SignatureName;
 
-impl TemplateProperty<Signature, String> for SignatureName {
-    fn extract(&self, context: &Signature) -> String {
+impl TemplateProperty<Signature> for SignatureName {
+    type Output = String;
+
+    fn extract(&self, context: &Signature) -> Self::Output {
         context.name.clone()
     }
 }
 
 struct SignatureEmail;
 
-impl TemplateProperty<Signature, String> for SignatureEmail {
-    fn extract(&self, context: &Signature) -> String {
+impl TemplateProperty<Signature> for SignatureEmail {
+    type Output = String;
+
+    fn extract(&self, context: &Signature) -> Self::Output {
         context.email.clone()
     }
 }
 
 struct RelativeTimestampString;
 
-impl TemplateProperty<Timestamp, String> for RelativeTimestampString {
-    fn extract(&self, context: &Timestamp) -> String {
+impl TemplateProperty<Timestamp> for RelativeTimestampString {
+    type Output = String;
+
+    fn extract(&self, context: &Timestamp) -> Self::Output {
         time_util::format_timestamp_relative_to_now(context)
     }
 }
 
 enum Property<'a, I> {
-    String(Box<dyn TemplateProperty<I, String> + 'a>),
-    Boolean(Box<dyn TemplateProperty<I, bool> + 'a>),
+    String(Box<dyn TemplateProperty<I, Output = String> + 'a>),
+    Boolean(Box<dyn TemplateProperty<I, Output = bool> + 'a>),
     CommitOrChangeId(
-        Box<dyn TemplateProperty<I, CommitOrChangeId> + 'a>,
+        Box<dyn TemplateProperty<I, Output = CommitOrChangeId> + 'a>,
         RepoRef<'a>,
     ),
-    Signature(Box<dyn TemplateProperty<I, Signature> + 'a>),
-    Timestamp(Box<dyn TemplateProperty<I, Timestamp> + 'a>),
+    Signature(Box<dyn TemplateProperty<I, Output = Signature> + 'a>),
+    Timestamp(Box<dyn TemplateProperty<I, Output = Timestamp> + 'a>),
 }
 
 impl<'a, I: 'a> Property<'a, I> {
-    fn after<C: 'a>(self, first: Box<dyn TemplateProperty<C, I> + 'a>) -> Property<'a, C> {
+    fn after<C: 'a>(self, first: Box<dyn TemplateProperty<C, Output = I> + 'a>) -> Property<'a, C> {
         fn chain<'a, C: 'a, I: 'a, O: 'a>(
-            first: Box<dyn TemplateProperty<C, I> + 'a>,
-            second: Box<dyn TemplateProperty<I, O> + 'a>,
-        ) -> Box<dyn TemplateProperty<C, O> + 'a> {
+            first: Box<dyn TemplateProperty<C, Output = I> + 'a>,
+            second: Box<dyn TemplateProperty<I, Output = O> + 'a>,
+        ) -> Box<dyn TemplateProperty<C, Output = O> + 'a> {
             Box::new(TemplateFunction::new(
                 first,
                 Box::new(move |value| second.extract(&value)),
@@ -123,7 +131,7 @@ impl<'a, I: 'a> Property<'a, I> {
 
     fn into_template(self) -> Box<dyn Template<I> + 'a> {
         fn wrap<'a, I: 'a, O: Template<()> + 'a>(
-            property: Box<dyn TemplateProperty<I, O> + 'a>,
+            property: Box<dyn TemplateProperty<I, Output = O> + 'a>,
         ) -> Box<dyn Template<I> + 'a> {
             Box::new(FormattablePropertyTemplate::new(property))
         }
@@ -146,7 +154,7 @@ fn parse_method_chain<'a, I: 'a>(
         PropertyAndLabels(input_property, vec![])
     } else {
         fn chain<'a, I: 'a, O: 'a>(
-            property: Box<dyn TemplateProperty<I, O> + 'a>,
+            property: Box<dyn TemplateProperty<I, Output = O> + 'a>,
             parse: impl FnOnce() -> PropertyAndLabels<'a, O>,
         ) -> (Property<'a, I>, Vec<String>) {
             let PropertyAndLabels(next_method, labels) = parse();
@@ -282,7 +290,7 @@ fn parse_boolean_commit_property<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
     pair: Pair<Rule>,
-) -> Box<dyn TemplateProperty<Commit, bool> + 'a> {
+) -> Box<dyn TemplateProperty<Commit, Output = bool> + 'a> {
     let mut inner = pair.into_inner();
     let pair = inner.next().unwrap();
     let _method = inner.next().unwrap();
