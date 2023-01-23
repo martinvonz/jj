@@ -55,14 +55,6 @@ impl Template<()> for bool {
     }
 }
 
-pub struct LiteralTemplate(pub String);
-
-impl<C> Template<C> for LiteralTemplate {
-    fn format(&self, _context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        formatter.write_str(&self.0)
-    }
-}
-
 // TODO: figure out why this lifetime is needed
 pub struct LabelTemplate<'a, C> {
     content: Box<dyn Template<C> + 'a>,
@@ -138,13 +130,18 @@ pub trait TemplateProperty<C, O> {
     fn extract(&self, context: &C) -> O;
 }
 
-pub struct ConstantTemplateProperty<O> {
-    pub output: O,
+/// Adapter to drop template context.
+pub struct Literal<O>(pub O);
+
+impl<C, O: Template<()>> Template<C> for Literal<O> {
+    fn format(&self, _context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+        self.0.format(&(), formatter)
+    }
 }
 
-impl<C, O: Clone> TemplateProperty<C, O> for ConstantTemplateProperty<O> {
+impl<C, O: Clone> TemplateProperty<C, O> for Literal<O> {
     fn extract(&self, _context: &C) -> O {
-        self.output.clone()
+        self.0.clone()
     }
 }
 

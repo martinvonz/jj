@@ -24,11 +24,10 @@ use crate::formatter::PlainTextFormatter;
 use crate::templater::{
     AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdProperty, CommitOrChangeId,
     CommitOrChangeIdShort, CommitOrChangeIdShortPrefixAndBrackets, CommitterProperty,
-    ConditionalTemplate, ConflictProperty, ConstantTemplateProperty, DescriptionProperty,
-    DivergentProperty, DynamicLabelTemplate, EmptyProperty, GitRefsProperty, IsGitHeadProperty,
-    IsWorkingCopyProperty, LabelTemplate, ListTemplate, LiteralTemplate, SignatureTimestamp,
-    StringPropertyTemplate, TagProperty, Template, TemplateFunction, TemplateProperty,
-    WorkingCopiesProperty,
+    ConditionalTemplate, ConflictProperty, DescriptionProperty, DivergentProperty,
+    DynamicLabelTemplate, EmptyProperty, GitRefsProperty, IsGitHeadProperty, IsWorkingCopyProperty,
+    LabelTemplate, ListTemplate, Literal, SignatureTimestamp, StringPropertyTemplate, TagProperty,
+    Template, TemplateFunction, TemplateProperty, WorkingCopiesProperty,
 };
 use crate::time_util;
 
@@ -315,7 +314,7 @@ fn parse_commit_term<'a>(
 ) -> Box<dyn Template<Commit> + 'a> {
     assert_eq!(pair.as_rule(), Rule::term);
     if pair.as_str().is_empty() {
-        Box::new(LiteralTemplate(String::new()))
+        Box::new(Literal(String::new()))
     } else {
         let mut inner = pair.into_inner();
         let expr = inner.next().unwrap();
@@ -325,10 +324,9 @@ fn parse_commit_term<'a>(
             Rule::literal => {
                 let text = parse_string_literal(expr);
                 if maybe_method.as_str().is_empty() {
-                    Box::new(LiteralTemplate(text))
+                    Box::new(Literal(text))
                 } else {
-                    let input_property =
-                        Property::String(Box::new(ConstantTemplateProperty { output: text }));
+                    let input_property = Property::String(Box::new(Literal(text)));
                     let PropertyAndLabels(property, method_labels) =
                         parse_method_chain(maybe_method, input_property);
                     let string_property = coerce_to_string(property);
@@ -437,7 +435,7 @@ fn parse_commit_template_rule<'a>(
             }
             Box::new(ListTemplate(formatters))
         }
-        _ => Box::new(LiteralTemplate(String::new())),
+        _ => Box::new(Literal(String::new())),
     }
 }
 
