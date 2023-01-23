@@ -763,15 +763,9 @@ impl MutableRepo {
         workspace_id: WorkspaceId,
         commit: &Commit,
     ) -> Result<(), EditCommitError> {
-        self.leave_commit(&workspace_id);
-        self.set_wc_commit(workspace_id, commit.id().clone())
-            .map_err(|RewriteRootCommit| EditCommitError::RewriteRootCommit)
-    }
-
-    fn leave_commit(&mut self, workspace_id: &WorkspaceId) {
         let maybe_wc_commit_id = self
             .view
-            .with_ref(|v| v.get_wc_commit_id(workspace_id).cloned());
+            .with_ref(|v| v.get_wc_commit_id(&workspace_id).cloned());
         if let Some(wc_commit_id) = maybe_wc_commit_id {
             let wc_commit = self.store().get_commit(&wc_commit_id).unwrap();
             if wc_commit.is_empty()
@@ -782,6 +776,8 @@ impl MutableRepo {
                 self.record_abandoned_commit(wc_commit_id);
             }
         }
+        self.set_wc_commit(workspace_id, commit.id().clone())
+            .map_err(|RewriteRootCommit| EditCommitError::RewriteRootCommit)
     }
 
     fn enforce_view_invariants(&self, view: &mut View) {
