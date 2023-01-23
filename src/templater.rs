@@ -28,6 +28,12 @@ pub trait Template<C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()>;
 }
 
+impl<C, T: Template<C> + ?Sized> Template<C> for Box<T> {
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+        <T as Template<C>>::format(self, context, formatter)
+    }
+}
+
 impl Template<()> for Signature {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         write!(formatter.labeled("name"), "{}", self.name)?;
@@ -56,19 +62,21 @@ impl Template<()> for bool {
     }
 }
 
-// TODO: figure out why this lifetime is needed
-pub struct LabelTemplate<'a, C> {
-    content: Box<dyn Template<C> + 'a>,
+pub struct LabelTemplate<T> {
+    content: T,
     labels: Vec<String>,
 }
 
-impl<'a, C> LabelTemplate<'a, C> {
-    pub fn new(content: Box<dyn Template<C> + 'a>, labels: Vec<String>) -> Self {
+impl<T> LabelTemplate<T> {
+    pub fn new<C>(content: T, labels: Vec<String>) -> Self
+    where
+        T: Template<C>,
+    {
         LabelTemplate { content, labels }
     }
 }
 
-impl<'a, C> Template<C> for LabelTemplate<'a, C> {
+impl<C, T: Template<C>> Template<C> for LabelTemplate<T> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         for label in &self.labels {
             formatter.push_label(label)?;
@@ -81,19 +89,17 @@ impl<'a, C> Template<C> for LabelTemplate<'a, C> {
     }
 }
 
-pub type DynamicLabelFunction<'a, C> = Box<dyn Fn(&C) -> Vec<String> + 'a>;
-
-// TODO: figure out why this lifetime is needed
-pub struct DynamicLabelTemplate<'a, C> {
-    content: Box<dyn Template<C> + 'a>,
-    label_property: DynamicLabelFunction<'a, C>,
+pub struct DynamicLabelTemplate<T, F> {
+    content: T,
+    label_property: F,
 }
 
-impl<'a, C> DynamicLabelTemplate<'a, C> {
-    pub fn new(
-        content: Box<dyn Template<C> + 'a>,
-        label_property: DynamicLabelFunction<'a, C>,
-    ) -> Self {
+impl<T, F> DynamicLabelTemplate<T, F> {
+    pub fn new<C>(content: T, label_property: F) -> Self
+    where
+        T: Template<C>,
+        F: Fn(&C) -> Vec<String>,
+    {
         DynamicLabelTemplate {
             content,
             label_property,
@@ -101,9 +107,13 @@ impl<'a, C> DynamicLabelTemplate<'a, C> {
     }
 }
 
-impl<'a, C> Template<C> for DynamicLabelTemplate<'a, C> {
+impl<C, T, F> Template<C> for DynamicLabelTemplate<T, F>
+where
+    T: Template<C>,
+    F: Fn(&C) -> Vec<String>,
+{
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        let labels = self.label_property.as_ref()(context);
+        let labels = (self.label_property)(context);
         for label in &labels {
             formatter.push_label(label)?;
         }
@@ -115,10 +125,9 @@ impl<'a, C> Template<C> for DynamicLabelTemplate<'a, C> {
     }
 }
 
-// TODO: figure out why this lifetime is needed
-pub struct ListTemplate<'a, C>(pub Vec<Box<dyn Template<C> + 'a>>);
+pub struct ListTemplate<T>(pub Vec<T>);
 
-impl<'a, C> Template<C> for ListTemplate<'a, C> {
+impl<C, T: Template<C>> Template<C> for ListTemplate<T> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         for template in &self.0 {
             template.format(context, formatter)?
@@ -131,6 +140,14 @@ pub trait TemplateProperty<C> {
     type Output;
 
     fn extract(&self, context: &C) -> Self::Output;
+}
+
+impl<C, P: TemplateProperty<C> + ?Sized> TemplateProperty<C> for Box<P> {
+    type Output = <P as TemplateProperty<C>>::Output;
+
+    fn extract(&self, context: &C) -> Self::Output {
+        <P as TemplateProperty<C>>::extract(self, context)
+    }
 }
 
 /// Adapter to drop template context.
@@ -151,19 +168,24 @@ impl<C, O: Clone> TemplateProperty<C> for Literal<O> {
 }
 
 /// Adapter to extract context-less template value from property for displaying.
-pub struct FormattablePropertyTemplate<'a, C, O> {
-    property: Box<dyn TemplateProperty<C, Output = O> + 'a>,
+pub struct FormattablePropertyTemplate<P> {
+    property: P,
 }
 
-impl<'a, C, O> FormattablePropertyTemplate<'a, C, O> {
-    pub fn new(property: Box<dyn TemplateProperty<C, Output = O> + 'a>) -> Self {
+impl<P> FormattablePropertyTemplate<P> {
+    pub fn new<C>(property: P) -> Self
+    where
+        P: TemplateProperty<C>,
+        P::Output: Template<()>,
+    {
         FormattablePropertyTemplate { property }
     }
 }
 
-impl<C, O> Template<C> for FormattablePropertyTemplate<'_, C, O>
+impl<C, P> Template<C> for FormattablePropertyTemplate<P>
 where
-    O: Template<()>,
+    P: TemplateProperty<C>,
+    P::Output: Template<()>,
 {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let template = self.property.extract(context);
@@ -374,19 +396,19 @@ impl TemplateProperty<Commit> for ConflictProperty {
     }
 }
 
-pub struct ConditionalTemplate<'a, C> {
-    pub condition: Box<dyn TemplateProperty<C, Output = bool> + 'a>,
-    pub true_template: Box<dyn Template<C> + 'a>,
-    pub false_template: Option<Box<dyn Template<C> + 'a>>,
+pub struct ConditionalTemplate<P, T, U> {
+    pub condition: P,
+    pub true_template: T,
+    pub false_template: Option<U>,
 }
 
-// TODO: figure out why this lifetime is needed
-impl<'a, C> ConditionalTemplate<'a, C> {
-    pub fn new(
-        condition: Box<dyn TemplateProperty<C, Output = bool> + 'a>,
-        true_template: Box<dyn Template<C> + 'a>,
-        false_template: Option<Box<dyn Template<C> + 'a>>,
-    ) -> Self {
+impl<P, T, U> ConditionalTemplate<P, T, U> {
+    pub fn new<C>(condition: P, true_template: T, false_template: Option<U>) -> Self
+    where
+        P: TemplateProperty<C, Output = bool>,
+        T: Template<C>,
+        U: Template<C>,
+    {
         ConditionalTemplate {
             condition,
             true_template,
@@ -395,7 +417,12 @@ impl<'a, C> ConditionalTemplate<'a, C> {
     }
 }
 
-impl<'a, C> Template<C> for ConditionalTemplate<'a, C> {
+impl<C, P, T, U> Template<C> for ConditionalTemplate<P, T, U>
+where
+    P: TemplateProperty<C, Output = bool>,
+    T: Template<C>,
+    U: Template<C>,
+{
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         if self.condition.extract(context) {
             self.true_template.format(context, formatter)?;
@@ -408,17 +435,17 @@ impl<'a, C> Template<C> for ConditionalTemplate<'a, C> {
 
 // TODO: If needed, add a ContextualTemplateFunction where the function also
 // gets the context
-pub struct TemplateFunction<'a, C, I, O> {
-    pub property: Box<dyn TemplateProperty<C, Output = I> + 'a>,
-    pub function: Box<dyn Fn(I) -> O + 'a>,
+pub struct TemplateFunction<P, F> {
+    pub property: P,
+    pub function: F,
 }
 
-// TODO: figure out why this lifetime is needed
-impl<'a, C, I, O> TemplateFunction<'a, C, I, O> {
-    pub fn new(
-        template: Box<dyn TemplateProperty<C, Output = I> + 'a>,
-        function: Box<dyn Fn(I) -> O + 'a>,
-    ) -> Self {
+impl<P, F> TemplateFunction<P, F> {
+    pub fn new<C, O>(template: P, function: F) -> Self
+    where
+        P: TemplateProperty<C>,
+        F: Fn(P::Output) -> O,
+    {
         TemplateFunction {
             property: template,
             function,
@@ -426,7 +453,11 @@ impl<'a, C, I, O> TemplateFunction<'a, C, I, O> {
     }
 }
 
-impl<'a, C, I, O> TemplateProperty<C> for TemplateFunction<'a, C, I, O> {
+impl<C, O, P, F> TemplateProperty<C> for TemplateFunction<P, F>
+where
+    P: TemplateProperty<C>,
+    F: Fn(P::Output) -> O,
+{
     type Output = O;
 
     fn extract(&self, context: &C) -> Self::Output {
