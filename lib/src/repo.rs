@@ -767,7 +767,10 @@ impl MutableRepo {
             .view
             .with_ref(|v| v.get_wc_commit_id(&workspace_id).cloned());
         if let Some(wc_commit_id) = maybe_wc_commit_id {
-            let wc_commit = self.store().get_commit(&wc_commit_id).unwrap();
+            let wc_commit = self
+                .store()
+                .get_commit(&wc_commit_id)
+                .map_err(EditCommitError::WorkingCopyCommitNotFound)?;
             if wc_commit.is_empty()
                 && wc_commit.description().is_empty()
                 && self.view().heads().contains(wc_commit.id())
@@ -1108,6 +1111,8 @@ pub struct RewriteRootCommit;
 /// Error from attempts to edit a commit
 #[derive(Debug, Error)]
 pub enum EditCommitError {
+    #[error("Current working-copy commit not found: {0}")]
+    WorkingCopyCommitNotFound(BackendError),
     #[error("Cannot rewrite the root commit")]
     RewriteRootCommit,
 }
