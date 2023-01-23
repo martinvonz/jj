@@ -19,13 +19,15 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::backend::{Backend, BackendError};
+use crate::backend::Backend;
 use crate::git_backend::GitBackend;
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::{self, OpStore, OperationMetadata, WorkspaceId};
 use crate::operation::Operation;
-use crate::repo::{IoResultExt, PathError, ReadonlyRepo, RepoLoader, StoreFactories};
+use crate::repo::{
+    CheckOutCommitError, IoResultExt, PathError, ReadonlyRepo, RepoLoader, StoreFactories,
+};
 use crate::settings::UserSettings;
 use crate::working_copy::WorkingCopy;
 
@@ -36,7 +38,7 @@ pub enum WorkspaceInitError {
     #[error("Repo path could not be interpreted as Unicode text")]
     NonUnicodePath,
     #[error(transparent)]
-    BackendError(#[from] BackendError),
+    CheckOutCommit(#[from] CheckOutCommitError),
     #[error(transparent)]
     Path(#[from] PathError),
 }

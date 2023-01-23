@@ -746,7 +746,7 @@ impl MutableRepo {
         workspace_id: WorkspaceId,
         settings: &UserSettings,
         commit: &Commit,
-    ) -> BackendResult<Commit> {
+    ) -> Result<Commit, CheckOutCommitError> {
         let wc_commit = self
             .new_commit(
                 settings,
@@ -754,7 +754,7 @@ impl MutableRepo {
                 commit.tree_id().clone(),
             )
             .write()?;
-        self.edit(workspace_id, &wc_commit).unwrap();
+        self.edit(workspace_id, &wc_commit)?;
         Ok(wc_commit)
     }
 
@@ -1101,7 +1101,7 @@ impl MutableRepo {
 }
 
 /// Error from attempts to check out the root commit for editing
-#[derive(Debug, Copy, Clone, Error)]
+#[derive(Debug, Error)]
 #[error("Cannot rewrite the root commit")]
 pub struct RewriteRootCommit;
 
@@ -1110,6 +1110,15 @@ pub struct RewriteRootCommit;
 pub enum EditCommitError {
     #[error("Cannot rewrite the root commit")]
     RewriteRootCommit,
+}
+
+/// Error from attempts to check out a commit
+#[derive(Debug, Error)]
+pub enum CheckOutCommitError {
+    #[error("Failed to create new working-copy commit: {0}")]
+    CreateCommit(#[from] BackendError),
+    #[error("Failed to edit commit: {0}")]
+    EditCommit(#[from] EditCommitError),
 }
 
 #[derive(Debug, Error)]
