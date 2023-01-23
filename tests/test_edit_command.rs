@@ -14,7 +14,7 @@
 
 use std::path::Path;
 
-use crate::common::TestEnvironment;
+use crate::common::{get_stderr_string, TestEnvironment};
 
 pub mod common;
 
@@ -59,6 +59,48 @@ fn test_edit() {
     o 51d937a3eeb4 second
     @ 409306de8f44 first
     o 000000000000 (no description set)
+    "###);
+}
+
+#[test]
+// Windows says "Access is denied" when trying to delete the object file.
+#[cfg(unix)]
+fn test_edit_current_wc_commit_missing() {
+    // Test that we get a reasonable error message when the current working-copy
+    // commit is missing
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "second"]);
+    test_env.jj_cmd_success(&repo_path, &["edit", "@-"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o 5c52832c3483 second
+    @ 69542c1984c1 first
+    o 000000000000 (no description set)
+    "###);
+
+    // Make the Git backend fail to read the current working copy commit
+    let commit_object_path = repo_path
+        .join(".jj")
+        .join("repo")
+        .join("store")
+        .join("git")
+        .join("objects")
+        .join("69")
+        .join("542c1984c1f9d91f7c6c9c9e6941782c944bd9");
+    std::fs::remove_file(commit_object_path).unwrap();
+
+    // Pass --no-commit-working-copy to avoid triggering the error at snapshot time
+    let assert = test_env
+        .jj_cmd(
+            &repo_path,
+            &["edit", "--no-commit-working-copy", "5c52832c3483"],
+        )
+        .assert()
+        .code(255);
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Internal error: Failed to edit a commit: Current working-copy commit not found: Object 69542c1984c1f9d91f7c6c9c9e6941782c944bd9 of type commit not found: object not found - no match for id (69542c1984c1f9d91f7c6c9c9e6941782c944bd9); class=Odb (9); code=NotFound (-3)
     "###);
 }
 
