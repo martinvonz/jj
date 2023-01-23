@@ -25,9 +25,34 @@ use jujutsu_lib::revset::RevsetExpression;
 use jujutsu_lib::rewrite::merge_commit_trees;
 
 use crate::formatter::Formatter;
+use crate::time_util;
 
 pub trait Template<C> {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()>;
+}
+
+impl Template<()> for Signature {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        formatter.write_str(&self.name)
+    }
+}
+
+impl Template<()> for String {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        formatter.write_str(self)
+    }
+}
+
+impl Template<()> for Timestamp {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        formatter.write_str(&time_util::format_absolute_timestamp(self))
+    }
+}
+
+impl Template<()> for bool {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        formatter.write_str(if *self { "true" } else { "false" })
+    }
 }
 
 pub struct LiteralTemplate(pub String);
@@ -408,6 +433,12 @@ impl CommitOrChangeId {
 
     pub fn short_prefix_and_brackets(&self, repo: RepoRef) -> String {
         highlight_shortest_prefix(self, 12, repo)
+    }
+}
+
+impl Template<()> for CommitOrChangeId {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        formatter.write_str(&self.hex())
     }
 }
 
