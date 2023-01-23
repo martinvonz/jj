@@ -497,11 +497,9 @@ fn highlight_shortest_prefix(id: &CommitOrChangeId, total_len: usize, repo: Repo
     }
 }
 
-pub struct CommitOrChangeIdShort<'a> {
-    pub repo: RepoRef<'a>,
-}
+pub struct CommitOrChangeIdShort;
 
-impl TemplateProperty<CommitOrChangeId> for CommitOrChangeIdShort<'_> {
+impl TemplateProperty<CommitOrChangeId> for CommitOrChangeIdShort {
     type Output = String;
 
     fn extract(&self, context: &CommitOrChangeId) -> Self::Output {

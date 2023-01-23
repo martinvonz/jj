@@ -215,7 +215,7 @@ fn parse_commit_or_change_id_method<'a>(
     // TODO: validate arguments
 
     let this_function = match name.as_str() {
-        "short" => Property::String(Box::new(CommitOrChangeIdShort { repo })),
+        "short" => Property::String(Box::new(CommitOrChangeIdShort)),
         "short_prefix_and_brackets" => {
             Property::String(Box::new(CommitOrChangeIdShortPrefixAndBrackets { repo }))
         }
