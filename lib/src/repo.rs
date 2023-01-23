@@ -764,9 +764,10 @@ impl MutableRepo {
         &mut self,
         workspace_id: WorkspaceId,
         commit: &Commit,
-    ) -> Result<(), RewriteRootCommit> {
+    ) -> Result<(), EditCommitError> {
         self.leave_commit(&workspace_id);
         self.set_wc_commit(workspace_id, commit.id().clone())
+            .map_err(|RewriteRootCommit| EditCommitError::RewriteRootCommit)
     }
 
     fn leave_commit(&mut self, workspace_id: &WorkspaceId) {
@@ -1109,6 +1110,13 @@ impl MutableRepo {
 #[derive(Debug, Copy, Clone, Error)]
 #[error("Cannot rewrite the root commit")]
 pub struct RewriteRootCommit;
+
+/// Error from attempts to edit a commit
+#[derive(Debug, Error)]
+pub enum EditCommitError {
+    #[error("Cannot rewrite the root commit")]
+    RewriteRootCommit,
+}
 
 #[derive(Debug, Error)]
 #[error("Cannot access {path}")]

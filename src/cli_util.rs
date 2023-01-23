@@ -37,7 +37,8 @@ use jujutsu_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use jujutsu_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
 use jujutsu_lib::operation::Operation;
 use jujutsu_lib::repo::{
-    MutableRepo, ReadonlyRepo, RepoLoader, RepoRef, RewriteRootCommit, StoreFactories,
+    EditCommitError, MutableRepo, ReadonlyRepo, RepoLoader, RepoRef, RewriteRootCommit,
+    StoreFactories,
 };
 use jujutsu_lib::repo_path::{FsPathParseError, RepoPath};
 use jujutsu_lib::revset::{
@@ -114,6 +115,12 @@ impl From<crate::config::ConfigError> for CommandError {
 impl From<RewriteRootCommit> for CommandError {
     fn from(err: RewriteRootCommit) -> Self {
         CommandError::InternalError(format!("Attempted to rewrite the root commit: {err}"))
+    }
+}
+
+impl From<EditCommitError> for CommandError {
+    fn from(err: EditCommitError) -> Self {
+        CommandError::InternalError(format!("Failed to edit a commit: {err}"))
     }
 }
 
