@@ -451,16 +451,19 @@ impl<'a, C, I, O> TemplateProperty<C> for TemplateFunction<'a, C, I, O> {
 }
 
 /// Type-erased `CommitId`/`ChangeId`.
-#[derive(Debug, Clone)]
-pub struct CommitOrChangeId(Vec<u8>);
+#[derive(Clone)]
+pub struct CommitOrChangeId<'a> {
+    repo: RepoRef<'a>,
+    id_bytes: Vec<u8>,
+}
 
-impl CommitOrChangeId {
+impl CommitOrChangeId<'_> {
     pub fn as_bytes(&self) -> &[u8] {
-        &self.0
+        &self.id_bytes
     }
 
     pub fn hex(&self) -> String {
-        hex::encode(&self.0)
+        hex::encode(&self.id_bytes)
     }
 
     pub fn short(&self) -> String {
@@ -469,19 +472,20 @@ impl CommitOrChangeId {
         hex
     }
 
-    pub fn short_prefix_and_brackets(&self, repo: RepoRef) -> String {
-        highlight_shortest_prefix(self, 12, repo)
+    pub fn short_prefix_and_brackets(&self) -> String {
+        highlight_shortest_prefix(self, 12)
     }
 }
 
-impl Template<()> for CommitOrChangeId {
+impl Template<()> for CommitOrChangeId<'_> {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         formatter.write_str(&self.hex())
     }
 }
 
-fn highlight_shortest_prefix(id: &CommitOrChangeId, total_len: usize, repo: RepoRef) -> String {
-    let prefix_len = repo
+fn highlight_shortest_prefix(id: &CommitOrChangeId, total_len: usize) -> String {
+    let prefix_len = id
+        .repo
         .base_repo()
         .shortest_unique_prefix_length(id.as_bytes());
     let mut hex = id.hex();
@@ -499,7 +503,7 @@ fn highlight_shortest_prefix(id: &CommitOrChangeId, total_len: usize, repo: Repo
 
 pub struct CommitOrChangeIdShort;
 
-impl TemplateProperty<CommitOrChangeId> for CommitOrChangeIdShort {
+impl TemplateProperty<CommitOrChangeId<'_>> for CommitOrChangeIdShort {
     type Output = String;
 
     fn extract(&self, context: &CommitOrChangeId) -> Self::Output {
@@ -507,35 +511,43 @@ impl TemplateProperty<CommitOrChangeId> for CommitOrChangeIdShort {
     }
 }
 
-pub struct CommitOrChangeIdShortPrefixAndBrackets<'a> {
-    pub repo: RepoRef<'a>,
-}
+pub struct CommitOrChangeIdShortPrefixAndBrackets;
 
-impl TemplateProperty<CommitOrChangeId> for CommitOrChangeIdShortPrefixAndBrackets<'_> {
+impl TemplateProperty<CommitOrChangeId<'_>> for CommitOrChangeIdShortPrefixAndBrackets {
     type Output = String;
 
     fn extract(&self, context: &CommitOrChangeId) -> Self::Output {
-        context.short_prefix_and_brackets(self.repo)
+        context.short_prefix_and_brackets()
     }
 }
 
-pub struct CommitIdProperty;
+pub struct CommitIdProperty<'a> {
+    pub repo: RepoRef<'a>,
+}
 
-impl TemplateProperty<Commit> for CommitIdProperty {
-    type Output = CommitOrChangeId;
+impl<'a> TemplateProperty<Commit> for CommitIdProperty<'a> {
+    type Output = CommitOrChangeId<'a>;
 
     fn extract(&self, context: &Commit) -> Self::Output {
-        CommitOrChangeId(context.id().to_bytes())
+        CommitOrChangeId {
+            repo: self.repo,
+            id_bytes: context.id().to_bytes(),
+        }
     }
 }
 
-pub struct ChangeIdProperty;
+pub struct ChangeIdProperty<'a> {
+    pub repo: RepoRef<'a>,
+}
 
-impl TemplateProperty<Commit> for ChangeIdProperty {
-    type Output = CommitOrChangeId;
+impl<'a> TemplateProperty<Commit> for ChangeIdProperty<'a> {
+    type Output = CommitOrChangeId<'a>;
 
     fn extract(&self, context: &Commit) -> Self::Output {
-        CommitOrChangeId(context.change_id().to_bytes())
+        CommitOrChangeId {
+            repo: self.repo,
+            id_bytes: context.change_id().to_bytes(),
+        }
     }
 }
 
