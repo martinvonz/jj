@@ -99,10 +99,7 @@ impl TemplateProperty<Timestamp> for RelativeTimestampString {
 enum Property<'a, I> {
     String(Box<dyn TemplateProperty<I, Output = String> + 'a>),
     Boolean(Box<dyn TemplateProperty<I, Output = bool> + 'a>),
-    CommitOrChangeId(
-        Box<dyn TemplateProperty<I, Output = CommitOrChangeId> + 'a>,
-        RepoRef<'a>,
-    ),
+    CommitOrChangeId(Box<dyn TemplateProperty<I, Output = CommitOrChangeId<'a>> + 'a>),
     Signature(Box<dyn TemplateProperty<I, Output = Signature> + 'a>),
     Timestamp(Box<dyn TemplateProperty<I, Output = Timestamp> + 'a>),
 }
@@ -121,8 +118,8 @@ impl<'a, I: 'a> Property<'a, I> {
         match self {
             Property::String(property) => Property::String(chain(first, property)),
             Property::Boolean(property) => Property::Boolean(chain(first, property)),
-            Property::CommitOrChangeId(property, repo) => {
-                Property::CommitOrChangeId(chain(first, property), repo)
+            Property::CommitOrChangeId(property) => {
+                Property::CommitOrChangeId(chain(first, property))
             }
             Property::Signature(property) => Property::Signature(chain(first, property)),
             Property::Timestamp(property) => Property::Timestamp(chain(first, property)),
@@ -138,7 +135,7 @@ impl<'a, I: 'a> Property<'a, I> {
         match self {
             Property::String(property) => wrap(property),
             Property::Boolean(property) => wrap(property),
-            Property::CommitOrChangeId(property, _) => wrap(property),
+            Property::CommitOrChangeId(property) => wrap(property),
             Property::Signature(property) => wrap(property),
             Property::Timestamp(property) => wrap(property),
         }
@@ -171,8 +168,8 @@ fn parse_method_chain<'a, I: 'a>(
         let (property, mut labels) = match input_property {
             Property::String(property) => chain(property, || parse_string_method(method)),
             Property::Boolean(property) => chain(property, || parse_boolean_method(method)),
-            Property::CommitOrChangeId(property, repo) => {
-                chain(property, || parse_commit_or_change_id_method(method, repo))
+            Property::CommitOrChangeId(property) => {
+                chain(property, || parse_commit_or_change_id_method(method))
             }
             Property::Signature(property) => chain(property, || parse_signature_method(method)),
             Property::Timestamp(property) => chain(property, || parse_timestamp_method(method)),
@@ -207,8 +204,7 @@ fn parse_boolean_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, bool> {
 
 fn parse_commit_or_change_id_method<'a>(
     method: Pair<Rule>,
-    repo: RepoRef<'a>,
-) -> PropertyAndLabels<'a, CommitOrChangeId> {
+) -> PropertyAndLabels<'a, CommitOrChangeId<'a>> {
     assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
     let name = inner.next().unwrap();
@@ -217,7 +213,7 @@ fn parse_commit_or_change_id_method<'a>(
     let this_function = match name.as_str() {
         "short" => Property::String(Box::new(CommitOrChangeIdShort)),
         "short_prefix_and_brackets" => {
-            Property::String(Box::new(CommitOrChangeIdShortPrefixAndBrackets { repo }))
+            Property::String(Box::new(CommitOrChangeIdShortPrefixAndBrackets))
         }
         name => panic!("no such commit ID method: {name}"),
     };
@@ -265,8 +261,8 @@ fn parse_commit_keyword<'a>(
     assert_eq!(pair.as_rule(), Rule::identifier);
     let property = match pair.as_str() {
         "description" => Property::String(Box::new(DescriptionProperty)),
-        "change_id" => Property::CommitOrChangeId(Box::new(ChangeIdProperty), repo),
-        "commit_id" => Property::CommitOrChangeId(Box::new(CommitIdProperty), repo),
+        "change_id" => Property::CommitOrChangeId(Box::new(ChangeIdProperty { repo })),
+        "commit_id" => Property::CommitOrChangeId(Box::new(CommitIdProperty { repo })),
         "author" => Property::Signature(Box::new(AuthorProperty)),
         "committer" => Property::Signature(Box::new(CommitterProperty)),
         "working_copies" => Property::String(Box::new(WorkingCopiesProperty { repo })),
