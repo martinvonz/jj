@@ -101,30 +101,23 @@ enum Property<'a, I> {
 
 impl<'a, I: 'a> Property<'a, I> {
     fn after<C: 'a>(self, first: Box<dyn TemplateProperty<C, I> + 'a>) -> Property<'a, C> {
+        fn chain<'a, C: 'a, I: 'a, O: 'a>(
+            first: Box<dyn TemplateProperty<C, I> + 'a>,
+            second: Box<dyn TemplateProperty<I, O> + 'a>,
+        ) -> Box<dyn TemplateProperty<C, O> + 'a> {
+            Box::new(TemplateFunction::new(
+                first,
+                Box::new(move |value| second.extract(&value)),
+            ))
+        }
         match self {
-            Property::String(property) => Property::String(Box::new(TemplateFunction::new(
-                first,
-                Box::new(move |value| property.extract(&value)),
-            ))),
-            Property::Boolean(property) => Property::Boolean(Box::new(TemplateFunction::new(
-                first,
-                Box::new(move |value| property.extract(&value)),
-            ))),
-            Property::CommitOrChangeId(property, repo) => Property::CommitOrChangeId(
-                Box::new(TemplateFunction::new(
-                    first,
-                    Box::new(move |value| property.extract(&value)),
-                )),
-                repo,
-            ),
-            Property::Signature(property) => Property::Signature(Box::new(TemplateFunction::new(
-                first,
-                Box::new(move |value| property.extract(&value)),
-            ))),
-            Property::Timestamp(property) => Property::Timestamp(Box::new(TemplateFunction::new(
-                first,
-                Box::new(move |value| property.extract(&value)),
-            ))),
+            Property::String(property) => Property::String(chain(first, property)),
+            Property::Boolean(property) => Property::Boolean(chain(first, property)),
+            Property::CommitOrChangeId(property, repo) => {
+                Property::CommitOrChangeId(chain(first, property), repo)
+            }
+            Property::Signature(property) => Property::Signature(chain(first, property)),
+            Property::Timestamp(property) => Property::Timestamp(chain(first, property)),
         }
     }
 }
@@ -137,6 +130,13 @@ fn parse_method_chain<'a, I: 'a>(
     if pair.as_str().is_empty() {
         PropertyAndLabels(input_property, vec![])
     } else {
+        fn chain<'a, I: 'a, O: 'a>(
+            property: Box<dyn TemplateProperty<I, O> + 'a>,
+            parse: impl FnOnce() -> PropertyAndLabels<'a, O>,
+        ) -> (Property<'a, I>, Vec<String>) {
+            let PropertyAndLabels(next_method, labels) = parse();
+            (next_method.after(property), labels)
+        }
         let method = pair.into_inner().next().unwrap();
         let label = method
             .clone()
@@ -146,27 +146,13 @@ fn parse_method_chain<'a, I: 'a>(
             .as_str()
             .to_string();
         let (property, mut labels) = match input_property {
-            Property::String(property) => {
-                let PropertyAndLabels(next_method, labels) = parse_string_method(method);
-                (next_method.after(property), labels)
-            }
-            Property::Boolean(property) => {
-                let PropertyAndLabels(next_method, labels) = parse_boolean_method(method);
-                (next_method.after(property), labels)
-            }
+            Property::String(property) => chain(property, || parse_string_method(method)),
+            Property::Boolean(property) => chain(property, || parse_boolean_method(method)),
             Property::CommitOrChangeId(property, repo) => {
-                let PropertyAndLabels(next_method, labels) =
-                    parse_commit_or_change_id_method(method, repo);
-                (next_method.after(property), labels)
+                chain(property, || parse_commit_or_change_id_method(method, repo))
             }
-            Property::Signature(property) => {
-                let PropertyAndLabels(next_method, labels) = parse_signature_method(method);
-                (next_method.after(property), labels)
-            }
-            Property::Timestamp(property) => {
-                let PropertyAndLabels(next_method, labels) = parse_timestamp_method(method);
-                (next_method.after(property), labels)
-            }
+            Property::Signature(property) => chain(property, || parse_signature_method(method)),
+            Property::Timestamp(property) => chain(property, || parse_timestamp_method(method)),
         };
         labels.insert(0, label);
         PropertyAndLabels(property, labels)
