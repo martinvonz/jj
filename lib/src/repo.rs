@@ -747,7 +747,6 @@ impl MutableRepo {
         settings: &UserSettings,
         commit: &Commit,
     ) -> BackendResult<Commit> {
-        self.leave_commit(&workspace_id);
         let wc_commit = self
             .new_commit(
                 settings,
@@ -755,8 +754,7 @@ impl MutableRepo {
                 commit.tree_id().clone(),
             )
             .write()?;
-        self.set_wc_commit(workspace_id, wc_commit.id().clone())
-            .unwrap();
+        self.edit(workspace_id, &wc_commit).unwrap();
         Ok(wc_commit)
     }
 
