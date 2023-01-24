@@ -29,7 +29,9 @@ use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::dag_walk::topo_order_reverse;
 use crate::git_backend::GitBackend;
-use crate::index::{IndexRef, MutableIndex, ReadonlyIndex};
+use crate::index::{
+    HexPrefix, IndexEntry, IndexPosition, IndexRef, MutableIndex, PrefixResolution, ReadonlyIndex,
+};
 use crate::index_store::IndexStore;
 use crate::local_backend::LocalBackend;
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
@@ -253,8 +255,20 @@ impl ReadonlyRepo {
         self.change_id_index.get_or_init(|| {
             let heads = self.view().heads().iter().cloned().collect_vec();
             let walk = self.index().walk_revs(&heads, &[]);
-            IdIndex::from_vec(walk.map(|entry| (entry.change_id(), ())).collect())
+            IdIndex::from_vec(
+                walk.map(|entry| (entry.change_id(), entry.position()))
+                    .collect(),
+            )
         })
+    }
+
+    pub fn resolve_change_id_prefix<'a>(
+        &'a self,
+        prefix: &HexPrefix,
+    ) -> PrefixResolution<Vec<IndexEntry<'a>>> {
+        let index = self.index();
+        self.change_id_index()
+            .resolve_prefix_with(prefix, |&pos| index.entry_by_pos(pos))
     }
 
     pub fn shortest_unique_id_prefix_len(&self, target_id_bytes: &[u8]) -> usize {
@@ -1204,7 +1218,7 @@ mod dirty_cell {
     }
 }
 
-type ChangeIdIndex = IdIndex<ChangeId, ()>;
+type ChangeIdIndex = IdIndex<ChangeId, IndexPosition>;
 
 #[derive(Debug, Clone)]
 pub struct IdIndex<K, V>(Vec<(K, V)>);
@@ -1218,6 +1232,42 @@ where
     pub fn from_vec(mut vec: Vec<(K, V)>) -> Self {
         vec.sort_unstable_by(|(k0, _), (k1, _)| k0.cmp(k1));
         IdIndex(vec)
+    }
+
+    /// Looks up entries with the given prefix, and collects values if matched
+    /// entries have unambiguous keys.
+    pub fn resolve_prefix_with<U>(
+        &self,
+        prefix: &HexPrefix,
+        mut value_mapper: impl FnMut(&V) -> U,
+    ) -> PrefixResolution<Vec<U>> {
+        let mut range = self.resolve_prefix_range(prefix).peekable();
+        if let Some((first_key, _)) = range.peek().copied() {
+            let maybe_entries: Option<Vec<_>> = range
+                .map(|(k, v)| (k == first_key).then(|| value_mapper(v)))
+                .collect();
+            if let Some(entries) = maybe_entries {
+                PrefixResolution::SingleMatch(entries)
+            } else {
+                PrefixResolution::AmbiguousMatch
+            }
+        } else {
+            PrefixResolution::NoMatch
+        }
+    }
+
+    /// Iterates over entries with the given prefix.
+    pub fn resolve_prefix_range<'a: 'b, 'b>(
+        &'a self,
+        prefix: &'b HexPrefix,
+    ) -> impl Iterator<Item = (&'a K, &'a V)> + 'b {
+        let (bytes_prefix, min_bytes_prefix) = prefix.bytes_prefixes::<K>();
+        let pos = self.0.partition_point(|(k, _)| k < &min_bytes_prefix);
+        self.0[pos..]
+            .iter()
+            .take_while(move |(k, _)| k.as_bytes().starts_with(bytes_prefix.as_bytes()))
+            .filter(|(k, _)| prefix.matches(k))
+            .map(|(k, v)| (k, v))
     }
 
     /// This function returns the shortest length of a prefix of `key` that
@@ -1252,7 +1302,59 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_id_index() {
+    fn test_id_index_resolve_prefix() {
+        fn sorted(resolution: PrefixResolution<Vec<i32>>) -> PrefixResolution<Vec<i32>> {
+            match resolution {
+                PrefixResolution::SingleMatch(mut xs) => {
+                    xs.sort(); // order of values might not be preserved by IdIndex
+                    PrefixResolution::SingleMatch(xs)
+                }
+                _ => resolution,
+            }
+        }
+        let id_index = IdIndex::from_vec(vec![
+            (ChangeId::from_hex("0000"), 0),
+            (ChangeId::from_hex("0099"), 1),
+            (ChangeId::from_hex("0099"), 2),
+            (ChangeId::from_hex("0aaa"), 3),
+            (ChangeId::from_hex("0aab"), 4),
+        ]);
+        assert_eq!(
+            id_index.resolve_prefix_with(&HexPrefix::new("0").unwrap(), |&v| v),
+            PrefixResolution::AmbiguousMatch,
+        );
+        assert_eq!(
+            id_index.resolve_prefix_with(&HexPrefix::new("00").unwrap(), |&v| v),
+            PrefixResolution::AmbiguousMatch,
+        );
+        assert_eq!(
+            id_index.resolve_prefix_with(&HexPrefix::new("000").unwrap(), |&v| v),
+            PrefixResolution::SingleMatch(vec![0]),
+        );
+        assert_eq!(
+            id_index.resolve_prefix_with(&HexPrefix::new("0001").unwrap(), |&v| v),
+            PrefixResolution::NoMatch,
+        );
+        assert_eq!(
+            sorted(id_index.resolve_prefix_with(&HexPrefix::new("009").unwrap(), |&v| v)),
+            PrefixResolution::SingleMatch(vec![1, 2]),
+        );
+        assert_eq!(
+            id_index.resolve_prefix_with(&HexPrefix::new("0aa").unwrap(), |&v| v),
+            PrefixResolution::AmbiguousMatch,
+        );
+        assert_eq!(
+            id_index.resolve_prefix_with(&HexPrefix::new("0aab").unwrap(), |&v| v),
+            PrefixResolution::SingleMatch(vec![4]),
+        );
+        assert_eq!(
+            id_index.resolve_prefix_with(&HexPrefix::new("f").unwrap(), |&v| v),
+            PrefixResolution::NoMatch,
+        );
+    }
+
+    #[test]
+    fn test_id_index_shortest_unique_prefix_len() {
         // No crash if empty
         let id_index = IdIndex::from_vec(vec![] as Vec<(ChangeId, ())>);
         assert_eq!(
