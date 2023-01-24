@@ -89,6 +89,13 @@ impl<'a> RepoRef<'a> {
             RepoRef::Mutable(repo) => repo.view(),
         }
     }
+
+    pub fn shortest_unique_id_prefix_len(&self, target_id_bytes: &[u8]) -> usize {
+        match self {
+            RepoRef::Readonly(repo) => repo.shortest_unique_id_prefix_len(target_id_bytes),
+            RepoRef::Mutable(_) => target_id_bytes.len() * 2, // TODO
+        }
+    }
 }
 
 pub struct ReadonlyRepo {
@@ -253,7 +260,7 @@ impl ReadonlyRepo {
         })
     }
 
-    pub fn shortest_unique_prefix_length(&self, target_id_bytes: &[u8]) -> usize {
+    pub fn shortest_unique_id_prefix_len(&self, target_id_bytes: &[u8]) -> usize {
         let root_commit_id = self.store().root_commit_id();
         let root_change_id = backend::root_change_id();
         if target_id_bytes == root_commit_id.as_bytes()
