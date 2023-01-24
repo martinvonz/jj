@@ -159,7 +159,7 @@ pub fn default_config() -> config::Config {
     config::Config::builder()
         .add_source(from_toml!("config/colors.toml"))
         .add_source(from_toml!("config/merge_tools.toml"))
-        .add_source(from_toml!("config/git.toml"))
+        .add_source(from_toml!("config/misc.toml"))
         .build()
         .unwrap()
 }
