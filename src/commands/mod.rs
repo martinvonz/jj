@@ -2136,7 +2136,7 @@ from the source will be moved into the parent.
         args.interactive,
         matcher.as_ref(),
     )?;
-    if &new_parent_tree_id == parent.tree_id() {
+    if args.interactive && &new_parent_tree_id == parent.tree_id() {
         return Err(user_error("No changes selected"));
     }
     // Abandon the child if the parent now has all the content from the child

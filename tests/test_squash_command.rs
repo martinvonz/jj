@@ -311,6 +311,32 @@ fn test_squash_description() {
     "###);
 }
 
+#[test]
+fn test_squash_empty() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "parent"]);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["squash"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy now at: e45abe2cd9a9 (no description set)
+    "###);
+    insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
+    parent
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "child"]);
+    test_env.set_up_fake_editor();
+    test_env.jj_cmd_success(&repo_path, &["squash"]);
+    insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
+    parent
+
+    child
+    "###);
+}
+
 fn get_description(test_env: &TestEnvironment, repo_path: &Path, rev: &str) -> String {
     test_env.jj_cmd_success(
         repo_path,
