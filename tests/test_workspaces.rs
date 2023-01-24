@@ -244,6 +244,41 @@ fn test_list_workspaces_template() {
     "###);
 }
 
+/// Test getting the workspace root from primary and secondary workspaces
+#[test]
+fn test_workspaces_root() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
+    let main_path = test_env.env_root().join("main");
+    let secondary_path = test_env.env_root().join("secondary");
+
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "root"]);
+    insta::assert_snapshot!(stdout, @r###"
+    $TEST_ENV/main
+    "###);
+    let main_subdir_path = main_path.join("subdir");
+    std::fs::create_dir(&main_subdir_path).unwrap();
+    let stdout = test_env.jj_cmd_success(&main_subdir_path, &["workspace", "root"]);
+    insta::assert_snapshot!(stdout, @r###"
+    $TEST_ENV/main
+    "###);
+
+    test_env.jj_cmd_success(
+        &main_path,
+        &["workspace", "add", "--name", "secondary", "../secondary"],
+    );
+    let stdout = test_env.jj_cmd_success(&secondary_path, &["workspace", "root"]);
+    insta::assert_snapshot!(stdout, @r###"
+    $TEST_ENV/secondary
+    "###);
+    let secondary_subdir_path = secondary_path.join("subdir");
+    std::fs::create_dir(&secondary_subdir_path).unwrap();
+    let stdout = test_env.jj_cmd_success(&secondary_subdir_path, &["workspace", "root"]);
+    insta::assert_snapshot!(stdout, @r###"
+    $TEST_ENV/secondary
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     test_env.jj_cmd_success(
         cwd,
