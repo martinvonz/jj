@@ -108,7 +108,7 @@ pub struct ReadonlyRepo {
     index_store: Arc<IndexStore>,
     index: OnceCell<Arc<ReadonlyIndex>>,
     // TODO: This should eventually become part of the index and not be stored fully in memory.
-    change_id_index: OnceCell<IdIndex>,
+    change_id_index: OnceCell<ChangeIdIndex>,
     view: View,
 }
 
@@ -249,14 +249,11 @@ impl ReadonlyRepo {
         })
     }
 
-    fn change_id_index(&self) -> &IdIndex {
+    fn change_id_index(&self) -> &ChangeIdIndex {
         self.change_id_index.get_or_init(|| {
             let heads = self.view().heads().iter().cloned().collect_vec();
             let walk = self.index().walk_revs(&heads, &[]);
-            IdIndex::from_vec(
-                walk.map(|entry| (entry.change_id().to_bytes(), ()))
-                    .collect(),
-            )
+            IdIndex::from_vec(walk.map(|entry| (entry.change_id(), ())).collect())
         })
     }
 
@@ -272,7 +269,7 @@ impl ReadonlyRepo {
                 self.index()
                     .shortest_unique_commit_id_prefix_len(root_commit_id),
                 self.change_id_index()
-                    .shortest_unique_prefix_len(root_change_id.as_bytes()),
+                    .shortest_unique_prefix_len(root_change_id),
             )
         } else {
             // For `len = index.shortest(id)`, a prefix of length `len` will disambiguate
@@ -283,7 +280,7 @@ impl ReadonlyRepo {
                 self.index()
                     .shortest_unique_commit_id_prefix_len(&CommitId::from_bytes(target_id_bytes)),
                 self.change_id_index()
-                    .shortest_unique_prefix_len(target_id_bytes),
+                    .shortest_unique_prefix_len(&ChangeId::from_bytes(target_id_bytes)),
             )
         }
     }
@@ -1207,15 +1204,18 @@ mod dirty_cell {
     }
 }
 
-// This value would be used to find divergent changes, for example, or if it is
-// necessary to mark whether an id is a Change or a Commit id.
-type IdIndexValue = ();
-#[derive(Debug, Clone)]
-pub struct IdIndex(Vec<(Vec<u8>, IdIndexValue)>);
+type ChangeIdIndex = IdIndex<ChangeId, ()>;
 
-impl IdIndex {
-    /// Creates new index from the given keys. Keys may have duplicates.
-    pub fn from_vec(mut vec: Vec<(Vec<u8>, IdIndexValue)>) -> Self {
+#[derive(Debug, Clone)]
+pub struct IdIndex<K, V>(Vec<(K, V)>);
+
+impl<K, V> IdIndex<K, V>
+where
+    K: ObjectId + Ord,
+{
+    /// Creates new index from the given entries. Multiple values can be
+    /// associated with a single key.
+    pub fn from_vec(mut vec: Vec<(K, V)>) -> Self {
         vec.sort_unstable_by(|(k0, _), (k1, _)| k0.cmp(k1));
         IdIndex(vec)
     }
@@ -1223,8 +1223,7 @@ impl IdIndex {
     /// This function returns the shortest length of a prefix of `key` that
     /// disambiguates it from every other key in the index.
     ///
-    /// The given `key` must be provided as bytes, not as ASCII hexadecimal
-    /// digits. The length to be returned is a number of hexadecimal digits.
+    /// The length to be returned is a number of hexadecimal digits.
     ///
     /// This has some properties that we do not currently make much use of:
     ///
@@ -1235,12 +1234,14 @@ impl IdIndex {
     ///   order to disambiguate, you need every letter of the key *and* the
     ///   additional fact that it's the entire key). This case is extremely
     ///   unlikely for hashes with 12+ hexadecimal characters.
-    pub fn shortest_unique_prefix_len(&self, key: &[u8]) -> usize {
-        let pos = self.0.partition_point(|(k, _)| k.as_slice() < key);
+    pub fn shortest_unique_prefix_len(&self, key: &K) -> usize {
+        let pos = self.0.partition_point(|(k, _)| k < key);
         let left = pos.checked_sub(1).map(|p| &self.0[p]);
-        let right = self.0[pos..].iter().find(|(k, _)| k.as_slice() != key);
+        let right = self.0[pos..].iter().find(|(k, _)| k != key);
         itertools::chain(left, right)
-            .map(|(neighbor, _value)| backend::common_hex_len(key, neighbor) + 1)
+            .map(|(neighbor, _value)| {
+                backend::common_hex_len(key.as_bytes(), neighbor.as_bytes()) + 1
+            })
             .max()
             .unwrap_or(0)
     }
@@ -1253,53 +1254,53 @@ mod tests {
     #[test]
     fn test_id_index() {
         // No crash if empty
-        let id_index = IdIndex::from_vec(vec![]);
+        let id_index = IdIndex::from_vec(vec![] as Vec<(ChangeId, ())>);
         assert_eq!(
-            id_index.shortest_unique_prefix_len(&hex::decode("00").unwrap()),
+            id_index.shortest_unique_prefix_len(&ChangeId::from_hex("00")),
             0
         );
 
         let id_index = IdIndex::from_vec(vec![
-            (hex::decode("ab").unwrap(), ()),
-            (hex::decode("acd0").unwrap(), ()),
-            (hex::decode("acd0").unwrap(), ()), // duplicated key is allowed
+            (ChangeId::from_hex("ab"), ()),
+            (ChangeId::from_hex("acd0"), ()),
+            (ChangeId::from_hex("acd0"), ()), // duplicated key is allowed
         ]);
         assert_eq!(
-            id_index.shortest_unique_prefix_len(&hex::decode("acd0").unwrap()),
+            id_index.shortest_unique_prefix_len(&ChangeId::from_hex("acd0")),
             2
         );
         assert_eq!(
-            id_index.shortest_unique_prefix_len(&hex::decode("ac").unwrap()),
+            id_index.shortest_unique_prefix_len(&ChangeId::from_hex("ac")),
             3
         );
 
         let id_index = IdIndex::from_vec(vec![
-            (hex::decode("ab").unwrap(), ()),
-            (hex::decode("acd0").unwrap(), ()),
-            (hex::decode("acf0").unwrap(), ()),
-            (hex::decode("a0").unwrap(), ()),
-            (hex::decode("ba").unwrap(), ()),
+            (ChangeId::from_hex("ab"), ()),
+            (ChangeId::from_hex("acd0"), ()),
+            (ChangeId::from_hex("acf0"), ()),
+            (ChangeId::from_hex("a0"), ()),
+            (ChangeId::from_hex("ba"), ()),
         ]);
 
         assert_eq!(
-            id_index.shortest_unique_prefix_len(&hex::decode("a0").unwrap()),
+            id_index.shortest_unique_prefix_len(&ChangeId::from_hex("a0")),
             2
         );
         assert_eq!(
-            id_index.shortest_unique_prefix_len(&hex::decode("ba").unwrap()),
+            id_index.shortest_unique_prefix_len(&ChangeId::from_hex("ba")),
             1
         );
         assert_eq!(
-            id_index.shortest_unique_prefix_len(&hex::decode("ab").unwrap()),
+            id_index.shortest_unique_prefix_len(&ChangeId::from_hex("ab")),
             2
         );
         assert_eq!(
-            id_index.shortest_unique_prefix_len(&hex::decode("acd0").unwrap()),
+            id_index.shortest_unique_prefix_len(&ChangeId::from_hex("acd0")),
             3
         );
         // If it were there, the length would be 1.
         assert_eq!(
-            id_index.shortest_unique_prefix_len(&hex::decode("c0").unwrap()),
+            id_index.shortest_unique_prefix_len(&ChangeId::from_hex("c0")),
             1
         );
     }
