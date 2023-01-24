@@ -244,13 +244,10 @@ impl ReadonlyRepo {
 
     fn change_id_index(&self) -> &IdIndex {
         self.change_id_index.get_or_init(|| {
-            let all_visible_revisions = crate::revset::RevsetExpression::all()
-                .evaluate(self.as_repo_ref(), None)
-                .unwrap();
+            let heads = self.view().heads().iter().cloned().collect_vec();
+            let walk = self.index().walk_revs(&heads, &[]);
             IdIndex::from_vec(
-                all_visible_revisions
-                    .iter()
-                    .map(|entry| (entry.change_id().to_bytes(), ()))
+                walk.map(|entry| (entry.change_id().to_bytes(), ()))
                     .collect(),
             )
         })
