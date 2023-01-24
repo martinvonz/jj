@@ -484,10 +484,7 @@ impl Template<()> for CommitOrChangeId<'_> {
 }
 
 fn highlight_shortest_prefix(id: &CommitOrChangeId, total_len: usize) -> String {
-    let prefix_len = id
-        .repo
-        .base_repo()
-        .shortest_unique_prefix_length(id.as_bytes());
+    let prefix_len = id.repo.shortest_unique_id_prefix_len(id.as_bytes());
     let mut hex = id.hex();
     if prefix_len < total_len - 2 {
         format!(
