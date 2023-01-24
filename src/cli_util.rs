@@ -513,7 +513,7 @@ impl WorkspaceCommandHelper {
             // If the Git HEAD has changed, abandon our old checkout and check out the new
             // Git HEAD.
             if new_git_head != old_git_head && new_git_head.is_some() {
-                let workspace_id = self.workspace_id();
+                let workspace_id = self.workspace_id().to_owned();
                 let mut locked_working_copy = self.workspace.working_copy_mut().start_mutation();
                 if let Some(old_wc_commit_id) = self.repo.view().get_wc_commit_id(&workspace_id) {
                     tx.mut_repo()
@@ -554,7 +554,7 @@ impl WorkspaceCommandHelper {
             .peel_to_commit()
             .ok()
             .map(|commit| commit.id());
-        if let Some(wc_commit_id) = mut_repo.view().get_wc_commit_id(&self.workspace_id()) {
+        if let Some(wc_commit_id) = mut_repo.view().get_wc_commit_id(self.workspace_id()) {
             let first_parent_id = mut_repo
                 .index()
                 .entry_by_id(wc_commit_id)
@@ -591,7 +591,7 @@ impl WorkspaceCommandHelper {
         &mut self,
     ) -> Result<(LockedWorkingCopy, Commit), CommandError> {
         self.check_working_copy_writable()?;
-        let wc_commit_id = self.repo.view().get_wc_commit_id(&self.workspace_id());
+        let wc_commit_id = self.repo.view().get_wc_commit_id(self.workspace_id());
         let wc_commit = if let Some(wc_commit_id) = wc_commit_id {
             self.repo.store().get_commit(wc_commit_id)?
         } else {
@@ -617,8 +617,8 @@ impl WorkspaceCommandHelper {
         self.workspace.workspace_root()
     }
 
-    pub fn workspace_id(&self) -> WorkspaceId {
-        self.workspace.workspace_id().clone()
+    pub fn workspace_id(&self) -> &WorkspaceId {
+        self.workspace.workspace_id()
     }
 
     pub fn working_copy_shared_with_git(&self) -> bool {
@@ -756,7 +756,7 @@ impl WorkspaceCommandHelper {
     fn revset_context(&self) -> RevsetWorkspaceContext {
         RevsetWorkspaceContext {
             cwd: &self.cwd,
-            workspace_id: self.workspace.workspace_id(),
+            workspace_id: self.workspace_id(),
             workspace_root: self.workspace.workspace_root(),
         }
     }
@@ -779,7 +779,7 @@ impl WorkspaceCommandHelper {
         write_commit_summary(
             formatter,
             self.repo.as_repo_ref(),
-            self.workspace.workspace_id(),
+            self.workspace_id(),
             commit,
             &self.settings,
         )
@@ -801,8 +801,8 @@ impl WorkspaceCommandHelper {
 
     pub fn commit_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         let repo = self.repo.clone();
-        let workspace_id = self.workspace_id();
-        let wc_commit_id = match repo.view().get_wc_commit_id(&self.workspace_id()) {
+        let workspace_id = self.workspace_id().to_owned();
+        let wc_commit_id = match repo.view().get_wc_commit_id(&workspace_id) {
             Some(wc_commit_id) => wc_commit_id.clone(),
             None => {
                 // If the workspace has been deleted, it's unclear what to do, so we just skip
@@ -974,15 +974,16 @@ impl WorkspaceCommandHelper {
         let maybe_old_commit = tx
             .base_repo()
             .view()
-            .get_wc_commit_id(&self.workspace_id())
+            .get_wc_commit_id(self.workspace_id())
             .map(|commit_id| store.get_commit(commit_id))
             .transpose()?;
         self.repo = tx.commit();
         if self.may_update_working_copy {
+            let workspace_id = self.workspace_id().to_owned();
             let stats = update_working_copy(
                 ui,
                 &self.repo,
-                &self.workspace_id(),
+                &workspace_id,
                 self.workspace.working_copy_mut(),
                 maybe_old_commit.as_ref(),
                 &self.settings,
@@ -1031,13 +1032,13 @@ impl WorkspaceCommandTransaction<'_> {
     }
 
     pub fn check_out(&mut self, commit: &Commit) -> Result<Commit, CheckOutCommitError> {
-        let workspace_id = self.helper.workspace_id();
+        let workspace_id = self.helper.workspace_id().to_owned();
         let settings = &self.helper.settings;
         self.tx.mut_repo().check_out(workspace_id, settings, commit)
     }
 
     pub fn edit(&mut self, commit: &Commit) -> Result<(), EditCommitError> {
-        let workspace_id = self.helper.workspace_id();
+        let workspace_id = self.helper.workspace_id().to_owned();
         self.tx.mut_repo().edit(workspace_id, commit)
     }
 
@@ -1047,7 +1048,7 @@ impl WorkspaceCommandTransaction<'_> {
         commit: &Commit,
     ) -> std::io::Result<()> {
         let repo = self.tx.repo().as_repo_ref();
-        let workspace_id = self.helper.workspace.workspace_id();
+        let workspace_id = self.helper.workspace_id();
         let settings = &self.helper.settings;
         write_commit_summary(formatter, repo, workspace_id, commit, settings)
     }

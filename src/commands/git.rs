@@ -612,7 +612,7 @@ fn cmd_git_push(
         match workspace_command
             .repo()
             .view()
-            .get_wc_commit_id(&workspace_command.workspace_id())
+            .get_wc_commit_id(workspace_command.workspace_id())
         {
             None => {
                 return Err(user_error("Nothing checked out in this workspace"));
