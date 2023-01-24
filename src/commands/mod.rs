@@ -1243,7 +1243,7 @@ fn cmd_show(ui: &mut Ui, command: &CommandHelper, args: &ShowArgs) -> Result<(),
     );
     let template = crate::template_parser::parse_commit_template(
         workspace_command.repo().as_repo_ref(),
-        &workspace_command.workspace_id(),
+        workspace_command.workspace_id(),
         &template_string,
     );
     ui.request_pager();
@@ -1269,7 +1269,7 @@ fn cmd_status(
     let repo = workspace_command.repo();
     let maybe_checkout_id = repo
         .view()
-        .get_wc_commit_id(&workspace_command.workspace_id());
+        .get_wc_commit_id(workspace_command.workspace_id());
     let maybe_checkout = maybe_checkout_id
         .map(|id| repo.store().get_commit(id))
         .transpose()?;
@@ -1409,7 +1409,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         workspace_command.parse_revset(args.revisions.as_deref().unwrap_or(&default_revset))?;
     let repo = workspace_command.repo();
     let workspace_id = workspace_command.workspace_id();
-    let checkout_id = repo.view().get_wc_commit_id(&workspace_id);
+    let checkout_id = repo.view().get_wc_commit_id(workspace_id);
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let revset = workspace_command.evaluate_revset(&revset_expression)?;
     let revset = if !args.paths.is_empty() {
@@ -1428,7 +1428,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
     };
     let template = crate::template_parser::parse_commit_template(
         repo.as_repo_ref(),
-        &workspace_id,
+        workspace_id,
         &template_string,
     );
     let format_commit_template = |commit: &Commit, formatter: &mut dyn Formatter| {
@@ -1561,7 +1561,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
     let wc_commit_id = workspace_command
         .repo()
         .view()
-        .get_wc_commit_id(&workspace_id);
+        .get_wc_commit_id(workspace_id);
 
     let diff_formats =
         diff_util::diff_formats_for_log(command.settings(), &args.diff_format, args.patch);
@@ -1572,7 +1572,7 @@ fn cmd_obslog(ui: &mut Ui, command: &CommandHelper, args: &ObslogArgs) -> Result
     };
     let template = crate::template_parser::parse_commit_template(
         workspace_command.repo().as_repo_ref(),
-        &workspace_id,
+        workspace_id,
         &template_string,
     );
 
@@ -1786,7 +1786,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
     let commit_id = workspace_command
         .repo()
         .view()
-        .get_wc_commit_id(&workspace_command.workspace_id())
+        .get_wc_commit_id(workspace_command.workspace_id())
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
     let description = if let Some(message) = &args.message {
@@ -1943,11 +1943,10 @@ fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(),
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewriteable(&new_commit)?;
-    let workspace_id = workspace_command.workspace_id();
     if workspace_command
         .repo()
         .view()
-        .get_wc_commit_id(&workspace_id)
+        .get_wc_commit_id(workspace_command.workspace_id())
         == Some(new_commit.id())
     {
         ui.write("Already editing that commit\n")?;
@@ -3048,7 +3047,7 @@ fn cmd_workspace_add(
     let new_wc_commit = if let Some(old_checkout_id) = tx
         .base_repo()
         .view()
-        .get_wc_commit_id(&old_workspace_command.workspace_id())
+        .get_wc_commit_id(old_workspace_command.workspace_id())
     {
         tx.base_repo()
             .store()
@@ -3073,7 +3072,7 @@ fn cmd_workspace_forget(
     let workspace_id = if let Some(workspace_str) = &args.workspace {
         WorkspaceId::new(workspace_str.to_string())
     } else {
-        workspace_command.workspace_id()
+        workspace_command.workspace_id().to_owned()
     };
     if workspace_command
         .repo()
