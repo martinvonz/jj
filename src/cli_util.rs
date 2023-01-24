@@ -113,7 +113,7 @@ impl From<crate::config::ConfigError> for CommandError {
 
 impl From<RewriteRootCommit> for CommandError {
     fn from(err: RewriteRootCommit) -> Self {
-        user_error(err.to_string())
+        CommandError::InternalError(format!("Attempted to rewrite the root commit: {err}"))
     }
 }
 

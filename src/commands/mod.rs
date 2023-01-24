@@ -1964,6 +1964,7 @@ fn cmd_abandon(
 fn cmd_edit(ui: &mut Ui, command: &CommandHelper, args: &EditArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
+    workspace_command.check_rewriteable(&new_commit)?;
     let workspace_id = workspace_command.workspace_id();
     if workspace_command
         .repo()
