@@ -81,6 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by a "␛" character. That prevents them from interfering with the ANSI escapes
   jj itself writes.
 
+* `jj workspace root` prints the root path of the current workspace.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export

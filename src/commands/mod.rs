@@ -743,6 +743,7 @@ enum WorkspaceCommands {
     Add(WorkspaceAddArgs),
     Forget(WorkspaceForgetArgs),
     List(WorkspaceListArgs),
+    Root(WorkspaceRootArgs),
     UpdateStale(WorkspaceUpdateStaleArgs),
 }
 
@@ -772,6 +773,10 @@ struct WorkspaceForgetArgs {
 /// List workspaces
 #[derive(clap::Args, Clone, Debug)]
 struct WorkspaceListArgs {}
+
+/// Show the current workspace root directory
+#[derive(clap::Args, Clone, Debug)]
+struct WorkspaceRootArgs {}
 
 /// Update a workspace that has become stale
 ///
@@ -3013,6 +3018,9 @@ fn cmd_workspace(
         WorkspaceCommands::List(command_matches) => {
             cmd_workspace_list(ui, command, command_matches)
         }
+        WorkspaceCommands::Root(command_matches) => {
+            cmd_workspace_root(ui, command, command_matches)
+        }
         WorkspaceCommands::UpdateStale(command_matches) => {
             cmd_workspace_update_stale(ui, command, command_matches)
         }
@@ -3139,6 +3147,24 @@ fn cmd_workspace_list(
         workspace_command.write_commit_summary(ui.stdout_formatter().as_mut(), &commit)?;
         writeln!(ui)?;
     }
+    Ok(())
+}
+
+fn cmd_workspace_root(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &WorkspaceRootArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let root =
+        workspace_command
+            .workspace_root()
+            .to_str()
+            .ok_or_else(|| CommandError::UserError {
+                message: String::from("The workspace root is not valid UTF-8"),
+                hint: None,
+            })?;
+    writeln!(ui, "{root}")?;
     Ok(())
 }
 
