@@ -421,11 +421,7 @@ impl MergeTool {
 /// as an executable name if no configuration found for that name.
 fn get_tool_config(settings: &UserSettings, name: &str) -> Result<MergeTool, ConfigError> {
     const TABLE_KEY: &str = "merge-tools";
-    let tools_table = match settings.config().get_table(TABLE_KEY) {
-        Ok(table) => table,
-        Err(ConfigError::NotFound(_)) => return Ok(MergeTool::with_program(name)),
-        Err(err) => return Err(err),
-    };
+    let tools_table = settings.config().get_table(TABLE_KEY)?;
     if let Some(v) = tools_table.get(name) {
         let mut result: MergeTool = v
             .clone()
