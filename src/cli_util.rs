@@ -860,9 +860,7 @@ impl WorkspaceCommandHelper {
                 .rewrite_commit(&self.settings, &wc_commit)
                 .set_tree(new_tree_id)
                 .write()?;
-            mut_repo
-                .set_wc_commit(workspace_id, commit.id().clone())
-                .unwrap();
+            mut_repo.set_wc_commit(workspace_id, commit.id().clone())?;
 
             // Rebase descendants
             let num_rebased = mut_repo.rebase_descendants(&self.settings)?;
