@@ -2040,7 +2040,7 @@ from the source will be moved into the destination.
         tx.base_workspace_helper()
             .format_commit_summary(&destination)
     );
-    let new_parent_tree_id = tx.base_workspace_helper().select_diff(
+    let new_parent_tree_id = tx.select_diff(
         ui,
         &parent_tree,
         &source_tree,
@@ -2127,7 +2127,7 @@ from the source will be moved into the parent.
         tx.base_workspace_helper().format_commit_summary(&commit),
         tx.base_workspace_helper().format_commit_summary(parent)
     );
-    let new_parent_tree_id = tx.base_workspace_helper().select_diff(
+    let new_parent_tree_id = tx.select_diff(
         ui,
         &parent.tree(),
         &commit.tree(),
@@ -2202,12 +2202,7 @@ aborted.
             tx.base_workspace_helper().format_commit_summary(parent),
             tx.base_workspace_helper().format_commit_summary(&commit)
         );
-        new_parent_tree_id = tx.base_workspace_helper().edit_diff(
-            ui,
-            &parent_base_tree,
-            &parent.tree(),
-            &instructions,
-        )?;
+        new_parent_tree_id = tx.edit_diff(ui, &parent_base_tree, &parent.tree(), &instructions)?;
         if &new_parent_tree_id == parent_base_tree.id() {
             return Err(user_error("No changes selected"));
         }
@@ -2278,9 +2273,7 @@ fn cmd_resolve(
         "Resolve conflicts in commit {}",
         commit.id().hex()
     ));
-    let new_tree_id = tx
-        .base_workspace_helper()
-        .run_mergetool(ui, &commit.tree(), repo_path)?;
+    let new_tree_id = tx.run_mergetool(ui, &commit.tree(), repo_path)?;
     let new_commit = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
@@ -2489,12 +2482,7 @@ don't make any changes, then the operation will be aborted.",
             .format_commit_summary(&target_commit),
     );
     let base_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), base_commits.as_slice());
-    let tree_id = tx.base_workspace_helper().edit_diff(
-        ui,
-        &base_tree,
-        &target_commit.tree(),
-        &instructions,
-    )?;
+    let tree_id = tx.edit_diff(ui, &base_tree, &target_commit.tree(), &instructions)?;
     if &tree_id == target_commit.tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
@@ -2581,7 +2569,7 @@ don't make any changes, then the operation will be aborted.
 ",
         tx.base_workspace_helper().format_commit_summary(&commit)
     );
-    let tree_id = tx.base_workspace_helper().select_diff(
+    let tree_id = tx.select_diff(
         ui,
         &base_tree,
         &commit.tree(),
