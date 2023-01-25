@@ -878,74 +878,6 @@ impl WorkspaceCommandHelper {
         Ok(())
     }
 
-    pub fn run_mergetool(
-        &self,
-        ui: &mut Ui,
-        tree: &Tree,
-        repo_path: &RepoPath,
-    ) -> Result<TreeId, CommandError> {
-        Ok(crate::merge_tools::run_mergetool(
-            ui,
-            tree,
-            repo_path,
-            &self.settings,
-        )?)
-    }
-
-    pub fn edit_diff(
-        &self,
-        ui: &mut Ui,
-        left_tree: &Tree,
-        right_tree: &Tree,
-        instructions: &str,
-    ) -> Result<TreeId, CommandError> {
-        Ok(crate::merge_tools::edit_diff(
-            ui,
-            left_tree,
-            right_tree,
-            instructions,
-            self.base_ignores(),
-            &self.settings,
-        )?)
-    }
-
-    pub fn select_diff(
-        &self,
-        ui: &mut Ui,
-        left_tree: &Tree,
-        right_tree: &Tree,
-        instructions: &str,
-        interactive: bool,
-        matcher: &dyn Matcher,
-    ) -> Result<TreeId, CommandError> {
-        if interactive {
-            Ok(crate::merge_tools::edit_diff(
-                ui,
-                left_tree,
-                right_tree,
-                instructions,
-                self.base_ignores(),
-                &self.settings,
-            )?)
-        } else if matcher.visit(&RepoPath::root()) == Visit::AllRecursively {
-            // Optimization for a common case
-            Ok(right_tree.id().clone())
-        } else {
-            let mut tree_builder = self.repo().store().tree_builder(left_tree.id().clone());
-            for (repo_path, diff) in left_tree.diff(right_tree, matcher) {
-                match diff.into_options().1 {
-                    Some(value) => {
-                        tree_builder.set(repo_path, value);
-                    }
-                    None => {
-                        tree_builder.remove(repo_path);
-                    }
-                }
-            }
-            Ok(tree_builder.write_tree())
-        }
-    }
-
     pub fn start_transaction<'a>(
         &'a mut self,
         description: &str,
@@ -1040,6 +972,76 @@ impl WorkspaceCommandTransaction<'_> {
     pub fn edit(&mut self, commit: &Commit) -> Result<(), EditCommitError> {
         let workspace_id = self.helper.workspace_id().to_owned();
         self.tx.mut_repo().edit(workspace_id, commit)
+    }
+
+    pub fn run_mergetool(
+        &self,
+        ui: &mut Ui,
+        tree: &Tree,
+        repo_path: &RepoPath,
+    ) -> Result<TreeId, CommandError> {
+        let settings = &self.helper.settings;
+        Ok(crate::merge_tools::run_mergetool(
+            ui, tree, repo_path, settings,
+        )?)
+    }
+
+    pub fn edit_diff(
+        &self,
+        ui: &mut Ui,
+        left_tree: &Tree,
+        right_tree: &Tree,
+        instructions: &str,
+    ) -> Result<TreeId, CommandError> {
+        let base_ignores = self.helper.base_ignores();
+        let settings = &self.helper.settings;
+        Ok(crate::merge_tools::edit_diff(
+            ui,
+            left_tree,
+            right_tree,
+            instructions,
+            base_ignores,
+            settings,
+        )?)
+    }
+
+    pub fn select_diff(
+        &self,
+        ui: &mut Ui,
+        left_tree: &Tree,
+        right_tree: &Tree,
+        instructions: &str,
+        interactive: bool,
+        matcher: &dyn Matcher,
+    ) -> Result<TreeId, CommandError> {
+        if interactive {
+            let base_ignores = self.helper.base_ignores();
+            let settings = &self.helper.settings;
+            Ok(crate::merge_tools::edit_diff(
+                ui,
+                left_tree,
+                right_tree,
+                instructions,
+                base_ignores,
+                settings,
+            )?)
+        } else if matcher.visit(&RepoPath::root()) == Visit::AllRecursively {
+            // Optimization for a common case
+            Ok(right_tree.id().clone())
+        } else {
+            let mut tree_builder = self.repo().store().tree_builder(left_tree.id().clone());
+            for (repo_path, diff) in left_tree.diff(right_tree, matcher) {
+                match diff.into_options().1 {
+                    Some(value) => {
+                        tree_builder.set(repo_path, value);
+                    }
+                    None => {
+                        tree_builder.remove(repo_path);
+                    }
+                }
+            }
+            Ok(tree_builder.write_tree())
+        }
     }
 
     pub fn write_commit_summary(
