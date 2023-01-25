@@ -92,6 +92,16 @@ impl<'a> RepoRef<'a> {
         }
     }
 
+    pub fn resolve_change_id(&self, change_id: &ChangeId) -> Option<Vec<IndexEntry<'a>>> {
+        // Replace this if we added more efficient lookup method.
+        let prefix = HexPrefix::from_bytes(change_id.as_bytes());
+        match self.resolve_change_id_prefix(&prefix) {
+            PrefixResolution::NoMatch => None,
+            PrefixResolution::SingleMatch(entries) => Some(entries),
+            PrefixResolution::AmbiguousMatch => panic!("complete change_id should be unambiguous"),
+        }
+    }
+
     pub fn resolve_change_id_prefix(
         &self,
         prefix: &HexPrefix,

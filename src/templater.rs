@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashMap, HashSet};
 use std::io;
-use std::ops::AddAssign;
 
 use itertools::Itertools;
-use jujutsu_lib::backend::{ChangeId, ObjectId, Signature, Timestamp};
+use jujutsu_lib::backend::{ObjectId, Signature, Timestamp};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
-use jujutsu_lib::revset::RevsetExpression;
 use jujutsu_lib::rewrite::merge_commit_trees;
 
 use crate::formatter::Formatter;
@@ -347,36 +344,23 @@ impl TemplateProperty<Commit> for IsGitHeadProperty<'_> {
     }
 }
 
-pub struct DivergentProperty {
-    divergent_changes: HashSet<ChangeId>,
+pub struct DivergentProperty<'a> {
+    repo: RepoRef<'a>,
 }
 
-impl DivergentProperty {
-    pub fn new(repo: RepoRef) -> Self {
-        // TODO: Create a persistent index from change id to commit ids.
-        let mut commit_count_by_change: HashMap<ChangeId, i32> = HashMap::new();
-        for index_entry in RevsetExpression::all().evaluate(repo, None).unwrap().iter() {
-            let change_id = index_entry.change_id();
-            commit_count_by_change
-                .entry(change_id)
-                .or_default()
-                .add_assign(1);
-        }
-        let mut divergent_changes = HashSet::new();
-        for (change_id, count) in commit_count_by_change {
-            if count > 1 {
-                divergent_changes.insert(change_id);
-            }
-        }
-        Self { divergent_changes }
+impl<'a> DivergentProperty<'a> {
+    pub fn new(repo: RepoRef<'a>) -> Self {
+        DivergentProperty { repo }
     }
 }
 
-impl TemplateProperty<Commit> for DivergentProperty {
+impl TemplateProperty<Commit> for DivergentProperty<'_> {
     type Output = bool;
 
     fn extract(&self, context: &Commit) -> Self::Output {
-        self.divergent_changes.contains(context.change_id())
+        // The given commit could be hidden in e.g. obslog.
+        let maybe_entries = self.repo.resolve_change_id(context.change_id());
+        maybe_entries.map_or(0, |entries| entries.len()) > 1
     }
 }
 
