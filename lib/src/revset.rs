@@ -118,29 +118,17 @@ fn resolve_short_commit_id(
     }
 }
 
-fn resolve_change_id(
-    repo: RepoRef,
-    change_id_prefix: &str,
-) -> Result<Option<Vec<CommitId>>, RevsetError> {
-    if let Some(hex_prefix) = HexPrefix::new(change_id_prefix) {
-        let mut found_change_id = None;
-        let mut commit_ids = vec![];
-        // TODO: Create a persistent lookup from change id to (visible?) commit ids.
-        for index_entry in RevsetExpression::all().evaluate(repo, None).unwrap().iter() {
-            let change_id = index_entry.change_id();
-            if hex_prefix.matches(&change_id) {
-                if let Some(previous_change_id) = found_change_id.replace(change_id.clone()) {
-                    if previous_change_id != change_id {
-                        return Err(RevsetError::AmbiguousIdPrefix(change_id_prefix.to_owned()));
-                    }
-                }
-                commit_ids.push(index_entry.commit_id());
+fn resolve_change_id(repo: RepoRef, symbol: &str) -> Result<Option<Vec<CommitId>>, RevsetError> {
+    if let Some(prefix) = HexPrefix::new(symbol) {
+        match repo.resolve_change_id_prefix(&prefix) {
+            PrefixResolution::NoMatch => Ok(None),
+            PrefixResolution::AmbiguousMatch => {
+                Err(RevsetError::AmbiguousIdPrefix(symbol.to_owned()))
+            }
+            PrefixResolution::SingleMatch(entries) => {
+                Ok(Some(entries.iter().map(|e| e.commit_id()).collect()))
             }
         }
-        if found_change_id.is_none() {
-            return Ok(None);
-        }
-        Ok(Some(commit_ids))
     } else {
         Ok(None)
     }
