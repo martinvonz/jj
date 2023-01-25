@@ -514,7 +514,7 @@ fn test_evaluate_expression_root_and_checkout(use_git: bool) {
         vec![root_commit.id().clone()]
     );
 
-    // Can find the current checkout
+    // Can find the current working-copy commit
     mut_repo
         .set_wc_commit(WorkspaceId::default(), commit1.id().clone())
         .unwrap();
@@ -673,7 +673,7 @@ fn test_evaluate_expression_parents(use_git: bool) {
     // The root commit has no parents
     assert_eq!(resolve_commit_ids(mut_repo.as_repo_ref(), "root-"), vec![]);
 
-    // Can find parents of the current checkout
+    // Can find parents of the current working-copy commit
     mut_repo
         .set_wc_commit(WorkspaceId::default(), commit2.id().clone())
         .unwrap();

@@ -617,7 +617,7 @@ fn cmd_git_push(
             None => {
                 return Err(user_error("Nothing checked out in this workspace"));
             }
-            Some(checkout) => {
+            Some(wc_commit) => {
                 fn find_branches_targeting<'a>(
                     view: &'a View,
                     target: &RefTarget,
@@ -633,11 +633,11 @@ fn cmd_git_push(
                 // Search for branches targeting @
                 let mut branches = find_branches_targeting(
                     workspace_command.repo().view(),
-                    &RefTarget::Normal(checkout.clone()),
+                    &RefTarget::Normal(wc_commit.clone()),
                 );
                 if branches.is_empty() {
                     // Try @- instead if it has exactly one parent, such as after `jj squash`
-                    let commit = workspace_command.repo().store().get_commit(checkout)?;
+                    let commit = workspace_command.repo().store().get_commit(wc_commit)?;
                     if let [parent] = commit.parent_ids() {
                         branches = find_branches_targeting(
                             workspace_command.repo().view(),

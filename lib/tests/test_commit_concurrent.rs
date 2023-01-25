@@ -63,11 +63,11 @@ fn test_commit_parallel(use_git: bool) {
         thread.join().ok().unwrap();
     }
     let repo = repo.reload_at_head(&settings).unwrap();
-    // One commit per thread plus the commit from the initial checkout on top of the
-    // root commit
+    // One commit per thread plus the commit from the initial working-copy on top of
+    // the root commit
     assert_eq!(repo.view().heads().len(), num_threads + 1);
 
-    // One addition operation for initializing the repo, one for checking out the
+    // One additional operation for initializing the repo, one for checking out the
     // initial commit.
     assert_eq!(count_non_merge_operations(&repo), num_threads + 2);
 }
@@ -98,8 +98,8 @@ fn test_commit_parallel_instances(use_git: bool) {
     for thread in threads {
         thread.join().ok().unwrap();
     }
-    // One commit per thread plus the commit from the initial checkout on top of the
-    // root commit
+    // One commit per thread plus the commit from the initial working-copy commit on
+    // top of the root commit
     let repo = ReadonlyRepo::load_at_head(&settings, repo.repo_path(), &StoreFactories::default())
         .unwrap();
     assert_eq!(repo.view().heads().len(), num_threads + 1);

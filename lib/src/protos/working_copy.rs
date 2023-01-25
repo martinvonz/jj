@@ -37,7 +37,7 @@ pub struct Checkout {
     #[prost(bytes = "vec", tag = "2")]
     pub operation_id: ::prost::alloc::vec::Vec<u8>,
     /// An identifier for this workspace. It is used for looking up the current
-    /// checkout in the repo view. Currently a human-readable name.
+    /// working-copy commit in the repo view. Currently a human-readable name.
     /// TODO: Is it better to make this a UUID and a have map that to a name in
     /// config? That way users can rename a workspace.
     #[prost(string, tag = "3")]

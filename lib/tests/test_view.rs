@@ -223,8 +223,8 @@ fn test_merge_views_checkout() {
 
     let repo = repo.reload_at_head(&settings).unwrap();
 
-    // We currently arbitrarily pick the first transaction's checkout (first by
-    // transaction end time).
+    // We currently arbitrarily pick the first transaction's working-copy commit
+    // (first by transaction end time).
     assert_eq!(repo.view().get_wc_commit_id(&ws1_id), Some(commit2.id()));
     assert_eq!(repo.view().get_wc_commit_id(&ws2_id), Some(commit2.id()));
     assert_eq!(repo.view().get_wc_commit_id(&ws3_id), Some(commit3.id()));
