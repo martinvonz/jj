@@ -295,6 +295,13 @@ impl HexPrefix {
         })
     }
 
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        HexPrefix {
+            min_prefix_bytes: bytes.to_owned(),
+            has_odd_byte: false,
+        }
+    }
+
     pub fn hex(&self) -> String {
         let mut hex_string = hex::encode(&self.min_prefix_bytes);
         if self.has_odd_byte {
