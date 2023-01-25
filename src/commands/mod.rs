@@ -2475,6 +2475,8 @@ fn cmd_diffedit(
     };
     workspace_command.check_rewriteable(&target_commit)?;
 
+    let mut tx =
+        workspace_command.start_transaction(&format!("edit commit {}", target_commit.id().hex()));
     let instructions = format!(
         "\
 You are editing changes in: {}
@@ -2483,19 +2485,19 @@ You are editing changes in: {}
 
 Adjust the right side until it shows the contents you want. If you
 don't make any changes, then the operation will be aborted.",
-        workspace_command.format_commit_summary(&target_commit),
+        tx.base_workspace_helper()
+            .format_commit_summary(&target_commit),
     );
-    let base_tree = merge_commit_trees(
-        workspace_command.repo().as_repo_ref(),
-        base_commits.as_slice(),
-    );
-    let tree_id =
-        workspace_command.edit_diff(ui, &base_tree, &target_commit.tree(), &instructions)?;
+    let base_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), base_commits.as_slice());
+    let tree_id = tx.base_workspace_helper().edit_diff(
+        ui,
+        &base_tree,
+        &target_commit.tree(),
+        &instructions,
+    )?;
     if &tree_id == target_commit.tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
-        let mut tx = workspace_command
-            .start_transaction(&format!("edit commit {}", target_commit.id().hex()));
         let mut_repo = tx.mut_repo();
         let new_commit = mut_repo
             .rewrite_commit(command.settings(), &target_commit)
@@ -2563,7 +2565,10 @@ fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewriteable(&commit)?;
-    let base_tree = merge_commit_trees(workspace_command.repo().as_repo_ref(), &commit.parents());
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let mut tx =
+        workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
+    let base_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &commit.parents());
     let instructions = format!(
         "\
 You are splitting a commit in two: {}
@@ -2574,10 +2579,9 @@ Adjust the right side until it shows the contents you want for the first
 (parent) commit. The remainder will be in the second commit. If you
 don't make any changes, then the operation will be aborted.
 ",
-        workspace_command.format_commit_summary(&commit)
+        tx.base_workspace_helper().format_commit_summary(&commit)
     );
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let tree_id = workspace_command.select_diff(
+    let tree_id = tx.base_workspace_helper().select_diff(
         ui,
         &base_tree,
         &commit.tree(),
@@ -2588,8 +2592,6 @@ don't make any changes, then the operation will be aborted.
     if &tree_id == commit.tree_id() {
         ui.write("Nothing changed.\n")?;
     } else {
-        let mut tx =
-            workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
         let middle_tree = tx
             .base_repo()
             .store()
