@@ -297,7 +297,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         new_commit_ids: Vec<CommitId>,
         edit: bool,
     ) -> Result<(), BackendError> {
-        // We arbitrarily pick a new checkout among the candidates.
+        // We arbitrarily pick a new working-copy commit among the candidates.
         self.update_wc_commits(&old_commit_id, &new_commit_ids[0], edit)?;
 
         if let Some(branch_names) = self.branches.get(&old_commit_id).cloned() {

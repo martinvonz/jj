@@ -108,7 +108,7 @@ fn test_init_no_config_set(use_git: bool) {
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
 fn test_init_checkout(use_git: bool) {
-    // Test the contents of the checkout after init
+    // Test the contents of the working-copy commit after init
     let settings = testutils::user_settings();
     let test_workspace = TestWorkspace::init(&settings, use_git);
     let repo = &test_workspace.repo;

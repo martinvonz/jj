@@ -1267,16 +1267,16 @@ fn cmd_status(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    let maybe_checkout_id = repo
+    let maybe_wc_commit_id = repo
         .view()
         .get_wc_commit_id(workspace_command.workspace_id());
-    let maybe_checkout = maybe_checkout_id
+    let maybe_wc_commit = maybe_wc_commit_id
         .map(|id| repo.store().get_commit(id))
         .transpose()?;
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
-    if let Some(wc_commit) = &maybe_checkout {
+    if let Some(wc_commit) = &maybe_wc_commit {
         for parent in wc_commit.parents() {
             formatter.write_str("Parent commit: ")?;
             workspace_command.write_commit_summary(formatter, &parent)?;
@@ -1335,7 +1335,7 @@ fn cmd_status(
         )?;
     }
 
-    if let Some(wc_commit) = &maybe_checkout {
+    if let Some(wc_commit) = &maybe_wc_commit {
         let parent_tree = merge_commit_trees(repo.as_repo_ref(), &wc_commit.parents());
         let tree = wc_commit.tree();
         if tree.id() == parent_tree.id() {
@@ -1409,7 +1409,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         workspace_command.parse_revset(args.revisions.as_deref().unwrap_or(&default_revset))?;
     let repo = workspace_command.repo();
     let workspace_id = workspace_command.workspace_id();
-    let checkout_id = repo.view().get_wc_commit_id(workspace_id);
+    let wc_commit_id = repo.view().get_wc_commit_id(workspace_id);
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let revset = workspace_command.evaluate_revset(&revset_expression)?;
     let revset = if !args.paths.is_empty() {
@@ -1432,8 +1432,7 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
         &template_string,
     );
     let format_commit_template = |commit: &Commit, formatter: &mut dyn Formatter| {
-        let is_checkout = Some(commit.id()) == checkout_id;
-        if is_checkout {
+        if Some(commit.id()) == wc_commit_id {
             formatter.with_label("working_copy", |formatter| {
                 template.format(commit, formatter)
             })
@@ -1482,7 +1481,6 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                 let mut buffer = vec![];
                 let commit_id = index_entry.commit_id();
                 let commit = store.get_commit(&commit_id)?;
-                let is_checkout = Some(&commit_id) == checkout_id;
                 format_commit_template(&commit, ui.new_formatter(&mut buffer).as_mut())?;
                 if !buffer.ends_with(b"\n") {
                     buffer.push(b'\n');
@@ -1497,7 +1495,11 @@ fn cmd_log(ui: &mut Ui, command: &CommandHelper, args: &LogArgs) -> Result<(), C
                         &diff_formats,
                     )?;
                 }
-                let node_symbol = if is_checkout { "@" } else { "o" };
+                let node_symbol = if Some(&commit_id) == wc_commit_id {
+                    "@"
+                } else {
+                    "o"
+                };
 
                 graph.add_node(
                     &index_entry.position(),
@@ -1807,7 +1809,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
         .view()
         .workspaces_for_wc_commit_id(commit.id());
     if !workspace_ids.is_empty() {
-        let new_checkout = tx
+        let new_wc_commit = tx
             .mut_repo()
             .new_commit(
                 command.settings(),
@@ -1816,7 +1818,7 @@ fn cmd_commit(ui: &mut Ui, command: &CommandHelper, args: &CommitArgs) -> Result
             )
             .write()?;
         for workspace_id in workspace_ids {
-            tx.mut_repo().edit(workspace_id, &new_checkout).unwrap();
+            tx.mut_repo().edit(workspace_id, &new_wc_commit).unwrap();
         }
     }
     tx.finish(ui)?;
@@ -3032,14 +3034,14 @@ fn cmd_workspace_add(
     ));
     // Check out a parent of the current workspace's working-copy commit, or the
     // root if there is no working-copy commit in the current workspace.
-    let new_wc_commit = if let Some(old_checkout_id) = tx
+    let new_wc_commit = if let Some(old_wc_commit_id) = tx
         .base_repo()
         .view()
         .get_wc_commit_id(old_workspace_command.workspace_id())
     {
         tx.base_repo()
             .store()
-            .get_commit(old_checkout_id)?
+            .get_commit(old_wc_commit_id)?
             .parents()[0]
             .clone()
     } else {
@@ -3085,9 +3087,9 @@ fn cmd_workspace_list(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    for (workspace_id, checkout_id) in repo.view().wc_commit_ids().iter().sorted() {
+    for (workspace_id, wc_commit_id) in repo.view().wc_commit_ids().iter().sorted() {
         write!(ui, "{}: ", workspace_id.as_str())?;
-        let commit = repo.store().get_commit(checkout_id)?;
+        let commit = repo.store().get_commit(wc_commit_id)?;
         workspace_command.write_commit_summary(ui.stdout_formatter().as_mut(), &commit)?;
         writeln!(ui)?;
     }

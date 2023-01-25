@@ -293,9 +293,9 @@ pub enum SnapshotError {
 
 #[derive(Debug, Error)]
 pub enum CheckoutError {
-    // The current checkout was deleted, maybe by an overly aggressive GC that happened while
-    // the current process was running.
-    #[error("Current checkout not found: {source}")]
+    // The current working-copy commit was deleted, maybe by an overly aggressive GC that happened
+    // while the current process was running.
+    #[error("Current working-copy commit not found: {source}")]
     SourceNotFound {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
@@ -333,9 +333,9 @@ fn suppress_file_exists_error(orig_err: CheckoutError) -> Result<(), CheckoutErr
 
 #[derive(Debug, Error)]
 pub enum ResetError {
-    // The current checkout was deleted, maybe by an overly aggressive GC that happened while
-    // the current process was running.
-    #[error("Current checkout not found: {source}")]
+    // The current working-copy commit was deleted, maybe by an overly aggressive GC that happened
+    // while the current process was running.
+    #[error("Current working-copy commit not found: {source}")]
     SourceNotFound {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
@@ -1167,9 +1167,10 @@ impl WorkingCopy {
         new_tree: &Tree,
     ) -> Result<CheckoutStats, CheckoutError> {
         let mut locked_wc = self.start_mutation();
-        // Check if the current checkout has changed on disk compared to what the caller
-        // expected. It's safe to check out another commit regardless, but it's
-        // probably not what  the caller wanted, so we let them know.
+        // Check if the current working-copy commit has changed on disk compared to what
+        // the caller expected. It's safe to check out another commit
+        // regardless, but it's probably not what  the caller wanted, so we let
+        // them know.
         if let Some(old_tree_id) = old_tree_id {
             if *old_tree_id != locked_wc.old_tree_id {
                 locked_wc.discard();

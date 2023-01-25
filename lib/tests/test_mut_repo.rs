@@ -47,23 +47,20 @@ fn test_checkout(use_git: bool) {
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let requested_checkout = write_random_commit(tx.mut_repo(), &settings);
+    let wc_commit_parent = write_random_commit(tx.mut_repo(), &settings);
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
     let ws_id = WorkspaceId::default();
-    let actual_checkout = tx
+    let wc_commit = tx
         .mut_repo()
-        .check_out(ws_id.clone(), &settings, &requested_checkout)
+        .check_out(ws_id.clone(), &settings, &wc_commit_parent)
         .unwrap();
-    assert_eq!(actual_checkout.tree_id(), requested_checkout.tree_id());
-    assert_eq!(actual_checkout.parents().len(), 1);
-    assert_eq!(actual_checkout.parents()[0].id(), requested_checkout.id());
+    assert_eq!(wc_commit.tree_id(), wc_commit_parent.tree_id());
+    assert_eq!(wc_commit.parents().len(), 1);
+    assert_eq!(wc_commit.parents()[0].id(), wc_commit_parent.id());
     let repo = tx.commit();
-    assert_eq!(
-        repo.view().get_wc_commit_id(&ws_id),
-        Some(actual_checkout.id())
-    );
+    assert_eq!(repo.view().get_wc_commit_id(&ws_id), Some(wc_commit.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -77,17 +74,17 @@ fn test_checkout_previous_not_empty(use_git: bool) {
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
-    let old_checkout = write_random_commit(mut_repo, &settings);
+    let old_wc_commit = write_random_commit(mut_repo, &settings);
     let ws_id = WorkspaceId::default();
-    mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
+    mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
-    let new_checkout = write_random_commit(mut_repo, &settings);
-    mut_repo.edit(ws_id, &new_checkout).unwrap();
+    let new_wc_commit = write_random_commit(mut_repo, &settings);
+    mut_repo.edit(ws_id, &new_wc_commit).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
-    assert!(mut_repo.view().heads().contains(old_checkout.id()));
+    assert!(mut_repo.view().heads().contains(old_wc_commit.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -101,7 +98,7 @@ fn test_checkout_previous_empty(use_git: bool) {
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
-    let old_checkout = mut_repo
+    let old_wc_commit = mut_repo
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
@@ -110,7 +107,7 @@ fn test_checkout_previous_empty(use_git: bool) {
         .write()
         .unwrap();
     let ws_id = WorkspaceId::default();
-    mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
+    mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
@@ -118,7 +115,7 @@ fn test_checkout_previous_empty(use_git: bool) {
     let new_wc_commit = write_random_commit(mut_repo, &settings);
     mut_repo.edit(ws_id, &new_wc_commit).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
-    assert!(!mut_repo.view().heads().contains(old_checkout.id()));
+    assert!(!mut_repo.view().heads().contains(old_wc_commit.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -132,7 +129,7 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
-    let old_checkout = mut_repo
+    let old_wc_commit = mut_repo
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
@@ -142,15 +139,15 @@ fn test_checkout_previous_empty_with_description(use_git: bool) {
         .write()
         .unwrap();
     let ws_id = WorkspaceId::default();
-    mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
+    mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
-    let new_checkout = write_random_commit(mut_repo, &settings);
-    mut_repo.edit(ws_id, &new_checkout).unwrap();
+    let new_wc_commit = write_random_commit(mut_repo, &settings);
+    mut_repo.edit(ws_id, &new_wc_commit).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
-    assert!(mut_repo.view().heads().contains(old_checkout.id()));
+    assert!(mut_repo.view().heads().contains(old_wc_commit.id()));
 }
 
 #[test_case(false ; "local backend")]
@@ -164,7 +161,7 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
-    let old_checkout = mut_repo
+    let old_wc_commit = mut_repo
         .new_commit(
             &settings,
             vec![repo.store().root_commit_id().clone()],
@@ -175,46 +172,48 @@ fn test_checkout_previous_empty_non_head(use_git: bool) {
     let old_child = mut_repo
         .new_commit(
             &settings,
-            vec![old_checkout.id().clone()],
-            old_checkout.tree_id().clone(),
+            vec![old_wc_commit.id().clone()],
+            old_wc_commit.tree_id().clone(),
         )
         .write()
         .unwrap();
     let ws_id = WorkspaceId::default();
-    mut_repo.edit(ws_id.clone(), &old_checkout).unwrap();
+    mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
-    let new_checkout = write_random_commit(mut_repo, &settings);
-    mut_repo.edit(ws_id, &new_checkout).unwrap();
+    let new_wc_commit = write_random_commit(mut_repo, &settings);
+    mut_repo.edit(ws_id, &new_wc_commit).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
     assert_eq!(
         *mut_repo.view().heads(),
-        hashset! {old_child.id().clone(), new_checkout.id().clone()}
+        hashset! {old_child.id().clone(), new_wc_commit.id().clone()}
     );
 }
 
 #[test_case(false ; "local backend")]
 #[test_case(true ; "git backend")]
 fn test_edit_initial(use_git: bool) {
-    // Test that MutableRepo::edit() can be used on the initial checkout in a
-    // workspace
+    // Test that MutableRepo::edit() can be used on the initial working-copy commit
+    // in a workspace
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init(use_git);
     let repo = &test_repo.repo;
 
     let mut tx = repo.start_transaction(&settings, "test");
-    let checkout = write_random_commit(tx.mut_repo(), &settings);
+    let wc_commit = write_random_commit(tx.mut_repo(), &settings);
     let repo = tx.commit();
 
     let mut tx = repo.start_transaction(&settings, "test");
     let workspace_id = WorkspaceId::new("new-workspace".to_string());
-    tx.mut_repo().edit(workspace_id.clone(), &checkout).unwrap();
+    tx.mut_repo()
+        .edit(workspace_id.clone(), &wc_commit)
+        .unwrap();
     let repo = tx.commit();
     assert_eq!(
         repo.view().get_wc_commit_id(&workspace_id),
-        Some(checkout.id())
+        Some(wc_commit.id())
     );
 }
 

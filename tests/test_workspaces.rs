@@ -44,8 +44,8 @@ fn test_workspaces_add_second_workspace() {
     Added 1 files, modified 0 files, removed 0 files
     "###);
 
-    // Can see the checkout in each workspace in the log output. The "@" node in the
-    // graph indicates the current workspace's checkout.
+    // Can see the working-copy commit in each workspace in the log output. The "@"
+    // node in the graph indicates the current workspace's working-copy commit.
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
     o 397eac932ad3c349b2659fd2eb035a4dd3da4193 second@
     | @ e0e6d5672858dc9a57ec5b772b7c4f3270ed0223 default@
