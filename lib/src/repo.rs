@@ -156,7 +156,7 @@ impl ReadonlyRepo {
         let store_path = repo_path.join("store");
         fs::create_dir(&store_path).context(&store_path)?;
         let backend = backend_factory(&store_path);
-        let backend_path = store_path.join("backend");
+        let backend_path = store_path.join("type");
         fs::write(&backend_path, backend.name()).context(&backend_path)?;
         let store = Store::new(backend);
         let repo_settings = user_settings.with_repo(&repo_path).unwrap();
@@ -383,17 +383,21 @@ impl StoreFactories {
     }
 
     pub fn load_backend(&self, store_path: &Path) -> Box<dyn Backend> {
-        // TODO: Change the 'backend' file to 'type', for consistency with other stores
-        let backend_type = match fs::read_to_string(store_path.join("backend")) {
+        // For compatibility with existing repos. TODO: Delete in 0.8+.
+        if store_path.join("backend").is_file() {
+            fs::rename(store_path.join("backend"), store_path.join("type"))
+                .expect("Failed to rename 'backend' file to 'type'");
+        }
+        let backend_type = match fs::read_to_string(store_path.join("type")) {
             Ok(content) => content,
             Err(err) if err.kind() == ErrorKind::NotFound => {
-                // For compatibility with existing repos. TODO: Delete in spring of 2023 or so.
+                // For compatibility with existing repos. TODO: Delete in 0.8+.
                 let inferred_type = if store_path.join("git_target").is_file() {
                     String::from("git")
                 } else {
                     String::from("local")
                 };
-                fs::write(store_path.join("backend"), &inferred_type).unwrap();
+                fs::write(store_path.join("type"), &inferred_type).unwrap();
                 inferred_type
             }
             Err(_) => {
