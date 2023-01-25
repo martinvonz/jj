@@ -51,7 +51,7 @@ impl SimpleOpHeadsStore {
         let init_operation_id = op_store.write_operation(&init_operation).unwrap();
         let init_operation = Operation::new(op_store.clone(), init_operation_id, init_operation);
 
-        let op_heads_dir = dir.join("simple_op_heads");
+        let op_heads_dir = dir.join("heads");
         fs::create_dir(&op_heads_dir).unwrap();
         let op_heads_store = Self { dir: op_heads_dir };
         op_heads_store.add_op_head(init_operation.id());
@@ -59,21 +59,25 @@ impl SimpleOpHeadsStore {
     }
 
     pub fn load(dir: &Path) -> Self {
-        let op_heads_dir = dir.join("simple_op_heads");
-
-        // TODO: Delete this migration code at 0.8+ or so
+        let op_heads_dir = dir.join("heads");
+        // TODO: Delete this migration code at 0.9+ or so
         if !op_heads_dir.exists() {
-            let old_store = Self {
-                dir: dir.to_path_buf(),
-            };
-            fs::create_dir(&op_heads_dir).unwrap();
-            let new_store = Self { dir: op_heads_dir };
+            // For some months during 0.7 development, the name was "simple_op_heads"
+            if dir.join("simple_op_heads").exists() {
+                fs::rename(dir.join("simple_op_heads"), &op_heads_dir).unwrap();
+            } else {
+                let old_store = Self {
+                    dir: dir.to_path_buf(),
+                };
+                fs::create_dir(&op_heads_dir).unwrap();
+                let new_store = Self { dir: op_heads_dir };
 
-            for id in old_store.get_op_heads() {
-                old_store.remove_op_head(&id);
-                new_store.add_op_head(&id);
+                for id in old_store.get_op_heads() {
+                    old_store.remove_op_head(&id);
+                    new_store.add_op_head(&id);
+                }
+                return new_store;
             }
-            return new_store;
         }
 
         Self { dir: op_heads_dir }
@@ -152,7 +156,7 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_op_heads_store_migration() {
+    fn test_simple_op_heads_store_migration_into_subdir() {
         let test_dir = testutils::new_temp_dir();
         let store_path = test_dir.path().join("op_heads");
         fs::create_dir(&store_path).unwrap();
@@ -174,19 +178,60 @@ mod tests {
 
         let new_store = SimpleOpHeadsStore::load(&store_path);
         assert_eq!(&ops, &new_store.get_op_heads().into_iter().collect());
-        assert_eq!(vec!["simple_op_heads"], read_dir(&store_path));
+        assert_eq!(vec!["heads"], read_dir(&store_path));
         assert_eq!(
             vec!["012345", "abcdef"],
-            read_dir(&store_path.join("simple_op_heads"))
+            read_dir(&store_path.join("heads"))
         );
 
         // Migration is idempotent
         let new_store = SimpleOpHeadsStore::load(&store_path);
         assert_eq!(&ops, &new_store.get_op_heads().into_iter().collect());
-        assert_eq!(vec!["simple_op_heads"], read_dir(&store_path));
+        assert_eq!(vec!["heads"], read_dir(&store_path));
         assert_eq!(
             vec!["012345", "abcdef"],
-            read_dir(&store_path.join("simple_op_heads"))
+            read_dir(&store_path.join("heads"))
+        );
+    }
+
+    #[test]
+    fn test_simple_op_heads_store_migration_change_dirname() {
+        let test_dir = testutils::new_temp_dir();
+        let store_path = test_dir.path().join("op_heads");
+        fs::create_dir(&store_path).unwrap();
+        let old_heads_path = store_path.join("simple_op_heads");
+        fs::create_dir(&old_heads_path).unwrap();
+
+        let op1 = OperationId::from_hex("012345");
+        let op2 = OperationId::from_hex("abcdef");
+        let mut ops = HashSet::new();
+        ops.insert(op1.clone());
+        ops.insert(op2.clone());
+
+        let old_store = SimpleOpHeadsStore {
+            dir: old_heads_path,
+        };
+        old_store.add_op_head(&op1);
+        old_store.add_op_head(&op2);
+
+        assert_eq!(vec!["simple_op_heads"], read_dir(&store_path));
+        drop(old_store);
+
+        let new_store = SimpleOpHeadsStore::load(&store_path);
+        assert_eq!(&ops, &new_store.get_op_heads().into_iter().collect());
+        assert_eq!(vec!["heads"], read_dir(&store_path));
+        assert_eq!(
+            vec!["012345", "abcdef"],
+            read_dir(&store_path.join("heads"))
+        );
+
+        // Migration is idempotent
+        let new_store = SimpleOpHeadsStore::load(&store_path);
+        assert_eq!(&ops, &new_store.get_op_heads().into_iter().collect());
+        assert_eq!(vec!["heads"], read_dir(&store_path));
+        assert_eq!(
+            vec!["012345", "abcdef"],
+            read_dir(&store_path.join("heads"))
         );
     }
 }
