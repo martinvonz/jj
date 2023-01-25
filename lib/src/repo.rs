@@ -92,6 +92,16 @@ impl<'a> RepoRef<'a> {
         }
     }
 
+    pub fn resolve_change_id_prefix(
+        &self,
+        prefix: &HexPrefix,
+    ) -> PrefixResolution<Vec<IndexEntry<'a>>> {
+        match self {
+            RepoRef::Readonly(repo) => repo.resolve_change_id_prefix(prefix),
+            RepoRef::Mutable(repo) => repo.resolve_change_id_prefix(prefix),
+        }
+    }
+
     pub fn shortest_unique_id_prefix_len(&self, target_id_bytes: &[u8]) -> usize {
         match self {
             RepoRef::Readonly(repo) => repo.shortest_unique_id_prefix_len(target_id_bytes),
@@ -658,6 +668,31 @@ impl MutableRepo {
     pub fn consume(self) -> (MutableIndex, View) {
         self.view.ensure_clean(|v| self.enforce_view_invariants(v));
         (self.index, self.view.into_inner())
+    }
+
+    pub fn resolve_change_id_prefix<'a>(
+        &'a self,
+        prefix: &HexPrefix,
+    ) -> PrefixResolution<Vec<IndexEntry<'a>>> {
+        // TODO: Create a persistent lookup from change id to (visible?) commit ids.
+        let mut found_change_id = None;
+        let mut found_entries = vec![];
+        let heads = self.view().heads().iter().cloned().collect_vec();
+        for entry in self.index().walk_revs(&heads, &[]) {
+            let change_id = entry.change_id();
+            if prefix.matches(&change_id) {
+                if let Some(previous_change_id) = found_change_id.replace(change_id.clone()) {
+                    if previous_change_id != change_id {
+                        return PrefixResolution::AmbiguousMatch;
+                    }
+                }
+                found_entries.push(entry);
+            }
+        }
+        if found_change_id.is_none() {
+            return PrefixResolution::NoMatch;
+        }
+        PrefixResolution::SingleMatch(found_entries)
     }
 
     pub fn new_commit(

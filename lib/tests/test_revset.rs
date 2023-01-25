@@ -156,8 +156,9 @@ fn test_resolve_symbol_commit_id() {
     );
 }
 
-#[test]
-fn test_resolve_symbol_change_id() {
+#[test_case(false ; "mutable")]
+#[test_case(true ; "readonly")]
+fn test_resolve_symbol_change_id(readonly: bool) {
     let settings = testutils::user_settings();
     // Test only with git so we can get predictable change ids
     let test_repo = TestRepo::init(true);
@@ -196,7 +197,6 @@ fn test_resolve_symbol_change_id() {
 
     let mut tx = repo.start_transaction(&settings, "test");
     git::import_refs(tx.mut_repo(), &git_repo).unwrap();
-    let repo = tx.commit();
 
     // Test the test setup
     assert_eq!(
@@ -220,8 +220,15 @@ fn test_resolve_symbol_change_id() {
         "040031cb4ad0cbc3287914f1d205dabf4a7eb889"
     );
 
+    let repo;
+    let repo_ref = if readonly {
+        repo = tx.commit();
+        repo.as_repo_ref()
+    } else {
+        tx.repo().as_repo_ref()
+    };
+
     // Test lookup by full change id
-    let repo_ref = repo.as_repo_ref();
     assert_eq!(
         resolve_symbol(repo_ref, "04e12a5467bba790efb88a9870894ec2", None).unwrap(),
         vec![CommitId::from_hex(
