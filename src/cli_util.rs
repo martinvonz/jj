@@ -1044,6 +1044,13 @@ impl WorkspaceCommandTransaction<'_> {
         }
     }
 
+    pub fn format_commit_summary(&self, commit: &Commit) -> String {
+        let mut output = Vec::new();
+        self.write_commit_summary(&mut PlainTextFormatter::new(&mut output), commit)
+            .expect("write() to PlainTextFormatter should never fail");
+        String::from_utf8(output).expect("template output should be utf-8 bytes")
+    }
+
     pub fn write_commit_summary(
         &self,
         formatter: &mut dyn Formatter,

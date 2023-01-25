@@ -2036,9 +2036,8 @@ Adjust the right side until the diff shows the changes you want to move
 to the destination. If you don't make any changes, then all the changes
 from the source will be moved into the destination.
 ",
-        tx.base_workspace_helper().format_commit_summary(&source),
-        tx.base_workspace_helper()
-            .format_commit_summary(&destination)
+        tx.format_commit_summary(&source),
+        tx.format_commit_summary(&destination)
     );
     let new_parent_tree_id = tx.select_diff(
         ui,
@@ -2124,8 +2123,8 @@ Adjust the right side until the diff shows the changes you want to move
 to the destination. If you don't make any changes, then all the changes
 from the source will be moved into the parent.
 ",
-        tx.base_workspace_helper().format_commit_summary(&commit),
-        tx.base_workspace_helper().format_commit_summary(parent)
+        tx.format_commit_summary(&commit),
+        tx.format_commit_summary(parent)
     );
     let new_parent_tree_id = tx.select_diff(
         ui,
@@ -2199,8 +2198,8 @@ the parent commit. The changes you edited out will be moved into the
 child commit. If you don't make any changes, then the operation will be
 aborted.
 ",
-            tx.base_workspace_helper().format_commit_summary(parent),
-            tx.base_workspace_helper().format_commit_summary(&commit)
+            tx.format_commit_summary(parent),
+            tx.format_commit_summary(&commit)
         );
         new_parent_tree_id = tx.edit_diff(ui, &parent_base_tree, &parent.tree(), &instructions)?;
         if &new_parent_tree_id == parent_base_tree.id() {
@@ -2478,8 +2477,7 @@ You are editing changes in: {}
 
 Adjust the right side until it shows the contents you want. If you
 don't make any changes, then the operation will be aborted.",
-        tx.base_workspace_helper()
-            .format_commit_summary(&target_commit),
+        tx.format_commit_summary(&target_commit),
     );
     let base_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), base_commits.as_slice());
     let tree_id = tx.edit_diff(ui, &base_tree, &target_commit.tree(), &instructions)?;
@@ -2567,7 +2565,7 @@ Adjust the right side until it shows the contents you want for the first
 (parent) commit. The remainder will be in the second commit. If you
 don't make any changes, then the operation will be aborted.
 ",
-        tx.base_workspace_helper().format_commit_summary(&commit)
+        tx.format_commit_summary(&commit)
     );
     let tree_id = tx.select_diff(
         ui,
