@@ -11,11 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-use std::path::Path;
-
 use common::TestEnvironment;
-use regex::Regex;
 
 pub mod common;
 
@@ -32,7 +28,7 @@ fn test_obslog_with_or_without_diff() {
     test_env.jj_cmd_success(&repo_path, &["rebase", "-r", "@", "-d", "root"]);
     std::fs::write(repo_path.join("file1"), "resolved\n").unwrap();
 
-    let stdout = get_log_output(&test_env, &repo_path, &["obslog"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog"]);
     insta::assert_snapshot!(stdout, @r###"
     @ 8[e4fac809c] test.user@example.com 2001-02-03 04:05:10.000 +07:00 66[b42ad360]
     | my description
@@ -46,7 +42,7 @@ fn test_obslog_with_or_without_diff() {
 
     // There should be no diff caused by the rebase because it was a pure rebase
     // (even even though it resulted in a conflict).
-    let stdout = get_log_output(&test_env, &repo_path, &["obslog", "-p"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "-p"]);
     insta::assert_snapshot!(stdout, @r###"
     @ 8[e4fac809c] test.user@example.com 2001-02-03 04:05:10.000 +07:00 66[b42ad360]
     | my description
@@ -69,7 +65,7 @@ fn test_obslog_with_or_without_diff() {
     "###);
 
     // Test `--no-graph`
-    let stdout = get_log_output(&test_env, &repo_path, &["obslog", "--no-graph"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
     8[e4fac809c] test.user@example.com 2001-02-03 04:05:10.000 +07:00 66[b42ad360]
     my description
@@ -82,7 +78,7 @@ fn test_obslog_with_or_without_diff() {
     "###);
 
     // Test `--git` format, and that it implies `-p`
-    let stdout = get_log_output(&test_env, &repo_path, &["obslog", "--no-graph", "--git"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--no-graph", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
     8[e4fac809c] test.user@example.com 2001-02-03 04:05:10.000 +07:00 66[b42ad360]
     my description
@@ -134,7 +130,7 @@ fn test_obslog_squash() {
     std::fs::write(edit_script, "write\nsquashed").unwrap();
     test_env.jj_cmd_success(&repo_path, &["squash"]);
 
-    let stdout = get_log_output(&test_env, &repo_path, &["obslog", "-p", "-r", "@-"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "-p", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     o   9a[45c67d3e] test.user@example.com 2001-02-03 04:05:10.000 +07:00 27[e721a5ba]
     |\  squashed
@@ -157,15 +153,4 @@ fn test_obslog_squash() {
     o ff[daa62087] test.user@example.com 2001-02-03 04:05:09.000 +07:00 5[799653697]
       (empty) second
     "###);
-}
-
-fn get_log_output(test_env: &TestEnvironment, repo_path: &Path, args: &[&str]) -> String {
-    // Filter out the change ID since it's random
-    let regex = Regex::new("^([o@| ]+)?([0-9a-f]{12})").unwrap();
-    let mut lines = vec![];
-    let stdout = test_env.jj_cmd_success(repo_path, args);
-    for line in stdout.split_inclusive('\n') {
-        lines.push(regex.replace(line, "$1"));
-    }
-    lines.join("")
 }
