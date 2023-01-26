@@ -1306,8 +1306,8 @@ where
         &'a self,
         prefix: &'b HexPrefix,
     ) -> impl Iterator<Item = (&'a K, &'a V)> + 'b {
-        let (_, min_bytes_prefix) = prefix.bytes_prefixes::<K>();
-        let pos = self.0.partition_point(|(k, _)| k < &min_bytes_prefix);
+        let min_bytes = prefix.min_prefix_bytes();
+        let pos = self.0.partition_point(|(k, _)| k.as_bytes() < min_bytes);
         self.0[pos..]
             .iter()
             .take_while(|(k, _)| prefix.matches(k))
