@@ -68,6 +68,14 @@ a `$`):
 
 `less -FRX` is the default pager in the absence of any other setting.
 
+## Aliases
+
+You can define aliases for commands, including their arguments. For example:
+
+    # `jj l` shows commits on the working-copy commit's (anonymous) branch
+    # compared to the `main` branch
+    aliases.l = ["log", "-r", "(main..@): | (main..@)-"]
+
 ## Editor
 
 The default editor is set via `ui.editor`, though there are several places to
