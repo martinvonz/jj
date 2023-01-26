@@ -1,30 +1,32 @@
 {
-  description = "jujutsu";
+  description = "Jujutsu VCS, a Git-compatible DVCS that is both simple and powerful";
 
   inputs = {
+    # For listing and iterating nix systems
+    flake-utils.url = "github:numtide/flake-utils";
+
     # For installing non-standard rustc versions
     rust-overlay.url = "github:oxalica/rust-overlay";
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
+    rust-overlay.inputs.flake-utils.follows = "flake-utils";
   };
 
-  outputs = { self, nixpkgs, rust-overlay, ... }:
+  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
     let
-      lib = nixpkgs.lib;
-      systems = [
-        "aarch64-linux"
-        "aarch64-darwin"
-        "i686-linux"
-        "x86_64-darwin"
-        "x86_64-linux"
+      systems = with flake-utils.lib.system; [
+        aarch64-linux
+        aarch64-darwin
+        i686-linux
+        x86_64-darwin
+        x86_64-linux
       ];
-      foreachSystem = f: lib.foldl' (attrs: system: lib.recursiveUpdate attrs (f system)) { } systems;
     in
     {
       overlays.default = (final: prev: {
         jujutsu = self.packages.${final.system}.jujutsu;
       });
     } //
-    (foreachSystem (system:
+    (flake-utils.lib.eachSystem systems (system:
       let
         pkgs = import nixpkgs {
           inherit system;
@@ -34,7 +36,7 @@
         };
       in
       {
-        packages.${system} = {
+        packages = {
           jujutsu = pkgs.rustPlatform.buildRustPackage rec {
             pname = "jujutsu";
             version = "unstable-${self.shortRev or "dirty"}";
@@ -70,19 +72,19 @@
           };
           default = self.packages.${system}.jujutsu;
         };
-        apps.${system}.default = {
+        apps.default = {
           type = "app";
           program = "${self.packages.${system}.jujutsu}/bin/jj";
         };
-        checks.${system}.jujutsu = self.packages.${system}.jujutsu.overrideAttrs ({ ... }: {
+        checks.jujutsu = self.packages.${system}.jujutsu.overrideAttrs ({ ... }: {
           cargoBuildType = "debug";
           cargoCheckType = "debug";
           preCheck = ''
             export RUST_BACKTRACE=1
           '';
         });
-        formatter.${system} = pkgs.nixpkgs-fmt;
-        devShells.${system}.default = pkgs.mkShell {
+        formatter = pkgs.nixpkgs-fmt;
+        devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
             # Using the minimal profile with explicit "clippy" extension to avoid
             # two versions of rustfmt
