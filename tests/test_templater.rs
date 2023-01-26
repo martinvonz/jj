@@ -116,6 +116,37 @@ fn test_templater_string_method() {
     insta::assert_snapshot!(render(r#""foo\nbar".first_line()"#), @"foo");
 }
 
+#[test]
+fn test_templater_label_function() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |template| {
+        test_env.jj_cmd_success(
+            &repo_path,
+            &[
+                "log",
+                "--color=always",
+                "--no-graph",
+                "-r@-",
+                "-T",
+                template,
+            ],
+        )
+    };
+
+    // Literal
+    insta::assert_snapshot!(render(r#"label("error", "text")"#), @"[38;5;1mtext[39m");
+
+    // Evaluated property
+    insta::assert_snapshot!(
+        render(r#"label("error".first_line(), "text")"#), @"[38;5;1mtext[39m");
+
+    // Template
+    insta::assert_snapshot!(
+        render(r#"label(if(empty, "error", "warning"), "text")"#), @"[38;5;1mtext[39m");
+}
+
 fn get_template_output(
     test_env: &TestEnvironment,
     repo_path: &Path,
