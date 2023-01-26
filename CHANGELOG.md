@@ -83,6 +83,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj workspace root` prints the root path of the current workspace.
 
+* The `[alias]` config section was renamed to `[aliases]`. The old name is
+  still accepted for backwards compatibility for some time.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
