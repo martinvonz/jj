@@ -34,6 +34,15 @@
             rust-overlay.overlays.default
           ];
         };
+        filterSrc = src: regexes:
+          pkgs.lib.cleanSourceWith {
+            inherit src;
+            filter = path: type:
+              let
+                relPath = pkgs.lib.removePrefix (toString src + "/") (toString path);
+              in
+              pkgs.lib.all (re: builtins.match re relPath == null) regexes;
+          };
       in
       {
         packages = {
@@ -42,7 +51,12 @@
             version = "unstable-${self.shortRev or "dirty"}";
             buildNoDefaultFeatures = true;
             buildFeatures = [ "jujutsu-lib/legacy-thrift" ];
-            src = ./.;
+            src = filterSrc ./. [
+              ".*\\.nix$"
+              "^.jj/"
+              "^flake\\.lock$"
+              "^target/"
+            ];
             cargoLock = {
               lockFile = ./Cargo.lock;
             };
