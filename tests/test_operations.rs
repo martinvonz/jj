@@ -127,7 +127,7 @@ fn test_op_log() {
 fn test_op_log_configurable() {
     let test_env = TestEnvironment::default();
     test_env.add_config(
-        br#"operation.hostname = "my-hostname"
+        r#"operation.hostname = "my-hostname"
         operation.username = "my-username"
         "#,
     );

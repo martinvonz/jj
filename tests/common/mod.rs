@@ -115,7 +115,7 @@ impl TestEnvironment {
         &self.config_dir
     }
 
-    pub fn add_config(&self, content: &[u8]) {
+    pub fn add_config(&self, content: &str) {
         // Concatenating two valid TOML files does not (generally) result in a valid
         // TOML file, so we use create a new file every time instead.
         let mut config_file_number = self.config_file_number.borrow_mut();
@@ -142,9 +142,8 @@ impl TestEnvironment {
         // in it
         let escaped_editor_path = editor_path.to_str().unwrap().replace('\\', r"\\");
         self.add_env_var("EDITOR", &escaped_editor_path);
-        self.add_config(
-            format!(
-                r###"
+        self.add_config(&format!(
+            r###"
                     [ui]
                     merge-editor = "fake-editor"
 
@@ -152,9 +151,7 @@ impl TestEnvironment {
                     fake-editor.program="{escaped_editor_path}"
                     fake-editor.merge-args = ["$output"]
                 "###
-            )
-            .as_bytes(),
-        );
+        ));
         let edit_script = self.env_root().join("edit_script");
         std::fs::write(&edit_script, "").unwrap();
         self.add_env_var("EDIT_SCRIPT", edit_script.to_str().unwrap());
@@ -169,7 +166,7 @@ impl TestEnvironment {
         // Simplified TOML escaping, hoping that there are no '"' or control characters
         // in it
         let escaped_diff_editor_path = diff_editor_path.to_str().unwrap().replace('\\', r"\\");
-        self.add_config(format!(r#"ui.diff-editor = "{escaped_diff_editor_path}""#).as_bytes());
+        self.add_config(&format!(r#"ui.diff-editor = "{escaped_diff_editor_path}""#));
         let edit_script = self.env_root().join("diff_edit_script");
         std::fs::write(&edit_script, "").unwrap();
         self.add_env_var("DIFF_EDIT_SCRIPT", edit_script.to_str().unwrap());

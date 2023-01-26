@@ -26,8 +26,7 @@ fn test_config_list_single() {
         r###"
     [test-table]
     somekey = "some value"
-    "###
-        .as_bytes(),
+    "###,
     );
 
     let stdout = test_env.jj_cmd_success(
@@ -48,8 +47,7 @@ fn test_config_list_table() {
     x = true
     y.foo = "abc"
     y.bar = 123
-    "###
-        .as_bytes(),
+    "###,
     );
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "test-table"]);
     insta::assert_snapshot!(
@@ -67,8 +65,7 @@ fn test_config_list_array() {
     test_env.add_config(
         r###"
     test-array = [1, "b", 3.4]
-    "###
-        .as_bytes(),
+    "###,
     );
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "test-array"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -85,8 +82,7 @@ fn test_config_list_inline_table() {
         x = 1
         [[test-table]]
         y = ["z"]
-    "###
-        .as_bytes(),
+    "###,
     );
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "test-table"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -104,8 +100,7 @@ fn test_config_list_all() {
     x = true
     y.foo = "abc"
     y.bar = 123
-    "###
-        .as_bytes(),
+    "###,
     );
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list"]);
     insta::assert_snapshot!(
@@ -132,7 +127,7 @@ fn test_config_layer_override_default() {
     "###);
 
     // User
-    test_env.add_config(format!("{config_key} = {value:?}\n", value = "user").as_bytes());
+    test_env.add_config(&format!("{config_key} = {value:?}\n", value = "user"));
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
     insta::assert_snapshot!(stdout, @r###"
     merge-tools.vimdiff.program="user"
@@ -180,7 +175,7 @@ fn test_config_layer_override_env() {
     "###);
 
     // User
-    test_env.add_config(format!("{config_key} = {value:?}\n", value = "user").as_bytes());
+    test_env.add_config(&format!("{config_key} = {value:?}\n", value = "user"));
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
     insta::assert_snapshot!(stdout, @r###"
     ui.editor="user"

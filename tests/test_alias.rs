@@ -24,7 +24,7 @@ fn test_alias_basic() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.add_config(br#"alias.b = ["log", "-r", "@", "-T", "branches"]"#);
+    test_env.add_config(r#"alias.b = ["log", "-r", "@", "-T", "branches"]"#);
     test_env.jj_cmd_success(&repo_path, &["branch", "create", "my-branch"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["b"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -55,7 +55,7 @@ fn test_alias_calls_unknown_command() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.add_config(br#"alias.foo = ["nonexistent"]"#);
+    test_env.add_config(r#"alias.foo = ["nonexistent"]"#);
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["foo"]);
     insta::assert_snapshot!(stderr, @r###"
     error: The subcommand 'nonexistent' wasn't recognized
@@ -72,7 +72,7 @@ fn test_alias_calls_command_with_invalid_option() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.add_config(br#"alias.foo = ["log", "--nonexistent"]"#);
+    test_env.add_config(r#"alias.foo = ["log", "--nonexistent"]"#);
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["foo"]);
     insta::assert_snapshot!(stderr, @r###"
     error: Found argument '--nonexistent' which wasn't expected, or isn't valid in this context
@@ -90,7 +90,7 @@ fn test_alias_calls_help() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.add_config(br#"alias.h = ["--help"]"#);
+    test_env.add_config(r#"alias.h = ["--help"]"#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["h"]);
     insta::assert_snapshot!(stdout.lines().take(5).join("\n"), @r###"
     Jujutsu (An experimental VCS)
@@ -107,7 +107,7 @@ fn test_alias_cannot_override_builtin() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.add_config(br#"alias.log = ["rebase"]"#);
+    test_env.add_config(r#"alias.log = ["rebase"]"#);
     // Alias should be ignored
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "root"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -123,7 +123,7 @@ fn test_alias_recursive() {
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(
-        br#"[alias]
+        r#"[alias]
     foo = ["foo"]
     bar = ["baz"]
     baz = ["bar"]
@@ -146,7 +146,7 @@ fn test_alias_global_args_before_and_after() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.add_config(br#"alias.l = ["log", "-T", "commit_id", "-r", "all()"]"#);
+    test_env.add_config(r#"alias.l = ["log", "-T", "commit_id", "-r", "all()"]"#);
     // Test the setup
     let stdout = test_env.jj_cmd_success(&repo_path, &["l"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -181,8 +181,8 @@ fn test_alias_global_args_in_definition() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.add_config( 
-        br#"alias.l = ["log", "-T", "commit_id", "--at-op", "@-", "-r", "all()", "--color=always"]"#,
+    test_env.add_config(
+        r#"alias.l = ["log", "-T", "commit_id", "--at-op", "@-", "-r", "all()", "--color=always"]"#,
     );
 
     // The global argument in the alias is respected
@@ -197,7 +197,7 @@ fn test_alias_invalid_definition() {
     let test_env = TestEnvironment::default();
 
     test_env.add_config(
-        br#"[alias]
+        r#"[alias]
     non-list = 5
     non-string-list = [[]]
     "#,
