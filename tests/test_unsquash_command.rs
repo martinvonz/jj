@@ -151,7 +151,6 @@ fn test_unsquash_partial() {
     // If we don't make any changes in the diff-editor, the whole change is moved
     // from the parent
     let edit_script = test_env.set_up_fake_diff_editor();
-    std::fs::write(&edit_script, "").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash", "-r", "b", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits
@@ -170,7 +169,7 @@ fn test_unsquash_partial() {
 
     // Can unsquash only some changes in interactive mode
     test_env.jj_cmd_success(&repo_path, &["undo"]);
-    std::fs::write(&edit_script, "reset file1").unwrap();
+    std::fs::write(edit_script, "reset file1").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["unsquash", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: a8e8fded1021 (no description set)

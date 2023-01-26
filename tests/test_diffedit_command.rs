@@ -184,7 +184,6 @@ fn test_diffedit_old_restore_interactive_tests() {
     let edit_script = test_env.set_up_fake_diff_editor();
 
     // Nothing happens if we make no changes
-    std::fs::write(&edit_script, "").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["diffedit", "--from", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     Nothing changed.
