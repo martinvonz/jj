@@ -1718,7 +1718,18 @@ fn resolve_aliases(
     app: &Command,
     string_args: &[String],
 ) -> Result<Vec<String>, CommandError> {
-    let mut aliases_map = config.get_table("alias")?;
+    let mut aliases_map = config.get_table("aliases")?;
+    if let Ok(alias_map) = config.get_table("alias") {
+        for (alias, definition) in alias_map {
+            if aliases_map.insert(alias.clone(), definition).is_some() {
+                return Err(user_error_with_hint(
+                    format!(r#"Alias "{alias}" is defined in both [aliases] and [alias]"#),
+                    "[aliases] is the preferred section for aliases. Please remove the alias from \
+                     [alias].",
+                ));
+            }
+        }
+    }
     let mut resolved_aliases = HashSet::new();
     let mut string_args = string_args.to_vec();
     let mut real_commands = HashSet::new();

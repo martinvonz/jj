@@ -140,7 +140,7 @@
                 "type": "string"
             }
         },
-        "alias": {
+        "aliases": {
             "type": "object",
             "description": "Custom subcommand aliases to be supported by the jj command",
             "additionalProperties": {
