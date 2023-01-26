@@ -126,7 +126,7 @@ edit typically depends on how done you are with the change; if the change is
 almost done, it makes sense to use `jj checkout` so you can easily review your
 adjustments with `jj diff` before running `jj squash`. 
 
-## The log command, "revsets", and aliases
+## The log command and "revsets"
 
 You're probably familiar with `git log`. Jujutsu has very similar functionality
 in its `jj log` command:
