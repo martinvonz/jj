@@ -23,7 +23,7 @@ use std::path::PathBuf;
 use std::{fs, io};
 
 use clap::builder::NonEmptyStringValueParser;
-use clap::{ArgGroup, ArgMatches, CommandFactory, FromArgMatches, Subcommand};
+use clap::{ArgGroup, ArgMatches, Command, CommandFactory, FromArgMatches, Subcommand};
 use config::Source;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
@@ -3195,8 +3195,8 @@ fn cmd_sparse(ui: &mut Ui, command: &CommandHelper, args: &SparseArgs) -> Result
     Ok(())
 }
 
-pub fn default_app() -> clap::Command {
-    let app: clap::Command = Commands::augment_subcommands(Args::command());
+pub fn default_app() -> Command {
+    let app: Command = Commands::augment_subcommands(Args::command());
     app.arg_required_else_help(true).subcommand_required(true)
 }
 

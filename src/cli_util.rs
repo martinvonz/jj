@@ -275,7 +275,7 @@ impl TracingSubscription {
 }
 
 pub struct CommandHelper {
-    app: clap::Command,
+    app: Command,
     cwd: PathBuf,
     string_args: Vec<String>,
     global_args: GlobalArgs,
@@ -286,7 +286,7 @@ pub struct CommandHelper {
 
 impl CommandHelper {
     pub fn new(
-        app: clap::Command,
+        app: Command,
         cwd: PathBuf,
         string_args: Vec<String>,
         global_args: GlobalArgs,
@@ -305,7 +305,7 @@ impl CommandHelper {
         }
     }
 
-    pub fn app(&self) -> &clap::Command {
+    pub fn app(&self) -> &Command {
         &self.app
     }
 
@@ -1715,7 +1715,7 @@ impl ValueParserFactory for RevisionArg {
 
 fn resolve_aliases(
     config: &config::Config,
-    app: &clap::Command,
+    app: &Command,
     string_args: &[String],
 ) -> Result<Vec<String>, CommandError> {
     let mut aliases_map = config.get_table("alias")?;
@@ -1771,7 +1771,7 @@ fn resolve_aliases(
 /// Parse args that must be interpreted early, e.g. before printing help.
 fn handle_early_args(
     ui: &mut Ui,
-    app: &clap::Command,
+    app: &Command,
     args: &[String],
     layered_configs: &mut LayeredConfigs,
 ) -> Result<(), CommandError> {
@@ -1793,7 +1793,7 @@ fn handle_early_args(
 }
 
 pub fn expand_args(
-    app: &clap::Command,
+    app: &Command,
     args_os: ArgsOs,
     config: &config::Config,
 ) -> Result<Vec<String>, CommandError> {
@@ -1811,7 +1811,7 @@ pub fn expand_args(
 
 pub fn parse_args(
     ui: &mut Ui,
-    app: &clap::Command,
+    app: &Command,
     tracing_subscription: &TracingSubscription,
     string_args: &[String],
     layered_configs: &mut LayeredConfigs,
@@ -1886,7 +1886,7 @@ pub fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> E
 #[must_use]
 pub struct CliRunner {
     tracing_subscription: TracingSubscription,
-    app: clap::Command,
+    app: Command,
     store_factories: Option<StoreFactories>,
     dispatch_fn: CliDispatchFn,
 }
