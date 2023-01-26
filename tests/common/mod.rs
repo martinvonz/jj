@@ -169,15 +169,7 @@ impl TestEnvironment {
         // Simplified TOML escaping, hoping that there are no '"' or control characters
         // in it
         let escaped_diff_editor_path = diff_editor_path.to_str().unwrap().replace('\\', r"\\");
-        self.add_config(
-            format!(
-                r###"
-                    [ui]
-                    diff-editor = "{escaped_diff_editor_path}"
-                "###
-            )
-            .as_bytes(),
-        );
+        self.add_config(format!(r#"ui.diff-editor = "{escaped_diff_editor_path}""#).as_bytes());
         let edit_script = self.env_root().join("diff_edit_script");
         std::fs::write(&edit_script, "").unwrap();
         self.add_env_var("DIFF_EDIT_SCRIPT", edit_script.to_str().unwrap());

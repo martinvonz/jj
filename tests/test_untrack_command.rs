@@ -21,11 +21,7 @@ pub mod common;
 #[test]
 fn test_untrack() {
     let test_env = TestEnvironment::default();
-    test_env.add_config(
-        br#"[ui]
-    allow-init-native = true
-    "#,
-    );
+    test_env.add_config(br#"ui.allow-init-native = true"#);
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
@@ -105,11 +101,7 @@ fn test_untrack() {
 #[test]
 fn test_untrack_sparse() {
     let test_env = TestEnvironment::default();
-    test_env.add_config(
-        br#"[ui]
-    allow-init-native = true
-    "#,
-    );
+    test_env.add_config(br#"ui.allow-init-native = true"#);
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 

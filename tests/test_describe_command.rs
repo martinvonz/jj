@@ -125,10 +125,7 @@ fn test_describe() {
     assert!(get_stderr_string(&assert).contains("bad-editor-from-visual-env"));
 
     // `ui.editor` config overrides `$VISUAL`
-    test_env.add_config(
-        br#"[ui]
-    editor = "bad-editor-from-config""#,
-    );
+    test_env.add_config(br#"ui.editor = "bad-editor-from-config""#);
     let assert = test_env
         .jj_cmd(&repo_path, &["describe"])
         .env("VISUAL", "bad-editor-from-visual-env")

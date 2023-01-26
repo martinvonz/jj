@@ -187,10 +187,7 @@ fn test_color_config() {
     "###);
 
     // Test that color is used if it's requested in the config file
-    test_env.add_config(
-        br#"[ui]
-color="always""#,
-    );
+    test_env.add_config(br#"ui.color="always""#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
     @ [1m[38;5;12m230dd059e1b059aefc0da06a2e5a7dbf22362f22[0m

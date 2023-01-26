@@ -603,11 +603,7 @@ fn test_default_revset() {
     test_env.jj_cmd_success(&repo_path, &["describe", "-m", "add a file"]);
 
     // Set configuration to only show the root commit.
-    test_env.add_config(
-        br#"[ui]
-        default-revset = "root"
-        "#,
-    );
+    test_env.add_config(br#"ui.default-revset = "root""#);
 
     // Log should only contain one line (for the root commit), and not show the
     // commit created above.
