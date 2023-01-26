@@ -441,15 +441,12 @@ pub struct TemplateFunction<P, F> {
 }
 
 impl<P, F> TemplateFunction<P, F> {
-    pub fn new<C, O>(template: P, function: F) -> Self
+    pub fn new<C, O>(property: P, function: F) -> Self
     where
         P: TemplateProperty<C>,
         F: Fn(P::Output) -> O,
     {
-        TemplateFunction {
-            property: template,
-            function,
-        }
+        TemplateFunction { property, function }
     }
 }
 
