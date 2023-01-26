@@ -23,11 +23,10 @@ use pest::Parser;
 use pest_derive::Parser;
 
 use crate::templater::{
-    BranchProperty, CommitOrChangeId, ConditionalTemplate, DynamicLabelTemplate,
-    FormattablePropertyTemplate, GitHeadProperty, GitRefsProperty, IdWithHighlightedPrefix,
-    IsWorkingCopyProperty, LabelTemplate, ListTemplate, Literal, PlainTextFormattedProperty,
-    TagProperty, Template, TemplateFunction, TemplateProperty, TemplatePropertyFn,
-    WorkingCopiesProperty,
+    BranchProperty, CommitOrChangeId, ConditionalTemplate, FormattablePropertyTemplate,
+    GitHeadProperty, GitRefsProperty, IdWithHighlightedPrefix, IsWorkingCopyProperty,
+    LabelTemplate, ListTemplate, Literal, PlainTextFormattedProperty, TagProperty, Template,
+    TemplateFunction, TemplateProperty, TemplatePropertyFn, WorkingCopiesProperty,
 };
 use crate::{cli_util, time_util};
 
@@ -130,7 +129,10 @@ impl<'a, C: 'a> PropertyAndLabels<'a, C> {
         if labels.is_empty() {
             property.into_template()
         } else {
-            Box::new(LabelTemplate::new(property.into_template(), labels))
+            Box::new(LabelTemplate::new(
+                property.into_template(),
+                Literal(labels),
+            ))
         }
     }
 }
@@ -355,14 +357,10 @@ fn parse_commit_term<'a>(
                     }
                     let content = parse_commit_template_rule(repo, workspace_id, arg_template)
                         .into_template();
-                    let get_labels = move |commit: &Commit| -> Vec<String> {
-                        label_property
-                            .extract(commit)
-                            .split_whitespace()
-                            .map(ToString::to_string)
-                            .collect()
-                    };
-                    let template = Box::new(DynamicLabelTemplate::new(content, get_labels));
+                    let labels = TemplateFunction::new(label_property, |s| {
+                        s.split_whitespace().map(ToString::to_string).collect()
+                    });
+                    let template = Box::new(LabelTemplate::new(content, labels));
                     Expression::Template(template)
                 }
                 "if" => {

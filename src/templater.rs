@@ -62,58 +62,28 @@ impl Template<()> for bool {
     }
 }
 
-pub struct LabelTemplate<T> {
+pub struct LabelTemplate<T, L> {
     content: T,
-    labels: Vec<String>,
+    labels: L,
 }
 
-impl<T> LabelTemplate<T> {
-    pub fn new<C>(content: T, labels: Vec<String>) -> Self
+impl<T, L> LabelTemplate<T, L> {
+    pub fn new<C>(content: T, labels: L) -> Self
     where
         T: Template<C>,
+        L: TemplateProperty<C, Output = Vec<String>>,
     {
         LabelTemplate { content, labels }
     }
 }
 
-impl<C, T: Template<C>> Template<C> for LabelTemplate<T> {
-    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        for label in &self.labels {
-            formatter.push_label(label)?;
-        }
-        self.content.format(context, formatter)?;
-        for _label in &self.labels {
-            formatter.pop_label()?;
-        }
-        Ok(())
-    }
-}
-
-pub struct DynamicLabelTemplate<T, F> {
-    content: T,
-    label_property: F,
-}
-
-impl<T, F> DynamicLabelTemplate<T, F> {
-    pub fn new<C>(content: T, label_property: F) -> Self
-    where
-        T: Template<C>,
-        F: Fn(&C) -> Vec<String>,
-    {
-        DynamicLabelTemplate {
-            content,
-            label_property,
-        }
-    }
-}
-
-impl<C, T, F> Template<C> for DynamicLabelTemplate<T, F>
+impl<C, T, L> Template<C> for LabelTemplate<T, L>
 where
     T: Template<C>,
-    F: Fn(&C) -> Vec<String>,
+    L: TemplateProperty<C, Output = Vec<String>>,
 {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        let labels = (self.label_property)(context);
+        let labels = self.labels.extract(context);
         for label in &labels {
             formatter.push_label(label)?;
         }
