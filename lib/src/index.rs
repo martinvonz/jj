@@ -310,6 +310,13 @@ impl HexPrefix {
         hex_string
     }
 
+    /// Minimum bytes that would match this prefix. (e.g. "abc0" for "abc")
+    ///
+    /// Use this to partition a sorted slice, and test `matches(id)` from there.
+    pub fn min_prefix_bytes(&self) -> &[u8] {
+        &self.min_prefix_bytes
+    }
+
     fn split_odd_byte(&self) -> (Option<u8>, &[u8]) {
         if self.has_odd_byte {
             let (&odd, prefix) = self.min_prefix_bytes.split_last().unwrap();
@@ -317,11 +324,6 @@ impl HexPrefix {
         } else {
             (None, &self.min_prefix_bytes)
         }
-    }
-
-    pub fn bytes_prefixes<Q: ObjectId>(&self) -> (Q, Q) {
-        let (_, prefix) = self.split_odd_byte();
-        (Q::from_bytes(prefix), Q::from_bytes(&self.min_prefix_bytes))
     }
 
     pub fn matches<Q: ObjectId>(&self, id: &Q) -> bool {
@@ -1333,7 +1335,7 @@ impl IndexSegment for ReadonlyIndex {
     }
 
     fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        let (_, min_bytes_prefix) = prefix.bytes_prefixes();
+        let min_bytes_prefix = CommitId::from_bytes(prefix.min_prefix_bytes());
         let lookup_pos = self
             .commit_id_byte_prefix_to_lookup_pos(&min_bytes_prefix)
             .unwrap_or(self.num_local_commits);
@@ -1428,7 +1430,7 @@ impl IndexSegment for MutableIndex {
     }
 
     fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        let (_, min_bytes_prefix) = prefix.bytes_prefixes();
+        let min_bytes_prefix = CommitId::from_bytes(prefix.min_prefix_bytes());
         let mut matches = self
             .lookup
             .range((Bound::Included(&min_bytes_prefix), Bound::Unbounded))
@@ -2598,21 +2600,17 @@ mod tests {
 
     #[test]
     fn test_hex_prefix_prefixes() {
-        let (prefix, min_prefix) = HexPrefix::new("").unwrap().bytes_prefixes::<CommitId>();
-        assert_eq!(prefix, CommitId::from_hex(""));
-        assert_eq!(min_prefix, CommitId::from_hex(""));
+        let prefix = HexPrefix::new("").unwrap();
+        assert_eq!(prefix.min_prefix_bytes(), b"");
 
-        let (prefix, min_prefix) = HexPrefix::new("1").unwrap().bytes_prefixes::<CommitId>();
-        assert_eq!(prefix, CommitId::from_hex(""));
-        assert_eq!(min_prefix, CommitId::from_hex("10"));
+        let prefix = HexPrefix::new("1").unwrap();
+        assert_eq!(prefix.min_prefix_bytes(), b"\x10");
 
-        let (prefix, min_prefix) = HexPrefix::new("12").unwrap().bytes_prefixes::<CommitId>();
-        assert_eq!(prefix, CommitId::from_hex("12"));
-        assert_eq!(min_prefix, CommitId::from_hex("12"));
+        let prefix = HexPrefix::new("12").unwrap();
+        assert_eq!(prefix.min_prefix_bytes(), b"\x12");
 
-        let (prefix, min_prefix) = HexPrefix::new("123").unwrap().bytes_prefixes::<CommitId>();
-        assert_eq!(prefix, CommitId::from_hex("12"));
-        assert_eq!(min_prefix, CommitId::from_hex("1230"));
+        let prefix = HexPrefix::new("123").unwrap();
+        assert_eq!(prefix.min_prefix_bytes(), b"\x12\x30");
     }
 
     #[test]
