@@ -21,64 +21,7 @@
     in
     {
       overlays.default = (final: prev: {
-        jujutsu = final.callPackage
-          (
-            { stdenv
-            , lib
-            , fetchFromGitHub
-            , rustPlatform
-            , pkg-config
-            , openssl
-            , dbus
-            , sqlite
-            , file
-            , gzip
-            , makeWrapper
-            , Security
-            , SystemConfiguration
-            , libiconv
-            , installShellFiles
-            }:
-
-            rustPlatform.buildRustPackage rec {
-              pname = "jujutsu";
-              version = "unstable-${self.shortRev or "dirty"}";
-              buildNoDefaultFeatures = true;
-              buildFeatures = [ "jujutsu-lib/legacy-thrift" ];
-
-              src = self;
-
-              cargoLock = {
-                lockFile = "${self}/Cargo.lock";
-              };
-              nativeBuildInputs = [
-                gzip
-                installShellFiles
-                makeWrapper
-                pkg-config
-              ];
-              buildInputs = [ openssl dbus sqlite ]
-              ++ lib.optionals stdenv.isDarwin [
-                Security
-                SystemConfiguration
-                libiconv
-              ];
-              postInstall = ''
-                $out/bin/jj debug mangen > ./jj.1
-                installManPage ./jj.1
-
-                $out/bin/jj debug completion --bash > ./completions.bash
-                installShellCompletion --bash --name ${pname}.bash ./completions.bash
-                $out/bin/jj debug completion --fish > ./completions.fish
-                installShellCompletion --fish --name ${pname}.fish ./completions.fish
-                $out/bin/jj debug completion --zsh > ./completions.zsh
-                installShellCompletion --zsh --name _${pname} ./completions.zsh
-              '';
-            }
-          )
-          {
-            inherit (final.darwin.apple_sdk.frameworks) Security SystemConfiguration;
-          };
+        jujutsu = self.packages.${final.system}.jujutsu;
       });
     } //
     (foreachSystem (system:
@@ -86,21 +29,52 @@
         pkgs = import nixpkgs {
           inherit system;
           overlays = [
-            self.overlays.default
             rust-overlay.overlays.default
           ];
         };
       in
       {
         packages.${system} = {
-          jujutsu = pkgs.jujutsu;
+          jujutsu = pkgs.rustPlatform.buildRustPackage rec {
+            pname = "jujutsu";
+            version = "unstable-${self.shortRev or "dirty"}";
+            buildNoDefaultFeatures = true;
+            buildFeatures = [ "jujutsu-lib/legacy-thrift" ];
+            src = ./.;
+            cargoLock = {
+              lockFile = ./Cargo.lock;
+            };
+            nativeBuildInputs = with pkgs; [
+              gzip
+              installShellFiles
+              makeWrapper
+              pkg-config
+            ];
+            buildInputs = with pkgs; [ openssl dbus sqlite ]
+            ++ lib.optionals stdenv.isDarwin [
+              darwin.apple_sdk.frameworks.Security
+              darwin.apple_sdk.frameworks.SystemConfiguration
+              libiconv
+            ];
+            postInstall = ''
+              $out/bin/jj debug mangen > ./jj.1
+              installManPage ./jj.1
+
+              $out/bin/jj debug completion --bash > ./completions.bash
+              installShellCompletion --bash --name ${pname}.bash ./completions.bash
+              $out/bin/jj debug completion --fish > ./completions.fish
+              installShellCompletion --fish --name ${pname}.fish ./completions.fish
+              $out/bin/jj debug completion --zsh > ./completions.zsh
+              installShellCompletion --zsh --name _${pname} ./completions.zsh
+            '';
+          };
           default = self.packages.${system}.jujutsu;
         };
         apps.${system}.default = {
           type = "app";
-          program = "${pkgs.jujutsu}/bin/jj";
+          program = "${self.packages.${system}.jujutsu}/bin/jj";
         };
-        checks.${system}.jujutsu = pkgs.jujutsu.overrideAttrs ({ ... }: {
+        checks.${system}.jujutsu = self.packages.${system}.jujutsu.overrideAttrs ({ ... }: {
           cargoBuildType = "debug";
           cargoCheckType = "debug";
           preCheck = ''
