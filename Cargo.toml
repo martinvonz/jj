@@ -57,7 +57,7 @@ serde = { version = "1.0", features = ["derive"] }
 slab = "0.4.7"
 tempfile = "3.3.0"
 textwrap = "0.16.0"
-timeago = { version = "0.4.0", default-features = false }
+timeago = { version = "0.4.1", default-features = false }
 thiserror = "1.0.38"
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.16", default-features = false, features = ["std", "ansi", "env-filter", "fmt"] }
