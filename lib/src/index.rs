@@ -1337,22 +1337,14 @@ impl IndexSegment for ReadonlyIndex {
         let lookup_pos = self
             .commit_id_byte_prefix_to_lookup_pos(&min_bytes_prefix)
             .unwrap_or(self.num_local_commits);
-        let mut first_match = None;
-        for i in lookup_pos..self.num_local_commits {
-            let entry = self.lookup_entry(i);
-            let id = entry.commit_id();
-            if prefix.matches(&id) {
-                if first_match.is_some() {
-                    return PrefixResolution::AmbiguousMatch;
-                }
-                first_match = Some(id)
-            } else {
-                break;
-            }
-        }
-        match first_match {
-            None => PrefixResolution::NoMatch,
-            Some(id) => PrefixResolution::SingleMatch(id),
+        let mut matches = (lookup_pos..self.num_local_commits)
+            .map(|pos| self.lookup_entry(pos).commit_id())
+            .take_while(|id| prefix.matches(id))
+            .fuse();
+        match (matches.next(), matches.next()) {
+            (Some(id), None) => PrefixResolution::SingleMatch(id),
+            (Some(_), Some(_)) => PrefixResolution::AmbiguousMatch,
+            (None, _) => PrefixResolution::NoMatch,
         }
     }
 
@@ -1437,23 +1429,16 @@ impl IndexSegment for MutableIndex {
 
     fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         let (_, min_bytes_prefix) = prefix.bytes_prefixes();
-        let potential_range = self
+        let mut matches = self
             .lookup
-            .range((Bound::Included(&min_bytes_prefix), Bound::Unbounded));
-        let mut first_match = None;
-        for (id, _pos) in potential_range {
-            if prefix.matches(id) {
-                if first_match.is_some() {
-                    return PrefixResolution::AmbiguousMatch;
-                }
-                first_match = Some(id)
-            } else {
-                break;
-            }
-        }
-        match first_match {
-            None => PrefixResolution::NoMatch,
-            Some(id) => PrefixResolution::SingleMatch(id.clone()),
+            .range((Bound::Included(&min_bytes_prefix), Bound::Unbounded))
+            .map(|(id, _pos)| id)
+            .take_while(|&id| prefix.matches(id))
+            .fuse();
+        match (matches.next(), matches.next()) {
+            (Some(id), None) => PrefixResolution::SingleMatch(id.clone()),
+            (Some(_), Some(_)) => PrefixResolution::AmbiguousMatch,
+            (None, _) => PrefixResolution::NoMatch,
         }
     }
 
