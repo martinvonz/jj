@@ -80,7 +80,7 @@ are marked with a `$`):
 
 `$JJ_EDITOR` > `ui.editor` > `$VISUAL` > `$EDITOR`
 
-Pico is the default editor in the absence of any other setting but you
+Pico is the default editor in the absence of any other setting, but you
 could set it explicitly too.
 
     ui.editor = "pico"
@@ -212,7 +212,7 @@ defined in config files or environment variables. For example,
 
     jj --config-toml='ui.color="always"' --config-toml='ui.difftool="kdiff3"' split
 
-Config specified this way must be valid TOML. In paritcular, string
+Config specified this way must be valid TOML. In particular, string
 values must be surrounded by quotes. To pass these quotes to `jj`, most
 shells require surrounding those quotes with single quotes as shown above.
 
