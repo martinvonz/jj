@@ -147,7 +147,7 @@ fn test_alias() {
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(
-        br###"
+        r###"
     [revset-aliases]
     'my-root' = 'root'
     'syntax-error' = 'whatever &'
@@ -249,7 +249,7 @@ fn test_bad_alias_decl() {
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(
-        br###"
+        r###"
     [revset-aliases]
     'my-root' = 'root'
     '"bad"' = 'root'

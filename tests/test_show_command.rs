@@ -41,7 +41,7 @@ fn test_show_relative_timestamps() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.add_config(br#"ui.relative-timestamps = true"#);
+    test_env.add_config(r#"ui.relative-timestamps = true"#);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["show"]);
     let timestamp_re = Regex::new(r"\([0-9]+ years ago\)").unwrap();

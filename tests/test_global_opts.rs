@@ -187,7 +187,7 @@ fn test_color_config() {
     "###);
 
     // Test that color is used if it's requested in the config file
-    test_env.add_config(br#"ui.color="always""#);
+    test_env.add_config(r#"ui.color="always""#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id"]);
     insta::assert_snapshot!(stdout, @r###"
     @ [1m[38;5;12m230dd059e1b059aefc0da06a2e5a7dbf22362f22[0m
@@ -291,7 +291,7 @@ fn test_invalid_config() {
     // Test that we get a reasonable error if the config is invalid (#55)
     let test_env = TestEnvironment::default();
 
-    test_env.add_config(b"[section]key = value-missing-quotes");
+    test_env.add_config("[section]key = value-missing-quotes");
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo"]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Config error: expected newline, found an identifier at line 1 column 10 in config/config0001.toml

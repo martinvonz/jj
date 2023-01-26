@@ -215,10 +215,10 @@ fn test_list_workspaces_template() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "--git", "main"]);
     test_env.add_config(
-        br###"
+        r#"
         template.commit_summary = """commit_id.short() " " description.first_line()
                                      if(current_working_copy, " (current)")"""
-        "###,
+        "#,
     );
     let main_path = test_env.env_root().join("main");
     let secondary_path = test_env.env_root().join("secondary");
