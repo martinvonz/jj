@@ -21,7 +21,7 @@ use jujutsu_lib::commit::Commit;
 use jujutsu_lib::op_store::WorkspaceId;
 use jujutsu_lib::repo::RepoRef;
 
-use crate::formatter::Formatter;
+use crate::formatter::{Formatter, PlainTextFormatter};
 use crate::time_util;
 
 pub trait Template<C> {
@@ -201,6 +201,30 @@ where
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let template = self.property.extract(context);
         template.format(&(), formatter)
+    }
+}
+
+/// Adapter to turn template back to string property.
+pub struct PlainTextFormattedProperty<T> {
+    template: T,
+}
+
+impl<T> PlainTextFormattedProperty<T> {
+    pub fn new(template: T) -> Self {
+        PlainTextFormattedProperty { template }
+    }
+}
+
+impl<C, T: Template<C>> TemplateProperty<C> for PlainTextFormattedProperty<T> {
+    type Output = String;
+
+    fn extract(&self, context: &C) -> Self::Output {
+        let mut output = vec![];
+        self.template
+            .format(context, &mut PlainTextFormatter::new(&mut output))
+            .expect("write() to PlainTextFormatter should never fail");
+        // TODO: Use from_utf8_lossy() if we added template that embeds file content
+        String::from_utf8(output).expect("template output should be utf-8 bytes")
     }
 }
 

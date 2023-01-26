@@ -22,12 +22,12 @@ use pest::iterators::{Pair, Pairs};
 use pest::Parser;
 use pest_derive::Parser;
 
-use crate::formatter::PlainTextFormatter;
 use crate::templater::{
     BranchProperty, CommitOrChangeId, ConditionalTemplate, DynamicLabelTemplate,
     FormattablePropertyTemplate, GitHeadProperty, GitRefsProperty, IdWithHighlightedPrefix,
-    IsWorkingCopyProperty, LabelTemplate, ListTemplate, Literal, TagProperty, Template,
-    TemplateFunction, TemplateProperty, TemplatePropertyFn, WorkingCopiesProperty,
+    IsWorkingCopyProperty, LabelTemplate, ListTemplate, Literal, PlainTextFormattedProperty,
+    TagProperty, Template, TemplateFunction, TemplateProperty, TemplatePropertyFn,
+    WorkingCopiesProperty,
 };
 use crate::{cli_util, time_util};
 
@@ -98,6 +98,13 @@ impl<'a, I: 'a> Property<'a, I> {
         }
     }
 
+    fn into_plain_text(self) -> Box<dyn TemplateProperty<I, Output = String> + 'a> {
+        match self {
+            Property::String(property) => property,
+            _ => Box::new(PlainTextFormattedProperty::new(self.into_template())),
+        }
+    }
+
     fn into_template(self) -> Box<dyn Template<I> + 'a> {
         fn wrap<'a, I: 'a, O: Template<()> + 'a>(
             property: Box<dyn TemplateProperty<I, Output = O> + 'a>,
@@ -138,6 +145,13 @@ impl<'a, C: 'a> Expression<'a, C> {
         match self {
             Expression::Property(PropertyAndLabels(property, _)) => property.try_into_boolean(),
             Expression::Template(_) => None,
+        }
+    }
+
+    fn into_plain_text(self) -> Box<dyn TemplateProperty<C, Output = String> + 'a> {
+        match self {
+            Expression::Property(PropertyAndLabels(property, _)) => property.into_plain_text(),
+            Expression::Template(template) => Box::new(PlainTextFormattedProperty::new(template)),
         }
     }
 
@@ -330,8 +344,8 @@ fn parse_commit_term<'a>(
             match name.as_str() {
                 "label" => {
                     let label_pair = args.next().unwrap();
-                    let label_template =
-                        parse_commit_template_rule(repo, workspace_id, label_pair).into_template();
+                    let label_property = parse_commit_template_rule(repo, workspace_id, label_pair)
+                        .into_plain_text();
                     let arg_template = match args.next() {
                         None => panic!("label() requires two arguments"),
                         Some(pair) => pair,
@@ -342,11 +356,8 @@ fn parse_commit_term<'a>(
                     let content = parse_commit_template_rule(repo, workspace_id, arg_template)
                         .into_template();
                     let get_labels = move |commit: &Commit| -> Vec<String> {
-                        let mut buf = vec![];
-                        let mut formatter = PlainTextFormatter::new(&mut buf);
-                        label_template.format(commit, &mut formatter).unwrap();
-                        String::from_utf8(buf)
-                            .unwrap()
+                        label_property
+                            .extract(commit)
                             .split_whitespace()
                             .map(ToString::to_string)
                             .collect()
