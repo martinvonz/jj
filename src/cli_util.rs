@@ -23,9 +23,8 @@ use std::process::ExitCode;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use clap;
 use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
-use clap::{Arg, ArgAction, ArgMatches, Command, Error, FromArgMatches};
+use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
 use git2::{Oid, Repository};
 use itertools::Itertools;
 use jujutsu_lib::backend::{BackendError, ChangeId, CommitId, ObjectId, TreeId};
@@ -1700,7 +1699,7 @@ impl TypedValueParser for RevisionArgValueParser {
         cmd: &Command,
         arg: Option<&Arg>,
         value: &OsStr,
-    ) -> Result<Self::Value, Error> {
+    ) -> Result<Self::Value, clap::Error> {
         let string = NonEmptyStringValueParser::new().parse(cmd, arg, value.to_os_string())?;
         Ok(RevisionArg(string))
     }
