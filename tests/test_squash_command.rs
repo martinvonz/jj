@@ -153,7 +153,6 @@ fn test_squash_partial() {
     // If we don't make any changes in the diff-editor, the whole change is moved
     // into the parent
     let edit_script = test_env.set_up_fake_diff_editor();
-    std::fs::write(&edit_script, "").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["squash", "-r", "b", "-i"]);
     insta::assert_snapshot!(stdout, @r###"
     Rebased 1 descendant commits

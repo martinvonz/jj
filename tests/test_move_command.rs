@@ -198,7 +198,6 @@ fn test_move_partial() {
     let edit_script = test_env.set_up_fake_diff_editor();
 
     // If we don't make any changes in the diff-editor, the whole change is moved
-    std::fs::write(&edit_script, "").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["move", "-i", "--from", "c"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy now at: 71b69e433fbc (no description set)

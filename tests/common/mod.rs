@@ -156,6 +156,7 @@ impl TestEnvironment {
             .as_bytes(),
         );
         let edit_script = self.env_root().join("edit_script");
+        std::fs::write(&edit_script, "").unwrap();
         self.add_env_var("EDIT_SCRIPT", edit_script.to_str().unwrap());
         edit_script
     }
@@ -178,6 +179,7 @@ impl TestEnvironment {
             .as_bytes(),
         );
         let edit_script = self.env_root().join("diff_edit_script");
+        std::fs::write(&edit_script, "").unwrap();
         self.add_env_var("DIFF_EDIT_SCRIPT", edit_script.to_str().unwrap());
         edit_script
     }
