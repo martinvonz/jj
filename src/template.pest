@@ -28,9 +28,7 @@ identifier = @{ (ASCII_ALPHANUMERIC | "_")+ }
 
 function = { identifier ~ "(" ~ template ~ ("," ~ template)* ~ ")" }
 
-method = { "." ~ function ~ maybe_method }
-
-maybe_method = { method | "" }
+maybe_method = { ("." ~ function)* }
 
 // Note that "x(y)" is a function call but "x (y)" concatenates "x" and "y"
 term = {

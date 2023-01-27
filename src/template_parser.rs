@@ -143,124 +143,72 @@ impl<'a, I: 'a> Property<'a, I> {
 
 fn parse_method_chain<'a, I: 'a>(
     pair: Pair<Rule>,
-    input_property: Property<'a, I>,
+    input_property: PropertyAndLabels<'a, I>,
 ) -> PropertyAndLabels<'a, I> {
+    let PropertyAndLabels(mut property, mut labels) = input_property;
     assert_eq!(pair.as_rule(), Rule::maybe_method);
-    if pair.as_str().is_empty() {
-        PropertyAndLabels(input_property, vec![])
-    } else {
-        fn chain<'a, I: 'a, O: 'a>(
-            property: Box<dyn TemplateProperty<I, Output = O> + 'a>,
-            parse: impl FnOnce() -> PropertyAndLabels<'a, O>,
-        ) -> (Property<'a, I>, Vec<String>) {
-            let PropertyAndLabels(next_method, labels) = parse();
-            (next_method.after(property), labels)
-        }
-        let method = pair.into_inner().next().unwrap();
-        let label = method
-            .clone()
-            .into_inner()
-            .next()
-            .unwrap()
-            .into_inner()
-            .next()
-            .unwrap()
-            .as_str()
-            .to_string();
-        let (property, mut labels) = match input_property {
-            Property::String(property) => chain(property, || parse_string_method(method)),
-            Property::Boolean(property) => chain(property, || parse_boolean_method(method)),
+    for chain in pair.into_inner() {
+        assert_eq!(chain.as_rule(), Rule::function);
+        let mut args = chain.into_inner();
+        let name = args.next().unwrap();
+        assert_eq!(name.as_rule(), Rule::identifier);
+        labels.push(name.as_str().to_owned());
+        property = match property {
+            Property::String(property) => parse_string_method(name, args).after(property),
+            Property::Boolean(property) => parse_boolean_method(name, args).after(property),
             Property::CommitOrChangeId(property) => {
-                chain(property, || parse_commit_or_change_id_method(method))
+                parse_commit_or_change_id_method(name, args).after(property)
             }
-            Property::Signature(property) => chain(property, || parse_signature_method(method)),
-            Property::Timestamp(property) => chain(property, || parse_timestamp_method(method)),
+            Property::Signature(property) => parse_signature_method(name, args).after(property),
+            Property::Timestamp(property) => parse_timestamp_method(name, args).after(property),
         };
-        labels.insert(0, label);
-        PropertyAndLabels(property, labels)
+    }
+    PropertyAndLabels(property, labels)
+}
+
+fn parse_string_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<'a, String> {
+    // TODO: validate arguments
+    match name.as_str() {
+        "first_line" => Property::String(Box::new(StringFirstLine)),
+        name => panic!("no such string method: {name}"),
     }
 }
 
-fn parse_string_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, String> {
-    assert_eq!(method.as_rule(), Rule::method);
-    let mut inner = method.into_inner();
-    let func = inner.next().unwrap();
-    assert_eq!(func.as_rule(), Rule::function);
-    let name = func.into_inner().next().unwrap();
+fn parse_boolean_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<'a, bool> {
     // TODO: validate arguments
-
-    let this_function = match name.as_str() {
-        "first_line" => Property::String(Box::new(StringFirstLine)),
-        name => panic!("no such string method: {name}"),
-    };
-    let chain_method = inner.last().unwrap();
-    parse_method_chain(chain_method, this_function)
-}
-
-fn parse_boolean_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, bool> {
-    assert_eq!(method.as_rule(), Rule::method);
-    let mut inner = method.into_inner();
-    let func = inner.next().unwrap();
-    assert_eq!(func.as_rule(), Rule::function);
-    let name = func.into_inner().next().unwrap();
-    // TODO: validate arguments
-
     panic!("no such boolean method: {}", name.as_str());
 }
 
 fn parse_commit_or_change_id_method<'a>(
-    method: Pair<Rule>,
-) -> PropertyAndLabels<'a, CommitOrChangeId<'a>> {
-    assert_eq!(method.as_rule(), Rule::method);
-    let mut inner = method.into_inner();
-    let func = inner.next().unwrap();
-    assert_eq!(func.as_rule(), Rule::function);
-    let name = func.into_inner().next().unwrap();
+    name: Pair<Rule>,
+    _args: Pairs<Rule>,
+) -> Property<'a, CommitOrChangeId<'a>> {
     // TODO: validate arguments
-
-    let this_function = match name.as_str() {
+    match name.as_str() {
         "short" => Property::String(Box::new(CommitOrChangeIdShort)),
         "short_prefix_and_brackets" => {
             Property::String(Box::new(CommitOrChangeIdShortPrefixAndBrackets))
         }
         name => panic!("no such commit ID method: {name}"),
-    };
-    let chain_method = inner.last().unwrap();
-    parse_method_chain(chain_method, this_function)
+    }
 }
 
-fn parse_signature_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, Signature> {
-    assert_eq!(method.as_rule(), Rule::method);
-    let mut inner = method.into_inner();
-    let func = inner.next().unwrap();
-    assert_eq!(func.as_rule(), Rule::function);
-    let name = func.into_inner().next().unwrap();
+fn parse_signature_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<'a, Signature> {
     // TODO: validate arguments
-
-    let this_function: Property<'a, Signature> = match name.as_str() {
+    match name.as_str() {
         "name" => Property::String(Box::new(SignatureName)),
         "email" => Property::String(Box::new(SignatureEmail)),
         "timestamp" => Property::Timestamp(Box::new(SignatureTimestamp)),
         name => panic!("no such commit ID method: {name}"),
-    };
-    let chain_method = inner.last().unwrap();
-    parse_method_chain(chain_method, this_function)
+    }
 }
 
-fn parse_timestamp_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, Timestamp> {
-    assert_eq!(method.as_rule(), Rule::method);
-    let mut inner = method.into_inner();
-    let func = inner.next().unwrap();
-    assert_eq!(func.as_rule(), Rule::function);
-    let name = func.into_inner().next().unwrap();
+fn parse_timestamp_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<'a, Timestamp> {
     // TODO: validate arguments
-
-    let this_function = match name.as_str() {
+    match name.as_str() {
         "ago" => Property::String(Box::new(RelativeTimestampString)),
         name => panic!("no such timestamp method: {name}"),
-    };
-    let chain_method = inner.last().unwrap();
-    parse_method_chain(chain_method, this_function)
+    }
 }
 
 struct PropertyAndLabels<'a, C>(Property<'a, C>, Vec<String>);
@@ -331,22 +279,17 @@ fn parse_commit_term<'a>(
         match expr.as_rule() {
             Rule::literal => {
                 let text = parse_string_literal(expr);
-                if maybe_method.as_str().is_empty() {
-                    Box::new(Literal(text))
+                let term = PropertyAndLabels(Property::String(Box::new(Literal(text))), vec![]);
+                let PropertyAndLabels(property, labels) = parse_method_chain(maybe_method, term);
+                if labels.is_empty() {
+                    property.into_template()
                 } else {
-                    let input_property = Property::String(Box::new(Literal(text)));
-                    let PropertyAndLabels(property, method_labels) =
-                        parse_method_chain(maybe_method, input_property);
-                    Box::new(LabelTemplate::new(property.into_template(), method_labels))
+                    Box::new(LabelTemplate::new(property.into_template(), labels))
                 }
             }
             Rule::identifier => {
-                let PropertyAndLabels(term_property, keyword_labels) =
-                    parse_commit_keyword(repo, workspace_id, expr);
-                let PropertyAndLabels(property, method_labels) =
-                    parse_method_chain(maybe_method, term_property);
-                let mut labels = keyword_labels;
-                labels.extend(method_labels);
+                let term = parse_commit_keyword(repo, workspace_id, expr);
+                let PropertyAndLabels(property, labels) = parse_method_chain(maybe_method, term);
                 Box::new(LabelTemplate::new(property.into_template(), labels))
             }
             Rule::function => {
