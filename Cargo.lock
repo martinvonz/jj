@@ -536,6 +536,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "esl01-renderdag"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a1840969ab8be31e186bb6d2f672d586dcd203dd4019a80dc1277a14686eca9"
+dependencies = [
+ "bitflags",
+ "itertools",
+]
+
+[[package]]
 name = "fastrand"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -796,6 +806,7 @@ dependencies = [
  "criterion_bencher_compat",
  "crossterm",
  "dirs",
+ "esl01-renderdag",
  "git2",
  "glob",
  "hex",
@@ -810,7 +821,6 @@ dependencies = [
  "pest_derive",
  "predicates",
  "regex",
- "renderdag",
  "rpassword",
  "serde",
  "slab",
@@ -1500,16 +1510,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3acd125665422973a33ac9d3dd2df85edad0f4ae9b00dafb1a05e43a9f5ef8e7"
 dependencies = [
  "winapi",
-]
-
-[[package]]
-name = "renderdag"
-version = "0.1.0"
-source = "git+https://github.com/facebook/sapling?rev=c8b66c68991066b3e8731630ef757e94cd03ff36#c8b66c68991066b3e8731630ef757e94cd03ff36"
-dependencies = [
- "bitflags",
- "itertools",
- "serde",
 ]
 
 [[package]]
