@@ -12,8 +12,10 @@ See the [TOML site](https://toml.io/en/) for more on syntax. One thing to
 remember is that anything under a heading can be dotted
 e.g. `user.name = "YOUR NAME"` is equivalent to:
 
-    [user]
-      name = "YOUR NAME"
+```toml
+[user]
+name = "YOUR NAME"
+```
 
 Headings only need to be set once in the real config file but Jujutsu favors the
 dotted style in these instructions, if only because it's easier to write down in
@@ -28,8 +30,10 @@ short if you ever need to check.
 
 ## User settings
 
-    user.name = "YOUR NAME" 
-    user.email = "YOUR_EMAIL@example.com"
+```toml
+user.name = "YOUR NAME"
+user.email = "YOUR_EMAIL@example.com"
+```
 
 Don't forget to change these to your own details!
 
@@ -42,18 +46,24 @@ Possible values are `always`, `never` and `auto` (default: `auto`).
 
 This setting overrides the `NO_COLOR` environment variable (if set).
 
-    ui.color = "never" # Turn off color
+```toml
+ui.color = "never" # Turn off color
+```
 
 ### Shortest unique prefixes for ids
 
-    ui.unique-prefixes = "none"
+```toml
+ui.unique-prefixes = "none"
+```
 
 Whether to highlight a unique prefix for commit & change ids. Possible values
 are `brackets` and `none` (default: `brackets`).
 
 ### Relative timestamps
 
-    ui.relative-timestamps = true
+```toml
+ui.relative-timestamps = true
+```
 
 False by default, but setting to true will change timestamps to be rendered
 as `x days/hours/seconds ago` instead of being rendered as a full timestamp.
@@ -72,9 +82,11 @@ a `$`):
 
 You can define aliases for commands, including their arguments. For example:
 
-    # `jj l` shows commits on the working-copy commit's (anonymous) branch
-    # compared to the `main` branch
-    aliases.l = ["log", "-r", "(main..@): | (main..@)-"]
+```toml
+# `jj l` shows commits on the working-copy commit's (anonymous) branch
+# compared to the `main` branch
+aliases.l = ["log", "-r", "(main..@): | (main..@)-"]
+```
 
 ## Editor
 
@@ -87,21 +99,27 @@ a `$`):
 Pico is the default editor in the absence of any other setting, but you could
 set it explicitly too.
 
-    ui.editor = "pico"
+```toml
+ui.editor = "pico"
+```
 
 To use NeoVim instead:
 
-    ui.editor = "nvim"
+```toml
+ui.editor = "nvim"
+```
 
 For GUI editors you possibly need to use a `-w` or `--wait`. Some examples:
 
-    ui.editor = "code -w"       # VS Code
-    ui.editor = "bbedit -w"     # BBEdit
-    ui.editor = "subl -n -w"    # Sublime Text
-    ui.editor = "mate -w"       # TextMate
-    ui.editor = ["C:/Program Files/Notepad++/notepad++.exe",
-                 "-multiInst", "-notabbar", "-nosession", "-noPlugin"] # Notepad++
-    ui.editor = "idea --temp-project --wait"   #IntelliJ
+```toml
+ui.editor = "code -w"       # VS Code
+ui.editor = "bbedit -w"     # BBEdit
+ui.editor = "subl -n -w"    # Sublime Text
+ui.editor = "mate -w"       # TextMate
+ui.editor = ["C:/Program Files/Notepad++/notepad++.exe",
+             "-multiInst", "-notabbar", "-nosession", "-noPlugin"] # Notepad++
+ui.editor = "idea --temp-project --wait"   #IntelliJ
+```
 
 Obviously, you would only set one line, don't copy them all in!
 
@@ -113,12 +131,16 @@ directories to diff are passed as the first and second argument respectively.
 
 For example:
 
-    ui.diff-editor = "kdiff3"
+```toml
+ui.diff-editor = "kdiff3"
+```
 
 Custom arguments can be added, and will be inserted before the paths to diff:
 
-    # merge-tools.kdiff3.program = "kdiff3"      # Defaults to the name of the tool if not specified
-    merge-tools.kdiff3.edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
+```toml
+# merge-tools.kdiff3.program = "kdiff3"      # Defaults to the name of the tool if not specified
+merge-tools.kdiff3.edit-args = ["--merge", "--cs", "CreateBakFiles=0"]
+```
 
 ### Using Vim as a diff editor
 
@@ -135,7 +157,9 @@ the [`DirDiff` Vim plugin].
 The `ui.merge-editor` key specifies the tool used for three-way merge tools
 by `jj resolve`. For example:
 
-    ui.merge-editor = "meld"  # Or "kdiff3" or "vimdiff"
+```toml
+ui.merge-editor = "meld"  # Or "kdiff3" or "vimdiff"
+```
 
 The "meld", "kdiff3", and "vimdiff" tools can be used out of the box, as long as
 they are installed.
@@ -146,16 +170,18 @@ this key and other tool configuration options, here is the out-of-the-box
 configuration of the three default tools. (There is no need to copy it to your
 config file verbatim, but you are welcome to customize it.)
 
-    # merge-tools.kdiff3.program  = "kdiff3"     # Defaults to the name of the tool if not specified
-    merge-tools.kdiff3.merge-args = ["$base", "$left", "$right", "-o", "$output", "--auto"]
-    merge-tools.meld.merge-args   = ["$left", "$base", "$right", "-o", "$output", "--auto-merge"]
+```toml
+# merge-tools.kdiff3.program  = "kdiff3"     # Defaults to the name of the tool if not specified
+merge-tools.kdiff3.merge-args = ["$base", "$left", "$right", "-o", "$output", "--auto"]
+merge-tools.meld.merge-args   = ["$left", "$base", "$right", "-o", "$output", "--auto-merge"]
 
-    merge-tools.vimdiff.merge-args = ["-f", "-d", "$output", "-M",
-                                      "$left", "$base", "$right",
-                                      "-c", "wincmd J", "-c", "set modifiable",
-                                      "-c", "set write"]
-    merge-tools.vimdiff.program = "vim"
-    merge-tools.vimdiff.merge-tool-edits-conflict-markers = true    # See below for an explanation
+merge-tools.vimdiff.merge-args = ["-f", "-d", "$output", "-M",
+                                  "$left", "$base", "$right",
+                                  "-c", "wincmd J", "-c", "set modifiable",
+                                  "-c", "set write"]
+merge-tools.vimdiff.program = "vim"
+merge-tools.vimdiff.merge-tool-edits-conflict-markers = true    # See below for an explanation
+```
 
 `jj` replaces the following arguments with the appropriate file names:
 
@@ -200,13 +226,17 @@ The location of the `jj` config file can also be overriden with the
 to a TOML file that will be used instead of any configuration file in the
 default locations. For example,
 
-    env JJ_CONFIG=/dev/null jj log       # Ignores any settings specified in the config file.
+```shell
+env JJ_CONFIG=/dev/null jj log       # Ignores any settings specified in the config file.
+```
 
 You can use one or more `--config-toml` options on the command line to specify
 additional configuration settings. This overrides settings defined in config
 files or environment variables. For example,
 
-    jj --config-toml='ui.color="always"' --config-toml='ui.difftool="kdiff3"' split
+```shell
+jj --config-toml='ui.color="always"' --config-toml='ui.difftool="kdiff3"' split
+```
 
 Config specified this way must be valid TOML. In particular, string values must
 be surrounded by quotes. To pass these quotes to `jj`, most shells require
@@ -215,5 +245,6 @@ surrounding those quotes with single quotes as shown above.
 In `sh`-compatible shells, `--config-toml` can be used to merge entire TOML
 files with the config specified in `.jjconfig.toml`:
 
-    jj --config-toml="$(cat extra-config.toml)" log
-
+```shell
+jj --config-toml="$(cat extra-config.toml)" log
+```
