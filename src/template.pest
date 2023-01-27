@@ -28,7 +28,7 @@ identifier = @{ (ASCII_ALPHANUMERIC | "_")+ }
 
 function = { identifier ~ "(" ~ template ~ ("," ~ template)* ~ ")" }
 
-method = { "." ~ identifier ~ "(" ~ template ~ ("," ~ template)* ~ ")" ~ maybe_method }
+method = { "." ~ function ~ maybe_method }
 
 maybe_method = { method | "" }
 
