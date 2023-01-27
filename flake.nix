@@ -50,9 +50,6 @@
 
               cargoLock = {
                 lockFile = "${self}/Cargo.lock";
-                outputHashes = {
-                  "renderdag-0.1.0" = "sha256-isOd0QBs5StHpj0xRwSPG40juNvnntyHPW7mT4zsPbM";
-                };
               };
               nativeBuildInputs = [
                 gzip

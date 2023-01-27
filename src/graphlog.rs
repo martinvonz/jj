@@ -15,8 +15,11 @@
 use std::hash::Hash;
 use std::io;
 use std::io::Write;
+use std::marker::PhantomData;
 
+use itertools::Itertools;
 use jujutsu_lib::settings::UserSettings;
+use renderdag::{Ancestor, GraphRowRenderer, Renderer};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 // An edge to another node in the graph
@@ -55,107 +58,80 @@ pub trait GraphLog<K: Clone + Eq + Hash> {
     ) -> io::Result<()>;
 }
 
-#[cfg(feature = "sapling")]
-mod sapling {
-    use std::hash::Hash;
-    use std::io::{self, Write};
-    use std::marker::PhantomData;
+pub struct SaplingGraphLog<'writer, K, R: Renderer<K, Output = String>> {
+    renderer: R,
+    writer: &'writer mut dyn Write,
+    phantom: PhantomData<K>,
+}
 
-    use itertools::Itertools;
-    use renderdag::{Ancestor, Renderer};
-
-    use super::{Edge, GraphLog};
-
-    pub struct SaplingGraphLog<'writer, K, R: Renderer<K, Output = String>> {
-        renderer: R,
-        writer: &'writer mut dyn Write,
-        phantom: PhantomData<K>,
-    }
-
-    impl<K: Clone> From<&Edge<K>> for Ancestor<K> {
-        fn from(e: &Edge<K>) -> Self {
-            match e {
-                Edge::Present {
-                    target,
-                    direct: true,
-                } => Ancestor::Parent(target.clone()),
-                Edge::Present { target, .. } => Ancestor::Ancestor(target.clone()),
-                Edge::Missing => Ancestor::Anonymous,
-            }
-        }
-    }
-
-    impl<'writer, K, R> GraphLog<K> for SaplingGraphLog<'writer, K, R>
-    where
-        K: Clone + Eq + Hash,
-        R: Renderer<K, Output = String>,
-    {
-        fn add_node(
-            &mut self,
-            id: &K,
-            edges: &[Edge<K>],
-            node_symbol: &str,
-            text: &str,
-        ) -> io::Result<()> {
-            let row = self.renderer.next_row(
-                id.clone(),
-                edges.iter().map_into().collect(),
-                node_symbol.into(),
-                text.into(),
-            );
-
-            write!(self.writer, "{row}")
-        }
-    }
-
-    impl<'writer, K, R> SaplingGraphLog<'writer, K, R>
-    where
-        K: Clone + Eq + Hash + 'writer,
-        R: Renderer<K, Output = String> + 'writer,
-    {
-        pub fn create(
-            renderer: R,
-            formatter: &'writer mut dyn Write,
-        ) -> Box<dyn GraphLog<K> + 'writer> {
-            Box::new(SaplingGraphLog {
-                renderer,
-                writer: formatter,
-                phantom: PhantomData,
-            })
+impl<K: Clone> From<&Edge<K>> for Ancestor<K> {
+    fn from(e: &Edge<K>) -> Self {
+        match e {
+            Edge::Present {
+                target,
+                direct: true,
+            } => Ancestor::Parent(target.clone()),
+            Edge::Present { target, .. } => Ancestor::Ancestor(target.clone()),
+            Edge::Missing => Ancestor::Anonymous,
         }
     }
 }
 
+impl<'writer, K, R> GraphLog<K> for SaplingGraphLog<'writer, K, R>
+where
+    K: Clone + Eq + Hash,
+    R: Renderer<K, Output = String>,
+{
+    fn add_node(
+        &mut self,
+        id: &K,
+        edges: &[Edge<K>],
+        node_symbol: &str,
+        text: &str,
+    ) -> io::Result<()> {
+        let row = self.renderer.next_row(
+            id.clone(),
+            edges.iter().map_into().collect(),
+            node_symbol.into(),
+            text.into(),
+        );
+
+        write!(self.writer, "{row}")
+    }
+}
+
+impl<'writer, K, R> SaplingGraphLog<'writer, K, R>
+where
+    K: Clone + Eq + Hash + 'writer,
+    R: Renderer<K, Output = String> + 'writer,
+{
+    pub fn create(
+        renderer: R,
+        formatter: &'writer mut dyn Write,
+    ) -> Box<dyn GraphLog<K> + 'writer> {
+        Box::new(SaplingGraphLog {
+            renderer,
+            writer: formatter,
+            phantom: PhantomData,
+        })
+    }
+}
+
 pub fn get_graphlog<'a, K: Clone + Eq + Hash + 'a>(
-    #[allow(unused)] settings: &UserSettings,
+    settings: &UserSettings,
     formatter: &'a mut dyn Write,
 ) -> Box<dyn GraphLog<K> + 'a> {
-    #[cfg(feature = "sapling")]
-    {
-        use renderdag::GraphRowRenderer;
-        use sapling::SaplingGraphLog;
+    let builder = GraphRowRenderer::new().output().with_min_row_height(0);
 
-        let builder = GraphRowRenderer::new().output().with_min_row_height(0);
-
-        match settings.graph_format().as_str() {
-            "curved" => return SaplingGraphLog::create(builder.build_box_drawing(), formatter),
-            "square" => {
-                return SaplingGraphLog::create(
-                    builder.build_box_drawing().with_square_glyphs(),
-                    formatter,
-                );
-            }
-            "ascii-alternative" => {
-                return SaplingGraphLog::create(builder.build_ascii(), formatter)
-            }
-            "ascii-large" => {
-                return SaplingGraphLog::create(builder.build_ascii_large(), formatter)
-            }
-            _ => {}
+    match settings.graph_format().as_str() {
+        "curved" => SaplingGraphLog::create(builder.build_box_drawing(), formatter),
+        "square" => {
+            SaplingGraphLog::create(builder.build_box_drawing().with_square_glyphs(), formatter)
         }
-    };
-
-    Box::new(AsciiGraphDrawer::new(formatter))
+        "ascii" => SaplingGraphLog::create(builder.build_ascii(), formatter),
+        "ascii-large" => SaplingGraphLog::create(builder.build_ascii_large(), formatter),
+        _ => Box::new(AsciiGraphDrawer::new(formatter)),
+    }
 }
 
 pub struct AsciiGraphDrawer<'writer, K> {

@@ -86,6 +86,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `[alias]` config section was renamed to `[aliases]`. The old name is
   still accepted for backwards compatibility for some time.
 
+* Commands that draw an ASCII graph (`jj log`, `jj op log`, `jj obslog`) now
+  have different styles available by setting e.g. `ui.graph.format = "curved"`.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
