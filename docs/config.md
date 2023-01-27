@@ -50,6 +50,53 @@ This setting overrides the `NO_COLOR` environment variable (if set).
 ui.color = "never" # Turn off color
 ```
 
+### Custom colors and styles
+
+You can customize the colors used for various elements of the UI. For example:
+
+```toml
+colors.commit_id = "green"
+```
+
+The following colors are available:
+
+* black
+* red
+* green
+* yellow
+* blue
+* magenta
+* cyan
+* white
+
+They each come in a bright version too, e.g. "bright red".
+
+If you use a string value for a color, as in the example above, it will be used
+for the foreground color. You can also set the background color, or make the
+text bold or underlined. For that, you need to use a table:
+
+```toml
+colors.commit_id = { fg = "green", bg = "red", bold = true, underlined = true }
+```
+
+The key names are called "labels". The above used `commit_id` as label. You can
+also create rules combining multiple labels. The rules work a bit like CSS
+selectors. For example, if you want to color commit IDs green in general but
+make the commit ID of the working-copy commit also be underlined, you can do
+this:
+
+```toml
+colors.commit_id = "green"
+colors."working_copy commit_id" = { underlined = true }
+```
+
+Parts of the style that are not overridden - such as the foreground color in the
+example above - are inherited from the parent style.
+
+Which elements can be colored is not yet documented, but see
+the [default color configuration](https://github.com/martinvonz/jj/blob/main/src/config/colors.toml)
+for some examples of what's possible.
+
 ### Graph style
 
 ```toml
@@ -125,7 +172,7 @@ ui.editor = "bbedit -w"     # BBEdit
 ui.editor = "subl -n -w"    # Sublime Text
 ui.editor = "mate -w"       # TextMate
 ui.editor = ["C:/Program Files/Notepad++/notepad++.exe",
-             "-multiInst", "-notabbar", "-nosession", "-noPlugin"] # Notepad++
+    "-multiInst", "-notabbar", "-nosession", "-noPlugin"] # Notepad++
 ui.editor = "idea --temp-project --wait"   #IntelliJ
 ```
 
@@ -181,12 +228,12 @@ config file verbatim, but you are welcome to customize it.)
 ```toml
 # merge-tools.kdiff3.program  = "kdiff3"     # Defaults to the name of the tool if not specified
 merge-tools.kdiff3.merge-args = ["$base", "$left", "$right", "-o", "$output", "--auto"]
-merge-tools.meld.merge-args   = ["$left", "$base", "$right", "-o", "$output", "--auto-merge"]
+merge-tools.meld.merge-args = ["$left", "$base", "$right", "-o", "$output", "--auto-merge"]
 
 merge-tools.vimdiff.merge-args = ["-f", "-d", "$output", "-M",
-                                  "$left", "$base", "$right",
-                                  "-c", "wincmd J", "-c", "set modifiable",
-                                  "-c", "set write"]
+    "$left", "$base", "$right",
+    "-c", "wincmd J", "-c", "set modifiable",
+    "-c", "set write"]
 merge-tools.vimdiff.program = "vim"
 merge-tools.vimdiff.merge-tool-edits-conflict-markers = true    # See below for an explanation
 ```
