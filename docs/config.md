@@ -55,7 +55,7 @@ ui.color = "never" # Turn off color
 ```toml
 # Possible values: "curved", "square", "ascii", "ascii-large",
 # "legacy" (default)
-ui.graph.format = "curved"
+ui.graph.style = "curved"
 ```
 
 ### Shortest unique prefixes for ids
