@@ -153,9 +153,9 @@ impl UserSettings {
         &self.config
     }
 
-    pub fn graph_format(&self) -> String {
+    pub fn graph_style(&self) -> String {
         self.config
-            .get_string("ui.graph.format")
+            .get_string("ui.graph.style")
             .unwrap_or_else(|_| "legacy".to_string())
     }
 }

@@ -718,7 +718,7 @@ fn test_graph_styles() {
     "###);
 
     // ASCII style
-    test_env.add_config(r#"ui.graph.format = "ascii""#);
+    test_env.add_config(r#"ui.graph.style = "ascii""#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
     insta::assert_snapshot!(stdout, @r###"
     @    merge
@@ -735,7 +735,7 @@ fn test_graph_styles() {
     "###);
 
     // Large ASCII style
-    test_env.add_config(r#"ui.graph.format = "ascii-large""#);
+    test_env.add_config(r#"ui.graph.style = "ascii-large""#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
     insta::assert_snapshot!(stdout, @r###"
     @     merge
@@ -754,7 +754,7 @@ fn test_graph_styles() {
     "###);
 
     // Curved style
-    test_env.add_config(r#"ui.graph.format = "curved""#);
+    test_env.add_config(r#"ui.graph.style = "curved""#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
     insta::assert_snapshot!(stdout, @r###"
     @    merge
@@ -771,7 +771,7 @@ fn test_graph_styles() {
     "###);
 
     // Square style
-    test_env.add_config(r#"ui.graph.format = "square""#);
+    test_env.add_config(r#"ui.graph.style = "square""#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
     insta::assert_snapshot!(stdout, @r###"
     @    merge
