@@ -15,7 +15,6 @@
 use std::hash::Hash;
 use std::io;
 use std::io::Write;
-use std::marker::PhantomData;
 
 use itertools::Itertools;
 use jujutsu_lib::settings::UserSettings;
@@ -58,10 +57,9 @@ pub trait GraphLog<K: Clone + Eq + Hash> {
     ) -> io::Result<()>;
 }
 
-pub struct SaplingGraphLog<'writer, K, R: Renderer<K, Output = String>> {
+pub struct SaplingGraphLog<'writer, R> {
     renderer: R,
     writer: &'writer mut dyn Write,
-    phantom: PhantomData<K>,
 }
 
 impl<K: Clone> From<&Edge<K>> for Ancestor<K> {
@@ -77,7 +75,7 @@ impl<K: Clone> From<&Edge<K>> for Ancestor<K> {
     }
 }
 
-impl<'writer, K, R> GraphLog<K> for SaplingGraphLog<'writer, K, R>
+impl<'writer, K, R> GraphLog<K> for SaplingGraphLog<'writer, R>
 where
     K: Clone + Eq + Hash,
     R: Renderer<K, Output = String>,
@@ -100,19 +98,18 @@ where
     }
 }
 
-impl<'writer, K, R> SaplingGraphLog<'writer, K, R>
-where
-    K: Clone + Eq + Hash + 'writer,
-    R: Renderer<K, Output = String> + 'writer,
-{
-    pub fn create(
+impl<'writer, R> SaplingGraphLog<'writer, R> {
+    pub fn create<K>(
         renderer: R,
         formatter: &'writer mut dyn Write,
-    ) -> Box<dyn GraphLog<K> + 'writer> {
+    ) -> Box<dyn GraphLog<K> + 'writer>
+    where
+        K: Clone + Eq + Hash + 'writer,
+        R: Renderer<K, Output = String> + 'writer,
+    {
         Box::new(SaplingGraphLog {
             renderer,
             writer: formatter,
-            phantom: PhantomData,
         })
     }
 }
