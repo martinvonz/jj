@@ -50,6 +50,14 @@ This setting overrides the `NO_COLOR` environment variable (if set).
 ui.color = "never" # Turn off color
 ```
 
+### Graph style
+
+```toml
+# Possible values: "curved", "square", "ascii", "ascii-large",
+# "legacy" (default)
+ui.graph.format = "curved"
+```
+
 ### Shortest unique prefixes for ids
 
 ```toml

@@ -156,7 +156,7 @@ impl UserSettings {
     pub fn graph_format(&self) -> String {
         self.config
             .get_string("ui.graph.format")
-            .unwrap_or_else(|_| "ascii".to_string())
+            .unwrap_or_else(|_| "legacy".to_string())
     }
 }
 

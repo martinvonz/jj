@@ -681,3 +681,109 @@ fn test_graph_template_color() {
     o [38;5;1m(no description set)[39m
     "###);
 }
+
+#[test]
+fn test_graph_styles() {
+    // Test that different graph styles are available.
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "initial"]);
+    test_env.jj_cmd_success(&repo_path, &["commit", "-m", "main branch 1"]);
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "main branch 2"]);
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["new", "-m", "side branch\nwith\nlong\ndescription"],
+    );
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["new", "-m", "merge", r#"description("main branch 1")"#, "@"],
+    );
+
+    // Default (legacy) style
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @   merge
+    |\  
+    o | side branch
+    | | with
+    | | long
+    | | description
+    o | main branch 2
+    |/  
+    o main branch 1
+    o initial
+    o (no description set)
+    "###);
+
+    // ASCII style
+    test_env.add_config(r#"ui.graph.format = "ascii""#);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @    merge
+    |\
+    o |  side branch
+    | |  with
+    | |  long
+    | |  description
+    o |  main branch 2
+    |/
+    o  main branch 1
+    o  initial
+    o  (no description set)
+    "###);
+
+    // Large ASCII style
+    test_env.add_config(r#"ui.graph.format = "ascii-large""#);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @     merge
+    |\
+    | \
+    o  |  side branch
+    |  |  with
+    |  |  long
+    |  |  description
+    o  |  main branch 2
+    | /
+    |/
+    o  main branch 1
+    o  initial
+    o  (no description set)
+    "###);
+
+    // Curved style
+    test_env.add_config(r#"ui.graph.format = "curved""#);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @    merge
+    ├─╮
+    o │  side branch
+    │ │  with
+    │ │  long
+    │ │  description
+    o │  main branch 2
+    ├─╯
+    o  main branch 1
+    o  initial
+    o  (no description set)
+    "###);
+
+    // Square style
+    test_env.add_config(r#"ui.graph.format = "square""#);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @    merge
+    ├─┐
+    o │  side branch
+    │ │  with
+    │ │  long
+    │ │  description
+    o │  main branch 2
+    ├─┘
+    o  main branch 1
+    o  initial
+    o  (no description set)
+    "###);
+}

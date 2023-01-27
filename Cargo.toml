@@ -42,7 +42,7 @@ config = { version = "0.13.3", default-features = false, features = ["toml"] }
 crossterm = { version = "0.25", default-features = false }
 dirs = "4.0.0"
 git2 = "0.16.1"
-esl01-renderdag = { version = "0.3.0", optional = true }
+esl01-renderdag = "0.3.0"
 glob = "0.3.1"
 hex = "0.4.3"
 itertools = "0.10.5"
@@ -77,6 +77,5 @@ test-case = "2.2.2"
 testutils = { path = "lib/testutils" }
 
 [features]
-sapling = ["esl01-renderdag"]
 default = ["jujutsu-lib/legacy-thrift"]
 vendored-openssl = ["git2/vendored-openssl", "jujutsu-lib/vendored-openssl"]
