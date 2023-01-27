@@ -162,6 +162,9 @@ fn parse_method_chain<'a, I: 'a>(
             .into_inner()
             .next()
             .unwrap()
+            .into_inner()
+            .next()
+            .unwrap()
             .as_str()
             .to_string();
         let (property, mut labels) = match input_property {
@@ -181,7 +184,9 @@ fn parse_method_chain<'a, I: 'a>(
 fn parse_string_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, String> {
     assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
-    let name = inner.next().unwrap();
+    let func = inner.next().unwrap();
+    assert_eq!(func.as_rule(), Rule::function);
+    let name = func.into_inner().next().unwrap();
     // TODO: validate arguments
 
     let this_function = match name.as_str() {
@@ -193,9 +198,11 @@ fn parse_string_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, String> 
 }
 
 fn parse_boolean_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, bool> {
-    assert_eq!(method.as_rule(), Rule::maybe_method);
+    assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
-    let name = inner.next().unwrap();
+    let func = inner.next().unwrap();
+    assert_eq!(func.as_rule(), Rule::function);
+    let name = func.into_inner().next().unwrap();
     // TODO: validate arguments
 
     panic!("no such boolean method: {}", name.as_str());
@@ -206,7 +213,9 @@ fn parse_commit_or_change_id_method<'a>(
 ) -> PropertyAndLabels<'a, CommitOrChangeId<'a>> {
     assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
-    let name = inner.next().unwrap();
+    let func = inner.next().unwrap();
+    assert_eq!(func.as_rule(), Rule::function);
+    let name = func.into_inner().next().unwrap();
     // TODO: validate arguments
 
     let this_function = match name.as_str() {
@@ -223,7 +232,9 @@ fn parse_commit_or_change_id_method<'a>(
 fn parse_signature_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, Signature> {
     assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
-    let name = inner.next().unwrap();
+    let func = inner.next().unwrap();
+    assert_eq!(func.as_rule(), Rule::function);
+    let name = func.into_inner().next().unwrap();
     // TODO: validate arguments
 
     let this_function: Property<'a, Signature> = match name.as_str() {
@@ -239,7 +250,9 @@ fn parse_signature_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, Signa
 fn parse_timestamp_method<'a>(method: Pair<Rule>) -> PropertyAndLabels<'a, Timestamp> {
     assert_eq!(method.as_rule(), Rule::method);
     let mut inner = method.into_inner();
-    let name = inner.next().unwrap();
+    let func = inner.next().unwrap();
+    assert_eq!(func.as_rule(), Rule::function);
+    let name = func.into_inner().next().unwrap();
     // TODO: validate arguments
 
     let this_function = match name.as_str() {
