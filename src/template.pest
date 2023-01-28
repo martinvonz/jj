@@ -32,7 +32,7 @@ maybe_method = { ("." ~ function)* }
 
 // Note that "x(y)" is a function call but "x (y)" concatenates "x" and "y"
 term = {
-  ("(" ~ term ~ ")") ~ maybe_method
+  ("(" ~ template ~ ")") ~ maybe_method
   | function ~ maybe_method
   | identifier ~ maybe_method
   | literal ~ maybe_method
@@ -40,8 +40,7 @@ term = {
 }
 
 list = {
-  ("(" ~ list ~ ")")
-  | term ~ (whitespace+ ~ term)+
+  term ~ (whitespace+ ~ term)+
 }
 
 template = {
