@@ -36,14 +36,12 @@ term = {
   | function ~ maybe_method
   | identifier ~ maybe_method
   | literal ~ maybe_method
-  | ""
 }
 
-list = {
+list = _{
   term ~ (whitespace+ ~ term)+
 }
 
 template = {
-  list
-  | term
+  whitespace* ~ (list | term | "") ~ whitespace*
 }

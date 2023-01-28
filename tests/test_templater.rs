@@ -83,6 +83,36 @@ fn test_templater_parsed_tree() {
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
+    // Empty
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r@-", "-T", r#"  "#]);
+    insta::assert_snapshot!(stdout, @"");
+
+    // Single term with whitespace
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "--no-graph",
+            "-r@-",
+            "-T",
+            r#"  commit_id.short()  "#,
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"000000000000");
+
+    // Multiple terms
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "--no-graph",
+            "-r@-",
+            "-T",
+            r#"  commit_id.short()  empty "#,
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"000000000000true");
+
     // Parenthesized single term
     let stdout = test_env.jj_cmd_success(
         &repo_path,
