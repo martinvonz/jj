@@ -835,7 +835,8 @@ impl MutableRepo {
                 .store()
                 .get_commit(&wc_commit_id)
                 .map_err(EditCommitError::WorkingCopyCommitNotFound)?;
-            if wc_commit.is_empty()
+            if wc_commit.parent_ids().len() == 1
+                && wc_commit.parents()[0].tree_id() == wc_commit.tree_id()
                 && wc_commit.description().is_empty()
                 && self.view().heads().contains(wc_commit.id())
             {
