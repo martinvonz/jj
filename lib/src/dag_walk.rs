@@ -16,8 +16,6 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::iter::Iterator;
 
-use crate::commit::Commit;
-
 pub struct BfsIter<'id_fn, 'neighbors_fn, T, ID, NI> {
     id_fn: Box<dyn Fn(&T) -> ID + 'id_fn>,
     neighbors_fn: Box<dyn FnMut(&T) -> NI + 'neighbors_fn>,
@@ -172,19 +170,6 @@ where
         }),
     ) {}
     reachable
-}
-
-pub fn common_ancestor<'a, I1, I2>(set1: I1, set2: I2) -> Commit
-where
-    I1: IntoIterator<Item = &'a Commit>,
-    I2: IntoIterator<Item = &'a Commit>,
-{
-    let set1: Vec<Commit> = set1.into_iter().cloned().collect();
-    let set2: Vec<Commit> = set2.into_iter().cloned().collect();
-    closest_common_node(set1, set2, &|commit| commit.parents(), &|commit| {
-        commit.id().clone()
-    })
-    .unwrap()
 }
 
 pub fn closest_common_node<T, ID, II1, II2, NI>(
