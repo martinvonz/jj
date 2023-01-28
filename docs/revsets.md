@@ -91,7 +91,7 @@ revsets (expressions) as arguments.
   the branch `main`. If a branch is in a conflicted state, all its possible
   targets are included.
 * `remote_branches([branch_needle[, remote_needle]])`: All remote branch
-  targets across all remotes. If just the `branch_needle` is specificed,
+  targets across all remotes. If just the `branch_needle` is specified,
   branches whose name contains the given string across all remotes are
   selected. If both `branch_needle` and `remote_needle` are specified, the
   selection is further restricted to just the remotes whose name contains

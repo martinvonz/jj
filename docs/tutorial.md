@@ -31,7 +31,7 @@ The working copy is clean
 We can see from the output above that our working copy has a commit ID
 (`265ecf5cab2d` in the example).
 
-Let's check out a particular commit, so we get more predicable output:
+Let's check out a particular commit, so we get more predictable output:
 ```shell script
 $ jj co 080a9b37ff7e
 Working copy now at: 608c179a60df

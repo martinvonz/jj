@@ -121,7 +121,7 @@ Log all revisions which you authored, across all branches which aren't on any
 remote  
 `jj log -r 'author(your@email.com) & branches() & ~remote_branches()'`  
 Log all remote branches, which you authored or committed to  
-`jj log -r 'remote_branches() & (comitter(your@email.com) | author(your@email.com))'`  
+`jj log -r 'remote_branches() & (committer(your@email.com) | author(your@email.com))'`  
 Log all descendants of the current working copy, which aren't on a remote   
 `jj log -r ':@ & ~remote_branches()'`
 

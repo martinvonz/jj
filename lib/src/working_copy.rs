@@ -74,7 +74,7 @@ impl FileState {
     fn for_symlink(metadata: &Metadata) -> Self {
         // When using fscrypt, the reported size is not the content size. So if
         // we were to record the content size here (like we do for regular files), we
-        // would end up thinking the file has changed everytime we snapshot.
+        // would end up thinking the file has changed every time we snapshot.
         FileState {
             file_type: FileType::Symlink,
             mtime: mtime_from_metadata(metadata),

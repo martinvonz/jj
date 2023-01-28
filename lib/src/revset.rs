@@ -618,7 +618,7 @@ impl RevsetAliasDeclaration {
                     .into_inner()
                     .map(|pair| match pair.as_rule() {
                         Rule::identifier => pair.as_str().to_owned(),
-                        r => panic!("unxpected formal parameter rule {r:?}"),
+                        r => panic!("unexpected formal parameter rule {r:?}"),
                     })
                     .collect_vec();
                 if params.iter().all_unique() {
@@ -630,7 +630,7 @@ impl RevsetAliasDeclaration {
                     ))
                 }
             }
-            r => panic!("unxpected alias declaration rule {r:?}"),
+            r => panic!("unexpected alias declaration rule {r:?}"),
         }
     }
 }
@@ -795,7 +795,7 @@ fn parse_primary_rule(
         }
         Rule::symbol => parse_symbol_rule(first.into_inner(), state),
         _ => {
-            panic!("unxpected revset parse rule: {:?}", first.as_str());
+            panic!("unexpected revset parse rule: {:?}", first.as_str());
         }
     }
 }
@@ -831,7 +831,7 @@ fn parse_symbol_rule(
             ));
         }
         _ => {
-            panic!("unxpected symbol parse rule: {:?}", first.as_str());
+            panic!("unexpected symbol parse rule: {:?}", first.as_str());
         }
     }
 }

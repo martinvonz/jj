@@ -276,7 +276,7 @@ for both of these files to exist.
 
 [XDG specification]: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
 
-The location of the `jj` config file can also be overriden with the
+The location of the `jj` config file can also be overridden with the
 `JJ_CONFIG` environment variable. If it is not empty, it should contain the path
 to a TOML file that will be used instead of any configuration file in the
 default locations. For example,
