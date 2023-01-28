@@ -298,11 +298,8 @@ fn parse_commit_term<'a>(
                 match name {
                     "label" => {
                         let label_pair = inner.next().unwrap();
-                        let label_template = parse_commit_template_rule(
-                            repo,
-                            workspace_id,
-                            label_pair.into_inner().next().unwrap(),
-                        );
+                        let label_template =
+                            parse_commit_template_rule(repo, workspace_id, label_pair);
                         let arg_template = match inner.next() {
                             None => panic!("label() requires two arguments"),
                             Some(pair) => pair,
