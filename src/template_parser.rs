@@ -374,7 +374,7 @@ fn parse_commit_template_rule<'a>(
             }
             Box::new(ListTemplate(formatters))
         }
-        _ => Box::new(Literal(String::new())),
+        other => panic!("unexpected template rule: {other:?}"),
     }
 }
 

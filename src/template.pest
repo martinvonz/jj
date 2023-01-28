@@ -17,7 +17,7 @@
 // predecessors % ("predecessor: " commit_id)
 // parents % (commit_id " is a parent of " super.commit_id)
 
-whitespace = { " " | "\n" }
+whitespace = _{ " " | "\n" }
 
 escape = @{ "\\" ~ ("n" | "\"" | "\\") }
 literal_char = @{ !("\"" | "\\") ~ ANY }
