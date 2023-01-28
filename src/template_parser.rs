@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools as _;
 use jujutsu_lib::backend::{Signature, Timestamp};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::op_store::WorkspaceId;
@@ -269,86 +270,81 @@ fn parse_commit_term<'a>(
     pair: Pair<Rule>,
 ) -> Box<dyn Template<Commit> + 'a> {
     assert_eq!(pair.as_rule(), Rule::term);
-    if pair.as_str().is_empty() {
-        Box::new(Literal(String::new()))
-    } else {
-        let mut inner = pair.into_inner();
-        let expr = inner.next().unwrap();
-        let maybe_method = inner.next().unwrap();
-        assert!(inner.next().is_none());
-        match expr.as_rule() {
-            Rule::literal => {
-                let text = parse_string_literal(expr);
-                let term = PropertyAndLabels(Property::String(Box::new(Literal(text))), vec![]);
-                let PropertyAndLabels(property, labels) = parse_method_chain(maybe_method, term);
-                if labels.is_empty() {
-                    property.into_template()
-                } else {
-                    Box::new(LabelTemplate::new(property.into_template(), labels))
-                }
-            }
-            Rule::identifier => {
-                let term = parse_commit_keyword(repo, workspace_id, expr);
-                let PropertyAndLabels(property, labels) = parse_method_chain(maybe_method, term);
+    let mut inner = pair.into_inner();
+    let expr = inner.next().unwrap();
+    let maybe_method = inner.next().unwrap();
+    assert!(inner.next().is_none());
+    match expr.as_rule() {
+        Rule::literal => {
+            let text = parse_string_literal(expr);
+            let term = PropertyAndLabels(Property::String(Box::new(Literal(text))), vec![]);
+            let PropertyAndLabels(property, labels) = parse_method_chain(maybe_method, term);
+            if labels.is_empty() {
+                property.into_template()
+            } else {
                 Box::new(LabelTemplate::new(property.into_template(), labels))
             }
-            Rule::function => {
-                let mut inner = expr.into_inner();
-                let name = inner.next().unwrap().as_str();
-                match name {
-                    "label" => {
-                        let label_pair = inner.next().unwrap();
-                        let label_template =
-                            parse_commit_template_rule(repo, workspace_id, label_pair);
-                        let arg_template = match inner.next() {
-                            None => panic!("label() requires two arguments"),
-                            Some(pair) => pair,
-                        };
-                        if inner.next().is_some() {
-                            panic!("label() accepts only two arguments")
-                        }
-                        let content: Box<dyn Template<Commit> + 'a> =
-                            parse_commit_template_rule(repo, workspace_id, arg_template);
-                        let get_labels = move |commit: &Commit| -> Vec<String> {
-                            let mut buf = vec![];
-                            let mut formatter = PlainTextFormatter::new(&mut buf);
-                            label_template.format(commit, &mut formatter).unwrap();
-                            String::from_utf8(buf)
-                                .unwrap()
-                                .split_whitespace()
-                                .map(ToString::to_string)
-                                .collect()
-                        };
-                        Box::new(DynamicLabelTemplate::new(content, get_labels))
-                    }
-                    "if" => {
-                        let condition_pair = inner.next().unwrap();
-                        let condition_template = condition_pair.into_inner().next().unwrap();
-                        let condition =
-                            parse_boolean_commit_property(repo, workspace_id, condition_template);
-
-                        let true_template = match inner.next() {
-                            None => panic!("if() requires at least two arguments"),
-                            Some(pair) => parse_commit_template_rule(repo, workspace_id, pair),
-                        };
-                        let false_template = inner
-                            .next()
-                            .map(|pair| parse_commit_template_rule(repo, workspace_id, pair));
-                        if inner.next().is_some() {
-                            panic!("if() accepts at most three arguments")
-                        }
-                        Box::new(ConditionalTemplate::new(
-                            condition,
-                            true_template,
-                            false_template,
-                        ))
-                    }
-                    name => panic!("function {name} not implemented"),
-                }
-            }
-            Rule::template => parse_commit_template_rule(repo, workspace_id, expr),
-            other => panic!("unexpected term: {other:?}"),
         }
+        Rule::identifier => {
+            let term = parse_commit_keyword(repo, workspace_id, expr);
+            let PropertyAndLabels(property, labels) = parse_method_chain(maybe_method, term);
+            Box::new(LabelTemplate::new(property.into_template(), labels))
+        }
+        Rule::function => {
+            let mut inner = expr.into_inner();
+            let name = inner.next().unwrap().as_str();
+            match name {
+                "label" => {
+                    let label_pair = inner.next().unwrap();
+                    let label_template = parse_commit_template_rule(repo, workspace_id, label_pair);
+                    let arg_template = match inner.next() {
+                        None => panic!("label() requires two arguments"),
+                        Some(pair) => pair,
+                    };
+                    if inner.next().is_some() {
+                        panic!("label() accepts only two arguments")
+                    }
+                    let content: Box<dyn Template<Commit> + 'a> =
+                        parse_commit_template_rule(repo, workspace_id, arg_template);
+                    let get_labels = move |commit: &Commit| -> Vec<String> {
+                        let mut buf = vec![];
+                        let mut formatter = PlainTextFormatter::new(&mut buf);
+                        label_template.format(commit, &mut formatter).unwrap();
+                        String::from_utf8(buf)
+                            .unwrap()
+                            .split_whitespace()
+                            .map(ToString::to_string)
+                            .collect()
+                    };
+                    Box::new(DynamicLabelTemplate::new(content, get_labels))
+                }
+                "if" => {
+                    let condition_pair = inner.next().unwrap();
+                    let condition_template = condition_pair.into_inner().next().unwrap();
+                    let condition =
+                        parse_boolean_commit_property(repo, workspace_id, condition_template);
+
+                    let true_template = match inner.next() {
+                        None => panic!("if() requires at least two arguments"),
+                        Some(pair) => parse_commit_template_rule(repo, workspace_id, pair),
+                    };
+                    let false_template = inner
+                        .next()
+                        .map(|pair| parse_commit_template_rule(repo, workspace_id, pair));
+                    if inner.next().is_some() {
+                        panic!("if() accepts at most three arguments")
+                    }
+                    Box::new(ConditionalTemplate::new(
+                        condition,
+                        true_template,
+                        false_template,
+                    ))
+                }
+                name => panic!("function {name} not implemented"),
+            }
+        }
+        Rule::template => parse_commit_template_rule(repo, workspace_id, expr),
+        other => panic!("unexpected term: {other:?}"),
     }
 }
 
@@ -357,22 +353,15 @@ fn parse_commit_template_rule<'a>(
     workspace_id: &WorkspaceId,
     pair: Pair<Rule>,
 ) -> Box<dyn Template<Commit> + 'a> {
-    match pair.as_rule() {
-        Rule::template => {
-            let mut inner = pair.into_inner();
-            let formatter = parse_commit_template_rule(repo, workspace_id, inner.next().unwrap());
-            assert!(inner.next().is_none());
-            formatter
-        }
-        Rule::term => parse_commit_term(repo, workspace_id, pair),
-        Rule::list => {
-            let mut formatters: Vec<Box<dyn Template<Commit>>> = vec![];
-            for inner_pair in pair.into_inner() {
-                formatters.push(parse_commit_template_rule(repo, workspace_id, inner_pair));
-            }
-            Box::new(ListTemplate(formatters))
-        }
-        other => panic!("unexpected template rule: {other:?}"),
+    assert_eq!(pair.as_rule(), Rule::template);
+    let inner = pair.into_inner();
+    let mut templates = inner
+        .map(|term| parse_commit_term(repo, workspace_id, term))
+        .collect_vec();
+    match templates.len() {
+        0 => Box::new(Literal(String::new())),
+        1 => Box::new(templates.pop().unwrap()),
+        _ => Box::new(ListTemplate(templates)),
     }
 }
 
