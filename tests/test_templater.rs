@@ -76,3 +76,30 @@ fn test_templater_branches() {
     o 000000000000 
     "###);
 }
+
+#[test]
+fn test_templater_parsed_tree() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Parenthesized single term
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "--no-graph", "-r@-", "-T", r#"(commit_id.short())"#],
+    );
+    insta::assert_snapshot!(stdout, @"000000000000");
+
+    // Parenthesized multiple terms and concatenation
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "--no-graph",
+            "-r@-",
+            "-T",
+            r#"(commit_id.short() " ") empty"#,
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"000000000000 true");
+}

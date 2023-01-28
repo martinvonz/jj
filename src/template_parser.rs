@@ -349,6 +349,7 @@ fn parse_commit_term<'a>(
                     name => panic!("function {name} not implemented"),
                 }
             }
+            Rule::template => parse_commit_template_rule(repo, workspace_id, expr),
             other => panic!("unexpected term: {other:?}"),
         }
     }
