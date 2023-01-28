@@ -2918,7 +2918,7 @@ fn cmd_debug(
                 crate::template_parser::Rule::template,
                 &template_matches.template,
             );
-            writeln!(ui, "{parse:?}")?;
+            writeln!(ui, "{parse:#?}")?;
         }
         DebugCommands::Index(_index_matches) => {
             let workspace_command = command.workspace_helper(ui)?;
