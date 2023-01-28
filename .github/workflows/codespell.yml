@@ -1,0 +1,22 @@
+name: Codespell
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions: read-all
+
+jobs:
+  codespell:
+    name: Codespell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
+      - uses: codespell-project/actions-codespell@v1
+        with:
+          check_filenames: true
+          check_hidden: true
+          skip: target,.jj
+          ignore_words_list: crate,nd,nD
