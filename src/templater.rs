@@ -494,8 +494,18 @@ impl CommitOrChangeId<'_> {
         hex
     }
 
-    pub fn shortest_prefix_and_brackets(&self) -> String {
-        highlight_shortest_prefix_brackets(self, 12)
+    fn shortest_prefix_and_brackets(&self) -> String {
+        let hex = self.hex();
+        let (prefix, rest) = extract_entire_prefix_and_trimmed_tail(
+            &hex,
+            self.repo.shortest_unique_id_prefix_len(self.as_bytes()),
+            12 - 2,
+        );
+        if rest.is_empty() {
+            prefix.to_string()
+        } else {
+            format!("{prefix}[{rest}]")
+        }
     }
 }
 
@@ -548,20 +558,6 @@ mod tests {
             "",
         )
         "###);
-    }
-}
-
-fn highlight_shortest_prefix_brackets(id: &CommitOrChangeId, total_len: usize) -> String {
-    let hex = id.hex();
-    let (prefix, rest) = extract_entire_prefix_and_trimmed_tail(
-        &hex,
-        id.repo.shortest_unique_id_prefix_len(id.as_bytes()),
-        total_len - 2,
-    );
-    if rest.is_empty() {
-        prefix.to_string()
-    } else {
-        format!("{prefix}[{rest}]")
     }
 }
 
