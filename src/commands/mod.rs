@@ -2557,6 +2557,7 @@ fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(
     let mut tx =
         workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
     let base_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &commit.parents());
+    let interactive = args.paths.is_empty();
     let instructions = format!(
         "\
 You are splitting a commit in two: {}
@@ -2574,10 +2575,10 @@ don't make any changes, then the operation will be aborted.
         &base_tree,
         &commit.tree(),
         &instructions,
-        args.paths.is_empty(),
+        interactive,
         matcher.as_ref(),
     )?;
-    if &tree_id == commit.tree_id() {
+    if &tree_id == commit.tree_id() && interactive {
         ui.write("Nothing changed.\n")?;
     } else {
         let middle_tree = tx
