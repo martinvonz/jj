@@ -100,6 +100,9 @@ fn test_templater_parsed_tree() {
 
     // Parenthesized multiple terms and concatenation
     insta::assert_snapshot!(render(r#"(commit_id.short() " ") empty"#), @"000000000000 true");
+
+    // Parenthesized "if" condition
+    insta::assert_snapshot!(render(r#"if((divergent), "t", "f")"#), @"f");
 }
 
 fn get_template_output(
