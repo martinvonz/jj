@@ -106,6 +106,8 @@ impl<'a, I: 'a> Property<'a, I> {
     }
 }
 
+struct PropertyAndLabels<'a, C>(Property<'a, C>, Vec<String>);
+
 fn parse_method_chain<'a, I: 'a>(
     pair: Pair<Rule>,
     input_property: PropertyAndLabels<'a, I>,
@@ -206,8 +208,6 @@ fn parse_timestamp_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<
         name => panic!("no such timestamp method: {name}"),
     }
 }
-
-struct PropertyAndLabels<'a, C>(Property<'a, C>, Vec<String>);
 
 fn parse_commit_keyword<'a>(
     repo: RepoRef<'a>,
