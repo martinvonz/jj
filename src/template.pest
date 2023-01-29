@@ -29,6 +29,7 @@ identifier = @{ (ASCII_ALPHANUMERIC | "_")+ }
 function = { identifier ~ "(" ~ function_arguments ~ ")" }
 function_arguments = {
   template ~ ("," ~ template)*
+  | whitespace*
 }
 
 maybe_method = { ("." ~ function)* }
@@ -46,7 +47,7 @@ list = _{
 }
 
 template = {
-  whitespace* ~ (list | term | "") ~ whitespace*
+  whitespace* ~ (list | term) ~ whitespace*
 }
 
-program = _{ SOI ~ template ~ EOI }
+program = _{ SOI ~ (template | whitespace*) ~ EOI }

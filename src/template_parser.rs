@@ -369,10 +369,10 @@ fn parse_commit_template_rule<'a>(
     let mut templates = inner
         .map(|term| parse_commit_term(repo, workspace_id, term))
         .collect_vec();
-    match templates.len() {
-        0 => Box::new(Literal(String::new())),
-        1 => templates.pop().unwrap(),
-        _ => Box::new(ListTemplate(templates)),
+    if templates.len() == 1 {
+        templates.pop().unwrap()
+    } else {
+        Box::new(ListTemplate(templates))
     }
 }
 
@@ -383,5 +383,9 @@ pub fn parse_commit_template<'a>(
 ) -> Box<dyn Template<Commit> + 'a> {
     let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::program, template_text).unwrap();
     let first_pair = pairs.next().unwrap();
-    parse_commit_template_rule(repo, workspace_id, first_pair)
+    if first_pair.as_rule() == Rule::EOI {
+        Box::new(Literal(String::new()))
+    } else {
+        parse_commit_template_rule(repo, workspace_id, first_pair)
+    }
 }
