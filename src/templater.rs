@@ -168,6 +168,17 @@ impl<C, O: Clone> TemplateProperty<C> for Literal<O> {
     }
 }
 
+/// Adapter to turn closure into property.
+pub struct TemplatePropertyFn<F>(pub F);
+
+impl<C, O, F: Fn(&C) -> O> TemplateProperty<C> for TemplatePropertyFn<F> {
+    type Output = O;
+
+    fn extract(&self, context: &C) -> Self::Output {
+        (self.0)(context)
+    }
+}
+
 /// Adapter to extract context-less template value from property for displaying.
 pub struct FormattablePropertyTemplate<P> {
     property: P,
@@ -494,7 +505,7 @@ impl CommitOrChangeId<'_> {
         hex
     }
 
-    fn shortest_prefix_and_brackets(&self) -> String {
+    pub fn shortest_prefix_and_brackets(&self) -> String {
         let hex = self.hex();
         let (prefix, rest) = extract_entire_prefix_and_trimmed_tail(
             &hex,
@@ -586,35 +597,6 @@ impl Template<()> for IdWithHighlightedPrefix {
     }
 }
 
-pub struct HighlightPrefix;
-impl TemplateProperty<CommitOrChangeId<'_>> for HighlightPrefix {
-    type Output = IdWithHighlightedPrefix;
-
-    fn extract(&self, context: &CommitOrChangeId) -> Self::Output {
-        context.shortest_styled_prefix()
-    }
-}
-
-pub struct CommitOrChangeIdShort;
-
-impl TemplateProperty<CommitOrChangeId<'_>> for CommitOrChangeIdShort {
-    type Output = String;
-
-    fn extract(&self, context: &CommitOrChangeId) -> Self::Output {
-        context.short()
-    }
-}
-
-pub struct CommitOrChangeIdShortestPrefixAndBrackets;
-
-impl TemplateProperty<CommitOrChangeId<'_>> for CommitOrChangeIdShortestPrefixAndBrackets {
-    type Output = String;
-
-    fn extract(&self, context: &CommitOrChangeId) -> Self::Output {
-        context.shortest_prefix_and_brackets()
-    }
-}
-
 pub struct CommitIdProperty<'a> {
     pub repo: RepoRef<'a>,
 }
@@ -642,16 +624,6 @@ impl<'a> TemplateProperty<Commit> for ChangeIdProperty<'a> {
             repo: self.repo,
             id_bytes: context.change_id().to_bytes(),
         }
-    }
-}
-
-pub struct SignatureTimestamp;
-
-impl TemplateProperty<Signature> for SignatureTimestamp {
-    type Output = Timestamp;
-
-    fn extract(&self, context: &Signature) -> Self::Output {
-        context.timestamp.clone()
     }
 }
 
