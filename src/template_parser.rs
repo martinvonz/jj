@@ -24,12 +24,11 @@ use pest_derive::Parser;
 use crate::formatter::PlainTextFormatter;
 use crate::templater::{
     AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdProperty, CommitOrChangeId,
-    CommitOrChangeIdShort, CommitOrChangeIdShortestPrefixAndBrackets, CommitterProperty,
-    ConditionalTemplate, ConflictProperty, DescriptionProperty, DivergentProperty,
-    DynamicLabelTemplate, EmptyProperty, FormattablePropertyTemplate, GitHeadProperty,
-    GitRefsProperty, HighlightPrefix, IdWithHighlightedPrefix, IsWorkingCopyProperty,
-    LabelTemplate, ListTemplate, Literal, SignatureTimestamp, TagProperty, Template,
-    TemplateFunction, TemplateProperty, WorkingCopiesProperty,
+    CommitterProperty, ConditionalTemplate, ConflictProperty, DescriptionProperty,
+    DivergentProperty, DynamicLabelTemplate, EmptyProperty, FormattablePropertyTemplate,
+    GitHeadProperty, GitRefsProperty, IdWithHighlightedPrefix, IsWorkingCopyProperty,
+    LabelTemplate, ListTemplate, Literal, TagProperty, Template, TemplateFunction,
+    TemplateProperty, TemplatePropertyFn, WorkingCopiesProperty,
 };
 use crate::time_util;
 
@@ -55,46 +54,6 @@ fn parse_string_literal(pair: Pair<Rule>) -> String {
         }
     }
     result
-}
-
-struct StringFirstLine;
-
-impl TemplateProperty<String> for StringFirstLine {
-    type Output = String;
-
-    fn extract(&self, context: &String) -> Self::Output {
-        context.lines().next().unwrap().to_string()
-    }
-}
-
-struct SignatureName;
-
-impl TemplateProperty<Signature> for SignatureName {
-    type Output = String;
-
-    fn extract(&self, context: &Signature) -> Self::Output {
-        context.name.clone()
-    }
-}
-
-struct SignatureEmail;
-
-impl TemplateProperty<Signature> for SignatureEmail {
-    type Output = String;
-
-    fn extract(&self, context: &Signature) -> Self::Output {
-        context.email.clone()
-    }
-}
-
-struct RelativeTimestampString;
-
-impl TemplateProperty<Timestamp> for RelativeTimestampString {
-    type Output = String;
-
-    fn extract(&self, context: &Timestamp) -> Self::Output {
-        time_util::format_timestamp_relative_to_now(context)
-    }
 }
 
 enum Property<'a, I> {
@@ -181,9 +140,14 @@ fn parse_method_chain<'a, I: 'a>(
 }
 
 fn parse_string_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<'a, String> {
+    fn wrap_fn<'a, O>(
+        f: impl Fn(&String) -> O + 'a,
+    ) -> Box<dyn TemplateProperty<String, Output = O> + 'a> {
+        Box::new(TemplatePropertyFn(f))
+    }
     // TODO: validate arguments
     match name.as_str() {
-        "first_line" => Property::String(Box::new(StringFirstLine)),
+        "first_line" => Property::String(wrap_fn(|s| s.lines().next().unwrap().to_string())),
         name => panic!("no such string method: {name}"),
     }
 }
@@ -197,31 +161,48 @@ fn parse_commit_or_change_id_method<'a>(
     name: Pair<Rule>,
     _args: Pairs<Rule>,
 ) -> Property<'a, CommitOrChangeId<'a>> {
+    fn wrap_fn<'a, O>(
+        f: impl Fn(&CommitOrChangeId<'a>) -> O + 'a,
+    ) -> Box<dyn TemplateProperty<CommitOrChangeId<'a>, Output = O> + 'a> {
+        Box::new(TemplatePropertyFn(f))
+    }
     // TODO: validate arguments
     match name.as_str() {
-        "short" => Property::String(Box::new(CommitOrChangeIdShort)),
+        "short" => Property::String(wrap_fn(|id| id.short())),
         "shortest_prefix_and_brackets" => {
-            Property::String(Box::new(CommitOrChangeIdShortestPrefixAndBrackets))
+            Property::String(wrap_fn(|id| id.shortest_prefix_and_brackets()))
         }
-        "shortest_styled_prefix" => Property::IdWithHighlightedPrefix(Box::new(HighlightPrefix)),
+        "shortest_styled_prefix" => {
+            Property::IdWithHighlightedPrefix(wrap_fn(|id| id.shortest_styled_prefix()))
+        }
         name => panic!("no such commit ID method: {name}"),
     }
 }
 
 fn parse_signature_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<'a, Signature> {
+    fn wrap_fn<'a, O>(
+        f: impl Fn(&Signature) -> O + 'a,
+    ) -> Box<dyn TemplateProperty<Signature, Output = O> + 'a> {
+        Box::new(TemplatePropertyFn(f))
+    }
     // TODO: validate arguments
     match name.as_str() {
-        "name" => Property::String(Box::new(SignatureName)),
-        "email" => Property::String(Box::new(SignatureEmail)),
-        "timestamp" => Property::Timestamp(Box::new(SignatureTimestamp)),
+        "name" => Property::String(wrap_fn(|signature| signature.name.clone())),
+        "email" => Property::String(wrap_fn(|signature| signature.email.clone())),
+        "timestamp" => Property::Timestamp(wrap_fn(|signature| signature.timestamp.clone())),
         name => panic!("no such commit ID method: {name}"),
     }
 }
 
 fn parse_timestamp_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<'a, Timestamp> {
+    fn wrap_fn<'a, O>(
+        f: impl Fn(&Timestamp) -> O + 'a,
+    ) -> Box<dyn TemplateProperty<Timestamp, Output = O> + 'a> {
+        Box::new(TemplatePropertyFn(f))
+    }
     // TODO: validate arguments
     match name.as_str() {
-        "ago" => Property::String(Box::new(RelativeTimestampString)),
+        "ago" => Property::String(wrap_fn(time_util::format_timestamp_relative_to_now)),
         name => panic!("no such timestamp method: {name}"),
     }
 }
