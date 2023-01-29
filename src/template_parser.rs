@@ -135,6 +135,13 @@ enum Expression<'a, C> {
 }
 
 impl<'a, C: 'a> Expression<'a, C> {
+    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<C, Output = bool> + 'a>> {
+        match self {
+            Expression::Property(PropertyAndLabels(property, _)) => property.try_into_boolean(),
+            Expression::Template(_) => None,
+        }
+    }
+
     fn into_template(self) -> Box<dyn Template<C> + 'a> {
         match self {
             Expression::Property(property_labels) => property_labels.into_template(),
@@ -273,24 +280,6 @@ fn parse_commit_keyword<'a>(
     PropertyAndLabels(property, vec![pair.as_str().to_string()])
 }
 
-fn parse_boolean_commit_property<'a>(
-    repo: RepoRef<'a>,
-    workspace_id: &WorkspaceId,
-    pair: Pair<Rule>,
-) -> Box<dyn TemplateProperty<Commit, Output = bool> + 'a> {
-    let mut inner = pair.into_inner();
-    let pair = inner.next().unwrap();
-    let _method = inner.next().unwrap();
-    assert!(inner.next().is_none());
-    match pair.as_rule() {
-        Rule::identifier => parse_commit_keyword(repo, workspace_id, pair.clone())
-            .0
-            .try_into_boolean()
-            .unwrap_or_else(|| panic!("cannot yet use this as boolean: {pair:?}")),
-        _ => panic!("cannot yet use this as boolean: {pair:?}"),
-    }
-}
-
 fn parse_commit_term<'a>(
     repo: RepoRef<'a>,
     workspace_id: &WorkspaceId,
@@ -349,9 +338,12 @@ fn parse_commit_term<'a>(
                 }
                 "if" => {
                     let condition_pair = args.next().unwrap();
-                    let condition_template = condition_pair.into_inner().next().unwrap();
                     let condition =
-                        parse_boolean_commit_property(repo, workspace_id, condition_template);
+                        parse_commit_template_rule(repo, workspace_id, condition_pair.clone())
+                            .try_into_boolean()
+                            .unwrap_or_else(|| {
+                                panic!("cannot yet use this as boolean: {condition_pair:?}")
+                            });
 
                     let true_template = match args.next() {
                         None => panic!("if() requires at least two arguments"),
