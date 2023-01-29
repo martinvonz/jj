@@ -214,10 +214,14 @@ fn topo_order_earlier_first(
     let mut visited = in_parent_file;
     while let Some(commit) = commits.pop() {
         let mut waiting_for_earlier_commit = false;
-        for earlier in commit.parents().iter().chain(commit.predecessors().iter()) {
-            if !visited.contains(earlier.id()) {
+        for earlier in commit
+            .parent_ids()
+            .iter()
+            .chain(commit.predecessor_ids().iter())
+        {
+            if !visited.contains(earlier) {
                 waiting
-                    .entry(earlier.id().clone())
+                    .entry(earlier.clone())
                     .or_insert_with(Vec::new)
                     .push(commit.clone());
                 waiting_for_earlier_commit = true;
