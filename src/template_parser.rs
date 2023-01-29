@@ -24,7 +24,7 @@ use pest_derive::Parser;
 use crate::formatter::PlainTextFormatter;
 use crate::templater::{
     AuthorProperty, BranchProperty, ChangeIdProperty, CommitIdProperty, CommitOrChangeId,
-    CommitOrChangeIdShort, CommitOrChangeIdShortPrefixAndBrackets, CommitterProperty,
+    CommitOrChangeIdShort, CommitOrChangeIdShortestPrefixAndBrackets, CommitterProperty,
     ConditionalTemplate, ConflictProperty, DescriptionProperty, DivergentProperty,
     DynamicLabelTemplate, EmptyProperty, FormattablePropertyTemplate, GitHeadProperty,
     GitRefsProperty, IsWorkingCopyProperty, LabelTemplate, ListTemplate, Literal,
@@ -192,8 +192,8 @@ fn parse_commit_or_change_id_method<'a>(
     // TODO: validate arguments
     match name.as_str() {
         "short" => Property::String(Box::new(CommitOrChangeIdShort)),
-        "short_prefix_and_brackets" => {
-            Property::String(Box::new(CommitOrChangeIdShortPrefixAndBrackets))
+        "shortest_prefix_and_brackets" => {
+            Property::String(Box::new(CommitOrChangeIdShortestPrefixAndBrackets))
         }
         name => panic!("no such commit ID method: {name}"),
     }

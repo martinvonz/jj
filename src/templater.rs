@@ -494,7 +494,7 @@ impl CommitOrChangeId<'_> {
         hex
     }
 
-    pub fn short_prefix_and_brackets(&self) -> String {
+    pub fn shortest_prefix_and_brackets(&self) -> String {
         highlight_shortest_prefix_brackets(self, 12)
     }
 }
@@ -575,13 +575,13 @@ impl TemplateProperty<CommitOrChangeId<'_>> for CommitOrChangeIdShort {
     }
 }
 
-pub struct CommitOrChangeIdShortPrefixAndBrackets;
+pub struct CommitOrChangeIdShortestPrefixAndBrackets;
 
-impl TemplateProperty<CommitOrChangeId<'_>> for CommitOrChangeIdShortPrefixAndBrackets {
+impl TemplateProperty<CommitOrChangeId<'_>> for CommitOrChangeIdShortestPrefixAndBrackets {
     type Output = String;
 
     fn extract(&self, context: &CommitOrChangeId) -> Self::Output {
-        context.short_prefix_and_brackets()
+        context.shortest_prefix_and_brackets()
     }
 }
 
