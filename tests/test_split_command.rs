@@ -26,9 +26,9 @@ fn test_split_by_paths() {
     std::fs::write(repo_path.join("file2"), "foo").unwrap();
     std::fs::write(repo_path.join("file3"), "foo").unwrap();
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id.short()"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "change_id.short()"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ 9d08ea8cac40
+    @ 9a45c67d3e96
     o 000000000000
     "###);
 
@@ -64,10 +64,10 @@ fn test_split_by_paths() {
     JJ: Lines starting with "JJ: " (like this one) will be removed.
     "###);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "commit_id.short()"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "change_id.short()"]);
     insta::assert_snapshot!(stdout, @r###"
-    @ 45833353d94e
-    o 5eebce1de3b0
+    @ ffdaa62087a2
+    o 9a45c67d3e96
     o 000000000000
     "###);
 
