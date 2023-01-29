@@ -1035,12 +1035,14 @@ impl WorkingCopy {
             .open(state_path.join("checkout"))
             .unwrap();
         file.write_all(&proto.encode_to_vec()).unwrap();
+        let tree_state =
+            TreeState::init(store.clone(), working_copy_path.clone(), state_path.clone());
         WorkingCopy {
             store,
             working_copy_path,
             state_path,
             checkout_state: OnceCell::new(),
-            tree_state: OnceCell::new(),
+            tree_state: OnceCell::with_value(tree_state),
         }
     }
 
