@@ -2915,7 +2915,7 @@ fn cmd_debug(
         }
         DebugCommands::Template(template_matches) => {
             let parse = TemplateParser::parse(
-                crate::template_parser::Rule::template,
+                crate::template_parser::Rule::program,
                 &template_matches.template,
             );
             writeln!(ui, "{parse:#?}")?;
