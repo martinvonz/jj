@@ -26,7 +26,10 @@ literal = { "\"" ~ (raw_literal | escape)* ~ "\"" }
 
 identifier = @{ (ASCII_ALPHANUMERIC | "_")+ }
 
-function = { identifier ~ "(" ~ template ~ ("," ~ template)* ~ ")" }
+function = { identifier ~ "(" ~ function_arguments ~ ")" }
+function_arguments = {
+  template ~ ("," ~ template)*
+}
 
 maybe_method = { ("." ~ function)* }
 

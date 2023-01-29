@@ -150,9 +150,14 @@ fn parse_method_chain<'a, I: 'a>(
     assert_eq!(pair.as_rule(), Rule::maybe_method);
     for chain in pair.into_inner() {
         assert_eq!(chain.as_rule(), Rule::function);
-        let mut args = chain.into_inner();
-        let name = args.next().unwrap();
-        assert_eq!(name.as_rule(), Rule::identifier);
+        let (name, args) = {
+            let mut inner = chain.into_inner();
+            let name = inner.next().unwrap();
+            let args_pair = inner.next().unwrap();
+            assert_eq!(name.as_rule(), Rule::identifier);
+            assert_eq!(args_pair.as_rule(), Rule::function_arguments);
+            (name, args_pair.into_inner())
+        };
         labels.push(name.as_str().to_owned());
         property = match property {
             Property::String(property) => parse_string_method(name, args).after(property),
@@ -291,17 +296,23 @@ fn parse_commit_term<'a>(
             Box::new(LabelTemplate::new(property.into_template(), labels))
         }
         Rule::function => {
-            let mut inner = expr.into_inner();
-            let name = inner.next().unwrap().as_str();
-            match name {
+            let (name, mut args) = {
+                let mut inner = expr.into_inner();
+                let name = inner.next().unwrap();
+                let args_pair = inner.next().unwrap();
+                assert_eq!(name.as_rule(), Rule::identifier);
+                assert_eq!(args_pair.as_rule(), Rule::function_arguments);
+                (name, args_pair.into_inner())
+            };
+            match name.as_str() {
                 "label" => {
-                    let label_pair = inner.next().unwrap();
+                    let label_pair = args.next().unwrap();
                     let label_template = parse_commit_template_rule(repo, workspace_id, label_pair);
-                    let arg_template = match inner.next() {
+                    let arg_template = match args.next() {
                         None => panic!("label() requires two arguments"),
                         Some(pair) => pair,
                     };
-                    if inner.next().is_some() {
+                    if args.next().is_some() {
                         panic!("label() accepts only two arguments")
                     }
                     let content: Box<dyn Template<Commit> + 'a> =
@@ -319,19 +330,19 @@ fn parse_commit_term<'a>(
                     Box::new(DynamicLabelTemplate::new(content, get_labels))
                 }
                 "if" => {
-                    let condition_pair = inner.next().unwrap();
+                    let condition_pair = args.next().unwrap();
                     let condition_template = condition_pair.into_inner().next().unwrap();
                     let condition =
                         parse_boolean_commit_property(repo, workspace_id, condition_template);
 
-                    let true_template = match inner.next() {
+                    let true_template = match args.next() {
                         None => panic!("if() requires at least two arguments"),
                         Some(pair) => parse_commit_template_rule(repo, workspace_id, pair),
                     };
-                    let false_template = inner
+                    let false_template = args
                         .next()
                         .map(|pair| parse_commit_template_rule(repo, workspace_id, pair));
-                    if inner.next().is_some() {
+                    if args.next().is_some() {
                         panic!("if() accepts at most three arguments")
                     }
                     Box::new(ConditionalTemplate::new(
