@@ -381,17 +381,7 @@ pub fn parse_commit_template<'a>(
     workspace_id: &WorkspaceId,
     template_text: &str,
 ) -> Box<dyn Template<Commit> + 'a> {
-    let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::template, template_text).unwrap();
-
+    let mut pairs: Pairs<Rule> = TemplateParser::parse(Rule::program, template_text).unwrap();
     let first_pair = pairs.next().unwrap();
-    assert!(pairs.next().is_none());
-
-    assert_eq!(
-        first_pair.as_span().end(),
-        template_text.len(),
-        "failed to parse template past position {}",
-        first_pair.as_span().end()
-    );
-
     parse_commit_template_rule(repo, workspace_id, first_pair)
 }

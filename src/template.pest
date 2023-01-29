@@ -48,3 +48,5 @@ list = _{
 template = {
   whitespace* ~ (list | term | "") ~ whitespace*
 }
+
+program = _{ SOI ~ template ~ EOI }
