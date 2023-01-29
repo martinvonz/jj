@@ -360,7 +360,7 @@ fn parse_commit_template_rule<'a>(
         .collect_vec();
     match templates.len() {
         0 => Box::new(Literal(String::new())),
-        1 => Box::new(templates.pop().unwrap()),
+        1 => templates.pop().unwrap(),
         _ => Box::new(ListTemplate(templates)),
     }
 }
