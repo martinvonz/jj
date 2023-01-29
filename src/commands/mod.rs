@@ -2580,62 +2580,61 @@ don't make any changes, then the operation will be aborted.
     )?;
     if &tree_id == commit.tree_id() && interactive {
         ui.write("Nothing changed.\n")?;
-    } else {
-        let middle_tree = tx
-            .base_repo()
-            .store()
-            .get_tree(&RepoPath::root(), &tree_id)?;
-
-        let first_template = description_template_for_cmd_split(
-            tx.base_workspace_helper(),
-            "Enter commit description for the first part (parent).",
-            commit.description(),
-            &base_tree,
-            &middle_tree,
-        )?;
-        let first_description =
-            edit_description(tx.base_repo(), &first_template, command.settings())?;
-        let first_commit = tx
-            .mut_repo()
-            .rewrite_commit(command.settings(), &commit)
-            .set_tree(tree_id)
-            .set_description(first_description)
-            .write()?;
-        let second_template = description_template_for_cmd_split(
-            tx.base_workspace_helper(),
-            "Enter commit description for the second part (child).",
-            commit.description(),
-            &middle_tree,
-            &commit.tree(),
-        )?;
-        let second_description =
-            edit_description(tx.base_repo(), &second_template, command.settings())?;
-        let second_commit = tx
-            .mut_repo()
-            .rewrite_commit(command.settings(), &commit)
-            .set_parents(vec![first_commit.id().clone()])
-            .set_tree(commit.tree_id().clone())
-            .generate_new_change_id()
-            .set_description(second_description)
-            .write()?;
-        let mut rebaser = DescendantRebaser::new(
-            command.settings(),
-            tx.mut_repo(),
-            hashmap! { commit.id().clone() => hashset!{second_commit.id().clone()} },
-            hashset! {},
-        );
-        rebaser.rebase_all()?;
-        let num_rebased = rebaser.rebased().len();
-        if num_rebased > 0 {
-            writeln!(ui, "Rebased {num_rebased} descendant commits")?;
-        }
-        ui.write("First part: ")?;
-        tx.write_commit_summary(ui.stdout_formatter().as_mut(), &first_commit)?;
-        ui.write("\nSecond part: ")?;
-        tx.write_commit_summary(ui.stdout_formatter().as_mut(), &second_commit)?;
-        ui.write("\n")?;
-        tx.finish(ui)?;
+        return Ok(());
     }
+    let middle_tree = tx
+        .base_repo()
+        .store()
+        .get_tree(&RepoPath::root(), &tree_id)?;
+
+    let first_template = description_template_for_cmd_split(
+        tx.base_workspace_helper(),
+        "Enter commit description for the first part (parent).",
+        commit.description(),
+        &base_tree,
+        &middle_tree,
+    )?;
+    let first_description = edit_description(tx.base_repo(), &first_template, command.settings())?;
+    let first_commit = tx
+        .mut_repo()
+        .rewrite_commit(command.settings(), &commit)
+        .set_tree(tree_id)
+        .set_description(first_description)
+        .write()?;
+    let second_template = description_template_for_cmd_split(
+        tx.base_workspace_helper(),
+        "Enter commit description for the second part (child).",
+        commit.description(),
+        &middle_tree,
+        &commit.tree(),
+    )?;
+    let second_description =
+        edit_description(tx.base_repo(), &second_template, command.settings())?;
+    let second_commit = tx
+        .mut_repo()
+        .rewrite_commit(command.settings(), &commit)
+        .set_parents(vec![first_commit.id().clone()])
+        .set_tree(commit.tree_id().clone())
+        .generate_new_change_id()
+        .set_description(second_description)
+        .write()?;
+    let mut rebaser = DescendantRebaser::new(
+        command.settings(),
+        tx.mut_repo(),
+        hashmap! { commit.id().clone() => hashset!{second_commit.id().clone()} },
+        hashset! {},
+    );
+    rebaser.rebase_all()?;
+    let num_rebased = rebaser.rebased().len();
+    if num_rebased > 0 {
+        writeln!(ui, "Rebased {num_rebased} descendant commits")?;
+    }
+    ui.write("First part: ")?;
+    tx.write_commit_summary(ui.stdout_formatter().as_mut(), &first_commit)?;
+    ui.write("\nSecond part: ")?;
+    tx.write_commit_summary(ui.stdout_formatter().as_mut(), &second_commit)?;
+    ui.write("\n")?;
+    tx.finish(ui)?;
     Ok(())
 }
 
