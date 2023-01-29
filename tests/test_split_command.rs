@@ -80,4 +80,55 @@ fn test_split_by_paths() {
     A file1
     A file3
     "###);
+
+    // Insert an empty commit after @- with "split ."
+    test_env.set_up_fake_editor();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["split", "-r", "@-", "."]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 1 descendant commits
+    First part: 31425b568fcf (no description set)
+    Second part: af0963926ac3 (no description set)
+    Working copy now at: 28d4ec20efa9 (no description set)
+    "###);
+
+    let stdout =
+        test_env.jj_cmd_success(&repo_path, &["log", "-T", r#"change_id.short() " " empty"#]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ ffdaa62087a2 false
+    o 19b790168e73 true
+    o 9a45c67d3e96 false
+    o 000000000000 true
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@--"]);
+    insta::assert_snapshot!(stdout, @r###"
+    A file2
+    "###);
+
+    // Remove newly created empty commit
+    test_env.jj_cmd_success(&repo_path, &["abandon", "@-"]);
+
+    // Insert an empty commit before @- with "split nonexistent"
+    test_env.set_up_fake_editor();
+    let stdout = test_env.jj_cmd_success(&repo_path, &["split", "-r", "@-", "nonexistent"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 1 descendant commits
+    First part: 0647b2cbd0da (no description set)
+    Second part: d5d77af65446 (no description set)
+    Working copy now at: 86f228dc3a50 (no description set)
+    "###);
+
+    let stdout =
+        test_env.jj_cmd_success(&repo_path, &["log", "-T", r#"change_id.short() " " empty"#]);
+    insta::assert_snapshot!(stdout, @r###"
+    @ ffdaa62087a2 false
+    o fa9213bcf78e false
+    o 9a45c67d3e96 true
+    o 000000000000 true
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    A file2
+    "###);
 }

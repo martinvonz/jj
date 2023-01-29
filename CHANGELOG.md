@@ -89,6 +89,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Commands that draw an ASCII graph (`jj log`, `jj op log`, `jj obslog`) now
   have different styles available by setting e.g. `ui.graph.style = "curved"`.
 
+* `jj split` accepts creating empty commits when given a path. `jj split .`
+  inserts an empty commit between the target commit and its children if any,
+  and `jj split any-non-existent-path` inserts an empty commit between the
+  target commit and its parents.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
