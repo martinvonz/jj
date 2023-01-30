@@ -39,7 +39,7 @@ clap = { version = "4.0.32", features = ["derive", "deprecated"] }
 clap_complete = "4.0.7"
 clap_mangen = "0.2.6"
 config = { version = "0.13.3", default-features = false, features = ["toml"] }
-crossterm = { version = "0.25", default-features = false }
+crossterm = { version = "0.26", default-features = false }
 dirs = "4.0.0"
 git2 = "0.16.1"
 esl01-renderdag = "0.3.0"
