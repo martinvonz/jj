@@ -130,6 +130,16 @@ fn test_git_push_no_current_branch() {
 }
 
 #[test]
+fn test_git_push_current_branch_unchanged() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_success(&workspace_root, &["co", "branch1"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Nothing changed.
+    "###);
+}
+
+#[test]
 fn test_git_push_multiple() {
     let (test_env, workspace_root) = set_up();
     test_env.jj_cmd_success(&workspace_root, &["branch", "delete", "branch1"]);

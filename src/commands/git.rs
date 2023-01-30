@@ -645,6 +645,9 @@ fn cmd_git_push(
                         );
                     }
                 }
+                if branches.is_empty() {
+                    return Err(user_error("No current branch."));
+                }
                 for (branch_name, branch_target) in branches {
                     if !seen_branches.insert(branch_name.clone()) {
                         continue;
@@ -660,9 +663,6 @@ fn cmd_git_push(
                     }
                 }
             }
-        }
-        if branch_updates.is_empty() {
-            return Err(user_error("No current branch."));
         }
         tx = workspace_command.start_transaction(&format!(
             "push current branch(es) to git remote {}",
