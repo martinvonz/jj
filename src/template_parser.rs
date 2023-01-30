@@ -89,6 +89,16 @@ impl<'a, I: 'a> Property<'a, I> {
         }
     }
 
+    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<I, Output = bool> + 'a>> {
+        match self {
+            Property::String(property) => {
+                Some(Box::new(TemplateFunction::new(property, |s| !s.is_empty())))
+            }
+            Property::Boolean(property) => Some(property),
+            _ => None,
+        }
+    }
+
     fn into_template(self) -> Box<dyn Template<I> + 'a> {
         fn wrap<'a, I: 'a, O: Template<()> + 'a>(
             property: Box<dyn TemplateProperty<I, Output = O> + 'a>,
@@ -273,13 +283,10 @@ fn parse_boolean_commit_property<'a>(
     let _method = inner.next().unwrap();
     assert!(inner.next().is_none());
     match pair.as_rule() {
-        Rule::identifier => match parse_commit_keyword(repo, workspace_id, pair.clone()).0 {
-            Property::Boolean(property) => property,
-            Property::String(property) => {
-                Box::new(TemplateFunction::new(property, |string| !string.is_empty()))
-            }
-            _ => panic!("cannot yet use this as boolean: {pair:?}"),
-        },
+        Rule::identifier => parse_commit_keyword(repo, workspace_id, pair.clone())
+            .0
+            .try_into_boolean()
+            .unwrap_or_else(|| panic!("cannot yet use this as boolean: {pair:?}")),
         _ => panic!("cannot yet use this as boolean: {pair:?}"),
     }
 }
