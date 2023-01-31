@@ -82,6 +82,11 @@
                         }
                     }
                 },
+                "unique-prefixes": {
+                    "enum": ["none", "brackets"],
+                    "description": "How formatter indicates the unique prefix part of a revision or change ID",
+                    "default": "brackets"
+                },
                 "editor": {
                     "type": "string",
                     "description": "Editor to use for commands that involve editing text"
@@ -165,6 +170,17 @@
                         }
                     }
                 ]
+            }
+        },
+        "git": {
+            "type": "object",
+            "description": "Settings for git behavior (when using git backend)",
+            "properties": {
+                "auto-local-branch": {
+                    "type": "boolean",
+                    "description": "Whether jj creates a local branch with the same name when it imports a remote-tracking branch from git. See https://github.com/martinvonz/jj/blob/main/docs/config.md#automatic-local-branch-creation",
+                    "default": true
+                }
             }
         },
         "merge-tools": {
