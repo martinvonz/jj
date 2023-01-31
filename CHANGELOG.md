@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Operations written by a new `jj` binary will have a "HEAD@git" reference that
   is not visible to older binaries.
 
+* The `description` template keyword is now empty if no description set.
+  Use `if(description, description, "(no description set)\n")` to get back
+  the previous behavior.
+
 ### New features
 
 * The default log format now uses the committer timestamp instead of the author

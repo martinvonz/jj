@@ -37,7 +37,7 @@ fn test_concurrent_operation_divergence() {
     o message 2
     | @ message 1
     |/  
-    o (no description set)
+    o 
     "###);
 }
 
@@ -76,7 +76,7 @@ fn test_concurrent_operations_auto_rebase() {
     Rebased 1 descendant commits onto commits rewritten by other operation
     o 3f06323826b4a293a9ee6d24cc0e07ad2961b5d5 new child
     @ d91437157468ec86bbbc9e6a14a60d3e8d1790ac rewritten
-    o 0000000000000000000000000000000000000000 (no description set)
+    o 0000000000000000000000000000000000000000 
     "###);
 }
 
@@ -109,7 +109,7 @@ fn test_concurrent_operations_wc_modified() {
     | o 4b20e61d23ee7d7c4d5e61e11e97c26e716f9c30 new child2
     |/  
     o 52c893bf3cd201e215b23e084e8a871244ca14d5 initial
-    o 0000000000000000000000000000000000000000 (no description set)
+    o 0000000000000000000000000000000000000000 
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
     insta::assert_snapshot!(stdout, @r###"

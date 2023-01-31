@@ -1446,6 +1446,9 @@ pub fn update_working_copy(
     Ok(stats)
 }
 
+pub const DESCRIPTION_PLACEHOLDER_TEMPLATE: &str =
+    r#"label("description", "(no description set)")"#;
+
 pub fn write_commit_summary(
     formatter: &mut dyn Formatter,
     repo: RepoRef,
@@ -1456,7 +1459,14 @@ pub fn write_commit_summary(
     let template_string = settings
         .config()
         .get_string("template.commit_summary")
-        .unwrap_or_else(|_| String::from(r#"commit_id.short() " " description.first_line()"#));
+        .unwrap_or_else(|_| {
+            format!(
+                r#"
+                    commit_id.short() " "
+                    if(description, description.first_line(), {DESCRIPTION_PLACEHOLDER_TEMPLATE})
+                    "#,
+            )
+        });
     let template =
         crate::template_parser::parse_commit_template(repo, workspace_id, &template_string);
     template.format(commit, formatter)

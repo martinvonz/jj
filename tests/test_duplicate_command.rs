@@ -46,7 +46,7 @@ fn test_duplicate() {
     o | d370aee184ba   b
     | o 2443ea76b0b1   a
     |/  
-    o 000000000000   (no description set)
+    o 000000000000   
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["duplicate", "root"]);
@@ -66,7 +66,7 @@ fn test_duplicate() {
     |/ /  
     | o 2443ea76b0b1   a
     |/  
-    o 000000000000   (no description set)
+    o 000000000000   
     "###);
 
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["undo"]), @"");
@@ -85,7 +85,7 @@ fn test_duplicate() {
     o | d370aee184ba   b
     | o 2443ea76b0b1   a
     |/  
-    o 000000000000   (no description set)
+    o 000000000000   
     "###);
 }
 
@@ -109,7 +109,7 @@ fn test_duplicate_many() {
     | o 1394f625cbbd   b
     |/  
     o 2443ea76b0b1   a
-    o 000000000000   (no description set)
+    o 000000000000   
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b:"]);
@@ -130,7 +130,7 @@ fn test_duplicate_many() {
     | o 1394f625cbbd   b
     |/  
     o 2443ea76b0b1   a
-    o 000000000000   (no description set)
+    o 000000000000   
     "###);
 
     // Try specifying the same commit twice directly
@@ -149,7 +149,7 @@ fn test_duplicate_many() {
     | o 1394f625cbbd   b
     |/  
     o 2443ea76b0b1   a
-    o 000000000000   (no description set)
+    o 000000000000   
     "###);
 
     // Try specifying the same commit twice indirectly
@@ -175,7 +175,7 @@ fn test_duplicate_many() {
     | o 1394f625cbbd   b
     |/  
     o 2443ea76b0b1   a
-    o 000000000000   (no description set)
+    o 000000000000   
     "###);
 
     test_env.jj_cmd_success(&repo_path, &["undo"]);
@@ -188,7 +188,7 @@ fn test_duplicate_many() {
     | o 1394f625cbbd   b
     |/  
     o 2443ea76b0b1   a
-    o 000000000000   (no description set)
+    o 000000000000   
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "d:", "a"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -213,7 +213,7 @@ fn test_duplicate_many() {
     |/ /  
     o | 2443ea76b0b1   a
     |/  
-    o 000000000000   (no description set)
+    o 000000000000   
     "###);
 
     // Check for BUG -- makes too many 'a'-s, etc.
@@ -242,7 +242,7 @@ fn test_duplicate_many() {
     | |/  
     | o 2443ea76b0b1   a
     |/  
-    o 000000000000   (no description set)
+    o 000000000000   
     "###);
 }
 
@@ -256,7 +256,7 @@ fn test_undo_after_duplicate() {
     create_commit(&test_env, &repo_path, "a", &[]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 2443ea76b0b1   a
-    o 000000000000   (no description set)
+    o 000000000000   
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "a"]);
@@ -267,13 +267,13 @@ fn test_undo_after_duplicate() {
     o f5cefcbb65a4   a
     | @ 2443ea76b0b1   a
     |/  
-    o 000000000000   (no description set)
+    o 000000000000   
     "###);
 
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["undo"]), @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @ 2443ea76b0b1   a
-    o 000000000000   (no description set)
+    o 000000000000   
     "###);
 }
 
@@ -290,7 +290,7 @@ fn test_rebase_duplicates() {
     insta::assert_snapshot!(get_log_output_with_ts(&test_env, &repo_path), @r###"
     @ 1394f625cbbd   b @ 2001-02-03 04:05:11.000 +07:00
     o 2443ea76b0b1   a @ 2001-02-03 04:05:09.000 +07:00
-    o 000000000000   (no description set) @ 1970-01-01 00:00:00.000 +00:00
+    o 000000000000    @ 1970-01-01 00:00:00.000 +00:00
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["duplicate", "b"]);
@@ -308,7 +308,7 @@ fn test_rebase_duplicates() {
     | @ 1394f625cbbd   b @ 2001-02-03 04:05:11.000 +07:00
     |/  
     o 2443ea76b0b1   a @ 2001-02-03 04:05:09.000 +07:00
-    o 000000000000   (no description set) @ 1970-01-01 00:00:00.000 +00:00
+    o 000000000000    @ 1970-01-01 00:00:00.000 +00:00
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["rebase", "-s", "a", "-d", "a-"]);
@@ -325,7 +325,7 @@ fn test_rebase_duplicates() {
     | @ 29bd36b60e60   b @ 2001-02-03 04:05:16.000 +07:00
     |/  
     o 2f6dc5a1ffc2   a @ 2001-02-03 04:05:16.000 +07:00
-    o 000000000000   (no description set) @ 1970-01-01 00:00:00.000 +00:00
+    o 000000000000    @ 1970-01-01 00:00:00.000 +00:00
     "###);
 }
 

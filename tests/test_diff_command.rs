@@ -275,7 +275,6 @@ fn test_color_words_diff_missing_newline() {
         &["log", "-Tdescription", "-pr:@-", "--no-graph", "--reversed"],
     );
     insta::assert_snapshot!(stdout, @r###"
-    (no description set)
     === Empty
     Added regular file file1:
     === Add no newline
@@ -369,7 +368,6 @@ fn test_diff_skipped_context() {
         &["log", "-Tdescription", "-p", "--no-graph", "--reversed"],
     );
     insta::assert_snapshot!(stdout, @r###"
-    (no description set)
     === Left side of diffs
     Added regular file file1:
             1: a

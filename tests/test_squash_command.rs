@@ -255,9 +255,7 @@ fn test_squash_description() {
     std::fs::write(repo_path.join("file1"), "b\n").unwrap();
     std::fs::write(repo_path.join("file2"), "b\n").unwrap();
     test_env.jj_cmd_success(&repo_path, &["squash"]);
-    insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @r###"
-    (no description set)
-    "###);
+    insta::assert_snapshot!(get_description(&test_env, &repo_path, "@-"), @"");
 
     // If the destination's description is empty and the source's description is
     // non-empty, the resulting description is from the source
