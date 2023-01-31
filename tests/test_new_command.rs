@@ -106,6 +106,211 @@ fn test_new_merge() {
     "###);
 }
 
+#[test]
+fn test_new_insert_before() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    setup_before_insertion(&test_env, &repo_path);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    @   F
+    |\  
+    o | E
+    | o D
+    |/  
+    | o C
+    | o B
+    | o A
+    |/  
+    o root
+    "###);
+
+    let stdout =
+        test_env.jj_cmd_success(&repo_path, &["new", "--insert-before", "-m", "G", "C", "F"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 2 descendant commits
+    Working copy now at: ff6bbbc7b8df G
+    "###);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    o F
+    | o C
+    |/  
+    @-.   G
+    |\ \  
+    o | | E
+    | o | D
+    |/ /  
+    | o B
+    | o A
+    |/  
+    o root
+    "###);
+}
+
+#[test]
+fn test_new_insert_before_root_successors() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    setup_before_insertion(&test_env, &repo_path);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    @   F
+    |\  
+    o | E
+    | o D
+    |/  
+    | o C
+    | o B
+    | o A
+    |/  
+    o root
+    "###);
+
+    let stdout =
+        test_env.jj_cmd_success(&repo_path, &["new", "--insert-before", "-m", "G", "A", "D"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 5 descendant commits
+    Working copy now at: 3654197754f8 G
+    "###);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    o   F
+    |\  
+    | | o C
+    | | o B
+    o | | D
+    | | o A
+    | |/  
+    |/|   
+    @ | G
+    | o E
+    |/  
+    o root
+    "###);
+}
+
+#[test]
+fn test_new_insert_before_no_loop() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    setup_before_insertion(&test_env, &repo_path);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-T",
+            r#"commit_id.short() " " if(description, description, "root")"#,
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @   7705d353bf5d F
+    |\  
+    o | 41a89ffcbba2 E
+    | o c9257eff5bf9 D
+    |/  
+    | o ec18c57d72d8 C
+    | o 6041917ceeb5 B
+    | o 65b1ef43c737 A
+    |/  
+    o 000000000000 root
+    "###);
+
+    let stderr =
+        test_env.jj_cmd_failure(&repo_path, &["new", "--insert-before", "-m", "G", "A", "C"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Refusing to create a loop: commit 6041917ceeb5 would be both an ancestor and a descendant of the new commit
+    "###);
+}
+
+#[test]
+fn test_new_insert_before_no_root_merge() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    setup_before_insertion(&test_env, &repo_path);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    @   F
+    |\  
+    o | E
+    | o D
+    |/  
+    | o C
+    | o B
+    | o A
+    |/  
+    o root
+    "###);
+
+    let stdout =
+        test_env.jj_cmd_success(&repo_path, &["new", "--insert-before", "-m", "G", "B", "D"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 4 descendant commits
+    Working copy now at: bf9fc49331de G
+    "###);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    o   F
+    |\  
+    | | o C
+    o | | D
+    | | o B
+    | |/  
+    |/|   
+    @ | G
+    | o E
+    o | A
+    |/  
+    o root
+    "###);
+}
+
+#[test]
+fn test_new_insert_before_root() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    setup_before_insertion(&test_env, &repo_path);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    @   F
+    |\  
+    o | E
+    | o D
+    |/  
+    | o C
+    | o B
+    | o A
+    |/  
+    o root
+    "###);
+
+    let stderr =
+        test_env.jj_cmd_failure(&repo_path, &["new", "--insert-before", "-m", "G", "root"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot insert a commit before the root commit
+    "###);
+}
+
+fn setup_before_insertion(test_env: &TestEnvironment, repo_path: &Path) {
+    test_env.jj_cmd_success(repo_path, &["branch", "create", "A"]);
+    test_env.jj_cmd_success(repo_path, &["commit", "-m", "A"]);
+    test_env.jj_cmd_success(repo_path, &["branch", "create", "B"]);
+    test_env.jj_cmd_success(repo_path, &["commit", "-m", "B"]);
+    test_env.jj_cmd_success(repo_path, &["branch", "create", "C"]);
+    test_env.jj_cmd_success(repo_path, &["describe", "-m", "C"]);
+    test_env.jj_cmd_success(repo_path, &["new", "-m", "D", "root"]);
+    test_env.jj_cmd_success(repo_path, &["branch", "create", "D"]);
+    test_env.jj_cmd_success(repo_path, &["new", "-m", "E", "root"]);
+    test_env.jj_cmd_success(repo_path, &["branch", "create", "E"]);
+    test_env.jj_cmd_success(repo_path, &["new", "-m", "F", "D", "E"]);
+    test_env.jj_cmd_success(repo_path, &["branch", "create", "F"]);
+}
+
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["log", "-T", "commit_id \" \" description"])
+}
+
+fn get_short_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(
+        repo_path,
+        &["log", "-T", r#"if(description, description, "root")"#],
+    )
 }

@@ -459,6 +459,9 @@ struct NewArgs {
     /// Allow revsets expanding to multiple commits in a single argument
     #[arg(long, short = 'L')]
     allow_large_revsets: bool,
+    /// Insert the new change between the target commit(s) and their parents
+    #[arg(long, short = 'B', visible_alias = "before")]
+    insert_before: bool,
 }
 
 /// Move changes from one revision into another
@@ -2024,21 +2027,84 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
         !args.revisions.is_empty(),
         "expected a non-empty list from clap"
     );
-    let commits = resolve_destination_revs(
+    let target_commits = resolve_destination_revs(
         &workspace_command,
         &args.revisions,
         args.allow_large_revsets,
     )?
     .into_iter()
     .collect_vec();
-    let parent_ids = commits.iter().map(|c| c.id().clone()).collect();
+    let target_ids = target_commits.iter().map(|c| c.id().clone()).collect_vec();
     let mut tx = workspace_command.start_transaction("new empty commit");
-    let merged_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &commits);
-    let new_commit = tx
-        .mut_repo()
-        .new_commit(command.settings(), parent_ids, merged_tree.id().clone())
-        .set_description(&args.message)
-        .write()?;
+    let mut num_rebased = 0;
+    let new_commit;
+    if args.insert_before {
+        // Instead of having the new commit as a child of the changes given on the
+        // command line, add it between the changes' parents and the changes.
+        // The parents of the new commit will be the parents of the target commits
+        // which are not descendants of other target commits.
+        let root_commit = tx.base_repo().store().root_commit();
+        if target_ids.contains(root_commit.id()) {
+            return Err(user_error("Cannot insert a commit before the root commit"));
+        }
+        let new_children = RevsetExpression::commits(target_ids.clone());
+        let new_parents = new_children.parents();
+        if let Some(commit_id) = tx
+            .base_workspace_helper()
+            .evaluate_revset(&new_children.dag_range_to(&new_parents))?
+            .iter()
+            .commit_ids()
+            .next()
+        {
+            return Err(user_error(format!(
+                "Refusing to create a loop: commit {} would be both an ancestor and a descendant \
+                 of the new commit",
+                short_commit_hash(&commit_id),
+            )));
+        }
+        let mut new_parents_commits: Vec<Commit> = tx
+            .base_workspace_helper()
+            .evaluate_revset(&new_parents)?
+            .iter()
+            .commits(tx.base_repo().store())
+            .try_collect()?;
+        // The git backend does not support creating merge commits involving the root
+        // commit.
+        if new_parents_commits.len() > 1 {
+            new_parents_commits.retain(|c| c != &root_commit);
+        }
+        let merged_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &new_parents_commits);
+        let new_parents_commit_id = new_parents_commits.iter().map(|c| c.id().clone()).collect();
+        new_commit = tx
+            .mut_repo()
+            .new_commit(
+                command.settings(),
+                new_parents_commit_id,
+                merged_tree.id().clone(),
+            )
+            .set_description(&args.message)
+            .write()?;
+        num_rebased = target_ids.len();
+        for child_commit in target_commits {
+            rebase_commit(
+                command.settings(),
+                tx.mut_repo(),
+                &child_commit,
+                &[new_commit.clone()],
+            )?;
+        }
+    } else {
+        let merged_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &target_commits);
+        new_commit = tx
+            .mut_repo()
+            .new_commit(command.settings(), target_ids, merged_tree.id().clone())
+            .set_description(&args.message)
+            .write()?;
+    }
+    num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
+    if num_rebased > 0 {
+        writeln!(ui, "Rebased {num_rebased} descendant commits")?;
+    }
     tx.edit(&new_commit).unwrap();
     tx.finish(ui)?;
     Ok(())
