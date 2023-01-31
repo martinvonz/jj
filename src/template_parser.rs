@@ -191,7 +191,9 @@ fn parse_string_method<'a>(name: Pair<Rule>, _args: Pairs<Rule>) -> Property<'a,
     }
     // TODO: validate arguments
     match name.as_str() {
-        "first_line" => Property::String(wrap_fn(|s| s.lines().next().unwrap().to_string())),
+        "first_line" => Property::String(wrap_fn(|s| {
+            s.lines().next().unwrap_or_default().to_string()
+        })),
         name => panic!("no such string method: {name}"),
     }
 }

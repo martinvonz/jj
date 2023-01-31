@@ -105,6 +105,17 @@ fn test_templater_parsed_tree() {
     insta::assert_snapshot!(render(r#"if((divergent), "t", "f")"#), @"f");
 }
 
+#[test]
+fn test_templater_string_method() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |template| get_template_output(&test_env, &repo_path, "@-", template);
+
+    insta::assert_snapshot!(render(r#""".first_line()"#), @"");
+    insta::assert_snapshot!(render(r#""foo\nbar".first_line()"#), @"foo");
+}
+
 fn get_template_output(
     test_env: &TestEnvironment,
     repo_path: &Path,
