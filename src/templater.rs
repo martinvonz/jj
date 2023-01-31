@@ -486,7 +486,14 @@ pub struct CommitOrChangeId<'a> {
     id_bytes: Vec<u8>,
 }
 
-impl CommitOrChangeId<'_> {
+impl<'a> CommitOrChangeId<'a> {
+    pub fn new(repo: RepoRef<'a>, id: &impl ObjectId) -> Self {
+        CommitOrChangeId {
+            repo,
+            id_bytes: id.to_bytes(),
+        }
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         &self.id_bytes
     }
@@ -601,10 +608,7 @@ impl<'a> TemplateProperty<Commit> for CommitIdProperty<'a> {
     type Output = CommitOrChangeId<'a>;
 
     fn extract(&self, context: &Commit) -> Self::Output {
-        CommitOrChangeId {
-            repo: self.repo,
-            id_bytes: context.id().to_bytes(),
-        }
+        CommitOrChangeId::new(self.repo, context.id())
     }
 }
 
@@ -616,10 +620,7 @@ impl<'a> TemplateProperty<Commit> for ChangeIdProperty<'a> {
     type Output = CommitOrChangeId<'a>;
 
     fn extract(&self, context: &Commit) -> Self::Output {
-        CommitOrChangeId {
-            repo: self.repo,
-            id_bytes: context.change_id().to_bytes(),
-        }
+        CommitOrChangeId::new(self.repo, context.change_id())
     }
 }
 
