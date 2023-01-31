@@ -456,6 +456,9 @@ struct NewArgs {
     /// The change description to use
     #[arg(long, short, default_value = "")]
     message: DescriptionArg,
+    /// Allow revsets expanding to multiple commits in a single argument
+    #[arg(long, short = 'L')]
+    allow_large_revsets: bool,
 }
 
 /// Move changes from one revision into another
@@ -731,6 +734,9 @@ struct RebaseArgs {
     /// The revision(s) to rebase onto
     #[arg(long, short, required = true)]
     destination: Vec<RevisionArg>,
+    /// Allow revsets expanding to multiple commits in a single argument
+    #[arg(long, short = 'L')]
+    allow_large_revsets: bool,
 }
 
 /// Apply the reverse of a revision on top of another revision
@@ -1996,9 +2002,13 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
         !args.revisions.is_empty(),
         "expected a non-empty list from clap"
     );
-    let commits = resolve_base_revs(&workspace_command, &args.revisions)?
-        .into_iter()
-        .collect_vec();
+    let commits = resolve_base_revs(
+        &workspace_command,
+        &args.revisions,
+        args.allow_large_revsets,
+    )?
+    .into_iter()
+    .collect_vec();
     let parent_ids = commits.iter().map(|c| c.id().clone()).collect();
     let mut tx = workspace_command.start_transaction("new empty commit");
     let merged_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &commits);
@@ -2677,7 +2687,7 @@ don't make any changes, then the operation will be aborted.
 }
 
 fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), CommandError> {
-    if args.revisions.len() < 2 {
+    if !args.allow_large_revsets && args.revisions.len() < 2 {
         return Err(CommandError::CliError(String::from(
             "Merge requires at least two revisions",
         )));
@@ -2687,9 +2697,13 @@ fn cmd_merge(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(),
 
 fn cmd_rebase(ui: &mut Ui, command: &CommandHelper, args: &RebaseArgs) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let new_parents = resolve_base_revs(&workspace_command, &args.destination)?
-        .into_iter()
-        .collect_vec();
+    let new_parents = resolve_base_revs(
+        &workspace_command,
+        &args.destination,
+        args.allow_large_revsets,
+    )?
+    .into_iter()
+    .collect_vec();
     if let Some(rev_str) = &args.revision {
         rebase_revision(ui, command, &mut workspace_command, &new_parents, rev_str)?;
     } else if let Some(source_str) = &args.source {

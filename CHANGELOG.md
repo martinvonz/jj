@@ -117,6 +117,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Command arguments to `ui.diff-editor`/`ui.merge-editor` can now be specified
   inline without referring to `[merge-tools]` table.
 
+* `jj rebase` now accepts a new `--allow-large-revsets` argument that allows the
+  revset in the `-d` argument to expand to several revisions. For example,
+  `jj rebase -s B -d B- -d C` now works even if `B` is a merge commit.
+
+* `jj new` now also accepts a `--allow-large-revsets` argument that behaves
+  similarly to `jj rebase --allow-large-revsets`.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export
