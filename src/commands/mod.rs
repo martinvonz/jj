@@ -448,6 +448,9 @@ struct NewArgs {
     /// The change description to use
     #[arg(long, short, default_value = "")]
     message: DescriptionArg,
+    /// Rebase the children of the parents onto the new change
+    #[arg(long, short = 'C')]
+    rebase_children: bool,
 }
 
 /// Move changes from one revision into another
@@ -1973,14 +1976,50 @@ fn cmd_new(ui: &mut Ui, command: &CommandHelper, args: &NewArgs) -> Result<(), C
         "expected a non-empty list from clap"
     );
     let commits = resolve_base_revs(&workspace_command, &args.revisions)?;
-    let parent_ids = commits.iter().map(|c| c.id().clone()).collect();
+    let parent_ids = commits.iter().map(|c| c.id().clone()).collect::<Vec<_>>();
     let mut tx = workspace_command.start_transaction("new empty commit");
     let merged_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &commits);
     let new_commit = tx
         .mut_repo()
-        .new_commit(command.settings(), parent_ids, merged_tree.id().clone())
+        .new_commit(
+            command.settings(),
+            parent_ids.clone(),
+            merged_tree.id().clone(),
+        )
         .set_description(&args.message)
         .write()?;
+    let mut num_rebased = 0;
+    if args.rebase_children {
+        let parents = RevsetExpression::commits(parent_ids);
+        let children = tx
+            .base_workspace_helper()
+            .evaluate_revset(&parents.children())?
+            .iter()
+            .map(|c| c.commit_id())
+            .collect::<Vec<_>>();
+        num_rebased = children.len();
+        for child_commit_id in children {
+            let child_commit = tx
+                .base_workspace_helper()
+                .resolve_single_rev(&child_commit_id.hex())?;
+            let commit_parents = RevsetExpression::commit(child_commit_id).parents();
+            let new_parents = commit_parents.minus(&parents);
+            let mut new_parents = tx
+                .base_workspace_helper()
+                .evaluate_revset(&new_parents)?
+                .iter()
+                .map(|p| p.commit_id())
+                .collect::<Vec<_>>();
+            new_parents.push(new_commit.id().clone());
+            tx.mut_repo()
+                .rewrite_commit(command.settings(), &child_commit)
+                .set_parents(new_parents)
+                .write()?;
+        }
+    }
+    if num_rebased > 0 {
+        writeln!(ui, "Rebased {num_rebased} descendant commits")?;
+    }
     tx.edit(&new_commit).unwrap();
     tx.finish(ui)?;
     Ok(())

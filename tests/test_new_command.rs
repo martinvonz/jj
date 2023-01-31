@@ -106,6 +106,73 @@ fn test_new_merge() {
     "###);
 }
 
+#[test]
+fn test_new_rebase_children() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    setup_before_insertion(&test_env, &repo_path);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    @   F
+    |\  
+    o | E
+    | o D
+    |/  
+    | o C
+    | o B
+    | o A
+    |/  
+    o root
+    "###);
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["new", "--rebase-children", "-m", "G", "B", "D"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 2 descendant commits
+    Working copy now at: ca7c6481a8dd G
+    "###);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    o C
+    | o   F
+    | |\  
+    |/ /  
+    @ |   G
+    |\ \  
+    | | o E
+    o | | D
+    | |/  
+    |/|   
+    | o B
+    | o A
+    |/  
+    o root
+    "###);
+}
+
+fn setup_before_insertion(test_env: &TestEnvironment, repo_path: &Path) {
+    test_env.jj_cmd_success(repo_path, &["branch", "create", "A"]);
+    test_env.jj_cmd_success(repo_path, &["commit", "-m", "A"]);
+    test_env.jj_cmd_success(repo_path, &["branch", "create", "B"]);
+    test_env.jj_cmd_success(repo_path, &["commit", "-m", "B"]);
+    test_env.jj_cmd_success(repo_path, &["branch", "create", "C"]);
+    test_env.jj_cmd_success(repo_path, &["describe", "-m", "C"]);
+    test_env.jj_cmd_success(repo_path, &["new", "-m", "D", "root"]);
+    test_env.jj_cmd_success(repo_path, &["branch", "create", "D"]);
+    test_env.jj_cmd_success(repo_path, &["new", "-m", "E", "root"]);
+    test_env.jj_cmd_success(repo_path, &["branch", "create", "E"]);
+    test_env.jj_cmd_success(repo_path, &["new", "-m", "F", "D", "E"]);
+    test_env.jj_cmd_success(repo_path, &["branch", "create", "F"]);
+}
+
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["log", "-T", "commit_id \" \" description"])
+}
+
+fn get_short_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(
+        repo_path,
+        &["log", "-T", r#"if(description, description, "root")"#],
+    )
 }
