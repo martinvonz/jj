@@ -1655,9 +1655,8 @@ impl DescriptionArg {
 }
 
 impl From<String> for DescriptionArg {
-    fn from(mut s: String) -> Self {
-        complete_newline(&mut s);
-        DescriptionArg(s)
+    fn from(s: String) -> Self {
+        DescriptionArg(complete_newline(s))
     }
 }
 
@@ -1673,10 +1672,12 @@ impl AsRef<str> for DescriptionArg {
     }
 }
 
-pub fn complete_newline(s: &mut String) {
+pub fn complete_newline(s: impl Into<String>) -> String {
+    let mut s = s.into();
     if !s.is_empty() && !s.ends_with('\n') {
         s.push('\n');
     }
+    s
 }
 
 #[derive(Clone, Debug)]
