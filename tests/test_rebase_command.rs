@@ -321,10 +321,69 @@ fn test_rebase_multiple_destinations() {
     fe2e8e8b50b3 c
     d370aee184ba b
     "###);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["rebase", "--allow-large-revsets", "-r", "a", "-d", "b|c"],
+    );
+    insta::assert_snapshot!(stdout, @r###""###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o   a
+    |\  
+    @ | c
+    | o b
+    |/  
+    o 
+    "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "b"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: More than one revset resolved to revision d370aee184ba
+    "###);
+
+    // Adding --allow-large-revsets suppresses this error in addition to the large
+    // revsets error.
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "rebase",
+            "-r",
+            "a",
+            "-d",
+            "b",
+            "-d",
+            "b",
+            "--allow-large-revsets",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o a
+    | @ c
+    o | b
+    |/  
+    o 
+    "###);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "rebase",
+            "-r",
+            "a",
+            "-d",
+            "b|c",
+            "-d",
+            "b",
+            "--allow-large-revsets",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    o   a
+    |\  
+    @ | c
+    | o b
+    |/  
+    o 
     "###);
 
     let stderr =

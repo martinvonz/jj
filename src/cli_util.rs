@@ -1412,15 +1412,20 @@ pub fn resolve_multiple_nonempty_revsets(
 pub fn resolve_base_revs(
     workspace_command: &WorkspaceCommandHelper,
     revisions: &[RevisionArg],
+    allow_plural_revsets: bool,
 ) -> Result<IndexSet<Commit>, CommandError> {
     let mut commits = IndexSet::new();
-    for revision_str in revisions {
-        let commit = workspace_command.resolve_single_rev(revision_str)?;
-        let commit_hash = short_commit_hash(commit.id());
-        if !commits.insert(commit) {
-            return Err(user_error(format!(
-                r#"More than one revset resolved to revision {commit_hash}"#,
-            )));
+    if allow_plural_revsets {
+        commits = resolve_multiple_nonempty_revsets(revisions, workspace_command)?;
+    } else {
+        for revision_str in revisions {
+            let commit = workspace_command.resolve_single_rev(revision_str)?;
+            let commit_hash = short_commit_hash(commit.id());
+            if !commits.insert(commit) {
+                return Err(user_error(format!(
+                    r#"More than one revset resolved to revision {commit_hash}"#,
+                )));
+            }
         }
     }
 
