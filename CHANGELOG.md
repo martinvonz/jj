@@ -115,8 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   target commit and its parents.
 
 * jj split gained new `--empty-parent` and `--empty-child` options. They
-  allow inserting an empty parent before or after an empty child after the
-  target commit.
+  allow inserting an empty parent before, or an empty child after the
+  target commit. The non-empty commit will keep the target change id.
 
 ### Fixed bugs
 

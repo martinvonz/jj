@@ -203,8 +203,8 @@ fn test_split_empty_parent() {
     @ 0cffa7997ffe second original child
     | o 48523d946ad2 first original child
     |/  
-    o fdf57e73a939 |target| target_commit
-    o   d043564ef936 (empty)
+    o d043564ef936 |target| target_commit
+    o   fdf57e73a939 (empty)
     |\  
     o | 0757f5ec8418 second original parent
     | o 9a45c67d3e96 first original parent

@@ -2672,20 +2672,25 @@ don't make any changes, then the operation will be aborted.
         second_description =
             edit_description(tx.base_repo(), &second_template, command.settings())?;
     };
-    let first_commit = tx
+    let mut first_commit_builder = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
         .set_tree(tree_id)
-        .set_description(first_description)
-        .write()?;
-    let second_commit = tx
+        .set_description(first_description);
+    if args.empty_parent {
+        first_commit_builder = first_commit_builder.generate_new_change_id();
+    }
+    let first_commit = first_commit_builder.write()?;
+    let mut second_commit_builder = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
         .set_parents(vec![first_commit.id().clone()])
         .set_tree(commit.tree_id().clone())
-        .generate_new_change_id()
-        .set_description(second_description)
-        .write()?;
+        .set_description(second_description);
+    if !args.empty_parent {
+        second_commit_builder = second_commit_builder.generate_new_change_id();
+    }
+    let second_commit = second_commit_builder.write()?;
     let mut rebaser = DescendantRebaser::new(
         command.settings(),
         tx.mut_repo(),
