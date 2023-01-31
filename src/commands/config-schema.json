@@ -99,25 +99,71 @@
         },
         "colors": {
             "type": "object",
-            "description": "Mapping from jj formatter labels to color names",
+            "description": "Mapping from jj formatter labels to colors",
+            "definitions": {
+                "colors": {
+                    "enum": [
+                        "black",
+                        "red",
+                        "green",
+                        "yellow",
+                        "blue",
+                        "magenta",
+                        "cyan",
+                        "white",
+                        "bright black",
+                        "bright red",
+                        "bright green",
+                        "bright yellow",
+                        "bright blue",
+                        "bright magenta",
+                        "bright cyan",
+                        "bright white"
+                    ]
+                },
+                "basicFormatterLabels": {
+                    "enum": [
+                        "description",
+                        "change_id",
+                        "commit_id",
+                        "author",
+                        "committer",
+                        "working_copies",
+                        "current_working_copy",
+                        "branches",
+                        "tags",
+                        "git_refs",
+                        "is_git_head",
+                        "divergent",
+                        "conflict"
+                    ]
+                }
+            },
+            "propertyNames": {
+                "oneOf": [
+                    { "$ref": "#/properties/colors/definitions/basicFormatterLabels" },
+                    { "type": "string" }
+                ]
+            },
             "additionalProperties": {
-                "enum": [
-                    "black",
-                    "red",
-                    "green",
-                    "yellow",
-                    "blue",
-                    "magenta",
-                    "cyan",
-                    "white",
-                    "bright black",
-                    "bright red",
-                    "bright green",
-                    "bright yellow",
-                    "bright blue",
-                    "bright magenta",
-                    "bright cyan",
-                    "bright white"
+                "description": "A color profile for the given formatter label. Either a bare color name used as the foreground color or a table describing color and formatting",
+                "oneOf": [
+                    {
+                        "$ref": "#/properties/colors/definitions/colors"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "fg": { "$ref": "#/properties/colors/definitions/colors" },
+                            "bg": { "$ref": "#/properties/colors/definitions/colors" },
+                            "bold": {
+                                "type": "boolean"
+                            },
+                            "underline": {
+                                "type": "boolean"
+                            }
+                        }
+                    }
                 ]
             }
         },
