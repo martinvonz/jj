@@ -1751,8 +1751,7 @@ fn edit_description(
         .filter(|line| !line.starts_with("JJ: "))
         .join("\n");
     description.truncate(description.trim_end_matches('\n').len());
-    cli_util::complete_newline(&mut description);
-    Ok(description)
+    Ok(cli_util::complete_newline(description))
 }
 
 fn cmd_describe(
