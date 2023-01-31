@@ -266,6 +266,49 @@ fn test_git_colocated_fetch_deleted_branch() {
     "###);
 }
 
+#[test]
+fn test_git_colocated_squash_undo() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    git2::Repository::init(&repo_path).unwrap();
+    test_env.jj_cmd_success(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_success(&repo_path, &["ci", "-m=A"]);
+    // Test the setup
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    @ 8e4fac809cbb 8f71e3b6a3be (no description set) 
+    o 9a45c67d3e96 a86754f975f9 A master
+    o 000000000000 000000000000 (no description set) 
+    "###);
+
+    test_env.jj_cmd_success(&repo_path, &["squash"]);
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    @ 0757f5ec8418 f0c12b0396d9 (no description set) 
+    o 9a45c67d3e96 2f376ea1478c A master
+    o 000000000000 000000000000 (no description set) 
+    "###);
+    test_env.jj_cmd_success(&repo_path, &["undo"]);
+    // TODO: There should be no divergence here; 2f376ea1478c should be hidden
+    // (#922)
+    insta::assert_snapshot!(get_log_output_divergence(&test_env, &repo_path), @r###"
+    o 9a45c67d3e96 2f376ea1478c A master !divergence!
+    | @ 8e4fac809cbb 8f71e3b6a3be (no description set) 
+    | o 9a45c67d3e96 a86754f975f9 A  !divergence!
+    |/  
+    o 000000000000 000000000000 (no description set) 
+    "###);
+}
+
+fn get_log_output_divergence(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(
+        repo_path,
+        &[
+            "log",
+            "-T",
+            r#"change_id.short() " " commit_id.short() " " description.first_line() " " branches if(divergent, " !divergence!")"#,
+        ],
+    )
+}
+
 fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
     test_env.jj_cmd_success(
         workspace_root,
