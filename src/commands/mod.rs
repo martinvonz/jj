@@ -30,7 +30,7 @@ use jujutsu_lib::backend::{CommitId, ObjectId, TreeValue};
 use jujutsu_lib::commit::Commit;
 use jujutsu_lib::dag_walk::topo_order_reverse;
 use jujutsu_lib::index::IndexEntry;
-use jujutsu_lib::matchers::EverythingMatcher;
+use jujutsu_lib::matchers::{EverythingMatcher, NothingMatcher};
 use jujutsu_lib::op_store::{RefTarget, WorkspaceId};
 use jujutsu_lib::repo::ReadonlyRepo;
 use jujutsu_lib::repo_path::RepoPath;
@@ -631,10 +631,21 @@ struct DiffeditArgs {
 /// the previous revision. The remaining changes will be put in a new revision
 /// on top. You will be asked to enter a change description for each.
 #[derive(clap::Args, Clone, Debug)]
+#[command(group(ArgGroup::new("arg").args(&["empty_parent", "empty_child", "paths"])))]
 struct SplitArgs {
     /// The revision to split
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
+    /// Add a new empty commit between the commit and its parent
+    ///
+    /// This option must be used alone and does not ask for a description
+    #[arg(long, short = 'P', alias = "parent_empty")]
+    empty_parent: bool,
+    /// Add a new empty commit between the commit and its children if any
+    ///
+    /// This option must be used alone and does not ask for a description
+    #[arg(long, short = 'C', alias = "child_empty")]
+    empty_child: bool,
     /// Put these paths in the first commit and don't run the diff editor
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -2590,11 +2601,17 @@ fn cmd_split(ui: &mut Ui, command: &CommandHelper, args: &SplitArgs) -> Result<(
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewritable(&commit)?;
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let matcher = if args.empty_child {
+        Box::new(EverythingMatcher)
+    } else if args.empty_parent {
+        Box::new(NothingMatcher)
+    } else {
+        workspace_command.matcher_from_values(&args.paths)?
+    };
     let mut tx =
         workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
     let base_tree = merge_commit_trees(tx.base_repo().as_repo_ref(), &commit.parents());
-    let interactive = args.paths.is_empty();
+    let interactive = args.paths.is_empty() && !args.empty_child && !args.empty_parent;
     let instructions = format!(
         "\
 You are splitting a commit in two: {}
@@ -2623,7 +2640,7 @@ don't make any changes, then the operation will be aborted.
         .base_repo()
         .store()
         .get_tree(&RepoPath::root(), &tree_id)?;
-    if middle_tree.id() == base_tree.id() {
+    if middle_tree.id() == base_tree.id() && !args.empty_parent {
         writeln!(
             ui.warning(),
             "The given paths do not match any file: {}",
@@ -2631,29 +2648,36 @@ don't make any changes, then the operation will be aborted.
         )?;
     }
 
-    let first_template = description_template_for_cmd_split(
-        tx.base_workspace_helper(),
-        "Enter commit description for the first part (parent).",
-        commit.description(),
-        &base_tree,
-        &middle_tree,
-    )?;
-    let first_description = edit_description(tx.base_repo(), &first_template, command.settings())?;
+    let (mut first_description, mut second_description) = (String::new(), String::new());
+    if args.empty_child {
+        first_description = commit.description().to_owned();
+    } else if args.empty_parent {
+        second_description = commit.description().to_owned();
+    } else {
+        let first_template = description_template_for_cmd_split(
+            tx.base_workspace_helper(),
+            "Enter commit description for the first part (parent).",
+            commit.description(),
+            &base_tree,
+            &middle_tree,
+        )?;
+        first_description = edit_description(tx.base_repo(), &first_template, command.settings())?;
+        let second_template = description_template_for_cmd_split(
+            tx.base_workspace_helper(),
+            "Enter commit description for the second part (child).",
+            commit.description(),
+            &middle_tree,
+            &commit.tree(),
+        )?;
+        second_description =
+            edit_description(tx.base_repo(), &second_template, command.settings())?;
+    };
     let first_commit = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
         .set_tree(tree_id)
         .set_description(first_description)
         .write()?;
-    let second_template = description_template_for_cmd_split(
-        tx.base_workspace_helper(),
-        "Enter commit description for the second part (child).",
-        commit.description(),
-        &middle_tree,
-        &commit.tree(),
-    )?;
-    let second_description =
-        edit_description(tx.base_repo(), &second_template, command.settings())?;
     let second_commit = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)

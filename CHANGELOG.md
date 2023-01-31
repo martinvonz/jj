@@ -114,6 +114,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `jj split any-non-existent-path` inserts an empty commit between the
   target commit and its parents.
 
+* jj split gained new `--empty-parent` and `--empty-child` options. They
+  allow inserting an empty parent before or after an empty child after the
+  target commit.
+
 ### Fixed bugs
 
 * When sharing the working copy with a Git repo, we used to forget to export

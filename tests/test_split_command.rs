@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::{Path, PathBuf};
+
 use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
 pub mod common;
@@ -137,4 +139,119 @@ fn test_split_by_paths() {
     insta::assert_snapshot!(stdout, @r###"
     A file2
     "###);
+}
+
+#[test]
+fn test_split_empty_child() {
+    let (test_env, repo_path) = setup_split_for_empty();
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @ 0cffa7997ffe second original child
+    | o 48523d946ad2 first original child
+    |/  
+    o   d043564ef936 |target| target_commit
+    |\  
+    o | 0757f5ec8418 second original parent
+    | o 9a45c67d3e96 first original parent
+    |/  
+    o 000000000000 (empty) 
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["split", "-r", "@-", "--empty-child"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 2 descendant commits
+    First part: a993a447ac69 target_commit
+    Second part: 84f59c80ebce (no description set)
+    Working copy now at: 166713ad11c5 second original child
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @ 0cffa7997ffe second original child
+    | o 48523d946ad2 first original child
+    |/  
+    o fdf57e73a939 (empty) |target|
+    o   d043564ef936 target_commit
+    |\  
+    o | 0757f5ec8418 second original parent
+    | o 9a45c67d3e96 first original parent
+    |/  
+    o 000000000000 (empty)
+    "###);
+}
+
+#[test]
+fn test_split_empty_parent() {
+    let (test_env, repo_path) = setup_split_for_empty();
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @ 0cffa7997ffe second original child
+    | o 48523d946ad2 first original child
+    |/  
+    o   d043564ef936 |target| target_commit
+    |\  
+    o | 0757f5ec8418 second original parent
+    | o 9a45c67d3e96 first original parent
+    |/  
+    o 000000000000 (empty) 
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["split", "-r", "@-", "--empty-parent"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Rebased 2 descendant commits
+    First part: dbe80808baf3 (no description set)
+    Second part: 8727315222b7 target_commit
+    Working copy now at: d2624a76a1e5 second original child
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @ 0cffa7997ffe second original child
+    | o 48523d946ad2 first original child
+    |/  
+    o fdf57e73a939 |target| target_commit
+    o   d043564ef936 (empty)
+    |\  
+    o | 0757f5ec8418 second original parent
+    | o 9a45c67d3e96 first original parent
+    |/  
+    o 000000000000 (empty)
+    "###);
+}
+
+/// Setup a repo containing a target commit at @- with two parents and two
+/// children.
+fn setup_split_for_empty() -> (TestEnvironment, PathBuf) {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "foo").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first original parent"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "fop"]);
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "second original parent", "root"]);
+    std::fs::write(repo_path.join("file2"), "foo").unwrap();
+
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "target_commit", "@", "fop"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "forget", "fop"]);
+    test_env.jj_cmd_success(&repo_path, &["branch", "create", "target"]);
+    std::fs::write(repo_path.join("file3"), "foo").unwrap();
+
+    test_env.jj_cmd_success(&repo_path, &["new", "-m", "first original child"]);
+    std::fs::write(repo_path.join("file4"), "foo").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["describe", "-m", "first original child"]);
+
+    test_env.jj_cmd_success(
+        &repo_path,
+        &["new", "-r", "@-", "-m", "second original child"],
+    );
+    std::fs::write(repo_path.join("file4"), "foo").unwrap();
+    (test_env, repo_path)
+}
+
+fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(
+        repo_path,
+        &[
+            "log",
+            "-T",
+            r#"change_id.short() if(empty, " (empty)")
+            if(branches, " |" branches "|")
+            if(description, " " description)"#,
+        ],
+    )
 }
