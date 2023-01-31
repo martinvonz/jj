@@ -2591,6 +2591,13 @@ don't make any changes, then the operation will be aborted.
         .base_repo()
         .store()
         .get_tree(&RepoPath::root(), &tree_id)?;
+    if middle_tree.id() == base_tree.id() {
+        writeln!(
+            ui.warning(),
+            "The given paths do not match any file: {}",
+            args.paths.join(" ")
+        )?;
+    }
 
     let first_template = description_template_for_cmd_split(
         tx.base_workspace_helper(),
