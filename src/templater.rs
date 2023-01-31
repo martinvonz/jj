@@ -507,6 +507,19 @@ impl CommitOrChangeId<'_> {
             format!("{prefix}[{rest}]")
         }
     }
+
+    pub fn shortest_styled_prefix(&self) -> IdWithHighlightedPrefix {
+        let hex = self.hex();
+        let (prefix, rest) = extract_entire_prefix_and_trimmed_tail(
+            &hex,
+            self.repo.shortest_unique_id_prefix_len(self.as_bytes()),
+            12,
+        );
+        IdWithHighlightedPrefix {
+            prefix: prefix.to_string(),
+            rest: rest.to_string(),
+        }
+    }
 }
 
 impl Template<()> for CommitOrChangeId<'_> {
@@ -578,18 +591,7 @@ impl TemplateProperty<CommitOrChangeId<'_>> for HighlightPrefix {
     type Output = IdWithHighlightedPrefix;
 
     fn extract(&self, context: &CommitOrChangeId) -> Self::Output {
-        let hex = context.hex();
-        let (prefix, rest) = extract_entire_prefix_and_trimmed_tail(
-            &hex,
-            context
-                .repo
-                .shortest_unique_id_prefix_len(context.as_bytes()),
-            12,
-        );
-        IdWithHighlightedPrefix {
-            prefix: prefix.to_string(),
-            rest: rest.to_string(),
-        }
+        context.shortest_styled_prefix()
     }
 }
 
