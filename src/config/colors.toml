@@ -13,7 +13,7 @@
 "prefix" = { bold = true}
 "rest" = "bright black"
 "divergent rest" = "red"
-"divergent prefix" = {fg = "red", underlined=true}
+"divergent prefix" = {fg = "red", underline=true}
 
 "email" = "yellow"
 "timestamp" = "cyan"
