@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -82,54 +84,29 @@ fn test_templater_parsed_tree() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_success(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
+    let render = |template| get_template_output(&test_env, &repo_path, "@-", template);
 
     // Empty
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r@-", "-T", r#"  "#]);
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(render(r#"  "#), @"");
 
     // Single term with whitespace
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "log",
-            "--no-graph",
-            "-r@-",
-            "-T",
-            r#"  commit_id.short()  "#,
-        ],
-    );
-    insta::assert_snapshot!(stdout, @"000000000000");
+    insta::assert_snapshot!(render(r#"  commit_id.short()  "#), @"000000000000");
 
     // Multiple terms
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "log",
-            "--no-graph",
-            "-r@-",
-            "-T",
-            r#"  commit_id.short()  empty "#,
-        ],
-    );
-    insta::assert_snapshot!(stdout, @"000000000000true");
+    insta::assert_snapshot!(render(r#"  commit_id.short()  empty "#), @"000000000000true");
 
     // Parenthesized single term
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &["log", "--no-graph", "-r@-", "-T", r#"(commit_id.short())"#],
-    );
-    insta::assert_snapshot!(stdout, @"000000000000");
+    insta::assert_snapshot!(render(r#"(commit_id.short())"#), @"000000000000");
 
     // Parenthesized multiple terms and concatenation
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "log",
-            "--no-graph",
-            "-r@-",
-            "-T",
-            r#"(commit_id.short() " ") empty"#,
-        ],
-    );
-    insta::assert_snapshot!(stdout, @"000000000000 true");
+    insta::assert_snapshot!(render(r#"(commit_id.short() " ") empty"#), @"000000000000 true");
+}
+
+fn get_template_output(
+    test_env: &TestEnvironment,
+    repo_path: &Path,
+    rev: &str,
+    template: &str,
+) -> String {
+    test_env.jj_cmd_success(repo_path, &["log", "--no-graph", "-r", rev, "-T", template])
 }
