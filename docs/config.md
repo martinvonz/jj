@@ -76,7 +76,7 @@ for the foreground color. You can also set the background color, or make the
 text bold or underlined. For that, you need to use a table:
 
 ```toml
-colors.commit_id = { fg = "green", bg = "red", bold = true, underlined = true }
+colors.commit_id = { fg = "green", bg = "red", bold = true, underline = true }
 ```
 
 The key names are called "labels". The above used `commit_id` as label. You can
@@ -87,7 +87,7 @@ this:
 
 ```toml
 colors.commit_id = "green"
-colors."working_copy commit_id" = { underlined = true }
+colors."working_copy commit_id" = { underline = true }
 ```
 
 Parts of the style that are not overridden - such as the foreground color in the

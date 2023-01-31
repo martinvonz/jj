@@ -355,7 +355,7 @@ fn rules_from_config(config: &config::Config) -> Result<Rules, config::ConfigErr
                         style.bold = Some(*value);
                     }
                 }
-                if let Some(value) = style_table.get("underlined") {
+                if let Some(value) = style_table.get("underline") {
                     if let config::ValueKind::Boolean(value) = &value.kind {
                         style.underlined = Some(*value);
                     }
@@ -598,8 +598,8 @@ mod tests {
         colors.red_fg = { fg = "red" }
         colors.blue_bg = { bg = "blue" }
         colors.bold_font = { bold = true }
-        colors.underlined_text = { underlined = true }
-        colors.multiple = { fg = "green", bg = "yellow", bold = true, underlined = true }
+        colors.underlined_text = { underline = true }
+        colors.multiple = { fg = "green", bg = "yellow", bold = true, underline = true }
         "#,
         );
         let mut output: Vec<u8> = vec![];
@@ -645,7 +645,7 @@ mod tests {
         // Test that we don't lose other attributes when we reset the bold attribute.
         let config = config_from_string(
             r#"
-        colors.not_bold = { fg = "red", bg = "blue", underlined = true }
+        colors.not_bold = { fg = "red", bg = "blue", underline = true }
         colors.bold_font = { bold = true }
         "#,
         );
