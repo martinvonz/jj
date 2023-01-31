@@ -561,6 +561,38 @@ mod tests {
     }
 }
 
+pub struct IdWithHighlightedPrefix {
+    prefix: String,
+    rest: String,
+}
+
+impl Template<()> for IdWithHighlightedPrefix {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        formatter.with_label("prefix", |fmt| fmt.write_str(&self.prefix))?;
+        formatter.with_label("rest", |fmt| fmt.write_str(&self.rest))
+    }
+}
+
+pub struct HighlightPrefix;
+impl TemplateProperty<CommitOrChangeId<'_>> for HighlightPrefix {
+    type Output = IdWithHighlightedPrefix;
+
+    fn extract(&self, context: &CommitOrChangeId) -> Self::Output {
+        let hex = context.hex();
+        let (prefix, rest) = extract_entire_prefix_and_trimmed_tail(
+            &hex,
+            context
+                .repo
+                .shortest_unique_id_prefix_len(context.as_bytes()),
+            12,
+        );
+        IdWithHighlightedPrefix {
+            prefix: prefix.to_string(),
+            rest: rest.to_string(),
+        }
+    }
+}
+
 pub struct CommitOrChangeIdShort;
 
 impl TemplateProperty<CommitOrChangeId<'_>> for CommitOrChangeIdShort {
