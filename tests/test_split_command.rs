@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::common::TestEnvironment;
+use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
 pub mod common;
 
@@ -110,12 +110,18 @@ fn test_split_by_paths() {
 
     // Insert an empty commit before @- with "split nonexistent"
     test_env.set_up_fake_editor();
-    let stdout = test_env.jj_cmd_success(&repo_path, &["split", "-r", "@-", "nonexistent"]);
-    insta::assert_snapshot!(stdout, @r###"
+    let assert = test_env
+        .jj_cmd(&repo_path, &["split", "-r", "@-", "nonexistent"])
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stdout_string(&assert), @r###"
     Rebased 1 descendant commits
     First part: 0647b2cbd0da (no description set)
     Second part: d5d77af65446 (no description set)
     Working copy now at: 86f228dc3a50 (no description set)
+    "###);
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    The given paths do not match any file: nonexistent
     "###);
 
     let stdout =
