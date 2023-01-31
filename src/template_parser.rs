@@ -27,9 +27,9 @@ use crate::templater::{
     CommitOrChangeIdShort, CommitOrChangeIdShortestPrefixAndBrackets, CommitterProperty,
     ConditionalTemplate, ConflictProperty, DescriptionProperty, DivergentProperty,
     DynamicLabelTemplate, EmptyProperty, FormattablePropertyTemplate, GitHeadProperty,
-    GitRefsProperty, IsWorkingCopyProperty, LabelTemplate, ListTemplate, Literal,
-    SignatureTimestamp, TagProperty, Template, TemplateFunction, TemplateProperty,
-    WorkingCopiesProperty,
+    GitRefsProperty, HighlightPrefix, IdWithHighlightedPrefix, IsWorkingCopyProperty,
+    LabelTemplate, ListTemplate, Literal, SignatureTimestamp, TagProperty, Template,
+    TemplateFunction, TemplateProperty, WorkingCopiesProperty,
 };
 use crate::time_util;
 
@@ -101,6 +101,7 @@ enum Property<'a, I> {
     String(Box<dyn TemplateProperty<I, Output = String> + 'a>),
     Boolean(Box<dyn TemplateProperty<I, Output = bool> + 'a>),
     CommitOrChangeId(Box<dyn TemplateProperty<I, Output = CommitOrChangeId<'a>> + 'a>),
+    IdWithHighlightedPrefix(Box<dyn TemplateProperty<I, Output = IdWithHighlightedPrefix> + 'a>),
     Signature(Box<dyn TemplateProperty<I, Output = Signature> + 'a>),
     Timestamp(Box<dyn TemplateProperty<I, Output = Timestamp> + 'a>),
 }
@@ -121,6 +122,9 @@ impl<'a, I: 'a> Property<'a, I> {
             Property::CommitOrChangeId(property) => {
                 Property::CommitOrChangeId(chain(first, property))
             }
+            Property::IdWithHighlightedPrefix(property) => {
+                Property::IdWithHighlightedPrefix(chain(first, property))
+            }
             Property::Signature(property) => Property::Signature(chain(first, property)),
             Property::Timestamp(property) => Property::Timestamp(chain(first, property)),
         }
@@ -136,6 +140,7 @@ impl<'a, I: 'a> Property<'a, I> {
             Property::String(property) => wrap(property),
             Property::Boolean(property) => wrap(property),
             Property::CommitOrChangeId(property) => wrap(property),
+            Property::IdWithHighlightedPrefix(property) => wrap(property),
             Property::Signature(property) => wrap(property),
             Property::Timestamp(property) => wrap(property),
         }
@@ -164,6 +169,9 @@ fn parse_method_chain<'a, I: 'a>(
             Property::Boolean(property) => parse_boolean_method(name, args).after(property),
             Property::CommitOrChangeId(property) => {
                 parse_commit_or_change_id_method(name, args).after(property)
+            }
+            Property::IdWithHighlightedPrefix(_property) => {
+                panic!("Commit or change ids with styled prefix don't have any methods")
             }
             Property::Signature(property) => parse_signature_method(name, args).after(property),
             Property::Timestamp(property) => parse_timestamp_method(name, args).after(property),
@@ -195,6 +203,7 @@ fn parse_commit_or_change_id_method<'a>(
         "shortest_prefix_and_brackets" => {
             Property::String(Box::new(CommitOrChangeIdShortestPrefixAndBrackets))
         }
+        "shortest_styled_prefix" => Property::IdWithHighlightedPrefix(Box::new(HighlightPrefix)),
         name => panic!("no such commit ID method: {name}"),
     }
 }
